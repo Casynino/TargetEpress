@@ -1,0 +1,59 @@
+import { Prisma } from "@prisma/client";
+import { format, formatDistanceToNowStrict } from "date-fns";
+
+type Numeric = number | string | Prisma.Decimal | null | undefined;
+
+export function toNumber(value: Numeric): number {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "number") return value;
+  return Number(value.toString());
+}
+
+export function formatMoney(value: Numeric, currency = "TZS") {
+  const n = toNumber(value);
+  return `${currency} ${n.toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+export function formatWeight(value: Numeric) {
+  const n = toNumber(value);
+  return `${n.toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  })} kg`;
+}
+
+export function formatDate(value: Date | string | null | undefined) {
+  if (!value) return "—";
+  return format(new Date(value), "dd MMM yyyy");
+}
+
+export function formatDateTime(value: Date | string | null | undefined) {
+  if (!value) return "—";
+  return format(new Date(value), "dd MMM yyyy, HH:mm");
+}
+
+export function formatRelative(value: Date | string | null | undefined) {
+  if (!value) return "—";
+  return `${formatDistanceToNowStrict(new Date(value))} ago`;
+}
+
+/**
+ * Tanzanian numbers get typed in half a dozen shapes (0762…, +255762…,
+ * 255762…). Normalise to +255XXXXXXXXX so customer lookup actually matches.
+ */
+export function normalisePhone(input: string): string {
+  const digits = input.replace(/[^\d+]/g, "").replace(/^\+/, "");
+  if (digits.startsWith("255")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+255${digits.slice(1)}`;
+  if (digits.startsWith("86")) return `+${digits}`; // China
+  if (digits.length === 9) return `+255${digits}`;
+  return `+${digits}`;
+}
+
+/** Tracking / batch numbers are typed by hand constantly — be forgiving. */
+export function normaliseCode(input: string) {
+  return input.trim().toUpperCase().replace(/\s+/g, "");
+}

@@ -1,0 +1,321 @@
+"use client";
+
+import { useActionState, useState } from "react";
+import type { Role, ShipmentStatus } from "@prisma/client";
+import { Ban, QrCode, ReceiptText, Wallet } from "lucide-react";
+
+import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  issuePickupNote,
+  recordPayment,
+  saveInvoice,
+} from "@/lib/actions/finance";
+import { cancelShipment } from "@/lib/actions/shipments";
+import type { ActionResult } from "@/lib/actions/types";
+import { PAYMENT_METHOD_LABELS, enumOptions } from "@/lib/constants";
+import { can } from "@/lib/rbac";
+
+type Props = {
+  shipmentId: string;
+  status: ShipmentStatus;
+  role: Role;
+  hasInvoice: boolean;
+  invoiceId: string | null;
+  outstanding: number | null;
+  currency: string;
+  pickupNoteNumber: string | null;
+  pickupNoteStatus: string | null;
+  defaultFreight: number;
+};
+
+/**
+ * Everything a signed-in user is allowed to do to this shipment right now.
+ * Actions appear only when both the role and the shipment's state permit them,
+ * so nobody is offered a button that will simply fail.
+ */
+export function ShipmentActions(props: Props) {
+  const { role, status } = props;
+
+  const canInvoice = can(role, "invoice.manage");
+  const canPay = can(role, "payment.record") && props.hasInvoice;
+  const canIssueNote =
+    can(role, "pickupNote.issue") &&
+    status === "RECEIVED_AT_DAR" &&
+    props.outstanding !== null &&
+    props.outstanding <= 0;
+  const canCancel =
+    can(role, "shipment.cancel") &&
+    status !== "DELIVERED" &&
+    status !== "CANCELLED";
+
+  const anything = canInvoice || canPay || canIssueNote || canCancel;
+  if (!anything) return null;
+
+  return (
+    <section className="rounded-xl border bg-card shadow-soft">
+      <h2 className="border-b px-5 py-3.5 text-sm font-semibold">Actions</h2>
+      <div className="divide-y">
+        {canInvoice ? <InvoicePanel {...props} /> : null}
+        {canPay ? <PaymentPanel {...props} /> : null}
+        {can(role, "pickupNote.issue") ? <PickupNotePanel {...props} /> : null}
+        {canCancel ? <CancelPanel shipmentId={props.shipmentId} /> : null}
+      </div>
+    </section>
+  );
+}
+
+function InvoicePanel(props: Props) {
+  const [open, setOpen] = useState(false);
+  const [state, action] = useActionState<ActionResult, FormData>(saveInvoice, {
+    ok: true,
+  });
+
+  return (
+    <div className="p-5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 text-sm font-medium"
+      >
+        <ReceiptText className="h-4 w-4 text-brand" />
+        {props.hasInvoice ? "Adjust invoice" : "Raise invoice"}
+      </button>
+
+      {open ? (
+        <form action={action} className="mt-4 space-y-3">
+          <input type="hidden" name="shipmentId" value={props.shipmentId} />
+          <div className="space-y-1.5">
+            <Label htmlFor="freightCost" className="text-xs">
+              Freight ({props.currency})
+            </Label>
+            <Input
+              id="freightCost"
+              name="freightCost"
+              type="number"
+              min="0"
+              step="1"
+              defaultValue={props.defaultFreight || ""}
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Suggested from rate × weight. Override if the deal differs.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="otherCharges" className="text-xs">
+                Other charges
+              </Label>
+              <Input id="otherCharges" name="otherCharges" type="number" min="0" step="1" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="discount" className="text-xs">
+                Discount
+              </Label>
+              <Input id="discount" name="discount" type="number" min="0" step="1" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="invoiceNotes" className="text-xs">
+              Notes
+            </Label>
+            <Textarea id="invoiceNotes" name="notes" rows={2} />
+          </div>
+          <FormError state={state} />
+          <SubmitButton variant="brand" size="sm" pendingLabel="Saving…">
+            Save invoice
+          </SubmitButton>
+        </form>
+      ) : null}
+    </div>
+  );
+}
+
+function PaymentPanel(props: Props) {
+  const [open, setOpen] = useState(false);
+  const [state, action] = useActionState<
+    ActionResult<{ receiptNumber: string }>,
+    FormData
+  >(recordPayment, { ok: true });
+
+  const settled = props.outstanding !== null && props.outstanding <= 0;
+
+  return (
+    <div className="p-5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 text-sm font-medium"
+        disabled={settled}
+      >
+        <Wallet className="h-4 w-4 text-brand" />
+        {settled ? "Settled in full" : "Record payment"}
+      </button>
+
+      {open && !settled ? (
+        <form action={action} className="mt-4 space-y-3">
+          <input type="hidden" name="invoiceId" value={props.invoiceId ?? ""} />
+          <div className="space-y-1.5">
+            <Label htmlFor="amount" className="text-xs">
+              Amount ({props.currency})
+            </Label>
+            <Input
+              id="amount"
+              name="amount"
+              type="number"
+              min="1"
+              step="1"
+              defaultValue={props.outstanding ?? ""}
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="method" className="text-xs">
+              Method
+            </Label>
+            <NativeSelect id="method" name="method" defaultValue="CASH">
+              {enumOptions(PAYMENT_METHOD_LABELS).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="reference" className="text-xs">
+              Reference
+            </Label>
+            <Input
+              id="reference"
+              name="reference"
+              placeholder="M-Pesa ID, slip or cheque number"
+            />
+          </div>
+          <FormError state={state} />
+          <FormSuccess
+            message={
+              state.ok && state.data?.receiptNumber
+                ? `Receipt ${state.data.receiptNumber} issued.`
+                : null
+            }
+          />
+          <SubmitButton variant="brand" size="sm" pendingLabel="Recording…">
+            Record payment
+          </SubmitButton>
+        </form>
+      ) : null}
+    </div>
+  );
+}
+
+function PickupNotePanel(props: Props) {
+  const [state, action] = useActionState<
+    ActionResult<{ noteNumber: string }>,
+    FormData
+  >(issuePickupNote, { ok: true });
+
+  if (props.pickupNoteNumber && props.pickupNoteStatus !== "CANCELLED") {
+    return (
+      <div className="p-5">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <QrCode className="h-4 w-4 text-success" />
+          Pickup note {props.pickupNoteNumber}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {props.pickupNoteStatus === "USED"
+            ? "Used — cargo collected."
+            : "Active — the customer can collect."}
+        </p>
+      </div>
+    );
+  }
+
+  const blocked =
+    props.status !== "RECEIVED_AT_DAR" ||
+    props.outstanding === null ||
+    props.outstanding > 0;
+
+  return (
+    <div className="p-5">
+      <form action={action} className="space-y-3">
+        <input type="hidden" name="shipmentId" value={props.shipmentId} />
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <QrCode className="h-4 w-4 text-brand" />
+          Issue pickup note
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {blocked
+            ? "Available once the cargo is checked in at Dar and the invoice is settled in full."
+            : "This clears the cargo for release and notifies the warehouse."}
+        </p>
+        <FormError state={state} />
+        <FormSuccess
+          message={
+            state.ok && state.data?.noteNumber
+              ? `Pickup note ${state.data.noteNumber} issued.`
+              : null
+          }
+        />
+        <SubmitButton
+          variant="brand"
+          size="sm"
+          disabled={blocked}
+          pendingLabel="Issuing…"
+        >
+          Issue pickup note
+        </SubmitButton>
+      </form>
+    </div>
+  );
+}
+
+function CancelPanel({ shipmentId }: { shipmentId: string }) {
+  const [open, setOpen] = useState(false);
+  const [state, action] = useActionState<ActionResult, FormData>(cancelShipment, {
+    ok: true,
+  });
+
+  return (
+    <div className="p-5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 text-sm font-medium text-destructive"
+      >
+        <Ban className="h-4 w-4" />
+        Cancel shipment
+      </button>
+
+      {open ? (
+        <form action={action} className="mt-4 space-y-3">
+          <input type="hidden" name="shipmentId" value={shipmentId} />
+          <div className="space-y-1.5">
+            <Label htmlFor="reason" className="text-xs">
+              Reason
+            </Label>
+            <Textarea id="reason" name="reason" rows={2} required />
+          </div>
+          <FormError state={state} />
+          <div className="flex gap-2">
+            <SubmitButton variant="destructive" size="sm" pendingLabel="Cancelling…">
+              Confirm cancel
+            </SubmitButton>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpen(false)}
+            >
+              Keep it
+            </Button>
+          </div>
+        </form>
+      ) : null}
+    </div>
+  );
+}
