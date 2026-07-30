@@ -3,6 +3,12 @@
 import { revalidatePath } from "next/cache";
 
 import { recordAudit } from "@/lib/audit";
+import {
+  AIRPORT_LABELS,
+  CATEGORY_LABELS,
+  categoryFitsRoute,
+  routeFor,
+} from "@/lib/cargo";
 import { nextBatchNumber } from "@/lib/ids";
 import { prisma } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -80,6 +86,7 @@ export async function setShipmentBatch(
           id: true,
           status: true,
           trackingNumber: true,
+          cargoCategory: true,
           batch: { select: { id: true, status: true, batchNumber: true } },
         },
       });
@@ -101,6 +108,15 @@ export async function setShipmentBatch(
         if (!batch) throw new Error("Batch not found.");
         if (batch.status !== "OPEN") {
           throw new Error("That batch is sealed and cannot take more cargo.");
+        }
+
+        // Route guard. Electronics and liquids fly Hong Kong; normal goods fly
+        // Guangzhou. Mixing them would put cargo on a flight from an airport it
+        // is not sitting in, so this is refused rather than warned about.
+        if (!categoryFitsRoute(shipment.cargoCategory, batch.origin)) {
+          throw new Error(
+            `${shipment.trackingNumber} is ${CATEGORY_LABELS[shipment.cargoCategory].toLowerCase()}, which flies from ${AIRPORT_LABELS[routeFor(shipment.cargoCategory)]}. ${batch.batchNumber} departs ${AIRPORT_LABELS[batch.origin]}.`
+          );
         }
 
         await tx.shipment.update({

@@ -4,7 +4,7 @@ import { HelpCircle, Package, Scale, Timer } from "lucide-react";
 
 import { RateCalculator } from "@/components/site/rate-calculator";
 import { Button } from "@/components/ui/button";
-import { hasPublishedRates } from "@/lib/pricing";
+import { cargoTypesByCategory } from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "Kikokotoo cha bei · Shipping calculator",
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CalculatorPage() {
-  const hasRealRates = await hasPublishedRates();
+  const typesByCategory = await cargoTypesByCategory();
 
   return (
     <div className="container py-12 md:py-16">
@@ -36,7 +36,7 @@ export default async function CalculatorPage() {
       </div>
 
       <div className="mx-auto mt-10 max-w-6xl">
-        <RateCalculator hasRealRates={hasRealRates} />
+        <RateCalculator typesByCategory={typesByCategory} />
       </div>
 
       {/* How pricing works — pre-empts the questions the calculator provokes */}

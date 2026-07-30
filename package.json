@@ -2,7 +2,7 @@
   "name": "target-express",
   "version": "0.1.0",
   "private": true,
-  "description": "Target Express Air Cargo — public tracking site + internal air cargo operations system (China → Tanzania).",
+  "description": "Target Express Air Cargo \u2014 public tracking site + internal air cargo operations system (China \u2192 Tanzania).",
   "engines": {
     "node": ">=18.18"
   },
@@ -17,7 +17,10 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:reset": "prisma db push --force-reset && npm run db:seed",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:seed:pricing": "tsx prisma/seed-pricing.ts",
+    "verify:pricing": "tsx --conditions=react-server prisma/verify-pricing.ts",
+    "import:packing-list": "tsx prisma/import-packing-list.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -1,12 +1,15 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import type { CargoCategory } from "@prisma/client";
 import {
   AlertCircle,
   ArrowRight,
   Calculator,
   Info,
   MessageCircle,
+  Package,
+  Plane,
   Scale,
 } from "lucide-react";
 
@@ -17,151 +20,165 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { estimateQuote } from "@/lib/actions/quote";
 import type { ActionResult } from "@/lib/actions/types";
-import { COMPANY, GOODS_TYPE_LABELS, ORIGIN_LABELS, enumOptions } from "@/lib/constants";
+import {
+  AIRPORT_LABELS,
+  CATEGORY_EXAMPLES,
+  CATEGORY_LABELS,
+  METHOD_LABELS,
+  ROUTE_FOR_CATEGORY,
+} from "@/lib/cargo";
+import { COMPANY } from "@/lib/constants";
 import type { Quote } from "@/lib/pricing";
 
-const METHODS = [
-  { value: "AIR_NORMAL", label: "Air cargo — standard", note: "Our usual service" },
-  { value: "AIR_EXPRESS", label: "Air cargo — express", note: "Priority on the next flight" },
-  { value: "SEA_FREIGHT", label: "Sea freight", note: "Cheaper, much slower" },
+const CATEGORIES: CargoCategory[] = [
+  "NORMAL_GOODS",
+  "ELECTRONICS",
+  "LIQUID_SPECIAL",
 ];
 
-const BASIS_COPY: Record<string, string> = {
-  actual: "Priced on the scale weight of your cargo.",
-  volumetric:
-    "Priced on volumetric weight — your cargo is bulky for its weight, so the space it takes up costs more than the kilos.",
-  minimum: "Priced on this route's minimum billable weight.",
-};
+export type CargoTypeOption = { id: string; name: string };
 
 export function RateCalculator({
-  hasRealRates,
+  typesByCategory,
 }: {
-  hasRealRates: boolean;
+  typesByCategory: Record<string, CargoTypeOption[]>;
 }) {
   const [state, action] = useActionState<ActionResult<Quote>, FormData>(
     estimateQuote,
     { ok: true }
   );
 
-  /**
-   * Controlled inputs on purpose.
-   *
-   * useActionState re-renders the form after every submit, and people use this
-   * calculator by tweaking one number and recalculating — losing their goods
-   * type and service on each attempt would make it useless.
-   */
-  const [form, setForm] = useState({
-    origin: "GUANGZHOU",
-    destination: "DAR",
-    goodsType: "GENERAL_MERCHANDISE",
-    method: "AIR_NORMAL",
-    weightKg: "",
-    volumeCbm: "",
-    quantity: "1",
-  });
-
-  const set = (key: keyof typeof form) => (
-    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  // Controlled: useActionState re-renders after each submit, and people use this
+  // by tweaking one field and recalculating.
+  const [category, setCategory] = useState<CargoCategory>("NORMAL_GOODS");
+  const [cargoTypeId, setCargoTypeId] = useState("");
+  const [weightKg, setWeightKg] = useState("");
+  const [volumeCbm, setVolumeCbm] = useState("");
+  const [quantity, setQuantity] = useState("1");
 
   const result = state.ok ? state.data : undefined;
+  const types = typesByCategory[category] ?? [];
+  // Electronics are per-item: the piece count sets the price, weight does not.
+  const perItem = category === "ELECTRONICS";
+  const route = ROUTE_FOR_CATEGORY[category];
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-      {/* Inputs */}
       <form action={action} className="panel p-6">
         <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
           <Calculator className="h-5 w-5 text-signal" />
           Maelezo ya mzigo wako
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Fill what you know. Volume is optional — add it if your cargo is bulky.
+          Chagua aina ya mzigo — tutakuambia uwanja wa ndege na bei yenyewe.
         </p>
 
         <div className="mt-6 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* Category — the only classification decision anyone makes */}
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Aina ya mzigo / Cargo category</legend>
+            <div className="grid gap-2">
+              {CATEGORIES.map((option) => {
+                const active = category === option;
+                return (
+                  <label
+                    key={option}
+                    className={`focus-ring flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors ${
+                      active ? "border-signal bg-signal/5" : "hover:bg-muted/50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="category"
+                      value={option}
+                      checked={active}
+                      onChange={() => {
+                        setCategory(option);
+                        setCargoTypeId("");
+                      }}
+                      className="mt-1 h-4 w-4 accent-[hsl(var(--signal))]"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">
+                        {CATEGORY_LABELS[option]}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {CATEGORY_EXAMPLES[option]}
+                      </span>
+                      <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-brand">
+                        <Plane className="h-3 w-3" />
+                        {AIRPORT_LABELS[ROUTE_FOR_CATEGORY[option]]}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          {/* Derived route, shown read-only so the rule is visible */}
+          <div className="panel-inset flex items-center gap-2 p-3 text-xs">
+            <Plane className="h-4 w-4 shrink-0 text-brand" />
+            <span>
+              Inatoka <strong>{AIRPORT_LABELS[route]}</strong> — imechaguliwa
+              kutokana na aina ya mzigo, sio kwa mkono.
+            </span>
+          </div>
+
+          {types.length > 0 ? (
             <div className="space-y-2">
-              <Label htmlFor="origin">Kutoka / From</Label>
-              <NativeSelect id="origin" name="origin" value={form.origin} onChange={set("origin")}>
-                {enumOptions(ORIGIN_LABELS).map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
+              <Label htmlFor="cargoTypeId">
+                Kitu / Item{" "}
+                {perItem ? (
+                  <span className="font-normal text-signal">required</span>
+                ) : (
+                  <span className="font-normal text-muted-foreground">optional</span>
+                )}
+              </Label>
+              <NativeSelect
+                id="cargoTypeId"
+                name="cargoTypeId"
+                value={cargoTypeId}
+                onChange={(e) => setCargoTypeId(e.target.value)}
+                required={perItem}
+              >
+                <option value="">
+                  {perItem ? "Choose the item…" : "Not sure / mixed"}
+                </option>
+                {types.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name}
                   </option>
                 ))}
               </NativeSelect>
+              {perItem ? (
+                <p className="text-xs text-muted-foreground">
+                  Electronics are priced per item, so the weight does not change
+                  the cost.
+                </p>
+              ) : null}
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="destination">Kwenda / To</Label>
-              {/* One destination today. A select rather than static text so the
-                  form does not need reworking when a second city opens. */}
-              <NativeSelect id="destination" name="destination" value={form.destination} onChange={set("destination")}>
-                <option value="DAR">Dar es Salaam</option>
-              </NativeSelect>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="goodsType">Aina ya mzigo / Goods type</Label>
-            <NativeSelect
-              id="goodsType"
-              name="goodsType"
-              value={form.goodsType}
-              onChange={set("goodsType")}
-            >
-              {enumOptions(GOODS_TYPE_LABELS).map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </NativeSelect>
-            <p className="text-xs text-muted-foreground">
-              Electronics and cosmetics are priced differently from general goods.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="method">Huduma / Service</Label>
-            <NativeSelect id="method" name="method" value={form.method} onChange={set("method")}>
-              {METHODS.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
+          ) : null}
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="weightKg">Uzito (kg)</Label>
+              <Label htmlFor="weightKg">
+                Uzito (kg){" "}
+                {perItem ? (
+                  <span className="font-normal text-muted-foreground">optional</span>
+                ) : null}
+              </Label>
               <Input
                 id="weightKg"
                 name="weightKg"
                 type="number"
-                min="0.1"
+                min="0"
                 step="0.1"
                 inputMode="decimal"
-                placeholder="50"
-                value={form.weightKg}
-                onChange={set("weightKg")}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="volumeCbm">
-                Volume (CBM){" "}
-                <span className="font-normal text-muted-foreground">optional</span>
-              </Label>
-              <Input
-                id="volumeCbm"
-                name="volumeCbm"
-                type="number"
-                min="0"
-                step="0.01"
-                inputMode="decimal"
-                placeholder="0.30"
-                value={form.volumeCbm}
-                onChange={set("volumeCbm")}
+                placeholder={perItem ? "—" : "15"}
+                value={weightKg}
+                onChange={(e) => setWeightKg(e.target.value)}
+                required={!perItem}
               />
             </div>
             <div className="space-y-2">
@@ -173,8 +190,25 @@ export function RateCalculator({
                 min="1"
                 step="1"
                 inputMode="numeric"
-                value={form.quantity}
-                onChange={set("quantity")}
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="volumeCbm">
+                CBM <span className="font-normal text-muted-foreground">optional</span>
+              </Label>
+              <Input
+                id="volumeCbm"
+                name="volumeCbm"
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                placeholder="0.30"
+                value={volumeCbm}
+                onChange={(e) => setVolumeCbm(e.target.value)}
+                disabled={perItem}
               />
             </div>
           </div>
@@ -207,15 +241,18 @@ export function RateCalculator({
             <Scale className="h-9 w-9 text-muted-foreground/40" />
             <p className="font-medium">Your estimate appears here</p>
             <p className="max-w-xs text-sm text-muted-foreground">
-              Enter your cargo details and we will show the chargeable weight and
-              the working behind the price — not just a number.
+              Pick a category and we will show the departure airport, the pricing
+              method and the working behind the figure.
             </p>
           </div>
         ) : !result.ok ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 p-10 text-center">
             <Info className="h-9 w-9 text-warning" />
-            <p className="font-medium">No published rate for that</p>
+            <p className="font-medium">Not priced yet</p>
             <p className="max-w-xs text-sm text-muted-foreground">{result.message}</p>
+            <p className="text-xs text-muted-foreground">
+              Route would be {AIRPORT_LABELS[result.route]}.
+            </p>
             <Button asChild variant="signal" className="rounded-xl">
               <a
                 href={`https://wa.me/${COMPANY.whatsapp}`}
@@ -234,62 +271,48 @@ export function RateCalculator({
                 Estimated cost
               </p>
               <p className="mt-1 font-display text-4xl font-extrabold tracking-tight tabular">
-                {result.currency} {Math.round(result.total).toLocaleString()}
+                {result.currency}{" "}
+                {result.total.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
               </p>
-              {result.transitDays ? (
-                <p className="mt-2 text-sm text-brand-foreground/80">
-                  Around {result.transitDays} day
-                  {result.transitDays === 1 ? "" : "s"} in transit
-                </p>
-              ) : null}
-            </div>
-
-            {/* Chargeable weight — the number customers argue about, explained */}
-            <div className="border-b p-6">
-              <div className="grid grid-cols-3 gap-3 text-center">
-                {[
-                  {
-                    label: "Scale weight",
-                    value: `${result.actualWeightKg.toFixed(1)} kg`,
-                    active: result.basis === "actual",
-                  },
-                  {
-                    label: "Volumetric",
-                    value:
-                      result.volumetricWeightKg === null
-                        ? "—"
-                        : `${result.volumetricWeightKg.toFixed(1)} kg`,
-                    active: result.basis === "volumetric",
-                  },
-                  {
-                    label: "Chargeable",
-                    value: `${result.chargeableWeightKg.toFixed(1)} kg`,
-                    active: true,
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    className={
-                      item.active
-                        ? "rounded-lg border-2 border-signal/40 bg-signal/5 p-3"
-                        : "rounded-lg border p-3 opacity-60"
-                    }
-                  >
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      {item.label}
-                    </p>
-                    <p className="mt-1 font-mono text-sm font-bold tabular">
-                      {item.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3 text-xs text-muted-foreground">
-                {BASIS_COPY[result.basis]}
+              <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-brand-foreground/80">
+                <Plane className="h-4 w-4" />
+                Departs {AIRPORT_LABELS[result.route]}
               </p>
             </div>
 
-            {/* Working */}
+            <dl className="grid gap-px bg-border sm:grid-cols-3">
+              {[
+                { label: "Pricing method", value: METHOD_LABELS[result.method] },
+                {
+                  label: "Rate",
+                  value: `${result.currency} ${result.rate.toLocaleString()}${
+                    result.method === "WEIGHT_BASED" ? "/kg" : " each"
+                  }`,
+                },
+                {
+                  label: result.method === "WEIGHT_BASED" ? "Chargeable" : "Pieces",
+                  value:
+                    result.method === "WEIGHT_BASED"
+                      ? `${(result.chargeableWeightKg ?? 0).toFixed(2)} kg`
+                      : String(result.quantity),
+                },
+              ].map((item) => (
+                <div key={item.label} className="bg-card p-4">
+                  <dt className="text-xs text-muted-foreground">{item.label}</dt>
+                  <dd className="mt-1 font-mono text-sm font-medium tabular">
+                    {item.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+
+            <p className="border-b px-6 py-3 text-xs text-muted-foreground">
+              {result.basis}
+            </p>
+
             <dl className="divide-y">
               {result.lines.map((line) => (
                 <div
@@ -305,44 +328,33 @@ export function RateCalculator({
                     ) : null}
                   </div>
                   <dd className="shrink-0 font-mono text-sm font-medium tabular">
-                    {result.currency} {Math.round(line.amount).toLocaleString()}
+                    {result.currency} {line.amount.toFixed(2)}
                   </dd>
                 </div>
               ))}
               <div className="flex items-center justify-between gap-4 bg-muted/40 px-6 py-4">
                 <dt className="font-display font-semibold">Total</dt>
                 <dd className="font-mono text-lg font-bold tabular">
-                  {result.currency} {Math.round(result.total).toLocaleString()}
+                  {result.currency} {result.total.toFixed(2)}
                 </dd>
               </div>
             </dl>
 
             <div className="mt-auto space-y-3 p-6">
-              {/* Never let a placeholder rate masquerade as a quote. */}
-              {result.isPlaceholder || !hasRealRates ? (
-                <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs text-warning">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    This is an <strong>indicative</strong> figure from an
-                    unconfirmed rate card. Confirm the price with us before your
-                    supplier ships.
-                  </span>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Estimate only. Final charges are based on the weight recorded
-                  when your cargo is received in China.
-                </p>
-              )}
-
+              <p className="text-xs text-muted-foreground">
+                Estimate only. Final charges are based on what is recorded when
+                your cargo is received{" "}
+                {result.route === "HONG_KONG" ? "in Hong Kong" : "in Guangzhou"}.
+              </p>
               {result.notes ? (
                 <p className="text-xs text-muted-foreground">{result.notes}</p>
               ) : null}
-
               <Button asChild variant="signal" className="w-full rounded-xl">
                 <a
                   href={`https://wa.me/${COMPANY.whatsapp}?text=${encodeURIComponent(
-                    `Hello Target Express, I got an estimate of ${result.currency} ${Math.round(result.total).toLocaleString()} for ${result.chargeableWeightKg.toFixed(1)} kg. Please confirm my rate.`
+                    `Hello Target Express, I got an estimate of ${result.currency} ${result.total.toFixed(2)} for ${CATEGORY_LABELS[category]}${
+                      result.cargoTypeName ? ` (${result.cargoTypeName})` : ""
+                    }. Please confirm.`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"

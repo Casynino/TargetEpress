@@ -96,6 +96,24 @@ enum ShippingMethod {
   SEA_FREIGHT
 }
 
+/// The three commercial buckets every shipment falls into.
+///
+/// This is the most important field on a shipment: it decides the departure
+/// airport, how the price is calculated, and which batch the cargo may join.
+/// Staff choose the category; the system derives everything else.
+enum CargoCategory {
+  NORMAL_GOODS // clothing, shoes, bags, home, furniture, toys — flies Guangzhou
+  ELECTRONICS // phones, laptops, cameras, batteries — flies Hong Kong
+  LIQUID_SPECIAL // medicines, food, liquids, oils — flies Hong Kong
+}
+
+/// How a price is arrived at. Weight-based multiplies a per-kg rate by the
+/// chargeable weight; fixed-per-item multiplies a unit price by the count.
+enum PricingMethod {
+  WEIGHT_BASED
+  FIXED_PER_ITEM
+}
+
 enum PhotoKind {
   CARGO
   PACKAGING
@@ -280,12 +298,33 @@ model Shipment {
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
+  /// Commercial classification. Drives route, pricing and batch eligibility.
+  cargoCategory CargoCategory @default(NORMAL_GOODS)
+  /// The specific priced type, when one applies (a laptop, a tablet). Null for
+  /// weight-based categories where the category rate is enough.
+  cargoTypeId   String?
+  cargoType     CargoType?    @relation(fields: [cargoTypeId], references: [id], onDelete: SetNull)
+
   goodsType   GoodsType
   description String
   packages    Int
   weightKg    Decimal   @db.Decimal(10, 3)
   volumeCbm   Decimal?  @db.Decimal(10, 4)
+
+  /// Departure airport. Derived from cargoCategory — never chosen by hand — and
+  /// must match the batch this shipment joins.
   origin      Origin
+
+  // --- Quote snapshot -------------------------------------------------------
+  // What the engine calculated at registration, kept with its working so an
+  // invoice raised weeks later can still be explained to the customer.
+  quotedAmount   Decimal?       @db.Decimal(12, 2)
+  quoteCurrency  String         @default("USD")
+  quotedMethod   PricingMethod?
+  /// Per-kg or per-item rate that produced quotedAmount.
+  quotedRate     Decimal?       @db.Decimal(12, 2)
+  /// Weight the quote was billed on (may exceed the scale weight).
+  chargeableKg   Decimal?       @db.Decimal(10, 3)
 
   /// Freight charge inputs. Finance may override the computed amount on the
   /// invoice; these stay as the audit trail of how the figure was reached.
@@ -330,6 +369,7 @@ model Shipment {
   @@index([status])
   @@index([batchId])
   @@index([customerId])
+  @@index([cargoCategory])
   @@index([createdAt])
   @@index([status, batchId])
   @@index([cartonRef])
@@ -594,6 +634,73 @@ model Setting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+/// A sellable cargo type — "Laptop", "Smart Phone (Full Box)", "Clothing".
+///
+/// Every type belongs to exactly one category, which is what makes the route
+/// and the pricing method derivable from a single choice by the operator.
+model CargoType {
+  id       String        @id @default(cuid())
+  name     String
+  category CargoCategory
+
+  /// Words that map free-text cargo descriptions onto this type during import
+  /// and search — stored comma-separated, matched case-insensitively.
+  keywords String?
+
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pricingRules PricingRule[]
+  shipments    Shipment[]
+
+  @@unique([category, name])
+  @@index([category, active])
+}
+
+/// The rate book. The CEO edits these; nothing about pricing is hardcoded.
+///
+/// Resolution is most-specific-first: a rule naming a cargo type beats a rule
+/// covering the whole category, and among equals the newest effective date
+/// wins. Weight tiers are expressed as [minWeightKg, maxWeightKg), which is how
+/// "under 10 kg costs more per kilo" is represented without any special case in
+/// the engine.
+model PricingRule {
+  id String @id @default(cuid())
+
+  category CargoCategory
+  /// Null means the rule covers the whole category.
+  cargoTypeId String?
+  cargoType   CargoType? @relation(fields: [cargoTypeId], references: [id], onDelete: Cascade)
+
+  method PricingMethod
+
+  /// Per kilogram for WEIGHT_BASED, per item for FIXED_PER_ITEM.
+  price    Decimal @db.Decimal(12, 2)
+  currency String  @default("USD")
+
+  /// Tier bounds, in kg. Inclusive lower, exclusive upper; null means unbounded.
+  minWeightKg Decimal? @db.Decimal(10, 3)
+  maxWeightKg Decimal? @db.Decimal(10, 3)
+
+  /// Floor on billable weight, and on the total charge.
+  minChargeableKg Decimal? @db.Decimal(10, 3)
+  minCharge       Decimal? @db.Decimal(12, 2)
+
+  effectiveFrom DateTime @default(now())
+  active        Boolean  @default(true)
+  notes         String?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active, category, cargoTypeId])
+  @@index([effectiveFrom])
 }
 
 /// Published rates behind the public shipping calculator.
