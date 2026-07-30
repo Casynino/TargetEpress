@@ -14,8 +14,13 @@ const ROLE_HINT: Record<string, string> = {
   ADMIN: "You will see the full picture for this shipment.",
 };
 
-export default async function ScanPage() {
+export default async function ScanPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ code?: string }>;
+}) {
   const user = await requireUser();
+  const { code } = await searchParams;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -23,7 +28,10 @@ export default async function ScanPage() {
         title="Scan a label"
         description={`${ROLE_LABELS[user.role]} — ${ROLE_HINT[user.role] ?? ""}`}
       />
-      <ScanWorkbench />
+      {/* A code in the URL is resolved immediately. That makes a QR testable
+          without a second device, and lets a scanner app that opens URLs hand
+          off straight into this screen. */}
+      <ScanWorkbench initialCode={code} />
     </div>
   );
 }

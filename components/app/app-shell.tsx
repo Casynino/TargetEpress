@@ -9,6 +9,7 @@ import {
   Boxes,
   ChartNoAxesCombined,
   ClipboardCheck,
+  FlaskConical,
   History,
   LayoutDashboard,
   LogOut,
@@ -57,6 +58,7 @@ const ICONS: Record<string, LucideIcon> = {
   ChartNoAxesCombined,
   UserCog,
   History,
+  FlaskConical,
 };
 
 type ShellUser = {

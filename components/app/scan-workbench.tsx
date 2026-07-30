@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { AlertCircle, Ban, CheckCircle2, Loader2 } from "lucide-react";
 
 import { QrScanner } from "@/components/app/qr-scanner";
@@ -9,12 +9,12 @@ import { Button } from "@/components/ui/button";
 import { resolveScan, type ScanResult } from "@/lib/actions/scan";
 import { formatMoney, formatWeight } from "@/lib/format";
 
-export function ScanWorkbench() {
+export function ScanWorkbench({ initialCode }: { initialCode?: string }) {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function handle(code: string) {
+  const handle = useCallback((code: string) => {
     setError(null);
     startTransition(async () => {
       const response = await resolveScan(code);
@@ -25,7 +25,16 @@ export function ScanWorkbench() {
         setError(response.ok ? "No shipment found." : response.error);
       }
     });
-  }
+  }, []);
+
+  // Resolve a code handed in via the URL, once.
+  const resolvedInitial = useRef(false);
+  useEffect(() => {
+    if (initialCode && !resolvedInitial.current) {
+      resolvedInitial.current = true;
+      handle(initialCode);
+    }
+  }, [initialCode, handle]);
 
   if (pending) {
     return (

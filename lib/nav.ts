@@ -128,6 +128,12 @@ const SECTIONS: NavSection[] = [
         icon: "History",
         permission: "audit.view",
       },
+      {
+        href: "/app/admin/test-data",
+        label: "Test data",
+        icon: "FlaskConical",
+        permission: "user.manage",
+      },
     ],
   },
 ];
