@@ -1,10 +1,10 @@
 /**
- * China wholesale markets, for the support desk and for customers.
+ * Seed content for the China markets directory.
  *
- * Editorial content, so it lives in code rather than the database: it changes
- * a few times a year, it needs to be reviewable in a pull request, and nobody
- * should be able to edit "which market sells electronics" from an admin screen
- * at 2am.
+ * NOT what the site renders. The live directory is the ChinaMarket table, which
+ * the CEO edits at /app/admin/markets; this file only supplies the opening set
+ * via prisma/seed-markets.ts, which never overwrites an edited row. Changing
+ * text here will not change the site.
  *
  * Everything here is stated at the level it can be relied on. Opening hours and
  * districts are stable; specific stall numbers and prices are not, so they are

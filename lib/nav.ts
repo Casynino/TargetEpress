@@ -172,6 +172,12 @@ const SECTIONS: NavSection[] = [
         permission: "pricing.manage",
       },
       {
+        href: "/app/admin/markets",
+        label: "China markets",
+        icon: "Store",
+        permission: "pricing.manage",
+      },
+      {
         href: "/app/admin/users",
         label: "Staff",
         icon: "UserCog",

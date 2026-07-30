@@ -1018,3 +1018,43 @@ model CustomerMessage {
   @@index([shipmentId])
   @@index([kind, sentAt])
 }
+
+/// A wholesale market in China, for the support desk and the public guide.
+///
+/// Editorial content that used to live in code. It moved here so the CEO can
+/// correct opening hours or add a market without a deploy — but the shape stays
+/// tight: products and tips are ordered string lists, not free-form HTML, so
+/// nobody can paste markup into a public page.
+model ChinaMarket {
+  id   String @id @default(cuid())
+  slug String @unique
+
+  name   String
+  nameCn String?
+
+  city     String
+  district String?
+
+  /// Which of the two air routes this market's goods normally fly out on. It
+  /// decides what the customer pays, so it is a field rather than prose.
+  route Origin
+
+  hours   String?
+  /// One line: who should go here.
+  bestFor String
+  summary String
+
+  products String[]
+  tips     String[]
+
+  /// Set when details should be reconfirmed before a customer travels.
+  verify String?
+
+  sortOrder Int     @default(0)
+  active    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, sortOrder])
+}

@@ -3,19 +3,12 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { FileText, Plane } from "lucide-react";
 
+import { CargoGrid } from "@/components/app/cargo-grid";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { BatchControls } from "@/components/app/batch-controls";
 import { BatchStatusBadge, ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { formatDate, formatWeight, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -35,6 +28,7 @@ export default async function BatchDetailPage({
   const batch = await prisma.batch.findUnique({
     where: { id },
     include: {
+      verifications: { select: { shipmentId: true, result: true } },
       createdBy: { select: { name: true } },
       shipments: {
         orderBy: { trackingNumber: "asc" },
@@ -44,6 +38,10 @@ export default async function BatchDetailPage({
   });
 
   if (!batch) notFound();
+
+  const verificationByShipment = new Map(
+    batch.verifications.map((v) => [v.shipmentId, v])
+  );
 
   const manageable = can(user.role, "batch.manage");
 
@@ -109,50 +107,23 @@ export default async function BatchDetailPage({
                 />
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Carton</TableHead>
-                    <TableHead>Tracking</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead className="hidden sm:table-cell">Pkgs</TableHead>
-                    <TableHead className="hidden sm:table-cell">Weight</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {batch.shipments.map((shipment) => (
-                    <TableRow key={shipment.id}>
-                      <TableCell className="font-mono text-xs text-muted-foreground tabular">
-                        {shipment.cartonRef ?? "—"}
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          href={`/app/shipments/${shipment.trackingNumber}`}
-                          className="font-mono text-sm tabular hover:text-brand"
-                        >
-                          {shipment.trackingNumber}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        <p className="text-sm">{shipment.customer.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {shipment.customer.phone}
-                        </p>
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell tabular">
-                        {shipment.packages}
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell tabular">
-                        {formatWeight(shipment.weightKg)}
-                      </TableCell>
-                      <TableCell>
-                        <ShipmentStatusBadge status={shipment.status} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="p-5">
+                <CargoGrid
+                  cells={batch.shipments.map((shipment) => ({
+                    id: shipment.id,
+                    trackingNumber: shipment.trackingNumber,
+                    cartonRef: shipment.cartonRef,
+                    customerName: shipment.customer.name,
+                    description: shipment.description,
+                    weightKg: toNumber(shipment.weightKg),
+                    packages: shipment.packages,
+                    status: shipment.status,
+                    category: shipment.cargoCategory,
+                    verification:
+                      verificationByShipment.get(shipment.id)?.result ?? null,
+                  }))}
+                />
+              </div>
             )}
           </section>
 

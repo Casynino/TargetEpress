@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { AlertCircle, Ban, CheckCircle2, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { QrScanner } from "@/components/app/qr-scanner";
 import { Button } from "@/components/ui/button";
 import { resolveScan, type ScanResult } from "@/lib/actions/scan";
+import { ScanVerdict } from "@/components/app/scan-verdict";
 import { formatMoney, formatWeight } from "@/lib/format";
 
 export function ScanWorkbench({ initialCode }: { initialCode?: string }) {
@@ -45,29 +46,13 @@ export function ScanWorkbench({ initialCode }: { initialCode?: string }) {
   }
 
   if (result) {
-    const tone =
-      result.verdict.tone === "ok"
-        ? "border-success/40 bg-success/5 text-success"
-        : result.verdict.tone === "warn"
-          ? "border-warning/40 bg-warning/5 text-warning"
-          : "border-destructive/40 bg-destructive/5 text-destructive";
-
-    const Icon =
-      result.verdict.tone === "ok"
-        ? CheckCircle2
-        : result.verdict.tone === "warn"
-          ? AlertCircle
-          : Ban;
-
     return (
       <div className="space-y-4">
-        <div className={`rounded-xl border p-5 ${tone}`}>
-          <p className="flex items-center gap-2 font-display text-lg font-bold">
-            <Icon className="h-5 w-5" />
-            {result.verdict.headline}
-          </p>
-          <p className="mt-1.5 text-sm opacity-90">{result.verdict.detail}</p>
-        </div>
+        <ScanVerdict
+          tone={result.verdict.tone}
+          headline={result.verdict.headline}
+          detail={result.verdict.detail}
+        />
 
         <div className="rounded-xl border bg-card shadow-soft">
           <div className="border-b p-5">

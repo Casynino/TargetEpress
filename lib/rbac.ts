@@ -181,6 +181,7 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/finance/exchange-rate", permission: "fx.manage" },
   { prefix: "/app/finance", permission: "finance.view" },
   { prefix: "/app/admin/pricing", permission: "pricing.manage" },
+  { prefix: "/app/admin/markets", permission: "pricing.manage" },
   { prefix: "/app/admin/users", permission: "user.manage" },
   { prefix: "/app/admin/audit", permission: "audit.view" },
   { prefix: "/app/admin", permission: "report.view" },

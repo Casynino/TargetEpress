@@ -49,7 +49,7 @@ export function VerificationList({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-4 shadow-soft">
+      <div className="sticky top-14 z-20 flex flex-wrap items-center gap-3 rounded-xl border bg-card/95 p-4 shadow-soft backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:static sm:bg-card sm:backdrop-blur-none">
         <div className="flex-1">
           <p className="text-sm font-medium">
             {checked} of {shipments.length} checked
@@ -109,10 +109,10 @@ function VerificationRow({
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-mono text-sm font-semibold tabular">
+          <p className="font-mono text-base font-bold tabular sm:text-sm">
             {shipment.trackingNumber}
           </p>
-          <p className="mt-0.5 text-sm">{shipment.customerName}</p>
+          <p className="mt-0.5 text-sm font-medium">{shipment.customerName}</p>
           <p className="text-xs text-muted-foreground">
             {shipment.packages} pkg · {formatWeight(shipment.weightKg)} ·{" "}
             {shipment.description}
@@ -131,18 +131,21 @@ function VerificationRow({
         </p>
       ) : null}
 
+      {/* Full-width and 48px tall on a phone: these are pressed with a thumb,
+          one-handed, while the other hand holds the carton. On a desk they
+          shrink back to a normal inline pair. */}
       {locked ? null : (
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3">
-          <form action={action}>
+        <div className="mt-4 flex flex-col gap-2 border-t pt-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <form action={action} className="w-full sm:w-auto">
             <input type="hidden" name="batchId" value={batchId} />
             <input type="hidden" name="shipmentId" value={shipment.id} />
             <input type="hidden" name="result" value="VERIFIED" />
             <SubmitButton
-              size="sm"
               variant={done ? "outline" : "brand"}
               pendingLabel="Checking…"
+              className="h-12 w-full text-base sm:h-9 sm:w-auto sm:text-sm"
             >
-              <Check className="mr-1.5 h-4 w-4" />
+              <Check className="mr-1.5 h-5 w-5 sm:h-4 sm:w-4" />
               {done ? "Checked" : "Present & correct"}
             </SubmitButton>
           </form>
@@ -150,9 +153,9 @@ function VerificationRow({
           <button
             type="button"
             onClick={() => setFlagging((v) => !v)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm text-destructive hover:bg-destructive/5"
+            className="inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-md border text-base text-destructive hover:bg-destructive/5 sm:h-9 sm:w-auto sm:px-3 sm:text-sm"
           >
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-5 w-5 sm:h-4 sm:w-4" />
             Flag a problem
           </button>
         </div>

@@ -4,7 +4,7 @@ import { Clock, Info, MapPin, Plane } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
-import { MARKETS } from "@/lib/markets";
+import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "China markets" };
@@ -18,6 +18,11 @@ export const metadata: Metadata = { title: "China markets" };
  */
 export default async function MarketsPage() {
   await requirePermission("sourcing.manage");
+
+  const markets = await prisma.chinaMarket.findMany({
+    where: { active: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+  });
 
   return (
     <>
@@ -37,16 +42,18 @@ export default async function MarketsPage() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        {MARKETS.map((market) => (
+        {markets.map((market) => (
           <article
-            key={market.slug}
+            key={market.id}
             className="flex flex-col rounded-xl border bg-card shadow-soft"
           >
             <header className="border-b p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="font-display text-lg font-bold">{market.name}</h2>
-                  <p className="text-sm text-muted-foreground">{market.nameCn}</p>
+                  {market.nameCn ? (
+                    <p className="text-sm text-muted-foreground">{market.nameCn}</p>
+                  ) : null}
                 </div>
                 <Badge
                   variant="outline"
@@ -70,12 +77,13 @@ export default async function MarketsPage() {
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <dd>
-                    {market.city} — {market.district}
+                    {market.city}
+                    {market.district ? ` — ${market.district}` : ""}
                   </dd>
                 </div>
                 <div className="flex items-start gap-2">
                   <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <dd className="text-muted-foreground">{market.hours}</dd>
+                  <dd className="text-muted-foreground">{market.hours ?? "Hours not recorded"}</dd>
                 </div>
               </dl>
 

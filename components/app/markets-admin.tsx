@@ -1,0 +1,285 @@
+"use client";
+
+import { useActionState, useState, useTransition } from "react";
+import { Eye, EyeOff, Pencil, Plus } from "lucide-react";
+
+import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
+import { saveMarket, setMarketActive } from "@/lib/actions/markets";
+
+export type MarketRow = {
+  id: string;
+  slug: string;
+  name: string;
+  nameCn: string | null;
+  city: string;
+  district: string | null;
+  route: string;
+  hours: string | null;
+  bestFor: string;
+  summary: string;
+  products: string[];
+  tips: string[];
+  verify: string | null;
+  sortOrder: number;
+  active: boolean;
+};
+
+/**
+ * The markets directory, editable.
+ *
+ * One form, reused for add and edit — a separate "new market" page would be a
+ * second place for the same fields to drift out of sync. Products and tips are
+ * one-per-line textareas rather than repeatable field rows: the CEO is pasting
+ * a list, not operating a form builder.
+ */
+export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
+  const [state, action] = useActionState(saveMarket, undefined);
+  const [editing, setEditing] = useState<MarketRow | null>(null);
+  const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const startEdit = (market: MarketRow | null) => {
+    setEditing(market);
+    setOpen(true);
+    setError(null);
+  };
+
+  const toggle = (market: MarketRow) => {
+    setError(null);
+    startTransition(async () => {
+      const result = await setMarketActive(market.id, !market.active);
+      if (!result.ok) setError(result.error);
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-xl border bg-card shadow-soft">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
+          <div>
+            <h2 className="font-semibold">{open ? (editing ? "Edit market" : "Add a market") : "Markets"}</h2>
+            <p className="text-sm text-muted-foreground">
+              Shown to the support desk and on the public guide.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant={open ? "ghost" : "default"}
+            size="sm"
+            onClick={() => (open ? setOpen(false) : startEdit(null))}
+          >
+            {open ? "Close" : <><Plus className="mr-1 h-4 w-4" />New market</>}
+          </Button>
+        </header>
+
+        {open ? (
+          // Remount on edit so defaultValue picks up the selected market.
+          <form key={editing?.id ?? "new"} action={action} className="space-y-4 p-4">
+            {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
+            <FormError state={state} />
+            {state?.ok ? (
+              <p className="rounded-md border border-success/30 bg-success/5 p-3 text-sm text-success">
+                Saved. The public guide updates within the hour, or immediately on
+                the support desk.
+              </p>
+            ) : null}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Market name</Label>
+                <Input id="name" name="name" defaultValue={editing?.name} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="nameCn">Chinese name</Label>
+                <Input id="nameCn" name="nameCn" defaultValue={editing?.nameCn ?? ""} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="city">City</Label>
+                <Input id="city" name="city" defaultValue={editing?.city} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="district">District</Label>
+                <Input
+                  id="district"
+                  name="district"
+                  defaultValue={editing?.district ?? ""}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="route">Goods fly out of</Label>
+                <NativeSelect
+                  id="route"
+                  name="route"
+                  defaultValue={editing?.route ?? "GUANGZHOU"}
+                >
+                  <option value="GUANGZHOU">Guangzhou</option>
+                  <option value="HONG_KONG">Hong Kong</option>
+                </NativeSelect>
+                <p className="text-xs text-muted-foreground">
+                  This decides what the customer pays to fly it home.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="hours">Opening hours</Label>
+                <Input
+                  id="hours"
+                  name="hours"
+                  defaultValue={editing?.hours ?? ""}
+                  placeholder="Roughly 09:00–17:00 daily"
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="bestFor">Best for — one line</Label>
+                <Input
+                  id="bestFor"
+                  name="bestFor"
+                  defaultValue={editing?.bestFor}
+                  placeholder="Clothing, shoes, bags and general merchandise"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="summary">Description</Label>
+                <Textarea
+                  id="summary"
+                  name="summary"
+                  rows={4}
+                  defaultValue={editing?.summary}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="products">Products — one per line</Label>
+                <Textarea
+                  id="products"
+                  name="products"
+                  rows={6}
+                  defaultValue={editing?.products.join("\n")}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="tips">Tips for the customer — one per line</Label>
+                <Textarea
+                  id="tips"
+                  name="tips"
+                  rows={6}
+                  defaultValue={editing?.tips.join("\n")}
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="verify">
+                  Warning to reconfirm{" "}
+                  <span className="font-normal text-muted-foreground">optional</span>
+                </Label>
+                <Input
+                  id="verify"
+                  name="verify"
+                  defaultValue={editing?.verify ?? ""}
+                  placeholder="Opening days vary — confirm before travelling."
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="sortOrder">Position in the list</Label>
+                <Input
+                  id="sortOrder"
+                  name="sortOrder"
+                  inputMode="numeric"
+                  defaultValue={String(editing?.sortOrder ?? markets.length)}
+                />
+              </div>
+            </div>
+
+            <SubmitButton pendingLabel="Saving…">
+              {editing ? "Save changes" : "Add market"}
+            </SubmitButton>
+          </form>
+        ) : null}
+      </section>
+
+      {error ? (
+        <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {markets.map((market) => (
+          <article
+            key={market.id}
+            className={`rounded-xl border bg-card p-5 shadow-soft ${
+              market.active ? "" : "opacity-60"
+            }`}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="font-display font-bold">{market.name}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {market.city}
+                  {market.district ? ` · ${market.district}` : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">
+                  {market.route === "HONG_KONG" ? "Hong Kong" : "Guangzhou"}
+                </Badge>
+                {market.active ? null : <Badge variant="outline">hidden</Badge>}
+              </div>
+            </div>
+
+            <p className="mt-2 text-sm font-medium text-brand">{market.bestFor}</p>
+            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+              {market.summary}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {market.products.length} products · {market.tips.length} tips
+            </p>
+
+            <div className="mt-4 flex gap-2 border-t pt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => startEdit(market)}
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={pending}
+                onClick={() => toggle(market)}
+              >
+                {market.active ? (
+                  <>
+                    <EyeOff className="mr-1.5 h-3.5 w-3.5" />
+                    Hide
+                  </>
+                ) : (
+                  <>
+                    <Eye className="mr-1.5 h-3.5 w-3.5" />
+                    Publish
+                  </>
+                )}
+              </Button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
