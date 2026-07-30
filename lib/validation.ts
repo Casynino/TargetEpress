@@ -34,17 +34,29 @@ const optionalNumeric = z
   .transform((v) => (v && v.length > 0 ? Number(v) : null))
   .refine((v) => v === null || !Number.isNaN(v), "Must be a number.");
 
+/**
+ * Cargo registration, as the warehouse sees it.
+ *
+ * Note what is absent: no price, and no departure airport. The warehouse
+ * records what the cargo IS; the system derives where it flies from and what it
+ * costs. A rate field here would let a warehouse clerk set a price, which is
+ * exactly what the operations/finance split exists to prevent.
+ */
 export const shipmentSchema = z.object({
   customerName: z.string().trim().min(2, "Customer name is required."),
   customerPhone: z.string().trim().min(7, "A valid phone number is required."),
   customerCity: z.string().trim().optional(),
-  goodsType: z.enum(GOODS_TYPES),
+  cargoCategory: z.enum(["NORMAL_GOODS", "ELECTRONICS", "LIQUID_SPECIAL"]),
+  cargoTypeId: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  goodsType: z.enum(GOODS_TYPES).optional().default("GENERAL_MERCHANDISE"),
   description: z.string().trim().min(3, "Describe the cargo."),
   packages: numeric("Number of packages", { min: 1 }),
   weightKg: numeric("Weight", { min: 0.01 }),
   volumeCbm: optionalNumeric,
-  origin: z.enum(ORIGINS),
-  unitRate: optionalNumeric,
   internalNotes: z.string().trim().optional(),
   batchId: z.string().trim().optional(),
 });

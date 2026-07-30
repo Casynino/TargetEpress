@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import type { Prisma, ShipmentStatus } from "@prisma/client";
 
 import { recordAudit } from "@/lib/audit";
+import {
+  AIRPORT_LABELS,
+  CATEGORY_LABELS,
+  categoryFitsRoute,
+  routeFor,
+} from "@/lib/cargo";
 import { normalisePhone } from "@/lib/format";
 import {
   generateQrToken,
@@ -90,16 +96,26 @@ export async function createShipment(
         });
       }
 
-      // A batch can only take cargo while it is still open in China.
+      // The departure airport is derived from what the cargo is. The warehouse
+      // never picks it, so cargo cannot be routed to the wrong hub by mistake.
+      const origin = routeFor(input.cargoCategory);
+
+      // A batch can only take cargo while it is open, and only cargo that flies
+      // from the same airport.
       let batchId: string | null = null;
       if (input.batchId) {
         const batch = await tx.batch.findUnique({
           where: { id: input.batchId },
-          select: { id: true, status: true },
+          select: { id: true, status: true, origin: true, batchNumber: true },
         });
         if (!batch) throw new Error("That batch no longer exists.");
         if (batch.status !== "OPEN") {
           throw new Error("That batch is already sealed — pick an open batch.");
+        }
+        if (!categoryFitsRoute(input.cargoCategory, batch.origin)) {
+          throw new Error(
+            `${CATEGORY_LABELS[input.cargoCategory]} departs ${AIRPORT_LABELS[origin]}, but ${batch.batchNumber} departs ${AIRPORT_LABELS[batch.origin]}.`
+          );
         }
         batchId = batch.id;
       }
@@ -109,13 +125,14 @@ export async function createShipment(
           trackingNumber: await nextTrackingNumber(tx),
           qrToken: generateQrToken(),
           customerId: customer.id,
+          cargoCategory: input.cargoCategory,
+          cargoTypeId: input.cargoTypeId,
           goodsType: input.goodsType,
           description: input.description,
           packages: input.packages,
           weightKg: input.weightKg,
           volumeCbm: input.volumeCbm ?? null,
-          origin: input.origin,
-          unitRate: input.unitRate ?? 0,
+          origin,
           internalNotes: input.internalNotes || null,
           batchId,
           status: "READY_TO_DEPART",
@@ -127,8 +144,8 @@ export async function createShipment(
         shipmentId: shipment.id,
         fromStatus: null,
         toStatus: "READY_TO_DEPART",
-        location: ORIGIN_PLACE[input.origin],
-        note: "Cargo received and registered at the China warehouse.",
+        location: ORIGIN_PLACE[origin],
+        note: `Cargo received and registered as ${CATEGORY_LABELS[input.cargoCategory].toLowerCase()}, departing ${AIRPORT_LABELS[origin]}.`,
         actorId: user.id,
       });
 
@@ -142,7 +159,8 @@ export async function createShipment(
           metadata: {
             packages: input.packages,
             weightKg: input.weightKg,
-            origin: input.origin,
+            cargoCategory: input.cargoCategory,
+            origin,
           },
         },
         tx
@@ -199,13 +217,14 @@ export async function updateShipment(
       await tx.shipment.update({
         where: { id },
         data: {
+          cargoCategory: input.cargoCategory,
+          cargoTypeId: input.cargoTypeId,
           goodsType: input.goodsType,
           description: input.description,
           packages: input.packages,
           weightKg: input.weightKg,
           volumeCbm: input.volumeCbm ?? null,
-          origin: input.origin,
-          unitRate: input.unitRate ?? 0,
+          origin: routeFor(input.cargoCategory),
           internalNotes: input.internalNotes || null,
         },
       });
