@@ -42,6 +42,7 @@ import {
   recentActivity,
 } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requireUser } from "@/lib/session";
 
 /** Percentage change, guarding the divide-by-zero that makes dashboards lie. */
@@ -76,18 +77,25 @@ export default async function DashboardPage() {
               {ROLE_LABELS[user.role]} · {today}
             </p>
           </div>
+          {/* Quick actions, offered only where the role actually does them. */}
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="signal" className="rounded-lg">
-              <Link href="/app/scan">
-                <ScanLine className="mr-2 h-4 w-4" />
-                Scan QR
-              </Link>
-            </Button>
-            {user.role === "CHINA_WAREHOUSE" || user.role === "ADMIN" ? (
-              <Button asChild variant="outline" className="rounded-lg">
+            {can(user.role, "shipment.create") ? (
+              <Button asChild variant="signal" className="rounded-lg">
                 <Link href="/app/shipments/new">
                   <PackagePlus className="mr-2 h-4 w-4" />
                   Register cargo
+                </Link>
+              </Button>
+            ) : null}
+            {can(user.role, "shipment.scan") ? (
+              <Button
+                asChild
+                variant={can(user.role, "shipment.create") ? "outline" : "signal"}
+                className="rounded-lg"
+              >
+                <Link href="/app/scan">
+                  <ScanLine className="mr-2 h-4 w-4" />
+                  Scan QR
                 </Link>
               </Button>
             ) : null}

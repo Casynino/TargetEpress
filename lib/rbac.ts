@@ -15,6 +15,7 @@ export type Permission =
   | "shipment.depart"
   | "shipment.cancel"
   | "shipment.viewInternal" // internal notes, cost inputs, staff names
+  | "shipment.scan" // holds physical cargo and reads its label
   // Batches
   | "batch.view"
   | "batch.create"
@@ -56,6 +57,7 @@ const CHINA: Permission[] = [
 const DAR: Permission[] = [
   "shipment.view",
   "shipment.viewInternal",
+  "shipment.scan",
   "batch.view",
   "batch.receive",
   "batch.verify",
@@ -85,6 +87,9 @@ const CUSTOMER_CARE: Permission[] = [
 const FINANCE: Permission[] = [
   "shipment.view",
   "shipment.viewInternal",
+  // Finance sits in the Dar office; a customer arriving with a label in hand is
+  // a real scan case, and the scan shows them what is owed.
+  "shipment.scan",
   "batch.view",
   "finance.view",
   "invoice.manage",
@@ -133,6 +138,7 @@ export function canAny(role: Role | undefined | null, permissions: Permission[])
  * the layout. Anything under /app not listed here needs only a valid session.
  */
 export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
+  { prefix: "/app/scan", permission: "shipment.scan" },
   { prefix: "/app/shipments/new", permission: "shipment.create" },
   { prefix: "/app/batches/new", permission: "batch.create" },
   { prefix: "/app/receive", permission: "batch.receive" },

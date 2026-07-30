@@ -22,7 +22,14 @@ const SECTIONS: NavSection[] = [
     title: "Overview",
     items: [
       { href: "/app/dashboard", label: "Dashboard", icon: "LayoutDashboard", exact: true },
-      { href: "/app/scan", label: "Scan QR", icon: "ScanLine" },
+      {
+        href: "/app/scan",
+        label: "Scan QR",
+        icon: "ScanLine",
+        // The China desk prints labels; it never scans them. Offering the link
+        // there implies a workflow that does not exist.
+        permission: "shipment.scan",
+      },
     ],
   },
   {
