@@ -33,7 +33,15 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomBytes } from "crypto";
 
-import { PrismaClient, Prisma, type GoodsType } from "@prisma/client";
+import {
+  PrismaClient,
+  Prisma,
+  type CargoCategory,
+  type GoodsType,
+  type Origin,
+} from "@prisma/client";
+
+import { guessCategory, ROUTE_FOR_CATEGORY } from "../lib/cargo";
 
 const prisma = new PrismaClient();
 
@@ -179,6 +187,7 @@ type Parsed = {
   weightKg: number;
   phone: string | null;
   cartonWeightKg: number | null;
+  category: CargoCategory;
 };
 
 async function main() {
@@ -198,6 +207,16 @@ async function main() {
   }
 
   const batchNumber = flag("batch") ?? "IMPORTED";
+
+  // The departure airport comes from the sheet, because that is where the cargo
+  // physically is. Categories are guessed from the item text, and any row whose
+  // category would normally fly from the other airport is reported rather than
+  // silently re-labelled.
+  const routeArg = (flag("route") ?? "GUANGZHOU").toUpperCase();
+  if (routeArg !== "GUANGZHOU" && routeArg !== "HONG_KONG") {
+    throw new Error('--route must be GUANGZHOU or HONG_KONG');
+  }
+  const route = routeArg as Origin;
   const dateArg = flag("date");
   const packedAt = dateArg ? new Date(`${dateArg}T09:00:00Z`) : new Date();
   if (Number.isNaN(packedAt.getTime())) {
@@ -233,6 +252,7 @@ async function main() {
       weightKg: weight,
       phone: normalisePhone(row.G ?? ""),
       cartonWeightKg: row.A ? currentCartonWeight : null,
+      category: guessCategory(`${row.C ?? ""} ${row.D ?? ""}`),
     });
   }
 
@@ -247,6 +267,35 @@ async function main() {
     `  line weight ${lineWeight.toFixed(1)} kg · carton actual ${cartonWeight.toFixed(1)} kg`
   );
   console.log(`  ${unnamed} line(s) with no customer name, ${noPhone} with no phone`);
+
+  const byCategory = parsed.reduce<Record<string, number>>((acc, line) => {
+    acc[line.category] = (acc[line.category] ?? 0) + 1;
+    return acc;
+  }, {});
+  console.log(
+    "  categories: " +
+      Object.entries(byCategory)
+        .map(([k, v]) => `${k} ${v}`)
+        .join(", ")
+  );
+
+  // A row whose category normally flies from the other airport. Real: an HK
+  // packing list routinely contains cups and drawing boards.
+  const offRoute = parsed.filter((l) => ROUTE_FOR_CATEGORY[l.category] !== route);
+  if (offRoute.length > 0) {
+    console.log(
+      `\n  ⚠ ${offRoute.length} line(s) classify as cargo that normally flies from the other airport.`
+    );
+    console.log(
+      "    They are imported as-is (the sheet says where the cargo physically is) and flagged in their notes."
+    );
+    for (const line of offRoute.slice(0, 12)) {
+      console.log(
+        `      row ${line.row}  ${line.category.padEnd(14)} ${(line.en || line.cn).slice(0, 34)}`
+      );
+    }
+    if (offRoute.length > 12) console.log(`      … and ${offRoute.length - 12} more`);
+  }
 
   // --------------------------------------------------------------- staff ref
   const china = await prisma.user.findFirst({
@@ -306,7 +355,14 @@ async function main() {
   };
 
   const customerIds = new Map<string, string>();
-  let customerSeq = 0;
+
+  // Continue the existing sequence rather than restarting at 1 — importing a
+  // second batch must not collide with codes already issued.
+  const seqRow = await prisma.counter.findUnique({ where: { key: "customer" } });
+  let customerSeq = seqRow?.value ?? (await prisma.customer.count());
+
+  let matched = 0;
+  let created = 0;
 
   for (const line of parsed) {
     const key = keyFor(line);
@@ -318,6 +374,25 @@ async function main() {
 
     const name = line.name || `Unidentified — carton ${line.cartonRef}`;
 
+    // Someone who shipped last month is the same customer this month. Match on
+    // phone first (the real identity), then on an exact name where no phone was
+    // given — never fuzzily, because merging two traders would be worse than
+    // carrying a duplicate.
+    const existing = phone
+      ? await prisma.customer.findUnique({ where: { phone }, select: { id: true } })
+      : line.name
+        ? await prisma.customer.findFirst({
+            where: { name: line.name, phone: null },
+            select: { id: true },
+          })
+        : null;
+
+    if (existing) {
+      customerIds.set(key, existing.id);
+      matched++;
+      continue;
+    }
+
     const customer = await prisma.customer.create({
       data: {
         code: `CUS-${pad(++customerSeq)}`,
@@ -327,23 +402,26 @@ async function main() {
         notes: line.name
           ? phone
             ? null
-            : "No phone number on the Guangzhou packing list — confirm before the cargo lands."
+            : "No phone number on the packing list — confirm before the cargo lands."
           : `Packing list row ${line.row} had no customer name. Identify the owner of carton ${line.cartonRef} before release.`,
         createdById: china.id,
       },
     });
 
     customerIds.set(key, customer.id);
+    created++;
   }
 
-  console.log(`Created ${customerIds.size} customer(s).`);
+  console.log(
+    `Customers: ${created} new, ${matched} matched to existing records.`
+  );
 
   // ------------------------------------------------------------------- batch
   const batch = await prisma.batch.create({
     data: {
       batchNumber,
-      origin: "GUANGZHOU",
-      // Received and packed in China, not yet flown.
+      origin: route,
+      // Received and packed, not yet flown.
       status: "OPEN",
       createdById: china.id,
       createdAt: packedAt,
@@ -365,8 +443,11 @@ async function main() {
   console.log(`Created batch ${batch.batchNumber}.`);
 
   // --------------------------------------------------------------- shipments
-  let shipmentSeq = 0;
-  const created: string[] = [];
+  const shipmentSeqRow = await prisma.counter.findUnique({
+    where: { key: "shipment" },
+  });
+  let shipmentSeq = shipmentSeqRow?.value ?? (await prisma.shipment.count());
+  const createdShipments: string[] = [];
 
   for (const line of parsed) {
     const customerId = customerIds.get(keyFor(line))!;
@@ -378,17 +459,23 @@ async function main() {
     }
     if (!line.phone) notes.push("No phone on the packing list.");
     if (!line.name) notes.push("No customer name on the packing list.");
+    if (ROUTE_FOR_CATEGORY[line.category] !== route) {
+      notes.push(
+        `Classified ${line.category}, which normally departs ${ROUTE_FOR_CATEGORY[line.category]} — confirm the category.`
+      );
+    }
 
     const shipment = await prisma.shipment.create({
       data: {
         trackingNumber,
         qrToken: qrToken(),
         customerId,
+        cargoCategory: line.category,
         goodsType: classify(line.cn, line.en),
         description: describe(line.cn, line.en),
         packages: line.quantity,
         weightKg: new Prisma.Decimal(line.weightKg),
-        origin: "GUANGZHOU",
+        origin: route,
         batchId: batch.id,
         cartonRef: line.cartonRef || null,
         status: "READY_TO_DEPART",
@@ -403,14 +490,14 @@ async function main() {
       data: {
         shipmentId: shipment.id,
         toStatus: "READY_TO_DEPART",
-        location: "Guangzhou, China",
-        note: `Received and packed at the China warehouse in carton ${line.cartonRef}.`,
+        location: route === "HONG_KONG" ? "Hong Kong" : "Guangzhou, China",
+        note: `Received and packed in carton ${line.cartonRef}.`,
         actorId: china.id,
         createdAt: packedAt,
       },
     });
 
-    created.push(trackingNumber);
+    createdShipments.push(trackingNumber);
   }
 
   // Keep the counters consistent with what was just minted, so the next
@@ -434,7 +521,7 @@ async function main() {
       action: "batch.import",
       entity: "Batch",
       entityId: batch.id,
-      summary: `Imported ${created.length} shipment(s) into ${batch.batchNumber} from the Guangzhou packing list`,
+      summary: `Imported ${createdShipments.length} shipment(s) into ${batch.batchNumber} from the ${route === "HONG_KONG" ? "Hong Kong" : "Guangzhou"} packing list`,
       metadata: {
         cartons: cartons.length,
         lineWeightKg: Number(lineWeight.toFixed(1)),
@@ -447,7 +534,7 @@ async function main() {
   });
 
   console.log(
-    `\nImported ${created.length} shipment(s): ${created[0]} … ${created[created.length - 1]}`
+    `\nImported ${createdShipments.length} shipment(s): ${createdShipments[0]} … ${createdShipments[createdShipments.length - 1]}`
   );
   console.log(`Batch ${batch.batchNumber} is OPEN and ready to seal.`);
 }
