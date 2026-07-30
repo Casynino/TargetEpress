@@ -65,6 +65,23 @@ const DAR: Permission[] = [
   "customer.view",
 ];
 
+/**
+ * Customer Care answers "where is my cargo and what do I owe".
+ *
+ * It sees the money because that is the question customers ask, and it may
+ * raise an invoice — but it cannot confirm a payment or release cargo. Taking
+ * money and acknowledging money stay with Finance.
+ */
+const CUSTOMER_CARE: Permission[] = [
+  "shipment.view",
+  "batch.view",
+  "finance.view",
+  "invoice.manage",
+  "customer.view",
+  "customer.manage",
+  "exception.raise",
+];
+
 const FINANCE: Permission[] = [
   "shipment.view",
   "shipment.viewInternal",
@@ -86,6 +103,7 @@ const ALL: Permission[] = Array.from(
     ...CHINA,
     ...DAR,
     ...FINANCE,
+    ...CUSTOMER_CARE,
     "shipment.cancel",
     "user.manage",
     "audit.view",
@@ -98,6 +116,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   CHINA_WAREHOUSE: CHINA,
   DAR_WAREHOUSE: DAR,
   FINANCE,
+  CUSTOMER_CARE,
 };
 
 export function can(role: Role | undefined | null, permission: Permission) {

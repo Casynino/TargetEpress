@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import type { Role, ShipmentStatus } from "@prisma/client";
-import { Ban, QrCode, ReceiptText, Wallet } from "lucide-react";
+import { Ban, FileText, QrCode, ReceiptText, Wallet } from "lucide-react";
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  generateInvoice,
   issuePickupNote,
   recordPayment,
   saveInvoice,
@@ -31,6 +33,8 @@ type Props = {
   pickupNoteNumber: string | null;
   pickupNoteStatus: string | null;
   defaultFreight: number;
+  /** Invoice number, when one exists — links straight to the document. */
+  invoiceNumber: string | null;
 };
 
 /**
@@ -60,12 +64,73 @@ export function ShipmentActions(props: Props) {
     <section className="rounded-xl border bg-card shadow-soft">
       <h2 className="border-b px-5 py-3.5 text-sm font-semibold">Actions</h2>
       <div className="divide-y">
+        {canInvoice ? <GenerateInvoicePanel {...props} /> : null}
         {canInvoice ? <InvoicePanel {...props} /> : null}
         {canPay ? <PaymentPanel {...props} /> : null}
         {can(role, "pickupNote.issue") ? <PickupNotePanel {...props} /> : null}
         {canCancel ? <CancelPanel shipmentId={props.shipmentId} /> : null}
       </div>
     </section>
+  );
+}
+
+/**
+ * The normal way to raise an invoice: one click, no typing.
+ *
+ * The price comes from the published rate book via the shipment's cargo
+ * category, so nobody can mistype it and nobody has to look it up.
+ */
+function GenerateInvoicePanel(props: Props) {
+  const [state, action] = useActionState<
+    ActionResult<{ invoiceNumber: string; total: number }>,
+    FormData
+  >(generateInvoice, { ok: true });
+
+  const settled = props.outstanding !== null && props.outstanding <= 0;
+
+  return (
+    <div className="p-5">
+      <form action={action} className="space-y-3">
+        <input type="hidden" name="shipmentId" value={props.shipmentId} />
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <FileText className="h-4 w-4 text-signal" />
+          {props.hasInvoice ? "Recalculate invoice" : "Generate invoice"}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {props.hasInvoice
+            ? "Re-prices from the current rate book and storage days. Blocked once any money has been received."
+            : "Prices automatically from the cargo category, weight and the published rates. Adds storage if the free days have run out."}
+        </p>
+
+        <FormError state={state} />
+        <FormSuccess
+          message={
+            state.ok && state.data
+              ? `${state.data.invoiceNumber} — ${props.currency} ${state.data.total.toFixed(2)}`
+              : null
+          }
+        />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <SubmitButton
+            variant="signal"
+            size="sm"
+            disabled={settled}
+            pendingLabel="Pricing…"
+          >
+            {props.hasInvoice ? "Recalculate" : "Generate invoice"}
+          </SubmitButton>
+
+          {props.invoiceNumber ? (
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/app/finance/invoices/${props.invoiceNumber}`}>
+                Open invoice
+              </Link>
+            </Button>
+          ) : null}
+        </div>
+      </form>
+    </div>
   );
 }
 

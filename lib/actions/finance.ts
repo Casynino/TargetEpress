@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 
 import { recordAudit } from "@/lib/audit";
+import { STORAGE_POLICY, storageDaysFor } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
+import { quote } from "@/lib/pricing";
 import {
   nextInvoiceNumber,
   nextPickupNoteNumber,
@@ -14,6 +16,152 @@ import { prisma } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { firstError, invoiceSchema, paymentSchema } from "@/lib/validation";
+
+/**
+ * One-click invoice.
+ *
+ * Everything is derived: the rate comes from the published rate book via the
+ * shipment's cargo category, storage comes from how long the cargo has actually
+ * been sitting, and the quote snapshot is written back onto the shipment so the
+ * figure can be explained months later.
+ *
+ * Nobody types a price. That is the point — a warehouse clerk cannot influence
+ * it and a finance clerk cannot mistype it.
+ */
+export async function generateInvoice(
+  _prev: ActionResult<{ invoiceNumber: string; total: number }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ invoiceNumber: string; total: number }>> {
+  let user: SessionUser;
+  try {
+    user = await authorize("invoice.manage");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const shipmentId = String(formData.get("shipmentId") ?? "");
+  if (!shipmentId) return fail("Missing shipment.");
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const shipment = await tx.shipment.findUnique({
+        where: { id: shipmentId },
+        select: {
+          id: true,
+          trackingNumber: true,
+          customerId: true,
+          cargoCategory: true,
+          cargoTypeId: true,
+          weightKg: true,
+          volumeCbm: true,
+          packages: true,
+          arrivedAt: true,
+          deliveredAt: true,
+          invoice: { select: { id: true, amountPaid: true, invoiceNumber: true } },
+        },
+      });
+      if (!shipment) throw new Error("Shipment not found.");
+
+      if (shipment.invoice && toNumber(shipment.invoice.amountPaid) > 0) {
+        throw new Error(
+          `${shipment.invoice.invoiceNumber} already has money against it and cannot be regenerated.`
+        );
+      }
+
+      const priced = await quote({
+        category: shipment.cargoCategory,
+        cargoTypeId: shipment.cargoTypeId,
+        weightKg: toNumber(shipment.weightKg),
+        quantity: shipment.packages,
+        volumeCbm: shipment.volumeCbm ? toNumber(shipment.volumeCbm) : null,
+      });
+
+      if (!priced.ok) {
+        throw new Error(
+          `${shipment.trackingNumber} cannot be priced yet: ${priced.message}`
+        );
+      }
+
+      const storageDays = storageDaysFor(shipment.arrivedAt, shipment.deliveredAt);
+      const storageCharge = storageDays * STORAGE_POLICY.perDayUsd;
+      const total = priced.total + storageCharge;
+
+      // Keep the working on the shipment so a customer query in three months
+      // does not require re-deriving today's rate.
+      await tx.shipment.update({
+        where: { id: shipment.id },
+        data: {
+          quotedAmount: new Prisma.Decimal(priced.total),
+          quoteCurrency: priced.currency,
+          quotedMethod: priced.method,
+          quotedRate: new Prisma.Decimal(priced.rate),
+          chargeableKg:
+            priced.chargeableWeightKg === null
+              ? null
+              : new Prisma.Decimal(priced.chargeableWeightKg),
+          currency: priced.currency,
+        },
+      });
+
+      const data = {
+        customerId: shipment.customerId,
+        currency: priced.currency,
+        freightCost: new Prisma.Decimal(priced.total),
+        storageDays,
+        storageCharge: new Prisma.Decimal(storageCharge),
+        otherCharges: new Prisma.Decimal(0),
+        discount: new Prisma.Decimal(0),
+        total: new Prisma.Decimal(total),
+        notes: storageDays
+          ? `Includes ${storageDays} chargeable storage day(s) at ${STORAGE_POLICY.currency} ${STORAGE_POLICY.perDayUsd}/day.`
+          : null,
+      };
+
+      const invoice = shipment.invoice
+        ? await tx.invoice.update({
+            where: { id: shipment.invoice.id },
+            data,
+            select: { invoiceNumber: true, total: true },
+          })
+        : await tx.invoice.create({
+            data: {
+              ...data,
+              invoiceNumber: await nextInvoiceNumber(tx),
+              shipmentId: shipment.id,
+              issuedById: user.id,
+            },
+            select: { invoiceNumber: true, total: true },
+          });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: shipment.invoice ? "invoice.regenerate" : "invoice.generate",
+          entity: "Invoice",
+          entityId: shipment.id,
+          summary: `${shipment.invoice ? "Regenerated" : "Generated"} ${invoice.invoiceNumber} for ${shipment.trackingNumber}: ${priced.currency} ${total.toFixed(2)}`,
+          metadata: {
+            method: priced.method,
+            rate: priced.rate,
+            chargeableKg: priced.chargeableWeightKg,
+            storageDays,
+            ruleId: priced.ruleId,
+          },
+        },
+        tx
+      );
+
+      return { invoiceNumber: invoice.invoiceNumber, total };
+    });
+
+    revalidatePath(`/app/shipments/${shipmentId}`);
+    revalidatePath("/app/finance/invoices");
+    revalidatePath("/app/finance");
+    return ok(result);
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
 
 /** Creates the invoice for a shipment, or corrects it while nothing is paid. */
 export async function saveInvoice(

@@ -77,7 +77,79 @@ export const COMPANY = {
   chinaAddress: "ECAT Cultural Park, Jinshazhou, Baiyun District, Guangzhou",
 } as const;
 
-export const DEFAULT_CURRENCY = "TZS";
+/** Rates are published in USD, so invoices are raised in USD. */
+export const DEFAULT_CURRENCY = "USD";
+
+/**
+ * Official collection accounts, printed on every invoice.
+ *
+ * Kept here rather than in the database because an invoice is a legal document:
+ * the account a customer paid into must be reproducible from the code that
+ * generated that invoice, not from a table someone edited afterwards.
+ */
+export const PAYMENT_ACCOUNTS = {
+  mobileMoney: [
+    {
+      provider: "Mixx by Yas",
+      number: "7122055",
+      accountName: "SCOHU TARGET EXPRESS AIR CARGO",
+    },
+    {
+      provider: "Vodacom (M-Pesa)",
+      number: "5581590",
+      accountName: "TARGET EXPRESS AIR CARGO",
+    },
+  ],
+  banks: [
+    {
+      bank: "CRDB Bank",
+      accountName: "TARGET(GZ) EXPRESS AIR CARGO",
+      accounts: [{ currency: "TZS", number: "0150597916300" }],
+    },
+    {
+      bank: "Tanzania Commercial Bank",
+      accountName: "TARGET EXPRESS AIR CARGO",
+      accounts: [
+        { currency: "TZS", number: "121400000029" },
+        { currency: "USD", number: "121223000019" },
+      ],
+    },
+  ],
+} as const;
+
+/**
+ * Storage terms. Free for a week from arrival in Dar, then chargeable per day
+ * per shipment — which is what stops the warehouse becoming free long-term
+ * storage.
+ */
+export const STORAGE_POLICY = {
+  freeDays: 7,
+  perDayUsd: 2,
+  currency: "USD",
+  text: [
+    "Storage is FREE for 7 days only.",
+    "After 7 days, storage charges of USD 2 per day will apply for every shipment remaining in the warehouse.",
+    "Customers are advised to collect their cargo on time to avoid additional storage charges.",
+    "Thank you for choosing Target Express Air Cargo.",
+  ],
+} as const;
+
+/**
+ * Chargeable storage days for a shipment sitting in the Dar warehouse.
+ *
+ * Counts from arrival, not from invoicing, and stops counting once the cargo
+ * leaves — a delivered shipment cannot keep accruing storage.
+ */
+export function storageDaysFor(
+  arrivedAt: Date | null,
+  deliveredAt: Date | null,
+  now: Date = new Date()
+): number {
+  if (!arrivedAt) return 0;
+  const end = deliveredAt ?? now;
+  const days = Math.floor((end.getTime() - arrivedAt.getTime()) / 86_400_000);
+  return Math.max(0, days - STORAGE_POLICY.freeDays);
+}
 
 // ---------------------------------------------------------------------------
 // Roles & departments
@@ -88,6 +160,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   CHINA_WAREHOUSE: "China Warehouse",
   DAR_WAREHOUSE: "Dar Warehouse",
   FINANCE: "Finance",
+  CUSTOMER_CARE: "Customer Care",
 };
 
 export const DEPARTMENT_LABELS: Record<Department, string> = {
@@ -95,6 +168,7 @@ export const DEPARTMENT_LABELS: Record<Department, string> = {
   CHINA_WAREHOUSE: "China Warehouse",
   DAR_WAREHOUSE: "Dar es Salaam Warehouse",
   FINANCE: "Finance",
+  CUSTOMER_CARE: "Customer Care",
 };
 
 /** The department a role belongs to by default when an admin creates a user. */
@@ -103,6 +177,7 @@ export const ROLE_DEFAULT_DEPARTMENT: Record<Role, Department> = {
   CHINA_WAREHOUSE: "CHINA_WAREHOUSE",
   DAR_WAREHOUSE: "DAR_WAREHOUSE",
   FINANCE: "FINANCE",
+  CUSTOMER_CARE: "CUSTOMER_CARE",
 };
 
 // ---------------------------------------------------------------------------

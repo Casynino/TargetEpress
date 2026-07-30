@@ -28,16 +28,19 @@ export type ShipmentRow = {
   weightKg: number;
   batchNumber: string | null;
   registeredAt: string;
-  outstanding: number | null;
+  /** Absent entirely for roles that may not see prices. */
+  outstanding?: number | null;
   currency: string;
 };
 
 export function ShipmentsTable({
   rows,
   canCreate,
+  showMoney,
 }: {
   rows: ShipmentRow[];
   canCreate: boolean;
+  showMoney: boolean;
 }) {
   const { toast } = useToast();
 
@@ -109,14 +112,15 @@ export function ShipmentsTable({
       sortValue: (row) => Object.keys(SHIPMENT_STATUS_META).indexOf(row.status),
       cell: (row) => <ShipmentStatusBadge status={row.status} />,
     },
-    {
+    ...(showMoney
+      ? [{
       id: "outstanding",
       header: "Owed",
       align: "right",
       hideBelow: "xl",
       sortValue: (row) => row.outstanding ?? -1,
       cell: (row) =>
-        row.outstanding === null ? (
+        row.outstanding === null || row.outstanding === undefined ? (
           <span className="text-xs text-muted-foreground">—</span>
         ) : row.outstanding <= 0 ? (
           <span className="text-xs font-medium text-success">Settled</span>
@@ -125,7 +129,8 @@ export function ShipmentsTable({
             {formatMoney(row.outstanding, row.currency)}
           </span>
         ),
-    },
+    }] satisfies Column<ShipmentRow>[]
+      : []),
     {
       id: "registeredAt",
       header: "Registered",
@@ -167,7 +172,8 @@ export function ShipmentsTable({
       })),
       match: (row, value) => row.goodsType === value,
     },
-    {
+    ...(showMoney
+      ? [{
       id: "payment",
       label: "Payment",
       options: [
@@ -176,11 +182,13 @@ export function ShipmentsTable({
         { value: "uninvoiced", label: "Not invoiced" },
       ],
       match: (row, value) => {
-        if (value === "uninvoiced") return row.outstanding === null;
-        if (value === "settled") return row.outstanding !== null && row.outstanding <= 0;
-        return row.outstanding !== null && row.outstanding > 0;
+        const owed = row.outstanding;
+        if (value === "uninvoiced") return owed === null || owed === undefined;
+        if (value === "settled") return typeof owed === "number" && owed <= 0;
+        return typeof owed === "number" && owed > 0;
       },
-    },
+    }] satisfies TableFilter<ShipmentRow>[]
+      : []),
   ];
 
   return (
@@ -260,13 +268,17 @@ export function ShipmentsTable({
             { label: "Weight", value: formatWeight(row.weightKg) },
             { label: "Batch", value: row.batchNumber ?? "Not assigned" },
             { label: "Registered", value: formatDate(row.registeredAt) },
-            {
-              label: "Outstanding",
-              value:
-                row.outstanding === null
-                  ? "Not invoiced"
-                  : formatMoney(row.outstanding, row.currency),
-            },
+            ...(showMoney
+              ? [
+                  {
+                    label: "Outstanding",
+                    value:
+                      row.outstanding === null || row.outstanding === undefined
+                        ? "Not invoiced"
+                        : formatMoney(row.outstanding, row.currency),
+                  },
+                ]
+              : []),
             { label: "Description", value: row.description },
           ].map((item) => (
             <div key={item.label}>
@@ -302,7 +314,9 @@ export function ShipmentsTable({
             {row.packages} pkg · {formatWeight(row.weightKg)}
             {row.batchNumber ? ` · ${row.batchNumber}` : ""}
           </p>
-          {row.outstanding !== null && row.outstanding > 0 ? (
+          {showMoney &&
+          typeof row.outstanding === "number" &&
+          row.outstanding > 0 ? (
             <p className="mt-2 font-mono text-xs font-medium tabular text-warning">
               {formatMoney(row.outstanding, row.currency)} outstanding
             </p>

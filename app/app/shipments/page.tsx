@@ -56,6 +56,11 @@ export default async function ShipmentsPage({
     prisma.shipment.count({ where }),
   ]);
 
+  // Warehouse roles must never receive a price. This is enforced by omitting
+  // the figure from the payload, not by hiding a column — a hidden column is
+  // still in the HTML, and "view source" is not a permission system.
+  const showMoney = can(user.role, "finance.view");
+
   const rows: ShipmentRow[] = shipments.map((s) => ({
     id: s.id,
     trackingNumber: s.trackingNumber,
@@ -69,9 +74,11 @@ export default async function ShipmentsPage({
     weightKg: toNumber(s.weightKg),
     batchNumber: s.batch?.batchNumber ?? null,
     registeredAt: s.registeredAt.toISOString(),
-    outstanding: s.invoice
-      ? toNumber(s.invoice.total) - toNumber(s.invoice.amountPaid)
-      : null,
+    outstanding: showMoney
+      ? s.invoice
+        ? toNumber(s.invoice.total) - toNumber(s.invoice.amountPaid)
+        : null
+      : undefined,
     currency: s.invoice?.currency ?? s.currency,
   }));
 
@@ -93,7 +100,11 @@ export default async function ShipmentsPage({
         </p>
       ) : null}
 
-      <ShipmentsTable rows={rows} canCreate={can(user.role, "shipment.create")} />
+      <ShipmentsTable
+        rows={rows}
+        canCreate={can(user.role, "shipment.create")}
+        showMoney={showMoney}
+      />
     </>
   );
 }

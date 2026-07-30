@@ -415,6 +415,7 @@ export default async function ShipmentDetailPage({
             role={user.role}
             hasInvoice={Boolean(shipment.invoice)}
             invoiceId={shipment.invoice?.id ?? null}
+            invoiceNumber={shipment.invoice?.invoiceNumber ?? null}
             outstanding={outstanding}
             currency={shipment.currency}
             pickupNoteNumber={shipment.pickupNote?.noteNumber ?? null}

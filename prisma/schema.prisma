@@ -31,6 +31,10 @@ enum Role {
   CHINA_WAREHOUSE
   DAR_WAREHOUSE
   FINANCE
+  /// Talks to customers: sees shipment status, weight, cost and payment state
+  /// so it can answer questions, and may raise an invoice — but never confirms
+  /// a payment. That stays with Finance.
+  CUSTOMER_CARE
 }
 
 enum Department {
@@ -38,6 +42,7 @@ enum Department {
   CHINA_WAREHOUSE
   DAR_WAREHOUSE
   FINANCE
+  CUSTOMER_CARE
 }
 
 /// The five operational stages, in order. CANCELLED is an administrative exit
@@ -474,8 +479,13 @@ model Invoice {
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
-  currency     String        @default("TZS")
+  currency     String        @default("USD")
   freightCost  Decimal       @db.Decimal(12, 2)
+  /// Free storage runs out after a grace period; after that each day is
+  /// chargeable. Both the count and the money are stored so an invoice can be
+  /// re-explained months later, when "today" is a different date.
+  storageDays   Int     @default(0)
+  storageCharge Decimal @default(0) @db.Decimal(12, 2)
   otherCharges Decimal       @default(0) @db.Decimal(12, 2)
   discount     Decimal       @default(0) @db.Decimal(12, 2)
   total        Decimal       @db.Decimal(12, 2)
