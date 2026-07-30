@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { TrackForm } from "@/components/site/track-form";
+import { TrackingTimeline } from "@/components/site/tracking-timeline";
 import { Button } from "@/components/ui/button";
 import { COMPANY } from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/lib/format";
@@ -209,49 +210,12 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
           Shipment timeline
         </h2>
 
-        <ol className="mt-5">
-          {result.timeline.map((step, i, arr) => (
-            <li key={step.status} className="flex gap-4">
-              <div className="flex flex-col items-center">
-                <span
-                  className={
-                    step.current
-                      ? "mt-1 h-3 w-3 rounded-full bg-brand ring-4 ring-brand/20"
-                      : step.done
-                        ? "mt-1 h-3 w-3 rounded-full bg-brand/70"
-                        : "mt-1 h-3 w-3 rounded-full border-2 border-muted-foreground/30 bg-background"
-                  }
-                />
-                {i < arr.length - 1 ? (
-                  <span
-                    className={
-                      step.done
-                        ? "my-1 w-px flex-1 bg-brand/40"
-                        : "my-1 w-px flex-1 bg-border"
-                    }
-                  />
-                ) : null}
-              </div>
-              <div className="pb-6">
-                <p
-                  className={
-                    step.done || step.current
-                      ? "text-sm font-medium"
-                      : "text-sm text-muted-foreground"
-                  }
-                >
-                  {step.label}
-                </p>
-                <p className="text-xs text-muted-foreground">{step.location}</p>
-                {step.at ? (
-                  <p className="mt-1 text-xs text-muted-foreground/80">
-                    {formatDateTime(step.at)}
-                  </p>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ol>
+        <TrackingTimeline
+          steps={result.timeline.map((step) => ({
+            ...step,
+            atLabel: step.at ? formatDateTime(step.at) : null,
+          }))}
+        />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted/30 p-5 text-xs text-muted-foreground">

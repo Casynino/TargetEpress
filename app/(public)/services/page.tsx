@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { GOODS_TYPE_LABELS } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Services & pricing",
@@ -23,7 +22,7 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: "Bei inahesabiwaje? / How is the price calculated?",
-    a: "Bei ni kwa kilo. Mzigo wako unapimwa Guangzhou tunapoupokea, na uzito huo ndio unaoonekana kwenye invoice yako. Mzigo mkubwa lakini mwepesi unaweza kupimwa kwa volume — tunakuambia kabla ya kusafiri, sio baada. Tuulize bei ya aina ya mzigo wako kwa WhatsApp.",
+    a: "Inategemea unachotuma. Nguo, viatu na mizigo ya kawaida ni kwa kilo. Simu, laptop na tablet ni bei moja kwa kila kipande — uzito hauhusiki. Mzigo wako unapimwa China tunapoupokea, na uzito huo ndio unaoonekana kwenye invoice. Angalia bei zote kwenye ukurasa wa bei.",
   },
   {
     q: "Inachukua siku ngapi? / How long does it take?",
@@ -138,20 +137,53 @@ export default function ServicesPage() {
             Goods we handle every week
           </h2>
           <p className="mt-3 max-w-2xl text-muted-foreground">
-            Rates differ by category — electronics and cosmetics are not priced
-            like general merchandise. Ask for your rate before shipping.
+            Rates differ by category, and the category also decides which airport
+            your goods fly from. The full list is published — we do not quote from
+            memory.
           </p>
-          <div className="mt-6 flex flex-wrap gap-2">
-            {Object.values(GOODS_TYPE_LABELS)
-              .filter((label) => label !== "Other")
-              .map((label) => (
-                <span
-                  key={label}
-                  className="rounded-full border bg-card px-3.5 py-1.5 text-sm text-muted-foreground"
-                >
-                  {label}
-                </span>
-              ))}
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            {[
+              {
+                title: "Normal goods",
+                route: "Guangzhou",
+                examples:
+                  "Clothes, shoes, bags, wigs, jewellery, car parts, general merchandise",
+                basis: "Per kilogram, cheaper above 10 kg",
+              },
+              {
+                title: "Electronics",
+                route: "Hong Kong",
+                examples:
+                  "Phones, laptops, tablets, smart watches, cameras, AirPods, documents",
+                basis: "Fixed price per item — weight does not matter",
+              },
+              {
+                title: "Special goods",
+                route: "Hong Kong",
+                examples:
+                  "Medicines, food, oils, batteries, printers, monitors, speakers, LED displays",
+                basis: "Per kilogram at one flat rate",
+              },
+            ].map((group) => (
+              <div key={group.title} className="rounded-xl border bg-card p-5 shadow-soft">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-display font-semibold">{group.title}</h3>
+                  <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-[11px] font-medium text-brand">
+                    {group.route}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">{group.examples}</p>
+                <p className="mt-3 border-t pt-3 text-xs font-medium">{group.basis}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6">
+            <Button asChild variant="brand" className="rounded-xl">
+              <Link href="/pricing">
+                See every price
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </section>

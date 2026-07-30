@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { Hero } from "@/components/site/hero";
+import { Reveal } from "@/components/site/reveal";
 import { Button } from "@/components/ui/button";
 import { COMPANY, GOODS_TYPE_LABELS } from "@/lib/constants";
 
@@ -119,9 +120,10 @@ export default function HomePage() {
                 label: "Aggrey, Ndanda na Guangzhou",
                 sub: "Two in Dar, one in China",
               },
-            ].map(({ icon: Icon, stat, label, sub }) => (
-              <div
+            ].map(({ icon: Icon, stat, label, sub }, index) => (
+              <Reveal
                 key={stat}
+                delay={index * 80}
                 className="rounded-xl border bg-card p-6 text-center shadow-soft"
               >
                 <Icon className="mx-auto h-6 w-6 text-signal" />
@@ -130,7 +132,7 @@ export default function HomePage() {
                 </p>
                 <p className="mt-1 text-sm font-medium">{label}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -139,6 +141,7 @@ export default function HomePage() {
       {/* China — the part customers actually need */}
       <section id="china" className="section border-y bg-muted/30">
         <div className="container">
+          <Reveal>
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
               <p className="text-sm font-bold uppercase tracking-wider text-signal">
@@ -214,13 +217,14 @@ export default function HomePage() {
                 className="h-full w-full object-cover"
               />
             </div>
-          </div>
+          </div></Reveal>
         </div>
       </section>
 
       {/* Services */}
       <section id="services" className="section">
         <div className="container">
+          <Reveal>
           <div className="max-w-2xl">
             <p className="text-sm font-bold uppercase tracking-wider text-signal">
               Huduma zetu
@@ -254,13 +258,14 @@ export default function HomePage() {
                 </p>
               </div>
             ))}
-          </div>
+          </div></Reveal>
         </div>
       </section>
 
       {/* How it works */}
       <section id="process" className="section border-t bg-muted/30">
         <div className="container">
+          <Reveal>
           <div className="max-w-2xl">
             <p className="text-sm font-bold uppercase tracking-wider text-signal">
               Inafanyaje kazi
@@ -290,7 +295,7 @@ export default function HomePage() {
                 </p>
               </li>
             ))}
-          </ol>
+          </ol></Reveal>
         </div>
       </section>
 
@@ -351,6 +356,7 @@ export default function HomePage() {
       {/* Offices */}
       <section id="offices" className="section border-t bg-muted/30">
         <div className="container">
+          <Reveal>
           <div className="max-w-2xl">
             <p className="text-sm font-bold uppercase tracking-wider text-signal">
               Ofisi zetu
@@ -425,7 +431,7 @@ export default function HomePage() {
                 ))}
               </ul>
             </div>
-          </div>
+          </div></Reveal>
         </div>
       </section>
 

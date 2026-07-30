@@ -54,6 +54,16 @@ export function SiteFooter() {
                 </Link>
               </li>
               <li>
+                <Link href="/pricing" className="hover:text-foreground">
+                  Bei zetu
+                </Link>
+              </li>
+              <li>
+                <Link href="/services/sourcing" className="hover:text-foreground">
+                  Tunanunua kwa niaba yako
+                </Link>
+              </li>
+              <li>
                 <Link href="/services" className="hover:text-foreground">
                   Huduma na bei
                 </Link>
