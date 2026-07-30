@@ -296,6 +296,126 @@ export async function executiveStats() {
   };
 }
 
+/**
+ * The Dar warehouse's inbound queue.
+ *
+ * Returns everything the receiving desk cares about in one pass: batches in the
+ * air, batches on the floor part-checked, and recently closed ones for
+ * reference. Sorted so the work that has been waiting longest is first —
+ * receiving is a queue, and the oldest carton is the one a customer is already
+ * asking about.
+ */
+export async function receivingQueue({
+  verifiedLimit = 15,
+}: { verifiedLimit?: number } = {}) {
+  const [live, recent] = await Promise.all([
+    prisma.batch.findMany({
+      where: { status: { in: ["IN_TRANSIT", "ARRIVED"] } },
+      select: {
+        id: true,
+        batchNumber: true,
+        status: true,
+        origin: true,
+        airline: true,
+        flightNumber: true,
+        waybillNumber: true,
+        departureDate: true,
+        arrivedAt: true,
+        _count: { select: { shipments: true, verifications: true, exceptions: true } },
+        shipments: { select: { weightKg: true, packages: true } },
+      },
+    }),
+    prisma.batch.findMany({
+      where: { status: { in: ["VERIFIED", "CLOSED"] } },
+      orderBy: { verifiedAt: "desc" },
+      take: verifiedLimit,
+      select: {
+        id: true,
+        batchNumber: true,
+        status: true,
+        origin: true,
+        airline: true,
+        flightNumber: true,
+        waybillNumber: true,
+        departureDate: true,
+        arrivedAt: true,
+        verifiedAt: true,
+        _count: { select: { shipments: true, verifications: true, exceptions: true } },
+        shipments: { select: { weightKg: true, packages: true } },
+      },
+    }),
+  ]);
+
+  const shape = (batch: (typeof live)[number] & { verifiedAt?: Date | null }) => {
+    const weightKg = batch.shipments.reduce((sum, s) => sum + toNumber(s.weightKg), 0);
+    const packages = batch.shipments.reduce((sum, s) => sum + s.packages, 0);
+    const unchecked = batch._count.shipments - batch._count.verifications;
+
+    // Days waiting: on the floor since landing, or in the air since departure.
+    const since =
+      batch.status === "ARRIVED" ? batch.arrivedAt : batch.departureDate;
+    const waitDays = since
+      ? Math.floor((Date.now() - since.getTime()) / DAY)
+      : null;
+
+    return {
+      id: batch.id,
+      batchNumber: batch.batchNumber,
+      status: batch.status,
+      origin: batch.origin,
+      airline: batch.airline,
+      flightNumber: batch.flightNumber,
+      waybillNumber: batch.waybillNumber,
+      departureDate: batch.departureDate?.toISOString() ?? null,
+      arrivedAt: batch.arrivedAt?.toISOString() ?? null,
+      verifiedAt: batch.verifiedAt?.toISOString() ?? null,
+      shipments: batch._count.shipments,
+      verified: batch._count.verifications,
+      unchecked,
+      exceptions: batch._count.exceptions,
+      weightKg,
+      packages,
+      waitDays,
+    };
+  };
+
+  const rows = [...live.map(shape), ...recent.map(shape)];
+
+  // ARRIVED first (it needs hands on cargo), then longest wait, then in-air by
+  // how soon it lands.
+  const rank = { ARRIVED: 0, IN_TRANSIT: 1, VERIFIED: 2, CLOSED: 3 } as Record<
+    string,
+    number
+  >;
+  rows.sort(
+    (a, b) =>
+      (rank[a.status] ?? 9) - (rank[b.status] ?? 9) ||
+      (b.waitDays ?? -1) - (a.waitDays ?? -1) ||
+      a.batchNumber.localeCompare(b.batchNumber)
+  );
+
+  const onFloor = rows.filter((r) => r.status === "ARRIVED");
+
+  return {
+    rows,
+    summary: {
+      inAir: rows.filter((r) => r.status === "IN_TRANSIT").length,
+      onFloor: onFloor.length,
+      uncheckedShipments: onFloor.reduce((sum, r) => sum + r.unchecked, 0),
+      oldestWaitDays: onFloor.reduce(
+        (max, r) => Math.max(max, r.waitDays ?? 0),
+        0
+      ),
+      openExceptions: rows.reduce((sum, r) => sum + r.exceptions, 0),
+      inAirWeightKg: rows
+        .filter((r) => r.status === "IN_TRANSIT")
+        .reduce((sum, r) => sum + r.weightKg, 0),
+    },
+  };
+}
+
+export type ReceivingRow = Awaited<ReturnType<typeof receivingQueue>>["rows"][number];
+
 export type AttentionItem = {
   id: string;
   severity: "critical" | "warning" | "info";

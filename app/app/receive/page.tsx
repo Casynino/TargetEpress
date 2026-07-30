@@ -1,15 +1,21 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Plane } from "lucide-react";
+import {
+  AlertTriangle,
+  ClipboardCheck,
+  Clock,
+  Package,
+  Plane,
+  Warehouse,
+} from "lucide-react";
 
-import { EmptyState } from "@/components/app/empty-state";
+import { KpiCard } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
-import { ReceiveBatchButton } from "@/components/app/receive-batch-button";
-import { BatchStatusBadge } from "@/components/app/status-badge";
+import { ReceivingQueue } from "@/components/app/receiving-queue";
+import { StatStrip } from "@/components/app/stat-strip";
 import { Button } from "@/components/ui/button";
-import { ORIGIN_LABELS } from "@/lib/constants";
-import { formatDate, formatWeight, toNumber } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
+import { formatWeight } from "@/lib/format";
+import { receivingQueue } from "@/lib/queries";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Receive & verify" };
@@ -17,107 +23,135 @@ export const metadata: Metadata = { title: "Receive & verify" };
 export default async function ReceivePage() {
   await requirePermission("batch.receive");
 
-  const batches = await prisma.batch.findMany({
-    where: { status: { in: ["IN_TRANSIT", "ARRIVED"] } },
-    orderBy: [{ status: "asc" }, { departureDate: "asc" }],
-    include: {
-      _count: { select: { shipments: true, verifications: true } },
-      shipments: { select: { weightKg: true } },
-    },
-  });
+  const { rows, summary } = await receivingQueue();
+
+  // The single most urgent batch, so the operator never has to hunt for it.
+  const next = rows.find((r) => r.status === "ARRIVED" && r.unchecked > 0);
+  const checkedShare =
+    summary.onFloor === 0
+      ? 100
+      : (() => {
+          const floor = rows.filter((r) => r.status === "ARRIVED");
+          const total = floor.reduce((sum, r) => sum + r.shipments, 0);
+          const done = floor.reduce((sum, r) => sum + r.verified, 0);
+          return total === 0 ? 100 : (done / total) * 100;
+        })();
 
   return (
     <>
       <PageHeader
         title="Receive & verify"
-        description="Batches in the air and batches on the floor waiting to be checked in."
+        description="Everything inbound, oldest first. Cargo on the floor comes before cargo in the air."
+        actions={
+          next ? (
+            <Button asChild variant="signal" className="rounded-lg">
+              <Link href={`/app/receive/${next.id}`}>
+                <ClipboardCheck className="mr-2 h-4 w-4" />
+                Check in {next.batchNumber}
+              </Link>
+            </Button>
+          ) : null
+        }
       />
 
-      {batches.length === 0 ? (
-        <EmptyState
-          icon={Plane}
-          title="Nothing inbound"
-          description="No batches are in transit or waiting to be checked in."
+      <StatStrip
+        className="mb-5"
+        chips={[
+          {
+            label: "On the floor",
+            value: String(summary.onFloor),
+            icon: Warehouse,
+            tone: summary.onFloor > 0 ? "warning" : "success",
+          },
+          {
+            label: "To check in",
+            value: String(summary.uncheckedShipments),
+            icon: Package,
+            tone: summary.uncheckedShipments > 0 ? "warning" : "success",
+          },
+          { label: "In the air", value: String(summary.inAir), icon: Plane, tone: "brand" },
+          {
+            label: "Arriving weight",
+            value: formatWeight(summary.inAirWeightKg),
+            icon: Plane,
+          },
+          {
+            label: "Oldest wait",
+            value: summary.oldestWaitDays > 0 ? `${summary.oldestWaitDays}d` : "—",
+            icon: Clock,
+            tone: summary.oldestWaitDays >= 2 ? "danger" : "neutral",
+          },
+          {
+            label: "Flags",
+            value: String(summary.openExceptions),
+            icon: AlertTriangle,
+            tone: summary.openExceptions > 0 ? "danger" : "success",
+            href: "/app/exceptions",
+          },
+        ]}
+      />
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          delay={0}
+          label="Shipments to check in"
+          numeric={summary.uncheckedShipments}
+          ringPct={checkedShare}
+          ringLabel="Share of floor cargo already checked in"
+          hint={`across ${summary.onFloor} batch(es) on the floor`}
+          icon={ClipboardCheck}
+          tone={summary.uncheckedShipments > 0 ? "warning" : "success"}
         />
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {batches.map((batch) => {
-            const weight = batch.shipments.reduce(
-              (sum, s) => sum + toNumber(s.weightKg),
-              0
-            );
-            const remaining =
-              batch._count.shipments - batch._count.verifications;
+        <KpiCard
+          delay={1}
+          label="Batches on the floor"
+          numeric={summary.onFloor}
+          hint="Landed, not yet closed off"
+          icon={Warehouse}
+          tone={summary.onFloor > 0 ? "warning" : "success"}
+        />
+        <KpiCard
+          delay={2}
+          label="Batches in the air"
+          numeric={summary.inAir}
+          hint={`${formatWeight(summary.inAirWeightKg)} arriving`}
+          icon={Plane}
+          tone="brand"
+        />
+        <KpiCard
+          delay={3}
+          label="Longest on the floor"
+          value={summary.oldestWaitDays > 0 ? `${summary.oldestWaitDays} days` : "—"}
+          hint="Chase anything past two days"
+          icon={Clock}
+          tone={summary.oldestWaitDays >= 2 ? "danger" : "info"}
+          invertDelta
+        />
+      </div>
 
-            return (
-              <div
-                key={batch.id}
-                className="rounded-xl border bg-card p-5 shadow-soft"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-mono text-lg font-semibold tabular">
-                      {batch.batchNumber}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {ORIGIN_LABELS[batch.origin]}
-                      {batch.airline
-                        ? ` · ${batch.airline} ${batch.flightNumber ?? ""}`
-                        : ""}
-                    </p>
-                  </div>
-                  <BatchStatusBadge status={batch.status} />
-                </div>
-
-                <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Shipments</dt>
-                    <dd className="mt-0.5 font-medium tabular">
-                      {batch._count.shipments}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Weight</dt>
-                    <dd className="mt-0.5 font-medium tabular">
-                      {formatWeight(weight)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Departed</dt>
-                    <dd className="mt-0.5 font-medium">
-                      {formatDate(batch.departureDate)}
-                    </dd>
-                  </div>
-                </dl>
-
-                <div className="mt-5 flex flex-wrap items-center gap-2 border-t pt-4">
-                  {batch.status === "IN_TRANSIT" ? (
-                    <ReceiveBatchButton batchId={batch.id} />
-                  ) : (
-                    <>
-                      <Button asChild variant="brand" size="sm">
-                        <Link href={`/app/receive/${batch.id}`}>
-                          Check in cargo
-                        </Link>
-                      </Button>
-                      <span className="text-xs text-muted-foreground">
-                        {remaining > 0
-                          ? `${remaining} still unchecked`
-                          : "All checked — ready to close"}
-                      </span>
-                    </>
-                  )}
-                  <Button asChild variant="ghost" size="sm">
-                    <Link href={`/app/batches/${batch.id}/manifest`}>
-                      Print manifest
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
+      {/* Urgent callout — only when something has genuinely been sitting. */}
+      {next && (next.waitDays ?? 0) >= 1 ? (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border-l-4 border-l-destructive border-y border-r bg-destructive/5 px-4 py-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+            <div>
+              <p className="text-sm font-medium">
+                {next.batchNumber} has been on the floor for {next.waitDays} day
+                {next.waitDays === 1 ? "" : "s"}
+              </p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {next.unchecked} of {next.shipments} shipment(s) still unchecked.
+                Customers cannot be invoiced until their cargo is checked in.
+              </p>
+            </div>
+          </div>
+          <Button asChild variant="destructive" size="sm">
+            <Link href={`/app/receive/${next.id}`}>Open now</Link>
+          </Button>
         </div>
-      )}
+      ) : null}
+
+      <ReceivingQueue rows={rows} />
     </>
   );
 }
