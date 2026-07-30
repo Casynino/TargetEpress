@@ -89,7 +89,9 @@ export default async function LabelPage({
             <p className="text-base font-bold leading-tight">
               {shipment.customer.name}
             </p>
-            <p className="font-mono text-sm tabular">{shipment.customer.phone}</p>
+            <p className="font-mono text-sm tabular">
+              {shipment.customer.phone ?? "Phone not recorded"}
+            </p>
             {shipment.customer.city ? (
               <p className="text-sm">{shipment.customer.city}, Tanzania</p>
             ) : null}

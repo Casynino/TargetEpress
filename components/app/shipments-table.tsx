@@ -20,7 +20,7 @@ export type ShipmentRow = {
   trackingNumber: string;
   status: keyof typeof SHIPMENT_STATUS_META;
   customerName: string;
-  customerPhone: string;
+  customerPhone: string | null;
   description: string;
   goodsType: keyof typeof GOODS_TYPE_LABELS;
   origin: keyof typeof ORIGIN_LABELS;
@@ -63,7 +63,7 @@ export function ShipmentsTable({
         <div className="min-w-0">
           <p className="truncate text-sm">{row.customerName}</p>
           <p className="truncate text-xs text-muted-foreground tabular">
-            {row.customerPhone}
+            {row.customerPhone ?? "No phone recorded"}
           </p>
         </div>
       ),
@@ -192,7 +192,7 @@ export function ShipmentsTable({
         [
           row.trackingNumber,
           row.customerName,
-          row.customerPhone,
+          row.customerPhone ?? "",
           row.description,
           row.batchNumber ?? "",
         ].join(" ")
@@ -295,7 +295,9 @@ export function ShipmentsTable({
             <ShipmentStatusBadge status={row.status} />
           </div>
           <p className="mt-2 truncate text-sm">{row.customerName}</p>
-          <p className="text-xs text-muted-foreground tabular">{row.customerPhone}</p>
+          <p className="text-xs text-muted-foreground tabular">
+            {row.customerPhone ?? "No phone recorded"}
+          </p>
           <p className="mt-2 truncate text-xs text-muted-foreground">
             {row.packages} pkg · {formatWeight(row.weightKg)}
             {row.batchNumber ? ` · ${row.batchNumber}` : ""}

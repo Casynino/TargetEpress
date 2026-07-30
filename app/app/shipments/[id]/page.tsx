@@ -131,6 +131,10 @@ export default async function ShipmentDetailPage({
                   label: "Batch",
                   value: shipment.batch?.batchNumber ?? "Not assigned",
                 },
+                {
+                  label: "Carton",
+                  value: shipment.cartonRef ?? "—",
+                },
               ].map((item) => (
                 <div key={item.label} className="bg-card p-4">
                   <dt className="text-xs text-muted-foreground">{item.label}</dt>
@@ -366,7 +370,9 @@ export default async function ShipmentDetailPage({
             </h2>
             <div className="space-y-2 p-5 text-sm">
               <p className="font-medium">{shipment.customer.name}</p>
-              <p className="text-muted-foreground">{shipment.customer.phone}</p>
+              <p className="text-muted-foreground">
+                {shipment.customer.phone ?? "No phone recorded"}
+              </p>
               {shipment.customer.city ? (
                 <p className="text-muted-foreground">{shipment.customer.city}</p>
               ) : null}

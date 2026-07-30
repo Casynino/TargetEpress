@@ -580,7 +580,7 @@ async function main() {
           shipmentId: entry.id,
           pickupNoteId: note.id,
           receiverName: customer.name,
-          receiverPhone: customer.phone,
+          receiverPhone: customer.phone ?? "",
           relationship: "SELF",
           releasedById: dar,
           releasedAt: daysAgo(16),

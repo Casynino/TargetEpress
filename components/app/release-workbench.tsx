@@ -21,7 +21,7 @@ type Note = {
   amountPaid: number;
   currency: string;
   customerName: string;
-  customerPhone: string;
+  customerPhone: string | null;
   trackingNumber: string;
   packages: number;
   weightKg: number;
@@ -44,7 +44,7 @@ export function ReleaseWorkbench({ notes }: { notes: Note[] }) {
       note.noteNumber.toLowerCase().includes(q) ||
       note.trackingNumber.toLowerCase().includes(q) ||
       note.customerName.toLowerCase().includes(q) ||
-      note.customerPhone.includes(q)
+      (note.customerPhone ?? "").includes(q)
     );
   });
 
@@ -149,7 +149,9 @@ function ReleaseForm({ note, onDone }: { note: Note; onDone: () => void }) {
               {note.trackingNumber}
             </p>
             <p className="mt-0.5 text-sm">{note.customerName}</p>
-            <p className="text-xs text-muted-foreground">{note.customerPhone}</p>
+            <p className="text-xs text-muted-foreground">
+              {note.customerPhone ?? "No phone recorded"}
+            </p>
           </div>
           <div className="text-right">
             <p className="font-mono text-sm tabular">{note.noteNumber}</p>
@@ -216,7 +218,7 @@ function ReleaseForm({ note, onDone }: { note: Note; onDone: () => void }) {
             <Input
               id="receiverPhone"
               name="receiverPhone"
-              defaultValue={note.customerPhone}
+              defaultValue={note.customerPhone ?? ""}
               inputMode="tel"
               required
             />

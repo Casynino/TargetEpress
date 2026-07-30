@@ -106,7 +106,9 @@ export default async function PickupNotePage({
                 Customer
               </p>
               <p className="text-base font-bold">{note.customer.name}</p>
-              <p className="font-mono text-sm tabular">{note.customer.phone}</p>
+              <p className="font-mono text-sm tabular">
+                {note.customer.phone ?? "Phone not recorded"}
+              </p>
               <p className="font-mono text-xs tabular text-black/60">
                 {note.customer.code}
               </p>

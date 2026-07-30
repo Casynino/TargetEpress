@@ -97,14 +97,18 @@ export default async function CustomersPage({
                     {customer.name}
                   </TableCell>
                   <TableCell className="font-mono text-sm tabular">
-                    {customer.phone}
+                    {customer.phone ?? (
+                      <span className="font-sans text-xs text-muted-foreground">
+                        No phone recorded
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
                     {customer.city ?? "—"}
                   </TableCell>
                   <TableCell className="text-right">
                     <Link
-                      href={`/app/shipments?q=${encodeURIComponent(customer.phone)}`}
+                      href={`/app/shipments?q=${encodeURIComponent(customer.phone ?? customer.name)}`}
                       className="text-sm tabular hover:text-brand"
                     >
                       {customer._count.shipments}

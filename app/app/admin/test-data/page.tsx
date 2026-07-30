@@ -290,7 +290,7 @@ export default async function TestDataPage() {
                     <TableCell>
                       <p className="text-sm">{s.customer.name}</p>
                       <p className="text-xs text-muted-foreground tabular">
-                        {s.customer.phone}
+                        {s.customer.phone ?? "No phone"}
                       </p>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
@@ -374,7 +374,13 @@ export default async function TestDataPage() {
                     </TableCell>
                     <TableCell className="text-sm">{c.name}</TableCell>
                     <TableCell>
-                      <CopyField value={c.phone} label={c.phone} copiedLabel="Copied" />
+                      {c.phone ? (
+                        <CopyField value={c.phone} label={c.phone} copiedLabel="Copied" />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          No phone recorded
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right text-sm tabular">
                       {c._count.shipments}

@@ -112,6 +112,7 @@ export default async function BatchDetailPage({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Carton</TableHead>
                     <TableHead>Tracking</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead className="hidden sm:table-cell">Pkgs</TableHead>
@@ -122,6 +123,9 @@ export default async function BatchDetailPage({
                 <TableBody>
                   {batch.shipments.map((shipment) => (
                     <TableRow key={shipment.id}>
+                      <TableCell className="font-mono text-xs text-muted-foreground tabular">
+                        {shipment.cartonRef ?? "—"}
+                      </TableCell>
                       <TableCell>
                         <Link
                           href={`/app/shipments/${shipment.trackingNumber}`}

@@ -197,10 +197,15 @@ model User {
 // ---------------------------------------------------------------------------
 
 model Customer {
-  id       String  @id @default(cuid())
-  code     String  @unique // CUS-000123
-  name     String
-  phone    String  @unique // primary key for warehouse lookup / auto-fill
+  id   String @id @default(cuid())
+  code String @unique // CUS-000123
+  name String
+
+  /// Preferred identity for warehouse lookup and auto-fill, but genuinely
+  /// optional: consolidated cargo regularly arrives from a Guangzhou packing
+  /// list with a name and no number. Postgres allows many NULLs in a unique
+  /// index, so "no phone" never collides.
+  phone    String? @unique
   altPhone String?
   email    String?
   city     String?
@@ -293,6 +298,12 @@ model Shipment {
   batchId String?
   batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: SetNull)
 
+  /// The physical carton this cargo was packed into in China, as written on the
+  /// Guangzhou packing list (e.g. "GZ/26-22-7"). One carton consolidates many
+  /// customers' goods, so this is how the warehouse finds a specific shipment
+  /// inside a pallet.
+  cartonRef String?
+
   /// Internal only — never rendered on the public tracking page.
   internalNotes String?
 
@@ -321,6 +332,7 @@ model Shipment {
   @@index([customerId])
   @@index([createdAt])
   @@index([status, batchId])
+  @@index([cartonRef])
 }
 
 model ShipmentStatusHistory {

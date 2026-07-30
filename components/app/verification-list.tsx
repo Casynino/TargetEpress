@@ -19,7 +19,7 @@ type Row = {
   id: string;
   trackingNumber: string;
   customerName: string;
-  customerPhone: string;
+  customerPhone: string | null;
   packages: number;
   weightKg: number;
   description: string;
