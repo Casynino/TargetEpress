@@ -28,7 +28,6 @@ export type QuoteInput = {
   weightKg: number;
   /** Pieces. Multiplies weight for weight-based, and the unit price for fixed. */
   quantity?: number;
-  volumeCbm?: number | null;
   /** Price as at this moment; lets an old invoice be re-explained. */
   asOf?: Date;
 };
@@ -58,9 +57,6 @@ export type Quote =
       notes: string | null;
     }
   | { ok: false; reason: "no-rule"; message: string; route: Origin };
-
-/** Volumetric divisor for air freight — the IATA standard. */
-const VOLUMETRIC_KG_PER_CBM = 167;
 
 async function resolveRule(input: QuoteInput) {
   const asOf = input.asOf ?? new Date();
@@ -101,7 +97,18 @@ async function resolveRule(input: QuoteInput) {
 }
 
 export async function quote(input: QuoteInput): Promise<Quote> {
-  const route = routeFor(input.category);
+  // A product may name its own airport — an LCD panel is normal goods out of
+  // Guangzhou, a laptop is electronics out of Hong Kong. Falls back to the
+  // category default when the product does not say.
+  const productRoute = input.cargoTypeId
+    ? (
+        await prisma.cargoType.findUnique({
+          where: { id: input.cargoTypeId },
+          select: { route: true },
+        })
+      )?.route ?? null
+    : null;
+  const route = productRoute ?? routeFor(input.category);
   const quantity = Math.max(1, Math.round(input.quantity ?? 1));
   const actualWeightKg = Math.max(0, input.weightKg) * quantity;
 
@@ -132,22 +139,13 @@ export async function quote(input: QuoteInput): Promise<Quote> {
       amount: total,
     });
   } else {
-    // Weight-based: bill the greater of scale weight, volumetric weight and any
-    // minimum billable weight on the rule.
-    const volumetric =
-      input.volumeCbm && input.volumeCbm > 0
-        ? input.volumeCbm * quantity * VOLUMETRIC_KG_PER_CBM
-        : null;
+    // Weight-based. This business bills on scale weight only — no volumetric
+    // calculation, by explicit instruction — subject to any minimum on the rule.
     const minKg = rule.minChargeableKg === null ? 0 : toNumber(rule.minChargeableKg);
 
     chargeableWeightKg = actualWeightKg;
     basis = "Priced on the scale weight of your cargo.";
 
-    if (volumetric !== null && volumetric > chargeableWeightKg) {
-      chargeableWeightKg = volumetric;
-      basis =
-        "Priced on volumetric weight — the cargo is bulky for its weight, so the space it occupies costs more than the kilos.";
-    }
     if (minKg > chargeableWeightKg) {
       chargeableWeightKg = minKg;
       basis = `Priced on this route's minimum billable weight of ${minKg} kg.`;

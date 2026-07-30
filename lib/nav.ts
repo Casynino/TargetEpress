@@ -96,10 +96,52 @@ const SECTIONS: NavSection[] = [
         permission: "payment.record",
       },
       {
+        href: "/app/finance/exchange-rate",
+        label: "Exchange rate",
+        icon: "ArrowLeftRight",
+        permission: "fx.manage",
+      },
+      {
         href: "/app/finance/pickup-notes",
         label: "Pickup notes",
         icon: "QrCode",
         permission: "pickupNote.issue",
+      },
+    ],
+  },
+  {
+    title: "Support desk",
+    items: [
+      {
+        href: "/app/support",
+        label: "Support home",
+        icon: "Headset",
+        permission: "ticket.manage",
+        exact: true,
+      },
+      {
+        href: "/app/support/tickets",
+        label: "Tickets",
+        icon: "MessageSquare",
+        permission: "ticket.manage",
+      },
+      {
+        href: "/app/support/sourcing",
+        label: "Sourcing requests",
+        icon: "ShoppingBag",
+        permission: "sourcing.manage",
+      },
+      {
+        href: "/app/support/follow-up",
+        label: "Payment follow-up",
+        icon: "PhoneCall",
+        permission: "ticket.manage",
+      },
+      {
+        href: "/app/support/markets",
+        label: "China markets",
+        icon: "Store",
+        permission: "sourcing.manage",
       },
     ],
   },
@@ -122,6 +164,12 @@ const SECTIONS: NavSection[] = [
         label: "Reports",
         icon: "ChartNoAxesCombined",
         permission: "report.view",
+      },
+      {
+        href: "/app/admin/pricing",
+        label: "Products & pricing",
+        icon: "Tags",
+        permission: "pricing.manage",
       },
       {
         href: "/app/admin/users",

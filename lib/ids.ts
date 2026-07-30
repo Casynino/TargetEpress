@@ -65,6 +65,22 @@ export async function nextPickupNoteNumber(
   return `PN-${year}-${pad(n)}`;
 }
 
+export async function nextTicketNumber(
+  tx: Prisma.TransactionClient,
+  year = new Date().getFullYear()
+) {
+  const n = await nextSequence(tx, `ticket:${year}`);
+  return `TKT-${year}-${pad(n)}`;
+}
+
+export async function nextSourcingNumber(
+  tx: Prisma.TransactionClient,
+  year = new Date().getFullYear()
+) {
+  const n = await nextSequence(tx, `sourcing:${year}`);
+  return `SRC-${year}-${pad(n)}`;
+}
+
 /**
  * The value physically encoded in the shipment's QR code.
  *

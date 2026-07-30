@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
+import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { STORAGE_POLICY, storageDaysFor } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
+import { LOCAL_CURRENCY, currentRateValue, toLocal } from "@/lib/fx";
 import { quote } from "@/lib/pricing";
 import {
   nextInvoiceNumber,
@@ -13,9 +15,10 @@ import {
   nextReceiptNumber,
 } from "@/lib/ids";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
-import { firstError, invoiceSchema, paymentSchema } from "@/lib/validation";
+import { firstError, paymentSchema } from "@/lib/validation";
 
 /**
  * One-click invoice.
@@ -73,7 +76,6 @@ export async function generateInvoice(
         cargoTypeId: shipment.cargoTypeId,
         weightKg: toNumber(shipment.weightKg),
         quantity: shipment.packages,
-        volumeCbm: shipment.volumeCbm ? toNumber(shipment.volumeCbm) : null,
       });
 
       if (!priced.ok) {
@@ -85,6 +87,11 @@ export async function generateInvoice(
       const storageDays = storageDaysFor(shipment.arrivedAt, shipment.deliveredAt);
       const storageCharge = storageDays * STORAGE_POLICY.perDayUsd;
       const total = priced.total + storageCharge;
+
+      // Freeze today's rate onto the invoice. A later change must never move a
+      // figure a customer has already been quoted.
+      const rate = await currentRateValue();
+      const totalLocal = rate === null ? null : toLocal(total, rate);
 
       // Keep the working on the shipment so a customer query in three months
       // does not require re-deriving today's rate.
@@ -112,6 +119,9 @@ export async function generateInvoice(
         otherCharges: new Prisma.Decimal(0),
         discount: new Prisma.Decimal(0),
         total: new Prisma.Decimal(total),
+        exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
+        localCurrency: LOCAL_CURRENCY,
+        totalLocal: totalLocal === null ? null : new Prisma.Decimal(totalLocal),
         notes: storageDays
           ? `Includes ${storageDays} chargeable storage day(s) at ${STORAGE_POLICY.currency} ${STORAGE_POLICY.perDayUsd}/day.`
           : null,
@@ -146,6 +156,8 @@ export async function generateInvoice(
             chargeableKg: priced.chargeableWeightKg,
             storageDays,
             ruleId: priced.ruleId,
+            exchangeRate: rate,
+            totalLocal,
           },
         },
         tx
@@ -163,104 +175,157 @@ export async function generateInvoice(
   }
 }
 
-/** Creates the invoice for a shipment, or corrects it while nothing is paid. */
-export async function saveInvoice(
-  _prev: ActionResult | undefined,
+/**
+ * Adjusts an invoice before the customer has paid anything.
+ *
+ * Three guards, all of them there because money is involved:
+ *
+ *  1. Once a single shilling has landed, the invoice is frozen. A bill that can
+ *     change after part payment is a bill nobody can reconcile.
+ *  2. A discount needs invoice.discount, separately from invoice.edit — fixing a
+ *     typo in the notes and giving away USD 40 are not the same authority.
+ *  3. The rate override is stored on the invoice, so a reprint months later
+ *     shows the figure the customer was actually given.
+ *
+ * Freight and storage are NOT editable here: they come from the rate book and
+ * the arrival date. Discounts and extra charges are the honest way to adjust a
+ * total, because they leave a line on the invoice explaining why.
+ */
+export async function adjustInvoice(
+  _prev: ActionResult<{ total: number }> | undefined,
   formData: FormData
-): Promise<ActionResult> {
+): Promise<ActionResult<{ total: number }>> {
   let user: SessionUser;
   try {
-    user = await authorize("invoice.manage");
+    user = await authorize("invoice.edit");
   } catch (error) {
     return fail(toActionError(error));
   }
 
-  const parsed = invoiceSchema.safeParse(
+  const schema = z.object({
+    invoiceId: z.string().trim().min(1, "Missing invoice."),
+    discount: z
+      .string()
+      .trim()
+      .optional()
+      .transform((v) => (v && v.length > 0 ? Number(v) : 0))
+      .refine((v) => Number.isFinite(v) && v >= 0, "The discount is not a valid amount."),
+    otherCharges: z
+      .string()
+      .trim()
+      .optional()
+      .transform((v) => (v && v.length > 0 ? Number(v) : 0))
+      .refine((v) => Number.isFinite(v) && v >= 0, "That charge is not a valid amount."),
+    exchangeRate: z
+      .string()
+      .trim()
+      .optional()
+      .transform((v) => (v && v.length > 0 ? Number(v) : null))
+      .refine(
+        (v) => v === null || (Number.isFinite(v) && v >= 100 && v <= 100_000),
+        "That rate looks wrong for USD→TZS. Check the number of digits."
+      ),
+    notes: z.string().trim().optional(),
+  });
+
+  const parsed = schema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
   if (!parsed.success) return fail(firstError(parsed.error));
   const input = parsed.data;
 
-  const other = input.otherCharges ?? 0;
-  const discount = input.discount ?? 0;
-  const total = input.freightCost + other - discount;
-  if (total < 0) return fail("The discount is larger than the total.");
-
   try {
-    await prisma.$transaction(async (tx) => {
-      const shipment = await tx.shipment.findUnique({
-        where: { id: input.shipmentId },
+    const result = await prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.findUnique({
+        where: { id: input.invoiceId },
         select: {
           id: true,
-          trackingNumber: true,
-          customerId: true,
-          currency: true,
-          invoice: {
-            select: { id: true, amountPaid: true, invoiceNumber: true },
-          },
+          invoiceNumber: true,
+          freightCost: true,
+          storageCharge: true,
+          otherCharges: true,
+          discount: true,
+          amountPaid: true,
+          exchangeRate: true,
+          localCurrency: true,
+          notes: true,
+          shipment: { select: { trackingNumber: true } },
         },
       });
-      if (!shipment) throw new Error("Shipment not found.");
+      if (!invoice) throw new Error("That invoice no longer exists.");
 
-      if (shipment.invoice) {
-        if (toNumber(shipment.invoice.amountPaid) > 0) {
-          throw new Error(
-            "Money has already been received against this invoice — it can no longer be edited."
-          );
-        }
-        await tx.invoice.update({
-          where: { id: shipment.invoice.id },
-          data: {
-            freightCost: input.freightCost,
-            otherCharges: other,
-            discount,
-            total,
-            notes: input.notes || null,
-          },
-        });
-        await recordAudit(
-          {
-            actor: user,
-            action: "invoice.update",
-            entity: "Invoice",
-            entityId: shipment.invoice.id,
-            summary: `Adjusted ${shipment.invoice.invoiceNumber} (${shipment.trackingNumber}) to ${total}`,
-          },
-          tx
+      if (toNumber(invoice.amountPaid) > 0) {
+        throw new Error(
+          `Money has already been received against ${invoice.invoiceNumber} — it can no longer be edited.`
         );
-        return;
       }
 
-      const invoice = await tx.invoice.create({
+      const discountChanged = input.discount !== toNumber(invoice.discount);
+      if (discountChanged && !can(user.role, "invoice.discount")) {
+        throw new Error("You are not authorised to change the discount on an invoice.");
+      }
+
+      const freight = toNumber(invoice.freightCost);
+      const storage = toNumber(invoice.storageCharge);
+      const total = freight + storage + input.otherCharges - input.discount;
+      if (total < 0) {
+        throw new Error("The discount is larger than the rest of the invoice.");
+      }
+
+      const rate =
+        input.exchangeRate ??
+        (invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate));
+      const totalLocal = rate === null ? null : toLocal(total, rate);
+
+      await tx.invoice.update({
+        where: { id: invoice.id },
         data: {
-          invoiceNumber: await nextInvoiceNumber(tx),
-          shipmentId: shipment.id,
-          customerId: shipment.customerId,
-          currency: shipment.currency,
-          freightCost: input.freightCost,
-          otherCharges: other,
-          discount,
-          total,
+          discount: new Prisma.Decimal(input.discount),
+          otherCharges: new Prisma.Decimal(input.otherCharges),
+          total: new Prisma.Decimal(total),
+          exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
+          localCurrency: invoice.localCurrency ?? LOCAL_CURRENCY,
+          totalLocal: totalLocal === null ? null : new Prisma.Decimal(totalLocal),
           notes: input.notes || null,
-          issuedById: user.id,
         },
       });
 
       await recordAudit(
         {
           actor: user,
-          action: "invoice.create",
+          action: "invoice.adjust",
           entity: "Invoice",
           entityId: invoice.id,
-          summary: `Invoiced ${shipment.trackingNumber}: ${invoice.invoiceNumber} for ${total}`,
+          summary:
+            `Adjusted ${invoice.invoiceNumber} (${invoice.shipment.trackingNumber}) ` +
+            `to ${total.toFixed(2)}` +
+            (discountChanged ? ` — discount ${input.discount.toFixed(2)}` : ""),
+          metadata: {
+            before: {
+              discount: toNumber(invoice.discount),
+              otherCharges: toNumber(invoice.otherCharges),
+              exchangeRate:
+                invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate),
+              notes: invoice.notes,
+            },
+            after: {
+              discount: input.discount,
+              otherCharges: input.otherCharges,
+              exchangeRate: rate,
+              notes: input.notes ?? null,
+            },
+          },
         },
         tx
       );
+
+      return { total, invoiceId: invoice.id };
     });
 
     revalidatePath("/app/finance/invoices");
-    revalidatePath(`/app/shipments/${input.shipmentId}`);
-    return ok();
+    revalidatePath(`/app/finance/invoices/${result.invoiceId}`);
+    revalidatePath("/app/support/follow-up");
+    return ok({ total: result.total });
   } catch (error) {
     return fail(toActionError(error));
   }

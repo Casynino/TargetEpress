@@ -18,6 +18,7 @@ import {
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { phoneVariants } from "@/lib/support";
 
 export const metadata: Metadata = { title: "Customers" };
 
@@ -29,11 +30,13 @@ export default async function CustomersPage({
   await requirePermission("customer.view");
   const { q } = await searchParams;
 
+  // Phone variants, so a customer read off a handset as 0757… still finds the
+  // +255757… we have on file.
   const where: Prisma.CustomerWhereInput = q
     ? {
         OR: [
           { name: { contains: q.trim(), mode: "insensitive" } },
-          { phone: { contains: q.trim() } },
+          ...phoneVariants(q).map((phone) => ({ phone: { contains: phone } })),
           { code: { contains: q.trim(), mode: "insensitive" } },
         ],
       }
@@ -94,7 +97,12 @@ export default async function CustomersPage({
                     {customer.code}
                   </TableCell>
                   <TableCell className="text-sm font-medium">
-                    {customer.name}
+                    <Link
+                      href={`/app/customers/${customer.id}`}
+                      className="hover:text-brand hover:underline"
+                    >
+                      {customer.name}
+                    </Link>
                   </TableCell>
                   <TableCell className="font-mono text-sm tabular">
                     {customer.phone ?? (

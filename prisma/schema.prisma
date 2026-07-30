@@ -210,6 +210,14 @@ model User {
   issuedPickupNotes  PickupNote[]
   releasedDeliveries DeliveryRecord[]
   auditLogs          AuditLog[]
+  exchangeRates      ExchangeRate[]
+  openedTickets      SupportTicket[]          @relation("TicketOpenedBy")
+  assignedTickets    SupportTicket[]          @relation("TicketAssignedTo")
+  ticketNotes        TicketNote[]
+  openedRequests     SourcingRequest[]        @relation("SourcingOpenedBy")
+  assignedRequests   SourcingRequest[]        @relation("SourcingAssignedTo")
+  sentMessages       CustomerMessage[]
+  sentInvoices       Invoice[]                @relation("InvoiceSentBy")
 
   @@index([role])
   @@index([department, active])
@@ -244,8 +252,12 @@ model Customer {
   shipments   Shipment[]
   invoices    Invoice[]
   pickupNotes PickupNote[]
+  tickets     SupportTicket[]
+  requests    SourcingRequest[]
+  messages    CustomerMessage[]
 
   @@index([name])
+  @@index([phone])
   @@index([createdAt])
 }
 
@@ -368,6 +380,8 @@ model Shipment {
   verifications BatchVerification[]
   exceptions    ShipmentException[]
   invoice       Invoice?
+  tickets       SupportTicket[]
+  messages      CustomerMessage[]
   pickupNote    PickupNote?
   delivery      DeliveryRecord?
 
@@ -492,6 +506,15 @@ model Invoice {
   amountPaid   Decimal       @default(0) @db.Decimal(12, 2)
   status       InvoiceStatus @default(UNPAID)
 
+  /// The USD→TZS rate used on this invoice, frozen at creation. Finance may
+  /// override it for one invoice; the override is what is stored, and it is
+  /// what any later reprint shows.
+  exchangeRate  Decimal? @db.Decimal(14, 4)
+  localCurrency String   @default("TZS")
+  /// total × exchangeRate, stored so the shilling figure the customer was given
+  /// can never drift from what they were told.
+  totalLocal    Decimal? @db.Decimal(16, 2)
+
   notes String?
 
   issuedById String?
@@ -499,13 +522,22 @@ model Invoice {
   issuedAt   DateTime @default(now())
   dueDate    DateTime?
 
+  /// An invoice a customer has never been shown is not yet a demand for money.
+  /// Follow-up queues sort on this: chasing someone who was never sent a bill
+  /// is the wrong call, and the wrong call annoys a paying customer.
+  sentAt   DateTime?
+  sentById String?
+  sentBy   User?     @relation("InvoiceSentBy", fields: [sentById], references: [id], onDelete: SetNull)
+
   updatedAt DateTime @updatedAt
 
   payments Payment[]
+  messages CustomerMessage[]
 
   @@index([status])
   @@index([customerId])
   @@index([issuedAt])
+  @@index([status, sentAt])
 }
 
 model Payment {
@@ -659,6 +691,11 @@ model CargoType {
   /// and search — stored comma-separated, matched case-insensitively.
   keywords String?
 
+  /// Departure airport for this product. Overrides the category default, which
+  /// is what lets an LCD panel be normal goods out of Guangzhou while a laptop
+  /// is electronics out of Hong Kong.
+  route Origin?
+
   active    Boolean @default(true)
   sortOrder Int     @default(0)
 
@@ -713,6 +750,32 @@ model PricingRule {
   @@index([effectiveFrom])
 }
 
+/// USD → TZS, as a dated history rather than a single editable number.
+///
+/// Prices are quoted in USD; almost every customer pays in shillings. An
+/// invoice snapshots the rate in force when it was raised and never follows a
+/// later change — otherwise last month's accounts would silently rewrite
+/// themselves every time the rate moved.
+model ExchangeRate {
+  id String @id @default(cuid())
+
+  fromCurrency String @default("USD")
+  toCurrency   String @default("TZS")
+  /// Units of toCurrency per one unit of fromCurrency, e.g. 2700.
+  rate         Decimal @db.Decimal(14, 4)
+
+  effectiveFrom DateTime @default(now())
+  active        Boolean  @default(true)
+  notes         String?
+
+  setById String?
+  setBy   User?   @relation(fields: [setById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([active, fromCurrency, toCurrency, effectiveFrom])
+}
+
 /// Published rates behind the public shipping calculator.
 ///
 /// One row per (origin, goods type, method). A row with a null goodsType is the
@@ -747,4 +810,211 @@ model RateCard {
 
   @@unique([origin, goodsType, method])
   @@index([active, method])
+}
+
+
+// ---------------------------------------------------------------------------
+// Customer Support
+//
+// The support desk is the only department that talks to customers all day, so
+// it is the only one that needs a written memory of those conversations. Three
+// records carry it: a ticket for a problem, a sourcing request for a job in
+// China, and a message for every time we made contact.
+// ---------------------------------------------------------------------------
+
+enum TicketCategory {
+  PRICE_INQUIRY
+  SHIPMENT_INQUIRY
+  MISSING_CARGO
+  DAMAGED_CARGO
+  SOURCING
+  GENERAL
+  COMPLAINT
+  FEEDBACK
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+/// A customer problem, from "what does 20 kg cost" to "my carton is damaged".
+model SupportTicket {
+  id           String @id @default(cuid())
+  ticketNumber String @unique // TKT-2026-000123
+
+  /// Optional: a price inquiry often arrives before the person is a customer.
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  /// Free text so a walk-in with no record can still be logged by name.
+  contactName  String?
+  contactPhone String?
+
+  /// Set when the ticket is about one specific shipment.
+  shipmentId String?
+  shipment   Shipment? @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+
+  category TicketCategory
+  priority TicketPriority @default(NORMAL)
+  status   TicketStatus   @default(OPEN)
+  channel  ContactChannel @default(WHATSAPP)
+
+  subject String
+  body    String
+
+  /// What we actually did. Written when the ticket is resolved, and kept.
+  resolution String?
+
+  assignedToId String?
+  assignedTo   User?   @relation("TicketAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  openedById String?
+  openedBy   User?   @relation("TicketOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+
+  notes TicketNote[]
+
+  @@index([status, priority, createdAt])
+  @@index([customerId])
+  @@index([assignedToId, status])
+}
+
+/// Append-only working notes on a ticket. Internal; never shown to customers.
+model TicketNote {
+  id       String        @id @default(cuid())
+  ticketId String
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  body String
+
+  authorId String?
+  author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+enum SourcingType {
+  FIND_SUPPLIER
+  FIND_PRODUCT
+  REQUEST_QUOTATION
+  VERIFY_SUPPLIER
+  BUY_ON_BEHALF
+}
+
+enum SourcingStatus {
+  NEW
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  SUPPLIER_FOUND
+  COMPLETED
+  CANCELLED
+}
+
+/// "Find me this product in China." The other half of the business.
+model SourcingRequest {
+  id            String @id @default(cuid())
+  requestNumber String @unique // SRC-2026-000123
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  contactName  String?
+  contactPhone String?
+
+  type     SourcingType
+  product  String
+  category String?
+
+  description String
+
+  /// Optional because plenty of customers ask what something costs before they
+  /// have a number in mind. Stored in USD, like everything else we quote.
+  budgetUsd Decimal? @db.Decimal(12, 2)
+
+  priority TicketPriority @default(NORMAL)
+  status   SourcingStatus @default(NEW)
+
+  /// What we found: supplier, market, price, whatever moves it forward.
+  findings String?
+
+  assignedToId String?
+  assignedTo   User?   @relation("SourcingAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  openedById String?
+  openedBy   User?   @relation("SourcingOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  @@index([status, priority, createdAt])
+  @@index([customerId])
+  @@index([assignedToId, status])
+}
+
+enum ContactChannel {
+  WHATSAPP
+  PHONE
+  SMS
+  EMAIL
+  IN_PERSON
+  SOCIAL
+}
+
+/// Why a message was sent. Drives the template and the follow-up counters.
+enum MessageKind {
+  SHIPMENT_REGISTERED
+  IN_TRANSIT
+  ARRIVED_DAR
+  INVOICE_ISSUED
+  PAYMENT_REMINDER
+  READY_FOR_PICKUP
+  STORAGE_REMINDER
+  GENERAL
+}
+
+/// Every time we contacted a customer, and about what.
+///
+/// Written by the person who made contact — the system composes the wording and
+/// records the send, but it does not pretend to have delivered anything it did
+/// not. A WhatsApp message logged here means a member of staff sent it.
+model CustomerMessage {
+  id String @id @default(cuid())
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  shipmentId String?
+  shipment   Shipment? @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  kind    MessageKind
+  channel ContactChannel
+  body    String
+
+  sentById String?
+  sentBy   User?   @relation(fields: [sentById], references: [id], onDelete: SetNull)
+  sentAt   DateTime @default(now())
+
+  @@index([customerId, sentAt])
+  @@index([shipmentId])
+  @@index([kind, sentAt])
 }

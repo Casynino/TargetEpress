@@ -5,8 +5,12 @@ import type { Metadata } from "next";
 import { ArrowLeft, MessageCircle } from "lucide-react";
 
 import { BrandMark } from "@/components/brand-mark";
+import { InvoiceEditor } from "@/components/app/invoice-editor";
+import { MessageComposer } from "@/components/app/message-composer";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
+import { LOCAL_CURRENCY, formatLocal, toLocal } from "@/lib/fx";
+import { MESSAGE_KIND_LABELS, composeMessage, whatsappLink } from "@/lib/messages";
 import { AIRPORT_LABELS, CATEGORY_LABELS, METHOD_LABELS } from "@/lib/cargo";
 import {
   COMPANY,
@@ -16,6 +20,7 @@ import {
 } from "@/lib/constants";
 import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
 
@@ -32,7 +37,10 @@ export default async function InvoicePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePermission("finance.view");
+  const user = await requirePermission("finance.view");
+  const canEdit = can(user.role, "invoice.edit");
+  const canDiscount = can(user.role, "invoice.discount");
+  const canMessage = can(user.role, "message.send");
   const { id } = await params;
 
   const invoice = await prisma.invoice.findFirst({
@@ -59,6 +67,18 @@ export default async function InvoicePage({
   const currency = invoice.currency;
   const outstanding = toNumber(invoice.total) - toNumber(invoice.amountPaid);
 
+  // The rate this invoice was raised at, not today's. A customer quoted a
+  // shilling figure has to keep seeing that figure.
+  const invoiceRate = invoice.exchangeRate ? toNumber(invoice.exchangeRate) : null;
+  const localCurrency = invoice.localCurrency ?? LOCAL_CURRENCY;
+  const totalLocal = invoice.totalLocal
+    ? toNumber(invoice.totalLocal)
+    : invoiceRate === null
+      ? null
+      : toLocal(toNumber(invoice.total), invoiceRate);
+  const outstandingLocal =
+    invoiceRate === null ? null : toLocal(Math.max(0, outstanding), invoiceRate);
+
   // The invoice carries the shipment's own QR, so the document and the cargo
   // share one identity all the way to release.
   const qr = await shipmentQrDataUrl(shipment.qrToken, 220);
@@ -68,9 +88,11 @@ export default async function InvoicePage({
     `Shipment: ${shipment.trackingNumber}`,
     `Cargo: ${CATEGORY_LABELS[shipment.cargoCategory]}${shipment.cargoType ? ` (${shipment.cargoType.name})` : ""}`,
     `Weight: ${formatWeight(shipment.weightKg)} · ${shipment.packages} package(s)`,
-    `Total: ${money(toNumber(invoice.total), currency)}`,
+    `Total: ${money(toNumber(invoice.total), currency)}` +
+      (totalLocal === null ? "" : ` (${formatLocal(totalLocal, localCurrency)})`),
     outstanding > 0
-      ? `Outstanding: ${money(outstanding, currency)}`
+      ? `Outstanding: ${money(outstanding, currency)}` +
+        (outstandingLocal === null ? "" : ` (${formatLocal(outstandingLocal, localCurrency)})`)
       : "Paid in full — thank you.",
     "",
     "Payment options:",
@@ -105,6 +127,24 @@ export default async function InvoicePage({
           <PrintButton label="Print / save PDF" />
         </div>
       </div>
+
+      {canEdit ? (
+        <div className="mb-6">
+          <InvoiceEditor
+            invoiceId={invoice.id}
+            currency={currency}
+            freight={toNumber(invoice.freightCost)}
+            storage={toNumber(invoice.storageCharge)}
+            discount={toNumber(invoice.discount)}
+            otherCharges={toNumber(invoice.otherCharges)}
+            exchangeRate={invoiceRate}
+            localCurrency={localCurrency}
+            notes={invoice.notes}
+            locked={toNumber(invoice.amountPaid) > 0}
+            canDiscount={canDiscount}
+          />
+        </div>
+      ) : null}
 
       <article className="print-plain rounded-xl border-2 bg-white p-8 text-black shadow-soft">
         <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-black/80 pb-5">
@@ -258,6 +298,17 @@ export default async function InvoicePage({
                 {money(toNumber(invoice.total), currency)}
               </td>
             </tr>
+            {totalLocal !== null ? (
+              <tr>
+                <td className="pb-2 text-xs text-black/70">
+                  In shillings at {invoiceRate?.toLocaleString()} / USD — the rate
+                  on the day this invoice was raised
+                </td>
+                <td className="pb-2 text-right font-mono text-sm font-semibold tabular">
+                  {formatLocal(totalLocal, localCurrency)}
+                </td>
+              </tr>
+            ) : null}
             {invoice.payments.length > 0 ? (
               <tr>
                 <td className="py-1 text-xs text-black/70">Paid to date</td>
@@ -272,6 +323,11 @@ export default async function InvoicePage({
               </td>
               <td className="pt-2 text-right font-mono font-bold tabular">
                 {money(Math.max(0, outstanding), currency)}
+                {outstandingLocal !== null && outstanding > 0 ? (
+                  <div className="text-xs font-semibold text-black/70">
+                    {formatLocal(outstandingLocal, localCurrency)}
+                  </div>
+                ) : null}
               </td>
             </tr>
           </tfoot>
@@ -372,6 +428,48 @@ export default async function InvoicePage({
           </p>
         </footer>
       </article>
+      {canMessage ? (
+        <section className="no-print mt-6 rounded-xl border bg-card p-5 shadow-soft">
+          <h2 className="mb-1 font-semibold">Send this invoice</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Open it in WhatsApp, then record it — recording marks the invoice as
+            sent, which is what the follow-up queue works from.
+          </p>
+          <MessageComposer
+            customerId={invoice.customerId}
+            customerName={invoice.customer.name}
+            customerPhone={invoice.customer.phone}
+            shipmentId={shipment.id}
+            invoiceId={invoice.id}
+            defaultKind="INVOICE_ISSUED"
+            whatsappBase={
+              invoice.customer.phone
+                ? whatsappLink(invoice.customer.phone, "").split("?")[0]
+                : null
+            }
+            templates={(
+              Object.keys(MESSAGE_KIND_LABELS) as (keyof typeof MESSAGE_KIND_LABELS)[]
+            ).map((kind) => ({
+              kind,
+              label: MESSAGE_KIND_LABELS[kind],
+              body: composeMessage(kind, {
+                customerName: invoice.customer.name,
+                trackingNumber: shipment.trackingNumber,
+                description: shipment.description,
+                invoiceNumber: invoice.invoiceNumber,
+                amountUsd: outstanding > 0 ? outstanding : toNumber(invoice.total),
+                amountLocal:
+                  outstandingLocal !== null && outstanding > 0
+                    ? outstandingLocal
+                    : totalLocal,
+                localCurrency,
+                storageDays: invoice.storageDays,
+              }),
+            }))}
+          />
+        </section>
+      ) : null}
+
     </div>
   );
 }

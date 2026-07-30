@@ -49,6 +49,11 @@ export function SiteFooter() {
                 </Link>
               </li>
               <li>
+                <Link href="/china/markets" className="hover:text-foreground">
+                  Masoko ya China
+                </Link>
+              </li>
+              <li>
                 <Link href="/services" className="hover:text-foreground">
                   Huduma na bei
                 </Link>

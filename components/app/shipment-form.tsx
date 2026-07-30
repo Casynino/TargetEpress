@@ -354,25 +354,6 @@ export function ShipmentForm({
               required
             />
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="volumeCbm">
-              Volume (CBM){" "}
-              <span className="font-normal text-muted-foreground">optional</span>
-            </Label>
-            <Input
-              id="volumeCbm"
-              name="volumeCbm"
-              type="number"
-              min="0"
-              step="0.0001"
-              inputMode="decimal"
-              placeholder="0.0000"
-            />
-            <p className="text-xs text-muted-foreground">
-              Add it for bulky, light cargo.
-            </p>
-          </div>
         </div>
       </section>
 

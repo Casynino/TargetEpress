@@ -216,6 +216,9 @@ export default function ChinaPage() {
 
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild variant="signal" className="rounded-xl">
+              <Link href="/china/markets">Masoko ya China</Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-xl">
               <Link href="/track">Fuatilia mzigo wako</Link>
             </Button>
             <Button asChild variant="outline" className="rounded-xl">

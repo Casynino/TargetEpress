@@ -2,18 +2,24 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import {
   Boxes,
+  CheckCircle2,
   CircleHelp,
   MapPin,
   MessageCircle,
   Plane,
   SearchX,
+  Wallet,
 } from "lucide-react";
 
 import { TrackForm } from "@/components/site/track-form";
 import { Button } from "@/components/ui/button";
 import { COMPANY } from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { trackByCode, type TrackingResult } from "@/lib/tracking";
+import {
+  trackByCode,
+  type PublicCharge,
+  type TrackingResult,
+} from "@/lib/tracking";
 
 export const metadata: Metadata = {
   title: "Track your shipment",
@@ -171,12 +177,18 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
         </span>
       </div>
 
-      <dl className="grid gap-px bg-border sm:grid-cols-4">
+      <dl className="grid gap-px bg-border sm:grid-cols-3 lg:grid-cols-6">
         {[
-          { label: "Current location", value: result.location },
-          { label: "Origin", value: result.origin },
-          { label: "Batch", value: result.batchNumber ?? "Not yet assigned" },
+          { label: "Cargo", value: result.description },
+          {
+            label: "Weight",
+            value:
+              result.weightKg === null ? "—" : `${result.weightKg.toFixed(2)} kg`,
+          },
           { label: "Packages", value: String(result.packages) },
+          { label: "Route", value: `${result.origin} → Dar es Salaam` },
+          { label: "Now at", value: result.location },
+          { label: "Batch", value: result.batchNumber ?? "Not yet assigned" },
         ].map((item) => (
           <div key={item.label} className="bg-card p-5">
             <dt className="text-xs text-muted-foreground">{item.label}</dt>
@@ -184,6 +196,12 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
           </div>
         ))}
       </dl>
+
+      <ChargePanel
+        charge={result.charge}
+        collectable={result.collectable}
+        note={result.collectionNote}
+      />
 
       <div className="p-6">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
@@ -249,6 +267,105 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
           <MessageCircle className="h-3.5 w-3.5" />
           Ask about this shipment
         </a>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What the customer owes, and whether they can come and get their cargo.
+ *
+ * Shows the shilling figure at the invoice's own rate — the number they were
+ * quoted is the number they pay, whatever the rate has done since.
+ */
+function ChargePanel({
+  charge,
+  collectable,
+  note,
+}: {
+  charge: PublicCharge | null;
+  collectable: boolean;
+  note: string;
+}) {
+  if (!charge) {
+    return (
+      <div className="border-t bg-muted/30 p-5 text-sm text-muted-foreground">
+        <p>{note}</p>
+        <p className="mt-1 text-xs">
+          Your invoice is raised once the cargo is checked in at Dar es Salaam.
+        </p>
+      </div>
+    );
+  }
+
+  const settled = charge.status === "PAID";
+
+  return (
+    <div className="border-t">
+      <div className="flex flex-wrap items-start justify-between gap-6 p-6">
+        <div>
+          <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+            <Wallet className="h-3.5 w-3.5" />
+            {settled ? "Total paid" : "Amount due"}
+          </p>
+          <p className="mt-1 font-display text-2xl font-bold tabular">
+            {charge.currency}{" "}
+            {(settled ? charge.total : charge.outstanding).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </p>
+          {(settled ? charge.totalLocal : charge.outstandingLocal) !== null ? (
+            <p className="text-sm text-muted-foreground">
+              ≈ {charge.localCurrency}{" "}
+              {(settled
+                ? charge.totalLocal!
+                : charge.outstandingLocal!
+              ).toLocaleString("en-US")}
+            </p>
+          ) : null}
+          <p className="mt-1 font-mono text-xs text-muted-foreground">
+            Invoice {charge.invoiceNumber}
+          </p>
+        </div>
+
+        <div className="min-w-[12rem]">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${
+              settled
+                ? "bg-success/10 text-success"
+                : charge.status === "PART_PAID"
+                  ? "bg-warning/10 text-warning"
+                  : "bg-destructive/10 text-destructive"
+            }`}
+          >
+            {settled ? <CheckCircle2 className="h-4 w-4" /> : null}
+            {settled
+              ? "Paid in full"
+              : charge.status === "PART_PAID"
+                ? "Part paid"
+                : "Not yet paid"}
+          </span>
+          {charge.status === "PART_PAID" ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {charge.currency} {charge.paid.toFixed(2)} received of{" "}
+              {charge.currency} {charge.total.toFixed(2)}.
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div
+        className={`flex items-start gap-3 border-t p-5 text-sm ${
+          collectable ? "bg-success/5 text-success" : "bg-muted/30 text-muted-foreground"
+        }`}
+      >
+        {collectable ? (
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+        ) : (
+          <Boxes className="mt-0.5 h-4 w-4 shrink-0" />
+        )}
+        <p>{note}</p>
       </div>
     </div>
   );

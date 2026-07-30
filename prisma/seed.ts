@@ -132,6 +132,12 @@ async function main() {
       role: "FINANCE" as const,
       department: "FINANCE" as const,
     },
+    {
+      name: "Customer Support",
+      email: "support@targetexpress.co.tz",
+      role: "CUSTOMER_CARE" as const,
+      department: "CUSTOMER_CARE" as const,
+    },
   ];
 
   const staff: Record<string, string> = {};

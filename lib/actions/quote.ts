@@ -18,12 +18,6 @@ const schema = z.object({
     .optional()
     .transform((v) => (v && v.length > 0 ? Number(v) : 0))
     .refine((v) => !Number.isNaN(v) && v >= 0, "Weight is not valid."),
-  volumeCbm: z
-    .string()
-    .trim()
-    .optional()
-    .transform((v) => (v && v.length > 0 ? Number(v) : null))
-    .refine((v) => v === null || (!Number.isNaN(v) && v >= 0), "Volume is not valid."),
   quantity: z
     .string()
     .trim()

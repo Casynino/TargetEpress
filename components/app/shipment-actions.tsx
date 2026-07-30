@@ -15,7 +15,6 @@ import {
   generateInvoice,
   issuePickupNote,
   recordPayment,
-  saveInvoice,
 } from "@/lib/actions/finance";
 import { cancelShipment } from "@/lib/actions/shipments";
 import type { ActionResult } from "@/lib/actions/types";
@@ -65,7 +64,6 @@ export function ShipmentActions(props: Props) {
       <h2 className="border-b px-5 py-3.5 text-sm font-semibold">Actions</h2>
       <div className="divide-y">
         {canInvoice ? <GenerateInvoicePanel {...props} /> : null}
-        {canInvoice ? <InvoicePanel {...props} /> : null}
         {canPay ? <PaymentPanel {...props} /> : null}
         {can(role, "pickupNote.issue") ? <PickupNotePanel {...props} /> : null}
         {canCancel ? <CancelPanel shipmentId={props.shipmentId} /> : null}
@@ -130,73 +128,6 @@ function GenerateInvoicePanel(props: Props) {
           ) : null}
         </div>
       </form>
-    </div>
-  );
-}
-
-function InvoicePanel(props: Props) {
-  const [open, setOpen] = useState(false);
-  const [state, action] = useActionState<ActionResult, FormData>(saveInvoice, {
-    ok: true,
-  });
-
-  return (
-    <div className="p-5">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 text-sm font-medium"
-      >
-        <ReceiptText className="h-4 w-4 text-brand" />
-        {props.hasInvoice ? "Adjust invoice" : "Raise invoice"}
-      </button>
-
-      {open ? (
-        <form action={action} className="mt-4 space-y-3">
-          <input type="hidden" name="shipmentId" value={props.shipmentId} />
-          <div className="space-y-1.5">
-            <Label htmlFor="freightCost" className="text-xs">
-              Freight ({props.currency})
-            </Label>
-            <Input
-              id="freightCost"
-              name="freightCost"
-              type="number"
-              min="0"
-              step="1"
-              defaultValue={props.defaultFreight || ""}
-              required
-            />
-            <p className="text-xs text-muted-foreground">
-              Suggested from rate × weight. Override if the deal differs.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="otherCharges" className="text-xs">
-                Other charges
-              </Label>
-              <Input id="otherCharges" name="otherCharges" type="number" min="0" step="1" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="discount" className="text-xs">
-                Discount
-              </Label>
-              <Input id="discount" name="discount" type="number" min="0" step="1" />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="invoiceNotes" className="text-xs">
-              Notes
-            </Label>
-            <Textarea id="invoiceNotes" name="notes" rows={2} />
-          </div>
-          <FormError state={state} />
-          <SubmitButton variant="brand" size="sm" pendingLabel="Saving…">
-            Save invoice
-          </SubmitButton>
-        </form>
-      ) : null}
     </div>
   );
 }

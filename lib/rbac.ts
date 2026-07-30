@@ -28,16 +28,25 @@ export type Permission =
   // Finance
   | "finance.view"
   | "invoice.manage"
+  | "invoice.edit" // change a bill before the customer has paid anything
+  | "invoice.discount"
+  | "invoice.send"
   | "payment.record"
   | "pickupNote.issue"
   | "pickupNote.cancel"
+  | "fx.manage" // publish the USD→TZS rate
   // Delivery
   | "shipment.release"
   // Customers
   | "customer.view"
   | "customer.manage"
+  // Support desk
+  | "ticket.manage"
+  | "sourcing.manage"
+  | "message.send"
   // Administration
   | "user.manage"
+  | "pricing.manage" // the rate book itself — CEO only
   | "audit.view"
   | "report.view";
 
@@ -68,17 +77,32 @@ const DAR: Permission[] = [
 ];
 
 /**
- * Customer Care answers "where is my cargo and what do I owe".
+ * Customer Support — the department that talks to customers.
  *
- * It sees the money because that is the question customers ask, and it may
- * raise an invoice — but it cannot confirm a payment or release cargo. Taking
- * money and acknowledging money stay with Finance.
+ * Built from the spec's two lists, and the CANNOT list is the load-bearing one.
+ * Support sees everything about a shipment and can bill for it, but cannot
+ * touch the cargo or the cash: no registering, no weighing, no status changes,
+ * no receiving, no releasing, no recording payments, no pickup notes, no
+ * batches. Those stay with the warehouses and Finance.
+ *
+ * Note what is deliberately absent: payment.record, pickupNote.issue,
+ * shipment.create, shipment.edit, shipment.release, batch.create,
+ * batch.manage, batch.receive, batch.verify, shipment.cancel.
  */
 const CUSTOMER_CARE: Permission[] = [
   "shipment.view",
+  // Needed to answer "is my cargo damaged" from the receiving photos and the
+  // status history — which is the whole point of the desk existing.
+  "shipment.viewInternal",
   "batch.view",
   "finance.view",
   "invoice.manage",
+  "invoice.edit",
+  "invoice.discount",
+  "invoice.send",
+  "message.send",
+  "ticket.manage",
+  "sourcing.manage",
   "customer.view",
   "customer.manage",
   "exception.raise",
@@ -93,9 +117,16 @@ const FINANCE: Permission[] = [
   "batch.view",
   "finance.view",
   "invoice.manage",
+  "invoice.edit",
+  "invoice.discount",
+  "invoice.send",
+  "message.send",
   "payment.record",
   "pickupNote.issue",
   "pickupNote.cancel",
+  // Finance quotes shillings all day, so Finance keeps the rate current. The
+  // rate book — what a kilo costs — stays with the CEO.
+  "fx.manage",
   "customer.view",
   "customer.manage",
   "exception.raise",
@@ -111,6 +142,7 @@ const ALL: Permission[] = Array.from(
     ...CUSTOMER_CARE,
     "shipment.cancel",
     "user.manage",
+    "pricing.manage",
     "audit.view",
     "report.view",
   ])
@@ -144,7 +176,11 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/receive", permission: "batch.receive" },
   { prefix: "/app/release", permission: "shipment.release" },
   { prefix: "/app/exceptions", permission: "exception.raise" },
+  { prefix: "/app/support/sourcing", permission: "sourcing.manage" },
+  { prefix: "/app/support", permission: "ticket.manage" },
+  { prefix: "/app/finance/exchange-rate", permission: "fx.manage" },
   { prefix: "/app/finance", permission: "finance.view" },
+  { prefix: "/app/admin/pricing", permission: "pricing.manage" },
   { prefix: "/app/admin/users", permission: "user.manage" },
   { prefix: "/app/admin/audit", permission: "audit.view" },
   { prefix: "/app/admin", permission: "report.view" },
