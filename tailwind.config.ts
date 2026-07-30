@@ -74,6 +74,17 @@ const config: Config = {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
+        chart: {
+          1: "hsl(var(--chart-1))",
+          2: "hsl(var(--chart-2))",
+          3: "hsl(var(--chart-3))",
+          4: "hsl(var(--chart-4))",
+          5: "hsl(var(--chart-5))",
+          6: "hsl(var(--chart-6))",
+        },
+      },
+      transitionTimingFunction: {
+        "out-expo": "cubic-bezier(0.16, 1, 0.3, 1)",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -112,12 +123,36 @@ const config: Config = {
           "0%": { transform: "translateY(-100%)" },
           "100%": { transform: "translateY(100%)" },
         },
+        /* Skeleton sweep — a moving highlight reads as "loading" far better
+           than a pulsing block, and it matches the direction of reading. */
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
+        /* Draws a timeline connector or chart line in. */
+        "draw-in": {
+          from: { strokeDashoffset: "var(--dash, 1000)" },
+          to: { strokeDashoffset: "0" },
+        },
+        "scale-in": {
+          from: { opacity: "0", transform: "scale(0.96)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
+        /* QR / release success: a ring that expands once and stops. */
+        "success-pop": {
+          "0%": { transform: "scale(0.6)", opacity: "0" },
+          "60%": { transform: "scale(1.06)", opacity: "1" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
       },
       animation: {
-        "fade-in": "fade-in 0.4s ease-out both",
+        "fade-in": "fade-in 0.4s cubic-bezier(0.16,1,0.3,1) both",
         "slide-up": "slide-up 0.5s cubic-bezier(0.16,1,0.3,1) both",
         "pulse-ring": "pulse-ring 2s infinite",
         "scan-line": "scan-line 2.2s ease-in-out infinite",
+        shimmer: "shimmer 1.6s infinite",
+        "draw-in": "draw-in 0.9s cubic-bezier(0.16,1,0.3,1) both",
+        "scale-in": "scale-in 0.24s cubic-bezier(0.16,1,0.3,1) both",
+        "success-pop": "success-pop 0.5s cubic-bezier(0.16,1,0.3,1) both",
       },
     },
   },

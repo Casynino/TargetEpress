@@ -1,7 +1,160 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
+
 import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/**
+ * Shipments registered per month, this year against last.
+ *
+ * Raw SQL because Prisma's groupBy cannot truncate a timestamp to a month, and
+ * pulling every row into JS to bucket it would not survive real volume.
+ */
+export async function monthlyVolume(now = new Date()) {
+  const year = now.getFullYear();
+  const from = new Date(Date.UTC(year - 1, 0, 1));
+
+  const rows = await prisma.$queryRaw<{ year: number; month: number; count: bigint }[]>(
+    Prisma.sql`
+      SELECT
+        EXTRACT(YEAR FROM "registeredAt")::int  AS year,
+        EXTRACT(MONTH FROM "registeredAt")::int AS month,
+        COUNT(*)                                AS count
+      FROM "Shipment"
+      WHERE "registeredAt" >= ${from}
+      GROUP BY 1, 2
+      ORDER BY 1, 2
+    `
+  );
+
+  const bucket = (targetYear: number) => {
+    const out = Array.from({ length: 12 }, () => 0);
+    for (const row of rows) {
+      if (row.year === targetYear) out[row.month - 1] = Number(row.count);
+    }
+    return out;
+  };
+
+  const current = bucket(year);
+  const previous = bucket(year - 1);
+
+  // Only chart up to the current month; empty future months read as a crash.
+  const upto = now.getMonth() + 1;
+
+  return {
+    labels: MONTHS.slice(0, upto),
+    current: current.slice(0, upto),
+    previous: previous.slice(0, upto),
+    total: current.reduce((sum, n) => sum + n, 0),
+    lastMonth: current[Math.max(0, now.getMonth() - 1)] ?? 0,
+    thisMonth: current[now.getMonth()] ?? 0,
+    year,
+  };
+}
+
+/**
+ * Corridor performance, split into the part we control and the part we do not.
+ *
+ * Deliberately NOT a single "on-time %": the time from arrival to collection
+ * depends on the customer paying and turning up, and folding that into our
+ * delivery performance would flatter or damn us for someone else's behaviour.
+ */
+export async function corridorPerformance() {
+  const delivered = await prisma.shipment.findMany({
+    where: {
+      status: "DELIVERED",
+      departedAt: { not: null },
+      arrivedAt: { not: null },
+      deliveredAt: { not: null },
+    },
+    select: { departedAt: true, arrivedAt: true, deliveredAt: true },
+    orderBy: { deliveredAt: "desc" },
+    take: 400,
+  });
+
+  const days = (a: Date, b: Date) => (b.getTime() - a.getTime()) / 86_400_000;
+  const mean = (values: number[]) =>
+    values.length === 0
+      ? null
+      : values.reduce((sum, n) => sum + n, 0) / values.length;
+
+  const flight = delivered.map((s) => days(s.departedAt!, s.arrivedAt!));
+  const dwell = delivered.map((s) => days(s.arrivedAt!, s.deliveredAt!));
+
+  // The public promise is three days. Measure it on the leg we own.
+  const withinPromise = flight.filter((d) => d <= 3).length;
+
+  return {
+    sample: delivered.length,
+    avgFlightDays: mean(flight),
+    avgDwellDays: mean(dwell),
+    promiseRate: flight.length ? (withinPromise / flight.length) * 100 : null,
+  };
+}
+
+/** Money collected per month, for the CEO's revenue trend. */
+export async function monthlyRevenue(now = new Date()) {
+  const year = now.getFullYear();
+  const from = new Date(Date.UTC(year, 0, 1));
+
+  const rows = await prisma.$queryRaw<{ month: number; total: Prisma.Decimal }[]>(
+    Prisma.sql`
+      SELECT
+        EXTRACT(MONTH FROM "paidAt")::int AS month,
+        COALESCE(SUM("amount"), 0)        AS total
+      FROM "Payment"
+      WHERE "paidAt" >= ${from}
+      GROUP BY 1
+      ORDER BY 1
+    `
+  );
+
+  const values = Array.from({ length: 12 }, () => 0);
+  for (const row of rows) values[row.month - 1] = toNumber(row.total);
+
+  const upto = now.getMonth() + 1;
+  return {
+    labels: MONTHS.slice(0, upto),
+    values: values.slice(0, upto),
+    currentIndex: now.getMonth(),
+  };
+}
+
+/** Batch weight utilisation — how full the batches we flew actually were. */
+export async function batchUtilisation(take = 8) {
+  const batches = await prisma.batch.findMany({
+    where: { status: { in: ["IN_TRANSIT", "ARRIVED", "VERIFIED", "CLOSED"] } },
+    orderBy: { departedAt: "desc" },
+    take,
+    select: {
+      batchNumber: true,
+      shipments: { select: { weightKg: true } },
+    },
+  });
+
+  return batches
+    .map((batch) => ({
+      label: batch.batchNumber.replace(/^BATCH-\d{4}-/, ""),
+      value: batch.shipments.reduce((sum, s) => sum + toNumber(s.weightKg), 0),
+    }))
+    .reverse();
+}
 
 /** Counts the China desk cares about. */
 export async function chinaStats() {
@@ -141,6 +294,206 @@ export async function executiveStats() {
     outstanding:
       toNumber(outstandingAgg._sum.total) - toNumber(outstandingAgg._sum.amountPaid),
   };
+}
+
+export type AttentionItem = {
+  id: string;
+  severity: "critical" | "warning" | "info";
+  title: string;
+  detail: string;
+  meta?: string;
+  href?: string;
+};
+
+const DAY = 86_400_000;
+
+/**
+ * Builds the "needs your attention" queue.
+ *
+ * Every item is derived from a real operational condition with a threshold, so
+ * the queue empties when the work is genuinely done. Filtered by what the role
+ * can actually act on — showing Finance a batch it cannot verify is noise.
+ */
+export async function attentionItems(
+  role: "ADMIN" | "CHINA_WAREHOUSE" | "DAR_WAREHOUSE" | "FINANCE"
+): Promise<AttentionItem[]> {
+  const sees = {
+    exceptions: role !== "CHINA_WAREHOUSE",
+    verification: role === "DAR_WAREHOUSE" || role === "ADMIN",
+    money: role === "FINANCE" || role === "ADMIN",
+    china: role === "CHINA_WAREHOUSE" || role === "ADMIN",
+    collection: role === "DAR_WAREHOUSE" || role === "FINANCE" || role === "ADMIN",
+  };
+
+  const now = Date.now();
+  const items: AttentionItem[] = [];
+
+  const [exceptions, arrivedBatches, uninvoiced, staleUnpaid, staleNotes, staleOpenBatches] =
+    await Promise.all([
+      sees.exceptions
+        ? prisma.shipmentException.findMany({
+            where: { status: "OPEN" },
+            orderBy: { raisedAt: "asc" },
+            take: 12,
+            select: {
+              id: true,
+              type: true,
+              description: true,
+              raisedAt: true,
+              shipment: { select: { trackingNumber: true } },
+            },
+          })
+        : [],
+      sees.verification
+        ? prisma.batch.findMany({
+            where: { status: "ARRIVED" },
+            select: {
+              id: true,
+              batchNumber: true,
+              arrivedAt: true,
+              _count: { select: { shipments: true, verifications: true } },
+            },
+          })
+        : [],
+      sees.money
+        ? prisma.shipment.findMany({
+            where: {
+              invoice: null,
+              status: "RECEIVED_AT_DAR",
+              arrivedAt: { lt: new Date(now - 2 * DAY) },
+            },
+            orderBy: { arrivedAt: "asc" },
+            take: 8,
+            select: {
+              id: true,
+              trackingNumber: true,
+              arrivedAt: true,
+              customer: { select: { name: true } },
+            },
+          })
+        : [],
+      sees.money
+        ? prisma.shipment.findMany({
+            where: {
+              status: "RECEIVED_AT_DAR",
+              arrivedAt: { lt: new Date(now - 7 * DAY) },
+              invoice: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
+            },
+            orderBy: { arrivedAt: "asc" },
+            take: 8,
+            select: {
+              id: true,
+              trackingNumber: true,
+              arrivedAt: true,
+              customer: { select: { name: true, phone: true } },
+              invoice: { select: { total: true, amountPaid: true, currency: true } },
+            },
+          })
+        : [],
+      sees.collection
+        ? prisma.pickupNote.findMany({
+            where: { status: "ACTIVE", issuedAt: { lt: new Date(now - 14 * DAY) } },
+            orderBy: { issuedAt: "asc" },
+            take: 6,
+            select: {
+              id: true,
+              noteNumber: true,
+              issuedAt: true,
+              shipment: { select: { trackingNumber: true } },
+              customer: { select: { name: true } },
+            },
+          })
+        : [],
+      sees.china
+        ? prisma.batch.findMany({
+            where: { status: "OPEN", createdAt: { lt: new Date(now - 7 * DAY) } },
+            select: {
+              id: true,
+              batchNumber: true,
+              createdAt: true,
+              _count: { select: { shipments: true } },
+            },
+          })
+        : [],
+    ]);
+
+  const ageDays = (date: Date | null) =>
+    date ? Math.floor((now - date.getTime()) / DAY) : 0;
+
+  for (const exception of exceptions) {
+    const severe =
+      exception.type === "MISSING_SHIPMENT" || exception.type === "DAMAGED_CARGO";
+    items.push({
+      id: `exc-${exception.id}`,
+      severity: severe ? "critical" : "warning",
+      title: `${exception.type.replace(/_/g, " ").toLowerCase()} — ${exception.shipment.trackingNumber}`,
+      detail: exception.description,
+      meta: `Open for ${ageDays(exception.raisedAt)} day(s)`,
+      href: "/app/exceptions",
+    });
+  }
+
+  for (const batch of arrivedBatches) {
+    const remaining = batch._count.shipments - batch._count.verifications;
+    if (remaining <= 0) continue;
+    items.push({
+      id: `batch-${batch.id}`,
+      severity: ageDays(batch.arrivedAt) >= 2 ? "critical" : "warning",
+      title: `${batch.batchNumber} not fully checked in`,
+      detail: `${remaining} of ${batch._count.shipments} shipment(s) still unverified against the manifest.`,
+      meta: `Landed ${ageDays(batch.arrivedAt)} day(s) ago`,
+      href: `/app/receive/${batch.id}`,
+    });
+  }
+
+  for (const shipment of uninvoiced) {
+    items.push({
+      id: `noinv-${shipment.id}`,
+      severity: "warning",
+      title: `${shipment.trackingNumber} has no invoice`,
+      detail: `${shipment.customer.name}'s cargo is in the warehouse but has not been billed.`,
+      meta: `Waiting ${ageDays(shipment.arrivedAt)} day(s)`,
+      href: `/app/shipments/${shipment.trackingNumber}`,
+    });
+  }
+
+  for (const shipment of staleUnpaid) {
+    const outstanding =
+      toNumber(shipment.invoice?.total) - toNumber(shipment.invoice?.amountPaid);
+    items.push({
+      id: `unpaid-${shipment.id}`,
+      severity: "critical",
+      title: `${shipment.trackingNumber} unpaid for ${ageDays(shipment.arrivedAt)} days`,
+      detail: `${shipment.customer.name} (${shipment.customer.phone}) owes ${shipment.invoice?.currency ?? "TZS"} ${outstanding.toLocaleString()}.`,
+      meta: "Occupying warehouse space",
+      href: `/app/shipments/${shipment.trackingNumber}`,
+    });
+  }
+
+  for (const note of staleNotes) {
+    items.push({
+      id: `note-${note.id}`,
+      severity: "warning",
+      title: `${note.shipment.trackingNumber} paid but not collected`,
+      detail: `${note.customer.name} was cleared for collection but has not come in.`,
+      meta: `Pickup note issued ${ageDays(note.issuedAt)} day(s) ago`,
+      href: "/app/release",
+    });
+  }
+
+  for (const batch of staleOpenBatches) {
+    if (batch._count.shipments === 0) continue;
+    items.push({
+      id: `open-${batch.id}`,
+      severity: "info",
+      title: `${batch.batchNumber} still open`,
+      detail: `${batch._count.shipments} shipment(s) waiting in China. Seal it to get them on a flight.`,
+      meta: `Opened ${ageDays(batch.createdAt)} day(s) ago`,
+      href: `/app/batches/${batch.id}`,
+    });
+  }
+
+  return items;
 }
 
 export async function recentActivity(limit = 12) {

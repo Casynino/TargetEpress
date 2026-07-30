@@ -38,6 +38,55 @@ async function main() {
     update: {},
   });
 
+  // --------------------------------------------------------------- rate card
+  // PLACEHOLDER rates so the public calculator has something to compute with.
+  // Every row is flagged isPlaceholder, which makes the website label the
+  // result "indicative" until the CEO replaces these with agreed numbers.
+  const placeholderRates: {
+    goodsType: Prisma.RateCardUncheckedCreateInput["goodsType"];
+    method: "AIR_NORMAL" | "AIR_EXPRESS";
+    pricePerKg: number;
+    transitDays: number;
+    minimumCharge: number;
+  }[] = [
+    { goodsType: null, method: "AIR_NORMAL", pricePerKg: 13000, transitDays: 3, minimumCharge: 25000 },
+    { goodsType: "ELECTRONICS", method: "AIR_NORMAL", pricePerKg: 17000, transitDays: 3, minimumCharge: 25000 },
+    { goodsType: "PHONE_ACCESSORIES", method: "AIR_NORMAL", pricePerKg: 16000, transitDays: 3, minimumCharge: 25000 },
+    { goodsType: "COSMETICS", method: "AIR_NORMAL", pricePerKg: 18000, transitDays: 4, minimumCharge: 25000 },
+    { goodsType: "TEXTILES_GARMENTS", method: "AIR_NORMAL", pricePerKg: 12500, transitDays: 3, minimumCharge: 25000 },
+    { goodsType: "FOOTWEAR", method: "AIR_NORMAL", pricePerKg: 12500, transitDays: 3, minimumCharge: 25000 },
+    // Express costs more per kilo and skips the wait for a batch to fill.
+    { goodsType: null, method: "AIR_EXPRESS", pricePerKg: 19000, transitDays: 2, minimumCharge: 40000 },
+  ];
+
+  for (const origin of ["GUANGZHOU", "HONG_KONG"] as const) {
+    for (const rate of placeholderRates) {
+      // findFirst rather than upsert: Prisma cannot target a null inside a
+      // compound unique selector, and goodsType is intentionally nullable.
+      const existing = await prisma.rateCard.findFirst({
+        where: { origin, goodsType: rate.goodsType, method: rate.method },
+        select: { id: true },
+      });
+      if (existing) continue;
+
+      await prisma.rateCard.create({
+        data: {
+          origin,
+          goodsType: rate.goodsType,
+          method: rate.method,
+          pricePerKg: new Prisma.Decimal(rate.pricePerKg),
+          minimumKg: new Prisma.Decimal(1),
+          minimumCharge: new Prisma.Decimal(rate.minimumCharge),
+          transitDays: rate.transitDays,
+          isPlaceholder: true,
+          notes: "Placeholder rate — replace with the figure the company agreed.",
+        },
+      });
+    }
+  }
+
+  console.log("Rate card seeded with placeholder air rates.");
+
   // ------------------------------------------------------------------- staff
   const adminEmail = (
     process.env.SEED_ADMIN_EMAIL ?? "ceo@targetexpress.co.tz"

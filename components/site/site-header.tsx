@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/", label: "Nyumbani" },
   { href: "/china", label: "Anwani ya China" },
+  { href: "/calculator", label: "Bei" },
   { href: "/services", label: "Huduma" },
   { href: "/track", label: "Fuatilia" },
   { href: "/contact", label: "Wasiliana" },

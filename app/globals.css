@@ -50,36 +50,62 @@
     --info-foreground: 0 0% 100%;
 
     --radius: 0.75rem;
+
+    /* Data visualisation. Ordered by first-use so a 2-series chart is always
+       navy vs cyan, never two colours that read as the same thing. */
+    --chart-1: 216 72% 34%;
+    --chart-2: 190 74% 40%;
+    --chart-3: 3 81% 55%;
+    --chart-4: 35 92% 50%;
+    --chart-5: 152 52% 40%;
+    --chart-6: 262 60% 58%;
+
+    /* Motion. Kept as tokens so "fast" means the same thing everywhere. */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --dur-fast: 140ms;
+    --dur-base: 240ms;
+    --dur-slow: 420ms;
   }
 
+  /* Near-black operational surfaces. Warehouse screens run at full brightness
+     for hours; deep neutrals with quiet elevation are easier to sit in front of
+     than a mid-navy, and status colour reads louder against them. */
   .dark {
-    --background: 218 40% 7%;
-    --foreground: 210 30% 96%;
+    --background: 220 24% 5%;
+    --foreground: 210 24% 96%;
 
-    --card: 218 36% 10%;
-    --card-foreground: 210 30% 96%;
+    --card: 220 20% 8%;
+    --card-foreground: 210 24% 96%;
 
-    --popover: 218 36% 10%;
-    --popover-foreground: 210 30% 96%;
+    --popover: 220 20% 10%;
+    --popover-foreground: 210 24% 96%;
 
-    --primary: 210 30% 96%;
-    --primary-foreground: 218 40% 9%;
+    --primary: 210 24% 96%;
+    --primary-foreground: 220 24% 6%;
 
-    --secondary: 218 28% 16%;
-    --secondary-foreground: 210 30% 96%;
+    --secondary: 220 16% 13%;
+    --secondary-foreground: 210 24% 96%;
 
-    --muted: 218 28% 16%;
-    --muted-foreground: 215 18% 65%;
+    --muted: 220 16% 13%;
+    --muted-foreground: 216 14% 62%;
 
-    --accent: 218 28% 18%;
-    --accent-foreground: 210 30% 96%;
+    --accent: 220 16% 15%;
+    --accent-foreground: 210 24% 96%;
 
-    --destructive: 0 62% 50%;
+    --destructive: 0 68% 54%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 218 24% 20%;
-    --input: 218 24% 20%;
-    --ring: 213 60% 60%;
+    --border: 220 14% 17%;
+    --input: 220 14% 17%;
+    --ring: 213 70% 62%;
+
+    --chart-1: 213 84% 62%;
+    --chart-2: 187 78% 52%;
+    --chart-3: 3 84% 62%;
+    --chart-4: 35 92% 58%;
+    --chart-5: 152 52% 50%;
+    --chart-6: 262 72% 68%;
 
     --brand: 213 84% 64%;
     --brand-foreground: 218 40% 9%;
@@ -120,9 +146,50 @@
   .section {
     @apply py-16 md:py-24;
   }
+
+  /* Surface ladder. Three levels, used consistently: `panel` is the workhorse,
+     `panel-raised` lifts something the user is acting on, `panel-inset` recedes
+     for secondary detail inside a panel. */
+  .panel {
+    @apply rounded-xl border bg-card shadow-soft;
+  }
+
+  .panel-raised {
+    @apply rounded-xl border bg-card shadow-lift;
+  }
+
+  .panel-inset {
+    @apply rounded-lg border bg-muted/40;
+  }
+
+  /* Hairline grid used behind hero/dashboard headers for a technical feel. */
+  .grid-backdrop {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  /* Focus ring applied by hand on custom interactive elements. */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
 }
 
 @layer utilities {
+  /* Anyone who has asked their OS to calm things down gets a still interface.
+     Motion is decoration here; nothing depends on it to be usable. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   /* Everything printable (manifests, pickup notes, receipts) shares this. */
   @media print {
     .no-print {
