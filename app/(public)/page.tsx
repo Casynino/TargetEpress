@@ -1,104 +1,93 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
   Boxes,
+  Building2,
+  Camera,
+  CheckCircle2,
   ClipboardCheck,
-  Container,
+  Instagram,
+  MapPin,
   MessageCircle,
+  Phone,
   Plane,
   QrCode,
   Receipt,
   ScanLine,
+  Smartphone,
   Timer,
-  Truck,
   Warehouse,
 } from "lucide-react";
 
 import { Hero } from "@/components/site/hero";
 import { Button } from "@/components/ui/button";
-import { COMPANY } from "@/lib/constants";
+import { COMPANY, GOODS_TYPE_LABELS } from "@/lib/constants";
 
 const SERVICES = [
   {
-    icon: Plane,
-    title: "Air freight, China → Tanzania",
-    body: "Consolidated air cargo out of Guangzhou and Hong Kong into Dar es Salaam on regular flights.",
+    icon: Warehouse,
+    title: "Warehouse yetu Guangzhou",
+    titleEn: "Our own warehouse in China",
+    body: "Muuzaji wako anaacha mzigo kwenye anwani yetu Guangzhou. Tunapokea, tunapima, tunapiga picha na tunaandika kwa jina lako.",
   },
   {
-    icon: Warehouse,
-    title: "China warehouse & consolidation",
-    body: "Send your supplier's goods to our Guangzhou address. We receive, check, photograph and hold them until your batch flies.",
+    icon: Plane,
+    title: "Usafirishaji wa ndege",
+    titleEn: "Air freight, not sea",
+    body: "Mizigo inasafiri kwa ndege kutoka Guangzhou hadi Dar es Salaam — siku, sio miezi kama meli.",
   },
   {
     icon: Boxes,
-    title: "Batch shipping",
-    body: "Your cargo travels in a numbered batch with a full manifest, so nothing is 'somewhere in the container'.",
+    title: "Batch na manifest",
+    titleEn: "Batch shipping with a manifest",
+    body: "Mzigo wako unasafiri katika batch yenye namba na orodha kamili. Hakuna 'mzigo uko huko mahali'.",
   },
   {
     icon: ClipboardCheck,
-    title: "Arrival verification",
-    body: "Every batch is checked package by package against its manifest in Dar. Shortages and damage are logged, not argued about.",
+    title: "Ukaguzi wa kufika",
+    titleEn: "Checked on arrival",
+    body: "Kila batch inahesabiwa kipande kwa kipande Dar. Upungufu au uharibifu unaandikwa siku hiyo.",
   },
   {
     icon: Receipt,
-    title: "Clear invoicing",
-    body: "One invoice per shipment, priced on weight. Pay by cash, mobile money, bank transfer or cheque and get a receipt.",
+    title: "Malipo na risiti",
+    titleEn: "Clear invoicing",
+    body: "Bei kwa kilo. Lipa kwa cash, M-Pesa, Tigo Pesa, Airtel Money, benki au cheque — upate risiti.",
   },
   {
     icon: QrCode,
-    title: "QR-secured collection",
-    body: "Cargo is released only against a paid pickup note whose QR matches the shipment's own label.",
+    title: "Kuchukua kwa QR",
+    titleEn: "QR-secured collection",
+    body: "Mzigo unatolewa tu kwa pickup note yenye QR inayolingana na lebo iliyo kwenye mzigo wako.",
   },
 ];
 
 const STEPS = [
   {
-    icon: Container,
-    title: "Your supplier delivers to our China warehouse",
-    body: "We receive the goods, record weight, packages and description, photograph them, and give the shipment a permanent tracking number and QR label.",
+    icon: Building2,
+    title: "Muuzaji anatuma Guangzhou",
+    body: "Mpe muuzaji wako anwani yetu ya China. Anaacha mzigo pale — hakuna kingine unachotakiwa kufanya.",
   },
   {
-    icon: Boxes,
-    title: "We consolidate into a flight batch",
-    body: "Your shipment joins a numbered batch. You can see the batch it belongs to from the moment it is loaded.",
+    icon: Camera,
+    title: "Tunaandika na kupiga picha",
+    body: "Tunapima uzito, tunahesabu vipande, tunapiga picha, na tunaweka lebo yenye QR na namba yako ya kufuatilia.",
   },
   {
     icon: Plane,
-    title: "The batch flies to Dar es Salaam",
-    body: "Airline, flight number and waybill are recorded at departure. Your tracking page moves to 'In transit'.",
+    title: "Inapanda ndege",
+    body: "Batch inasafiri. Airline, flight na waybill zinaandikwa. Ukurasa wako wa kufuatilia unabadilika kuwa 'Safarini'.",
   },
   {
     icon: ScanLine,
-    title: "We verify on arrival",
-    body: "The Dar warehouse checks each shipment off the printed manifest. Your cargo is only marked arrived once it is physically in the building.",
+    title: "Tunakagua Dar",
+    body: "Tunahesabu kila mzigo kwenye manifest. Mzigo wako unaonekana 'Imefika' baada ya kuwa ndani ya store.",
   },
   {
     icon: Receipt,
-    title: "You pay and collect",
-    body: "Finance confirms payment and issues a pickup note. Bring it to the warehouse; we scan it, scan the cargo, and release it to you.",
-  },
-];
-
-const REASONS = [
-  {
-    icon: ScanLine,
-    title: "One identity, end to end",
-    body: "The QR code attached in China is the same one scanned at release in Dar. No re-labelling, no mixed-up cargo.",
-  },
-  {
-    icon: Timer,
-    title: "No more WhatsApp chasing",
-    body: "Status is on a page, not in a chat thread. Check it yourself, any hour, from any phone.",
-  },
-  {
-    icon: ClipboardCheck,
-    title: "Exceptions are recorded",
-    body: "If something is missing or damaged on arrival, it is logged against your shipment the same day — with a name behind the entry.",
-  },
-  {
-    icon: Truck,
-    title: "Release you can trust",
-    body: "Nothing leaves the warehouse without a settled invoice and a valid pickup note. That protects your cargo as much as our books.",
+    title: "Unalipa na kuchukua",
+    body: "Tunathibitisha malipo na kutoa pickup note. Njoo Aggrey au Ndanda, tunaskani, tunakupa mzigo wako.",
   },
 ];
 
@@ -107,34 +96,159 @@ export default function HomePage() {
     <>
       <Hero />
 
+      {/* Why the three-day promise is possible */}
+      <section className="section">
+        <div className="container">
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              {
+                icon: Timer,
+                stat: "Siku 3",
+                label: "kutoka China hadi mlangoni",
+                sub: "Within three days, door to door",
+              },
+              {
+                icon: Instagram,
+                stat: COMPANY.instagramFollowers,
+                label: "wateja wanatufuatilia",
+                sub: `Follow @${COMPANY.instagram}`,
+              },
+              {
+                icon: MapPin,
+                stat: "Ofisi 3",
+                label: "Aggrey, Ndanda na Guangzhou",
+                sub: "Two in Dar, one in China",
+              },
+            ].map(({ icon: Icon, stat, label, sub }) => (
+              <div
+                key={stat}
+                className="rounded-xl border bg-card p-6 text-center shadow-soft"
+              >
+                <Icon className="mx-auto h-6 w-6 text-signal" />
+                <p className="mt-3 font-display text-3xl font-extrabold tracking-tight">
+                  {stat}
+                </p>
+                <p className="mt-1 text-sm font-medium">{label}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* China — the part customers actually need */}
+      <section id="china" className="section border-y bg-muted/30">
+        <div className="container">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wider text-signal">
+                Anwani ya China
+              </p>
+              <h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+                Mpe muuzaji wako anwani hii
+              </h2>
+              <p className="mt-4 text-muted-foreground">
+                Hii ni warehouse yetu Guangzhou. Mtumie muuzaji wako anwani hii
+                kwa Kichina — ndio anayoihitaji ili kuleta mzigo wako.
+              </p>
+
+              <div className="mt-6 rounded-xl border-2 border-signal/30 bg-card p-5">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  地址 / Address
+                </p>
+                <p className="mt-2 text-lg font-semibold leading-relaxed">
+                  {COMPANY.chinaOffice.addressCn}
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {COMPANY.chinaOffice.addressEn}
+                  <br />
+                  {COMPANY.chinaOffice.rooms}
+                </p>
+
+                <div className="mt-4 border-t pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    电话 / Phone
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {COMPANY.chinaOffice.phones.map((phone) => (
+                      <li key={phone}>
+                        <a
+                          href={`tel:${phone.replace(/\s/g, "")}`}
+                          className="font-mono text-sm tabular hover:text-signal"
+                        >
+                          {phone}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button asChild variant="signal" className="rounded-xl">
+                  <Link href="/china">
+                    Ukurasa kamili wa anwani
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="rounded-xl">
+                  <a
+                    href={`https://wa.me/${COMPANY.whatsapp}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    Uliza kwa WhatsApp
+                  </a>
+                </Button>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden rounded-2xl border shadow-lift">
+              <Image
+                src="https://images.unsplash.com/photo-1587293852726-70cdb56c2866?auto=format&fit=crop&w=1200&q=70"
+                alt="Cargo stacked and labelled inside the warehouse"
+                width={1200}
+                height={900}
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="h-full w-full object-cover"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Services */}
       <section id="services" className="section">
         <div className="container">
           <div className="max-w-2xl">
-            <p className="text-sm font-semibold uppercase tracking-wider text-brand">
-              What we do
+            <p className="text-sm font-bold uppercase tracking-wider text-signal">
+              Huduma zetu
             </p>
             <h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-              A complete air cargo service on one corridor
+              Kila kitu kati ya muuzaji wako na duka lako
             </h2>
             <p className="mt-4 text-muted-foreground">
-              We do one route properly rather than every route badly. Everything
-              below is part of the standard service — not an upsell.
+              Njia moja, bei moja, namba moja ya kufuatilia. Yote yaliyo hapa
+              chini ni huduma ya kawaida — hakuna malipo ya ziada.
             </p>
           </div>
 
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {SERVICES.map(({ icon: Icon, title, body }) => (
+            {SERVICES.map(({ icon: Icon, title, titleEn, body }) => (
               <div
                 key={title}
-                className="group rounded-xl border bg-card p-6 shadow-soft transition-shadow hover:shadow-lift"
+                className="rounded-xl border bg-card p-6 shadow-soft transition-shadow hover:shadow-lift"
               >
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-signal/10 text-signal">
                   <Icon className="h-5 w-5" />
                 </span>
                 <h3 className="mt-4 font-display text-lg font-semibold">
                   {title}
                 </h3>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground/70">
+                  {titleEn}
+                </p>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {body}
                 </p>
@@ -144,95 +258,15 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* The corridor */}
-      <section className="section border-y bg-muted/30">
-        <div className="container">
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wider text-brand">
-                The corridor
-              </p>
-              <h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-                Guangzhou and Hong Kong, straight into Dar es Salaam
-              </h2>
-              <div className="mt-5 space-y-4 text-muted-foreground">
-                <p>
-                  Most Tanzanian importers buy from the same few markets in
-                  Guangzhou — Baiyun, Shahe, Yiwu-sourced stock arriving by
-                  road. The hard part was never buying the goods. It was knowing
-                  where they are after the supplier hands them over.
-                </p>
-                <p>
-                  We hold a physical warehouse at the China end. Your supplier
-                  delivers there, we register the cargo under your name and
-                  phone number, and from that second it exists in a system
-                  instead of a conversation.
-                </p>
-                <p>
-                  Air freight keeps the corridor short: days, not the six to
-                  eight weeks sea freight takes. For traders restocking fast
-                  movers, that difference is the whole business.
-                </p>
-              </div>
-              <Button asChild variant="brand" className="mt-8 rounded-xl">
-                <Link href="/services">
-                  See how pricing works
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-
-            <div className="rounded-2xl border bg-card p-6 shadow-soft sm:p-8">
-              <div className="space-y-6">
-                {[
-                  {
-                    place: "Guangzhou / Hong Kong",
-                    detail: "Receiving, weighing, photographing, labelling",
-                    icon: Warehouse,
-                  },
-                  {
-                    place: "In the air",
-                    detail: "Numbered batch, airline waybill on record",
-                    icon: Plane,
-                  },
-                  {
-                    place: "Dar es Salaam",
-                    detail: "Manifest check, invoicing, QR release",
-                    icon: Truck,
-                  },
-                ].map(({ place, detail, icon: Icon }, i, arr) => (
-                  <div key={place} className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground">
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      {i < arr.length - 1 ? (
-                        <span className="my-2 w-px flex-1 bg-border" />
-                      ) : null}
-                    </div>
-                    <div className="pb-2">
-                      <p className="font-display font-semibold">{place}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {detail}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* How it works */}
-      <section id="process" className="section">
+      <section id="process" className="section border-t bg-muted/30">
         <div className="container">
           <div className="max-w-2xl">
-            <p className="text-sm font-semibold uppercase tracking-wider text-brand">
-              How it works
+            <p className="text-sm font-bold uppercase tracking-wider text-signal">
+              Inafanyaje kazi
             </p>
             <h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-              Five steps, and you can see all of them
+              Hatua tano — na unaziona zote
             </h2>
           </div>
 
@@ -242,10 +276,10 @@ export default function HomePage() {
                 key={title}
                 className="relative rounded-xl border bg-card p-6 shadow-soft"
               >
-                <span className="absolute right-5 top-5 font-display text-4xl font-bold text-muted-foreground/15 tabular">
+                <span className="absolute right-5 top-4 font-display text-4xl font-extrabold text-signal/10 tabular">
                   {String(index + 1).padStart(2, "0")}
                 </span>
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-signal/10 text-signal">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10 text-brand">
                   <Icon className="h-5 w-5" />
                 </span>
                 <h3 className="mt-4 max-w-[85%] font-display text-lg font-semibold">
@@ -260,45 +294,226 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Why us */}
-      <section className="section border-t bg-muted/30">
+      {/* Cargo we carry, with a photo */}
+      <section className="section">
         <div className="container">
-          <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr]">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wider text-brand">
-                Why Target Express
-              </p>
-              <h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-                Built to remove the phone call
-              </h2>
-              <p className="mt-4 text-muted-foreground">
-                The question every importer asks is the same: where is my cargo?
-                We rebuilt our operation so the answer is always on a screen —
-                for you and for every person in our company.
-              </p>
+          <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="relative order-2 overflow-hidden rounded-2xl border shadow-lift lg:order-1">
+              <Image
+                src="https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1200&q=70"
+                alt="Warehouse aisle stacked with cargo ready for dispatch"
+                width={1200}
+                height={800}
+                sizes="(max-width: 1024px) 100vw, 55vw"
+                className="h-full w-full object-cover"
+              />
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              {REASONS.map(({ icon: Icon, title, body }) => (
-                <div key={title} className="rounded-xl border bg-card p-6">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                    <Icon className="h-4.5 w-4.5" />
-                  </span>
-                  <h3 className="mt-3 font-display font-semibold">{title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                    {body}
-                  </p>
-                </div>
-              ))}
+            <div className="order-1 lg:order-2">
+              <p className="text-sm font-bold uppercase tracking-wider text-signal">
+                Mizigo tunayosafirisha
+              </p>
+              <h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+                Kutoka simu hadi vipuri
+              </h2>
+              <p className="mt-4 text-muted-foreground">
+                Bei inatofautiana kwa aina ya mzigo — electronics na cosmetics
+                hazipimwi kama mzigo wa kawaida. Tuulize bei yako kabla ya
+                kutuma.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-2">
+                {Object.values(GOODS_TYPE_LABELS)
+                  .filter((label) => label !== "Other")
+                  .map((label) => (
+                    <span
+                      key={label}
+                      className="rounded-full border bg-card px-3.5 py-1.5 text-sm text-muted-foreground"
+                    >
+                      {label}
+                    </span>
+                  ))}
+              </div>
+              <Button asChild variant="signal" className="mt-8 rounded-xl">
+                <a
+                  href={`https://wa.me/${COMPANY.whatsapp}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Uliza bei yako
+                </a>
+              </Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
+      {/* Offices */}
+      <section id="offices" className="section border-t bg-muted/30">
+        <div className="container">
+          <div className="max-w-2xl">
+            <p className="text-sm font-bold uppercase tracking-wider text-signal">
+              Ofisi zetu
+            </p>
+            <h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+              Njoo utuone
+            </h2>
+          </div>
+
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {COMPANY.offices.map((office) => (
+              <div key={office.id} className="rounded-xl border bg-card p-6">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                  <MapPin className="h-5 w-5" />
+                </span>
+                <h3 className="mt-4 font-display text-lg font-semibold">
+                  {office.name}
+                </h3>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {office.city}
+                </p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {office.address}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {office.note}
+                </p>
+                <ul className="mt-4 space-y-1 border-t pt-3">
+                  {office.phones.map((phone) => (
+                    <li key={phone}>
+                      <a
+                        href={`tel:${phone.replace(/\s/g, "")}`}
+                        className="inline-flex items-center gap-1.5 font-mono text-sm tabular hover:text-signal"
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                        {phone}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+
+            {/* China office gets the same card treatment */}
+            <div className="rounded-xl border-2 border-signal/30 bg-card p-6">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-signal/10 text-signal">
+                <Warehouse className="h-5 w-5" />
+              </span>
+              <h3 className="mt-4 font-display text-lg font-semibold">
+                Guangzhou warehouse
+              </h3>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                China · for your supplier
+              </p>
+              <p className="mt-3 text-sm font-medium leading-relaxed">
+                {COMPANY.chinaOffice.addressCn}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {COMPANY.chinaOffice.rooms}
+              </p>
+              <ul className="mt-4 space-y-1 border-t pt-3">
+                {COMPANY.chinaOffice.phones.slice(0, 2).map((phone) => (
+                  <li key={phone}>
+                    <a
+                      href={`tel:${phone.replace(/\s/g, "")}`}
+                      className="inline-flex items-center gap-1.5 font-mono text-sm tabular hover:text-signal"
+                    >
+                      <Phone className="h-3.5 w-3.5" />
+                      {phone}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust + app */}
       <section className="section">
         <div className="container">
-          <div className="relative overflow-hidden rounded-3xl bg-brand px-6 py-14 text-center text-brand-foreground sm:px-12">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="overflow-hidden rounded-2xl border bg-card shadow-soft">
+              <Image
+                src="https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?auto=format&fit=crop&w=1000&q=70"
+                alt="Customer collecting a parcel at the counter"
+                width={1000}
+                height={560}
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="h-56 w-full object-cover"
+              />
+              <div className="p-6">
+                <h3 className="font-display text-xl font-bold tracking-tight">
+                  Wateja wetu wanajua tulipo
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Tuna wafuasi {COMPANY.instagramFollowers} kwenye Instagram, na
+                  tunaonyesha send-outs na reviews za wateja kila wiki. Kagua
+                  mwenyewe kabla ya kutuma mzigo wako.
+                </p>
+                <Button asChild variant="outline" className="mt-5 rounded-xl">
+                  <a
+                    href={COMPANY.instagramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Instagram className="mr-2 h-4 w-4" />@{COMPANY.instagram}
+                  </a>
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-col justify-center rounded-2xl border bg-brand p-8 text-brand-foreground">
+              <Smartphone className="h-8 w-8 text-signal" />
+              <h3 className="mt-4 font-display text-2xl font-bold tracking-tight">
+                Fuatilia mzigo wako kwa simu
+              </h3>
+              <p className="mt-3 text-sm text-brand-foreground/80">
+                Weka namba yako ya mzigo kwenye ukurasa wa kufuatilia — hakuna
+                kusubiri majibu ya WhatsApp. Tuna pia app kwa iPhone.
+              </p>
+              <ul className="mt-5 space-y-2 text-sm">
+                {[
+                  "Hali ya mzigo wakati wowote",
+                  "Batch na tarehe ya kufika",
+                  "Taarifa ya kuwa tayari kuchukuliwa",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-signal" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Button
+                  asChild
+                  className="rounded-xl bg-background text-foreground hover:bg-background/90"
+                >
+                  <Link href="/track">Fuatilia mzigo</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="rounded-xl border-brand-foreground/25 bg-transparent text-brand-foreground hover:bg-brand-foreground/10 hover:text-brand-foreground"
+                >
+                  <a
+                    href={COMPANY.iosApp}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    iPhone app
+                  </a>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="pb-8">
+        <div className="container">
+          <div className="relative overflow-hidden rounded-3xl bg-signal px-6 py-14 text-center text-signal-foreground sm:px-12">
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0 opacity-[0.13]"
@@ -309,13 +524,12 @@ export default function HomePage() {
               }}
             />
             <div className="relative mx-auto max-w-2xl">
-              <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-                Shipping from China this month?
+              <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
+                Unatuma mzigo mwezi huu?
               </h2>
-              <p className="mt-4 text-brand-foreground/80">
-                Talk to us before your supplier ships. We will give you the
-                China warehouse address, your customer code, and a rate for your
-                goods.
+              <p className="mt-4 text-signal-foreground/85">
+                Tuulize kabla muuzaji wako atume. Tutakupa anwani ya China,
+                namba yako ya mteja, na bei ya mzigo wako.
               </p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
                 <Button
@@ -328,15 +542,15 @@ export default function HomePage() {
                     rel="noopener noreferrer"
                   >
                     <MessageCircle className="mr-2 h-4 w-4" />
-                    Chat on WhatsApp
+                    WhatsApp
                   </a>
                 </Button>
                 <Button
                   asChild
                   variant="outline"
-                  className="h-11 rounded-xl border-brand-foreground/30 bg-transparent px-6 text-brand-foreground hover:bg-brand-foreground/10 hover:text-brand-foreground"
+                  className="h-11 rounded-xl border-signal-foreground/40 bg-transparent px-6 text-signal-foreground hover:bg-signal-foreground/10 hover:text-signal-foreground"
                 >
-                  <Link href="/contact">Contact the office</Link>
+                  <Link href="/contact">Ofisi zetu</Link>
                 </Button>
               </div>
             </div>

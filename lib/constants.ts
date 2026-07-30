@@ -14,15 +14,67 @@ import type {
  * as little as possible — everything selectable comes from these lists.
  */
 
+/**
+ * Real company details, taken from the @targetexpress_ Instagram profile.
+ *
+ * The Swahili strings are the company's own words — most customers are Swahili
+ * speakers and this is the voice they already recognise. Do not "improve" the
+ * translation without asking the owner.
+ */
 export const COMPANY = {
   name: "Target Express Air Cargo",
   shortName: "Target Express",
-  tagline: "China to Tanzania, on every flight.",
-  phone: process.env.NEXT_PUBLIC_COMPANY_PHONE ?? "+255 762 000 111",
-  whatsapp: process.env.NEXT_PUBLIC_COMPANY_WHATSAPP ?? "255762000111",
+
+  /** The promise the business is built on: three days, door to door. */
+  promiseSw: "Ndani ya siku tatu, mzigo wako uko mlangoni!",
+  promiseEn: "Within three days, your cargo is at your door.",
+  taglineSw: "Kutoka China kwa bei nafuu",
+  taglineEn: "From China, at a fair price",
+
+  phone: process.env.NEXT_PUBLIC_COMPANY_PHONE ?? "+255 688 887 784",
+  phoneAlt: "+255 628 430 911",
+  whatsapp: process.env.NEXT_PUBLIC_COMPANY_WHATSAPP ?? "255688887784",
   email: process.env.NEXT_PUBLIC_COMPANY_EMAIL ?? "info@targetexpress.co.tz",
-  darAddress: "Kariakoo, Dar es Salaam, Tanzania",
-  chinaAddress: "Baiyun District, Guangzhou, China",
+
+  instagram: "targetexpress_",
+  instagramUrl: "https://www.instagram.com/targetexpress_",
+  instagramFollowers: "7,200+",
+  iosApp: "https://apps.apple.com/tz/app/targetexpresscargo/id1547951657",
+
+  /** Tanzanian collection points. */
+  offices: [
+    {
+      id: "aggrey",
+      city: "Dar es Salaam",
+      name: "Aggrey office",
+      address: "Aggrey / Likoma Street, near Mkombozi Bank",
+      note: "Main collection point.",
+      phones: ["+255 688 887 784", "+255 628 430 911"],
+    },
+    {
+      id: "ndanda",
+      city: "Dar es Salaam",
+      name: "Ndanda office",
+      address: "Ndanda Street",
+      note: "Second collection point.",
+      phones: ["+255 688 887 784"],
+    },
+  ],
+
+  /** Where suppliers in China deliver. The Chinese text matters — send it to them as-is. */
+  chinaOffice: {
+    city: "Guangzhou",
+    addressCn:
+      "广州市白云区金沙洲环洲三路 ECAT 文化创意园 B 栈 121 及 218 室",
+    addressEn:
+      "ECAT Cultural Park, Huanzhou 3rd Road, Jinshazhou, Baiyun District, Guangzhou",
+    rooms: "Building B, Rooms 121 & 218",
+    phones: ["+86 191 2866 4885", "+86 131 6834 2573", "+86 136 9970 9572"],
+  },
+
+  // Kept for printed documents, which need one short line per location.
+  darAddress: "Aggrey / Likoma Street, near Mkombozi Bank, Dar es Salaam",
+  chinaAddress: "ECAT Cultural Park, Jinshazhou, Baiyun District, Guangzhou",
 } as const;
 
 export const DEFAULT_CURRENCY = "TZS";

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
@@ -21,24 +22,28 @@ export const metadata: Metadata = {
 
 const FAQ = [
   {
-    q: "How is the price calculated?",
-    a: "Air freight is billed per kilogram. Your shipment is weighed in China when we receive it, and that weight is what appears on your invoice. Bulky-but-light cargo may be assessed on volume instead — we tell you before it flies, never after.",
+    q: "Bei inahesabiwaje? / How is the price calculated?",
+    a: "Bei ni kwa kilo. Mzigo wako unapimwa Guangzhou tunapoupokea, na uzito huo ndio unaoonekana kwenye invoice yako. Mzigo mkubwa lakini mwepesi unaweza kupimwa kwa volume — tunakuambia kabla ya kusafiri, sio baada. Tuulize bei ya aina ya mzigo wako kwa WhatsApp.",
   },
   {
-    q: "How long does it take?",
-    a: "Cargo normally leaves China within days of arriving at our warehouse, depending on when the next batch closes. Flight time plus clearing in Dar is a matter of days, not weeks.",
+    q: "Inachukua siku ngapi? / How long does it take?",
+    a: "Ahadi yetu ni siku tatu kutoka mzigo unapopanda ndege hadi unapokuwa tayari kuchukuliwa Dar. Muda unaotumika kabla ya hapo unategemea lini batch inayofuata inafungwa Guangzhou.",
   },
   {
-    q: "What can I not send?",
-    a: "No hazardous goods, no batteries shipped loose, no counterfeit branded items, and nothing prohibited by the airline or by Tanzanian customs. If you are unsure, ask before your supplier ships.",
+    q: "Nilipe vipi? / How do I pay?",
+    a: "Cash ofisini, M-Pesa, Tigo Pesa, Airtel Money, bank transfer au cheque. Kila malipo unapata risiti yenye namba. Mzigo unatolewa tu baada ya malipo kukamilika.",
   },
   {
-    q: "What happens if something is missing or damaged?",
-    a: "Every batch is checked against its manifest on arrival in Dar. If a shipment is short, damaged or the weight does not match, we log it as an exception against your shipment the same day and contact you — rather than discovering it at the counter.",
+    q: "Nisitume nini? / What can I not send?",
+    a: "Betri zinazosafirishwa peke yake, vitu vinavyoweza kuwaka au kulipuka, bidhaa za kughushi, na chochote kilichozuiliwa na airline au forodha ya Tanzania. Kama hujui, tuulize kabla muuzaji wako atume.",
   },
   {
-    q: "How do I collect my goods?",
-    a: "Once your invoice is settled, Finance issues a pickup note carrying your shipment's QR code. Bring it to the Dar warehouse. We scan the note, scan the cargo, confirm they match, and release it. Someone else may collect on your behalf if they carry the note.",
+    q: "Ikiwa mzigo umepungua au umeharibika? / If something is missing or damaged?",
+    a: "Kila batch inahesabiwa kwenye manifest inapofika Dar. Ikiwa mzigo umepungua, umeharibika au uzito hauendani, tunaandika kama exception siku hiyo na tunakupigia — badala ya kugundua wakati umekuja kuchukua.",
+  },
+  {
+    q: "Nachukua vipi mzigo? / How do I collect?",
+    a: "Baada ya malipo, tunakupa pickup note yenye QR ya mzigo wako. Njoo Aggrey au Ndanda nayo — tunaskani note, tunaskani mzigo, tunahakikisha zinalingana, kisha tunakupa mzigo. Mtu mwingine anaweza kuchukua kwa niaba yako akiwa na note na ID yake.",
   },
 ];
 
@@ -46,16 +51,28 @@ export default function ServicesPage() {
   return (
     <div className="container py-12 md:py-16">
       <div className="mx-auto max-w-3xl text-center">
-        <p className="text-sm font-semibold uppercase tracking-wider text-brand">
-          Services &amp; pricing
+        <p className="text-sm font-bold uppercase tracking-wider text-signal">
+          Huduma na bei
         </p>
-        <h1 className="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl">
-          Everything between your supplier and your shop
+        <h1 className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-5xl">
+          Kila kitu kati ya muuzaji wako na duka lako
         </h1>
         <p className="mt-4 text-muted-foreground">
-          One corridor, one price basis, one tracking number. Below is exactly
-          what we do with your cargo and what it costs you.
+          Njia moja, msingi mmoja wa bei, namba moja ya kufuatilia. Hapa chini
+          ni kile tunachofanya na mzigo wako na kinachokugharimu.
         </p>
+      </div>
+
+      <div className="mx-auto mt-10 max-w-5xl overflow-hidden rounded-2xl border shadow-lift">
+        <Image
+          src="https://images.unsplash.com/photo-1520437358207-323b43b50729?auto=format&fit=crop&w=1600&q=70"
+          alt="Aircraft on approach at sunset"
+          width={1600}
+          height={600}
+          sizes="(max-width: 1024px) 100vw, 1024px"
+          className="h-52 w-full object-cover sm:h-72"
+          priority
+        />
       </div>
 
       {/* What we record */}

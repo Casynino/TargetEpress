@@ -15,13 +15,15 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { COMPANY } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/", label: "Home" },
-  { href: "/services", label: "Services" },
-  { href: "/track", label: "Track" },
-  { href: "/contact", label: "Contact" },
+  { href: "/", label: "Nyumbani" },
+  { href: "/china", label: "Anwani ya China" },
+  { href: "/services", label: "Huduma" },
+  { href: "/track", label: "Fuatilia" },
+  { href: "/contact", label: "Wasiliana" },
 ];
 
 /**
@@ -71,12 +73,12 @@ export function SiteHeader() {
             </Button>
             <Button
               asChild
-              variant="brand"
-              className="hidden h-8 rounded-full px-3.5 text-sm font-medium md:inline-flex"
+              variant="signal"
+              className="hidden h-8 rounded-full px-3.5 text-sm font-semibold md:inline-flex"
             >
               <Link href="/track">
                 <PackageSearch className="mr-1.5 h-4 w-4" />
-                Track cargo
+                Fuatilia mzigo
               </Link>
             </Button>
 
@@ -112,11 +114,25 @@ export function SiteHeader() {
                   <Separator className="my-3" />
                   <Button
                     asChild
-                    variant="brand"
+                    variant="signal"
+                    className="w-full rounded-full font-semibold"
+                    onClick={() => setOpen(false)}
+                  >
+                    <Link href="/track">Fuatilia mzigo</Link>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="outline"
                     className="w-full rounded-full"
                     onClick={() => setOpen(false)}
                   >
-                    <Link href="/track">Track cargo</Link>
+                    <a
+                      href={`https://wa.me/${COMPANY.whatsapp}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      WhatsApp
+                    </a>
                   </Button>
                   <Button
                     asChild

@@ -32,11 +32,13 @@
     --input: 214 25% 90%;
     --ring: 217 62% 30%;
 
-    /* Brand */
-    --brand: 217 68% 24%;
+    /* Brand — matched to the company logo: navy wordmark, red aircraft.
+       Navy carries structure and trust; red is the action colour on the
+       public site, exactly as it is the loudest thing in their artwork. */
+    --brand: 216 72% 22%;
     --brand-foreground: 0 0% 100%;
-    --brand-muted: 217 60% 96%;
-    --signal: 4 76% 51%;
+    --brand-muted: 216 62% 96%;
+    --signal: 3 81% 47%;
     --signal-foreground: 0 0% 100%;
 
     /* Status */
@@ -79,10 +81,10 @@
     --input: 218 24% 20%;
     --ring: 213 60% 60%;
 
-    --brand: 213 84% 62%;
+    --brand: 213 84% 64%;
     --brand-foreground: 218 40% 9%;
     --brand-muted: 218 34% 15%;
-    --signal: 4 82% 60%;
+    --signal: 3 84% 58%;
     --signal-foreground: 0 0% 100%;
 
     --success: 152 50% 45%;
