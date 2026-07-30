@@ -271,9 +271,13 @@ export async function saveInvoice(
  * a payment without a receipt number is not a payment we can defend.
  */
 export async function recordPayment(
-  _prev: ActionResult<{ receiptNumber: string }> | undefined,
+  _prev:
+    | ActionResult<{ receiptNumber: string; pickupNoteNumber: string | null }>
+    | undefined,
   formData: FormData
-): Promise<ActionResult<{ receiptNumber: string }>> {
+): Promise<
+  ActionResult<{ receiptNumber: string; pickupNoteNumber: string | null }>
+> {
   let user: SessionUser;
   try {
     user = await authorize("payment.record");
@@ -286,6 +290,8 @@ export async function recordPayment(
   );
   if (!parsed.success) return fail(firstError(parsed.error));
   const input = parsed.data;
+
+  let issuedNote: string | null = null;
 
   try {
     const receiptNumber = await prisma.$transaction(async (tx) => {
@@ -338,13 +344,70 @@ export async function recordPayment(
       });
 
       const newPaid = paid + input.amount;
+      const settled = newPaid + 0.001 >= total;
+
       await tx.invoice.update({
         where: { id: invoice.id },
         data: {
           amountPaid: new Prisma.Decimal(newPaid),
-          status: newPaid + 0.001 >= total ? "PAID" : "PARTIALLY_PAID",
+          status: settled ? "PAID" : "PARTIALLY_PAID",
         },
       });
+
+      // Confirming the final payment is one action: receipt AND pickup note.
+      // Making the note a second click left cargo sitting paid-but-unreleasable
+      // whenever someone was interrupted between the two.
+      if (settled) {
+        const shipment = await tx.shipment.findUnique({
+          where: { id: invoice.shipment.id },
+          select: {
+            id: true,
+            status: true,
+            customerId: true,
+            currency: true,
+            pickupNote: { select: { id: true, status: true } },
+            exceptions: {
+              where: { status: "OPEN", type: "MISSING_SHIPMENT" },
+              select: { id: true },
+            },
+          },
+        });
+
+        const alreadyActive = shipment?.pickupNote?.status === "ACTIVE";
+        const blocked = (shipment?.exceptions.length ?? 0) > 0;
+        const atDar = shipment?.status === "RECEIVED_AT_DAR";
+
+        if (shipment && !alreadyActive && !blocked && atDar) {
+          const note = await tx.pickupNote.create({
+            data: {
+              noteNumber: await nextPickupNoteNumber(tx),
+              shipmentId: shipment.id,
+              customerId: shipment.customerId,
+              amountPaid: new Prisma.Decimal(newPaid),
+              currency: invoice.currency,
+              issuedById: user.id,
+            },
+          });
+
+          await tx.shipment.update({
+            where: { id: shipment.id },
+            data: { status: "READY_FOR_PICKUP", readyForPickup: new Date() },
+          });
+
+          await tx.shipmentStatusHistory.create({
+            data: {
+              shipmentId: shipment.id,
+              fromStatus: "RECEIVED_AT_DAR",
+              toStatus: "READY_FOR_PICKUP",
+              location: "Dar es Salaam warehouse",
+              note: `Payment confirmed. Pickup note ${note.noteNumber} issued.`,
+              actorId: user.id,
+            },
+          });
+
+          issuedNote = note.noteNumber;
+        }
+      }
 
       await recordAudit(
         {
@@ -364,7 +427,9 @@ export async function recordPayment(
     revalidatePath("/app/finance");
     revalidatePath("/app/finance/invoices");
     revalidatePath("/app/finance/payments");
-    return ok({ receiptNumber });
+    revalidatePath("/app/finance/pickup-notes");
+    revalidatePath("/app/release");
+    return ok({ receiptNumber, pickupNoteNumber: issuedNote });
   } catch (error) {
     return fail(toActionError(error));
   }

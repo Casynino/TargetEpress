@@ -17,6 +17,7 @@ import {
   nextTrackingNumber,
 } from "@/lib/ids";
 import { prisma } from "@/lib/prisma";
+import { filesFrom, putImages } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { exceptionSchema, firstError, shipmentSchema } from "@/lib/validation";
@@ -69,6 +70,25 @@ export async function createShipment(
   );
   if (!parsed.success) return fail(firstError(parsed.error));
   const input = parsed.data;
+
+  // Every shipment must carry a visual record from the moment it is received.
+  // Enforced here, not only in the form, so it cannot be skipped by posting
+  // the action directly.
+  const photoFiles = filesFrom(formData, "photos");
+  if (photoFiles.length === 0) {
+    return fail(
+      "At least one photo of the cargo is required before the shipment can be saved."
+    );
+  }
+
+  let uploaded;
+  try {
+    // Uploads happen before the transaction: they are slow, and a database
+    // transaction must not be held open across network I/O.
+    uploaded = await putImages(photoFiles, "receiving");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -140,6 +160,16 @@ export async function createShipment(
         },
       });
 
+      await tx.shipmentPhoto.createMany({
+        data: uploaded.map((image, index) => ({
+          shipmentId: shipment.id,
+          url: image.url,
+          kind: "CARGO" as const,
+          caption: index === 0 ? "Received at the China warehouse" : null,
+          uploadedById: user.id,
+        })),
+      });
+
       await appendHistory(tx, {
         shipmentId: shipment.id,
         fromStatus: null,
@@ -161,6 +191,7 @@ export async function createShipment(
             weightKg: input.weightKg,
             cargoCategory: input.cargoCategory,
             origin,
+            photos: uploaded.length,
           },
         },
         tx

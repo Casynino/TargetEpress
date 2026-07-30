@@ -5,6 +5,7 @@ import { ShipmentForm } from "@/components/app/shipment-form";
 import { prisma } from "@/lib/prisma";
 import { cargoTypesByCategory } from "@/lib/pricing";
 import { requirePermission } from "@/lib/session";
+import { storageIsDurable } from "@/lib/storage";
 
 export const metadata: Metadata = { title: "Register cargo" };
 
@@ -28,7 +29,11 @@ export default async function NewShipmentPage() {
         title="Register cargo"
         description="Record what arrived. The system works out the route, the batch and the price."
       />
-      <ShipmentForm openBatches={openBatches} typesByCategory={typesByCategory} />
+      <ShipmentForm
+        openBatches={openBatches}
+        typesByCategory={typesByCategory}
+        photosDurable={storageIsDurable()}
+      />
     </div>
   );
 }

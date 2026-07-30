@@ -7,6 +7,7 @@ import { ReleaseWorkbench } from "@/components/app/release-workbench";
 import { formatDateTime, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { storageIsDurable } from "@/lib/storage";
 
 export const metadata: Metadata = { title: "Release cargo" };
 
@@ -45,6 +46,7 @@ export default async function ReleasePage() {
         />
       ) : (
         <ReleaseWorkbench
+          photosDurable={storageIsDurable()}
           notes={notes.map((note) => ({
             id: note.id,
             noteNumber: note.noteNumber,

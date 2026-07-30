@@ -204,7 +204,7 @@ function InvoicePanel(props: Props) {
 function PaymentPanel(props: Props) {
   const [open, setOpen] = useState(false);
   const [state, action] = useActionState<
-    ActionResult<{ receiptNumber: string }>,
+    ActionResult<{ receiptNumber: string; pickupNoteNumber: string | null }>,
     FormData
   >(recordPayment, { ok: true });
 
@@ -219,7 +219,7 @@ function PaymentPanel(props: Props) {
         disabled={settled}
       >
         <Wallet className="h-4 w-4 text-brand" />
-        {settled ? "Settled in full" : "Record payment"}
+        {settled ? "Settled in full" : "Confirm payment"}
       </button>
 
       {open && !settled ? (
@@ -265,12 +265,18 @@ function PaymentPanel(props: Props) {
           <FormSuccess
             message={
               state.ok && state.data?.receiptNumber
-                ? `Receipt ${state.data.receiptNumber} issued.`
+                ? state.data.pickupNoteNumber
+                  ? `Receipt ${state.data.receiptNumber} issued, and pickup note ${state.data.pickupNoteNumber} — this cargo is now cleared for collection.`
+                  : `Receipt ${state.data.receiptNumber} issued.`
                 : null
             }
           />
-          <SubmitButton variant="brand" size="sm" pendingLabel="Recording…">
-            Record payment
+          <p className="text-xs text-muted-foreground">
+            Settling the balance in full also issues the pickup note and clears
+            the cargo for collection.
+          </p>
+          <SubmitButton variant="brand" size="sm" pendingLabel="Confirming…">
+            Confirm payment
           </SubmitButton>
         </form>
       ) : null}

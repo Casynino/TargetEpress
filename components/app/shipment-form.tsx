@@ -6,6 +6,7 @@ import type { CargoCategory } from "@prisma/client";
 import { CheckCircle2, Info, Plane, UserCheck } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { PhotoCapture } from "@/components/app/photo-capture";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -49,9 +50,11 @@ type KnownCustomer = { code: string; name: string; city: string | null } | null;
 export function ShipmentForm({
   openBatches,
   typesByCategory,
+  photosDurable,
 }: {
   openBatches: OpenBatch[];
   typesByCategory: Record<string, CargoTypeOption[]>;
+  photosDurable: boolean;
 }) {
   const [state, formAction] = useActionState<
     ActionResult<{ trackingNumber: string }>,
@@ -373,9 +376,30 @@ export function ShipmentForm({
         </div>
       </section>
 
-      {/* 4. Batch and notes */}
+      {/* 4. Photograph */}
       <section className="panel p-6">
-        <h2 className="font-display font-semibold">4. Batch &amp; notes</h2>
+        <h2 className="font-display font-semibold">
+          4. Photograph the cargo <span className="text-signal">*</span>
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Required. This is the proof of what we received and the condition it
+          arrived in — it settles disputes months later.
+        </p>
+        <div className="mt-5">
+          <PhotoCapture
+            name="photos"
+            required
+            max={4}
+            label="Receiving photos"
+            hint="One is enough, but photograph any damage separately."
+            durable={photosDurable}
+          />
+        </div>
+      </section>
+
+      {/* 5. Batch and notes */}
+      <section className="panel p-6">
+        <h2 className="font-display font-semibold">5. Batch &amp; notes</h2>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">

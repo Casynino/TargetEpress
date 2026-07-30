@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { CheckCircle2, PackageCheck, ScanLine, Search } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { PhotoCapture } from "@/components/app/photo-capture";
 import { QrScanner } from "@/components/app/qr-scanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +34,13 @@ type Note = {
  * is taking it. The scan is verified server-side against the note — this UI
  * only collects it.
  */
-export function ReleaseWorkbench({ notes }: { notes: Note[] }) {
+export function ReleaseWorkbench({
+  notes,
+  photosDurable,
+}: {
+  notes: Note[];
+  photosDurable: boolean;
+}) {
   const [selected, setSelected] = useState<Note | null>(null);
   const [query, setQuery] = useState("");
 
@@ -98,7 +105,12 @@ export function ReleaseWorkbench({ notes }: { notes: Note[] }) {
       </section>
 
       {selected ? (
-        <ReleaseForm key={selected.id} note={selected} onDone={() => setSelected(null)} />
+        <ReleaseForm
+          key={selected.id}
+          note={selected}
+          photosDurable={photosDurable}
+          onDone={() => setSelected(null)}
+        />
       ) : (
         <div className="flex items-center justify-center rounded-xl border border-dashed bg-muted/20 p-12 text-center">
           <div>
@@ -115,7 +127,15 @@ export function ReleaseWorkbench({ notes }: { notes: Note[] }) {
   );
 }
 
-function ReleaseForm({ note, onDone }: { note: Note; onDone: () => void }) {
+function ReleaseForm({
+  note,
+  photosDurable,
+  onDone,
+}: {
+  note: Note;
+  photosDurable: boolean;
+  onDone: () => void;
+}) {
   const [state, action] = useActionState<
     ActionResult<{ trackingNumber: string }>,
     FormData
@@ -168,7 +188,7 @@ function ReleaseForm({ note, onDone }: { note: Note; onDone: () => void }) {
 
       <div className="grid gap-6 md:grid-cols-2">
         <div>
-          <h3 className="mb-3 text-sm font-semibold">1. Scan the cargo label</h3>
+          <h3 className="mb-3 text-sm font-semibold">1. Scan the pickup note</h3>
           {scanned ? (
             <div className="rounded-xl border border-success/40 bg-success/5 p-4">
               <p className="flex items-center gap-2 text-sm font-medium text-success">
@@ -191,7 +211,7 @@ function ReleaseForm({ note, onDone }: { note: Note; onDone: () => void }) {
           ) : (
             <QrScanner
               onResult={setScanned}
-              label="Point the camera at the label on the carton"
+              label="Point the camera at the QR on the pickup note"
             />
           )}
         </div>
@@ -255,6 +275,25 @@ function ReleaseForm({ note, onDone }: { note: Note; onDone: () => void }) {
         </div>
       </div>
 
+      {/* 3. Proof of handover */}
+      <div className="border-t pt-5">
+        <h3 className="mb-1 text-sm font-semibold">
+          3. Photograph the handover <span className="text-signal">*</span>
+        </h3>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Required. This is your proof the cargo was collected, and what settles
+          a dispute later.
+        </p>
+        <PhotoCapture
+          name="photos"
+          required
+          max={2}
+          label="Delivery photo"
+          hint="The cargo with the person collecting it, if they agree."
+          durable={photosDurable}
+        />
+      </div>
+
       <FormError state={state} />
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
@@ -263,11 +302,11 @@ function ReleaseForm({ note, onDone }: { note: Note; onDone: () => void }) {
           disabled={!scanned}
           pendingLabel="Releasing…"
         >
-          Release cargo
+          Deliver shipment
         </SubmitButton>
         {!scanned ? (
           <p className="text-xs text-muted-foreground">
-            Scan the cargo label first.
+            Scan the pickup note first.
           </p>
         ) : null}
         <Button type="button" variant="ghost" onClick={onDone}>

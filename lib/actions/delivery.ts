@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { recordAudit } from "@/lib/audit";
 import { parseQrPayload } from "@/lib/qr";
 import { prisma } from "@/lib/prisma";
+import { filesFrom, putImages } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { firstError, releaseSchema } from "@/lib/validation";
@@ -36,7 +37,23 @@ export async function releaseShipment(
 
   const scannedToken = parseQrPayload(input.shipmentQr);
   if (!scannedToken) {
-    return fail("That code is not a Target Express cargo label.");
+    return fail("That code is not a Target Express label.");
+  }
+
+  // Proof of handover. Required before anything leaves the building, and
+  // enforced here rather than only in the form.
+  const photoFiles = filesFrom(formData, "photos");
+  if (photoFiles.length === 0) {
+    return fail(
+      "Take a photo of the cargo being handed over before completing the release."
+    );
+  }
+
+  let uploaded;
+  try {
+    uploaded = await putImages(photoFiles, "delivery");
+  } catch (error) {
+    return fail(toActionError(error));
   }
 
   try {
@@ -93,6 +110,16 @@ export async function releaseShipment(
         },
       });
 
+      await tx.shipmentPhoto.createMany({
+        data: uploaded.map((image) => ({
+          shipmentId: note.shipment.id,
+          url: image.url,
+          kind: "PROOF_OF_DELIVERY" as const,
+          caption: `Released to ${input.receiverName}`,
+          uploadedById: user.id,
+        })),
+      });
+
       await tx.pickupNote.update({
         where: { id: note.id },
         data: { status: "USED", usedAt: now },
@@ -125,6 +152,7 @@ export async function releaseShipment(
             pickupNote: note.noteNumber,
             receiverPhone: input.receiverPhone,
             relationship: input.relationship,
+            deliveryPhotos: uploaded.length,
           },
         },
         tx

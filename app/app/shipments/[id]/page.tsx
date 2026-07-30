@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import {
   AlertTriangle,
   Boxes,
+  Camera,
   Printer,
   ReceiptText,
   Truck,
@@ -23,6 +24,7 @@ import {
   SHIPMENT_STATUS_META,
 } from "@/lib/constants";
 import {
+  formatDate,
   formatDateTime,
   formatMoney,
   formatWeight,
@@ -56,6 +58,10 @@ export default async function ShipmentDetailPage({
       customer: true,
       batch: true,
       createdBy: { select: { name: true } },
+      photos: {
+        orderBy: { createdAt: "asc" },
+        include: { uploadedBy: { select: { name: true } } },
+      },
       statusHistory: {
         orderBy: { createdAt: "desc" },
         include: { actor: { select: { name: true } } },
@@ -155,6 +161,66 @@ export default async function ShipmentDetailPage({
               ) : null}
             </div>
           </section>
+
+          {/* Photos — the visual record from receipt to handover */}
+          {shipment.photos.length > 0 ? (
+            <section className="panel">
+              <div className="flex items-center justify-between border-b px-5 py-4">
+                <h2 className="flex items-center gap-2 font-display font-semibold">
+                  <Camera className="h-4 w-4" />
+                  Photos
+                </h2>
+                <p className="text-xs text-muted-foreground tabular">
+                  {shipment.photos.length}
+                </p>
+              </div>
+              <ul className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3">
+                {shipment.photos.map((photo) => (
+                  <li key={photo.id}>
+                    <a
+                      href={photo.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="focus-ring group block overflow-hidden rounded-lg border"
+                    >
+                      {/* Sizes vary and some are remote Blob URLs; a plain img
+                          avoids configuring a loader for every future host. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photo.url}
+                        alt={photo.caption ?? "Cargo photo"}
+                        className="aspect-square w-full object-cover transition-transform group-hover:scale-[1.03]"
+                        loading="lazy"
+                      />
+                    </a>
+                    <p className="mt-1.5 text-xs font-medium">
+                      {photo.kind === "PROOF_OF_DELIVERY"
+                        ? "Handover"
+                        : photo.kind === "DAMAGE"
+                          ? "Damage"
+                          : "Receiving"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(photo.createdAt)}
+                      {showInternal && photo.uploadedBy
+                        ? ` · ${photo.uploadedBy.name}`
+                        : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : (
+            <section className="panel border-warning/40 p-5">
+              <p className="flex items-start gap-2 text-sm text-warning">
+                <Camera className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  No photos on record. Every shipment registered from now on
+                  requires one; this predates that rule.
+                </span>
+              </p>
+            </section>
+          )}
 
           {/* Exceptions */}
           {shipment.exceptions.length > 0 ? (

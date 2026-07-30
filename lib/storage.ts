@@ -1,0 +1,98 @@
+import "server-only";
+
+import { randomBytes } from "crypto";
+import { mkdir, writeFile } from "fs/promises";
+import { join } from "path";
+
+/**
+ * Image storage for cargo photos.
+ *
+ * Two drivers, chosen by whether a Blob token exists:
+ *
+ *  - Vercel Blob when BLOB_READ_WRITE_TOKEN is set. This is the production
+ *    path; Vercel's filesystem is ephemeral and read-only at runtime, so
+ *    nothing written to disk there survives.
+ *  - Local disk under public/uploads otherwise, so photo capture is fully
+ *    testable on a laptop with no cloud account.
+ *
+ * The driver in use is reported by `storageDriver()` and surfaced in the UI, so
+ * nobody deploys believing photos are being kept when they are not.
+ */
+
+const MAX_BYTES = 6 * 1024 * 1024; // 6 MB — a phone photo, not a raw scan
+const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/heic"]);
+
+export type StoredImage = { url: string; bytes: number; contentType: string };
+
+export function storageDriver(): "blob" | "local" {
+  return process.env.BLOB_READ_WRITE_TOKEN ? "blob" : "local";
+}
+
+/** True when photos will survive a deploy. */
+export function storageIsDurable() {
+  return storageDriver() === "blob";
+}
+
+function safeName(original: string) {
+  const ext = (original.split(".").pop() ?? "jpg").toLowerCase().slice(0, 5);
+  return `${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
+}
+
+/**
+ * Validates and stores one image. Throws a message fit to show a warehouse
+ * clerk — they need to know what to do differently, not a stack trace.
+ */
+export async function putImage(
+  file: File,
+  folder = "cargo"
+): Promise<StoredImage> {
+  if (!file || file.size === 0) {
+    throw new Error("That photo appears to be empty. Take it again.");
+  }
+  if (file.size > MAX_BYTES) {
+    throw new Error(
+      `That photo is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is 6 MB — use your phone's normal camera setting.`
+    );
+  }
+  if (file.type && !ALLOWED.has(file.type)) {
+    throw new Error(
+      "Photos must be JPEG, PNG, WebP or HEIC. That file is not an image we can store."
+    );
+  }
+
+  const name = safeName(file.name || "photo.jpg");
+  const contentType = file.type || "image/jpeg";
+
+  if (storageDriver() === "blob") {
+    // Imported lazily so the package is only needed when actually configured.
+    const { put } = await import("@vercel/blob");
+    const result = await put(`${folder}/${name}`, file, {
+      access: "public",
+      contentType,
+    });
+    return { url: result.url, bytes: file.size, contentType };
+  }
+
+  const dir = join(process.cwd(), "public", "uploads", folder);
+  await mkdir(dir, { recursive: true });
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await writeFile(join(dir, name), buffer);
+
+  return { url: `/uploads/${folder}/${name}`, bytes: file.size, contentType };
+}
+
+/** Stores several images, stopping at the first failure so nothing is half-done. */
+export async function putImages(files: File[], folder = "cargo") {
+  const stored: StoredImage[] = [];
+  for (const file of files) {
+    stored.push(await putImage(file, folder));
+  }
+  return stored;
+}
+
+/** Pulls real image files out of a FormData field, ignoring empty inputs. */
+export function filesFrom(formData: FormData, field: string): File[] {
+  return formData
+    .getAll(field)
+    .filter((value): value is File => value instanceof File && value.size > 0);
+}
