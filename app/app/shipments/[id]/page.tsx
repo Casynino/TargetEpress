@@ -1,27 +1,32 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, FileText, Plane } from "lucide-react";
+import { ArrowLeft, FileText, Plane, Users } from "lucide-react";
 
-import { CargoGrid } from "@/components/app/cargo-grid";
 import { PageHeader } from "@/components/app/page-header";
+import {
+  ShipmentDetailTabs,
+  type CargoLine,
+  type DocumentEntry,
+  type TimelineEntry,
+} from "@/components/app/shipment-detail-tabs";
 import { BatchStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
-import { ORIGIN_LABELS } from "@/lib/constants";
-import { formatDate, toNumber } from "@/lib/format";
+import { ORIGIN_LABELS, SHIPMENT_STATUS_META } from "@/lib/constants";
+import { formatDate, formatDateTime, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Shipment" };
 
 /**
- * One dispatch: the flight it went on, and everything that travelled on it.
+ * One dispatch, as a dashboard.
  *
- * Read-only as far as China is concerned. Once a batch is dispatched the
- * warehouse's job is done, and what happens next — arrival, invoicing, payment,
- * collection — belongs to Dar and Finance.
+ * The overview card answers the questions a manager asks standing up — how big,
+ * how many customers, where is it, when does it land — and the tabs hold the
+ * detail for whoever needs to sit down with it.
  */
-export default async function DispatchPage({
+export default async function ShipmentPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -32,10 +37,10 @@ export default async function DispatchPage({
   const dispatch = await prisma.batch.findUnique({
     where: { id },
     include: {
-      verifications: { select: { shipmentId: true, result: true } },
+      createdBy: { select: { name: true } },
       shipments: {
         orderBy: { trackingNumber: "asc" },
-        include: { customer: { select: { name: true } } },
+        include: { customer: { select: { id: true, name: true, phone: true } } },
       },
     },
   });
@@ -45,21 +50,86 @@ export default async function DispatchPage({
   // Loading tables are the live work area, not history.
   if (dispatch.permanent) redirect(`/app/batches/${dispatch.id}`);
 
-  const verificationByShipment = new Map(
-    dispatch.verifications.map((v) => [v.shipmentId, v])
-  );
+  const cargo: CargoLine[] = dispatch.shipments.map((item) => ({
+    id: item.id,
+    trackingNumber: item.trackingNumber,
+    cartonRef: item.cartonRef,
+    customerId: item.customer.id,
+    customerName: item.customer.name,
+    customerPhone: item.customer.phone,
+    description: item.description,
+    category: item.cargoCategory,
+    weightKg: toNumber(item.weightKg),
+    packages: item.packages,
+    status: item.status,
+    statusLabel: SHIPMENT_STATUS_META[item.status].label,
+    receivedLabel: formatDate(item.registeredAt),
+  }));
 
-  const weight = dispatch.shipments.reduce(
-    (sum, cargo) => sum + toNumber(cargo.weightKg),
-    0
-  );
-  const packages = dispatch.shipments.reduce((sum, c) => sum + c.packages, 0);
+  const weight = cargo.reduce((sum, line) => sum + line.weightKg, 0);
+  const packages = cargo.reduce((sum, line) => sum + line.packages, 0);
+  const customers = new Set(cargo.map((line) => line.customerId)).size;
+
+  // The shipment's own journey, built from the timestamps it actually carries.
+  // A step with no timestamp is shown but not marked done — the gap is the
+  // information.
+  const timeline: TimelineEntry[] = [
+    {
+      id: "created",
+      label: "Dispatch created",
+      detail: dispatch.createdBy
+        ? `Raised by ${dispatch.createdBy.name}`
+        : "Raised in China",
+      at: formatDateTime(dispatch.createdAt),
+      done: true,
+    },
+    {
+      id: "departed",
+      label: "Left China",
+      detail:
+        [dispatch.airline, dispatch.flightNumber].filter(Boolean).join(" ") ||
+        "Flight not recorded",
+      at: dispatch.departedAt ? formatDateTime(dispatch.departedAt) : "—",
+      done: Boolean(dispatch.departedAt),
+    },
+    {
+      id: "expected",
+      label: "Expected in Dar es Salaam",
+      detail: dispatch.expectedArrival
+        ? "What Dar was told to expect"
+        : "No expected date recorded",
+      at: dispatch.expectedArrival ? formatDate(dispatch.expectedArrival) : "—",
+      done: Boolean(dispatch.expectedArrival),
+    },
+    {
+      id: "arrived",
+      label: "Landed",
+      detail: dispatch.arrivedAt
+        ? "Confirmed by the Dar warehouse"
+        : "Not yet confirmed",
+      at: dispatch.arrivedAt ? formatDateTime(dispatch.arrivedAt) : "—",
+      done: Boolean(dispatch.arrivedAt),
+    },
+    {
+      id: "verified",
+      label: "Checked in against the manifest",
+      detail: dispatch.verifiedAt
+        ? "Every piece accounted for or flagged"
+        : "Check-in not finished",
+      at: dispatch.verifiedAt ? formatDateTime(dispatch.verifiedAt) : "—",
+      done: Boolean(dispatch.verifiedAt),
+    },
+  ];
+
+  // Attachments are not built yet, so the tab is honest about being empty
+  // rather than pretending the feature exists.
+  const documents: DocumentEntry[] = [];
 
   return (
     <>
       <PageHeader
         title={dispatch.batchNumber}
-        description={`${ORIGIN_LABELS[dispatch.origin]} → Dar es Salaam · ${dispatch.shipments.length} pieces`}
+        description={`${ORIGIN_LABELS[dispatch.origin]} → Dar es Salaam`}
         actions={
           <>
             <BatchStatusBadge status={dispatch.status} />
@@ -79,67 +149,57 @@ export default async function DispatchPage({
         }
       />
 
-      <dl className="mb-6 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3 lg:grid-cols-6">
-        {[
-          { label: "Waybill", value: dispatch.waybillNumber ?? "—", mono: true },
-          {
-            label: "Flight",
-            value:
-              `${dispatch.airline ?? "—"}${dispatch.flightNumber ? ` ${dispatch.flightNumber}` : ""}`.trim(),
-          },
-          { label: "Departed", value: formatDate(dispatch.departureDate) },
-          {
-            label: "Expected",
-            value: formatDate(dispatch.expectedArrival),
-          },
-          { label: "Arrived", value: formatDate(dispatch.arrivalDate) },
-          {
-            label: "Load",
-            value: `${packages} pkg · ${weight.toFixed(1)} kg`,
-          },
-        ].map((item) => (
-          <div key={item.label} className="bg-card p-4">
-            <dt className="text-xs text-muted-foreground">{item.label}</dt>
-            <dd className={`mt-1 text-sm font-medium ${item.mono ? "font-mono" : ""}`}>
-              {item.value || "—"}
-            </dd>
-          </div>
-        ))}
-      </dl>
-
-      {dispatch.notes ? (
-        <p className="mb-6 rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
-          {dispatch.notes}
-        </p>
-      ) : null}
-
-      <section className="rounded-xl border bg-card shadow-soft">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-          <h2 className="flex items-center gap-2 font-display font-semibold">
+      {/* Overview card — everything a manager asks standing up. */}
+      <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-3 border-b bg-gradient-to-br from-brand/5 to-transparent p-5">
+          <div className="flex items-center gap-2">
             <Plane className="h-4 w-4 text-brand" />
-            Cargo on this flight
-          </h2>
-          <p className="text-xs tabular-nums text-muted-foreground">
-            {dispatch.shipments.length} pieces
+            <span className="text-sm font-medium">
+              {[dispatch.airline, dispatch.flightNumber].filter(Boolean).join(" ") ||
+                "Flight not recorded"}
+            </span>
+          </div>
+          {dispatch.waybillNumber ? (
+            <span className="font-mono text-sm text-muted-foreground">
+              Waybill {dispatch.waybillNumber}
+            </span>
+          ) : null}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Users className="h-4 w-4" />
+            {customers} customer{customers === 1 ? "" : "s"}
+          </div>
+        </div>
+
+        <dl className="grid gap-px bg-border sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            { label: "Cargo pieces", value: String(cargo.length) },
+            { label: "Packages", value: String(packages) },
+            { label: "Total weight", value: `${weight.toFixed(1)} kg` },
+            { label: "Departed", value: formatDate(dispatch.departureDate) },
+            { label: "Expected", value: formatDate(dispatch.expectedArrival) },
+            { label: "Arrived", value: formatDate(dispatch.arrivalDate) },
+          ].map((stat) => (
+            <div key={stat.label} className="bg-card p-4">
+              <dt className="text-xs text-muted-foreground">{stat.label}</dt>
+              <dd className="mt-1 font-display text-lg font-bold tabular-nums">
+                {stat.value || "—"}
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        {dispatch.notes ? (
+          <p className="border-t bg-muted/30 p-4 text-sm text-muted-foreground">
+            {dispatch.notes}
           </p>
-        </div>
-        <div className="p-5">
-          <CargoGrid
-            cells={dispatch.shipments.map((cargo) => ({
-              id: cargo.id,
-              trackingNumber: cargo.trackingNumber,
-              cartonRef: cargo.cartonRef,
-              customerName: cargo.customer.name,
-              description: cargo.description,
-              weightKg: toNumber(cargo.weightKg),
-              packages: cargo.packages,
-              status: cargo.status,
-              category: cargo.cargoCategory,
-              verification: verificationByShipment.get(cargo.id)?.result ?? null,
-            }))}
-          />
-        </div>
+        ) : null}
       </section>
+
+      <ShipmentDetailTabs
+        cargo={cargo}
+        documents={documents}
+        timeline={timeline}
+      />
     </>
   );
 }

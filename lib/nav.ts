@@ -35,12 +35,11 @@ const SECTIONS: NavSection[] = [
   {
     title: "Operations",
     items: [
-      {
-        href: "/app/cargo",
-        label: "Cargo",
-        icon: "Package",
-        permission: "shipment.view",
-      },
+      // The standalone cargo list is deliberately absent. A mixed list of every
+      // piece of cargo in the business tells you nothing about which shipment
+      // it is on or where it is; cargo is reached from inside a shipment or a
+      // batch, where it has context. The routes still exist so QR labels and
+      // saved links resolve.
       {
         href: "/app/cargo/new",
         label: "Register cargo",

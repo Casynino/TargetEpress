@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PlaneTakeoff } from "lucide-react";
+import { Boxes, PackageCheck, Plane, Scale, Warehouse } from "lucide-react";
 
-import { EmptyState } from "@/components/app/empty-state";
+import { KpiCard } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
-import { BatchStatusBadge } from "@/components/app/status-badge";
+import {
+  ShipmentsDashboard,
+  type DispatchRow,
+} from "@/components/app/shipments-dashboard";
+import { ORIGIN_LABELS } from "@/lib/constants";
 import { formatDate, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -12,11 +16,11 @@ import { requirePermission } from "@/lib/session";
 export const metadata: Metadata = { title: "Shipments" };
 
 /**
- * The dispatch archive.
+ * The dispatch archive, as a dashboard.
  *
- * One row per flight-load that has left China. This is the permanent history —
- * batches are the live work area and hold only what is still waiting, so
- * everything that has actually shipped ends up here and stays.
+ * One row per flight-load that has left China, with the numbers that answer
+ * "what is in the air and what is waiting on me" before any row is opened.
+ * Batches hold what is still in China; everything here has gone.
  */
 export default async function ShipmentsPage() {
   await requirePermission("batch.view");
@@ -24,7 +28,7 @@ export default async function ShipmentsPage() {
   const dispatches = await prisma.batch.findMany({
     where: { permanent: false },
     orderBy: [{ departedAt: "desc" }, { createdAt: "desc" }],
-    take: 200,
+    take: 300,
     select: {
       id: true,
       batchNumber: true,
@@ -36,85 +40,101 @@ export default async function ShipmentsPage() {
       departureDate: true,
       expectedArrival: true,
       arrivalDate: true,
-      shipments: { select: { weightKg: true, packages: true } },
+      shipments: {
+        select: { weightKg: true, packages: true, customerId: true },
+      },
     },
   });
+
+  const rows: DispatchRow[] = dispatches.map((dispatch) => ({
+    id: dispatch.id,
+    shipmentNumber: dispatch.batchNumber,
+    route: ORIGIN_LABELS[dispatch.origin],
+    status: dispatch.status,
+    cargoCount: dispatch.shipments.length,
+    customerCount: new Set(dispatch.shipments.map((c) => c.customerId)).size,
+    weightKg: dispatch.shipments.reduce((sum, c) => sum + toNumber(c.weightKg), 0),
+    packages: dispatch.shipments.reduce((sum, c) => sum + c.packages, 0),
+    waybillNumber: dispatch.waybillNumber,
+    airline: dispatch.airline,
+    flightNumber: dispatch.flightNumber,
+    departedLabel: dispatch.departureDate ? formatDate(dispatch.departureDate) : null,
+    expectedLabel: dispatch.expectedArrival
+      ? formatDate(dispatch.expectedArrival)
+      : null,
+    arrivedLabel: dispatch.arrivalDate ? formatDate(dispatch.arrivalDate) : null,
+  }));
+
+  const active = rows.filter(
+    (row) => row.status === "IN_TRANSIT" || row.status === "ARRIVED"
+  );
+  const inTransitCargo = rows
+    .filter((row) => row.status === "IN_TRANSIT")
+    .reduce((sum, row) => sum + row.cargoCount, 0);
+  const arrivedCargo = rows
+    .filter((row) => row.status === "ARRIVED" || row.status === "VERIFIED")
+    .reduce((sum, row) => sum + row.cargoCount, 0);
+  const pendingClearance = rows.filter((row) => row.status === "ARRIVED").length;
+  const activeWeight = active.reduce((sum, row) => sum + row.weightKg, 0);
 
   return (
     <>
       <PageHeader
         title="Shipments"
-        description="Every dispatch that has left China, newest first. Each one carries its waybill, its flight and all the cargo that travelled on it."
+        description="Every dispatch that has left China. Open one to see its cargo, documents and full timeline."
       />
 
-      {dispatches.length === 0 ? (
-        <EmptyState
-          title="Nothing dispatched yet"
-          description="Dispatch a batch from the Batches page and it appears here permanently."
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <KpiCard
+          delay={0}
+          label="Total shipments"
+          numeric={rows.length}
+          hint="Every dispatch on record"
+          icon={Plane}
+          tone="brand"
         />
-      ) : (
-        <div className="overflow-x-auto rounded-xl border bg-card shadow-soft">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="p-3 font-medium">Shipment</th>
-                <th className="p-3 font-medium">Route</th>
-                <th className="hidden p-3 font-medium md:table-cell">Waybill</th>
-                <th className="hidden p-3 font-medium lg:table-cell">Flight</th>
-                <th className="p-3 text-right font-medium">Cargo</th>
-                <th className="hidden p-3 text-right font-medium xl:table-cell">Weight</th>
-                <th className="hidden p-3 font-medium lg:table-cell">Departed</th>
-                <th className="p-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dispatches.map((dispatch) => {
-                const weight = dispatch.shipments.reduce(
-                  (sum, cargo) => sum + toNumber(cargo.weightKg),
-                  0
-                );
-                return (
-                  <tr key={dispatch.id} className="border-t">
-                    <td className="p-3">
-                      <Link
-                        href={`/app/shipments/${dispatch.id}`}
-                        className="font-mono text-xs font-medium hover:text-brand hover:underline"
-                      >
-                        {dispatch.batchNumber}
-                      </Link>
-                    </td>
-                    <td className="p-3 whitespace-nowrap text-muted-foreground">
-                      {dispatch.origin === "HONG_KONG" ? "Hong Kong" : "Guangzhou"}
-                    </td>
-                    <td className="hidden p-3 font-mono text-xs md:table-cell">
-                      {dispatch.waybillNumber ?? "—"}
-                    </td>
-                    <td className="hidden p-3 text-xs lg:table-cell">
-                      {dispatch.airline ?? "—"}
-                      {dispatch.flightNumber ? ` ${dispatch.flightNumber}` : ""}
-                    </td>
-                    <td className="p-3 text-right tabular-nums">
-                      {dispatch.shipments.length}
-                    </td>
-                    <td className="hidden p-3 text-right font-mono tabular-nums xl:table-cell">
-                      {weight.toFixed(1)} kg
-                    </td>
-                    <td className="hidden p-3 whitespace-nowrap text-xs text-muted-foreground lg:table-cell">
-                      {formatDate(dispatch.departureDate)}
-                    </td>
-                    <td className="p-3">
-                      <BatchStatusBadge status={dispatch.status} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+        <KpiCard
+          delay={1}
+          label="Active"
+          numeric={active.length}
+          hint="In the air or awaiting clearance"
+          icon={Boxes}
+          tone="info"
+        />
+        <KpiCard
+          delay={2}
+          label="Cargo in transit"
+          numeric={inTransitCargo}
+          hint="Pieces currently flying"
+          icon={Plane}
+          tone="signal"
+        />
+        <KpiCard
+          delay={3}
+          label="Pending clearance"
+          numeric={pendingClearance}
+          hint={
+            pendingClearance > 0
+              ? "Landed, not yet checked in"
+              : "Nothing waiting on Dar"
+          }
+          icon={Warehouse}
+          tone={pendingClearance > 0 ? "warning" : "success"}
+        />
+        <KpiCard
+          delay={4}
+          label="Weight in motion"
+          value={`${activeWeight.toFixed(0)} kg`}
+          hint={`${arrivedCargo} pieces landed`}
+          icon={Scale}
+          tone="brand"
+        />
+      </div>
 
-      <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-        <PlaneTakeoff className="h-4 w-4" />
+      <ShipmentsDashboard rows={rows} />
+
+      <p className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
+        <PackageCheck className="h-4 w-4" />
         Cargo still waiting in China is on the{" "}
         <Link href="/app/batches" className="font-medium text-brand hover:underline">
           two loading tables
