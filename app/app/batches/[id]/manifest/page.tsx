@@ -37,7 +37,6 @@ export default async function ManifestPage({
           customer: { select: { name: true, phone: true } },
           createdBy: { select: { name: true } },
           cargoType: { select: { name: true } },
-          _count: { select: { photos: true } },
         },
       },
     },
@@ -54,40 +53,6 @@ export default async function ManifestPage({
   // Who took each piece in. A manifest that only totals the cargo answers "what
   // is on the flight"; a manager also needs "who handled it", because that is
   // who they ask when a carton is short.
-  // What is actually in the batch, grouped by product. "Clothes 40 cartons,
-  // Shoes 22 cartons" is the line a manager reads; eighty-five rows is not.
-  const byProduct = [...
-    batch.shipments
-      .reduce((counts, shipment) => {
-        const name =
-          shipment.cargoType?.name ?? shipment.description.split(/[(,]/)[0].trim();
-        const current = counts.get(name) ?? { pieces: 0, packages: 0, weightKg: 0 };
-        counts.set(name, {
-          pieces: current.pieces + 1,
-          packages: current.packages + shipment.packages,
-          weightKg: current.weightKg + toNumber(shipment.weightKg),
-        });
-        return counts;
-      }, new Map<string, { pieces: number; packages: number; weightKg: number }>())
-      .entries()
-  ]
-    .sort((a, b) => b[1].packages - a[1].packages)
-    .slice(0, 12);
-
-  const byReceiver = [...
-    batch.shipments
-      .reduce((counts, shipment) => {
-        const name = shipment.createdBy?.name ?? "Not recorded";
-        const current = counts.get(name) ?? { pieces: 0, weightKg: 0 };
-        counts.set(name, {
-          pieces: current.pieces + 1,
-          weightKg: current.weightKg + toNumber(shipment.weightKg),
-        });
-        return counts;
-      }, new Map<string, { pieces: number; weightKg: number }>())
-      .entries()
-  ].sort((a, b) => b[1].pieces - a[1].pieces);
-
   return (
     <div className="mx-auto max-w-4xl">
       <div className="no-print">
@@ -162,43 +127,6 @@ export default async function ManifestPage({
           ))}
         </dl>
 
-        {byProduct.length > 0 ? (
-          <section className="mt-6 border-t border-black/20 pt-4">
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-black/60">
-              What is inside
-            </p>
-            <ul className="mt-2 grid gap-x-8 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
-              {byProduct.map(([name, stats]) => (
-                <li key={name} className="flex justify-between gap-3 text-[11px]">
-                  <span className="truncate">{name}</span>
-                  <span className="shrink-0 font-mono tabular">
-                    {stats.packages} · {stats.weightKg.toFixed(1)} kg
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {byReceiver.length > 0 ? (
-          <section className="mt-6 border-y border-black/20 py-4">
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-black/60">
-              Received by
-            </p>
-            <ul className="mt-2 flex flex-wrap gap-x-8 gap-y-1">
-              {byReceiver.map(([name, stats]) => (
-                <li key={name} className="text-[11px]">
-                  <span className="font-semibold">{name}</span>{" "}
-                  <span className="font-mono tabular">
-                    {stats.pieces} piece{stats.pieces === 1 ? "" : "s"} ·{" "}
-                    {stats.weightKg.toFixed(1)} kg
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
         <table className="mt-7 w-full border-collapse text-[11px]">
           <thead>
             <tr className="border-y-2 border-black/70 text-left">
@@ -211,7 +139,6 @@ export default async function ManifestPage({
               <th className="py-2 pr-2 text-right font-semibold">Qty</th>
               <th className="py-2 pr-2 text-right font-semibold">Weight</th>
               <th className="py-2 pr-2 font-semibold">By</th>
-              <th className="w-10 py-2 text-center font-semibold">Photo</th>
               {/* Physically ticked with a pen while checking the cargo. */}
               <th className="w-16 py-2 text-center font-semibold">Checked</th>
             </tr>
@@ -241,13 +168,6 @@ export default async function ManifestPage({
                 </td>
                 <td className="py-2 pr-2">{shipment.createdBy?.name ?? "—"}</td>
                 <td className="py-2 text-center">
-                  {shipment._count.photos > 0 ? (
-                    <span className="font-semibold">{shipment._count.photos}</span>
-                  ) : (
-                    <span className="text-black/40">—</span>
-                  )}
-                </td>
-                <td className="py-2 text-center">
                   <span className="inline-block h-3.5 w-3.5 border border-black/60" />
                 </td>
               </tr>
@@ -262,7 +182,7 @@ export default async function ManifestPage({
               <td className="py-2 pr-2 text-right tabular">
                 {formatWeight(totalWeight)}
               </td>
-              <td colSpan={3} />
+              <td colSpan={2} />
             </tr>
           </tfoot>
         </table>
