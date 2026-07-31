@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 
 export type ProfileIdentity = {
   name: string;
-  displayName: string | null;
   email: string;
   employeeId: string | null;
   departmentLabel: string;
@@ -31,7 +30,7 @@ export function ProfileHeader({
   identity: ProfileIdentity;
   actions?: React.ReactNode;
 }) {
-  const initials = (identity.displayName ?? identity.name)
+  const initials = identity.name
     .split(/\s+/)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
@@ -47,7 +46,7 @@ export function ProfileHeader({
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={identity.photoUrl}
-              alt={identity.displayName ?? identity.name}
+              alt={identity.name}
               className="h-20 w-20 rounded-2xl border object-cover"
             />
           ) : (
@@ -72,7 +71,7 @@ export function ProfileHeader({
 
         <div className="min-w-0 flex-1">
           <h1 className="font-display text-2xl font-bold leading-tight">
-            {identity.displayName ?? identity.name}
+            {identity.name}
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {identity.email}

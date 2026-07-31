@@ -24,12 +24,14 @@ import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types"
  */
 
 const personalSchema = z.object({
-  displayName: z
+  /// One name, and the employee owns it. It is what appears against every
+  /// piece of cargo they receive — on the batch screen, on the manifest and in
+  /// the audit trail — so the person doing the work decides how it reads.
+  name: z
     .string()
     .trim()
-    .max(60, "Keep the display name under 60 characters.")
-    .optional()
-    .transform((v) => (v?.length ? v : null)),
+    .min(2, "Your name is required.")
+    .max(60, "Keep your name under 60 characters."),
   phone: z
     .string()
     .trim()
@@ -53,7 +55,7 @@ export async function updateMyProfile(
   if (!user) return fail("Your session has expired. Sign in again.");
 
   const parsed = personalSchema.safeParse({
-    displayName: formData.get("displayName")?.toString(),
+    name: formData.get("name")?.toString(),
     phone: formData.get("phone")?.toString(),
     emergencyContact: formData.get("emergencyContact")?.toString(),
     preferredLanguage: formData.get("preferredLanguage")?.toString() ?? "en",
@@ -81,12 +83,19 @@ export async function updateMyProfile(
       action: "profile.update",
       entity: "User",
       entityId: user.id,
-      summary: `${user.name} updated their profile`,
+      summary:
+        parsed.data.name === user.name
+          ? `${user.name} updated their profile`
+          : `${user.name} is now known as ${parsed.data.name}`,
       metadata: photoUrl ? { photoChanged: true } : undefined,
     });
 
+    // The name appears against every piece of cargo this person received, so
+    // the screens that print it have to be rebuilt, not just their own profile.
     revalidatePath("/app/profile");
     revalidatePath("/app/profile/settings");
+    revalidatePath("/app/batches", "layout");
+    revalidatePath("/app/dashboard");
     return ok();
   } catch (error) {
     return fail(toActionError(error));

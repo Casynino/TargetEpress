@@ -25,7 +25,7 @@ export default async function AppLayout({
   const [me, unread] = await Promise.all([
     prisma.user.findUnique({
       where: { id: user.id },
-      select: { displayName: true, photoUrl: true },
+      select: { name: true, photoUrl: true },
     }),
     prisma.notification.count({ where: { userId: user.id, readAt: null } }),
   ]);
@@ -43,7 +43,7 @@ export default async function AppLayout({
     <AppShell
       sections={sections}
       user={{
-        name: me?.displayName ?? user.name,
+        name: me?.name ?? user.name,
         email: user.email,
         role: user.role,
         photoUrl: me?.photoUrl ?? null,

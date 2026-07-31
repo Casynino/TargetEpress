@@ -29,7 +29,6 @@ export default async function ProfileSettingsPage() {
     select: {
       name: true,
       email: true,
-      displayName: true,
       phone: true,
       emergencyContact: true,
       preferredLanguage: true,
@@ -66,7 +65,7 @@ export default async function ProfileSettingsPage() {
             </h2>
             <PersonalDetailsForm
               profile={{
-                displayName: me.displayName,
+                name: me.name,
                 phone: me.phone,
                 emergencyContact: me.emergencyContact,
                 preferredLanguage: me.preferredLanguage,
@@ -95,7 +94,6 @@ export default async function ProfileSettingsPage() {
           </div>
           <dl className="divide-y">
             {[
-              { label: "Full name", value: me.name },
               { label: "Employee ID", value: me.employeeId ?? "Not assigned" },
               { label: "Company email", value: me.email },
               {

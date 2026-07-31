@@ -49,7 +49,6 @@ export default async function EmployeeProfilePage({
     select: {
       id: true,
       name: true,
-      displayName: true,
       email: true,
       phone: true,
       emergencyContact: true,
@@ -97,7 +96,6 @@ export default async function EmployeeProfilePage({
       <ProfileHeader
         identity={{
           name: person.name,
-          displayName: person.displayName,
           email: person.email,
           employeeId: person.employeeId,
           departmentLabel: DEPARTMENT_LABELS[person.department],

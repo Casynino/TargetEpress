@@ -223,9 +223,6 @@ model User {
   /// Set by the CEO when the account is made, and never editable afterwards —
   /// it is what payroll and the audit trail refer to.
   employeeId String? @unique
-  /// What the employee wants to be called. Falls back to `name`, which only an
-  /// admin can change.
-  displayName String?
   photoUrl    String?
   /// Free text on purpose: "Mama Grace 0757…" is what people actually write.
   emergencyContact  String?

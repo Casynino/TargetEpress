@@ -10,7 +10,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { changeMyPassword, updateMyProfile } from "@/lib/actions/profile";
 
 export type EditableProfile = {
-  displayName: string | null;
+  name: string;
   phone: string | null;
   emergencyContact: string | null;
   preferredLanguage: string;
@@ -19,6 +19,11 @@ export type EditableProfile = {
 
 /**
  * The part of a profile an employee owns.
+ *
+ * There is one name, and it is theirs. An admin types something when the
+ * account is made, but the person who shows up to the shift decides how their
+ * name reads on a manifest — and changing it changes it everywhere, because
+ * everywhere reads the same field.
  *
  * Everything the company owns — employee number, department, rank, company
  * address, joining date — is shown next to this form as plain text, not as
@@ -72,14 +77,19 @@ export function PersonalDetailsForm({ profile }: { profile: EditableProfile }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="displayName">Display name</Label>
+          <Label htmlFor="name">Your name</Label>
           <Input
-            id="displayName"
-            name="displayName"
-            defaultValue={profile.displayName ?? ""}
-            placeholder="What people call you"
+            id="name"
+            name="name"
+            defaultValue={profile.name}
+            placeholder="How you want to be known"
             maxLength={60}
+            required
           />
+          <p className="text-xs text-muted-foreground">
+            Shown against every piece of cargo you receive, including the
+            printed manifest.
+          </p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="phone">Phone number</Label>
