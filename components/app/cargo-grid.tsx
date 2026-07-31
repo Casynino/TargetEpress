@@ -34,6 +34,8 @@ export type CargoCell = {
   description: string;
   weightKg: number;
   packages: number;
+  /** Pre-formatted with its unit — a count is never shown bare. */
+  packagesLabel: string;
   status: string;
   category: string;
   /** Null until the batch has been checked in at Dar. */
@@ -368,7 +370,7 @@ export function CargoGrid({
                     {cell.customerName}
                   </p>
                   <p className="font-mono text-[11px] tabular-nums text-foreground/70">
-                    {cell.weightKg.toFixed(1)} kg · {cell.packages} pkg
+                    {cell.weightKg.toFixed(1)} kg · {cell.packagesLabel}
                   </p>
                 </div>
               </Link>
@@ -386,7 +388,7 @@ export function CargoGrid({
                   <th className="px-3 py-2 font-medium">Customer</th>
                   <th className="px-3 py-2 font-medium">Cargo</th>
                   <th className="px-3 py-2 text-right font-medium">Weight</th>
-                  <th className="px-3 py-2 text-right font-medium">Pkgs</th>
+                  <th className="px-3 py-2 text-right font-medium">Qty</th>
                   <th className="hidden px-3 py-2 font-medium md:table-cell">Proof</th>
                   <th className="hidden px-3 py-2 font-medium 2xl:table-cell">
                     Received by
@@ -424,8 +426,8 @@ export function CargoGrid({
                     <td className="whitespace-nowrap px-3 py-1.5 text-right font-mono tabular-nums">
                       {cell.weightKg.toFixed(1)}
                     </td>
-                    <td className="px-3 py-1.5 text-right font-mono tabular-nums">
-                      {cell.packages}
+                    <td className="whitespace-nowrap px-3 py-1.5 text-right font-mono tabular-nums">
+                      {cell.packagesLabel}
                     </td>
                     <td className="hidden whitespace-nowrap px-3 py-1.5 md:table-cell">
                       <PhotoProof photos={cell.photos} tracking={cell.trackingNumber} />

@@ -26,6 +26,8 @@ export type CargoLine = {
   category: string;
   weightKg: number;
   packages: number;
+  /** Pre-formatted with its unit. */
+  packagesLabel: string;
   status: string;
   statusLabel: string;
   receivedLabel: string;
@@ -200,7 +202,7 @@ export function ShipmentDetailTabs({
                   <th className="px-3 py-2 font-medium">Goods</th>
                   <th className="hidden px-3 py-2 font-medium lg:table-cell">Type</th>
                   <th className="px-3 py-2 text-right font-medium">Weight</th>
-                  <th className="px-3 py-2 text-right font-medium">Pkgs</th>
+                  <th className="px-3 py-2 text-right font-medium">Qty</th>
                   <th className="px-3 py-2 font-medium">Proof</th>
                   <th className="hidden px-3 py-2 font-medium md:table-cell">Status</th>
                   <th className="w-20 px-3 py-2" />
@@ -237,8 +239,8 @@ export function ShipmentDetailTabs({
                     <td className="whitespace-nowrap px-3 py-1.5 text-right font-mono tabular-nums">
                       {line.weightKg.toFixed(1)}
                     </td>
-                    <td className="px-3 py-1.5 text-right font-mono tabular-nums">
-                      {line.packages}
+                    <td className="whitespace-nowrap px-3 py-1.5 text-right font-mono tabular-nums">
+                      {line.packagesLabel}
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5">
                       {line.photos.length === 0 ? (

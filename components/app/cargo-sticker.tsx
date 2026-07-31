@@ -12,6 +12,7 @@ export type StickerData = {
   cargoTypeName: string | null;
   categoryLabel: string;
   packages: number;
+  packagesLabel: string;
   weightLabel: string;
   origin: string;
   batchNumber: string | null;
@@ -83,7 +84,7 @@ export function CargoSticker({ data }: { data: StickerData }) {
 
       <dl className="mt-5 grid grid-cols-4 gap-3 border-y border-black/20 py-4 text-center">
         {[
-          { label: "Packages", value: String(data.packages) },
+          { label: "Quantity", value: data.packagesLabel },
           { label: "Weight", value: data.weightLabel },
           {
             label: "Origin",

@@ -124,8 +124,9 @@ enum PricingMethod {
 /// twenty pieces, and calling them twenty packages makes the manifest disagree
 /// with what is on the pallet.
 enum PackageType {
-  PACKAGE
+  CARTON
   PIECE
+  PACKAGE
   BAG
   BOX
   OTHER

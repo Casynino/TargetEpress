@@ -12,7 +12,11 @@ import {
 } from "@/components/app/shipment-detail-tabs";
 import { BatchStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
-import { ORIGIN_LABELS, SHIPMENT_STATUS_META } from "@/lib/constants";
+import {
+  ORIGIN_LABELS,
+  SHIPMENT_STATUS_META,
+  formatPackagesShort,
+} from "@/lib/constants";
 import { formatDate, formatDateTime, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -67,6 +71,7 @@ export default async function ShipmentPage({
     category: item.cargoCategory,
     weightKg: toNumber(item.weightKg),
     packages: item.packages,
+    packagesLabel: formatPackagesShort(item.packages, item.packageType),
     status: item.status,
     statusLabel: SHIPMENT_STATUS_META[item.status].label,
     receivedLabel: formatDate(item.registeredAt),

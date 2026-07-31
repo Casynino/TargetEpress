@@ -7,7 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
-import { COMPANY, GOODS_TYPE_LABELS, ORIGIN_LABELS } from "@/lib/constants";
+import { COMPANY, GOODS_TYPE_LABELS, ORIGIN_LABELS, formatPackages } from "@/lib/constants";
 import { formatDate, formatWeight } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";

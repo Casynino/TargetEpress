@@ -130,17 +130,32 @@ export const PAYMENT_ACCOUNTS = {
  * which is the document a customs officer reads.
  */
 export const PACKAGE_TYPE_LABELS: Record<string, { one: string; many: string }> = {
-  PACKAGE: { one: "package", many: "packages" },
+  CARTON: { one: "carton", many: "cartons" },
   PIECE: { one: "piece", many: "pieces" },
+  PACKAGE: { one: "package", many: "packages" },
   BAG: { one: "bag", many: "bags" },
   BOX: { one: "box", many: "boxes" },
   OTHER: { one: "package", many: "packages" },
 };
 
-/** e.g. "3 packages", "1 piece". */
+/** e.g. "3 cartons", "1 piece". A count is never shown without its unit. */
 export function formatPackages(count: number, type: string) {
   const label = PACKAGE_TYPE_LABELS[type] ?? PACKAGE_TYPE_LABELS.OTHER;
   return `${count} ${count === 1 ? label.one : label.many}`;
+}
+
+/** Short form for dense columns: "3 ctn", "20 pcs". Still never a bare number. */
+export const PACKAGE_TYPE_SHORT: Record<string, string> = {
+  CARTON: "ctn",
+  PIECE: "pcs",
+  PACKAGE: "pkg",
+  BAG: "bag",
+  BOX: "box",
+  OTHER: "unit",
+};
+
+export function formatPackagesShort(count: number, type: string) {
+  return `${count} ${PACKAGE_TYPE_SHORT[type] ?? PACKAGE_TYPE_SHORT.OTHER}`;
 }
 
 export const STORAGE_POLICY = {

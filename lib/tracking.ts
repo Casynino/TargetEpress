@@ -3,7 +3,11 @@ import "server-only";
 import type { ShipmentStatus } from "@prisma/client";
 
 import { CATEGORY_LABELS } from "@/lib/cargo";
-import { SHIPMENT_STATUS_META, SHIPMENT_FLOW } from "@/lib/constants";
+import {
+  SHIPMENT_FLOW,
+  SHIPMENT_STATUS_META,
+  formatPackages,
+} from "@/lib/constants";
 import { normaliseCode, toNumber } from "@/lib/format";
 import { toLocal } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
@@ -51,6 +55,8 @@ export type PublicShipment = {
   location: string;
   batchNumber: string | null;
   packages: number;
+  /** With its unit — a customer should never have to ask "20 what?". */
+  packagesLabel: string;
   /** What was sent, in the words of the price list. */
   description: string;
   weightKg: number | null;
@@ -126,6 +132,7 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
       trackingNumber: true,
       status: true,
       packages: true,
+      packageType: true,
       origin: true,
       registeredAt: true,
       departedAt: true,
@@ -219,6 +226,7 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
       location: meta.publicLocation,
       batchNumber: shipment.batch?.batchNumber ?? null,
       packages: shipment.packages,
+      packagesLabel: formatPackages(shipment.packages, shipment.packageType),
       description:
         shipment.cargoType?.name ??
         CATEGORY_LABELS[shipment.cargoCategory] ??

@@ -9,6 +9,7 @@ import { InvoiceEditor } from "@/components/app/invoice-editor";
 import { MessageComposer } from "@/components/app/message-composer";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
+import { formatPackages } from "@/lib/constants";
 import { LOCAL_CURRENCY, formatLocal, toLocal } from "@/lib/fx";
 import { MESSAGE_KIND_LABELS, composeMessage, whatsappLink } from "@/lib/messages";
 import { AIRPORT_LABELS, CATEGORY_LABELS, METHOD_LABELS } from "@/lib/cargo";
@@ -87,7 +88,7 @@ export default async function InvoicePage({
     `Target Express Air Cargo — Invoice ${invoice.invoiceNumber}`,
     `Shipment: ${shipment.trackingNumber}`,
     `Cargo: ${CATEGORY_LABELS[shipment.cargoCategory]}${shipment.cargoType ? ` (${shipment.cargoType.name})` : ""}`,
-    `Weight: ${formatWeight(shipment.weightKg)} · ${shipment.packages} package(s)`,
+    `Weight: ${formatWeight(shipment.weightKg)} · ${formatPackages(shipment.packages, shipment.packageType)}`,
     `Total: ${money(toNumber(invoice.total), currency)}` +
       (totalLocal === null ? "" : ` (${formatLocal(totalLocal, localCurrency)})`),
     outstanding > 0
@@ -213,7 +214,10 @@ export default async function InvoicePage({
             { label: "Cargo category", value: CATEGORY_LABELS[shipment.cargoCategory] },
             { label: "Cargo type", value: shipment.cargoType?.name ?? "—" },
             { label: "Weight", value: formatWeight(shipment.weightKg) },
-            { label: "Packages", value: String(shipment.packages) },
+            {
+              label: "Quantity",
+              value: formatPackages(shipment.packages, shipment.packageType),
+            },
           ].map((item) => (
             <div key={item.label}>
               <dt className="text-[9px] font-semibold uppercase tracking-widest text-black/55">
@@ -246,7 +250,7 @@ export default async function InvoicePage({
                       }`
                     : ""}
                   {shipment.quotedMethod === "FIXED_PER_ITEM"
-                    ? ` × ${shipment.packages} item(s)`
+                    ? ` × ${formatPackages(shipment.packages, shipment.packageType)}`
                     : shipment.chargeableKg
                       ? ` × ${toNumber(shipment.chargeableKg).toFixed(2)} kg chargeable`
                       : ""}

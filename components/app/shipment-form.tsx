@@ -258,21 +258,22 @@ export function ShipmentForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="packageType">Counted as</Label>
+            <Label htmlFor="packageType">Unit</Label>
             <NativeSelect
               id="packageType"
               name="packageType"
               defaultValue={category === "NORMAL_GOODS" ? "PACKAGE" : "PIECE"}
               key={category}
             >
-              <option value="PACKAGE">Packages</option>
+              <option value="CARTON">Cartons</option>
               <option value="PIECE">Pieces</option>
+              <option value="PACKAGE">Packages</option>
               <option value="BAG">Bags</option>
               <option value="BOX">Boxes</option>
               <option value="OTHER">Other</option>
             </NativeSelect>
             <p className="text-xs text-muted-foreground">
-              Twenty phones are twenty pieces, not twenty packages.
+              A quantity is never recorded without its unit.
             </p>
           </div>
         </div>

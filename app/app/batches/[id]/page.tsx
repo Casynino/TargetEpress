@@ -9,7 +9,12 @@ import { DispatchForm } from "@/components/app/dispatch-form";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_LABELS, categoryFitsRoute } from "@/lib/cargo";
-import { ORIGIN_LABELS, SHIPMENT_STATUS_META } from "@/lib/constants";
+import {
+  ORIGIN_LABELS,
+  SHIPMENT_STATUS_META,
+  formatPackages,
+  formatPackagesShort,
+} from "@/lib/constants";
 import { formatDate, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -91,6 +96,21 @@ export default async function LoadingTablePage({
 
   const customers = new Set(waiting.map((s) => s.customerId)).size;
 
+  // How the batch is physically packed, for planning the load. "151 packages"
+  // is one number; "120 cartons, 20 pieces, 11 bags" is what you tell the
+  // airline.
+  const byUnit = [...
+    waiting
+      .reduce((counts, cargo) => {
+        counts.set(
+          cargo.packageType,
+          (counts.get(cargo.packageType) ?? 0) + cargo.packages
+        );
+        return counts;
+      }, new Map<string, number>())
+      .entries()
+  ].sort((a, b) => b[1] - a[1]);
+
   // How long the oldest piece has been sitting. This is the number that decides
   // whether a batch should go today — cargo ageing on the floor is a customer
   // wondering where their goods are.
@@ -134,7 +154,13 @@ export default async function LoadingTablePage({
           delay={0}
           label="Cargo waiting"
           numeric={waiting.length}
-          hint={`${totalPackages} package${totalPackages === 1 ? "" : "s"}`}
+          hint={
+            byUnit.length > 0
+              ? byUnit
+                  .map(([type, count]) => formatPackages(count, type))
+                  .join(" · ")
+              : "Nothing waiting"
+          }
           icon={Package}
           tone="brand"
         />
@@ -240,6 +266,10 @@ export default async function LoadingTablePage({
                 description: shipment.description,
                 weightKg: toNumber(shipment.weightKg),
                 packages: shipment.packages,
+                packagesLabel: formatPackagesShort(
+                  shipment.packages,
+                  shipment.packageType
+                ),
                 status: shipment.status,
                 category: shipment.cargoCategory,
                 verification:

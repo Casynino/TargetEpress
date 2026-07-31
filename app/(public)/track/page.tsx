@@ -186,7 +186,7 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
             value:
               result.weightKg === null ? "—" : `${result.weightKg.toFixed(2)} kg`,
           },
-          { label: "Packages", value: String(result.packages) },
+          { label: "Quantity", value: result.packagesLabel },
           { label: "Route", value: `${result.origin} → Dar es Salaam` },
           { label: "Now at", value: result.location },
           { label: "Batch", value: result.batchNumber ?? "Not yet assigned" },

@@ -7,6 +7,7 @@ import { CargoSticker, type StickerData } from "@/components/app/cargo-sticker";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_LABELS } from "@/lib/cargo";
+import { formatPackages } from "@/lib/constants";
 import { formatWeight } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
@@ -69,6 +70,7 @@ export default async function BatchStickersPage({
       cargoTypeName: item.cargoType?.name ?? null,
       categoryLabel: CATEGORY_LABELS[item.cargoCategory],
       packages: item.packages,
+      packagesLabel: formatPackages(item.packages, item.packageType),
       weightLabel: formatWeight(item.weightKg),
       origin: item.origin,
       batchNumber: item.batch?.batchNumber ?? null,
