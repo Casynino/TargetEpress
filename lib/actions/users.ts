@@ -33,6 +33,19 @@ export async function createUser(
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return fail("A staff account already uses that email.");
 
+    if (input.employeeId) {
+      const clash = await prisma.user.findUnique({
+        where: { employeeId: input.employeeId },
+        select: { name: true },
+      });
+      if (clash) {
+        return fail(`Employee ID ${input.employeeId} already belongs to ${clash.name}.`);
+      }
+    }
+
+    const warehouse =
+      input.role === "CHINA_WAREHOUSE" || input.role === "DAR_WAREHOUSE";
+
     const user = await prisma.user.create({
       data: {
         name: input.name,
@@ -41,6 +54,11 @@ export async function createUser(
         passwordHash: await bcrypt.hash(input.password, 12),
         role: input.role,
         department: ROLE_DEFAULT_DEPARTMENT[input.role],
+        employeeId: input.employeeId,
+        // A rank on a Finance account would be a field nobody can act on.
+        rank: warehouse ? input.rank ?? "OPERATOR" : null,
+        status: input.status,
+        active: input.status === "ACTIVE",
         createdById: actor.id,
       },
     });
@@ -51,6 +69,11 @@ export async function createUser(
       entity: "User",
       entityId: user.id,
       summary: `Created ${user.name} as ${ROLE_LABELS[user.role]}`,
+      metadata: {
+        employeeId: user.employeeId ?? "not set",
+        rank: user.rank ?? "n/a",
+        status: user.status,
+      },
     });
 
     revalidatePath("/app/admin/users");
@@ -80,7 +103,10 @@ export async function setUserActive(
   try {
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { active },
+      // `status` is what a manager reads; `active` is what the sign-in check
+      // asks. They have to move together or someone is locked out of a screen
+      // that says they are fine.
+      data: { active, status: active ? "ACTIVE" : "SUSPENDED" },
       select: { id: true, name: true },
     });
 

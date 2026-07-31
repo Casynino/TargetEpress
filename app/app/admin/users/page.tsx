@@ -24,6 +24,7 @@ export default async function UsersPage() {
       name: true,
       email: true,
       phone: true,
+      employeeId: true,
       role: true,
       active: true,
       lastLoginAt: true,

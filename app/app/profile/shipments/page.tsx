@@ -1,0 +1,105 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+import { ArrowLeft } from "lucide-react";
+
+import { PageHeader } from "@/components/app/page-header";
+import { ShipmentStatusBadge } from "@/components/app/status-badge";
+import { Button } from "@/components/ui/button";
+import { myShipments, profileStats } from "@/lib/profile";
+import { requireUser } from "@/lib/session";
+import type { ShipmentStatus } from "@prisma/client";
+
+export const metadata: Metadata = { title: "My shipments" };
+
+/**
+ * Only what this person registered.
+ *
+ * The batch screens answer "what is on the flight"; this answers "what have I
+ * done", which is the question someone asks about their own shift. Same rows,
+ * different question, so it is a separate page rather than a filter people
+ * have to remember to set.
+ */
+export default async function MyShipmentsPage() {
+  const me = await requireUser();
+  const [rows, stats] = await Promise.all([
+    myShipments(me.id),
+    profileStats(me.id),
+  ]);
+
+  return (
+    <>
+      <PageHeader
+        title="My shipments"
+        description={`${stats.totalShipments} registered by you · ${stats.totalWeightKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg · ${stats.totalPackages} packages`}
+        actions={
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/app/profile">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Profile
+            </Link>
+          </Button>
+        }
+      />
+
+      {rows.length === 0 ? (
+        <p className="rounded-xl border border-dashed p-12 text-center text-sm text-muted-foreground">
+          You have not registered any cargo yet.
+        </p>
+      ) : (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
+          <div className="max-h-[70vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Registered</th>
+                  <th className="px-3 py-2 font-medium">Tracking</th>
+                  <th className="px-3 py-2 font-medium">Customer</th>
+                  <th className="whitespace-nowrap px-3 py-2 font-medium">
+                    Which item?
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium">Weight</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
+                    Counted as
+                  </th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {rows.map((row) => (
+                  <tr key={row.id} className="hover:bg-accent/40">
+                    <td className="whitespace-nowrap px-3 py-2.5 text-muted-foreground tabular">
+                      {row.registeredLabel}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <Link
+                        href={`/app/cargo/${row.trackingNumber}`}
+                        className="font-mono text-xs font-semibold tabular hover:text-brand"
+                      >
+                        {row.trackingNumber}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2.5">{row.customerName}</td>
+                    <td className="max-w-[22rem] truncate px-3 py-2.5 text-muted-foreground">
+                      {row.item}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular">
+                      {row.weightKg.toFixed(1)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2.5 text-right tabular">
+                      {row.packagesLabel}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <ShipmentStatusBadge
+                        status={row.status as ShipmentStatus}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

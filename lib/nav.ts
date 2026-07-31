@@ -22,6 +22,10 @@ const SECTIONS: NavSection[] = [
     title: "Overview",
     items: [
       { href: "/app/dashboard", label: "Dashboard", icon: "LayoutDashboard", exact: true },
+      // No permission: everyone with an account has a profile, and everyone
+      // can be told things.
+      { href: "/app/profile", label: "My profile", icon: "UserRound" },
+      { href: "/app/notifications", label: "Notifications", icon: "Bell" },
       {
         href: "/app/scan",
         label: "Scan QR",

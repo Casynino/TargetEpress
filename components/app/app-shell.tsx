@@ -23,6 +23,8 @@ import {
   UserCog,
   Users,
   Wallet,
+  UserRound,
+  Bell,
   type LucideIcon,
 } from "lucide-react";
 
@@ -59,21 +61,27 @@ const ICONS: Record<string, LucideIcon> = {
   UserCog,
   History,
   FlaskConical,
+  UserRound,
+  Bell,
 };
 
 type ShellUser = {
   name: string;
   email: string;
   role: keyof typeof ROLE_LABELS;
+  photoUrl?: string | null;
 };
 
 export function AppShell({
   sections,
   user,
+  unreadNotifications = 0,
   children,
 }: {
   sections: NavSection[];
   user: ShellUser;
+  /** Drives the dot on the user panel — the nav link itself is always there. */
+  unreadNotifications?: number;
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -88,7 +96,7 @@ export function AppShell({
           </Link>
         </div>
         <NavList sections={sections} className="flex-1 overflow-y-auto p-3" />
-        <UserPanel user={user} />
+        <UserPanel user={user} unread={unreadNotifications} />
       </aside>
 
       {/* Mobile top bar */}
@@ -110,7 +118,7 @@ export function AppShell({
               className="p-3"
               onNavigate={() => setMobileOpen(false)}
             />
-            <UserPanel user={user} />
+            <UserPanel user={user} unread={unreadNotifications} />
           </SheetContent>
         </Sheet>
 
@@ -178,12 +186,42 @@ function NavList({
   );
 }
 
-function UserPanel({ user }: { user: ShellUser }) {
+function UserPanel({
+  user,
+  unread = 0,
+}: {
+  user: ShellUser;
+  unread?: number;
+}) {
   return (
     <div className="border-t p-3">
-      <div className="flex items-center gap-3 px-2 py-2">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/10 text-sm font-semibold text-brand">
-          {user.name.slice(0, 1).toUpperCase()}
+      {/* The whole block is a link to the profile — the photo is the obvious
+          thing to press for "my stuff", and it is where people reach first. */}
+      <Link
+        href="/app/profile"
+        className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent"
+      >
+        <span className="relative shrink-0">
+          {user.photoUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={user.photoUrl}
+              alt=""
+              className="h-9 w-9 rounded-full border object-cover"
+            />
+          ) : (
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/10 text-sm font-semibold text-brand">
+              {user.name.slice(0, 1).toUpperCase()}
+            </span>
+          )}
+          {unread > 0 ? (
+            <span
+              title={`${unread} unread notification(s)`}
+              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-brand-foreground"
+            >
+              {unread > 9 ? "9+" : unread}
+            </span>
+          ) : null}
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{user.name}</p>
@@ -191,6 +229,8 @@ function UserPanel({ user }: { user: ShellUser }) {
             {ROLE_LABELS[user.role]}
           </p>
         </div>
+      </Link>
+      <div className="flex justify-end px-2">
         <ThemeToggle className="hidden h-8 w-8 lg:inline-flex" />
       </div>
       <Separator className="my-2" />

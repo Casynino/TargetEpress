@@ -17,6 +17,8 @@ import {
   resetUserPassword,
   setUserActive,
 } from "@/lib/actions/users";
+import Link from "next/link";
+
 import type { ActionResult } from "@/lib/actions/types";
 import { ROLE_LABELS, enumOptions } from "@/lib/constants";
 import { formatRelative } from "@/lib/format";
@@ -24,6 +26,7 @@ import { formatRelative } from "@/lib/format";
 type StaffUser = {
   id: string;
   name: string;
+  employeeId: string | null;
   email: string;
   phone: string | null;
   role: Role;
@@ -56,12 +59,22 @@ export function UserRow({
     <>
       <TableRow className={user.active ? "" : "opacity-60"}>
         <TableCell>
-          <p className="text-sm font-medium">
+          {/* The name opens the full employee profile — sign-in history,
+              audit trail and everything they have registered. */}
+          <Link
+            href={`/app/admin/users/${user.id}`}
+            className="text-sm font-medium hover:text-brand"
+          >
             {user.name}
             {isSelf ? (
               <span className="ml-2 text-xs text-muted-foreground">(you)</span>
             ) : null}
-          </p>
+          </Link>
+          {user.employeeId ? (
+            <p className="font-mono text-xs text-muted-foreground tabular">
+              {user.employeeId}
+            </p>
+          ) : null}
           <p className="text-xs text-muted-foreground">{user.email}</p>
           {user.phone ? (
             <p className="text-xs text-muted-foreground">{user.phone}</p>
@@ -215,6 +228,43 @@ export function NewUserForm() {
                 {o.label}
               </option>
             ))}
+          </NativeSelect>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="employeeId" className="text-xs">
+              Employee ID
+            </Label>
+            <Input
+              id="employeeId"
+              name="employeeId"
+              placeholder="TX-014"
+              maxLength={24}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="rank" className="text-xs">
+              Warehouse rank
+            </Label>
+            <NativeSelect id="rank" name="rank" defaultValue="OPERATOR">
+              <option value="OPERATOR">Warehouse Operator</option>
+              <option value="MANAGER">Warehouse Manager</option>
+            </NativeSelect>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          The ID cannot be changed later. Rank applies to warehouse staff only.
+        </p>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="status" className="text-xs">
+            Status
+          </Label>
+          <NativeSelect id="status" name="status" defaultValue="ACTIVE">
+            <option value="ACTIVE">Active</option>
+            <option value="SUSPENDED">Suspended</option>
+            <option value="INACTIVE">Inactive</option>
           </NativeSelect>
         </div>
 

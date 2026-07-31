@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { CATEGORY_LABELS } from "@/lib/cargo";
 import { formatPackages } from "@/lib/constants";
 import { formatWeight } from "@/lib/format";
+import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { packageQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
@@ -27,7 +28,7 @@ export default async function LabelPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePermission("shipment.view");
+  const user = await requirePermission("shipment.view");
   const { id } = await params;
   const key = decodeURIComponent(id);
 
@@ -42,6 +43,22 @@ export default async function LabelPage({
   });
 
   if (!shipment) notFound();
+
+  // Opening this page is the only signal we have that labels were printed —
+  // the browser's print dialog is invisible to us. It over-counts a reprint
+  // that was abandoned, which is the safer direction: a label that was printed
+  // and not counted would let a missing sticker look like it never existed.
+  await recordAudit({
+    actor: user,
+    action: "label.print",
+    entity: "Shipment",
+    entityId: shipment.id,
+    summary: `Printed ${shipment.packageList.length} label(s) for ${shipment.trackingNumber}`,
+    metadata: {
+      trackingNumber: shipment.trackingNumber,
+      labels: shipment.packageList.length,
+    },
+  });
 
   const stickers: StickerData[] = await Promise.all(
     shipment.packageList.map(async (pkg) => ({

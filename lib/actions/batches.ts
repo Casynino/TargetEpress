@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { PACKAGE_TYPE_LABELS } from "@/lib/constants";
 import { recordAudit } from "@/lib/audit";
+import { contributorsTo, notify } from "@/lib/notify";
 import {
   AIRPORT_LABELS,
   CATEGORY_LABELS,
@@ -458,6 +459,22 @@ export async function dispatchLoadingTable(
             flightNumber: input.flightNumber ?? null,
             cargo: moved.count,
           },
+        },
+        tx
+      );
+
+      // The people to tell are the ones whose work is on the plane — not
+      // everyone in the department.
+      await notify(
+        {
+          userIds: await contributorsTo(dispatch.id, tx),
+          kind: "batch.dispatched",
+          title: `${dispatch.batchNumber} has left China`,
+          body:
+            `${moved.count} pieces on ${input.airline}` +
+            (input.flightNumber ? ` ${input.flightNumber.toUpperCase()}` : "") +
+            `, waybill ${input.waybillNumber}.`,
+          href: `/app/shipments/${dispatch.id}`,
         },
         tx
       );

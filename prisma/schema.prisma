@@ -37,6 +37,24 @@ enum Role {
   CUSTOMER_CARE
 }
 
+/// Whether an account may be used at all. `SUSPENDED` is a temporary block
+/// (an investigation, a lost phone); `INACTIVE` is someone who has left.
+/// Neither can sign in — the difference is what a manager reads on the screen.
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+/// Seniority within a warehouse, independent of which warehouse it is.
+/// An operator records cargo; a manager can also seal, dispatch and approve
+/// corrections. Department stays the axis that decides *what* someone sees;
+/// this decides *how far* they can go with it.
+enum WarehouseRank {
+  OPERATOR
+  MANAGER
+}
+
 enum Department {
   MANAGEMENT
   CHINA_WAREHOUSE
@@ -201,6 +219,26 @@ model User {
   department   Department
   active       Boolean    @default(true)
   lastLoginAt  DateTime?
+
+  /// Set by the CEO when the account is made, and never editable afterwards —
+  /// it is what payroll and the audit trail refer to.
+  employeeId String? @unique
+  /// What the employee wants to be called. Falls back to `name`, which only an
+  /// admin can change.
+  displayName String?
+  photoUrl    String?
+  /// Free text on purpose: "Mama Grace 0757…" is what people actually write.
+  emergencyContact  String?
+  preferredLanguage String  @default("en")
+  status            UserStatus @default(ACTIVE)
+  /// Warehouse staff only. Null for Finance, Support and the CEO.
+  rank     WarehouseRank?
+  joinedAt DateTime       @default(now())
+  /// Touched on every authenticated page load, so "online" means something.
+  lastActiveAt DateTime?
+
+  logins        LoginEvent[]
+  notifications Notification[]
 
   createdById String?
   createdBy   User?   @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -1188,4 +1226,52 @@ model Package {
   @@unique([shipmentId, sequence])
   @@index([shipmentId])
   @@index([receivedAt])
+}
+
+
+/// Every sign-in attempt, kept for the admin's view of an account.
+///
+/// Failures are recorded too. Five failures overnight against one account is
+/// the thing worth seeing, and it is invisible if only successes are stored.
+model LoginEvent {
+  id String @id @default(cuid())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// Kept separately so a failed attempt against an unknown address is still
+  /// on the record.
+  email String
+
+  ok        Boolean
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+/// Something an employee should be told about.
+///
+/// Deliberately thin: a line of text and somewhere to go. Anything richer
+/// belongs on the page it links to, not in a notification that will be read
+/// once on a phone in a warehouse.
+model Notification {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind  String // "batch.dispatched", "shipment.edited", "announcement", …
+  title String
+  body  String?
+  /// Where "open" goes. Null for announcements that have nowhere to go.
+  href String?
+
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
 }

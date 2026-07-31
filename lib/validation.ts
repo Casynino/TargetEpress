@@ -146,6 +146,20 @@ export const userSchema = z.object({
   email: z.string().trim().email("A valid email is required."),
   phone: z.string().trim().optional(),
   role: z.enum(["ADMIN", "CHINA_WAREHOUSE", "DAR_WAREHOUSE", "FINANCE", "CUSTOMER_CARE"]),
+  /// Optional, but unique when given. Payroll and the audit trail refer to it,
+  /// and the employee can never change it themselves.
+  employeeId: z
+    .string()
+    .trim()
+    .max(24, "Employee IDs are short — TX-014, not a sentence.")
+    .optional()
+    .transform((v) => (v?.length ? v.toUpperCase() : null)),
+  /// Warehouse staff only; ignored for Finance, Support and the CEO.
+  rank: z
+    .enum(["OPERATOR", "MANAGER"])
+    .optional()
+    .transform((v) => v ?? null),
+  status: z.enum(["ACTIVE", "SUSPENDED", "INACTIVE"]).default("ACTIVE"),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters."),
