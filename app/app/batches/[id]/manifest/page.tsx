@@ -32,7 +32,7 @@ export default async function ManifestPage({
     where: { id },
     include: {
       shipments: {
-        orderBy: { trackingNumber: "asc" },
+        orderBy: { registeredAt: "asc" },
         include: {
           customer: { select: { name: true, phone: true } },
           createdBy: { select: { name: true } },
@@ -203,7 +203,6 @@ export default async function ManifestPage({
           <thead>
             <tr className="border-y-2 border-black/70 text-left">
               <th className="py-2 pr-2 font-semibold">#</th>
-              <th className="py-2 pr-2 font-semibold">Carton</th>
               <th className="py-2 pr-2 font-semibold">Tracking</th>
               <th className="py-2 pr-2 font-semibold">Customer</th>
               <th className="py-2 pr-2 font-semibold">Phone</th>
@@ -221,9 +220,6 @@ export default async function ManifestPage({
             {batch.shipments.map((shipment, index) => (
               <tr key={shipment.id} className="border-b border-black/15">
                 <td className="py-2 pr-2 tabular">{index + 1}</td>
-                <td className="py-2 pr-2 font-mono tabular">
-                  {shipment.cartonRef ?? "—"}
-                </td>
                 <td className="py-2 pr-2 font-mono font-semibold tabular">
                   {shipment.trackingNumber}
                 </td>
@@ -259,7 +255,7 @@ export default async function ManifestPage({
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-black/70 font-semibold">
-              <td className="py-2" colSpan={6}>
+              <td className="py-2" colSpan={5}>
                 Total
               </td>
               <td className="py-2 pr-2 text-right tabular">{totalPackages}</td>

@@ -13,8 +13,14 @@ import { cn } from "@/lib/utils";
 export type CargoCell = {
   id: string;
   trackingNumber: string;
-  /** The carton number from the packing list, e.g. GZ/26-22-7. */
+  /** The carton number from the packing list, e.g. GZ/26-22-7. Imported cargo
+   *  only — anything registered through the form has none. Kept on the record
+   *  and shown on the cargo page, but not in lists. */
   cartonRef: string | null;
+  /** When the China desk took it in, already formatted. */
+  receivedLabel: string;
+  /** Sortable form of the same thing. */
+  receivedAt: string;
   customerName: string;
   description: string;
   weightKg: number;
@@ -141,26 +147,14 @@ export function CargoGrid({
   const [view, setView] = useState<"list" | "grid">("list");
   const [filter, setFilter] = useState<string>("ALL");
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState("carton");
+  const [sort, setSort] = useState("received");
 
   const sorted = useMemo(() => {
-    const byCarton = (a: CargoCell, b: CargoCell) => {
-      // Carton refs end in a number ("GZ/26-22-7"). Sorting them as strings
-      // puts carton 10 before carton 2, which is exactly wrong when someone is
-      // reading numbers off boxes.
-      const tail = (ref: string | null) => {
-        const match = (ref ?? "").match(/(\d+)\s*$/);
-        return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
-      };
-      const diff = tail(a.cartonRef) - tail(b.cartonRef);
-      return diff !== 0 ? diff : a.trackingNumber.localeCompare(b.trackingNumber);
-    };
-
     const q = query.trim().toLowerCase();
 
     const matches = (cell: CargoCell) =>
       !q ||
-      [cell.trackingNumber, cell.cartonRef ?? "", cell.customerName, cell.description]
+      [cell.trackingNumber, cell.customerName, cell.description]
         .join(" ")
         .toLowerCase()
         .includes(q);
@@ -173,7 +167,9 @@ export function CargoGrid({
         if (sort === "weight") return b.weightKg - a.weightKg;
         if (sort === "tracking")
           return a.trackingNumber.localeCompare(b.trackingNumber);
-        return byCarton(a, b);
+        // Oldest first by default: the piece that has waited longest is the one
+        // that should go on the next flight.
+        return a.receivedAt.localeCompare(b.receivedAt);
       });
   }, [cells, filter, query, sort]);
 
@@ -204,7 +200,7 @@ export function CargoGrid({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Customer, tracking number, carton or goods…"
+            placeholder="Customer, tracking number or goods…"
             className="pl-9 pr-9"
             aria-label="Search cargo"
           />
@@ -225,7 +221,7 @@ export function CargoGrid({
           onChange={(event) => setSort(event.target.value)}
           className="sm:w-48"
         >
-          <option value="carton">Sort: carton order</option>
+          <option value="received">Sort: date received</option>
           <option value="customer">Sort: customer A–Z</option>
           <option value="tracking">Sort: tracking number</option>
           <option value="weight">Sort: heaviest first</option>
@@ -334,7 +330,10 @@ export function CargoGrid({
               >
                 <div>
                   <p className="font-mono text-xs font-bold tabular-nums">
-                    {cell.cartonRef ?? cell.trackingNumber}
+                    {cell.trackingNumber}
+                  </p>
+                  <p className="text-[10px] text-foreground/60">
+                    {cell.receivedLabel}
                   </p>
                   <p className="mt-1 line-clamp-2 text-xs font-medium text-foreground">
                     {cell.description}
@@ -361,7 +360,7 @@ export function CargoGrid({
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Carton</th>
+                  <th className="px-3 py-2 font-medium">Received</th>
                   <th className="px-3 py-2 font-medium">Tracking</th>
                   <th className="px-3 py-2 font-medium">Customer</th>
                   <th className="px-3 py-2 font-medium">Cargo</th>
@@ -384,8 +383,8 @@ export function CargoGrid({
                       cell.verification === "EXCEPTION" && "bg-destructive/5"
                     )}
                   >
-                    <td className="whitespace-nowrap px-3 py-1.5 font-mono text-xs text-muted-foreground">
-                      {cell.cartonRef ?? "—"}
+                    <td className="whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground">
+                      {cell.receivedLabel}
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5">
                       <Link

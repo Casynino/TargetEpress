@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_LABELS, categoryFitsRoute } from "@/lib/cargo";
 import { ORIGIN_LABELS, SHIPMENT_STATUS_META } from "@/lib/constants";
-import { toNumber } from "@/lib/format";
+import { formatDate, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -246,6 +246,8 @@ export default async function LoadingTablePage({
                   verificationByShipment.get(shipment.id)?.result ?? null,
                 statusLabel: SHIPMENT_STATUS_META[shipment.status].label,
                 receivedBy: shipment.createdBy?.name ?? null,
+                receivedLabel: formatDate(shipment.registeredAt),
+                receivedAt: shipment.registeredAt.toISOString(),
                 photos: shipment.photos,
               }))}
               batchId={batch.id}

@@ -86,7 +86,6 @@ export function ShipmentDetailTabs({
       if (!q) return true;
       return [
         line.trackingNumber,
-        line.cartonRef ?? "",
         line.customerName,
         line.customerPhone ?? "",
         line.description,
@@ -96,17 +95,12 @@ export function ShipmentDetailTabs({
         .includes(q);
     });
 
-    const cartonTail = (ref: string | null) => {
-      const match = (ref ?? "").match(/(\d+)\s*$/);
-      return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
-    };
-
     return [...filtered].sort((a, b) => {
       if (sort === "weight") return b.weightKg - a.weightKg;
       if (sort === "customer") return a.customerName.localeCompare(b.customerName);
       if (sort === "tracking")
         return a.trackingNumber.localeCompare(b.trackingNumber);
-      return cartonTail(a.cartonRef) - cartonTail(b.cartonRef);
+      return a.receivedLabel.localeCompare(b.receivedLabel);
     });
   }, [cargo, query, category, sort]);
 
@@ -155,7 +149,7 @@ export function ShipmentDetailTabs({
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Tracking number, carton, customer, phone or goods…"
+                placeholder="Tracking number, customer, phone or goods…"
                 className="pl-9"
               />
             </div>
@@ -178,7 +172,7 @@ export function ShipmentDetailTabs({
               onChange={(event) => setSort(event.target.value)}
               className="sm:w-44"
             >
-              <option value="carton">Sort: carton</option>
+              <option value="carton">Sort: date received</option>
               <option value="tracking">Sort: tracking</option>
               <option value="customer">Sort: customer</option>
               <option value="weight">Sort: heaviest</option>
@@ -193,7 +187,7 @@ export function ShipmentDetailTabs({
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Carton</th>
+                  <th className="px-3 py-2 font-medium">Received</th>
                   <th className="px-3 py-2 font-medium">Tracking</th>
                   <th className="px-3 py-2 font-medium">Customer</th>
                   <th className="px-3 py-2 font-medium">Goods</th>
@@ -207,8 +201,8 @@ export function ShipmentDetailTabs({
               <tbody>
                 {visible.map((line) => (
                   <tr key={line.id} className="border-t">
-                    <td className="whitespace-nowrap px-3 py-1.5 font-mono text-xs text-muted-foreground">
-                      {line.cartonRef ?? "—"}
+                    <td className="whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground">
+                      {line.receivedLabel}
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5">
                       <Link
