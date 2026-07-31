@@ -218,10 +218,12 @@ const SECTIONS: NavSection[] = [
   {
     title: "You",
     items: [
-      // No permissions: everyone with an account has a profile, and everyone
-      // can see what the floor has been doing.
+      // No permission: everyone can see what the floor has been doing.
+      //
+      // The profile is not here. It is reached by pressing your own name at the
+      // bottom of this sidebar, which is where people look for "my stuff"
+      // anyway — a second door to the same room only makes the list longer.
       { href: "/app/activity", label: "Activity", icon: "History" },
-      { href: "/app/profile", label: "My profile", icon: "UserRound" },
     ],
   },
 ];
