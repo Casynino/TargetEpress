@@ -150,9 +150,9 @@ async function ChinaDashboard({ role }: { role: "CHINA_WAREHOUSE" | "ADMIN" }) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           delay={0}
-          label="Ready to depart"
+          label="In China warehouse"
           numeric={stats.readyToDepart}
-          hint={`${formatWeight(stats.stagedWeightKg)} on the floor`}
+          hint={`${formatWeight(stats.stagedWeightKg)} waiting for a flight`}
           icon={Package}
           tone="warning"
           href="/app/shipments?status=READY_TO_DEPART"

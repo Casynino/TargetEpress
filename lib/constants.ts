@@ -197,11 +197,16 @@ type StatusMeta = {
 };
 
 export const SHIPMENT_STATUS_META: Record<ShipmentStatus, StatusMeta> = {
+  // Named READY_TO_DEPART in the database for historical reasons, but the words
+  // shown to staff say where the cargo actually is. "Ready to depart" was wrong
+  // twice over: the cargo is not going anywhere until its batch is sealed, and
+  // the batch has its own status of the same name meaning something else.
   READY_TO_DEPART: {
-    label: "Ready to depart",
+    label: "In China warehouse",
     publicLabel: "Received in China",
     publicLocation: "China warehouse",
-    description: "Registered, packed and staged for the airport.",
+    description:
+      "Registered and labelled in China, waiting for its batch to be sealed and flown.",
     tone: "muted",
     owner: "China Warehouse",
   },

@@ -65,7 +65,7 @@ export default async function BatchesPage() {
     <>
       <PageHeader
         title="Batches"
-        description="Every batch, newest stage first. Guangzhou and Hong Kong run as separate routes."
+        description="Cargo grouped by the flight it travels on. Guangzhou and Hong Kong run as separate routes — work here when you are loading, sealing or receiving a whole flight."
       />
 
       <StatStrip

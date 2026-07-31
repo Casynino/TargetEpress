@@ -89,7 +89,7 @@ export default async function ShipmentsPage({
         description={
           statusFilter
             ? `${total.toLocaleString()} ${SHIPMENT_STATUS_META[statusFilter].label.toLowerCase()}`
-            : `${total.toLocaleString()} shipment${total === 1 ? "" : "s"} on record`
+            : `Every individual customer's cargo. ${total.toLocaleString()} on record — search here when you need to find one thing.`
         }
       />
 
