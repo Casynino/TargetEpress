@@ -153,7 +153,7 @@ export default async function ManifestPage({
               <th className="py-2 pr-2 font-semibold">Tracking</th>
               <th className="py-2 pr-2 font-semibold">Customer</th>
               <th className="py-2 pr-2 font-semibold">Phone</th>
-              <th className="py-2 pr-2 font-semibold">Product</th>
+              <th className="py-2 pr-2 font-semibold">Which item?</th>
               <th className="whitespace-nowrap py-2 pr-2 text-right font-semibold">
                 Counted as
               </th>

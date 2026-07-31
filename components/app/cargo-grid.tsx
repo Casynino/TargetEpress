@@ -395,7 +395,11 @@ export function CargoGrid({
                   <th className="px-3 py-2 font-medium">Received</th>
                   <th className="px-3 py-2 font-medium">Tracking</th>
                   <th className="px-3 py-2 font-medium">Customer</th>
-                  <th className="px-3 py-2 font-medium">Cargo</th>
+                  {/* The same words as the registration form, so the desk recognises
+                      what it typed. */}
+                  <th className="whitespace-nowrap px-3 py-2 font-medium">
+                    Which item?
+                  </th>
                   <th className="px-3 py-2 text-right font-medium">Weight</th>
                   <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
                     Counted as
