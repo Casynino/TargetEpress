@@ -157,7 +157,9 @@ export default async function ManifestPage({
                 Counted as
               </th>
               <th className="py-2 pr-2 text-right font-semibold">Weight</th>
-              <th className="py-2 pr-2 font-semibold">By</th>
+              <th className="whitespace-nowrap py-2 pr-2 font-semibold">
+                Received by
+              </th>
               {/* Physically ticked with a pen while checking the cargo. The
                   count is already in "Counted as" — one box per package only
                   repeated it. */}
