@@ -409,7 +409,7 @@ export function CargoGrid({
                     Received by
                   </th>
                   <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="sticky right-0 z-20 w-28 bg-muted px-3 py-2" />
+                  <th className="sticky right-0 z-20 w-36 bg-muted px-3 py-2" />
                 </tr>
               </thead>
               <tbody>
@@ -480,9 +480,10 @@ export function CargoGrid({
                           href={`/app/cargo/${cell.trackingNumber}/label`}
                           title={`Print sticker for ${cell.trackingNumber}`}
                           aria-label={`Print sticker for ${cell.trackingNumber}`}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                         >
                           <Printer className="h-3.5 w-3.5" />
+                          Print
                         </Link>
                         {/* An explicit way in. The tracking number is a link
                             too, but a small mono number is a poor target and
