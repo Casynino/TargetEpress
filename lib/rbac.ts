@@ -14,6 +14,12 @@ export type Permission =
   | "shipment.edit"
   | "shipment.depart"
   | "shipment.cancel"
+  /// Soft delete: the record leaves every normal view but keeps its photos,
+  /// its packages and its history. A warehouse fixes its own mistakes with
+  /// this. Erasing a record for good is `shipment.purge`, and only the CEO
+  /// holds that.
+  | "shipment.delete"
+  | "shipment.purge"
   | "shipment.viewInternal" // internal notes, cost inputs, staff names
   | "shipment.scan" // holds physical cargo and reads its label
   // Batches
@@ -54,6 +60,10 @@ const CHINA: Permission[] = [
   "shipment.view",
   "shipment.create",
   "shipment.edit",
+  // The desk that took the cargo in is the desk that mistyped the weight. Both
+  // are limited to cargo still sitting in China — once it is on a plane the
+  // record has been invoiced against and printed onto a manifest.
+  "shipment.delete",
   "shipment.depart",
   "shipment.viewInternal",
   "batch.view",
@@ -66,6 +76,8 @@ const CHINA: Permission[] = [
 const DAR: Permission[] = [
   "shipment.view",
   "shipment.viewInternal",
+  "shipment.edit",
+  "shipment.delete",
   "shipment.scan",
   "batch.view",
   "batch.receive",
@@ -141,6 +153,8 @@ const ALL: Permission[] = Array.from(
     ...FINANCE,
     ...CUSTOMER_CARE,
     "shipment.cancel",
+    // Erasing a record for good. Nobody else has it, at any rank.
+    "shipment.purge",
     "user.manage",
     "pricing.manage",
     "audit.view",

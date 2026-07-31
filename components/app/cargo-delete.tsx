@@ -7,7 +7,7 @@ import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { deleteCargo, restoreCargo } from "@/lib/actions/cargo-admin";
+import { deleteCargo, purgeCargo, restoreCargo } from "@/lib/actions/cargo-admin";
 
 /**
  * Deleting a piece of cargo.
@@ -127,5 +127,89 @@ export function RestoreCargoButton({
       </Button>
       {error ? <span className="text-xs text-destructive">{error}</span> : null}
     </span>
+  );
+}
+
+
+/**
+ * Erasing a record for good.
+ *
+ * Everything else in this system is reversible; this is not. So it is folded
+ * shut by default, it states plainly what will be destroyed, and it will not
+ * proceed until the tracking number has been typed out in full. That last step
+ * is the whole safety mechanism — it is the difference between removing the
+ * record you are looking at and the one you meant.
+ */
+export function PurgeCargoForm({
+  shipmentId,
+  trackingNumber,
+  photoCount,
+  packageCount,
+}: {
+  shipmentId: string;
+  trackingNumber: string;
+  photoCount: number;
+  packageCount: number;
+}) {
+  const [state, action] = useActionState(purgeCargo, undefined);
+  const [open, setOpen] = useState(false);
+
+  if (state?.ok && state.data) {
+    return (
+      <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs">
+        {state.data.trackingNumber} has been permanently removed. Only the audit
+        entry remains.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 border-t pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-xs font-medium text-destructive hover:underline"
+      >
+        {open ? "Cancel" : "Remove permanently"}
+      </button>
+
+      {open ? (
+        <form action={action} className="mt-3 space-y-3">
+          <input type="hidden" name="shipmentId" value={shipmentId} />
+          <FormError state={state} />
+
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs">
+            <p className="font-medium text-destructive">
+              This cannot be undone.
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              The record, its {packageCount} package
+              {packageCount === 1 ? "" : "s"} and {photoCount} photo
+              {photoCount === 1 ? "" : "s"} will be destroyed. The customer will
+              no longer be able to track it. Only the audit entry survives.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor={`confirm-${shipmentId}`} className="text-xs">
+              Type {trackingNumber} to confirm
+            </Label>
+            <input
+              id={`confirm-${shipmentId}`}
+              name="confirm"
+              required
+              autoComplete="off"
+              placeholder={trackingNumber}
+              className="h-9 w-full rounded-md border bg-background px-3 font-mono text-xs uppercase tabular outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+            />
+          </div>
+
+          <SubmitButton size="sm" variant="destructive" pendingLabel="Removing…">
+            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+            Remove permanently
+          </SubmitButton>
+        </form>
+      ) : null}
+    </div>
   );
 }

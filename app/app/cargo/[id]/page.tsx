@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   Boxes,
   Camera,
+  Pencil,
   Printer,
   ReceiptText,
   Truck,
@@ -113,6 +114,19 @@ export default async function ShipmentDetailPage({
         actions={
           <>
             <ShipmentStatusBadge status={shipment.status} />
+            {/* Offered only while the record can actually be changed — a
+                disabled button that explains itself on click is worse than no
+                button. */}
+            {can(user.role, "shipment.edit") &&
+            (shipment.status === "READY_TO_DEPART" ||
+              can(user.role, "shipment.purge")) ? (
+              <Button asChild variant="outline" size="sm" className="rounded-lg">
+                <Link href={`/app/cargo/${shipment.trackingNumber}/edit`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </Button>
+            ) : null}
             <Button asChild variant="outline" size="sm" className="rounded-lg">
               <Link href={`/app/cargo/${shipment.trackingNumber}/label`}>
                 <Printer className="mr-2 h-4 w-4" />

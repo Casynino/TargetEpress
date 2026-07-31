@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 
@@ -35,9 +36,10 @@ export async function deleteCargo(
 ): Promise<ActionResult<{ trackingNumber: string }>> {
   let user: SessionUser;
   try {
-    // Deliberately shipment.cancel, which only the CEO holds. A warehouse
-    // operator correcting their own typo should edit it, not delete it.
-    user = await authorize("shipment.cancel");
+    // The warehouse deletes its own mistakes — a duplicate registration is
+    // theirs to undo, and making them ask the CEO means the duplicate stays on
+    // the manifest all week. Nothing is destroyed by this; see below.
+    user = await authorize("shipment.delete");
   } catch (error) {
     return fail(toActionError(error));
   }
@@ -67,6 +69,14 @@ export async function deleteCargo(
     });
     if (!cargo) return fail("That cargo no longer exists.");
     if (cargo.deletedAt) return fail("That cargo is already deleted.");
+
+    // Once cargo has flown it is on a printed manifest and in a customs file.
+    // Management can still remove it; a warehouse cannot.
+    if (cargo.status !== "READY_TO_DEPART" && !can(user.role, "shipment.purge")) {
+      return fail(
+        "This cargo has already left China. Ask management to remove it."
+      );
+    }
 
     // Money already taken against it makes this an accounting event, not a
     // typo. Refusing here is safer than leaving a paid invoice pointing at a
@@ -124,6 +134,8 @@ export async function restoreCargo(
 ): Promise<ActionResult<{ trackingNumber: string }>> {
   let user: SessionUser;
   try {
+    // Restoring is management's call, not the warehouse's — putting a record
+    // back onto a batch that has since flown is how a manifest stops matching.
     user = await authorize("shipment.cancel");
   } catch (error) {
     return fail(toActionError(error));
@@ -156,6 +168,99 @@ export async function restoreCargo(
     });
 
     revalidatePath("/app/batches");
+    revalidatePath("/app/admin/deleted");
+    return ok({ trackingNumber: cargo.trackingNumber });
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
+
+
+/**
+ * Erasing a record for good.
+ *
+ * The only operation in the system that destroys anything, and it exists
+ * because occasionally a record must genuinely go — a test entry, a duplicate
+ * created by a bad import, a customer exercising a right to be forgotten.
+ *
+ * It is CEO-only, it refuses anything that has money or a flight attached to
+ * it, and it demands the tracking number typed out in full. That last one is
+ * not ceremony: it is the difference between deleting the record you are
+ * looking at and the one you meant.
+ */
+export async function purgeCargo(
+  _prev: ActionResult<{ trackingNumber: string }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ trackingNumber: string }>> {
+  let user: SessionUser;
+  try {
+    user = await authorize("shipment.purge");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const shipmentId = String(formData.get("shipmentId") ?? "");
+  const typed = String(formData.get("confirm") ?? "").trim().toUpperCase();
+  if (!shipmentId) return fail("Missing cargo.");
+
+  try {
+    const cargo = await prisma.shipment.findUnique({
+      where: { id: shipmentId },
+      select: {
+        id: true,
+        trackingNumber: true,
+        deletedAt: true,
+        batch: { select: { permanent: true } },
+        invoice: { select: { invoiceNumber: true, amountPaid: true } },
+        _count: { select: { photos: true, packageList: true } },
+      },
+    });
+    if (!cargo) return fail("That cargo no longer exists.");
+
+    if (!cargo.deletedAt) {
+      return fail(
+        "Delete it first. Permanent removal only applies to records already in Deleted records."
+      );
+    }
+    if (typed !== cargo.trackingNumber) {
+      return fail(
+        `Type ${cargo.trackingNumber} exactly to confirm. Nothing has been removed.`
+      );
+    }
+    if (cargo.invoice) {
+      return fail(
+        `${cargo.invoice.invoiceNumber} is raised against this cargo. Void the invoice through Finance first.`
+      );
+    }
+    if (cargo.batch && !cargo.batch.permanent) {
+      return fail(
+        "This cargo is on a dispatched flight. It has to stay on the record for that manifest."
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // The audit entry is written before the row disappears, and deliberately
+      // carries everything worth knowing — after this there is nothing left to
+      // look the record up from.
+      await recordAudit(
+        {
+          actor: user,
+          action: "cargo.purge",
+          entity: "Shipment",
+          entityId: cargo.id,
+          summary: `Permanently removed ${cargo.trackingNumber}`,
+          metadata: {
+            trackingNumber: cargo.trackingNumber,
+            photosDestroyed: cargo._count.photos,
+            packagesDestroyed: cargo._count.packageList,
+          },
+        },
+        tx
+      );
+
+      await tx.shipment.delete({ where: { id: cargo.id } });
+    });
+
     revalidatePath("/app/admin/deleted");
     return ok({ trackingNumber: cargo.trackingNumber });
   } catch (error) {

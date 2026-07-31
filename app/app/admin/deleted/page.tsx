@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Camera, Trash2 } from "lucide-react";
 
-import { RestoreCargoButton } from "@/components/app/cargo-delete";
+import {
+  PurgeCargoForm,
+  RestoreCargoButton,
+} from "@/components/app/cargo-delete";
 import { PageHeader } from "@/components/app/page-header";
 import { CATEGORY_LABELS } from "@/lib/cargo";
 import { formatDateTime, formatWeight } from "@/lib/format";
@@ -32,6 +35,7 @@ export default async function DeletedRecordsPage() {
       customer: { select: { name: true, phone: true } },
       deletedBy: { select: { name: true } },
       createdBy: { select: { name: true } },
+      _count: { select: { packageList: true } },
       photos: { select: { id: true, url: true } },
       batch: { select: { batchNumber: true } },
     },
@@ -104,6 +108,13 @@ export default async function DeletedRecordsPage() {
                   </div>
                 ))}
               </dl>
+
+              <PurgeCargoForm
+                shipmentId={cargo.id}
+                trackingNumber={cargo.trackingNumber}
+                photoCount={cargo.photos.length}
+                packageCount={cargo._count.packageList}
+              />
 
               {cargo.photos.length > 0 ? (
                 <div className="mt-4 border-t pt-4">
