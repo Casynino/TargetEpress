@@ -158,11 +158,12 @@ export async function batchUtilisation(take = 8) {
 
 /** Counts the China desk cares about. */
 export async function chinaStats() {
-  const [readyToDepart, openBatches, inTransitBatches, registeredThisWeek, weight] =
+  const [readyToDepart, inTransitShipments, registeredThisWeek, weight] =
     await Promise.all([
       prisma.shipment.count({ where: { status: "READY_TO_DEPART" } }),
-      prisma.batch.count({ where: { status: "OPEN" } }),
-      prisma.batch.count({ where: { status: "IN_TRANSIT" } }),
+      // Cargo in the air, not flights. "2 batches" says nothing about how much
+      // is riding on them; a customer asking is asking about their own piece.
+      prisma.shipment.count({ where: { status: "IN_TRANSIT" } }),
       prisma.shipment.count({
         where: {
           registeredAt: { gte: new Date(Date.now() - 7 * 24 * 3600 * 1000) },
@@ -176,8 +177,7 @@ export async function chinaStats() {
 
   return {
     readyToDepart,
-    openBatches,
-    inTransitBatches,
+    inTransitShipments,
     registeredThisWeek,
     stagedWeightKg: toNumber(weight._sum.weightKg),
   };

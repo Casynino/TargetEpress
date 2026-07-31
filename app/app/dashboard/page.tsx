@@ -184,13 +184,12 @@ async function ChinaDashboard({ role }: { role: "CHINA_WAREHOUSE" | "ADMIN" }) {
       <StatStrip
         chips={[
           { label: "Staged", value: String(stats.readyToDepart), icon: Package, tone: "warning" },
-          { label: "Open batches", value: String(stats.openBatches), icon: Boxes, tone: "brand" },
-          { label: "In the air", value: String(stats.inTransitBatches), icon: Plane, tone: "success" },
+          { label: "In the air", value: String(stats.inTransitShipments), icon: Plane, tone: "success" },
           { label: "Weight staged", value: formatWeight(stats.stagedWeightKg), icon: Warehouse },
         ]}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           delay={0}
           label="In China warehouse"
@@ -212,18 +211,9 @@ async function ChinaDashboard({ role }: { role: "CHINA_WAREHOUSE" | "ADMIN" }) {
         />
         <KpiCard
           delay={2}
-          label="Open batches"
-          numeric={stats.openBatches}
-          hint="Still taking cargo"
-          icon={Boxes}
-          tone="info"
-          href="/app/batches?status=OPEN"
-        />
-        <KpiCard
-          delay={3}
-          label="Batches in transit"
-          numeric={stats.inTransitBatches}
-          hint="Flying to Dar"
+          label="Shipments in transit"
+          numeric={stats.inTransitShipments}
+          hint="In the air to Dar"
           icon={Plane}
           tone="success"
           href="/app/batches?status=IN_TRANSIT"

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Camera, Package, PackagePlus, Printer, Scale } from "lucide-react";
+import { Package, PackagePlus, Printer, Scale } from "lucide-react";
 
 import { DualClock } from "@/components/app/dual-clock";
 import type { TodaySummary } from "@/lib/warehouse-home";
@@ -7,7 +7,7 @@ import type { TodaySummary } from "@/lib/warehouse-home";
 /**
  * The first thing the warehouse sees.
  *
- * A greeting, the time in both countries, and today's five numbers. It is the
+ * A greeting, the time in both countries, and today's three numbers. It is the
  * only part of the page that is about the person rather than the cargo, and it
  * earns its space by answering "how is today going" before anyone scrolls.
  *
@@ -40,7 +40,6 @@ export function WarehouseHero({
       label: "Weight today",
       value: `${summary.weightKg.toFixed(1)} kg`,
     },
-    { icon: Camera, label: "Photos today", value: String(summary.photos) },
     {
       icon: Printer,
       label: "Labels printed",
@@ -90,7 +89,7 @@ export function WarehouseHero({
           </div>
         </div>
 
-        <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {chips.map((chip) => (
             <div
               key={chip.label}
