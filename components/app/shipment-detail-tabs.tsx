@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, FileText, History, Package, Search } from "lucide-react";
+import {
+  ChevronRight,
+  Download,
+  FileText,
+  History,
+  Package,
+  Search,
+} from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -196,6 +203,7 @@ export function ShipmentDetailTabs({
                   <th className="px-3 py-2 text-right font-medium">Pkgs</th>
                   <th className="px-3 py-2 font-medium">Proof</th>
                   <th className="hidden px-3 py-2 font-medium md:table-cell">Status</th>
+                  <th className="w-20 px-3 py-2" />
                 </tr>
               </thead>
               <tbody>
@@ -271,12 +279,21 @@ export function ShipmentDetailTabs({
                     <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground md:table-cell">
                       {line.statusLabel}
                     </td>
+                    <td className="px-3 py-1.5 text-right">
+                      <Link
+                        href={`/app/cargo/${line.trackingNumber}`}
+                        className="inline-flex items-center gap-0.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"
+                      >
+                        Open
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </td>
                   </tr>
                 ))}
                 {visible.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={10}
                       className="p-10 text-center text-sm text-muted-foreground"
                     >
                       No cargo matches that search.

@@ -2,7 +2,16 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Camera, Download, Grid3x3, Printer, Search, Table2, X } from "lucide-react";
+import {
+  Camera,
+  ChevronRight,
+  Download,
+  Grid3x3,
+  Printer,
+  Search,
+  Table2,
+  X,
+} from "lucide-react";
 
 
 import { Input } from "@/components/ui/input";
@@ -58,6 +67,18 @@ const CATEGORY_CHIP: Record<string, string> = {
   NORMAL_GOODS: "bg-brand/10 text-brand",
   ELECTRONICS: "bg-info/10 text-info",
   LIQUID_SPECIAL: "bg-warning/10 text-warning",
+};
+
+/**
+ * Shorter status wording for a dense table.
+ *
+ * The full phrase is right on a shipment's own page, where it is read once.
+ * In a column headed "Status", repeated down eighty-five rows, the extra words
+ * only push the actions off the edge of the screen.
+ */
+const SHORT_STATUS: Record<string, string> = {
+  "Waiting for next flight": "Awaiting flight",
+  "Received at Dar warehouse": "At Dar warehouse",
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -366,12 +387,12 @@ export function CargoGrid({
                   <th className="px-3 py-2 font-medium">Cargo</th>
                   <th className="px-3 py-2 text-right font-medium">Weight</th>
                   <th className="px-3 py-2 text-right font-medium">Pkgs</th>
-                  <th className="px-3 py-2 font-medium">Proof</th>
-                  <th className="hidden px-3 py-2 font-medium xl:table-cell">
+                  <th className="hidden px-3 py-2 font-medium md:table-cell">Proof</th>
+                  <th className="hidden px-3 py-2 font-medium 2xl:table-cell">
                     Received by
                   </th>
                   <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="w-10 px-3 py-2" />
+                  <th className="sticky right-0 z-20 w-28 bg-muted px-3 py-2" />
                 </tr>
               </thead>
               <tbody>
@@ -406,10 +427,10 @@ export function CargoGrid({
                     <td className="px-3 py-1.5 text-right font-mono tabular-nums">
                       {cell.packages}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-1.5">
+                    <td className="hidden whitespace-nowrap px-3 py-1.5 md:table-cell">
                       <PhotoProof photos={cell.photos} tracking={cell.trackingNumber} />
                     </td>
-                    <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground xl:table-cell">
+                    <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground 2xl:table-cell">
                       {cell.receivedBy ?? "—"}
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5 text-xs">
@@ -418,21 +439,45 @@ export function CargoGrid({
                       ) : cell.verification === "VERIFIED" ? (
                         <span className="text-success">Checked in</span>
                       ) : (
-                        <span className="text-muted-foreground">{cell.statusLabel}</span>
+                        <span className="text-muted-foreground">
+                          {SHORT_STATUS[cell.statusLabel] ?? cell.statusLabel}
+                        </span>
                       )}
                     </td>
-                    <td className="px-3 py-1.5 text-right">
-                      {/* One click, one sticker. The label is normally printed
-                          the moment the cargo is recorded; this is here for the
-                          reprint, which is the only reason to come looking. */}
-                      <Link
-                        href={`/app/cargo/${cell.trackingNumber}/label`}
-                        title={`Print sticker for ${cell.trackingNumber}`}
-                        aria-label={`Print sticker for ${cell.trackingNumber}`}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                      >
-                        <Printer className="h-3.5 w-3.5" />
-                      </Link>
+                    <td
+                      className={cn(
+                        "sticky right-0 z-10 px-3 py-1.5",
+                        // Matches the row so the pinned column does not look
+                        // like it is floating over the content it belongs to.
+                        cell.verification === "EXCEPTION"
+                          ? "bg-[hsl(var(--card))]"
+                          : "bg-card"
+                      )}
+                    >
+                      <span className="flex items-center justify-end gap-1">
+                        {/* One click, one sticker. The label is normally printed
+                            the moment the cargo is recorded; this is here for
+                            the reprint, which is the only reason to come
+                            looking. */}
+                        <Link
+                          href={`/app/cargo/${cell.trackingNumber}/label`}
+                          title={`Print sticker for ${cell.trackingNumber}`}
+                          aria-label={`Print sticker for ${cell.trackingNumber}`}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        >
+                          <Printer className="h-3.5 w-3.5" />
+                        </Link>
+                        {/* An explicit way in. The tracking number is a link
+                            too, but a small mono number is a poor target and
+                            nothing about it says "there is more here". */}
+                        <Link
+                          href={`/app/cargo/${cell.trackingNumber}`}
+                          className="inline-flex items-center gap-0.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"
+                        >
+                          Open
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </Link>
+                      </span>
                     </td>
                   </tr>
                 ))}
