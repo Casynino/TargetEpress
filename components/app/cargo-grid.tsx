@@ -409,7 +409,15 @@ export function CargoGrid({
                     Received by
                   </th>
                   <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="sticky right-0 z-20 w-36 bg-muted px-3 py-2" />
+                  {/* Both actions get a heading of their own. A blank column
+                      header over two buttons reads as an accident. Widths are
+                      fixed so the pinned offsets below line up with them. */}
+                  <th className="sticky right-[92px] z-20 w-[92px] min-w-[92px] bg-muted px-3 py-2 font-medium">
+                    Print
+                  </th>
+                  <th className="sticky right-0 z-20 w-[92px] min-w-[92px] bg-muted px-3 py-2 font-medium">
+                    Open
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -461,9 +469,12 @@ export function CargoGrid({
                         </span>
                       )}
                     </td>
+                    {/* One click, one sticker. The label is normally printed
+                        the moment the cargo is recorded; this is here for the
+                        reprint, which is the only reason to come looking. */}
                     <td
                       className={cn(
-                        "sticky right-0 z-10 px-3 py-1.5",
+                        "sticky right-[92px] z-10 w-[92px] min-w-[92px] px-3 py-1.5",
                         // Matches the row so the pinned column does not look
                         // like it is floating over the content it belongs to.
                         cell.verification === "EXCEPTION"
@@ -471,31 +482,34 @@ export function CargoGrid({
                           : "bg-card"
                       )}
                     >
-                      <span className="flex items-center justify-end gap-1">
-                        {/* One click, one sticker. The label is normally printed
-                            the moment the cargo is recorded; this is here for
-                            the reprint, which is the only reason to come
-                            looking. */}
-                        <Link
-                          href={`/app/cargo/${cell.trackingNumber}/label`}
-                          title={`Print sticker for ${cell.trackingNumber}`}
-                          aria-label={`Print sticker for ${cell.trackingNumber}`}
-                          className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                        >
-                          <Printer className="h-3.5 w-3.5" />
-                          Print
-                        </Link>
-                        {/* An explicit way in. The tracking number is a link
-                            too, but a small mono number is a poor target and
-                            nothing about it says "there is more here". */}
-                        <Link
-                          href={`/app/cargo/${cell.trackingNumber}`}
-                          className="inline-flex items-center gap-0.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"
-                        >
-                          Open
-                          <ChevronRight className="h-3.5 w-3.5" />
-                        </Link>
-                      </span>
+                      <Link
+                        href={`/app/cargo/${cell.trackingNumber}/label`}
+                        title={`Print sticker for ${cell.trackingNumber}`}
+                        aria-label={`Print sticker for ${cell.trackingNumber}`}
+                        className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                        Print
+                      </Link>
+                    </td>
+                    {/* An explicit way in. The tracking number is a link too,
+                        but a small mono number is a poor target and nothing
+                        about it says "there is more here". */}
+                    <td
+                      className={cn(
+                        "sticky right-0 z-10 w-[92px] min-w-[92px] px-3 py-1.5",
+                        cell.verification === "EXCEPTION"
+                          ? "bg-[hsl(var(--card))]"
+                          : "bg-card"
+                      )}
+                    >
+                      <Link
+                        href={`/app/cargo/${cell.trackingNumber}`}
+                        className="inline-flex items-center gap-0.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"
+                      >
+                        Open
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </Link>
                     </td>
                   </tr>
                 ))}
