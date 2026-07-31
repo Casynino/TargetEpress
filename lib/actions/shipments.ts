@@ -54,6 +54,67 @@ async function appendHistory(
   });
 }
 
+
+/**
+ * Finds or creates the customer a shipment belongs to.
+ *
+ * Three routes in, in order of trust:
+ *
+ *  1. The clerk picked a record from the book. That id wins outright — it is an
+ *     explicit human decision and nothing else should override it.
+ *  2. A phone number matches an existing customer. Phone numbers are unique, so
+ *     this is safe.
+ *  3. Nothing matches: a new record is created and enters the book, ready to be
+ *     found by name next time.
+ *
+ * Deliberately does NOT match on name alone when creating. Two different traders
+ * called "Daniel" are common, and silently merging their cargo would hand one
+ * customer's goods to another.
+ */
+async function resolveCustomer(
+  tx: Prisma.TransactionClient,
+  input: {
+    customerId: string | null;
+    customerName: string;
+    customerPhone: string | null;
+    customerCity?: string;
+  },
+  actorId: string
+) {
+  if (input.customerId) {
+    const picked = await tx.customer.findUnique({ where: { id: input.customerId } });
+    if (!picked) throw new Error("That customer no longer exists.");
+    return picked;
+  }
+
+  const phone = input.customerPhone ? normalisePhone(input.customerPhone) : null;
+
+  if (phone) {
+    const existing = await tx.customer.findUnique({ where: { phone } });
+    if (existing) {
+      if (existing.name !== input.customerName) {
+        // Keep the most recent spelling the desk used, but never reassign the
+        // number to a different person's shipments.
+        await tx.customer.update({
+          where: { id: existing.id },
+          data: { name: input.customerName },
+        });
+      }
+      return existing;
+    }
+  }
+
+  return tx.customer.create({
+    data: {
+      code: await nextCustomerCode(tx),
+      name: input.customerName,
+      phone,
+      city: input.customerCity || null,
+      createdById: actorId,
+    },
+  });
+}
+
 export async function createShipment(
   _prev: ActionResult<{ trackingNumber: string }> | undefined,
   formData: FormData
@@ -92,29 +153,7 @@ export async function createShipment(
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const phone = normalisePhone(input.customerPhone);
-
-      // Warehouse staff should never have to look a customer up first —
-      // the phone number is the key, and a new one creates the record.
-      let customer = await tx.customer.findUnique({ where: { phone } });
-      if (!customer) {
-        customer = await tx.customer.create({
-          data: {
-            code: await nextCustomerCode(tx),
-            name: input.customerName,
-            phone,
-            city: input.customerCity || null,
-            createdById: user.id,
-          },
-        });
-      } else if (customer.name !== input.customerName) {
-        // Keep the most recent spelling the desk used, but never silently
-        // reassign the phone number to a different person's shipments.
-        await tx.customer.update({
-          where: { id: customer.id },
-          data: { name: input.customerName },
-        });
-      }
+      const customer = await resolveCustomer(tx, input, user.id);
 
       // The departure airport is derived from what the cargo is. The warehouse
       // never picks it, so cargo cannot be routed to the wrong hub by mistake.

@@ -43,8 +43,23 @@ const optionalNumeric = z
  * exactly what the operations/finance split exists to prevent.
  */
 export const shipmentSchema = z.object({
+  /// Set when the clerk picked someone from the customer book. Takes priority
+  /// over the name and phone, which then only describe an existing record.
+  customerId: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null)),
   customerName: z.string().trim().min(2, "Customer name is required."),
-  customerPhone: z.string().trim().min(7, "A valid phone number is required."),
+  /// Optional on purpose: consolidated cargo regularly arrives from a Guangzhou
+  /// packing list with a name and no number, and refusing to register it would
+  /// mean the warehouse invents one.
+  customerPhone: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null))
+    .refine((v) => v === null || v.length >= 7, "That phone number is too short."),
   customerCity: z.string().trim().optional(),
   cargoCategory: z.enum(["NORMAL_GOODS", "ELECTRONICS", "LIQUID_SPECIAL"]),
   cargoTypeId: z

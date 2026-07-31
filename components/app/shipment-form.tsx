@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import type { CargoCategory } from "@prisma/client";
-import { CheckCircle2, Info, Plane, UserCheck } from "lucide-react";
+import { CheckCircle2, Info, Plane } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { PhotoCapture } from "@/components/app/photo-capture";
@@ -19,7 +19,7 @@ import {
   CATEGORY_LABELS,
   ROUTE_FOR_CATEGORY,
 } from "@/lib/cargo";
-import { DESCRIPTION_SUGGESTIONS, TZ_CITIES } from "@/lib/constants";
+import { CustomerPicker } from "@/components/app/customer-picker";
 
 const CATEGORIES: CargoCategory[] = [
   "NORMAL_GOODS",
@@ -35,7 +35,6 @@ type OpenBatch = {
 
 type CargoTypeOption = { id: string; name: string };
 
-type KnownCustomer = { code: string; name: string; city: string | null } | null;
 
 /**
  * Cargo registration, for the warehouse.
@@ -61,10 +60,6 @@ export function ShipmentForm({
     FormData
   >(createShipment, { ok: true });
 
-  const [phone, setPhone] = useState("");
-  const [known, setKnown] = useState<KnownCustomer>(null);
-  const [name, setName] = useState("");
-  const [city, setCity] = useState("");
   const [category, setCategory] = useState<CargoCategory>("NORMAL_GOODS");
   const [cargoTypeId, setCargoTypeId] = useState("");
   const [batchId, setBatchId] = useState("");
@@ -82,39 +77,6 @@ export function ShipmentForm({
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
-
-  // Look the customer up as the number is typed — the desk should never have to
-  // retype a name it has already captured once.
-  useEffect(() => {
-    const digits = phone.replace(/\D/g, "");
-    if (digits.length < 9) {
-      setKnown(null);
-      return;
-    }
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/customers/lookup?phone=${encodeURIComponent(phone)}`,
-          { signal: controller.signal }
-        );
-        if (!res.ok) return;
-        const data = (await res.json()) as { customer: KnownCustomer };
-        setKnown(data.customer);
-        if (data.customer) {
-          setName(data.customer.name);
-          setCity(data.customer.city ?? "");
-        }
-      } catch {
-        // Aborted or offline — staff can still type the name.
-      }
-    }, 350);
-
-    return () => {
-      controller.abort();
-      clearTimeout(timer);
-    };
-  }, [phone]);
 
   const created = state.ok && state.data?.trackingNumber;
 
@@ -157,63 +119,12 @@ export function ShipmentForm({
       <section className="panel p-6">
         <h2 className="font-display font-semibold">1. Customer</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          The phone number is the customer&apos;s identity. Enter it first and the
-          rest fills itself if we know them.
+          Find them if we have shipped for them before. If not, record them once
+          and they are in the book from then on.
         </p>
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="customerPhone">Phone number</Label>
-            <Input
-              id="customerPhone"
-              name="customerPhone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="0762 000 111"
-              inputMode="tel"
-              autoComplete="off"
-              required
-            />
-            {known ? (
-              <p className="flex items-center gap-1.5 text-xs text-success">
-                <UserCheck className="h-3.5 w-3.5" />
-                Existing customer {known.code}
-              </p>
-            ) : phone.replace(/\D/g, "").length >= 9 ? (
-              <p className="text-xs text-muted-foreground">
-                New customer — a code will be created.
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="customerName">Name or company</Label>
-            <Input
-              id="customerName"
-              name="customerName"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Trader or business name"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="customerCity">City in Tanzania</Label>
-            <Input
-              id="customerCity"
-              name="customerCity"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              list="tz-cities"
-              placeholder="Dar es Salaam"
-            />
-            <datalist id="tz-cities">
-              {TZ_CITIES.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-          </div>
+        <div className="mt-5">
+          <CustomerPicker />
         </div>
       </section>
 
@@ -306,15 +217,14 @@ export function ShipmentForm({
           <Input
             id="description"
             name="description"
-            list="cargo-descriptions"
             placeholder="What is actually in the boxes"
+            autoComplete="off"
             required
           />
-          <datalist id="cargo-descriptions">
-            {DESCRIPTION_SUGGESTIONS.map((d) => (
-              <option key={d} value={d} />
-            ))}
-          </datalist>
+          <p className="text-xs text-muted-foreground">
+            Your own words. This is what the customer sees when they track, and
+            what appears on the invoice.
+          </p>
         </div>
       </section>
 
