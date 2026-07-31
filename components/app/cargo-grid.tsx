@@ -4,14 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
-  Camera,
   ChevronRight,
   Download,
-  Grid3x3,
   Paperclip,
   Printer,
   Search,
-  Table2,
   X,
 } from "lucide-react";
 
@@ -52,12 +49,6 @@ export type CargoCell = {
    * the counter — nothing has to copy them along.
    */
   photos: { id: string; url: string; kind: string; caption: string | null }[];
-};
-
-const CATEGORY_TINT: Record<string, string> = {
-  NORMAL_GOODS: "bg-brand/10 border-brand/30 text-brand",
-  ELECTRONICS: "bg-info/10 border-info/30 text-info",
-  LIQUID_SPECIAL: "bg-warning/10 border-warning/30 text-warning",
 };
 
 /** Short forms, because this column is read at a glance a hundred times a day. */
@@ -251,9 +242,6 @@ export function CargoGrid({
   /** Set to allow selecting cargo and printing their stickers together. */
   batchId?: string;
 }) {
-  // List first, deliberately. The tile grid is a picture of one batch; the list
-  // is what a desk works down when several hundred cartons are moving in a week.
-  const [view, setView] = useState<"list" | "grid">("list");
   const [filter, setFilter] = useState<string>("ALL");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("received");
@@ -380,29 +368,6 @@ export function CargoGrid({
           </Link>
         ) : null}
 
-        <div className="ml-auto flex rounded-md border p-0.5">
-          {(
-            [
-              { key: "list", Icon: Table2, label: "List" },
-              { key: "grid", Icon: Grid3x3, label: "Cargo layout" },
-            ] as const
-          ).map(({ key, Icon, label }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setView(key)}
-              aria-label={label}
-              aria-pressed={view === key}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm transition-colors",
-                view === key ? "bg-muted font-medium" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              <span className="hidden sm:inline">{label}</span>
-            </button>
-          ))}
-        </div>
       </div>
 
       {query.trim() || filter !== "ALL" ? (
@@ -422,49 +387,7 @@ export function CargoGrid({
         </p>
       )}
 
-      {view === "grid" ? (
-        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-          {sorted.map((cell) => (
-            <li key={cell.id}>
-              <Link
-                href={`/app/cargo/${cell.trackingNumber}`}
-                className={cn(
-                  "flex h-full flex-col justify-between rounded-lg border-2 p-3 transition-shadow hover:shadow-lift",
-                  cell.verification === "EXCEPTION"
-                    ? "border-destructive bg-destructive/5"
-                    : cell.verification === "VERIFIED"
-                      ? "border-success bg-success/5"
-                      : CATEGORY_TINT[cell.category] ?? "bg-card"
-                )}
-              >
-                <div>
-                  <p className="font-mono text-xs font-bold tabular-nums">
-                    {cell.trackingNumber}
-                  </p>
-                  <p className="text-[10px] text-foreground/60">
-                    {cell.receivedLabel}
-                  </p>
-                  <p className="mt-1 line-clamp-2 text-xs font-medium text-foreground">
-                    {cell.description}
-                  </p>
-                </div>
-                <div className="mt-2 border-t border-current/20 pt-1.5">
-                  <p className="flex items-center gap-1 truncate text-[11px] text-foreground/70">
-                    {cell.photos.length > 0 ? (
-                      <Camera className="h-3 w-3 shrink-0" />
-                    ) : null}
-                    {cell.customerName}
-                  </p>
-                  <p className="font-mono text-[11px] tabular-nums text-foreground/70">
-                    {cell.weightKg.toFixed(1)} kg · {cell.packagesLabel}
-                  </p>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
+      <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
           <div className="max-h-[70vh] overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -574,8 +497,7 @@ export function CargoGrid({
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+      </div>
 
       {sorted.length === 0 ? (
         <p className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
