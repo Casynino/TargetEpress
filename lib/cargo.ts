@@ -12,6 +12,37 @@ import type { CargoCategory, Origin, PricingMethod } from "@prisma/client";
  * by the CEO, and nothing about them is hardcoded.
  */
 
+/**
+ * What the cargo is, in one line: the priced item first, then the desk's own
+ * words in brackets — "Clothes (nguo)".
+ *
+ * The item is what Finance bills against and what everyone recognises at a
+ * glance; the description is how the customer or the Guangzhou desk actually
+ * named it, often in Swahili or Chinese. Showing only the description meant a
+ * list full of words that do not map to any price, and showing only the item
+ * meant nine rows that all say "Clothes".
+ *
+ * Either half may be missing — cargo can be registered as "Not listed / mixed",
+ * and imported cargo sometimes has no description at all.
+ */
+export function cargoLabel(
+  itemName: string | null | undefined,
+  description: string | null | undefined
+) {
+  const item = itemName?.trim();
+  const text = description?.trim();
+
+  if (!item) return text || "General cargo";
+  if (!text) return item;
+  // "Clothes (Clothes)" helps nobody.
+  if (text.toLowerCase() === item.toLowerCase()) return item;
+  // Descriptions off the China packing lists carry their own brackets —
+  // "Accessories (配件)". Wrapping those again gives nested brackets nobody can
+  // read, so those get a dash instead.
+  if (text.includes("(")) return `${item} — ${text}`;
+  return `${item} (${text})`;
+}
+
 export const CATEGORY_LABELS: Record<CargoCategory, string> = {
   NORMAL_GOODS: "Normal goods",
   ELECTRONICS: "Electronics",

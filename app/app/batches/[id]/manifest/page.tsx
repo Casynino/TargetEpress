@@ -13,6 +13,7 @@ import {
   formatPackagesShort,
 } from "@/lib/constants";
 import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
+import { cargoLabel } from "@/lib/cargo";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 
@@ -181,7 +182,7 @@ export default async function ManifestPage({
                   {shipment.customer.phone ?? "—"}
                 </td>
                 <td className="py-2 pr-2">
-                  {shipment.cargoType?.name ?? shipment.description}
+                  {cargoLabel(shipment.cargoType?.name, shipment.description)}
                 </td>
                 <td className="py-2 pr-2 text-right tabular">
                   {formatPackagesShort(shipment.packages, shipment.packageType)}

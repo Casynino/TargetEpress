@@ -18,6 +18,7 @@ import {
   formatPackagesShort,
 } from "@/lib/constants";
 import { formatDate, formatDateTime, toNumber } from "@/lib/format";
+import { cargoLabel } from "@/lib/cargo";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 
@@ -46,6 +47,7 @@ export default async function ShipmentPage({
         orderBy: { registeredAt: "desc" },
         include: {
           customer: { select: { id: true, name: true, phone: true } },
+          cargoType: { select: { name: true } },
           photos: {
             orderBy: { createdAt: "asc" },
             select: { id: true, url: true, caption: true },
@@ -67,7 +69,7 @@ export default async function ShipmentPage({
     customerId: item.customer.id,
     customerName: item.customer.name,
     customerPhone: item.customer.phone,
-    description: item.description,
+    description: cargoLabel(item.cargoType?.name, item.description),
     category: item.cargoCategory,
     weightKg: toNumber(item.weightKg),
     packages: item.packages,

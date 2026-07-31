@@ -8,7 +8,7 @@ import { KpiCard } from "@/components/app/kpi-card";
 import { DispatchForm } from "@/components/app/dispatch-form";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
-import { CATEGORY_LABELS, categoryFitsRoute } from "@/lib/cargo";
+import { CATEGORY_LABELS, categoryFitsRoute, cargoLabel } from "@/lib/cargo";
 import {
   ORIGIN_LABELS,
   SHIPMENT_STATUS_META,
@@ -63,6 +63,7 @@ export default async function LoadingTablePage({
         include: {
           customer: { select: { name: true, phone: true } },
           createdBy: { select: { name: true } },
+          cargoType: { select: { name: true } },
           photos: {
             orderBy: { createdAt: "asc" },
             select: { id: true, url: true, kind: true, caption: true },
@@ -263,7 +264,10 @@ export default async function LoadingTablePage({
                 trackingNumber: shipment.trackingNumber,
                 cartonRef: shipment.cartonRef,
                 customerName: shipment.customer.name,
-                description: shipment.description,
+                description: cargoLabel(
+                  shipment.cargoType?.name,
+                  shipment.description
+                ),
                 weightKg: toNumber(shipment.weightKg),
                 packages: shipment.packages,
                 packagesLabel: formatPackagesShort(
