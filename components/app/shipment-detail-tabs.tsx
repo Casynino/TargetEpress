@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { FileText, History, Package, Search } from "lucide-react";
+import { Download, FileText, History, Package, Search } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -22,6 +22,8 @@ export type CargoLine = {
   status: string;
   statusLabel: string;
   receivedLabel: string;
+  /** Proof photos, carried by the cargo itself all the way to the counter. */
+  photos: { id: string; url: string; caption: string | null }[];
   /** Undefined for roles that may not see money. */
   valueUsd?: number;
 };
@@ -198,6 +200,7 @@ export function ShipmentDetailTabs({
                   <th className="hidden px-3 py-2 font-medium lg:table-cell">Type</th>
                   <th className="px-3 py-2 text-right font-medium">Weight</th>
                   <th className="px-3 py-2 text-right font-medium">Pkgs</th>
+                  <th className="px-3 py-2 font-medium">Proof</th>
                   <th className="hidden px-3 py-2 font-medium md:table-cell">Status</th>
                 </tr>
               </thead>
@@ -235,6 +238,42 @@ export function ShipmentDetailTabs({
                     <td className="px-3 py-1.5 text-right font-mono tabular-nums">
                       {line.packages}
                     </td>
+                    <td className="whitespace-nowrap px-3 py-1.5">
+                      {line.photos.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <span className="flex items-center gap-1.5">
+                          <a
+                            href={line.photos[0].url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`View ${line.photos.length} photo(s)`}
+                            className="group relative block h-8 w-8 shrink-0 overflow-hidden rounded border"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={line.photos[0].url}
+                              alt={line.photos[0].caption ?? `Cargo photo for ${line.trackingNumber}`}
+                              className="h-full w-full object-cover transition-transform group-hover:scale-110"
+                              loading="lazy"
+                            />
+                            {line.photos.length > 1 ? (
+                              <span className="absolute bottom-0 right-0 rounded-tl bg-black/70 px-1 text-[9px] font-medium text-white">
+                                {line.photos.length}
+                              </span>
+                            ) : null}
+                          </a>
+                          <a
+                            href={line.photos[0].url}
+                            download={`${line.trackingNumber}.jpg`}
+                            title="Download"
+                            className="text-muted-foreground transition-colors hover:text-foreground"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </a>
+                        </span>
+                      )}
+                    </td>
                     <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground md:table-cell">
                       {line.statusLabel}
                     </td>
@@ -243,7 +282,7 @@ export function ShipmentDetailTabs({
                 {visible.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="p-10 text-center text-sm text-muted-foreground"
                     >
                       No cargo matches that search.

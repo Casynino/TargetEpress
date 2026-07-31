@@ -202,8 +202,13 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
     } else if (landed) {
       collectionNote =
         "Your cargo has landed and is being checked in. We will message you the moment it is ready.";
+    } else if (shipment.status === "IN_TRANSIT") {
+      collectionNote =
+        "In the air. We will message you the moment it lands in Dar es Salaam.";
     } else {
-      collectionNote = "Still on its way. Nothing to collect yet.";
+      collectionNote =
+        `Received at our ${ORIGIN_PUBLIC[shipment.origin] ?? shipment.origin} warehouse and ` +
+        "waiting for the next flight. Nothing to collect yet.";
     }
 
     return {

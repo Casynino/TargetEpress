@@ -9,7 +9,7 @@ import { DispatchForm } from "@/components/app/dispatch-form";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_LABELS, categoryFitsRoute } from "@/lib/cargo";
-import { ORIGIN_LABELS } from "@/lib/constants";
+import { ORIGIN_LABELS, SHIPMENT_STATUS_META } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -44,7 +44,13 @@ export default async function LoadingTablePage({
       verifications: { select: { shipmentId: true, result: true } },
       shipments: {
         orderBy: { registeredAt: "asc" },
-        include: { customer: { select: { name: true, phone: true } } },
+        include: {
+          customer: { select: { name: true, phone: true } },
+          photos: {
+            orderBy: { createdAt: "asc" },
+            select: { id: true, url: true, kind: true, caption: true },
+          },
+        },
       },
     },
   });
@@ -226,6 +232,8 @@ export default async function LoadingTablePage({
                 category: shipment.cargoCategory,
                 verification:
                   verificationByShipment.get(shipment.id)?.result ?? null,
+                statusLabel: SHIPMENT_STATUS_META[shipment.status].label,
+                photos: shipment.photos,
               }))}
             />
           </div>

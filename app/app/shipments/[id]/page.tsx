@@ -40,7 +40,13 @@ export default async function ShipmentPage({
       createdBy: { select: { name: true } },
       shipments: {
         orderBy: { trackingNumber: "asc" },
-        include: { customer: { select: { id: true, name: true, phone: true } } },
+        include: {
+          customer: { select: { id: true, name: true, phone: true } },
+          photos: {
+            orderBy: { createdAt: "asc" },
+            select: { id: true, url: true, caption: true },
+          },
+        },
       },
     },
   });
@@ -64,6 +70,7 @@ export default async function ShipmentPage({
     status: item.status,
     statusLabel: SHIPMENT_STATUS_META[item.status].label,
     receivedLabel: formatDate(item.registeredAt),
+    photos: item.photos,
   }));
 
   const weight = cargo.reduce((sum, line) => sum + line.weightKg, 0);

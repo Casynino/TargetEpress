@@ -202,11 +202,11 @@ export const SHIPMENT_STATUS_META: Record<ShipmentStatus, StatusMeta> = {
   // twice over: the cargo is not going anywhere until its batch is sealed, and
   // the batch has its own status of the same name meaning something else.
   READY_TO_DEPART: {
-    label: "In China warehouse",
+    label: "Waiting for next flight",
     publicLabel: "Received in China",
     publicLocation: "China warehouse",
     description:
-      "Registered and labelled in China, waiting for its batch to be sealed and flown.",
+      "Registered and labelled in China, waiting for the next flight out.",
     tone: "muted",
     owner: "China Warehouse",
   },

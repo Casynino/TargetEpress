@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Grid3x3, Search, Table2, X } from "lucide-react";
+import { Camera, Download, Grid3x3, Search, Table2, X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -22,6 +22,14 @@ export type CargoCell = {
   category: string;
   /** Null until the batch has been checked in at Dar. */
   verification: "VERIFIED" | "EXCEPTION" | null;
+  /** What the cargo actually is right now, in the words staff read. */
+  statusLabel: string;
+  /**
+   * Proof photos, taken when the cargo was received. They belong to the cargo,
+   * so they travel with it into the batch, onto the flight and all the way to
+   * the counter — nothing has to copy them along.
+   */
+  photos: { id: string; url: string; kind: string; caption: string | null }[];
 };
 
 const CATEGORY_TINT: Record<string, string> = {
@@ -48,6 +56,63 @@ const CATEGORY_LABEL: Record<string, string> = {
   ELECTRONICS: "Electronics",
   LIQUID_SPECIAL: "Special goods",
 };
+
+/**
+ * The photos taken when this cargo was received.
+ *
+ * A thumbnail that opens the full image, and an explicit download beside it.
+ * Both matter: someone settling an argument about damage wants to look now,
+ * and someone answering a claim wants the file to attach to an email.
+ */
+function PhotoProof({
+  photos,
+  tracking,
+}: {
+  photos: CargoCell["photos"];
+  tracking: string;
+}) {
+  if (photos.length === 0) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+
+  const first = photos[0];
+
+  return (
+    <span className="flex items-center gap-1.5">
+      <a
+        href={first.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={`View ${photos.length} photo${photos.length === 1 ? "" : "s"} of ${tracking}`}
+        className="group relative block h-8 w-8 shrink-0 overflow-hidden rounded border"
+      >
+        {/* Deliberately a plain img: these are user uploads on a storage host
+            that may not be in the Next image allow-list, and a broken optimiser
+            would hide the proof entirely. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={first.url}
+          alt={first.caption ?? `Cargo photo for ${tracking}`}
+          className="h-full w-full object-cover transition-transform group-hover:scale-110"
+          loading="lazy"
+        />
+        {photos.length > 1 ? (
+          <span className="absolute bottom-0 right-0 rounded-tl bg-black/70 px-1 text-[9px] font-medium text-white">
+            {photos.length}
+          </span>
+        ) : null}
+      </a>
+      <a
+        href={first.url}
+        download={`${tracking}.jpg`}
+        title="Download"
+        className="text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <Download className="h-3.5 w-3.5" />
+      </a>
+    </span>
+  );
+}
 
 /**
  * A batch as cargo, not as rows.
@@ -250,7 +315,10 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
                   </p>
                 </div>
                 <div className="mt-2 border-t border-current/20 pt-1.5">
-                  <p className="truncate text-[11px] text-foreground/70">
+                  <p className="flex items-center gap-1 truncate text-[11px] text-foreground/70">
+                    {cell.photos.length > 0 ? (
+                      <Camera className="h-3 w-3 shrink-0" />
+                    ) : null}
                     {cell.customerName}
                   </p>
                   <p className="font-mono text-[11px] tabular-nums text-foreground/70">
@@ -274,7 +342,8 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
                   <th className="hidden px-3 py-2 font-medium lg:table-cell">Type</th>
                   <th className="px-3 py-2 text-right font-medium">Weight</th>
                   <th className="px-3 py-2 text-right font-medium">Pkgs</th>
-                  <th className="px-3 py-2 font-medium">State</th>
+                  <th className="px-3 py-2 font-medium">Proof</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -319,13 +388,16 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
                     <td className="px-3 py-1.5 text-right font-mono tabular-nums">
                       {cell.packages}
                     </td>
+                    <td className="whitespace-nowrap px-3 py-1.5">
+                      <PhotoProof photos={cell.photos} tracking={cell.trackingNumber} />
+                    </td>
                     <td className="whitespace-nowrap px-3 py-1.5 text-xs">
-                      {cell.verification === "VERIFIED" ? (
-                        <span className="text-success">checked in</span>
-                      ) : cell.verification === "EXCEPTION" ? (
-                        <span className="font-medium text-destructive">flagged</span>
+                      {cell.verification === "EXCEPTION" ? (
+                        <span className="font-medium text-destructive">Flagged</span>
+                      ) : cell.verification === "VERIFIED" ? (
+                        <span className="text-success">Checked in</span>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">{cell.statusLabel}</span>
                       )}
                     </td>
                   </tr>
