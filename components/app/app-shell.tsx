@@ -27,6 +27,7 @@ import {
   Wallet,
   UserRound,
   Bell,
+  Inbox,
   type LucideIcon,
 } from "lucide-react";
 
@@ -65,6 +66,7 @@ const ICONS: Record<string, LucideIcon> = {
   FlaskConical,
   UserRound,
   Bell,
+  Inbox,
 };
 
 type ShellUser = {

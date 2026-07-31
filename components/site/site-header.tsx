@@ -18,13 +18,16 @@ import {
 import { COMPANY } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
+// Ordered by what a visitor came to do, not by what the company wants to say.
+// Booking and pickup lead because they are the two things that turn a reader
+// into a customer; the reference pages sit behind them.
 const NAV = [
-  { href: "/", label: "Nyumbani" },
-  { href: "/china", label: "Anwani ya China" },
+  { href: "/book", label: "Book" },
+  { href: "/pickup", label: "Pickup" },
+  { href: "/schedule", label: "Flights" },
   { href: "/pricing", label: "Bei" },
+  { href: "/china", label: "Anwani ya China" },
   { href: "/services", label: "Huduma" },
-  { href: "/services/sourcing", label: "Tunanunulia" },
-  { href: "/track", label: "Fuatilia" },
   { href: "/contact", label: "Wasiliana" },
 ];
 

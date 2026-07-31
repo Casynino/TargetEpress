@@ -35,6 +35,11 @@
     /* Brand — matched to the company logo: navy wordmark, red aircraft.
        Navy carries structure and trust; red is the action colour on the
        public site, exactly as it is the loudest thing in their artwork. */
+    /* The deep field the public site's hero sections sit on. Darker than
+       --brand and independent of the light/dark theme: these panels are the
+       same colour in both, the way a printed cover is. */
+    --ink: 217 45% 8%;
+
     --brand: 216 72% 22%;
     --brand-foreground: 0 0% 100%;
     --brand-muted: 216 62% 96%;

@@ -236,6 +236,8 @@ model User {
 
   logins        LoginEvent[]
   notifications Notification[]
+  handledBookings BookingRequest[] @relation("BookingHandledBy")
+  handledPickups  PickupRequest[]  @relation("PickupHandledBy")
 
   createdById String?
   createdBy   User?   @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -475,6 +477,7 @@ model Shipment {
   tickets       SupportTicket[]
   messages      CustomerMessage[]
   packageList   Package[]
+  booking       BookingRequest?
   pickupNote    PickupNote?
   delivery      DeliveryRecord?
 
@@ -1271,4 +1274,88 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
+}
+
+
+/// How far along a request from the public website is.
+enum RequestStatus {
+  PENDING
+  CONTACTED
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+/// Somebody on the website telling us cargo is coming.
+///
+/// Not a shipment. It has no tracking number, no weight anyone has verified
+/// and no QR — it is a promise, and it becomes a shipment only when the boxes
+/// are physically on the counter in Guangzhou. Keeping the two apart is what
+/// stops the warehouse from having to trust a number a customer typed.
+model BookingRequest {
+  id            String @id @default(cuid())
+  reference     String @unique // BK-000123
+
+  customerName  String
+  phone         String
+  email         String?
+  company       String?
+
+  /// What they say they are sending, in their words.
+  description   String
+  cargoCategory CargoCategory @default(NORMAL_GOODS)
+  /// Their estimate. Nobody bills on this.
+  estimatedWeightKg Decimal? @db.Decimal(10, 3)
+  packages      Int?
+  origin        Origin   @default(GUANGZHOU)
+  pickupNeeded  Boolean  @default(false)
+  wantedBy      DateTime?
+  notes         String?
+
+  status      RequestStatus @default(PENDING)
+  handledById String?
+  handledBy   User?         @relation("BookingHandledBy", fields: [handledById], references: [id], onDelete: SetNull)
+  handledAt   DateTime?
+  /// Set once the cargo actually turns up and is registered.
+  shipmentId  String?       @unique
+  shipment    Shipment?     @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
+
+/// "Come and collect my boxes from my supplier."
+///
+/// Separate from a booking because it is a job for a driver in Guangzhou with
+/// an address and a time, not a cargo record. Plenty of pickups end up as
+/// several shipments, and plenty of bookings need no pickup at all.
+model PickupRequest {
+  id        String @id @default(cuid())
+  reference String @unique // PU-000123
+
+  customerName String
+  phone        String
+  email        String?
+
+  address     String
+  city        String
+  /// Optional pin the customer pasted from Google Maps.
+  mapsUrl     String?
+  description String
+  estimatedWeightKg Decimal? @db.Decimal(10, 3)
+  packages    Int?
+  preferredAt DateTime?
+  notes       String?
+
+  status      RequestStatus @default(PENDING)
+  handledById String?
+  handledBy   User?         @relation("PickupHandledBy", fields: [handledById], references: [id], onDelete: SetNull)
+  handledAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
 }

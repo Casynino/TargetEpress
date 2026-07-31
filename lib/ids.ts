@@ -60,6 +60,17 @@ export async function nextDispatchNumber(
   return `${prefix}-SHIP-${year}-${pad(n, 3)}`;
 }
 
+/** Requests that came in off the website, before any cargo exists. */
+export async function nextBookingReference(tx: TxClient) {
+  const n = await nextSequence(tx, "booking");
+  return `BK-${pad(n)}`;
+}
+
+export async function nextPickupReference(tx: TxClient) {
+  const n = await nextSequence(tx, "pickup");
+  return `PU-${pad(n)}`;
+}
+
 export async function nextCustomerCode(tx: TxClient) {
   const n = await nextSequence(tx, "customer");
   return `CUS-${pad(n)}`;

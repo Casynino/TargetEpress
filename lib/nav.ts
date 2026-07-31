@@ -49,6 +49,14 @@ const SECTIONS: NavSection[] = [
         permission: "shipment.create",
       },
       {
+        href: "/app/requests",
+        label: "Requests",
+        icon: "Inbox",
+        // Bookings and pickups off the website. The desk that receives cargo is
+        // the desk that rings these people back.
+        permission: "shipment.create",
+      },
+      {
         href: "/app/shipments",
         label: "Shipments",
         icon: "PlaneTakeoff",
