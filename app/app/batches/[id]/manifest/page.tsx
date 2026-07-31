@@ -37,10 +37,6 @@ export default async function ManifestPage({
           customer: { select: { name: true, phone: true } },
           createdBy: { select: { name: true } },
           cargoType: { select: { name: true } },
-          packageList: {
-            select: { id: true, sequence: true },
-            orderBy: { sequence: "asc" },
-          },
         },
       },
     },
@@ -76,7 +72,7 @@ export default async function ManifestPage({
       <div className="no-print">
         <PageHeader
           title="Batch manifest"
-          description="Print this and tick every package against it, box by box."
+          description="Print this and check the cargo against it, line by line."
           actions={
             <>
               <Button asChild variant="ghost" size="sm">
@@ -157,8 +153,10 @@ export default async function ManifestPage({
               </th>
               <th className="py-2 pr-2 text-right font-semibold">Weight</th>
               <th className="py-2 pr-2 font-semibold">By</th>
-              {/* One box per package, ticked with a pen against the cargo. */}
-              <th className="py-2 text-center font-semibold">Each package</th>
+              {/* Physically ticked with a pen while checking the cargo. The
+                  count is already in "Counted as" — one box per package only
+                  repeated it. */}
+              <th className="w-16 py-2 text-center font-semibold">Checked</th>
             </tr>
           </thead>
           <tbody>
@@ -185,17 +183,8 @@ export default async function ManifestPage({
                   {formatWeight(shipment.weightKg)}
                 </td>
                 <td className="py-2 pr-2">{shipment.createdBy?.name ?? "—"}</td>
-                <td className="py-2">
-                  <span className="flex flex-wrap justify-end gap-1">
-                    {shipment.packageList.map((pkg) => (
-                      <span
-                        key={pkg.id}
-                        className="inline-flex h-4 w-4 items-center justify-center border border-black/60 text-[8px] leading-none tabular"
-                      >
-                        {pkg.sequence}
-                      </span>
-                    ))}
-                  </span>
+                <td className="py-2 text-center">
+                  <span className="inline-block h-3.5 w-3.5 border border-black/60" />
                 </td>
               </tr>
             ))}
