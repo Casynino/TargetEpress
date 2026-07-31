@@ -26,7 +26,7 @@ export default async function VerifyBatchPage({
     where: { id },
     include: {
       shipments: {
-        orderBy: { trackingNumber: "asc" },
+        orderBy: { registeredAt: "desc" },
         include: {
           customer: { select: { name: true, phone: true } },
           packageList: {

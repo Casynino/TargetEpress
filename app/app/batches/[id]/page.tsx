@@ -59,7 +59,7 @@ export default async function LoadingTablePage({
     include: {
       verifications: { select: { shipmentId: true, result: true } },
       shipments: {
-        orderBy: { registeredAt: "asc" },
+        orderBy: { registeredAt: "desc" },
         include: {
           customer: { select: { name: true, phone: true } },
           createdBy: { select: { name: true } },

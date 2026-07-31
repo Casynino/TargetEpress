@@ -52,7 +52,7 @@ export default async function BatchStickersPage({
       batchId: batch.id,
       ...(selected.length > 0 ? { id: { in: selected } } : {}),
     },
-    orderBy: { trackingNumber: "asc" },
+    orderBy: { registeredAt: "desc" },
     include: {
       customer: { select: { name: true, phone: true, city: true } },
       cargoType: { select: { name: true } },

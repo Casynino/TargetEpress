@@ -43,7 +43,7 @@ export default async function ShipmentPage({
     include: {
       createdBy: { select: { name: true } },
       shipments: {
-        orderBy: { trackingNumber: "asc" },
+        orderBy: { registeredAt: "desc" },
         include: {
           customer: { select: { id: true, name: true, phone: true } },
           photos: {

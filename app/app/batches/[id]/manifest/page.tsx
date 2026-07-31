@@ -32,7 +32,7 @@ export default async function ManifestPage({
     where: { id },
     include: {
       shipments: {
-        orderBy: { registeredAt: "asc" },
+        orderBy: { registeredAt: "desc" },
         include: {
           customer: { select: { name: true, phone: true } },
           createdBy: { select: { name: true } },

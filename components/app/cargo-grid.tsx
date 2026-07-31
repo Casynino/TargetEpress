@@ -154,8 +154,7 @@ function PhotoProof({
  * tiles does — you can see at a glance how much of a batch is electronics, how
  * much has been checked in, and which carton number is missing.
  *
- * Sorted by carton reference so the screen order matches the order the cartons
- * come off the truck.
+ * Newest first, so whatever the desk just recorded is the first thing it sees.
  */
 export function CargoGrid({
   cells,
@@ -190,9 +189,9 @@ export function CargoGrid({
         if (sort === "weight") return b.weightKg - a.weightKg;
         if (sort === "tracking")
           return a.trackingNumber.localeCompare(b.trackingNumber);
-        // Oldest first by default: the piece that has waited longest is the one
-        // that should go on the next flight.
-        return a.receivedAt.localeCompare(b.receivedAt);
+        // Newest first. What a desk needs to see the moment it opens a list is
+        // what it just recorded, not what has been sitting there since June.
+        return b.receivedAt.localeCompare(a.receivedAt);
       });
   }, [cells, filter, query, sort]);
 
@@ -244,7 +243,7 @@ export function CargoGrid({
           onChange={(event) => setSort(event.target.value)}
           className="sm:w-48"
         >
-          <option value="received">Sort: date received</option>
+          <option value="received">Sort: newest first</option>
           <option value="customer">Sort: customer A–Z</option>
           <option value="tracking">Sort: tracking number</option>
           <option value="weight">Sort: heaviest first</option>
