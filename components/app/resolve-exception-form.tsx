@@ -19,7 +19,7 @@ export function ResolveExceptionForm({ exceptionId }: { exceptionId: string }) {
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           name="resolutionNote"
-          placeholder="How was it resolved? e.g. missing carton found in BATCH-2026-002"
+          placeholder="How was it resolved? e.g. missing package found in GZ-SHIP-2026-002"
           required
         />
         <SubmitButton size="default" variant="brand" pendingLabel="Closing…">

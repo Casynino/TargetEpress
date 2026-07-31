@@ -125,19 +125,19 @@ export const PAYMENT_ACCOUNTS = {
 /**
  * How cargo is counted, in the words that go on a manifest.
  *
- * "3 cartons" and "20 pieces" describe different pallets. Forcing everything
- * into cartons makes the manifest disagree with what is physically there, which
- * is the document a customs officer reads.
+ * "3 packages" and "20 pieces" describe different pallets. Forcing everything
+ * into one unit makes the manifest disagree with what is physically there,
+ * which is the document a customs officer reads.
  */
 export const PACKAGE_TYPE_LABELS: Record<string, { one: string; many: string }> = {
-  CARTON: { one: "carton", many: "cartons" },
+  PACKAGE: { one: "package", many: "packages" },
   PIECE: { one: "piece", many: "pieces" },
   BAG: { one: "bag", many: "bags" },
   BOX: { one: "box", many: "boxes" },
   OTHER: { one: "package", many: "packages" },
 };
 
-/** e.g. "3 cartons", "1 piece". */
+/** e.g. "3 packages", "1 piece". */
 export function formatPackages(count: number, type: string) {
   const label = PACKAGE_TYPE_LABELS[type] ?? PACKAGE_TYPE_LABELS.OTHER;
   return `${count} ${count === 1 ? label.one : label.many}`;

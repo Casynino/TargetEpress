@@ -262,17 +262,17 @@ export function ShipmentForm({
             <NativeSelect
               id="packageType"
               name="packageType"
-              defaultValue={category === "NORMAL_GOODS" ? "CARTON" : "PIECE"}
+              defaultValue={category === "NORMAL_GOODS" ? "PACKAGE" : "PIECE"}
               key={category}
             >
-              <option value="CARTON">Cartons</option>
+              <option value="PACKAGE">Packages</option>
               <option value="PIECE">Pieces</option>
               <option value="BAG">Bags</option>
               <option value="BOX">Boxes</option>
               <option value="OTHER">Other</option>
             </NativeSelect>
             <p className="text-xs text-muted-foreground">
-              Twenty phones are twenty pieces, not twenty cartons.
+              Twenty phones are twenty pieces, not twenty packages.
             </p>
           </div>
         </div>

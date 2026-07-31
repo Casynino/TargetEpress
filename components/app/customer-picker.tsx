@@ -286,14 +286,14 @@ export function CustomerPicker({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               {/* "Shipping mark" is the term the trade actually uses — it is
-                  what is painted on the cartons in China and what the packing
+                  what is painted on the packages in China and what the packing
                   list identifies the consignee by. */}
               <Label htmlFor="new-name">Name or shipping mark</Label>
               <Input
                 id="new-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Trader name or the mark on the cartons"
+                placeholder="Trader name or the mark on the packages"
                 autoComplete="off"
               />
             </div>

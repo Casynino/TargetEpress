@@ -63,9 +63,9 @@ export const shipmentSchema = z.object({
   customerCity: z.string().trim().optional(),
   cargoCategory: z.enum(["NORMAL_GOODS", "ELECTRONICS", "LIQUID_SPECIAL"]),
   packageType: z
-    .enum(["CARTON", "PIECE", "BAG", "BOX", "OTHER"])
+    .enum(["PACKAGE", "PIECE", "BAG", "BOX", "OTHER"])
     .optional()
-    .default("CARTON"),
+    .default("PACKAGE"),
   cargoTypeId: z
     .string()
     .trim()

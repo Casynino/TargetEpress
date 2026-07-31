@@ -120,11 +120,11 @@ enum PricingMethod {
   FIXED_PER_ITEM
 }
 
-/// How the cargo is counted. Cartons suit clothes and shoes; twenty phones are
-/// twenty pieces, not twenty cartons, and calling them cartons makes the
-/// manifest lie about what is on the pallet.
+/// How the cargo is counted. Most cargo arrives as packages; twenty phones are
+/// twenty pieces, and calling them twenty packages makes the manifest disagree
+/// with what is on the pallet.
 enum PackageType {
-  CARTON
+  PACKAGE
   PIECE
   BAG
   BOX
@@ -368,9 +368,9 @@ model Shipment {
   goodsType   GoodsType
   description String
   packages    Int
-  /// What `packages` counts. Defaults to carton because that is what most
-  /// Guangzhou cargo arrives as.
-  packageType PackageType @default(CARTON)
+  /// What `packages` counts. Defaults to package, which is what most cargo
+  /// arrives as.
+  packageType PackageType @default(PACKAGE)
   weightKg    Decimal   @db.Decimal(10, 3)
   volumeCbm   Decimal?  @db.Decimal(10, 4)
 
