@@ -43,6 +43,7 @@ import {
 } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
+import { WarehouseHome } from "@/components/app/warehouse-home";
 import { requireUser } from "@/lib/session";
 
 /** Percentage change, guarding the divide-by-zero that makes dashboards lie. */
@@ -53,7 +54,27 @@ function delta(current: number, previous: number): number | undefined {
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  const firstName = user.name.split(" ")[0];
+
+  // Read the name from the record, not the session. The session token carries
+  // whatever the name was at sign-in, so someone who renames themselves would
+  // be greeted by their old name until they signed out and back in.
+  const me = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { name: true },
+  });
+  const firstName = (me?.name ?? user.name).split(" ")[0];
+
+  // The two warehouses get a command centre rather than a report: they are the
+  // only roles whose whole day happens on this screen.
+  if (user.role === "CHINA_WAREHOUSE" || user.role === "DAR_WAREHOUSE") {
+    return (
+      <WarehouseHome
+        firstName={firstName}
+        department={user.department}
+        side={user.role === "CHINA_WAREHOUSE" ? "CN" : "TZ"}
+      />
+    );
+  }
 
   const today = new Date().toLocaleDateString("en-GB", {
     weekday: "long",
@@ -103,8 +124,6 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {user.role === "CHINA_WAREHOUSE" ? <ChinaDashboard role={user.role} /> : null}
-      {user.role === "DAR_WAREHOUSE" ? <DarDashboard role={user.role} /> : null}
       {user.role === "FINANCE" ? <FinanceDashboard role={user.role} /> : null}
       {user.role === "ADMIN" ? <ExecutiveDashboard role={user.role} /> : null}
     </>

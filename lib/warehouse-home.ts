@@ -245,14 +245,26 @@ export async function warehouseFeed(take = 12): Promise<FeedEntry[]> {
     },
   });
 
+  const midnight = startOfToday();
+
   return rows.map((row) => {
     const meta = row.metadata as { trackingNumber?: string } | null;
+    const time = row.createdAt.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
     return {
       id: row.id,
-      timeLabel: row.createdAt.toLocaleTimeString("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      // A bare clock time reads as "this morning". On a quiet day the feed
+      // reaches back into last week, and 16:54 next to 07:44 then looks like
+      // the list is out of order rather than out of date.
+      timeLabel:
+        row.createdAt >= midnight
+          ? time
+          : `${row.createdAt.toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+            })} ${time}`,
       actor: row.actor?.name ?? "System",
       summary: row.summary,
       href: meta?.trackingNumber ? `/app/cargo/${meta.trackingNumber}` : null,

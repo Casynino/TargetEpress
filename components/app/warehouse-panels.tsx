@@ -200,7 +200,7 @@ export function WarehouseFeed({ entries }: { entries: FeedEntry[] }) {
           {entries.map((entry) => {
             const body = (
               <div className="flex gap-4">
-                <span className="w-12 shrink-0 text-xs text-muted-foreground tabular">
+                <span className="w-20 shrink-0 text-xs text-muted-foreground tabular">
                   {entry.timeLabel}
                 </span>
                 <span className="min-w-0">
