@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { Prisma, ShipmentStatus } from "@prisma/client";
+import type { Origin, Prisma, ShipmentStatus } from "@prisma/client";
 
 import { recordAudit } from "@/lib/audit";
 import {
@@ -16,7 +16,7 @@ import {
   nextCustomerCode,
   nextTrackingNumber,
 } from "@/lib/ids";
-import { assignToOpenBatch } from "@/lib/batching";
+import { assignToLoadingTable } from "@/lib/batching";
 import { prisma } from "@/lib/prisma";
 import { filesFrom, putImages } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -118,12 +118,10 @@ async function resolveCustomer(
 
 export type ShipmentCreated = {
   trackingNumber: string;
-  /** The batch the system put it on — the clerk never chose this. */
+  /** The loading table it landed on — the clerk never chose this. */
   batchNumber: string;
-  /** True when this shipment opened a new batch. */
-  batchCreated: boolean;
-  /** Set when a batch was closed off as FULL to make room. */
-  sealedFull: string | null;
+  /** Which route's table, for wording the confirmation. */
+  origin: Origin;
 };
 
 export async function createShipment(
@@ -170,15 +168,10 @@ export async function createShipment(
       // never picks it, so cargo cannot be routed to the wrong hub by mistake.
       const origin = routeFor(input.cargoCategory);
 
-      // The batch is decided here, not by the clerk. The category fixes the
-      // route, the route fixes the batch, and if nothing is open for that route
-      // one is opened. See lib/batching.
-      const assignment = await assignToOpenBatch(
-        tx,
-        origin,
-        { weightKg: input.weightKg, packages: input.packages },
-        user.id
-      );
+      // Which loading table this lands on is decided here, not by the clerk.
+      // The category fixes the route, the route fixes the table. See
+      // lib/batching.
+      const assignment = await assignToLoadingTable(tx, origin);
 
       const shipment = await tx.shipment.create({
         data: {
@@ -215,7 +208,7 @@ export async function createShipment(
         fromStatus: null,
         toStatus: "READY_TO_DEPART",
         location: ORIGIN_PLACE[origin],
-        note: `Cargo received and registered as ${CATEGORY_LABELS[input.cargoCategory].toLowerCase()}, departing ${AIRPORT_LABELS[origin]} on ${assignment.batchNumber}.`,
+        note: `Cargo received and registered as ${CATEGORY_LABELS[input.cargoCategory].toLowerCase()}, waiting on the ${AIRPORT_LABELS[origin]} loading table.`,
         actorId: user.id,
       });
 
@@ -232,9 +225,7 @@ export async function createShipment(
             cargoCategory: input.cargoCategory,
             origin,
             photos: uploaded.length,
-            batch: assignment.batchNumber,
-            batchCreated: assignment.created,
-            sealedFull: assignment.sealedFull,
+            loadingTable: assignment.batchNumber,
           },
         },
         tx
@@ -243,7 +234,7 @@ export async function createShipment(
       return { shipment, assignment };
     });
 
-    revalidatePath("/app/shipments");
+    revalidatePath("/app/cargo");
     revalidatePath("/app/dashboard");
     revalidatePath("/app/batches");
     revalidatePath(`/app/batches/${result.assignment.batchId}`);
@@ -251,8 +242,7 @@ export async function createShipment(
     return ok({
       trackingNumber: result.shipment.trackingNumber,
       batchNumber: result.assignment.batchNumber,
-      batchCreated: result.assignment.created,
-      sealedFull: result.assignment.sealedFull,
+      origin: result.shipment.origin,
     });
   } catch (error) {
     return fail(toActionError(error));
@@ -321,8 +311,8 @@ export async function updateShipment(
       );
     });
 
-    revalidatePath(`/app/shipments/${id}`);
-    revalidatePath("/app/shipments");
+    revalidatePath(`/app/cargo/${id}`);
+    revalidatePath("/app/cargo");
     return ok();
   } catch (error) {
     return fail(toActionError(error));
@@ -381,8 +371,8 @@ export async function cancelShipment(
       );
     });
 
-    revalidatePath(`/app/shipments/${id}`);
-    revalidatePath("/app/shipments");
+    revalidatePath(`/app/cargo/${id}`);
+    revalidatePath("/app/cargo");
     return ok();
   } catch (error) {
     return fail(toActionError(error));
@@ -438,7 +428,7 @@ export async function raiseException(
     });
 
     revalidatePath("/app/exceptions");
-    revalidatePath(`/app/shipments/${input.shipmentId}`);
+    revalidatePath(`/app/cargo/${input.shipmentId}`);
     return ok();
   } catch (error) {
     return fail(toActionError(error));

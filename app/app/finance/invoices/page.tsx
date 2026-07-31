@@ -83,7 +83,7 @@ export default async function InvoicesPage({
                     </TableCell>
                     <TableCell className="text-right">
                       <Button asChild size="sm" variant="brand">
-                        <Link href={`/app/shipments/${shipment.trackingNumber}`}>
+                        <Link href={`/app/cargo/${shipment.trackingNumber}`}>
                           Raise invoice
                         </Link>
                       </Button>

@@ -266,11 +266,31 @@ model Customer {
 // Batches — how cargo actually crosses the ocean
 // ---------------------------------------------------------------------------
 
+/// Two different things live in this table, told apart by `permanent`.
+///
+///  - A LOADING TABLE (permanent = true). Exactly two exist, one per route, and
+///    they are never created or deleted. Cargo received in China lands on one
+///    and waits there. Shown to staff as "Guangzhou Batch" / "Hong Kong Batch".
+///  - A DISPATCH (permanent = false). Created the moment a loading table is
+///    dispatched: it takes the waybill, the flight and every piece of cargo that
+///    was on the table. Shown to staff as a Shipment, e.g. GZ-SHIP-2026-001.
+///
+/// One table because the relationship to cargo is identical — a piece of cargo
+/// is in exactly one of them at a time, and dispatching is simply moving it from
+/// the first kind to the second.
 model Batch {
   id          String      @id @default(cuid())
-  batchNumber String      @unique // BATCH-2026-001
+  batchNumber String      @unique // GZ-SHIP-2026-001, or GZ-LOADING
   status      BatchStatus @default(OPEN)
   origin      Origin
+
+  /// True for the two loading tables. They stay OPEN forever and cannot be
+  /// dispatched, sealed or deleted — only emptied by dispatching their cargo.
+  permanent Boolean @default(false)
+
+  /// When this dispatch is expected to land. Set at dispatch; arrivalDate is
+  /// filled in when it actually does.
+  expectedArrival DateTime?
 
   // Flight details, captured when the batch leaves China.
   airline       String?

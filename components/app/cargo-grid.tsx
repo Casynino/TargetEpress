@@ -169,7 +169,7 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
           {sorted.map((cell) => (
             <li key={cell.id}>
               <Link
-                href={`/app/shipments/${cell.trackingNumber}`}
+                href={`/app/cargo/${cell.trackingNumber}`}
                 className={cn(
                   "flex h-full flex-col justify-between rounded-lg border-2 p-3 transition-shadow hover:shadow-lift",
                   cell.verification === "EXCEPTION"
@@ -229,7 +229,7 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5">
                       <Link
-                        href={`/app/shipments/${cell.trackingNumber}`}
+                        href={`/app/cargo/${cell.trackingNumber}`}
                         className="font-mono text-xs hover:text-brand hover:underline"
                       >
                         {cell.trackingNumber}

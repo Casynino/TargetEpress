@@ -573,7 +573,7 @@ export async function attentionItems(
       title: `${shipment.trackingNumber} has no invoice`,
       detail: `${shipment.customer.name}'s cargo is in the warehouse but has not been billed.`,
       meta: `Waiting ${ageDays(shipment.arrivedAt)} day(s)`,
-      href: `/app/shipments/${shipment.trackingNumber}`,
+      href: `/app/cargo/${shipment.trackingNumber}`,
     });
   }
 
@@ -586,7 +586,7 @@ export async function attentionItems(
       title: `${shipment.trackingNumber} unpaid for ${ageDays(shipment.arrivedAt)} days`,
       detail: `${shipment.customer.name} (${shipment.customer.phone}) owes ${shipment.invoice?.currency ?? "TZS"} ${outstanding.toLocaleString()}.`,
       meta: "Occupying warehouse space",
-      href: `/app/shipments/${shipment.trackingNumber}`,
+      href: `/app/cargo/${shipment.trackingNumber}`,
     });
   }
 

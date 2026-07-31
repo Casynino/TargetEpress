@@ -125,7 +125,7 @@ export default async function FollowUpPage({
                 </td>
                 <td className="p-3">
                   <Link
-                    href={`/app/shipments/${row.trackingNumber}`}
+                    href={`/app/cargo/${row.trackingNumber}`}
                     className="font-mono text-xs hover:text-brand hover:underline"
                   >
                     {row.trackingNumber}
@@ -175,7 +175,7 @@ export default async function FollowUpPage({
                   ) : (
                     <div className="mt-0.5">
                       <Link
-                        href={`/app/shipments/${row.trackingNumber}`}
+                        href={`/app/cargo/${row.trackingNumber}`}
                         className="text-xs text-brand hover:underline"
                       >
                         Open shipment

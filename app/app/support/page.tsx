@@ -292,7 +292,7 @@ export default async function SupportHome() {
                 hint="Registered, flying or waiting in Dar"
                 icon={Boxes}
                 tone="info"
-                href="/app/shipments"
+                href="/app/cargo"
               />
               <StatCard
                 label="Ready for pickup"

@@ -281,7 +281,7 @@ export default async function TestDataPage() {
                   <TableRow key={s.id}>
                     <TableCell>
                       <Link
-                        href={`/app/shipments/${s.trackingNumber}`}
+                        href={`/app/cargo/${s.trackingNumber}`}
                         className="font-mono text-sm font-medium tabular hover:text-brand"
                       >
                         {s.trackingNumber}

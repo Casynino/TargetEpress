@@ -105,7 +105,7 @@ export default async function PaymentsPage() {
                     </TableCell>
                     <TableCell>
                       <Link
-                        href={`/app/shipments/${payment.invoice.shipment.trackingNumber}`}
+                        href={`/app/cargo/${payment.invoice.shipment.trackingNumber}`}
                         className="font-mono text-sm tabular hover:text-brand"
                       >
                         {payment.invoice.shipment.trackingNumber}

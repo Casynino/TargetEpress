@@ -166,7 +166,7 @@ export async function generateInvoice(
       return { invoiceNumber: invoice.invoiceNumber, total };
     });
 
-    revalidatePath(`/app/shipments/${shipmentId}`);
+    revalidatePath(`/app/cargo/${shipmentId}`);
     revalidatePath("/app/finance/invoices");
     revalidatePath("/app/finance");
     return ok(result);
@@ -607,7 +607,7 @@ export async function issuePickupNote(
     });
 
     revalidatePath("/app/finance/pickup-notes");
-    revalidatePath(`/app/shipments/${shipmentId}`);
+    revalidatePath(`/app/cargo/${shipmentId}`);
     revalidatePath("/app/release");
     return ok({ noteNumber });
   } catch (error) {

@@ -109,7 +109,7 @@ export default async function FinanceOverviewPage() {
                   >
                     <div className="min-w-0">
                       <Link
-                        href={`/app/shipments/${shipment.trackingNumber}`}
+                        href={`/app/cargo/${shipment.trackingNumber}`}
                         className="font-mono text-sm tabular hover:text-brand"
                       >
                         {shipment.trackingNumber}

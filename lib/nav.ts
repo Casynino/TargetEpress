@@ -8,7 +8,7 @@ export type NavItem = {
   /** lucide-react icon name, resolved on the client. */
   icon: string;
   permission?: Permission;
-  /** Match child routes too (e.g. /app/shipments/TX-000123). */
+  /** Match child routes too (e.g. /app/cargo/TX-000123). */
   exact?: boolean;
 };
 
@@ -36,14 +36,14 @@ const SECTIONS: NavSection[] = [
     title: "Operations",
     items: [
       {
-        href: "/app/shipments",
-        label: "Shipments",
+        href: "/app/cargo",
+        label: "Cargo",
         icon: "Package",
         permission: "shipment.view",
       },
       {
-        href: "/app/shipments/new",
-        label: "New shipment",
+        href: "/app/cargo/new",
+        label: "Register cargo",
         icon: "PackagePlus",
         permission: "shipment.create",
       },
@@ -51,6 +51,12 @@ const SECTIONS: NavSection[] = [
         href: "/app/batches",
         label: "Batches",
         icon: "Boxes",
+        permission: "batch.view",
+      },
+      {
+        href: "/app/shipments",
+        label: "Shipments",
+        icon: "PlaneTakeoff",
         permission: "batch.view",
       },
       {

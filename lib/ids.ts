@@ -43,14 +43,20 @@ export async function nextBatchNumber(
  * written on cartons — "HK oh-oh-one" says which flight it is without anyone
  * looking it up. Numbering restarts each year, per route.
  */
-export async function nextRouteBatchNumber(
+/**
+ * The number of a dispatch — one flight-load leaving China.
+ *
+ * GZ-SHIP-2026-001. Sequenced per route and per year, so the Guangzhou and
+ * Hong Kong runs each count from one and neither depends on the other.
+ */
+export async function nextDispatchNumber(
   tx: Prisma.TransactionClient,
   route: "GUANGZHOU" | "HONG_KONG",
   year = new Date().getFullYear()
 ) {
   const prefix = route === "HONG_KONG" ? "HK" : "GZ";
-  const n = await nextSequence(tx, `batch:${prefix}:${year}`);
-  return `${prefix}-${year}-${pad(n, 3)}`;
+  const n = await nextSequence(tx, `dispatch:${prefix}:${year}`);
+  return `${prefix}-SHIP-${year}-${pad(n, 3)}`;
 }
 
 export async function nextCustomerCode(tx: Prisma.TransactionClient) {

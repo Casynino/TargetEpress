@@ -171,7 +171,7 @@ export function canAny(role: Role | undefined | null, permissions: Permission[])
  */
 export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/scan", permission: "shipment.scan" },
-  { prefix: "/app/shipments/new", permission: "shipment.create" },
+  { prefix: "/app/cargo/new", permission: "shipment.create" },
   { prefix: "/app/batches/new", permission: "batch.create" },
   { prefix: "/app/receive", permission: "batch.receive" },
   { prefix: "/app/release", permission: "shipment.release" },
@@ -186,8 +186,9 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/admin/audit", permission: "audit.view" },
   { prefix: "/app/admin", permission: "report.view" },
   { prefix: "/app/customers", permission: "customer.view" },
+  { prefix: "/app/shipments", permission: "batch.view" },
   { prefix: "/app/batches", permission: "batch.view" },
-  { prefix: "/app/shipments", permission: "shipment.view" },
+  { prefix: "/app/cargo", permission: "shipment.view" },
 ];
 
 export function permissionForPath(pathname: string): Permission | null {

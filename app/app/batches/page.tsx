@@ -1,121 +1,212 @@
 import type { Metadata } from "next";
-import { Boxes, Package, Plane, Warehouse } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Package, Plane } from "lucide-react";
 
-import { BatchesTable, type BatchRow } from "@/components/app/batches-table";
-import { KpiCard } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
-import { StatStrip } from "@/components/app/stat-strip";
-import { formatWeight, toNumber } from "@/lib/format";
+import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Batches" };
 
+const ROUTE_LABEL: Record<string, string> = {
+  GUANGZHOU: "Guangzhou Batch",
+  HONG_KONG: "Hong Kong Batch",
+};
+
+const ROUTE_TAKES: Record<string, string> = {
+  GUANGZHOU: "Normal goods",
+  HONG_KONG: "Electronics, liquid and special goods",
+};
+
+/**
+ * The two loading tables.
+ *
+ * This page is the live work area and nothing else — what is waiting in China
+ * right now. There are exactly two, they are permanent, and they cannot be
+ * created or deleted. Everything that has already left is in Shipments.
+ *
+ * The old design listed every batch ever opened, which meant the screen the
+ * warehouse looks at most got longer every week and less useful every week.
+ */
 export default async function BatchesPage() {
   const user = await requirePermission("batch.view");
+  const canDispatch = can(user.role, "shipment.depart");
 
-  const batches = await prisma.batch.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 400,
+  const tables = await prisma.batch.findMany({
+    where: { permanent: true },
+    orderBy: { origin: "asc" },
+    select: {
+      id: true,
+      origin: true,
+      shipments: {
+        where: { status: "READY_TO_DEPART" },
+        select: { weightKg: true, packages: true, registeredAt: true },
+      },
+    },
+  });
+
+  const recent = await prisma.batch.findMany({
+    where: { permanent: false },
+    orderBy: { departedAt: "desc" },
+    take: 3,
     select: {
       id: true,
       batchNumber: true,
       status: true,
-      origin: true,
-      airline: true,
-      flightNumber: true,
-      waybillNumber: true,
-      createdAt: true,
-      departureDate: true,
-      arrivalDate: true,
-      _count: { select: { shipments: true, verifications: true } },
-      shipments: { select: { weightKg: true, packages: true } },
+      _count: { select: { shipments: true } },
     },
   });
-
-  const rows: BatchRow[] = batches.map((batch) => ({
-    id: batch.id,
-    batchNumber: batch.batchNumber,
-    status: batch.status,
-    origin: batch.origin,
-    airline: batch.airline,
-    flightNumber: batch.flightNumber,
-    waybillNumber: batch.waybillNumber,
-    createdAt: batch.createdAt.toISOString(),
-    departureDate: batch.departureDate?.toISOString() ?? null,
-    arrivalDate: batch.arrivalDate?.toISOString() ?? null,
-    shipments: batch._count.shipments,
-    verified: batch._count.verifications,
-    packages: batch.shipments.reduce((sum, s) => sum + s.packages, 0),
-    weightKg: batch.shipments.reduce((sum, s) => sum + toNumber(s.weightKg), 0),
-  }));
-
-  const live = rows.filter(
-    (r) => !["VERIFIED", "CLOSED"].includes(r.status)
-  );
-  const open = rows.filter((r) => r.status === "OPEN");
-  const inAir = rows.filter((r) => r.status === "IN_TRANSIT");
-  const gz = live.filter((r) => r.origin === "GUANGZHOU");
-  const hk = live.filter((r) => r.origin === "HONG_KONG");
-  const liveWeight = live.reduce((sum, r) => sum + r.weightKg, 0);
-  const liveShipments = live.reduce((sum, r) => sum + r.shipments, 0);
 
   return (
     <>
       <PageHeader
         title="Batches"
-        description="Cargo grouped by the flight it travels on. Guangzhou and Hong Kong run as separate routes — work here when you are loading, sealing or receiving a whole flight."
+        description="The two loading tables. Cargo waiting to leave China, and nothing else."
       />
 
-      <StatStrip
-        className="mb-5"
-        chips={[
-          { label: "Live batches", value: String(live.length), icon: Boxes, tone: "brand" },
-          { label: "Loading", value: String(open.length), icon: Warehouse, tone: "warning" },
-          { label: "In the air", value: String(inAir.length), icon: Plane, tone: "success" },
-          { label: "Guangzhou", value: String(gz.length), icon: Warehouse },
-          { label: "Hong Kong", value: String(hk.length), icon: Plane },
-          { label: "Shipments live", value: String(liveShipments), icon: Package },
-        ]}
-      />
+      <div className="grid gap-5 lg:grid-cols-2">
+        {tables.map((table) => {
+          const weight = table.shipments.reduce(
+            (sum, cargo) => sum + toNumber(cargo.weightKg),
+            0
+          );
+          const packages = table.shipments.reduce(
+            (sum, cargo) => sum + cargo.packages,
+            0
+          );
+          const oldest = table.shipments.reduce<Date | null>(
+            (earliest, cargo) =>
+              !earliest || cargo.registeredAt < earliest
+                ? cargo.registeredAt
+                : earliest,
+            null
+          );
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          delay={0}
-          label="Live batches"
-          numeric={live.length}
-          hint={`${rows.length} on record`}
-          icon={Boxes}
-          tone="brand"
-        />
-        <KpiCard
-          delay={1}
-          label="Cargo in play"
-          numeric={liveShipments}
-          hint={formatWeight(liveWeight)}
-          icon={Package}
-          tone="info"
-        />
-        <KpiCard
-          delay={2}
-          label="Loading in China"
-          numeric={open.length}
-          hint="Still taking cargo"
-          icon={Warehouse}
-          tone={open.length > 0 ? "warning" : "success"}
-        />
-        <KpiCard
-          delay={3}
-          label="In the air"
-          numeric={inAir.length}
-          hint="Flying to Dar"
-          icon={Plane}
-          tone="success"
-        />
+          return (
+            <section
+              key={table.id}
+              className="flex flex-col rounded-xl border bg-card shadow-soft"
+            >
+              <header className="flex items-start justify-between gap-3 border-b p-5">
+                <div>
+                  <h2 className="font-display text-lg font-bold">
+                    {ROUTE_LABEL[table.origin]}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Takes {ROUTE_TAKES[table.origin].toLowerCase()}
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+                    table.origin === "HONG_KONG"
+                      ? "bg-info/10 text-info"
+                      : "bg-brand/10 text-brand"
+                  }`}
+                >
+                  <Plane className="h-3 w-3" />
+                  {table.origin === "HONG_KONG" ? "Hong Kong" : "Guangzhou"}
+                </span>
+              </header>
+
+              <div className="flex-1 p-5">
+                {table.shipments.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-8 text-center">
+                    <Package className="mx-auto h-6 w-6 text-muted-foreground/50" />
+                    <p className="mt-2 text-sm font-medium">Empty</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Ready for the next cargo.
+                    </p>
+                  </div>
+                ) : (
+                  <dl className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <dt className="text-xs text-muted-foreground">Pieces</dt>
+                      <dd className="mt-1 font-display text-2xl font-bold tabular-nums">
+                        {table.shipments.length}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">Packages</dt>
+                      <dd className="mt-1 font-display text-2xl font-bold tabular-nums">
+                        {packages}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">Weight</dt>
+                      <dd className="mt-1 font-display text-2xl font-bold tabular-nums">
+                        {weight.toFixed(0)}
+                        <span className="ml-1 text-sm font-medium text-muted-foreground">
+                          kg
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
+                )}
+
+                {oldest ? (
+                  <p className="mt-4 text-center text-xs text-muted-foreground">
+                    Oldest piece received{" "}
+                    {oldest.toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </p>
+                ) : null}
+              </div>
+
+              <footer className="border-t p-4">
+                <Link
+                  href={`/app/batches/${table.id}`}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
+                >
+                  {canDispatch && table.shipments.length > 0
+                    ? "Review and dispatch"
+                    : "Open batch"}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </footer>
+            </section>
+          );
+        })}
       </div>
 
-      <BatchesTable rows={rows} canCreate={can(user.role, "batch.create")} />
+      {recent.length > 0 ? (
+        <section className="mt-8">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Recently dispatched
+            </h2>
+            <Link
+              href="/app/shipments"
+              className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
+            >
+              All shipments
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-soft">
+            {recent.map((dispatch) => (
+              <li key={dispatch.id}>
+                <Link
+                  href={`/app/shipments/${dispatch.id}`}
+                  className="flex flex-wrap items-center justify-between gap-3 p-4 transition-colors hover:bg-accent/40"
+                >
+                  <span className="font-mono text-sm font-medium">
+                    {dispatch.batchNumber}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {dispatch._count.shipments} pieces ·{" "}
+                    {dispatch.status.replace(/_/g, " ").toLowerCase()}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </>
   );
 }

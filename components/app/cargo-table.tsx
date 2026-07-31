@@ -51,7 +51,7 @@ export function ShipmentsTable({
       sortValue: (row) => row.trackingNumber,
       cell: (row) => (
         <Link
-          href={`/app/shipments/${row.trackingNumber}`}
+          href={`/app/cargo/${row.trackingNumber}`}
           className="font-mono text-sm font-medium tabular hover:text-brand"
         >
           {row.trackingNumber}
@@ -213,7 +213,7 @@ export function ShipmentsTable({
       toolbar={
         canCreate ? (
           <Button asChild variant="signal" size="sm" className="h-10">
-            <Link href="/app/shipments/new">Register cargo</Link>
+            <Link href="/app/cargo/new">Register cargo</Link>
           </Button>
         ) : null
       }
@@ -250,7 +250,7 @@ export function ShipmentsTable({
           </Button>
           <Button asChild variant="outline" size="sm">
             <Link
-              href={`/app/shipments/${selected[0]?.trackingNumber}/label`}
+              href={`/app/cargo/${selected[0]?.trackingNumber}/label`}
               target="_blank"
             >
               <Printer className="mr-2 h-4 w-4" />
@@ -288,7 +288,7 @@ export function ShipmentsTable({
           ))}
           <div className="sm:col-span-4">
             <Button asChild size="sm" variant="outline">
-              <Link href={`/app/shipments/${row.trackingNumber}`}>
+              <Link href={`/app/cargo/${row.trackingNumber}`}>
                 Open shipment
               </Link>
             </Button>
@@ -297,7 +297,7 @@ export function ShipmentsTable({
       )}
       renderCard={(row) => (
         <Link
-          href={`/app/shipments/${row.trackingNumber}`}
+          href={`/app/cargo/${row.trackingNumber}`}
           className="panel focus-ring block p-4 transition-shadow active:shadow-lift"
         >
           <div className="flex items-start justify-between gap-3">

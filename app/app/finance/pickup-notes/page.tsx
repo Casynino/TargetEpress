@@ -77,7 +77,7 @@ export default async function PickupNotesPage({
                     {note.noteNumber}
                   </p>
                   <Link
-                    href={`/app/shipments/${note.shipment.trackingNumber}`}
+                    href={`/app/cargo/${note.shipment.trackingNumber}`}
                     className="font-mono text-xs text-muted-foreground tabular hover:text-brand"
                   >
                     {note.shipment.trackingNumber}

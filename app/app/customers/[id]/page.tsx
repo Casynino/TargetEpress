@@ -168,7 +168,7 @@ export default async function CustomerProfilePage({
                       <tr key={shipment.id} className="border-t align-top">
                         <td className="p-3">
                           <Link
-                            href={`/app/shipments/${shipment.trackingNumber}`}
+                            href={`/app/cargo/${shipment.trackingNumber}`}
                             className="font-mono text-xs hover:text-brand hover:underline"
                           >
                             {shipment.trackingNumber}

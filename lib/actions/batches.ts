@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import {
@@ -10,6 +11,7 @@ import {
   routeFor,
 } from "@/lib/cargo";
 import { nextBatchNumber } from "@/lib/ids";
+import { nextDispatchNumber } from "@/lib/ids";
 import { prisma } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -154,7 +156,7 @@ export async function setShipmentBatch(
     });
 
     revalidatePath("/app/batches");
-    revalidatePath("/app/shipments");
+    revalidatePath("/app/cargo");
     if (batchId) revalidatePath(`/app/batches/${batchId}`);
     return ok();
   } catch (error) {
@@ -316,6 +318,156 @@ export async function departBatch(
     revalidatePath("/app/batches");
     revalidatePath("/app/dashboard");
     return ok();
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
+
+
+const dispatchSchema = z.object({
+  batchId: z.string().trim().min(1, "Missing loading table."),
+  waybillNumber: z.string().trim().min(3, "The waybill number is required.").max(40),
+  airline: z.string().trim().min(2, "Which airline is carrying it?").max(80),
+  flightNumber: z.string().trim().max(20).optional(),
+  departureDate: z.string().trim().min(1, "When does it leave?"),
+  expectedArrival: z.string().trim().optional(),
+  notes: z.string().trim().max(1000).optional(),
+});
+
+/**
+ * Sends a loading table on its way.
+ *
+ * This is the moment the warehouse's job ends. Everything sitting on the table
+ * is swept into one dispatch record — GZ-SHIP-2026-001 — which carries the
+ * waybill and the flight, and the table is empty again before the clerk has
+ * finished reading the confirmation.
+ *
+ * The loading table itself is never consumed: it is permanent, and the next
+ * customer through the door starts filling it again.
+ */
+export async function dispatchLoadingTable(
+  _prev: ActionResult<{ dispatchNumber: string; cargo: number }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ dispatchNumber: string; cargo: number }>> {
+  let user: SessionUser;
+  try {
+    user = await authorize("shipment.depart");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const parsed = dispatchSchema.safeParse(
+    Object.fromEntries(formData) as Record<string, string>
+  );
+  if (!parsed.success) return fail(firstError(parsed.error));
+  const input = parsed.data;
+
+  const departureDate = new Date(input.departureDate);
+  if (Number.isNaN(departureDate.getTime())) {
+    return fail("That departure date is not valid.");
+  }
+
+  const expectedArrival = input.expectedArrival
+    ? new Date(input.expectedArrival)
+    : null;
+  if (expectedArrival && Number.isNaN(expectedArrival.getTime())) {
+    return fail("That expected arrival date is not valid.");
+  }
+  if (expectedArrival && expectedArrival < departureDate) {
+    return fail("The cargo cannot arrive before it leaves.");
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const table = await tx.batch.findUnique({
+        where: { id: input.batchId },
+        select: {
+          id: true,
+          origin: true,
+          permanent: true,
+          shipments: {
+            where: { status: "READY_TO_DEPART" },
+            select: { id: true },
+          },
+        },
+      });
+
+      if (!table) throw new Error("That loading table no longer exists.");
+      if (!table.permanent) {
+        throw new Error("Only a loading table can be dispatched.");
+      }
+      if (table.shipments.length === 0) {
+        throw new Error("There is no cargo on this table to dispatch.");
+      }
+
+      const dispatch = await tx.batch.create({
+        data: {
+          batchNumber: await nextDispatchNumber(tx, table.origin),
+          origin: table.origin,
+          permanent: false,
+          status: "IN_TRANSIT",
+          waybillNumber: input.waybillNumber,
+          airline: input.airline,
+          flightNumber: input.flightNumber?.toUpperCase() || null,
+          departureDate,
+          expectedArrival,
+          departedAt: new Date(),
+          notes: input.notes || null,
+          createdById: user.id,
+        },
+        select: { id: true, batchNumber: true },
+      });
+
+      // Everything on the table moves across in one statement, so a clerk
+      // registering cargo at this exact moment either makes the flight or lands
+      // on the now-empty table — never half in, half out.
+      const moved = await tx.shipment.updateMany({
+        where: { batchId: table.id, status: "READY_TO_DEPART" },
+        data: {
+          batchId: dispatch.id,
+          status: "IN_TRANSIT",
+          departedAt: departureDate,
+        },
+      });
+
+      await tx.shipmentStatusHistory.createMany({
+        data: table.shipments.map((cargo) => ({
+          shipmentId: cargo.id,
+          fromStatus: "READY_TO_DEPART" as const,
+          toStatus: "IN_TRANSIT" as const,
+          location: "China → Tanzania",
+          note:
+            `Dispatched as ${dispatch.batchNumber} on ${input.airline}` +
+            (input.flightNumber ? ` ${input.flightNumber.toUpperCase()}` : "") +
+            ` (waybill ${input.waybillNumber}).`,
+          actorId: user.id,
+        })),
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "batch.dispatch",
+          entity: "Batch",
+          entityId: dispatch.id,
+          summary: `Dispatched ${dispatch.batchNumber} — ${moved.count} pieces on ${input.airline}`,
+          metadata: {
+            waybill: input.waybillNumber,
+            airline: input.airline,
+            flightNumber: input.flightNumber ?? null,
+            cargo: moved.count,
+          },
+        },
+        tx
+      );
+
+      return { dispatchNumber: dispatch.batchNumber, cargo: moved.count };
+    });
+
+    revalidatePath("/app/batches");
+    revalidatePath("/app/cargo");
+    revalidatePath("/app/dashboard");
+    return ok(result);
   } catch (error) {
     return fail(toActionError(error));
   }

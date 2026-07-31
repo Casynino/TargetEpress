@@ -121,7 +121,7 @@ export function ScanWorkbench({ initialCode }: { initialCode?: string }) {
             Scan another
           </Button>
           <Button asChild variant="outline">
-            <Link href={`/app/shipments/${result.trackingNumber}`}>
+            <Link href={`/app/cargo/${result.trackingNumber}`}>
               Open shipment
             </Link>
           </Button>

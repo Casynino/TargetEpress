@@ -1,24 +1,35 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { FileText, Plane, TriangleAlert } from "lucide-react";
+import { ArrowLeft, FileText, TriangleAlert } from "lucide-react";
 
 import { CargoGrid } from "@/components/app/cargo-grid";
-import { EmptyState } from "@/components/app/empty-state";
+import { DispatchForm } from "@/components/app/dispatch-form";
 import { PageHeader } from "@/components/app/page-header";
-import { BatchControls } from "@/components/app/batch-controls";
-import { BatchStatusBadge, ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
-import { CATEGORIES_FOR_ROUTE, CATEGORY_LABELS, categoryFitsRoute } from "@/lib/cargo";
+import { CATEGORY_LABELS, categoryFitsRoute } from "@/lib/cargo";
 import { ORIGIN_LABELS } from "@/lib/constants";
-import { formatDate, formatWeight, toNumber } from "@/lib/format";
+import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Batch" };
 
-export default async function BatchDetailPage({
+const ROUTE_LABEL: Record<string, string> = {
+  GUANGZHOU: "Guangzhou Batch",
+  HONG_KONG: "Hong Kong Batch",
+};
+
+/**
+ * One loading table: everything on it, and the button that sends it.
+ *
+ * There is no "add cargo" and no "remove cargo" here. Cargo arrives on this
+ * table by being registered and leaves it by being dispatched. Letting a clerk
+ * move pieces between tables by hand is exactly the mistake the route rule
+ * exists to prevent.
+ */
+export default async function LoadingTablePage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -30,9 +41,8 @@ export default async function BatchDetailPage({
     where: { id },
     include: {
       verifications: { select: { shipmentId: true, result: true } },
-      createdBy: { select: { name: true } },
       shipments: {
-        orderBy: { trackingNumber: "asc" },
+        orderBy: { registeredAt: "asc" },
         include: { customer: { select: { name: true, phone: true } } },
       },
     },
@@ -40,64 +50,43 @@ export default async function BatchDetailPage({
 
   if (!batch) notFound();
 
+  // A dispatch record lives under Shipments now; only loading tables are here.
+  if (!batch.permanent) redirect(`/app/shipments/${batch.id}`);
+
+  const canDispatch = can(user.role, "shipment.depart");
+
   const verificationByShipment = new Map(
     batch.verifications.map((v) => [v.shipmentId, v])
   );
 
-  const manageable = can(user.role, "batch.manage");
+  const waiting = batch.shipments.filter((s) => s.status === "READY_TO_DEPART");
+  const totalWeight = waiting.reduce((sum, s) => sum + toNumber(s.weightKg), 0);
+  const totalPackages = waiting.reduce((sum, s) => sum + s.packages, 0);
 
-  // Cargo registered in China that has not been put on any flight yet — and
-  // only cargo that flies from THIS batch's airport. Normal goods leave
-  // Guangzhou; electronics and special goods leave Hong Kong. Offering the rest
-  // just invites a clerk to load cargo onto a flight it cannot take, and the
-  // save would be rejected anyway.
-  const unassigned =
-    manageable && batch.status === "OPEN"
-      ? await prisma.shipment.findMany({
-          where: {
-            batchId: null,
-            status: "READY_TO_DEPART",
-            cargoCategory: { in: CATEGORIES_FOR_ROUTE[batch.origin] },
-          },
-          orderBy: { registeredAt: "desc" },
-          take: 50,
-          select: {
-            id: true,
-            trackingNumber: true,
-            weightKg: true,
-            packages: true,
-            customer: { select: { name: true } },
-          },
-        })
-      : [];
-
-  // Cargo whose category says it should have flown from the other airport.
-  // These come from the real packing lists — a cup listed on a Hong Kong sheet
-  // physically travelled from Hong Kong — so they are surfaced rather than
-  // silently relabelled: the category drives the price, and quietly changing it
-  // would rewrite what a customer is charged.
-  const misrouted = batch.shipments.filter(
+  // Cargo whose category says it belongs on the other table. Should be
+  // impossible now that assignment is automatic, so if it appears something is
+  // wrong and silence would be the worst response.
+  const misrouted = waiting.filter(
     (shipment) => !categoryFitsRoute(shipment.cargoCategory, batch.origin)
   );
-
-  const totalWeight = batch.shipments.reduce(
-    (sum, s) => sum + toNumber(s.weightKg),
-    0
-  );
-  const totalPackages = batch.shipments.reduce((sum, s) => sum + s.packages, 0);
 
   return (
     <>
       <PageHeader
-        title={batch.batchNumber}
-        description={`${ORIGIN_LABELS[batch.origin]} · opened ${formatDate(batch.createdAt)} by ${batch.createdBy?.name ?? "—"}`}
+        title={ROUTE_LABEL[batch.origin] ?? batch.batchNumber}
+        description={`Cargo waiting in China for the ${ORIGIN_LABELS[batch.origin]} flight. This table is permanent — it empties when you dispatch it, then fills again.`}
         actions={
           <>
-            <BatchStatusBadge status={batch.status} />
-            <Button asChild variant="outline" size="sm" className="rounded-lg">
+            <Button asChild variant="outline" size="sm">
               <Link href={`/app/batches/${batch.id}/manifest`}>
                 <FileText className="mr-2 h-4 w-4" />
                 Manifest
+              </Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/app/batches">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Both batches
               </Link>
             </Button>
           </>
@@ -109,21 +98,18 @@ export default async function BatchDetailPage({
           <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
           <div className="min-w-0">
             <p className="font-medium">
-              {misrouted.length} shipment{misrouted.length === 1 ? "" : "s"} in
-              this batch {misrouted.length === 1 ? "is" : "are"} classified for
-              the other airport
+              {misrouted.length} piece{misrouted.length === 1 ? "" : "s"} on this
+              table belong{misrouted.length === 1 ? "s" : ""} on the other one
             </p>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              This batch flies from {ORIGIN_LABELS[batch.origin]}. These came in
-              on the packing list, so the cargo is physically here — but the
-              category decides the price, so it is worth checking before the
-              invoices are raised.
+              Assignment is automatic, so this should not happen. Check the cargo
+              category before dispatching.
             </p>
             <ul className="mt-2 space-y-1 text-sm">
               {misrouted.map((shipment) => (
                 <li key={shipment.id}>
                   <Link
-                    href={`/app/shipments/${shipment.trackingNumber}`}
+                    href={`/app/cargo/${shipment.trackingNumber}`}
                     className="font-mono text-xs hover:text-brand hover:underline"
                   >
                     {shipment.trackingNumber}
@@ -139,91 +125,55 @@ export default async function BatchDetailPage({
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="space-y-6">
-          <section className="rounded-xl border bg-card shadow-soft">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-              <h2 className="font-display font-semibold">
-                Cargo in this batch
-              </h2>
-              <p className="text-xs text-muted-foreground tabular">
-                {batch.shipments.length} shipment(s) · {totalPackages} package(s) ·{" "}
-                {formatWeight(totalWeight)}
-              </p>
-            </div>
+      {canDispatch ? (
+        <div className="mb-6">
+          <DispatchForm
+            batchId={batch.id}
+            routeLabel={ROUTE_LABEL[batch.origin] ?? "batch"}
+            cargoCount={waiting.length}
+            weightKg={totalWeight}
+            packages={totalPackages}
+          />
+        </div>
+      ) : null}
 
-            {batch.shipments.length === 0 ? (
-              <div className="p-5">
-                <EmptyState
-                  title="No cargo loaded yet"
-                  description="Add shipments from the panel on the right."
-                />
-              </div>
-            ) : (
-              <div className="p-5">
-                <CargoGrid
-                  cells={batch.shipments.map((shipment) => ({
-                    id: shipment.id,
-                    trackingNumber: shipment.trackingNumber,
-                    cartonRef: shipment.cartonRef,
-                    customerName: shipment.customer.name,
-                    description: shipment.description,
-                    weightKg: toNumber(shipment.weightKg),
-                    packages: shipment.packages,
-                    status: shipment.status,
-                    category: shipment.cargoCategory,
-                    verification:
-                      verificationByShipment.get(shipment.id)?.result ?? null,
-                  }))}
-                />
-              </div>
-            )}
-          </section>
-
-          {batch.airline ? (
-            <section className="rounded-xl border bg-card shadow-soft">
-              <h2 className="flex items-center gap-2 border-b px-5 py-4 font-display font-semibold">
-                <Plane className="h-4 w-4" />
-                Flight details
-              </h2>
-              <dl className="grid gap-px bg-border sm:grid-cols-4">
-                {[
-                  { label: "Airline", value: batch.airline },
-                  { label: "Flight", value: batch.flightNumber ?? "—" },
-                  { label: "Waybill", value: batch.waybillNumber ?? "—" },
-                  { label: "Departed", value: formatDate(batch.departureDate) },
-                ].map((item) => (
-                  <div key={item.label} className="bg-card p-4">
-                    <dt className="text-xs text-muted-foreground">{item.label}</dt>
-                    <dd className="mt-1 font-mono text-sm font-medium tabular">
-                      {item.value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          ) : null}
+      <section className="rounded-xl border bg-card shadow-soft">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+          <h2 className="font-display font-semibold">On this table</h2>
+          <p className="text-xs tabular-nums text-muted-foreground">
+            {waiting.length} piece(s) · {totalPackages} package(s) ·{" "}
+            {totalWeight.toFixed(1)} kg
+          </p>
         </div>
 
-        <BatchControls
-          batchId={batch.id}
-          batchNumber={batch.batchNumber}
-          status={batch.status}
-          role={user.role}
-          shipmentCount={batch.shipments.length}
-          unassigned={unassigned.map((s) => ({
-            id: s.id,
-            trackingNumber: s.trackingNumber,
-            customerName: s.customer.name,
-            packages: s.packages,
-            weightKg: toNumber(s.weightKg),
-          }))}
-          loaded={batch.shipments.map((s) => ({
-            id: s.id,
-            trackingNumber: s.trackingNumber,
-          }))}
-        />
-      </div>
+        {waiting.length === 0 ? (
+          <div className="p-12 text-center">
+            <p className="font-medium">Nothing waiting</p>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+              Cargo appears here the moment the desk registers it. Nobody has to
+              put it here.
+            </p>
+          </div>
+        ) : (
+          <div className="p-5">
+            <CargoGrid
+              cells={waiting.map((shipment) => ({
+                id: shipment.id,
+                trackingNumber: shipment.trackingNumber,
+                cartonRef: shipment.cartonRef,
+                customerName: shipment.customer.name,
+                description: shipment.description,
+                weightKg: toNumber(shipment.weightKg),
+                packages: shipment.packages,
+                status: shipment.status,
+                category: shipment.cargoCategory,
+                verification:
+                  verificationByShipment.get(shipment.id)?.result ?? null,
+              }))}
+            />
+          </div>
+        )}
+      </section>
     </>
   );
 }

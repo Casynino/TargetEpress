@@ -70,43 +70,32 @@ export function ShipmentForm({
         </p>
         <p className="mt-4 font-mono text-2xl font-bold tabular">{created}</p>
 
-        {/* Say which batch it went on. The clerk did not choose it, so the
-            system owes them the answer rather than making them go and look. */}
-        {state.ok && state.data ? (
-          <div className="mx-auto mt-4 max-w-sm rounded-lg border bg-muted/40 p-3 text-sm">
-            <p>
-              Added to{" "}
-              <span className="font-mono font-semibold">
-                {state.data.batchNumber}
-              </span>
-            </p>
-            {state.data.sealedFull ? (
-              <p className="mt-1 text-xs text-warning">
-                {state.data.sealedFull} was full, so this batch was opened.
-              </p>
-            ) : state.data.batchCreated ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                No batch was open for this route, so one was opened.
-              </p>
-            ) : null}
-          </div>
+        {/* Say where the cargo is now. The clerk did not choose it, so the
+            confirmation has to close the loop. */}
+        {state.ok && state.data?.batchNumber ? (
+          <p className="mt-4 inline-flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+            <span className="text-muted-foreground">Waiting on the</span>
+            <span className="font-medium">
+              {state.data.origin === "HONG_KONG" ? "Hong Kong" : "Guangzhou"} batch
+            </span>
+          </p>
         ) : null}
 
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link
-            href={`/app/shipments/${created}/label`}
+            href={`/app/cargo/${created}/label`}
             className="inline-flex h-10 items-center rounded-md bg-signal px-4 text-sm font-medium text-signal-foreground hover:bg-signal/90"
           >
             Print QR label
           </Link>
           <Link
-            href={`/app/shipments/${created}`}
+            href={`/app/cargo/${created}`}
             className="inline-flex h-10 items-center rounded-md border px-4 text-sm hover:bg-muted"
           >
             View shipment
           </Link>
           <a
-            href="/app/shipments/new"
+            href="/app/cargo/new"
             className="inline-flex h-10 items-center rounded-md border px-4 text-sm hover:bg-muted"
           >
             Register another
@@ -323,7 +312,7 @@ export function ShipmentForm({
           Register shipment
         </SubmitButton>
         <Link
-          href="/app/shipments"
+          href="/app/cargo"
           className="inline-flex h-10 items-center rounded-md border px-4 text-sm hover:bg-muted"
         >
           Cancel

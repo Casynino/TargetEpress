@@ -81,7 +81,7 @@ export default async function DashboardPage() {
           <div className="flex flex-wrap gap-2">
             {can(user.role, "shipment.create") ? (
               <Button asChild variant="signal" className="rounded-lg">
-                <Link href="/app/shipments/new">
+                <Link href="/app/cargo/new">
                   <PackagePlus className="mr-2 h-4 w-4" />
                   Register cargo
                 </Link>
@@ -155,7 +155,7 @@ async function ChinaDashboard({ role }: { role: "CHINA_WAREHOUSE" | "ADMIN" }) {
           hint={`${formatWeight(stats.stagedWeightKg)} waiting for a flight`}
           icon={Package}
           tone="warning"
-          href="/app/shipments?status=READY_TO_DEPART"
+          href="/app/cargo?status=READY_TO_DEPART"
         />
         <KpiCard
           delay={1}
@@ -379,7 +379,7 @@ async function DarDashboard({ role }: { role: "DAR_WAREHOUSE" | "ADMIN" }) {
           hint="Not yet paid for"
           icon={Warehouse}
           tone="info"
-          href="/app/shipments?status=RECEIVED_AT_DAR"
+          href="/app/cargo?status=RECEIVED_AT_DAR"
         />
         <KpiCard
           delay={3}
@@ -666,7 +666,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                 return (
                   <li key={shipment.id}>
                     <Link
-                      href={`/app/shipments/${shipment.trackingNumber}`}
+                      href={`/app/cargo/${shipment.trackingNumber}`}
                       className="focus-ring flex flex-wrap items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-muted/40"
                     >
                       <div className="min-w-0">
@@ -870,7 +870,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
                   className="flex items-center justify-between gap-3 py-2.5"
                 >
                   <Link
-                    href={`/app/shipments/${shipment.trackingNumber}`}
+                    href={`/app/cargo/${shipment.trackingNumber}`}
                     className="font-mono text-sm tabular hover:text-brand"
                   >
                     {shipment.trackingNumber}

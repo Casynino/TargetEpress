@@ -108,7 +108,7 @@ export default async function InvoicePage({
     <div className="mx-auto max-w-3xl">
       <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3">
         <Button asChild variant="ghost" size="sm">
-          <Link href={`/app/shipments/${shipment.trackingNumber}`}>
+          <Link href={`/app/cargo/${shipment.trackingNumber}`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to shipment
           </Link>

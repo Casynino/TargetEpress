@@ -152,7 +152,7 @@ export default async function TicketPage({
 
             {ticket.shipment ? (
               <Link
-                href={`/app/shipments/${ticket.shipment.trackingNumber}`}
+                href={`/app/cargo/${ticket.shipment.trackingNumber}`}
                 className="mt-3 flex items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-accent/40"
               >
                 <Package className="mt-0.5 h-4 w-4 text-muted-foreground" />

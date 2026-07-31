@@ -152,7 +152,7 @@ export async function createProduct(
     });
 
     revalidatePath("/app/admin/pricing");
-    revalidatePath("/app/shipments/new");
+    revalidatePath("/app/cargo/new");
     revalidatePath("/calculator");
     return ok({ id: created.id });
   } catch (error) {
@@ -204,7 +204,7 @@ export async function setProductActive(
     });
 
     revalidatePath("/app/admin/pricing");
-    revalidatePath("/app/shipments/new");
+    revalidatePath("/app/cargo/new");
     revalidatePath("/calculator");
     return ok({ active });
   } catch (error) {

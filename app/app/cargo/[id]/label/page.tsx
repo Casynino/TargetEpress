@@ -37,7 +37,7 @@ export default async function LabelPage({
     <div className="mx-auto max-w-2xl">
       <div className="no-print mb-6 flex items-center justify-between">
         <Button asChild variant="ghost" size="sm">
-          <Link href={`/app/shipments/${shipment.trackingNumber}`}>
+          <Link href={`/app/cargo/${shipment.trackingNumber}`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to shipment
           </Link>

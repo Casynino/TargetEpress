@@ -78,7 +78,7 @@ export default async function ExceptionsPage() {
                         {EXCEPTION_TYPE_LABELS[exception.type]}
                       </Badge>
                       <Link
-                        href={`/app/shipments/${exception.shipment.trackingNumber}`}
+                        href={`/app/cargo/${exception.shipment.trackingNumber}`}
                         className="font-mono text-sm tabular hover:text-brand"
                       >
                         {exception.shipment.trackingNumber}
@@ -121,7 +121,7 @@ export default async function ExceptionsPage() {
                     {EXCEPTION_TYPE_LABELS[exception.type]}
                   </Badge>
                   <Link
-                    href={`/app/shipments/${exception.shipment.trackingNumber}`}
+                    href={`/app/cargo/${exception.shipment.trackingNumber}`}
                     className="font-mono text-sm tabular hover:text-brand"
                   >
                     {exception.shipment.trackingNumber}
