@@ -203,13 +203,13 @@ export default async function ManifestPage({
           <thead>
             <tr className="border-y-2 border-black/70 text-left">
               <th className="py-2 pr-2 font-semibold">#</th>
+              <th className="py-2 pr-2 font-semibold">Received</th>
               <th className="py-2 pr-2 font-semibold">Tracking</th>
               <th className="py-2 pr-2 font-semibold">Customer</th>
               <th className="py-2 pr-2 font-semibold">Phone</th>
               <th className="py-2 pr-2 font-semibold">Product</th>
               <th className="py-2 pr-2 text-right font-semibold">Qty</th>
               <th className="py-2 pr-2 text-right font-semibold">Weight</th>
-              <th className="py-2 pr-2 font-semibold">Received</th>
               <th className="py-2 pr-2 font-semibold">By</th>
               <th className="w-10 py-2 text-center font-semibold">Photo</th>
               {/* Physically ticked with a pen while checking the cargo. */}
@@ -220,6 +220,9 @@ export default async function ManifestPage({
             {batch.shipments.map((shipment, index) => (
               <tr key={shipment.id} className="border-b border-black/15">
                 <td className="py-2 pr-2 tabular">{index + 1}</td>
+                <td className="whitespace-nowrap py-2 pr-2 tabular">
+                  {formatDate(shipment.registeredAt)}
+                </td>
                 <td className="py-2 pr-2 font-mono font-semibold tabular">
                   {shipment.trackingNumber}
                 </td>
@@ -235,9 +238,6 @@ export default async function ManifestPage({
                 </td>
                 <td className="py-2 pr-2 text-right tabular">
                   {formatWeight(shipment.weightKg)}
-                </td>
-                <td className="py-2 pr-2 tabular">
-                  {formatDate(shipment.registeredAt)}
                 </td>
                 <td className="py-2 pr-2">{shipment.createdBy?.name ?? "—"}</td>
                 <td className="py-2 text-center">
@@ -255,14 +255,14 @@ export default async function ManifestPage({
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-black/70 font-semibold">
-              <td className="py-2" colSpan={5}>
+              <td className="py-2" colSpan={6}>
                 Total
               </td>
               <td className="py-2 pr-2 text-right tabular">{totalPackages}</td>
               <td className="py-2 pr-2 text-right tabular">
                 {formatWeight(totalWeight)}
               </td>
-              <td colSpan={4} />
+              <td colSpan={3} />
             </tr>
           </tfoot>
         </table>
