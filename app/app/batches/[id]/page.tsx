@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, FileText, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Clock, FileText, Package, Scale, TriangleAlert, Users } from "lucide-react";
 
 import { CargoGrid } from "@/components/app/cargo-grid";
+import { KpiCard } from "@/components/app/kpi-card";
 import { DispatchForm } from "@/components/app/dispatch-form";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,23 @@ export default async function LoadingTablePage({
     (shipment) => !categoryFitsRoute(shipment.cargoCategory, batch.origin)
   );
 
+  const customers = new Set(waiting.map((s) => s.customerId)).size;
+
+  // How long the oldest piece has been sitting. This is the number that decides
+  // whether a batch should go today — cargo ageing on the floor is a customer
+  // wondering where their goods are.
+  const oldest = waiting.reduce<Date | null>(
+    (earliest, cargo) =>
+      !earliest || cargo.registeredAt < earliest ? cargo.registeredAt : earliest,
+    null
+  );
+  const daysWaiting = oldest
+    ? Math.max(
+        0,
+        Math.floor((Date.now() - oldest.getTime()) / (1000 * 60 * 60 * 24))
+      )
+    : 0;
+
   return (
     <>
       <PageHeader
@@ -92,6 +110,45 @@ export default async function LoadingTablePage({
           </>
         }
       />
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          delay={0}
+          label="Cargo waiting"
+          numeric={waiting.length}
+          hint={`${totalPackages} package${totalPackages === 1 ? "" : "s"}`}
+          icon={Package}
+          tone="brand"
+        />
+        <KpiCard
+          delay={1}
+          label="Total weight"
+          value={`${totalWeight.toFixed(1)} kg`}
+          hint="What the flight will carry"
+          icon={Scale}
+          tone="info"
+        />
+        <KpiCard
+          delay={2}
+          label="Customers"
+          numeric={customers}
+          hint="Waiting on this flight"
+          icon={Users}
+          tone="signal"
+        />
+        <KpiCard
+          delay={3}
+          label="Oldest piece"
+          value={daysWaiting === 0 ? "Today" : `${daysWaiting} days`}
+          hint={
+            oldest
+              ? `Received ${oldest.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`
+              : "Nothing waiting"
+          }
+          icon={Clock}
+          tone={daysWaiting >= 7 ? "warning" : "success"}
+        />
+      </div>
 
       {misrouted.length > 0 ? (
         <div className="mb-6 flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/5 p-4">

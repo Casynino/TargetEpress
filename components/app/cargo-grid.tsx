@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Grid3x3, Table2 } from "lucide-react";
+import { Grid3x3, Search, Table2, X } from "lucide-react";
+
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { cn } from "@/lib/utils";
 
@@ -62,6 +65,8 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
   // is what a desk works down when several hundred cartons are moving in a week.
   const [view, setView] = useState<"list" | "grid">("list");
   const [filter, setFilter] = useState<string>("ALL");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("carton");
 
   const sorted = useMemo(() => {
     const byCarton = (a: CargoCell, b: CargoCell) => {
@@ -76,10 +81,26 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
       return diff !== 0 ? diff : a.trackingNumber.localeCompare(b.trackingNumber);
     };
 
+    const q = query.trim().toLowerCase();
+
+    const matches = (cell: CargoCell) =>
+      !q ||
+      [cell.trackingNumber, cell.cartonRef ?? "", cell.customerName, cell.description]
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
+
     return [...cells]
       .filter((cell) => filter === "ALL" || cell.category === filter)
-      .sort(byCarton);
-  }, [cells, filter]);
+      .filter(matches)
+      .sort((a, b) => {
+        if (sort === "customer") return a.customerName.localeCompare(b.customerName);
+        if (sort === "weight") return b.weightKg - a.weightKg;
+        if (sort === "tracking")
+          return a.trackingNumber.localeCompare(b.trackingNumber);
+        return byCarton(a, b);
+      });
+  }, [cells, filter, query, sort]);
 
   const counts = useMemo(() => {
     const total = cells.length;
@@ -100,6 +121,42 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
 
   return (
     <div>
+      {/* Finding one customer in a busy batch is the common task, so search
+          leads and the filters sit under it. */}
+      <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Customer, tracking number, carton or goods…"
+            className="pl-9 pr-9"
+            aria-label="Search cargo"
+          />
+          {query ? (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
+        <NativeSelect
+          aria-label="Sort cargo"
+          value={sort}
+          onChange={(event) => setSort(event.target.value)}
+          className="sm:w-48"
+        >
+          <option value="carton">Sort: carton order</option>
+          <option value="customer">Sort: customer A–Z</option>
+          <option value="tracking">Sort: tracking number</option>
+          <option value="weight">Sort: heaviest first</option>
+        </NativeSelect>
+      </div>
+
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -152,7 +209,12 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
         </div>
       </div>
 
-      {counts.verified > 0 || counts.flagged > 0 ? (
+      {query.trim() || filter !== "ALL" ? (
+        <p className="mb-3 text-sm text-muted-foreground">
+          Showing <span className="font-medium text-foreground">{sorted.length}</span>{" "}
+          of {counts.total} pieces
+        </p>
+      ) : counts.verified > 0 || counts.flagged > 0 ? (
         <p className="mb-3 text-sm text-muted-foreground">
           {counts.verified} of {counts.total} checked in
           {counts.flagged > 0 ? ` · ${counts.flagged} flagged` : ""} ·{" "}

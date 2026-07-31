@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { PlaneTakeoff } from "lucide-react";
+import { Lock, PlaneTakeoff } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { Button } from "@/components/ui/button";
@@ -61,18 +61,30 @@ export function DispatchForm({
   }
 
   return (
-    <div className="rounded-xl border bg-card shadow-soft">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-        <div>
-          <h2 className="font-semibold">Dispatch this batch</h2>
-          <p className="text-sm text-muted-foreground">
-            {cargoCount} piece{cargoCount === 1 ? "" : "s"} · {packages} package
-            {packages === 1 ? "" : "s"} · {weightKg.toFixed(1)} kg
-          </p>
+    <div className="overflow-hidden rounded-xl border-2 border-brand/30 bg-card shadow-soft">
+      <header className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-br from-brand/10 via-brand/5 to-transparent p-5">
+        <div className="flex items-start gap-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand">
+            <Lock className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="font-display text-lg font-bold">
+              Seal &amp; dispatch
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Close this table off and put it on a flight.
+            </p>
+            <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
+              {cargoCount} piece{cargoCount === 1 ? "" : "s"} · {packages} package
+              {packages === 1 ? "" : "s"} · {weightKg.toFixed(1)} kg
+            </p>
+          </div>
         </div>
         <Button
           type="button"
-          variant={open ? "ghost" : "default"}
+          size="lg"
+          variant={open ? "ghost" : "brand"}
+          className={open ? "" : "rounded-xl shadow-lift"}
           onClick={() => setOpen((v) => !v)}
         >
           {open ? (
@@ -80,7 +92,7 @@ export function DispatchForm({
           ) : (
             <>
               <PlaneTakeoff className="mr-2 h-4 w-4" />
-              Dispatch
+              Seal &amp; dispatch
             </>
           )}
         </Button>
@@ -159,9 +171,9 @@ export function DispatchForm({
             flight and cannot be undone. The {routeLabel} then starts empty.
           </p>
 
-          <SubmitButton pendingLabel="Dispatching…">
+          <SubmitButton size="lg" variant="brand" className="rounded-xl" pendingLabel="Sealing and dispatching…">
             <PlaneTakeoff className="mr-2 h-4 w-4" />
-            Dispatch {cargoCount} piece{cargoCount === 1 ? "" : "s"}
+            Seal &amp; dispatch {cargoCount} piece{cargoCount === 1 ? "" : "s"}
           </SubmitButton>
         </form>
       ) : null}
