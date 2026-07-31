@@ -20,14 +20,17 @@ export type NavSection = {
 };
 
 /**
- * The sidebar, in three kinds of group: the work, the records, and you.
+ * The sidebar: the work, and nothing else.
  *
- * Section titles are not rendered. With four or five links in a group, a
- * heading above each one is more furniture than signpost — the gap between
- * groups says the same thing more quietly.
+ * Section titles are not rendered — with five links, a heading above them is
+ * furniture rather than a signpost.
  *
- * Notifications are absent on purpose: they are a bell in the top right, where
- * a count is visible without opening anything.
+ * Three things people expect to find here are deliberately elsewhere, because
+ * each already has a better home. Notifications are a bell in the top right,
+ * where the count is visible without opening anything. Your profile is your own
+ * name at the bottom of this sidebar. Floor activity is on that profile, next
+ * to your own. Every one of them would otherwise be a second door to a room
+ * that already has one.
  */
 const SECTIONS: NavSection[] = [
   {
@@ -56,6 +59,12 @@ const SECTIONS: NavSection[] = [
         label: "Batches",
         icon: "Boxes",
         permission: "batch.view",
+      },
+      {
+        href: "/app/customers",
+        label: "Customers",
+        icon: "Users",
+        permission: "customer.view",
       },
       {
         href: "/app/scan",
@@ -158,17 +167,6 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Records",
-    items: [
-      {
-        href: "/app/customers",
-        label: "Customers",
-        icon: "Users",
-        permission: "customer.view",
-      },
-    ],
-  },
-  {
     title: "Management",
     items: [
       {
@@ -213,17 +211,6 @@ const SECTIONS: NavSection[] = [
         icon: "FlaskConical",
         permission: "user.manage",
       },
-    ],
-  },
-  {
-    title: "You",
-    items: [
-      // No permission: everyone can see what the floor has been doing.
-      //
-      // The profile is not here. It is reached by pressing your own name at the
-      // bottom of this sidebar, which is where people look for "my stuff"
-      // anyway — a second door to the same room only makes the list longer.
-      { href: "/app/activity", label: "Activity", icon: "History" },
     ],
   },
 ];

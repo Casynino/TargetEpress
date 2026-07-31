@@ -281,6 +281,13 @@ export default async function MyProfilePage() {
                 title="My batches"
                 detail={`${stats.batchesTouched} you contributed to`}
               />
+              {/* The whole floor's activity sits beside your own — this page
+                  is already the answer to "what has been happening". */}
+              <ProfileLink
+                href="/app/activity"
+                title="Floor activity"
+                detail="What everyone has been doing, by day"
+              />
               <ProfileLink
                 href="/app/notifications"
                 title="Notifications"
