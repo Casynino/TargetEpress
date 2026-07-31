@@ -388,7 +388,9 @@ export function CargoGrid({
                   <th className="px-3 py-2 font-medium">Customer</th>
                   <th className="px-3 py-2 font-medium">Cargo</th>
                   <th className="px-3 py-2 text-right font-medium">Weight</th>
-                  <th className="px-3 py-2 text-right font-medium">Qty</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
+                    Counted as
+                  </th>
                   <th className="hidden px-3 py-2 font-medium md:table-cell">Proof</th>
                   <th className="hidden px-3 py-2 font-medium 2xl:table-cell">
                     Received by

@@ -135,6 +135,7 @@ export const PACKAGE_TYPE_LABELS: Record<string, { one: string; many: string }> 
   PACKAGE: { one: "package", many: "packages" },
   BAG: { one: "bag", many: "bags" },
   BOX: { one: "box", many: "boxes" },
+  ENVELOPE: { one: "envelope", many: "envelopes" },
   OTHER: { one: "package", many: "packages" },
 };
 
@@ -151,6 +152,7 @@ export const PACKAGE_TYPE_SHORT: Record<string, string> = {
   PACKAGE: "pkg",
   BAG: "bag",
   BOX: "box",
+  ENVELOPE: "env",
   OTHER: "unit",
 };
 

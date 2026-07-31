@@ -62,10 +62,12 @@ export const shipmentSchema = z.object({
     .refine((v) => v === null || v.length >= 7, "That phone number is too short."),
   customerCity: z.string().trim().optional(),
   cargoCategory: z.enum(["NORMAL_GOODS", "ELECTRONICS", "LIQUID_SPECIAL"]),
-  packageType: z
-    .enum(["CARTON", "PIECE", "PACKAGE", "BAG", "BOX", "OTHER"])
-    .optional()
-    .default("PACKAGE"),
+  /// Required, not defaulted. A quantity with a silently assumed unit is the
+  /// thing this field exists to prevent — the desk has to say what it counted.
+  packageType: z.enum(
+    ["CARTON", "PIECE", "PACKAGE", "BAG", "BOX", "ENVELOPE", "OTHER"],
+    { message: "Say what the quantity is counted as." }
+  ),
   cargoTypeId: z
     .string()
     .trim()

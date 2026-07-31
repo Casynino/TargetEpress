@@ -129,6 +129,7 @@ enum PackageType {
   PACKAGE
   BAG
   BOX
+  ENVELOPE
   OTHER
 }
 

@@ -136,7 +136,9 @@ export default async function ManifestPage({
               <th className="py-2 pr-2 font-semibold">Customer</th>
               <th className="py-2 pr-2 font-semibold">Phone</th>
               <th className="py-2 pr-2 font-semibold">Product</th>
-              <th className="py-2 pr-2 text-right font-semibold">Qty</th>
+              <th className="whitespace-nowrap py-2 pr-2 text-right font-semibold">
+                Counted as
+              </th>
               <th className="py-2 pr-2 text-right font-semibold">Weight</th>
               <th className="py-2 pr-2 font-semibold">By</th>
               {/* Physically ticked with a pen while checking the cargo. */}

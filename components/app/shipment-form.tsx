@@ -258,10 +258,11 @@ export function ShipmentForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="packageType">Unit</Label>
+            <Label htmlFor="packageType">Counted as</Label>
             <NativeSelect
               id="packageType"
               name="packageType"
+              required
               defaultValue={category === "NORMAL_GOODS" ? "PACKAGE" : "PIECE"}
               key={category}
             >
@@ -270,10 +271,11 @@ export function ShipmentForm({
               <option value="PACKAGE">Packages</option>
               <option value="BAG">Bags</option>
               <option value="BOX">Boxes</option>
+              <option value="ENVELOPE">Envelopes</option>
               <option value="OTHER">Other</option>
             </NativeSelect>
             <p className="text-xs text-muted-foreground">
-              A quantity is never recorded without its unit.
+              Recorded with the quantity and shown everywhere it appears.
             </p>
           </div>
         </div>

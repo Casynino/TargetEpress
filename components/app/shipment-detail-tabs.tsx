@@ -202,7 +202,9 @@ export function ShipmentDetailTabs({
                   <th className="px-3 py-2 font-medium">Goods</th>
                   <th className="hidden px-3 py-2 font-medium lg:table-cell">Type</th>
                   <th className="px-3 py-2 text-right font-medium">Weight</th>
-                  <th className="px-3 py-2 text-right font-medium">Qty</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
+                    Counted as
+                  </th>
                   <th className="px-3 py-2 font-medium">Proof</th>
                   <th className="hidden px-3 py-2 font-medium md:table-cell">Status</th>
                   <th className="w-20 px-3 py-2" />
