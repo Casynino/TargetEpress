@@ -261,6 +261,9 @@ export const BATCH_STATUS_META: Record<
   { label: string; tone: StatusMeta["tone"] }
 > = {
   OPEN: { label: "Open — loading", tone: "muted" },
+  // A full batch is closed to new cargo but has not been sealed for the flight
+  // yet — the next shipment for its route opens a fresh batch automatically.
+  FULL: { label: "Full — no more cargo", tone: "warning" },
   READY_TO_DEPART: { label: "Sealed — ready to depart", tone: "warning" },
   IN_TRANSIT: { label: "In transit", tone: "info" },
   ARRIVED: { label: "Arrived — awaiting check", tone: "warning" },

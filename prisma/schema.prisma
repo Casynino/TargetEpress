@@ -58,6 +58,7 @@ enum ShipmentStatus {
 
 enum BatchStatus {
   OPEN // still accepting shipments in China
+  FULL // hit its capacity limit; a new batch takes the next shipment
   READY_TO_DEPART // sealed, waiting for the flight
   IN_TRANSIT // departed China
   ARRIVED // landed, awaiting physical verification in Dar
@@ -280,6 +281,13 @@ model Batch {
 
   notes String?
 
+  /// Optional capacity. When a limit is set and reached, the batch flips to
+  /// FULL and the next shipment opens a fresh one — so a pallet never quietly
+  /// grows past what the airline will take.
+  maxShipments Int?
+  maxWeightKg  Decimal? @db.Decimal(10, 2)
+  maxPackages  Int?
+
   createdById String?
   createdBy   User?   @relation("BatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
@@ -297,6 +305,8 @@ model Batch {
 
   @@index([status])
   @@index([createdAt])
+  /// Finding "the open batch for this route" is the hottest query in receiving.
+  @@index([origin, status])
 }
 
 // ---------------------------------------------------------------------------

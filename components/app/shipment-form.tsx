@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-import { createShipment } from "@/lib/actions/shipments";
+import { createShipment, type ShipmentCreated } from "@/lib/actions/shipments";
 import type { ActionResult } from "@/lib/actions/types";
 import {
   AIRPORT_LABELS,
@@ -27,11 +27,6 @@ const CATEGORIES: CargoCategory[] = [
   "LIQUID_SPECIAL",
 ];
 
-type OpenBatch = {
-  id: string;
-  batchNumber: string;
-  origin: "GUANGZHOU" | "HONG_KONG";
-};
 
 type CargoTypeOption = { id: string; name: string };
 
@@ -47,37 +42,22 @@ type CargoTypeOption = { id: string; name: string };
  *    read-only, so cargo cannot be sent to the wrong hub by a mis-click.
  */
 export function ShipmentForm({
-  openBatches,
   typesByCategory,
   photosDurable,
 }: {
-  openBatches: OpenBatch[];
   typesByCategory: Record<string, CargoTypeOption[]>;
   photosDurable: boolean;
 }) {
   const [state, formAction] = useActionState<
-    ActionResult<{ trackingNumber: string }>,
+    ActionResult<ShipmentCreated>,
     FormData
   >(createShipment, { ok: true });
 
   const [category, setCategory] = useState<CargoCategory>("NORMAL_GOODS");
   const [cargoTypeId, setCargoTypeId] = useState("");
-  const [batchId, setBatchId] = useState("");
 
   const route = ROUTE_FOR_CATEGORY[category];
   const types = typesByCategory[category] ?? [];
-  // Only batches leaving the airport this cargo flies from can accept it.
-  const eligibleBatches = openBatches.filter((b) => b.origin === route);
-
-  // Changing category can invalidate the chosen batch and cargo type.
-  useEffect(() => {
-    setCargoTypeId("");
-    setBatchId((current) =>
-      eligibleBatches.some((b) => b.id === current) ? current : ""
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category]);
-
   const created = state.ok && state.data?.trackingNumber;
 
   if (created) {
@@ -89,6 +69,29 @@ export function ShipmentForm({
           Print the label and attach it to the cargo now.
         </p>
         <p className="mt-4 font-mono text-2xl font-bold tabular">{created}</p>
+
+        {/* Say which batch it went on. The clerk did not choose it, so the
+            system owes them the answer rather than making them go and look. */}
+        {state.ok && state.data ? (
+          <div className="mx-auto mt-4 max-w-sm rounded-lg border bg-muted/40 p-3 text-sm">
+            <p>
+              Added to{" "}
+              <span className="font-mono font-semibold">
+                {state.data.batchNumber}
+              </span>
+            </p>
+            {state.data.sealedFull ? (
+              <p className="mt-1 text-xs text-warning">
+                {state.data.sealedFull} was full, so this batch was opened.
+              </p>
+            ) : state.data.batchCreated ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                No batch was open for this route, so one was opened.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link
             href={`/app/shipments/${created}/label`}
@@ -288,41 +291,14 @@ export function ShipmentForm({
         </div>
       </section>
 
-      {/* 5. Batch and notes */}
+      {/* 5. Notes */}
       <section className="panel p-6">
-        <h2 className="font-display font-semibold">5. Batch &amp; notes</h2>
+        <h2 className="font-display font-semibold">5. Notes</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          The batch is chosen for you from the cargo type — you never pick it.
+        </p>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="batchId">Add to batch</Label>
-            <NativeSelect
-              id="batchId"
-              name="batchId"
-              value={batchId}
-              onChange={(e) => setBatchId(e.target.value)}
-            >
-              <option value="">Not yet — assign later</option>
-              {eligibleBatches.map((batch) => (
-                <option key={batch.id} value={batch.id}>
-                  {batch.batchNumber}
-                </option>
-              ))}
-            </NativeSelect>
-            <p className="text-xs text-muted-foreground">
-              {eligibleBatches.length === 0 ? (
-                <>
-                  No open batch departing {AIRPORT_LABELS[route]}.{" "}
-                  <Link href="/app/batches/new" className="underline">
-                    Open one
-                  </Link>
-                  .
-                </>
-              ) : (
-                <>Only batches leaving {AIRPORT_LABELS[route]} are listed.</>
-              )}
-            </p>
-          </div>
-
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="internalNotes">
               Internal notes{" "}

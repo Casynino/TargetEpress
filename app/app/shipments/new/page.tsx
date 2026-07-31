@@ -30,7 +30,6 @@ export default async function NewShipmentPage() {
         description="Record what arrived. The system works out the route, the batch and the price."
       />
       <ShipmentForm
-        openBatches={openBatches}
         typesByCategory={typesByCategory}
         photosDurable={storageIsDurable()}
       />

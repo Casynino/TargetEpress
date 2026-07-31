@@ -36,6 +36,23 @@ export async function nextBatchNumber(
   return `BATCH-${year}-${pad(n, 3)}`;
 }
 
+/**
+ * Batch numbers per route: HK-2026-001, GZ-2026-001.
+ *
+ * The route is in the number because these get read aloud over the phone and
+ * written on cartons — "HK oh-oh-one" says which flight it is without anyone
+ * looking it up. Numbering restarts each year, per route.
+ */
+export async function nextRouteBatchNumber(
+  tx: Prisma.TransactionClient,
+  route: "GUANGZHOU" | "HONG_KONG",
+  year = new Date().getFullYear()
+) {
+  const prefix = route === "HONG_KONG" ? "HK" : "GZ";
+  const n = await nextSequence(tx, `batch:${prefix}:${year}`);
+  return `${prefix}-${year}-${pad(n, 3)}`;
+}
+
 export async function nextCustomerCode(tx: Prisma.TransactionClient) {
   const n = await nextSequence(tx, "customer");
   return `CUS-${pad(n)}`;

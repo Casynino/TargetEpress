@@ -20,7 +20,8 @@
     "postinstall": "prisma generate",
     "db:seed:pricing": "tsx prisma/seed-pricing.ts",
     "verify:pricing": "tsx --conditions=react-server prisma/verify-pricing.ts",
-    "import:packing-list": "tsx prisma/import-packing-list.ts"
+    "import:packing-list": "tsx prisma/import-packing-list.ts",
+    "verify:batching": "tsx --conditions=react-server prisma/verify-batching.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -16,6 +16,7 @@ import {
   nextCustomerCode,
   nextTrackingNumber,
 } from "@/lib/ids";
+import { assignToOpenBatch } from "@/lib/batching";
 import { prisma } from "@/lib/prisma";
 import { filesFrom, putImages } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -115,10 +116,20 @@ async function resolveCustomer(
   });
 }
 
+export type ShipmentCreated = {
+  trackingNumber: string;
+  /** The batch the system put it on — the clerk never chose this. */
+  batchNumber: string;
+  /** True when this shipment opened a new batch. */
+  batchCreated: boolean;
+  /** Set when a batch was closed off as FULL to make room. */
+  sealedFull: string | null;
+};
+
 export async function createShipment(
-  _prev: ActionResult<{ trackingNumber: string }> | undefined,
+  _prev: ActionResult<ShipmentCreated> | undefined,
   formData: FormData
-): Promise<ActionResult<{ trackingNumber: string }>> {
+): Promise<ActionResult<ShipmentCreated>> {
   let user: SessionUser;
   try {
     user = await authorize("shipment.create");
@@ -159,25 +170,15 @@ export async function createShipment(
       // never picks it, so cargo cannot be routed to the wrong hub by mistake.
       const origin = routeFor(input.cargoCategory);
 
-      // A batch can only take cargo while it is open, and only cargo that flies
-      // from the same airport.
-      let batchId: string | null = null;
-      if (input.batchId) {
-        const batch = await tx.batch.findUnique({
-          where: { id: input.batchId },
-          select: { id: true, status: true, origin: true, batchNumber: true },
-        });
-        if (!batch) throw new Error("That batch no longer exists.");
-        if (batch.status !== "OPEN") {
-          throw new Error("That batch is already sealed — pick an open batch.");
-        }
-        if (!categoryFitsRoute(input.cargoCategory, batch.origin)) {
-          throw new Error(
-            `${CATEGORY_LABELS[input.cargoCategory]} departs ${AIRPORT_LABELS[origin]}, but ${batch.batchNumber} departs ${AIRPORT_LABELS[batch.origin]}.`
-          );
-        }
-        batchId = batch.id;
-      }
+      // The batch is decided here, not by the clerk. The category fixes the
+      // route, the route fixes the batch, and if nothing is open for that route
+      // one is opened. See lib/batching.
+      const assignment = await assignToOpenBatch(
+        tx,
+        origin,
+        { weightKg: input.weightKg, packages: input.packages },
+        user.id
+      );
 
       const shipment = await tx.shipment.create({
         data: {
@@ -193,7 +194,7 @@ export async function createShipment(
           volumeCbm: input.volumeCbm ?? null,
           origin,
           internalNotes: input.internalNotes || null,
-          batchId,
+          batchId: assignment.batchId,
           status: "READY_TO_DEPART",
           createdById: user.id,
         },
@@ -214,7 +215,7 @@ export async function createShipment(
         fromStatus: null,
         toStatus: "READY_TO_DEPART",
         location: ORIGIN_PLACE[origin],
-        note: `Cargo received and registered as ${CATEGORY_LABELS[input.cargoCategory].toLowerCase()}, departing ${AIRPORT_LABELS[origin]}.`,
+        note: `Cargo received and registered as ${CATEGORY_LABELS[input.cargoCategory].toLowerCase()}, departing ${AIRPORT_LABELS[origin]} on ${assignment.batchNumber}.`,
         actorId: user.id,
       });
 
@@ -231,19 +232,28 @@ export async function createShipment(
             cargoCategory: input.cargoCategory,
             origin,
             photos: uploaded.length,
+            batch: assignment.batchNumber,
+            batchCreated: assignment.created,
+            sealedFull: assignment.sealedFull,
           },
         },
         tx
       );
 
-      return shipment;
+      return { shipment, assignment };
     });
 
     revalidatePath("/app/shipments");
     revalidatePath("/app/dashboard");
-    if (input.batchId) revalidatePath(`/app/batches/${input.batchId}`);
+    revalidatePath("/app/batches");
+    revalidatePath(`/app/batches/${result.assignment.batchId}`);
 
-    return ok({ trackingNumber: result.trackingNumber });
+    return ok({
+      trackingNumber: result.shipment.trackingNumber,
+      batchNumber: result.assignment.batchNumber,
+      batchCreated: result.assignment.created,
+      sealedFull: result.assignment.sealedFull,
+    });
   } catch (error) {
     return fail(toActionError(error));
   }
