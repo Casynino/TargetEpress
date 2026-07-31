@@ -160,10 +160,12 @@ function NavList({
   return (
     <nav className={className}>
       {sections.map((section) => (
-        <div key={section.title} className="mb-5">
-          <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
-            {section.title}
-          </p>
+        <div
+          key={section.title}
+          // Spacing is the whole separator. Groups this short do not need to be
+          // named — "OVERVIEW" above two links told nobody anything.
+          className="mb-6 last:mb-0"
+        >
           <ul className="space-y-0.5">
             {section.items.map((item) => {
               const Icon = ICONS[item.icon] ?? Package;

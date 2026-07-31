@@ -125,7 +125,7 @@ export default async function DashboardPage() {
               <Button asChild variant="signal" className="rounded-lg">
                 <Link href="/app/cargo/new">
                   <PackagePlus className="mr-2 h-4 w-4" />
-                  Register cargo
+                  Receive cargo
                 </Link>
               </Button>
             ) : null}

@@ -84,7 +84,7 @@ export function WarehouseHero({
               className="inline-flex items-center gap-2 rounded-xl bg-signal px-4 py-2.5 text-sm font-semibold text-signal-foreground shadow-soft transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
             >
               <PackagePlus className="h-4 w-4" />
-              Register cargo
+              Receive cargo
             </Link>
           </div>
         </div>

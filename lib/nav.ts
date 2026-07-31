@@ -13,32 +13,27 @@ export type NavItem = {
 };
 
 export type NavSection = {
+  /** Used as a React key and to reason about the file. Never rendered — the
+   *  groups are told apart by spacing, which is enough for six links. */
   title: string;
   items: NavItem[];
 };
 
-// Neither the profile nor notifications appear here. The profile is reached by
-// pressing your own name at the bottom of this sidebar — the place people
-// already look for "my stuff" — and notifications are a bell in the top right,
-// where a count is visible without opening anything.
+/**
+ * The sidebar, in three kinds of group: the work, the records, and you.
+ *
+ * Section titles are not rendered. With four or five links in a group, a
+ * heading above each one is more furniture than signpost — the gap between
+ * groups says the same thing more quietly.
+ *
+ * Notifications are absent on purpose: they are a bell in the top right, where
+ * a count is visible without opening anything.
+ */
 const SECTIONS: NavSection[] = [
   {
-    title: "Overview",
+    title: "Work",
     items: [
       { href: "/app/dashboard", label: "Dashboard", icon: "LayoutDashboard", exact: true },
-      {
-        href: "/app/scan",
-        label: "Scan QR",
-        icon: "ScanLine",
-        // The China desk prints labels; it never scans them. Offering the link
-        // there implies a workflow that does not exist.
-        permission: "shipment.scan",
-      },
-    ],
-  },
-  {
-    title: "Operations",
-    items: [
       // The standalone cargo list is deliberately absent. A mixed list of every
       // piece of cargo in the business tells you nothing about which shipment
       // it is on or where it is; cargo is reached from inside a shipment or a
@@ -46,9 +41,15 @@ const SECTIONS: NavSection[] = [
       // saved links resolve.
       {
         href: "/app/cargo/new",
-        label: "Register cargo",
+        label: "Receive cargo",
         icon: "PackagePlus",
         permission: "shipment.create",
+      },
+      {
+        href: "/app/shipments",
+        label: "Shipments",
+        icon: "PlaneTakeoff",
+        permission: "batch.view",
       },
       {
         href: "/app/batches",
@@ -57,10 +58,12 @@ const SECTIONS: NavSection[] = [
         permission: "batch.view",
       },
       {
-        href: "/app/shipments",
-        label: "Shipments",
-        icon: "PlaneTakeoff",
-        permission: "batch.view",
+        href: "/app/scan",
+        label: "Scan QR",
+        icon: "ScanLine",
+        // The China desk prints labels; it never scans them. Offering the link
+        // there implies a workflow that does not exist.
+        permission: "shipment.scan",
       },
       {
         href: "/app/receive",
@@ -210,6 +213,15 @@ const SECTIONS: NavSection[] = [
         icon: "FlaskConical",
         permission: "user.manage",
       },
+    ],
+  },
+  {
+    title: "You",
+    items: [
+      // No permissions: everyone with an account has a profile, and everyone
+      // can see what the floor has been doing.
+      { href: "/app/activity", label: "Activity", icon: "History" },
+      { href: "/app/profile", label: "My profile", icon: "UserRound" },
     ],
   },
 ];

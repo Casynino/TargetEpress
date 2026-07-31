@@ -7,7 +7,7 @@ import { cargoTypesByCategory } from "@/lib/pricing";
 import { requirePermission } from "@/lib/session";
 import { storageIsDurable } from "@/lib/storage";
 
-export const metadata: Metadata = { title: "Register cargo" };
+export const metadata: Metadata = { title: "Receive cargo" };
 
 export default async function NewShipmentPage() {
   await requirePermission("shipment.create");
@@ -26,7 +26,7 @@ export default async function NewShipmentPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        title="Register cargo"
+        title="Receive cargo"
         description="Record what arrived. The system works out the route, the batch and the price."
       />
       <ShipmentForm

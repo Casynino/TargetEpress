@@ -213,7 +213,7 @@ export function ShipmentsTable({
       toolbar={
         canCreate ? (
           <Button asChild variant="signal" size="sm" className="h-10">
-            <Link href="/app/cargo/new">Register cargo</Link>
+            <Link href="/app/cargo/new">Receive cargo</Link>
           </Button>
         ) : null
       }

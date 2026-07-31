@@ -152,9 +152,9 @@ export default async function TestDataPage() {
     {
       icon: PackagePlus,
       role: "China Warehouse",
-      title: "Register new cargo",
+      title: "Receive new cargo",
       steps: [
-        "Go to Register cargo and type 0762111222 in the phone field — it recognises Kariakoo Traders and fills the name for you.",
+        "Go to Receive cargo and type 0762111222 in the phone field — it recognises Kariakoo Traders and fills the name for you.",
         "Fill weight and description, then save. A tracking number and QR label are generated automatically.",
         "Print the label — that is the sticker that goes on the carton.",
       ],
