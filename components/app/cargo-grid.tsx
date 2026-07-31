@@ -27,6 +27,19 @@ const CATEGORY_TINT: Record<string, string> = {
   LIQUID_SPECIAL: "bg-warning/10 border-warning/30 text-warning",
 };
 
+/** Short forms, because this column is read at a glance a hundred times a day. */
+const CATEGORY_SHORT: Record<string, string> = {
+  NORMAL_GOODS: "Normal",
+  ELECTRONICS: "Electronics",
+  LIQUID_SPECIAL: "Special",
+};
+
+const CATEGORY_CHIP: Record<string, string> = {
+  NORMAL_GOODS: "bg-brand/10 text-brand",
+  ELECTRONICS: "bg-info/10 text-info",
+  LIQUID_SPECIAL: "bg-warning/10 text-warning",
+};
+
 const CATEGORY_LABEL: Record<string, string> = {
   NORMAL_GOODS: "Normal goods",
   ELECTRONICS: "Electronics",
@@ -45,7 +58,9 @@ const CATEGORY_LABEL: Record<string, string> = {
  * come off the truck.
  */
 export function CargoGrid({ cells }: { cells: CargoCell[] }) {
-  const [view, setView] = useState<"grid" | "list">("grid");
+  // List first, deliberately. The tile grid is a picture of one batch; the list
+  // is what a desk works down when several hundred cartons are moving in a week.
+  const [view, setView] = useState<"list" | "grid">("list");
   const [filter, setFilter] = useState<string>("ALL");
 
   const sorted = useMemo(() => {
@@ -115,8 +130,8 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
         <div className="ml-auto flex rounded-md border p-0.5">
           {(
             [
-              { key: "grid", Icon: Grid3x3, label: "Cargo layout" },
               { key: "list", Icon: Table2, label: "List" },
+              { key: "grid", Icon: Grid3x3, label: "Cargo layout" },
             ] as const
           ).map(({ key, Icon, label }) => (
             <button
@@ -185,38 +200,77 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
           ))}
         </ul>
       ) : (
-        <div className="overflow-x-auto rounded-xl border bg-card shadow-soft">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="p-3 font-medium">Carton</th>
-                <th className="p-3 font-medium">Tracking</th>
-                <th className="p-3 font-medium">Customer</th>
-                <th className="p-3 font-medium">Cargo</th>
-                <th className="p-3 text-right font-medium">Weight</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((cell) => (
-                <tr key={cell.id} className="border-t">
-                  <td className="p-3 font-mono text-xs">{cell.cartonRef ?? "—"}</td>
-                  <td className="p-3">
-                    <Link
-                      href={`/app/shipments/${cell.trackingNumber}`}
-                      className="font-mono text-xs hover:text-brand hover:underline"
-                    >
-                      {cell.trackingNumber}
-                    </Link>
-                  </td>
-                  <td className="p-3">{cell.customerName}</td>
-                  <td className="p-3 text-muted-foreground">{cell.description}</td>
-                  <td className="p-3 text-right font-mono tabular-nums">
-                    {cell.weightKg.toFixed(1)} kg
-                  </td>
+        <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
+          <div className="max-h-[70vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Carton</th>
+                  <th className="px-3 py-2 font-medium">Tracking</th>
+                  <th className="px-3 py-2 font-medium">Customer</th>
+                  <th className="px-3 py-2 font-medium">Cargo</th>
+                  <th className="hidden px-3 py-2 font-medium lg:table-cell">Type</th>
+                  <th className="px-3 py-2 text-right font-medium">Weight</th>
+                  <th className="px-3 py-2 text-right font-medium">Pkgs</th>
+                  <th className="px-3 py-2 font-medium">State</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sorted.map((cell) => (
+                  <tr
+                    key={cell.id}
+                    className={cn(
+                      "border-t",
+                      cell.verification === "EXCEPTION" && "bg-destructive/5"
+                    )}
+                  >
+                    <td className="whitespace-nowrap px-3 py-1.5 font-mono text-xs text-muted-foreground">
+                      {cell.cartonRef ?? "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-1.5">
+                      <Link
+                        href={`/app/shipments/${cell.trackingNumber}`}
+                        className="font-mono text-xs hover:text-brand hover:underline"
+                      >
+                        {cell.trackingNumber}
+                      </Link>
+                    </td>
+                    <td className="max-w-[12rem] truncate px-3 py-1.5">
+                      {cell.customerName}
+                    </td>
+                    <td className="max-w-[18rem] truncate px-3 py-1.5 text-muted-foreground">
+                      {cell.description}
+                    </td>
+                    <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs lg:table-cell">
+                      <span
+                        className={cn(
+                          "rounded px-1.5 py-0.5",
+                          CATEGORY_CHIP[cell.category] ?? "bg-muted"
+                        )}
+                      >
+                        {CATEGORY_SHORT[cell.category] ?? cell.category}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-1.5 text-right font-mono tabular-nums">
+                      {cell.weightKg.toFixed(1)}
+                    </td>
+                    <td className="px-3 py-1.5 text-right font-mono tabular-nums">
+                      {cell.packages}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-1.5 text-xs">
+                      {cell.verification === "VERIFIED" ? (
+                        <span className="text-success">checked in</span>
+                      ) : cell.verification === "EXCEPTION" ? (
+                        <span className="font-medium text-destructive">flagged</span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

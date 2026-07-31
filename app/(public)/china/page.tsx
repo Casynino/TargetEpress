@@ -120,8 +120,8 @@ export default function ChinaPage() {
             {[
               {
                 icon: UserRound,
-                title: "Jina lako",
-                body: "Your name or business name, as we know you.",
+                title: "Jina lako / shipping mark",
+                body: "Your name or shipping mark, exactly as we know you. This is what we match the cartons against.",
               },
               {
                 icon: Phone,

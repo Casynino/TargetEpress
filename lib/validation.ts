@@ -50,10 +50,10 @@ export const shipmentSchema = z.object({
     .trim()
     .optional()
     .transform((v) => (v && v.length > 0 ? v : null)),
-  customerName: z.string().trim().min(2, "Customer name is required."),
-  /// Optional on purpose: consolidated cargo regularly arrives from a Guangzhou
-  /// packing list with a name and no number, and refusing to register it would
-  /// mean the warehouse invents one.
+  customerName: z.string().trim().min(2, "A name or shipping mark is required."),
+  /// Empty only when an existing customer was picked — some of the customers
+  /// imported from Guangzhou packing lists genuinely have no number on file.
+  /// Creating a new customer always requires one; see the refine below.
   customerPhone: z
     .string()
     .trim()
@@ -74,7 +74,14 @@ export const shipmentSchema = z.object({
   volumeCbm: optionalNumeric,
   internalNotes: z.string().trim().optional(),
   batchId: z.string().trim().optional(),
-});
+})
+  .refine(
+    (input) => input.customerId !== null || input.customerPhone !== null,
+    {
+      message: "A phone number is required for a new customer.",
+      path: ["customerPhone"],
+    }
+  );
 
 export const batchSchema = z.object({
   origin: z.enum(ORIGINS),

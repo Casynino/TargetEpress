@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Loader2, Search, UserCheck, UserPlus, X } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { Loader2, Save, Search, UserCheck, UserPlus, X } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createCustomer } from "@/lib/actions/customers";
 import { TZ_CITIES } from "@/lib/constants";
 
 export type PickedCustomer = {
@@ -44,6 +46,9 @@ export function CustomerPicker({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
+  const [saving, startSaving] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [reusedExisting, setReusedExisting] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -81,7 +86,39 @@ export function CustomerPicker({
     };
   }, [query]);
 
+  /**
+   * Saves the new customer to the book, then selects them.
+   *
+   * Deliberately a separate step from registering the cargo: the customer
+   * exists from this moment whether or not the shipment is ever finished, which
+   * is what makes them findable next week.
+   */
+  const save = () => {
+    setSaveError(null);
+    const data = new FormData();
+    data.set("name", name.trim());
+    data.set("phone", phone.trim());
+    data.set("city", city.trim());
+
+    startSaving(async () => {
+      const result = await createCustomer(undefined, data);
+      if (!result.ok) {
+        setSaveError(result.error);
+        return;
+      }
+      if (!result.data) {
+        setSaveError("Saved, but the customer could not be read back.");
+        return;
+      }
+      setReusedExisting(result.data.existing);
+      pick(result.data);
+    });
+  };
+
+  const canSave = name.trim().length >= 2 && phone.trim().length >= 7;
+
   const pick = (customer: PickedCustomer | null) => {
+    if (!customer) setReusedExisting(false);
     setPicked(customer);
     setTouched(true);
     onPick?.(customer);
@@ -117,6 +154,12 @@ export function CustomerPicker({
                 ? "No cargo shipped yet"
                 : `${picked.shipments} shipment${picked.shipments === 1 ? "" : "s"} with us`}
             </p>
+            {reusedExisting ? (
+              <p className="mt-1.5 text-xs text-warning">
+                That number was already on the books — this is the existing
+                customer, not a new one.
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -164,7 +207,9 @@ export function CustomerPicker({
 
       {mode === "search" ? (
         <div className="space-y-2">
-          <Label htmlFor="customer-search">Search by name, phone or customer ID</Label>
+          <Label htmlFor="customer-search">
+            Search by name, shipping mark, phone or customer ID
+          </Label>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -237,59 +282,83 @@ export function CustomerPicker({
           ) : null}
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="customerName">Name or company</Label>
-            <Input
-              id="customerName"
-              name="customerName"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Trader or business name"
-              required={mode === "new"}
-            />
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              {/* "Shipping mark" is the term the trade actually uses — it is
+                  what is painted on the cartons in China and what the packing
+                  list identifies the consignee by. */}
+              <Label htmlFor="new-name">Name or shipping mark</Label>
+              <Input
+                id="new-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Trader name or the mark on the cartons"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="new-phone">Phone number</Label>
+              <Input
+                id="new-phone"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder="0762 000 111"
+                inputMode="tel"
+                autoComplete="off"
+              />
+              <p className="text-xs text-muted-foreground">
+                This is how the customer is identified — everything else can be
+                corrected later, this cannot be guessed.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="new-city">City in Tanzania</Label>
+              <Input
+                id="new-city"
+                value={city}
+                onChange={(event) => setCity(event.target.value)}
+                list="tz-cities"
+                placeholder="Dar es Salaam"
+              />
+              <datalist id="tz-cities">
+                {TZ_CITIES.map((option) => (
+                  <option key={option} value={option} />
+                ))}
+              </datalist>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="customerPhone">
-              Phone number{" "}
-              <span className="font-normal text-muted-foreground">optional</span>
-            </Label>
-            <Input
-              id="customerPhone"
-              name="customerPhone"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="0762 000 111"
-              inputMode="tel"
-              autoComplete="off"
-            />
+          {saveError ? (
+            <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              {saveError}
+            </p>
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Not a submit button: this form is inside the shipment form, and
+                pressing it must save the customer, not register cargo. */}
+            <Button type="button" onClick={save} disabled={!canSave || saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save customer
+                </>
+              )}
+            </Button>
             <p className="text-xs text-muted-foreground">
-              Leave it blank if the packing list has none — plenty do.
+              {canSave
+                ? "Saves them to the book now, then continue with the cargo."
+                : "A name and a phone number are needed."}
             </p>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="customerCity">City in Tanzania</Label>
-            <Input
-              id="customerCity"
-              name="customerCity"
-              value={city}
-              onChange={(event) => setCity(event.target.value)}
-              list="tz-cities"
-              placeholder="Dar es Salaam"
-            />
-            <datalist id="tz-cities">
-              {TZ_CITIES.map((option) => (
-                <option key={option} value={option} />
-              ))}
-            </datalist>
-          </div>
-
-          <p className="text-xs text-muted-foreground sm:col-span-2">
-            Saved to the customer book on registration. Next time, find them by
-            name or number instead of typing this again.
-          </p>
         </div>
       )}
 

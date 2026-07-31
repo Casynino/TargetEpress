@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { FileText, Plane } from "lucide-react";
+import { FileText, Plane, TriangleAlert } from "lucide-react";
 
 import { CargoGrid } from "@/components/app/cargo-grid";
 import { EmptyState } from "@/components/app/empty-state";
@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { BatchControls } from "@/components/app/batch-controls";
 import { BatchStatusBadge, ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
+import { CATEGORIES_FOR_ROUTE, CATEGORY_LABELS, categoryFitsRoute } from "@/lib/cargo";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { formatDate, formatWeight, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -45,11 +46,19 @@ export default async function BatchDetailPage({
 
   const manageable = can(user.role, "batch.manage");
 
-  // Cargo registered in China that has not been put on any flight yet.
+  // Cargo registered in China that has not been put on any flight yet — and
+  // only cargo that flies from THIS batch's airport. Normal goods leave
+  // Guangzhou; electronics and special goods leave Hong Kong. Offering the rest
+  // just invites a clerk to load cargo onto a flight it cannot take, and the
+  // save would be rejected anyway.
   const unassigned =
     manageable && batch.status === "OPEN"
       ? await prisma.shipment.findMany({
-          where: { batchId: null, status: "READY_TO_DEPART" },
+          where: {
+            batchId: null,
+            status: "READY_TO_DEPART",
+            cargoCategory: { in: CATEGORIES_FOR_ROUTE[batch.origin] },
+          },
           orderBy: { registeredAt: "desc" },
           take: 50,
           select: {
@@ -61,6 +70,15 @@ export default async function BatchDetailPage({
           },
         })
       : [];
+
+  // Cargo whose category says it should have flown from the other airport.
+  // These come from the real packing lists — a cup listed on a Hong Kong sheet
+  // physically travelled from Hong Kong — so they are surfaced rather than
+  // silently relabelled: the category drives the price, and quietly changing it
+  // would rewrite what a customer is charged.
+  const misrouted = batch.shipments.filter(
+    (shipment) => !categoryFitsRoute(shipment.cargoCategory, batch.origin)
+  );
 
   const totalWeight = batch.shipments.reduce(
     (sum, s) => sum + toNumber(s.weightKg),
@@ -85,6 +103,41 @@ export default async function BatchDetailPage({
           </>
         }
       />
+
+      {misrouted.length > 0 ? (
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/5 p-4">
+          <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+          <div className="min-w-0">
+            <p className="font-medium">
+              {misrouted.length} shipment{misrouted.length === 1 ? "" : "s"} in
+              this batch {misrouted.length === 1 ? "is" : "are"} classified for
+              the other airport
+            </p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              This batch flies from {ORIGIN_LABELS[batch.origin]}. These came in
+              on the packing list, so the cargo is physically here — but the
+              category decides the price, so it is worth checking before the
+              invoices are raised.
+            </p>
+            <ul className="mt-2 space-y-1 text-sm">
+              {misrouted.map((shipment) => (
+                <li key={shipment.id}>
+                  <Link
+                    href={`/app/shipments/${shipment.trackingNumber}`}
+                    className="font-mono text-xs hover:text-brand hover:underline"
+                  >
+                    {shipment.trackingNumber}
+                  </Link>
+                  <span className="ml-2 text-muted-foreground">
+                    {shipment.description} —{" "}
+                    {CATEGORY_LABELS[shipment.cargoCategory]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
