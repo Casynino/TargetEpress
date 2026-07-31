@@ -7,7 +7,11 @@ import { BrandMark } from "@/components/brand-mark";
 import { PageHeader } from "@/components/app/page-header";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
-import { COMPANY, ORIGIN_LABELS, formatPackages } from "@/lib/constants";
+import {
+  COMPANY,
+  ORIGIN_LABELS,
+  formatPackagesShort,
+} from "@/lib/constants";
 import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -51,7 +55,8 @@ export default async function ManifestPage({
   const totalPackages = batch.shipments.reduce((sum, s) => sum + s.packages, 0);
 
   // Broken down by unit, because "148" on a manifest is not a checkable number:
-  // customs and the warehouse both need to know 96 cartons and 52 bags.
+  // customs and the warehouse both need to know 96 ctn and 52 bag. Short forms
+  // throughout — everyone on the floor reads them, and the page has to fit.
   const byUnit = new Map<string, number>();
   for (const shipment of batch.shipments) {
     byUnit.set(
@@ -61,7 +66,7 @@ export default async function ManifestPage({
   }
   const unitBreakdown = [...byUnit.entries()]
     .sort((a, b) => b[1] - a[1])
-    .map(([type, count]) => formatPackages(count, type))
+    .map(([type, count]) => formatPackagesShort(count, type))
     .join(" · ");
 
   // Who took each piece in. A manifest that only totals the cargo answers "what
@@ -177,7 +182,7 @@ export default async function ManifestPage({
                   {shipment.cargoType?.name ?? shipment.description}
                 </td>
                 <td className="py-2 pr-2 text-right tabular">
-                  {formatPackages(shipment.packages, shipment.packageType)}
+                  {formatPackagesShort(shipment.packages, shipment.packageType)}
                 </td>
                 <td className="py-2 pr-2 text-right tabular">
                   {formatWeight(shipment.weightKg)}
