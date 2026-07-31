@@ -46,6 +46,7 @@ export default async function LoadingTablePage({
         orderBy: { registeredAt: "asc" },
         include: {
           customer: { select: { name: true, phone: true } },
+          createdBy: { select: { name: true } },
           photos: {
             orderBy: { createdAt: "asc" },
             select: { id: true, url: true, kind: true, caption: true },
@@ -233,8 +234,10 @@ export default async function LoadingTablePage({
                 verification:
                   verificationByShipment.get(shipment.id)?.result ?? null,
                 statusLabel: SHIPMENT_STATUS_META[shipment.status].label,
+                receivedBy: shipment.createdBy?.name ?? null,
                 photos: shipment.photos,
               }))}
+              batchId={batch.id}
             />
           </div>
         )}

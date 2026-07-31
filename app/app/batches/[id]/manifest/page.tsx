@@ -27,7 +27,10 @@ export default async function ManifestPage({
     include: {
       shipments: {
         orderBy: { trackingNumber: "asc" },
-        include: { customer: { select: { name: true, phone: true } } },
+        include: {
+          customer: { select: { name: true, phone: true } },
+          createdBy: { select: { name: true } },
+        },
       },
     },
   });
@@ -39,6 +42,23 @@ export default async function ManifestPage({
     0
   );
   const totalPackages = batch.shipments.reduce((sum, s) => sum + s.packages, 0);
+
+  // Who took each piece in. A manifest that only totals the cargo answers "what
+  // is on the flight"; a manager also needs "who handled it", because that is
+  // who they ask when a carton is short.
+  const byReceiver = [...
+    batch.shipments
+      .reduce((counts, shipment) => {
+        const name = shipment.createdBy?.name ?? "Not recorded";
+        const current = counts.get(name) ?? { pieces: 0, weightKg: 0 };
+        counts.set(name, {
+          pieces: current.pieces + 1,
+          weightKg: current.weightKg + toNumber(shipment.weightKg),
+        });
+        return counts;
+      }, new Map<string, { pieces: number; weightKg: number }>())
+      .entries()
+  ].sort((a, b) => b[1].pieces - a[1].pieces);
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -109,6 +129,25 @@ export default async function ManifestPage({
             </div>
           ))}
         </dl>
+
+        {byReceiver.length > 0 ? (
+          <section className="mt-6 border-y border-black/20 py-4">
+            <p className="text-[9px] font-semibold uppercase tracking-widest text-black/60">
+              Received by
+            </p>
+            <ul className="mt-2 flex flex-wrap gap-x-8 gap-y-1">
+              {byReceiver.map(([name, stats]) => (
+                <li key={name} className="text-[11px]">
+                  <span className="font-semibold">{name}</span>{" "}
+                  <span className="font-mono tabular">
+                    {stats.pieces} piece{stats.pieces === 1 ? "" : "s"} ·{" "}
+                    {stats.weightKg.toFixed(1)} kg
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         <table className="mt-7 w-full border-collapse text-[11px]">
           <thead>

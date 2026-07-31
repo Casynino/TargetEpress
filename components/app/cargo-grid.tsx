@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Camera, Download, Grid3x3, Search, Table2, X } from "lucide-react";
+import { Camera, Download, Grid3x3, Printer, Search, Table2, X } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -24,6 +26,8 @@ export type CargoCell = {
   verification: "VERIFIED" | "EXCEPTION" | null;
   /** What the cargo actually is right now, in the words staff read. */
   statusLabel: string;
+  /** Who took this cargo in at the China desk. */
+  receivedBy: string | null;
   /**
    * Proof photos, taken when the cargo was received. They belong to the cargo,
    * so they travel with it into the batch, onto the flight and all the way to
@@ -125,13 +129,21 @@ function PhotoProof({
  * Sorted by carton reference so the screen order matches the order the cartons
  * come off the truck.
  */
-export function CargoGrid({ cells }: { cells: CargoCell[] }) {
+export function CargoGrid({
+  cells,
+  batchId,
+}: {
+  cells: CargoCell[];
+  /** Set to allow selecting cargo and printing their stickers together. */
+  batchId?: string;
+}) {
   // List first, deliberately. The tile grid is a picture of one batch; the list
   // is what a desk works down when several hundred cartons are moving in a week.
   const [view, setView] = useState<"list" | "grid">("list");
   const [filter, setFilter] = useState<string>("ALL");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("carton");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const sorted = useMemo(() => {
     const byCarton = (a: CargoCell, b: CargoCell) => {
@@ -175,6 +187,17 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
     const packages = cells.reduce((sum, c) => sum + c.packages, 0);
     return { total, verified, flagged, weight, packages };
   }, [cells]);
+
+  const allVisibleSelected =
+    sorted.length > 0 && sorted.every((cell) => selected.has(cell.id));
+
+  const toggle = (id: string) =>
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const categories = useMemo(() => {
     const seen = new Map<string, number>();
@@ -274,6 +297,54 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
         </div>
       </div>
 
+      {batchId ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-input"
+              checked={allVisibleSelected}
+              onChange={(event) =>
+                setSelected((current) => {
+                  const next = new Set(current);
+                  for (const cell of sorted) {
+                    if (event.target.checked) next.add(cell.id);
+                    else next.delete(cell.id);
+                  }
+                  return next;
+                })
+              }
+            />
+            {selected.size > 0
+              ? `${selected.size} selected`
+              : "Select cargo to print stickers"}
+          </label>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {selected.size > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelected(new Set())}
+              >
+                Clear
+              </Button>
+            ) : null}
+            <Button asChild size="sm" disabled={selected.size === 0}>
+              <a
+                href={`/app/batches/${batchId}/stickers?ids=${[...selected].join(",")}`}
+                aria-disabled={selected.size === 0}
+              >
+                <Printer className="mr-1.5 h-4 w-4" />
+                Print {selected.size > 0 ? selected.size : ""} sticker
+                {selected.size === 1 ? "" : "s"}
+              </a>
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       {query.trim() || filter !== "ALL" ? (
         <p className="mb-3 text-sm text-muted-foreground">
           Showing <span className="font-medium text-foreground">{sorted.length}</span>{" "}
@@ -335,6 +406,7 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
+                  {batchId ? <th className="w-8 px-3 py-2" /> : null}
                   <th className="px-3 py-2 font-medium">Carton</th>
                   <th className="px-3 py-2 font-medium">Tracking</th>
                   <th className="px-3 py-2 font-medium">Customer</th>
@@ -343,6 +415,9 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
                   <th className="px-3 py-2 text-right font-medium">Weight</th>
                   <th className="px-3 py-2 text-right font-medium">Pkgs</th>
                   <th className="px-3 py-2 font-medium">Proof</th>
+                  <th className="hidden px-3 py-2 font-medium xl:table-cell">
+                    Received by
+                  </th>
                   <th className="px-3 py-2 font-medium">Status</th>
                 </tr>
               </thead>
@@ -355,6 +430,17 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
                       cell.verification === "EXCEPTION" && "bg-destructive/5"
                     )}
                   >
+                    {batchId ? (
+                      <td className="px-3 py-1.5">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${cell.trackingNumber}`}
+                          className="h-4 w-4 rounded border-input"
+                          checked={selected.has(cell.id)}
+                          onChange={() => toggle(cell.id)}
+                        />
+                      </td>
+                    ) : null}
                     <td className="whitespace-nowrap px-3 py-1.5 font-mono text-xs text-muted-foreground">
                       {cell.cartonRef ?? "—"}
                     </td>
@@ -390,6 +476,9 @@ export function CargoGrid({ cells }: { cells: CargoCell[] }) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5">
                       <PhotoProof photos={cell.photos} tracking={cell.trackingNumber} />
+                    </td>
+                    <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground xl:table-cell">
+                      {cell.receivedBy ?? "—"}
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5 text-xs">
                       {cell.verification === "EXCEPTION" ? (

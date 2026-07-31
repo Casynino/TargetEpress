@@ -196,6 +196,18 @@
       display: none !important;
     }
 
+    /* One sticker per page. A label split across a page boundary is a wasted
+       label and a reprint, which is exactly what bulk printing exists to avoid. */
+    .sticker {
+      break-inside: avoid;
+      break-after: page;
+      border-width: 1px !important;
+    }
+
+    .sticker:last-child {
+      break-after: auto;
+    }
+
     .print-plain {
       box-shadow: none !important;
       border-color: #d4d4d8 !important;
