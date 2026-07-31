@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Camera, PackagePlus, Plane, Printer, Scale, Package } from "lucide-react";
+import { Camera, Package, PackagePlus, Printer, Scale } from "lucide-react";
 
 import { DualClock } from "@/components/app/dual-clock";
 import type { TodaySummary } from "@/lib/warehouse-home";
@@ -31,6 +31,8 @@ export function WarehouseHero({
   const greeting =
     hourOfDay < 12 ? "Good morning" : hourOfDay < 17 ? "Good afternoon" : "Good evening";
 
+  // Today only. What is staged, open and in the air is on the strip directly
+  // below this banner, and saying it twice makes both copies easier to ignore.
   const chips = [
     { icon: Package, label: "Cargo today", value: String(summary.shipments) },
     {
@@ -38,13 +40,12 @@ export function WarehouseHero({
       label: "Weight today",
       value: `${summary.weightKg.toFixed(1)} kg`,
     },
+    { icon: Camera, label: "Photos today", value: String(summary.photos) },
     {
-      icon: Plane,
-      label: "Waiting for a flight",
-      value: String(summary.awaitingDispatch),
+      icon: Printer,
+      label: "Labels printed",
+      value: String(summary.labelsPrinted),
     },
-    { icon: Camera, label: "Photos", value: String(summary.photos) },
-    { icon: Printer, label: "Labels printed", value: String(summary.labelsPrinted) },
   ];
 
   return (
@@ -89,7 +90,7 @@ export function WarehouseHero({
           </div>
         </div>
 
-        <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {chips.map((chip) => (
             <div
               key={chip.label}

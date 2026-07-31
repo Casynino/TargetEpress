@@ -43,10 +43,23 @@ import {
 } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
-import { WarehouseHome } from "@/components/app/warehouse-home";
+import { WarehouseHero } from "@/components/app/warehouse-hero";
+import { todaySummary } from "@/lib/warehouse-home";
 import { requireUser } from "@/lib/session";
 
 /** Percentage change, guarding the divide-by-zero that makes dashboards lie. */
+/** The hour where the warehouse is standing, not where the server is. */
+function localHour(side: "CN" | "TZ") {
+  const hour = Number(
+    new Date().toLocaleString("en-GB", {
+      timeZone: side === "CN" ? "Asia/Shanghai" : "Africa/Dar_es_Salaam",
+      hour: "2-digit",
+      hour12: false,
+    })
+  );
+  return Number.isNaN(hour) ? 9 : hour;
+}
+
 function delta(current: number, previous: number): number | undefined {
   if (!previous) return undefined;
   return ((current - previous) / previous) * 100;
@@ -64,17 +77,6 @@ export default async function DashboardPage() {
   });
   const firstName = (me?.name ?? user.name).split(" ")[0];
 
-  // The two warehouses get a command centre rather than a report: they are the
-  // only roles whose whole day happens on this screen.
-  if (user.role === "CHINA_WAREHOUSE" || user.role === "DAR_WAREHOUSE") {
-    return (
-      <WarehouseHome
-        firstName={firstName}
-        department={user.department}
-        side={user.role === "CHINA_WAREHOUSE" ? "CN" : "TZ"}
-      />
-    );
-  }
 
   const today = new Date().toLocaleDateString("en-GB", {
     weekday: "long",
@@ -82,8 +84,27 @@ export default async function DashboardPage() {
     month: "long",
   });
 
+  const warehouse =
+    user.role === "CHINA_WAREHOUSE" || user.role === "DAR_WAREHOUSE";
+
   return (
     <>
+      {/* The warehouses get the banner with both clocks and today's numbers;
+          everyone else keeps the plain greeting. Finance does not care what
+          time it is in Guangzhou. */}
+      {warehouse ? (
+        <WarehouseHero
+          firstName={firstName}
+          warehouseName={
+            user.role === "CHINA_WAREHOUSE"
+              ? "China Warehouse"
+              : "Dar es Salaam Warehouse"
+          }
+          emphasis={user.role === "CHINA_WAREHOUSE" ? "CN" : "TZ"}
+          summary={await todaySummary()}
+          hourOfDay={localHour(user.role === "CHINA_WAREHOUSE" ? "CN" : "TZ")}
+        />
+      ) : (
       <div className="relative mb-6 overflow-hidden rounded-xl border bg-card">
         <div
           aria-hidden
@@ -123,7 +144,10 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+      )}
 
+      {user.role === "CHINA_WAREHOUSE" ? <ChinaDashboard role={user.role} /> : null}
+      {user.role === "DAR_WAREHOUSE" ? <DarDashboard role={user.role} /> : null}
       {user.role === "FINANCE" ? <FinanceDashboard role={user.role} /> : null}
       {user.role === "ADMIN" ? <ExecutiveDashboard role={user.role} /> : null}
     </>
