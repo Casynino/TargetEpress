@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 
-import { prisma } from "@/lib/prisma";
+import { prisma, type TxClient } from "@/lib/prisma";
 import type { SessionUser } from "@/lib/session";
 
 type AuditInput = {
@@ -19,7 +19,7 @@ type AuditInput = {
  */
 export async function recordAudit(
   input: AuditInput,
-  tx?: Prisma.TransactionClient
+  tx?: TxClient
 ) {
   const client = tx ?? prisma;
   await client.auditLog.create({

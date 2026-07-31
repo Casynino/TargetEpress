@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Camera, Download, Grid3x3, Printer, Search, Table2, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -143,7 +142,6 @@ export function CargoGrid({
   const [filter, setFilter] = useState<string>("ALL");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("carton");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const sorted = useMemo(() => {
     const byCarton = (a: CargoCell, b: CargoCell) => {
@@ -187,17 +185,6 @@ export function CargoGrid({
     const packages = cells.reduce((sum, c) => sum + c.packages, 0);
     return { total, verified, flagged, weight, packages };
   }, [cells]);
-
-  const allVisibleSelected =
-    sorted.length > 0 && sorted.every((cell) => selected.has(cell.id));
-
-  const toggle = (id: string) =>
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
 
   const categories = useMemo(() => {
     const seen = new Map<string, number>();
@@ -272,6 +259,16 @@ export function CargoGrid({
           </button>
         ))}
 
+        {batchId ? (
+          <Link
+            href={`/app/batches/${batchId}/stickers`}
+            className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            Print all stickers
+          </Link>
+        ) : null}
+
         <div className="ml-auto flex rounded-md border p-0.5">
           {(
             [
@@ -296,54 +293,6 @@ export function CargoGrid({
           ))}
         </div>
       </div>
-
-      {batchId ? (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-input"
-              checked={allVisibleSelected}
-              onChange={(event) =>
-                setSelected((current) => {
-                  const next = new Set(current);
-                  for (const cell of sorted) {
-                    if (event.target.checked) next.add(cell.id);
-                    else next.delete(cell.id);
-                  }
-                  return next;
-                })
-              }
-            />
-            {selected.size > 0
-              ? `${selected.size} selected`
-              : "Select cargo to print stickers"}
-          </label>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {selected.size > 0 ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelected(new Set())}
-              >
-                Clear
-              </Button>
-            ) : null}
-            <Button asChild size="sm" disabled={selected.size === 0}>
-              <a
-                href={`/app/batches/${batchId}/stickers?ids=${[...selected].join(",")}`}
-                aria-disabled={selected.size === 0}
-              >
-                <Printer className="mr-1.5 h-4 w-4" />
-                Print {selected.size > 0 ? selected.size : ""} sticker
-                {selected.size === 1 ? "" : "s"}
-              </a>
-            </Button>
-          </div>
-        </div>
-      ) : null}
 
       {query.trim() || filter !== "ALL" ? (
         <p className="mb-3 text-sm text-muted-foreground">
@@ -406,7 +355,6 @@ export function CargoGrid({
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  {batchId ? <th className="w-8 px-3 py-2" /> : null}
                   <th className="px-3 py-2 font-medium">Carton</th>
                   <th className="px-3 py-2 font-medium">Tracking</th>
                   <th className="px-3 py-2 font-medium">Customer</th>
@@ -419,6 +367,7 @@ export function CargoGrid({
                     Received by
                   </th>
                   <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="w-10 px-3 py-2" />
                 </tr>
               </thead>
               <tbody>
@@ -430,17 +379,6 @@ export function CargoGrid({
                       cell.verification === "EXCEPTION" && "bg-destructive/5"
                     )}
                   >
-                    {batchId ? (
-                      <td className="px-3 py-1.5">
-                        <input
-                          type="checkbox"
-                          aria-label={`Select ${cell.trackingNumber}`}
-                          className="h-4 w-4 rounded border-input"
-                          checked={selected.has(cell.id)}
-                          onChange={() => toggle(cell.id)}
-                        />
-                      </td>
-                    ) : null}
                     <td className="whitespace-nowrap px-3 py-1.5 font-mono text-xs text-muted-foreground">
                       {cell.cartonRef ?? "—"}
                     </td>
@@ -488,6 +426,19 @@ export function CargoGrid({
                       ) : (
                         <span className="text-muted-foreground">{cell.statusLabel}</span>
                       )}
+                    </td>
+                    <td className="px-3 py-1.5 text-right">
+                      {/* One click, one sticker. The label is normally printed
+                          the moment the cargo is recorded; this is here for the
+                          reprint, which is the only reason to come looking. */}
+                      <Link
+                        href={`/app/cargo/${cell.trackingNumber}/label`}
+                        title={`Print sticker for ${cell.trackingNumber}`}
+                        aria-label={`Print sticker for ${cell.trackingNumber}`}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                      </Link>
                     </td>
                   </tr>
                 ))}

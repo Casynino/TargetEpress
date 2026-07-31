@@ -7,11 +7,10 @@
  * that is always rolled back, so it can be run against production data without
  * changing anything.
  */
-import { PrismaClient } from "@prisma/client";
-
 import { assignToLoadingTable } from "../lib/batching";
-
-const prisma = new PrismaClient();
+// The shared client, so this exercises the same deleted-cargo filter the app
+// runs with rather than a bare client that quietly bypasses it.
+import { prisma } from "../lib/prisma";
 
 type Check = { name: string; pass: boolean; detail: string };
 

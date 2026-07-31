@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import type { Prisma } from "@prisma/client";
+import type { TxClient } from "@/lib/prisma";
 
 /**
  * Human-readable document numbers.
@@ -10,7 +11,7 @@ import type { Prisma } from "@prisma/client";
  * given a transaction client, not the bare prisma singleton.
  */
 async function nextSequence(
-  tx: Prisma.TransactionClient,
+  tx: TxClient,
   key: string
 ): Promise<number> {
   const counter = await tx.counter.upsert({
@@ -23,13 +24,13 @@ async function nextSequence(
 
 const pad = (n: number, width = 6) => String(n).padStart(width, "0");
 
-export async function nextTrackingNumber(tx: Prisma.TransactionClient) {
+export async function nextTrackingNumber(tx: TxClient) {
   const n = await nextSequence(tx, "shipment");
   return `TX-${pad(n)}`;
 }
 
 export async function nextBatchNumber(
-  tx: Prisma.TransactionClient,
+  tx: TxClient,
   year = new Date().getFullYear()
 ) {
   const n = await nextSequence(tx, `batch:${year}`);
@@ -50,7 +51,7 @@ export async function nextBatchNumber(
  * Hong Kong runs each count from one and neither depends on the other.
  */
 export async function nextDispatchNumber(
-  tx: Prisma.TransactionClient,
+  tx: TxClient,
   route: "GUANGZHOU" | "HONG_KONG",
   year = new Date().getFullYear()
 ) {
@@ -59,13 +60,13 @@ export async function nextDispatchNumber(
   return `${prefix}-SHIP-${year}-${pad(n, 3)}`;
 }
 
-export async function nextCustomerCode(tx: Prisma.TransactionClient) {
+export async function nextCustomerCode(tx: TxClient) {
   const n = await nextSequence(tx, "customer");
   return `CUS-${pad(n)}`;
 }
 
 export async function nextInvoiceNumber(
-  tx: Prisma.TransactionClient,
+  tx: TxClient,
   year = new Date().getFullYear()
 ) {
   const n = await nextSequence(tx, `invoice:${year}`);
@@ -73,7 +74,7 @@ export async function nextInvoiceNumber(
 }
 
 export async function nextReceiptNumber(
-  tx: Prisma.TransactionClient,
+  tx: TxClient,
   year = new Date().getFullYear()
 ) {
   const n = await nextSequence(tx, `receipt:${year}`);
@@ -81,7 +82,7 @@ export async function nextReceiptNumber(
 }
 
 export async function nextPickupNoteNumber(
-  tx: Prisma.TransactionClient,
+  tx: TxClient,
   year = new Date().getFullYear()
 ) {
   const n = await nextSequence(tx, `pickup:${year}`);
@@ -89,7 +90,7 @@ export async function nextPickupNoteNumber(
 }
 
 export async function nextTicketNumber(
-  tx: Prisma.TransactionClient,
+  tx: TxClient,
   year = new Date().getFullYear()
 ) {
   const n = await nextSequence(tx, `ticket:${year}`);
@@ -97,7 +98,7 @@ export async function nextTicketNumber(
 }
 
 export async function nextSourcingNumber(
-  tx: Prisma.TransactionClient,
+  tx: TxClient,
   year = new Date().getFullYear()
 ) {
   const n = await nextSequence(tx, `sourcing:${year}`);

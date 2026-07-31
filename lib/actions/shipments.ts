@@ -17,7 +17,7 @@ import {
   nextTrackingNumber,
 } from "@/lib/ids";
 import { assignToLoadingTable } from "@/lib/batching";
-import { prisma } from "@/lib/prisma";
+import { prisma, type TxClient } from "@/lib/prisma";
 import { filesFrom, putImages } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -33,7 +33,7 @@ const ORIGIN_PLACE: Record<string, string> = {
  * the status change itself, so history can never drift from reality.
  */
 async function appendHistory(
-  tx: Prisma.TransactionClient,
+  tx: TxClient,
   args: {
     shipmentId: string;
     fromStatus: ShipmentStatus | null;
@@ -73,7 +73,7 @@ async function appendHistory(
  * customer's goods to another.
  */
 async function resolveCustomer(
-  tx: Prisma.TransactionClient,
+  tx: TxClient,
   input: {
     customerId: string | null;
     customerName: string;

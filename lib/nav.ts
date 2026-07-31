@@ -189,6 +189,12 @@ const SECTIONS: NavSection[] = [
         permission: "user.manage",
       },
       {
+        href: "/app/admin/deleted",
+        label: "Deleted records",
+        icon: "Trash2",
+        permission: "shipment.cancel",
+      },
+      {
         href: "/app/admin/audit",
         label: "Audit log",
         icon: "History",

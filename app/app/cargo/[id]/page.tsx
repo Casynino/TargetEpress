@@ -14,6 +14,7 @@ import {
 
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
+import { DeleteCargoForm } from "@/components/app/cargo-delete";
 import { ShipmentActions } from "@/components/app/shipment-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -496,6 +497,14 @@ export default async function ShipmentDetailPage({
               Registered by {shipment.createdBy?.name ?? "—"} on{" "}
               {formatDateTime(shipment.registeredAt)}.
             </p>
+          ) : null}
+
+          {can(user.role, "shipment.cancel") ? (
+            <DeleteCargoForm
+              shipmentId={shipment.id}
+              trackingNumber={shipment.trackingNumber}
+              photoCount={shipment.photos.length}
+            />
           ) : null}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import "server-only";
+import type { TxClient } from "@/lib/prisma";
 
 import type { Origin, Prisma } from "@prisma/client";
 
@@ -28,7 +29,7 @@ export type BatchAssignment = {
  * and quietly inventing a third would hide it.
  */
 export async function assignToLoadingTable(
-  tx: Prisma.TransactionClient,
+  tx: TxClient,
   route: Origin
 ): Promise<BatchAssignment> {
   const table = await tx.batch.findFirst({
@@ -46,7 +47,7 @@ export async function assignToLoadingTable(
 }
 
 /** Both loading tables with what is waiting on them right now. */
-export async function loadingTables(prisma: Prisma.TransactionClient) {
+export async function loadingTables(prisma: TxClient) {
   return prisma.batch.findMany({
     where: { permanent: true },
     orderBy: { origin: "asc" },

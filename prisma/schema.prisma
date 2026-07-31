@@ -219,6 +219,8 @@ model User {
   assignedRequests   SourcingRequest[]        @relation("SourcingAssignedTo")
   sentMessages       CustomerMessage[]
   sentInvoices       Invoice[]                @relation("InvoiceSentBy")
+  deletedShipments   Shipment[]               @relation("ShipmentDeletedBy")
+  fieldChanges       FieldChange[]
 
   @@index([role])
   @@index([department, active])
@@ -392,6 +394,14 @@ model Shipment {
 
   /// Internal only — never rendered on the public tracking page.
   internalNotes String?
+
+  /// Soft delete. Deleted cargo disappears from every normal view, but the row,
+  /// its photos and its history all survive — someone removing a duplicate must
+  /// not be able to destroy the evidence of what was there.
+  deletedAt    DateTime?
+  deletedById  String?
+  deletedBy    User?     @relation("ShipmentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteReason String?
 
   registeredAt   DateTime  @default(now())
   departedAt     DateTime?
@@ -1087,4 +1097,30 @@ model ChinaMarket {
   updatedAt DateTime @updatedAt
 
   @@index([active, sortOrder])
+}
+
+
+/// One field, changed once, by one person.
+///
+/// The AuditLog says what happened; this says exactly what moved. "Weight
+/// 15 kg → 18 kg" is the record that settles an argument, and a summary line
+/// cannot carry it.
+model FieldChange {
+  id String @id @default(cuid())
+
+  entity   String
+  entityId String
+  /// Human label, not the column name — "Weight", not "weightKg".
+  field    String
+  before   String?
+  after    String?
+
+  actorId    String?
+  actor      User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorName  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId, createdAt])
+  @@index([createdAt])
 }
