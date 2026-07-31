@@ -37,6 +37,10 @@ export default async function ManifestPage({
           customer: { select: { name: true, phone: true } },
           createdBy: { select: { name: true } },
           cargoType: { select: { name: true } },
+          packageList: {
+            select: { id: true, sequence: true },
+            orderBy: { sequence: "asc" },
+          },
         },
       },
     },
@@ -50,6 +54,20 @@ export default async function ManifestPage({
   );
   const totalPackages = batch.shipments.reduce((sum, s) => sum + s.packages, 0);
 
+  // Broken down by unit, because "148" on a manifest is not a checkable number:
+  // customs and the warehouse both need to know 96 cartons and 52 bags.
+  const byUnit = new Map<string, number>();
+  for (const shipment of batch.shipments) {
+    byUnit.set(
+      shipment.packageType,
+      (byUnit.get(shipment.packageType) ?? 0) + shipment.packages
+    );
+  }
+  const unitBreakdown = [...byUnit.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => formatPackages(count, type))
+    .join(" · ");
+
   // Who took each piece in. A manifest that only totals the cargo answers "what
   // is on the flight"; a manager also needs "who handled it", because that is
   // who they ask when a carton is short.
@@ -58,7 +76,7 @@ export default async function ManifestPage({
       <div className="no-print">
         <PageHeader
           title="Batch manifest"
-          description="Print this and check the cargo against it, box by box."
+          description="Print this and tick every package against it, box by box."
           actions={
             <>
               <Button asChild variant="ghost" size="sm">
@@ -111,10 +129,8 @@ export default async function ManifestPage({
             { label: "Departed", value: formatDate(batch.departureDate) },
             { label: "Arrived", value: formatDate(batch.arrivalDate) },
             { label: "Shipments", value: String(batch.shipments.length) },
-            {
-              label: "Total packages / weight",
-              value: `${totalPackages} / ${formatWeight(totalWeight)}`,
-            },
+            { label: "Total packages", value: unitBreakdown || "—" },
+            { label: "Total weight", value: formatWeight(totalWeight) },
           ].map((item) => (
             <div key={item.label}>
               <dt className="text-[9px] font-semibold uppercase tracking-widest text-black/55">
@@ -141,8 +157,8 @@ export default async function ManifestPage({
               </th>
               <th className="py-2 pr-2 text-right font-semibold">Weight</th>
               <th className="py-2 pr-2 font-semibold">By</th>
-              {/* Physically ticked with a pen while checking the cargo. */}
-              <th className="w-16 py-2 text-center font-semibold">Checked</th>
+              {/* One box per package, ticked with a pen against the cargo. */}
+              <th className="py-2 text-center font-semibold">Each package</th>
             </tr>
           </thead>
           <tbody>
@@ -169,8 +185,17 @@ export default async function ManifestPage({
                   {formatWeight(shipment.weightKg)}
                 </td>
                 <td className="py-2 pr-2">{shipment.createdBy?.name ?? "—"}</td>
-                <td className="py-2 text-center">
-                  <span className="inline-block h-3.5 w-3.5 border border-black/60" />
+                <td className="py-2">
+                  <span className="flex flex-wrap justify-end gap-1">
+                    {shipment.packageList.map((pkg) => (
+                      <span
+                        key={pkg.id}
+                        className="inline-flex h-4 w-4 items-center justify-center border border-black/60 text-[8px] leading-none tabular"
+                      >
+                        {pkg.sequence}
+                      </span>
+                    ))}
+                  </span>
                 </td>
               </tr>
             ))}

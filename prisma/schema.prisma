@@ -233,6 +233,7 @@ model User {
   sentMessages       CustomerMessage[]
   sentInvoices       Invoice[]                @relation("InvoiceSentBy")
   deletedShipments   Shipment[]               @relation("ShipmentDeletedBy")
+  receivedPackages   Package[]                @relation("PackageReceivedBy")
   fieldChanges       FieldChange[]
 
   @@index([role])
@@ -438,6 +439,7 @@ model Shipment {
   invoice       Invoice?
   tickets       SupportTicket[]
   messages      CustomerMessage[]
+  packageList   Package[]
   pickupNote    PickupNote?
   delivery      DeliveryRecord?
 
@@ -1139,4 +1141,51 @@ model FieldChange {
 
   @@index([entity, entityId, createdAt])
   @@index([createdAt])
+}
+
+
+/// One physical thing you can pick up.
+///
+/// A shipment is the customer's order; a package is a box on a pallet. Five
+/// cartons of clothes is one shipment and five packages, and the warehouse
+/// handles the five, not the one. So the QR code lives here: it identifies the
+/// thing a scanner is pointed at.
+///
+/// The shipment keeps its own qrToken as well. That one answers "whose cargo is
+/// this and what does it cost"; a package token answers "which box is this, and
+/// have the other four arrived". Both are useful and they are not the same
+/// question.
+model Package {
+  id String @id @default(cuid())
+
+  shipmentId String
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  /// 1-based position within the shipment — the "1" in "1 of 5".
+  sequence Int
+  /// Human-readable, printed on the sticker: TX-000125-P1.
+  reference String @unique
+  /// What the QR encodes. Random, never derived from the reference: a guessable
+  /// code at a warehouse counter is a way to collect someone else's cargo.
+  qrToken String @unique
+
+  /// Per-package weight, when the desk weighed each box separately. Null means
+  /// only the shipment total was recorded, which is the common case.
+  weightKg Decimal? @db.Decimal(10, 3)
+
+  /// Checked off the manifest in Dar. A shipment is short until every package
+  /// has one of these.
+  receivedAt   DateTime?
+  receivedById String?
+  receivedBy   User?     @relation("PackageReceivedBy", fields: [receivedById], references: [id], onDelete: SetNull)
+
+  /// Handed over at the counter.
+  deliveredAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([shipmentId, sequence])
+  @@index([shipmentId])
+  @@index([receivedAt])
 }

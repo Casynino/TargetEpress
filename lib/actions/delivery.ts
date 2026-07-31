@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { recordAudit } from "@/lib/audit";
-import { parseQrPayload } from "@/lib/qr";
+import { packageProgress, resolveScannedCode } from "@/lib/packages";
 import { prisma } from "@/lib/prisma";
 import { filesFrom, putImages } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -35,8 +35,8 @@ export async function releaseShipment(
   if (!parsed.success) return fail(firstError(parsed.error));
   const input = parsed.data;
 
-  const scannedToken = parseQrPayload(input.shipmentQr);
-  if (!scannedToken) {
+  const scanned = await resolveScannedCode(input.shipmentQr);
+  if (!scanned) {
     return fail("That code is not a Target Express label.");
   }
 
@@ -68,8 +68,17 @@ export async function releaseShipment(
             select: {
               id: true,
               trackingNumber: true,
-              qrToken: true,
               status: true,
+              packageType: true,
+              packageList: {
+                select: {
+                  id: true,
+                  sequence: true,
+                  receivedAt: true,
+                  deliveredAt: true,
+                },
+                orderBy: { sequence: "asc" },
+              },
             },
           },
         },
@@ -84,14 +93,29 @@ export async function releaseShipment(
         throw new Error(`${note.noteNumber} was cancelled by Finance.`);
       }
 
-      // The scanned carton must be the exact shipment on the note.
-      if (note.shipment.qrToken !== scannedToken) {
+      // The scanned carton must belong to the exact shipment on the note. A
+      // package label resolves to its shipment, so scanning any one of the five
+      // boxes is enough to identify the consignment.
+      if (note.shipment.id !== scanned.shipmentId) {
         throw new Error(
           `The scanned cargo is not the one on this pickup note (${note.shipment.trackingNumber}). Do not release it.`
         );
       }
       if (note.shipment.status !== "READY_FOR_PICKUP") {
         throw new Error("This shipment is not cleared for release.");
+      }
+
+      // Everything the customer paid for has to be on the floor. Handing over
+      // four of five boxes and sorting it out later is how a claim starts, so
+      // the release simply does not happen.
+      const progress = packageProgress(
+        note.shipment.packageList,
+        note.shipment.packageType
+      );
+      if (!progress.complete) {
+        throw new Error(
+          `Only ${progress.received} of ${progress.total} packages have been checked in — ${progress.missing.map((n) => `package ${n}`).join(", ")} still missing. Do not release a partial shipment.`
+        );
       }
 
       const now = new Date();
@@ -130,6 +154,12 @@ export async function releaseShipment(
         data: { status: "DELIVERED", deliveredAt: now },
       });
 
+      // Every box left with the customer, so every box is marked handed over.
+      await tx.package.updateMany({
+        where: { shipmentId: note.shipment.id, deliveredAt: null },
+        data: { deliveredAt: now },
+      });
+
       await tx.shipmentStatusHistory.create({
         data: {
           shipmentId: note.shipment.id,
@@ -153,6 +183,8 @@ export async function releaseShipment(
             receiverPhone: input.receiverPhone,
             relationship: input.relationship,
             deliveryPhotos: uploaded.length,
+            packagesReleased: note.shipment.packageList.length,
+            scannedPackage: scanned.package?.reference ?? "shipment label",
           },
         },
         tx

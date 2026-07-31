@@ -56,9 +56,18 @@ export function ScanWorkbench({ initialCode }: { initialCode?: string }) {
 
         <div className="rounded-xl border bg-card shadow-soft">
           <div className="border-b p-5">
-            <p className="font-mono text-xl font-bold tabular">
-              {result.trackingNumber}
-            </p>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p className="font-mono text-xl font-bold tabular">
+                {result.trackingNumber}
+              </p>
+              {/* Which box is in the operator's hands, if they scanned one. */}
+              {result.scannedPackage ? (
+                <span className="rounded-full border bg-muted px-3 py-1 text-xs font-semibold tabular">
+                  Package {result.scannedPackage.sequence} of {result.progress.total}
+                  {result.scannedPackage.received ? " · checked in" : ""}
+                </span>
+              ) : null}
+            </div>
             <p className="mt-1 text-sm">{result.customerName}</p>
             {result.customerPhone ? (
               <p className="text-xs text-muted-foreground">
@@ -70,7 +79,10 @@ export function ScanWorkbench({ initialCode }: { initialCode?: string }) {
           <dl className="grid gap-px bg-border sm:grid-cols-4">
             {[
               { label: "Status", value: result.statusLabel },
-              { label: "Packages", value: String(result.packages) },
+              {
+                label: "Packages here",
+                value: `${result.progress.received} of ${result.progress.total}`,
+              },
               { label: "Weight", value: formatWeight(result.weightKg) },
               { label: "Batch", value: result.batchNumber ?? "—" },
             ].map((item) => (
@@ -80,6 +92,14 @@ export function ScanWorkbench({ initialCode }: { initialCode?: string }) {
               </div>
             ))}
           </dl>
+
+          {result.progress.missing.length > 0 &&
+          result.progress.received > 0 ? (
+            <p className="border-t border-warning/30 bg-warning/5 px-5 py-3 text-sm text-warning">
+              Missing package {result.progress.missing.join(", ")}. Do not
+              release this shipment until every package is accounted for.
+            </p>
+          ) : null}
 
           <div className="border-t p-5">
             <p className="text-xs text-muted-foreground">Contents</p>

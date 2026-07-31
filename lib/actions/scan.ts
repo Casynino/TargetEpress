@@ -2,7 +2,7 @@
 
 import { SHIPMENT_STATUS_META } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
-import { parseQrPayload } from "@/lib/qr";
+import { packageProgress, resolveScannedCode } from "@/lib/packages";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { currentUser } from "@/lib/session";
@@ -24,6 +24,10 @@ export type ScanResult = {
   customerPhone: string | null;
   packages: number;
   weightKg: number;
+  /** Which box was scanned, when the label came off a package. */
+  scannedPackage: { sequence: number; reference: string; received: boolean } | null;
+  /** How many of the shipment's packages are physically accounted for. */
+  progress: { total: number; received: number; missing: number[]; label: string };
   description: string;
   batchNumber: string | null;
   /** The single most important sentence for this user, right now. */
@@ -46,13 +50,18 @@ export async function resolveScan(
   const user = await currentUser();
   if (!user) return fail("Your session has expired. Sign in again.");
 
-  const token = parseQrPayload(rawCode);
-  if (!token) return fail("That is not a Target Express label.");
+  const target = await resolveScannedCode(rawCode);
+  if (!target) return fail("That is not a Target Express label.");
 
   const shipment = await prisma.shipment.findUnique({
-    where: { qrToken: token },
+    where: { id: target.shipmentId },
     select: {
       id: true,
+      packageType: true,
+      packageList: {
+        select: { sequence: true, receivedAt: true, deliveredAt: true },
+        orderBy: { sequence: "asc" },
+      },
       trackingNumber: true,
       status: true,
       packages: true,
@@ -76,6 +85,7 @@ export async function resolveScan(
   if (!shipment) return fail("No shipment matches that code.");
 
   const meta = SHIPMENT_STATUS_META[shipment.status];
+  const progress = packageProgress(shipment.packageList, shipment.packageType);
 
   const showMoney = can(user.role, "finance.view");
   const outstanding = shipment.invoice
@@ -85,7 +95,9 @@ export async function resolveScan(
   const canRelease =
     can(user.role, "shipment.release") &&
     shipment.status === "READY_FOR_PICKUP" &&
-    shipment.pickupNote?.status === "ACTIVE";
+    shipment.pickupNote?.status === "ACTIVE" &&
+    // A shipment missing a box is not releasable, however well it is paid for.
+    progress.complete;
 
   let verdict: ScanResult["verdict"];
 
@@ -103,7 +115,15 @@ export async function resolveScan(
     };
   } else if (can(user.role, "shipment.release")) {
     // Warehouse staff at the counter get a yes/no, not a report.
-    if (canRelease) {
+    if (canRelease && !progress.complete) {
+      // Paid, noted, and still short a box. Handing over four of five is how a
+      // claim starts, so the counter is told before the customer is.
+      verdict = {
+        tone: "block",
+        headline: `Only ${progress.received} of ${progress.total} packages here`,
+        detail: `Package ${progress.missing.join(", ")} has not been checked in. Do not release a partial shipment.`,
+      };
+    } else if (canRelease) {
       verdict = {
         tone: "ok",
         headline: "Cleared for release",
@@ -169,6 +189,19 @@ export async function resolveScan(
       : null,
     packages: shipment.packages,
     weightKg: toNumber(shipment.weightKg),
+    scannedPackage: target.package
+      ? {
+          sequence: target.package.sequence,
+          reference: target.package.reference,
+          received: target.package.receivedAt !== null,
+        }
+      : null,
+    progress: {
+      total: progress.total,
+      received: progress.received,
+      missing: progress.missing,
+      label: progress.label,
+    },
     description: shipment.description,
     batchNumber: shipment.batch?.batchNumber ?? null,
     verdict,

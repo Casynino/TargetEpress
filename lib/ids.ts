@@ -106,6 +106,16 @@ export async function nextSourcingNumber(
 }
 
 /**
+ * The reference printed on a package sticker: TX-000125-P1.
+ *
+ * Readable and orderable, so a clerk holding two boxes can tell which is which
+ * without a scanner. It is NOT what the QR encodes — see generateQrToken.
+ */
+export function packageReference(trackingNumber: string, sequence: number) {
+  return `${trackingNumber}-P${sequence}`;
+}
+
+/**
  * The value physically encoded in the shipment's QR code.
  *
  * It is deliberately NOT the tracking number: tracking numbers are sequential

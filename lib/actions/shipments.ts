@@ -15,6 +15,7 @@ import {
   generateQrToken,
   nextCustomerCode,
   nextTrackingNumber,
+  packageReference,
 } from "@/lib/ids";
 import { assignToLoadingTable } from "@/lib/batching";
 import { prisma, type TxClient } from "@/lib/prisma";
@@ -192,6 +193,17 @@ export async function createShipment(
           status: "READY_TO_DEPART",
           createdById: user.id,
         },
+      });
+
+      // One row per physical package, each with its own QR. The warehouse
+      // handles boxes, not orders, so every box needs its own identity.
+      await tx.package.createMany({
+        data: Array.from({ length: input.packages }, (_, index) => ({
+          shipmentId: shipment.id,
+          sequence: index + 1,
+          reference: packageReference(shipment.trackingNumber, index + 1),
+          qrToken: generateQrToken(),
+        })),
       });
 
       await tx.shipmentPhoto.createMany({

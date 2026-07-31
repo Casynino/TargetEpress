@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { PACKAGE_TYPE_LABELS } from "@/lib/constants";
 import { recordAudit } from "@/lib/audit";
 import {
   AIRPORT_LABELS,
@@ -549,6 +550,15 @@ export async function verifyShipment(
   const result = String(formData.get("result") ?? "");
   const note = String(formData.get("note") ?? "").trim();
   const exceptionType = String(formData.get("exceptionType") ?? "OTHER");
+  // The arrival screen always states which boxes it checked, even when that is
+  // none of them. Without the flag, "nothing ticked" and "not a package-aware
+  // form" look identical, and the safe reading of those is the opposite.
+  const explicitSelection = formData.get("packageSelection") === "explicit";
+  const checkedPackageIds = formData
+    .getAll("packageIds")
+    .flatMap((value) => String(value).split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
 
   if (!batchId || !shipmentId) return fail("Missing shipment.");
   if (result !== "VERIFIED" && result !== "EXCEPTION") {
@@ -567,6 +577,11 @@ export async function verifyShipment(
           status: true,
           trackingNumber: true,
           batchId: true,
+          packageType: true,
+          packageList: {
+            select: { id: true, sequence: true, receivedAt: true },
+            orderBy: { sequence: "asc" },
+          },
         },
       });
       if (!shipment) throw new Error("Shipment not found.");
@@ -592,8 +607,44 @@ export async function verifyShipment(
       });
 
       if (result === "VERIFIED") {
+        // Ticking a shipment off the manifest is a statement about boxes: the
+        // ones checked are physically on the floor. With no explicit selection
+        // the operator is saying the whole shipment is here.
+        const present = explicitSelection
+          ? shipment.packageList.filter((pkg) =>
+              checkedPackageIds.includes(pkg.id)
+            )
+          : shipment.packageList;
+
+        const now = new Date();
+        await tx.package.updateMany({
+          where: {
+            id: { in: present.map((pkg) => pkg.id) },
+            receivedAt: null,
+          },
+          data: { receivedAt: now, receivedById: user.id },
+        });
+
+        const short = shipment.packageList.filter(
+          (pkg) => !pkg.receivedAt && !present.some((p) => p.id === pkg.id)
+        );
+        if (short.length > 0) {
+          // A partial arrival is still an arrival — the cargo that came is in
+          // the warehouse. But it cannot be released, so it is raised as a
+          // shortage the moment it is noticed rather than at the counter.
+          const sequences = short.map((pkg) => pkg.sequence).join(", ");
+          await tx.shipmentException.create({
+            data: {
+              shipmentId,
+              batchId,
+              type: "PACKAGE_COUNT_MISMATCH",
+              description: `Short on arrival: ${short.length} of ${shipment.packageList.length} ${PACKAGE_TYPE_LABELS[shipment.packageType]?.many ?? "packages"} missing (${sequences}).`,
+              raisedById: user.id,
+            },
+          });
+        }
+
         if (shipment.status === "IN_TRANSIT") {
-          const now = new Date();
           await tx.shipment.update({
             where: { id: shipmentId },
             data: { status: "RECEIVED_AT_DAR", arrivedAt: now },

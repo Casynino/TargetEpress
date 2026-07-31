@@ -186,7 +186,7 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
             value:
               result.weightKg === null ? "—" : `${result.weightKg.toFixed(2)} kg`,
           },
-          { label: "Quantity", value: result.packagesLabel },
+          { label: "Counted as", value: result.packagesLabel },
           { label: "Route", value: `${result.origin} → Dar es Salaam` },
           { label: "Now at", value: result.location },
           { label: "Batch", value: result.batchNumber ?? "Not yet assigned" },
@@ -197,6 +197,39 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
           </div>
         ))}
       </dl>
+
+      {/* Once the cargo lands, the number that matters to a customer with five
+          cartons is how many of the five are actually here. */}
+      {result.packageProgress && result.packageProgress.total > 1 ? (
+        <div className="border-b bg-muted/30 px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium">{result.packageProgress.label}</p>
+            <p className="text-xs text-muted-foreground tabular">
+              {result.packageProgress.arrived} / {result.packageProgress.total}
+            </p>
+          </div>
+          <div className="mt-2 flex gap-1" aria-hidden>
+            {Array.from({ length: result.packageProgress.total }, (_, index) => (
+              <span
+                key={index}
+                className={`h-1.5 flex-1 rounded-full ${
+                  index < result.packageProgress!.collected
+                    ? "bg-brand"
+                    : index < result.packageProgress!.arrived
+                      ? "bg-brand/40"
+                      : "bg-border"
+                }`}
+              />
+            ))}
+          </div>
+          {result.packageProgress.arrived < result.packageProgress.total ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              The rest is still on its way. We release cargo only when every
+              package has arrived, so nothing goes missing between us.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <ChargePanel
         charge={result.charge}

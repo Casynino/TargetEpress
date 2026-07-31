@@ -27,7 +27,13 @@ export default async function VerifyBatchPage({
     include: {
       shipments: {
         orderBy: { trackingNumber: "asc" },
-        include: { customer: { select: { name: true, phone: true } } },
+        include: {
+          customer: { select: { name: true, phone: true } },
+          packageList: {
+            select: { id: true, sequence: true, receivedAt: true },
+            orderBy: { sequence: "asc" },
+          },
+        },
       },
       verifications: true,
     },
@@ -74,6 +80,12 @@ export default async function VerifyBatchPage({
             customerName: shipment.customer.name,
             customerPhone: shipment.customer.phone,
             packages: shipment.packages,
+            packageType: shipment.packageType,
+            packageList: shipment.packageList.map((pkg) => ({
+              id: pkg.id,
+              sequence: pkg.sequence,
+              received: pkg.receivedAt !== null,
+            })),
             weightKg: toNumber(shipment.weightKg),
             description: shipment.description,
             status: shipment.status,

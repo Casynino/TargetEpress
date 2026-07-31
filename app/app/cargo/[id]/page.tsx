@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { DeleteCargoForm } from "@/components/app/cargo-delete";
 import { ShipmentActions } from "@/components/app/shipment-actions";
+import { PackageList } from "@/components/app/package-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +24,7 @@ import {
   GOODS_TYPE_LABELS,
   ORIGIN_LABELS,
   SHIPMENT_STATUS_META,
+  formatPackages,
 } from "@/lib/constants";
 import {
   formatDate,
@@ -85,6 +87,10 @@ export default async function ShipmentDetailPage({
           },
         },
       },
+      packageList: {
+        orderBy: { sequence: "asc" },
+        include: { receivedBy: { select: { name: true } } },
+      },
       pickupNote: { include: { issuedBy: { select: { name: true } } } },
       delivery: { include: { releasedBy: { select: { name: true } } } },
     },
@@ -125,7 +131,10 @@ export default async function ShipmentDetailPage({
             <dl className="grid gap-px bg-border sm:grid-cols-3">
               {[
                 { label: "Goods type", value: GOODS_TYPE_LABELS[shipment.goodsType] },
-                { label: "Packages", value: String(shipment.packages) },
+                {
+                  label: "Counted as",
+                  value: formatPackages(shipment.packages, shipment.packageType),
+                },
                 { label: "Weight", value: formatWeight(shipment.weightKg) },
                 { label: "Origin", value: ORIGIN_LABELS[shipment.origin] },
                 {
@@ -162,6 +171,23 @@ export default async function ShipmentDetailPage({
               ) : null}
             </div>
           </section>
+
+          {/* The physical boxes. Each has its own QR and its own arrival. */}
+          {shipment.packageList.length > 0 ? (
+            <PackageList
+              trackingNumber={shipment.trackingNumber}
+              packageType={shipment.packageType}
+              canPrint
+              packages={shipment.packageList.map((pkg) => ({
+                id: pkg.id,
+                sequence: pkg.sequence,
+                reference: pkg.reference,
+                receivedAt: pkg.receivedAt,
+                deliveredAt: pkg.deliveredAt,
+                receivedByName: pkg.receivedBy?.name ?? null,
+              }))}
+            />
+          ) : null}
 
           {/* Photos — the visual record from receipt to handover */}
           {shipment.photos.length > 0 ? (

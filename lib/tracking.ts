@@ -57,6 +57,17 @@ export type PublicShipment = {
   packages: number;
   /** With its unit — a customer should never have to ask "20 what?". */
   packagesLabel: string;
+  /**
+   * How many of the customer's packages have arrived in Dar, and how many have
+   * been collected. Null while the cargo is still in China, where a
+   * package-by-package count would only invite questions nobody can answer yet.
+   */
+  packageProgress: {
+    total: number;
+    arrived: number;
+    collected: number;
+    label: string;
+  } | null;
   /** What was sent, in the words of the price list. */
   description: string;
   weightKg: number | null;
@@ -156,6 +167,10 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
           totalLocal: true,
         },
       },
+      packageList: {
+        select: { sequence: true, receivedAt: true, deliveredAt: true },
+        orderBy: { sequence: "asc" },
+      },
     },
   });
 
@@ -227,6 +242,26 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
       batchNumber: shipment.batch?.batchNumber ?? null,
       packages: shipment.packages,
       packagesLabel: formatPackages(shipment.packages, shipment.packageType),
+      packageProgress: landed || shipment.status === "DELIVERED"
+        ? (() => {
+            const arrived = shipment.packageList.filter(
+              (pkg) => pkg.receivedAt
+            ).length;
+            const collected = shipment.packageList.filter(
+              (pkg) => pkg.deliveredAt
+            ).length;
+            const total = shipment.packageList.length;
+            return {
+              total,
+              arrived,
+              collected,
+              label:
+                collected === total && total > 0
+                  ? `All ${formatPackages(total, shipment.packageType)} collected`
+                  : `${arrived} of ${formatPackages(total, shipment.packageType)} arrived in Dar es Salaam`,
+            };
+          })()
+        : null,
       description:
         shipment.cargoType?.name ??
         CATEGORY_LABELS[shipment.cargoCategory] ??

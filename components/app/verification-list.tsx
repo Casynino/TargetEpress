@@ -12,7 +12,12 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { completeVerification, verifyShipment } from "@/lib/actions/batches";
 import type { ActionResult } from "@/lib/actions/types";
-import { EXCEPTION_TYPE_LABELS, enumOptions } from "@/lib/constants";
+import {
+  EXCEPTION_TYPE_LABELS,
+  PACKAGE_TYPE_LABELS,
+  enumOptions,
+  formatPackages,
+} from "@/lib/constants";
 import { formatWeight } from "@/lib/format";
 
 type Row = {
@@ -21,6 +26,8 @@ type Row = {
   customerName: string;
   customerPhone: string | null;
   packages: number;
+  packageType: string;
+  packageList: { id: string; sequence: number; received: boolean }[];
   weightKg: number;
   description: string;
   status: ShipmentStatus;
@@ -97,6 +104,13 @@ function VerificationRow({
     { ok: true }
   );
   const [flagging, setFlagging] = useState(false);
+  // Everything is assumed present — the common case is a complete shipment, and
+  // the operator only has to act when something is missing.
+  const [present, setPresent] = useState<string[]>(
+    shipment.packageList.map((pkg) => pkg.id)
+  );
+  const unit =
+    PACKAGE_TYPE_LABELS[shipment.packageType] ?? PACKAGE_TYPE_LABELS.PACKAGE;
 
   const done = shipment.verification?.result === "VERIFIED";
   const flagged = shipment.verification?.result === "EXCEPTION";
@@ -114,8 +128,8 @@ function VerificationRow({
           </p>
           <p className="mt-0.5 text-sm font-medium">{shipment.customerName}</p>
           <p className="text-xs text-muted-foreground">
-            {shipment.packages} pkg · {formatWeight(shipment.weightKg)} ·{" "}
-            {shipment.description}
+            {formatPackages(shipment.packages, shipment.packageType)} ·{" "}
+            {formatWeight(shipment.weightKg)} · {shipment.description}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -131,6 +145,49 @@ function VerificationRow({
         </p>
       ) : null}
 
+      {/* Every box, individually. Untick one and the shipment is recorded short
+          — which is the whole reason each package carries its own QR. */}
+      {!locked && shipment.packageList.length > 1 ? (
+        <div className="mt-3 border-t pt-3">
+          <p className="text-xs text-muted-foreground">
+            Tick each {unit.one} that is physically here
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {shipment.packageList.map((pkg) => {
+              const on = present.includes(pkg.id);
+              return (
+                <button
+                  key={pkg.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() =>
+                    setPresent((current) =>
+                      current.includes(pkg.id)
+                        ? current.filter((id) => id !== pkg.id)
+                        : [...current, pkg.id]
+                    )
+                  }
+                  className={`inline-flex h-10 min-w-10 items-center justify-center rounded-md border px-3 text-sm font-semibold tabular transition-colors ${
+                    on
+                      ? "border-brand bg-brand/10 text-brand"
+                      : "border-dashed text-muted-foreground"
+                  }`}
+                >
+                  {pkg.sequence}
+                </button>
+              );
+            })}
+          </div>
+          {present.length < shipment.packageList.length ? (
+            <p className="mt-2 text-xs text-warning">
+              {shipment.packageList.length - present.length} of{" "}
+              {shipment.packageList.length} not here — checking in will raise a
+              shortage and block release until they arrive.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {/* Full-width and 48px tall on a phone: these are pressed with a thumb,
           one-handed, while the other hand holds the carton. On a desk they
           shrink back to a normal inline pair. */}
@@ -140,13 +197,26 @@ function VerificationRow({
             <input type="hidden" name="batchId" value={batchId} />
             <input type="hidden" name="shipmentId" value={shipment.id} />
             <input type="hidden" name="result" value="VERIFIED" />
+            <input type="hidden" name="packageSelection" value="explicit" />
+            {shipment.packageList.map((pkg) => (
+              <input
+                key={pkg.id}
+                type="hidden"
+                name="packageIds"
+                value={present.includes(pkg.id) ? pkg.id : ""}
+              />
+            ))}
             <SubmitButton
               variant={done ? "outline" : "brand"}
               pendingLabel="Checking…"
               className="h-12 w-full text-base sm:h-9 sm:w-auto sm:text-sm"
             >
               <Check className="mr-1.5 h-5 w-5 sm:h-4 sm:w-4" />
-              {done ? "Checked" : "Present & correct"}
+              {done
+                ? "Checked"
+                : present.length === shipment.packageList.length
+                  ? "Present & correct"
+                  : `Check in ${present.length} of ${shipment.packageList.length}`}
             </SubmitButton>
           </form>
 

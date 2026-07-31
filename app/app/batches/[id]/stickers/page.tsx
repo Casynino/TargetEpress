@@ -10,7 +10,7 @@ import { CATEGORY_LABELS } from "@/lib/cargo";
 import { formatPackages } from "@/lib/constants";
 import { formatWeight } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { shipmentQrDataUrl } from "@/lib/qr";
+import { packageQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Print stickers" };
@@ -57,25 +57,32 @@ export default async function BatchStickersPage({
       customer: { select: { name: true, phone: true, city: true } },
       cargoType: { select: { name: true } },
       batch: { select: { batchNumber: true } },
+      packageList: { orderBy: { sequence: "asc" } },
     },
   });
 
+  // One sticker per physical package, not per shipment. Three shipments of two
+  // cartons each is six labels, and each carries its own QR.
   const stickers: StickerData[] = await Promise.all(
-    cargo.map(async (item) => ({
-      trackingNumber: item.trackingNumber,
-      customerName: item.customer.name,
-      customerPhone: item.customer.phone,
-      customerCity: item.customer.city,
-      description: item.description,
-      cargoTypeName: item.cargoType?.name ?? null,
-      categoryLabel: CATEGORY_LABELS[item.cargoCategory],
-      packages: item.packages,
-      packagesLabel: formatPackages(item.packages, item.packageType),
-      weightLabel: formatWeight(item.weightKg),
-      origin: item.origin,
-      batchNumber: item.batch?.batchNumber ?? null,
-      qr: await shipmentQrDataUrl(item.qrToken, 150),
-    }))
+    cargo.flatMap((item) =>
+      item.packageList.map(async (pkg) => ({
+        trackingNumber: item.trackingNumber,
+        customerName: item.customer.name,
+        customerPhone: item.customer.phone,
+        customerCity: item.customer.city,
+        description: item.description,
+        cargoTypeName: item.cargoType?.name ?? null,
+        categoryLabel: CATEGORY_LABELS[item.cargoCategory],
+        packages: item.packageList.length,
+        packagesLabel: formatPackages(item.packageList.length, item.packageType),
+        weightLabel: formatWeight(item.weightKg),
+        origin: item.origin,
+        batchNumber: item.batch?.batchNumber ?? null,
+        sequence: pkg.sequence,
+        packageRef: pkg.reference,
+        qr: await packageQrDataUrl(pkg.qrToken, 150),
+      }))
+    )
   );
 
   return (
@@ -89,8 +96,9 @@ export default async function BatchStickersPage({
             </Link>
           </Button>
           <p className="mt-1 text-sm text-muted-foreground">
-            {stickers.length} sticker{stickers.length === 1 ? "" : "s"}
-            {selected.length > 0 ? " selected" : " — everything on this table"}
+            {stickers.length} sticker{stickers.length === 1 ? "" : "s"} — one per
+            package, for {cargo.length} shipment{cargo.length === 1 ? "" : "s"}
+            {selected.length > 0 ? " selected" : " on this table"}
           </p>
         </div>
         <PrintButton label={`Print ${stickers.length} sticker${stickers.length === 1 ? "" : "s"}`} />
@@ -106,7 +114,7 @@ export default async function BatchStickersPage({
       ) : (
         <div className="space-y-6">
           {stickers.map((sticker) => (
-            <CargoSticker key={sticker.trackingNumber} data={sticker} />
+            <CargoSticker key={sticker.packageRef} data={sticker} />
           ))}
         </div>
       )}
