@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   Camera,
   ChevronRight,
   Download,
   Grid3x3,
+  Paperclip,
   Printer,
   Search,
   Table2,
@@ -92,9 +94,14 @@ const CATEGORY_LABEL: Record<string, string> = {
 /**
  * The photos taken when this cargo was received.
  *
- * A thumbnail that opens the full image, and an explicit download beside it.
- * Both matter: someone settling an argument about damage wants to look now,
- * and someone answering a claim wants the file to attach to an email.
+ * A paperclip and the word "View", the same as every other proof in the system,
+ * so an attachment reads the same wherever it appears. Tapping opens the photos
+ * full size with a download beside each: someone settling an argument about
+ * damage wants to look now, and someone answering a claim wants the file to
+ * attach to an email.
+ *
+ * Thumbnails were the earlier attempt. In a row eighty-five deep they compete
+ * with the tracking number for attention and win, which is the wrong way round.
  */
 function PhotoProof({
   photos,
@@ -103,46 +110,126 @@ function PhotoProof({
   photos: CargoCell["photos"];
   tracking: string;
 }) {
+  const [open, setOpen] = useState(false);
+
   if (photos.length === 0) {
     return <span className="text-xs text-muted-foreground">—</span>;
   }
 
-  const first = photos[0];
-
   return (
-    <span className="flex items-center gap-1.5">
-      <a
-        href={first.url}
-        target="_blank"
-        rel="noopener noreferrer"
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
         title={`View ${photos.length} photo${photos.length === 1 ? "" : "s"} of ${tracking}`}
-        className="group relative block h-8 w-8 shrink-0 overflow-hidden rounded border"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-brand transition-opacity hover:opacity-80"
       >
-        {/* Deliberately a plain img: these are user uploads on a storage host
-            that may not be in the Next image allow-list, and a broken optimiser
-            would hide the proof entirely. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={first.url}
-          alt={first.caption ?? `Cargo photo for ${tracking}`}
-          className="h-full w-full object-cover transition-transform group-hover:scale-110"
-          loading="lazy"
+        <Paperclip className="h-3.5 w-3.5" />
+        View{photos.length > 1 ? ` ${photos.length}` : ""}
+      </button>
+
+      {open ? (
+        <PhotoViewer
+          photos={photos}
+          tracking={tracking}
+          onClose={() => setOpen(false)}
         />
-        {photos.length > 1 ? (
-          <span className="absolute bottom-0 right-0 rounded-tl bg-black/70 px-1 text-[9px] font-medium text-white">
-            {photos.length}
-          </span>
-        ) : null}
-      </a>
-      <a
-        href={first.url}
-        download={`${tracking}.jpg`}
-        title="Download"
-        className="text-muted-foreground transition-colors hover:text-foreground"
+      ) : null}
+    </>
+  );
+}
+
+/** The proof itself, full size, with a download on every image. */
+function PhotoViewer({
+  photos,
+  tracking,
+  onClose,
+}: {
+  photos: CargoCell["photos"];
+  tracking: string;
+  onClose: () => void;
+}) {
+  // Escape closes it. A viewer opened by accident in a busy warehouse should
+  // take one key to get out of, not a hunt for the X.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    // The list behind this scrolls in its own box. Left alone, a wheel over the
+    // photo scrolls the table instead, and the row you were looking at is gone
+    // by the time you close.
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [onClose]);
+
+  // Portalled to the body: the trigger lives inside a table that scrolls in its
+  // own box, and a viewer rendered there would be clipped by it.
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Photos for ${tracking}`}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl border bg-card shadow-lg"
+        onClick={(event) => event.stopPropagation()}
       >
-        <Download className="h-3.5 w-3.5" />
-      </a>
-    </span>
+        <div className="sticky top-0 flex items-center justify-between gap-3 border-b bg-card px-5 py-4">
+          <div className="min-w-0">
+            <p className="font-display font-semibold">Proof of receipt</p>
+            <p className="font-mono text-xs text-muted-foreground tabular">
+              {tracking} · {photos.length} photo
+              {photos.length === 1 ? "" : "s"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          {photos.map((photo, index) => (
+            <figure key={photo.id} className="overflow-hidden rounded-lg border">
+              {/* Deliberately a plain img: these are user uploads on a storage
+                  host that may not be in the Next image allow-list, and a broken
+                  optimiser would hide the proof entirely. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photo.url}
+                alt={photo.caption ?? `Cargo photo for ${tracking}`}
+                className="max-h-[55vh] w-full bg-muted object-contain"
+              />
+              <figcaption className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3">
+                <span className="min-w-0 text-xs text-muted-foreground">
+                  {photo.caption ?? `Photo ${index + 1}`}
+                </span>
+                <a
+                  href={photo.url}
+                  download={`${tracking}-${index + 1}.jpg`}
+                  className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download
+                </a>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
