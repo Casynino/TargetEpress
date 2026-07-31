@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+
+import { NotificationBell } from "@/components/app/notification-bell";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
@@ -80,7 +82,7 @@ export function AppShell({
 }: {
   sections: NavSection[];
   user: ShellUser;
-  /** Drives the dot on the user panel — the nav link itself is always there. */
+  /** Drives the count on the bell, and the dot on your own name. */
   unreadNotifications?: number;
   children: React.ReactNode;
 }) {
@@ -126,10 +128,18 @@ export function AppShell({
           <BrandLockup subtitle={false} />
         </Link>
 
-        <ThemeToggle className="h-9 w-9" />
+        <div className="flex items-center gap-1">
+          <NotificationBell unread={unreadNotifications} />
+          <ThemeToggle className="h-9 w-9" />
+        </div>
       </div>
 
       <div className="lg:pl-64">
+        {/* A thin bar for the bell alone. Anything else that wanted to live up
+            here would be competing with the page's own heading. */}
+        <div className="sticky top-0 z-20 hidden h-14 items-center justify-end border-b bg-background/80 px-8 backdrop-blur lg:flex">
+          <NotificationBell unread={unreadNotifications} />
+        </div>
         <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8">{children}</div>
       </div>
     </div>

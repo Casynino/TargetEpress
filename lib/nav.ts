@@ -17,15 +17,15 @@ export type NavSection = {
   items: NavItem[];
 };
 
+// Neither the profile nor notifications appear here. The profile is reached by
+// pressing your own name at the bottom of this sidebar — the place people
+// already look for "my stuff" — and notifications are a bell in the top right,
+// where a count is visible without opening anything.
 const SECTIONS: NavSection[] = [
   {
     title: "Overview",
     items: [
       { href: "/app/dashboard", label: "Dashboard", icon: "LayoutDashboard", exact: true },
-      // No permission: everyone with an account has a profile, and everyone
-      // can be told things.
-      { href: "/app/profile", label: "My profile", icon: "UserRound" },
-      { href: "/app/notifications", label: "Notifications", icon: "Bell" },
       {
         href: "/app/scan",
         label: "Scan QR",
