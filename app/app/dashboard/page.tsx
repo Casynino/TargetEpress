@@ -32,6 +32,7 @@ import {
   agingInWarehouse,
   attentionItems,
   batchUtilisation,
+  cargoMix,
   chinaStats,
   corridorPerformance,
   darStats,
@@ -43,6 +44,7 @@ import {
 } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
+import { CargoMix } from "@/components/app/cargo-mix";
 import { WarehouseHero } from "@/components/app/warehouse-hero";
 import { todaySummary } from "@/lib/warehouse-home";
 import { requireUser } from "@/lib/session";
@@ -159,11 +161,11 @@ export default async function DashboardPage() {
 // ---------------------------------------------------------------------------
 
 async function ChinaDashboard({ role }: { role: "CHINA_WAREHOUSE" | "ADMIN" }) {
-  const [stats, volume, utilisation, alerts, activity, openBatches] = await Promise.all([
+  const [stats, volume, utilisation, mix, activity, openBatches] = await Promise.all([
     chinaStats(),
     monthlyVolume(),
     batchUtilisation(),
-    attentionItems(role),
+    cargoMix(30),
     recentActivity(8),
     prisma.batch.findMany({
       where: { status: { in: ["OPEN", "READY_TO_DEPART"] } },
@@ -243,10 +245,15 @@ async function ChinaDashboard({ role }: { role: "CHINA_WAREHOUSE" | "ADMIN" }) {
           />
         </section>
 
-        <AlertQueue
-          items={alerts}
-          description="Cargo waiting on the China desk"
-          emptyMessage="Every batch is moving. Nothing waiting here."
+        {/* This used to be the alert queue, which for the China desk only ever
+            said "the loading table is open" — the same sentence as the panel
+            below it. What is missing from the page is not another count but
+            what the cargo *is*. */}
+        <CargoMix
+          slices={mix.slices}
+          totalShipments={mix.totalShipments}
+          totalWeightKg={mix.totalWeightKg}
+          periodLabel={`Received in the last ${mix.days} days`}
         />
       </div>
 

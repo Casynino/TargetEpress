@@ -649,3 +649,55 @@ export async function agingInWarehouse(limit = 8) {
     },
   });
 }
+
+/**
+ * What the desk has been sending, by item.
+ *
+ * Grouped by the priced item rather than the free-text description, because
+ * "Clothes" is a rate on a price list and "nguo" is one person's handwriting.
+ * The tail is collapsed into "Other" at six slices — beyond that a donut is
+ * decoration.
+ */
+export async function cargoMix(days = 30) {
+  const since = new Date(Date.now() - days * 24 * 3600 * 1000);
+
+  const rows = await prisma.shipment.findMany({
+    where: { registeredAt: { gte: since } },
+    select: {
+      weightKg: true,
+      cargoType: { select: { name: true } },
+      cargoCategory: true,
+    },
+  });
+
+  const byItem = new Map<string, { shipments: number; weightKg: number }>();
+  for (const row of rows) {
+    const key = row.cargoType?.name ?? "Not classified";
+    const entry = byItem.get(key) ?? { shipments: 0, weightKg: 0 };
+    entry.shipments += 1;
+    entry.weightKg += toNumber(row.weightKg);
+    byItem.set(key, entry);
+  }
+
+  const sorted = [...byItem.entries()]
+    .map(([name, value]) => ({ name, ...value }))
+    .sort((a, b) => b.shipments - a.shipments);
+
+  const TOP = 5;
+  const head = sorted.slice(0, TOP);
+  const tail = sorted.slice(TOP);
+  if (tail.length > 0) {
+    head.push({
+      name: `Other (${tail.length} items)`,
+      shipments: tail.reduce((sum, item) => sum + item.shipments, 0),
+      weightKg: tail.reduce((sum, item) => sum + item.weightKg, 0),
+    });
+  }
+
+  return {
+    slices: head,
+    totalShipments: rows.length,
+    totalWeightKg: rows.reduce((sum, row) => sum + toNumber(row.weightKg), 0),
+    days,
+  };
+}
