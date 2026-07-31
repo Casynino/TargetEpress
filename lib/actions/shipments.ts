@@ -183,6 +183,7 @@ export async function createShipment(
           goodsType: input.goodsType,
           description: input.description,
           packages: input.packages,
+          packageType: input.packageType,
           weightKg: input.weightKg,
           volumeCbm: input.volumeCbm ?? null,
           origin,

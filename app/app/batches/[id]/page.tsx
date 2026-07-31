@@ -23,6 +23,17 @@ const ROUTE_LABEL: Record<string, string> = {
 };
 
 /**
+ * What each batch is for, said once here rather than on every row.
+ *
+ * The batch defines the category, so repeating "Normal goods" eighty-five times
+ * down a column tells the reader nothing they did not know from the title.
+ */
+const ROUTE_CATEGORY: Record<string, string> = {
+  GUANGZHOU: "Normal goods",
+  HONG_KONG: "Electronics & special goods",
+};
+
+/**
  * One loading table: everything on it, and the button that sends it.
  *
  * There is no "add cargo" and no "remove cargo" here. Cargo arrives on this
@@ -99,7 +110,7 @@ export default async function LoadingTablePage({
     <>
       <PageHeader
         title={ROUTE_LABEL[batch.origin] ?? batch.batchNumber}
-        description={`Cargo waiting in China for the ${ORIGIN_LABELS[batch.origin]} flight. This table is permanent — it empties when you dispatch it, then fills again.`}
+        description={`${ROUTE_CATEGORY[batch.origin]} waiting in China for the ${ORIGIN_LABELS[batch.origin]} flight. This table is permanent — it empties when you dispatch it, then fills again.`}
         actions={
           <>
             <Button asChild variant="outline" size="sm">

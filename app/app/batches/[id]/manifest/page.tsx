@@ -7,12 +7,18 @@ import { BrandMark } from "@/components/brand-mark";
 import { PageHeader } from "@/components/app/page-header";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
-import { COMPANY, GOODS_TYPE_LABELS, ORIGIN_LABELS } from "@/lib/constants";
+import { COMPANY, ORIGIN_LABELS, formatPackages } from "@/lib/constants";
 import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Batch manifest" };
+
+/** What each batch carries, stated once at the top of the document. */
+const CATEGORY_FOR_ROUTE: Record<string, string> = {
+  GUANGZHOU: "Normal goods",
+  HONG_KONG: "Electronics & special goods",
+};
 
 export default async function ManifestPage({
   params,
@@ -30,6 +36,8 @@ export default async function ManifestPage({
         include: {
           customer: { select: { name: true, phone: true } },
           createdBy: { select: { name: true } },
+          cargoType: { select: { name: true } },
+          _count: { select: { photos: true } },
         },
       },
     },
@@ -46,6 +54,26 @@ export default async function ManifestPage({
   // Who took each piece in. A manifest that only totals the cargo answers "what
   // is on the flight"; a manager also needs "who handled it", because that is
   // who they ask when a carton is short.
+  // What is actually in the batch, grouped by product. "Clothes 40 cartons,
+  // Shoes 22 cartons" is the line a manager reads; eighty-five rows is not.
+  const byProduct = [...
+    batch.shipments
+      .reduce((counts, shipment) => {
+        const name =
+          shipment.cargoType?.name ?? shipment.description.split(/[(,]/)[0].trim();
+        const current = counts.get(name) ?? { pieces: 0, packages: 0, weightKg: 0 };
+        counts.set(name, {
+          pieces: current.pieces + 1,
+          packages: current.packages + shipment.packages,
+          weightKg: current.weightKg + toNumber(shipment.weightKg),
+        });
+        return counts;
+      }, new Map<string, { pieces: number; packages: number; weightKg: number }>())
+      .entries()
+  ]
+    .sort((a, b) => b[1].packages - a[1].packages)
+    .slice(0, 12);
+
   const byReceiver = [...
     batch.shipments
       .reduce((counts, shipment) => {
@@ -110,6 +138,10 @@ export default async function ManifestPage({
                 ? `${batch.airline} ${batch.flightNumber ?? ""}`.trim()
                 : "—",
             },
+            {
+              label: "Cargo category",
+              value: CATEGORY_FOR_ROUTE[batch.origin] ?? "—",
+            },
             { label: "Waybill", value: batch.waybillNumber ?? "—" },
             { label: "Departed", value: formatDate(batch.departureDate) },
             { label: "Arrived", value: formatDate(batch.arrivalDate) },
@@ -129,6 +161,24 @@ export default async function ManifestPage({
             </div>
           ))}
         </dl>
+
+        {byProduct.length > 0 ? (
+          <section className="mt-6 border-t border-black/20 pt-4">
+            <p className="text-[9px] font-semibold uppercase tracking-widest text-black/60">
+              What is inside
+            </p>
+            <ul className="mt-2 grid gap-x-8 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+              {byProduct.map(([name, stats]) => (
+                <li key={name} className="flex justify-between gap-3 text-[11px]">
+                  <span className="truncate">{name}</span>
+                  <span className="shrink-0 font-mono tabular">
+                    {stats.packages} · {stats.weightKg.toFixed(1)} kg
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         {byReceiver.length > 0 ? (
           <section className="mt-6 border-y border-black/20 py-4">
@@ -157,9 +207,12 @@ export default async function ManifestPage({
               <th className="py-2 pr-2 font-semibold">Tracking</th>
               <th className="py-2 pr-2 font-semibold">Customer</th>
               <th className="py-2 pr-2 font-semibold">Phone</th>
-              <th className="py-2 pr-2 font-semibold">Contents</th>
-              <th className="py-2 pr-2 text-right font-semibold">Pkgs</th>
+              <th className="py-2 pr-2 font-semibold">Product</th>
+              <th className="py-2 pr-2 text-right font-semibold">Qty</th>
               <th className="py-2 pr-2 text-right font-semibold">Weight</th>
+              <th className="py-2 pr-2 font-semibold">Received</th>
+              <th className="py-2 pr-2 font-semibold">By</th>
+              <th className="w-10 py-2 text-center font-semibold">Photo</th>
               {/* Physically ticked with a pen while checking the cargo. */}
               <th className="w-16 py-2 text-center font-semibold">Checked</th>
             </tr>
@@ -179,13 +232,24 @@ export default async function ManifestPage({
                   {shipment.customer.phone ?? "—"}
                 </td>
                 <td className="py-2 pr-2">
-                  {GOODS_TYPE_LABELS[shipment.goodsType]}
+                  {shipment.cargoType?.name ?? shipment.description}
                 </td>
                 <td className="py-2 pr-2 text-right tabular">
-                  {shipment.packages}
+                  {formatPackages(shipment.packages, shipment.packageType)}
                 </td>
                 <td className="py-2 pr-2 text-right tabular">
                   {formatWeight(shipment.weightKg)}
+                </td>
+                <td className="py-2 pr-2 tabular">
+                  {formatDate(shipment.registeredAt)}
+                </td>
+                <td className="py-2 pr-2">{shipment.createdBy?.name ?? "—"}</td>
+                <td className="py-2 text-center">
+                  {shipment._count.photos > 0 ? (
+                    <span className="font-semibold">{shipment._count.photos}</span>
+                  ) : (
+                    <span className="text-black/40">—</span>
+                  )}
                 </td>
                 <td className="py-2 text-center">
                   <span className="inline-block h-3.5 w-3.5 border border-black/60" />
@@ -202,7 +266,7 @@ export default async function ManifestPage({
               <td className="py-2 pr-2 text-right tabular">
                 {formatWeight(totalWeight)}
               </td>
-              <td />
+              <td colSpan={4} />
             </tr>
           </tfoot>
         </table>

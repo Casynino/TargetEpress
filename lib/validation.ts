@@ -62,6 +62,10 @@ export const shipmentSchema = z.object({
     .refine((v) => v === null || v.length >= 7, "That phone number is too short."),
   customerCity: z.string().trim().optional(),
   cargoCategory: z.enum(["NORMAL_GOODS", "ELECTRONICS", "LIQUID_SPECIAL"]),
+  packageType: z
+    .enum(["CARTON", "PIECE", "BAG", "BOX", "OTHER"])
+    .optional()
+    .default("CARTON"),
   cargoTypeId: z
     .string()
     .trim()

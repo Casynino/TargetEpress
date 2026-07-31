@@ -233,17 +233,22 @@ export function CargoGrid({
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setFilter("ALL")}
-          className={cn(
-            "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-            filter === "ALL" ? "border-foreground bg-foreground text-background" : "hover:bg-accent"
-          )}
-        >
-          All {counts.total}
-        </button>
-        {categories.map(([category, count]) => (
+        {categories.length > 1 ? (
+          <button
+            type="button"
+            onClick={() => setFilter("ALL")}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+              filter === "ALL"
+                ? "border-foreground bg-foreground text-background"
+                : "hover:bg-accent"
+            )}
+          >
+            All {counts.total}
+          </button>
+        ) : null}
+        {categories.length > 1
+          ? categories.map(([category, count]) => (
           <button
             key={category}
             type="button"
@@ -255,9 +260,10 @@ export function CargoGrid({
                 : "hover:bg-accent"
             )}
           >
-            {CATEGORY_LABEL[category] ?? category} {count}
-          </button>
-        ))}
+                {CATEGORY_LABEL[category] ?? category} {count}
+              </button>
+            ))
+          : null}
 
         {batchId ? (
           <Link
@@ -359,7 +365,6 @@ export function CargoGrid({
                   <th className="px-3 py-2 font-medium">Tracking</th>
                   <th className="px-3 py-2 font-medium">Customer</th>
                   <th className="px-3 py-2 font-medium">Cargo</th>
-                  <th className="hidden px-3 py-2 font-medium lg:table-cell">Type</th>
                   <th className="px-3 py-2 text-right font-medium">Weight</th>
                   <th className="px-3 py-2 text-right font-medium">Pkgs</th>
                   <th className="px-3 py-2 font-medium">Proof</th>
@@ -395,16 +400,6 @@ export function CargoGrid({
                     </td>
                     <td className="max-w-[18rem] truncate px-3 py-1.5 text-muted-foreground">
                       {cell.description}
-                    </td>
-                    <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs lg:table-cell">
-                      <span
-                        className={cn(
-                          "rounded px-1.5 py-0.5",
-                          CATEGORY_CHIP[cell.category] ?? "bg-muted"
-                        )}
-                      >
-                        {CATEGORY_SHORT[cell.category] ?? cell.category}
-                      </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5 text-right font-mono tabular-nums">
                       {cell.weightKg.toFixed(1)}

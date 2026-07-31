@@ -244,7 +244,7 @@ export function ShipmentForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="packages">Packages</Label>
+            <Label htmlFor="packages">How many</Label>
             <Input
               id="packages"
               name="packages"
@@ -255,6 +255,25 @@ export function ShipmentForm({
               inputMode="numeric"
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="packageType">Counted as</Label>
+            <NativeSelect
+              id="packageType"
+              name="packageType"
+              defaultValue={category === "NORMAL_GOODS" ? "CARTON" : "PIECE"}
+              key={category}
+            >
+              <option value="CARTON">Cartons</option>
+              <option value="PIECE">Pieces</option>
+              <option value="BAG">Bags</option>
+              <option value="BOX">Boxes</option>
+              <option value="OTHER">Other</option>
+            </NativeSelect>
+            <p className="text-xs text-muted-foreground">
+              Twenty phones are twenty pieces, not twenty cartons.
+            </p>
           </div>
         </div>
       </section>
