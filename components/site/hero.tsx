@@ -93,22 +93,38 @@ export function Hero() {
           <div>
             <span className="rise inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-gold backdrop-blur">
               <Plane className="h-3.5 w-3.5" />
-              Guangzhou → Dar es Salaam
+              Guangzhou / Hong Kong → Dar es Salaam
             </span>
 
-            <h1 className="rise rise-1 mt-6 font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-              Ndani ya siku tatu,
-              <br />
-              <span className="text-signal">mzigo wako</span> uko mlangoni
+            {/* The sentence is long for a headline, so it is set a step smaller
+                than the old one and broken where it breaks in speech. "3–10" is
+                the number the whole promise turns on, so it carries the accent
+                and nothing else in the headline competes with it. */}
+            <h1 className="rise rise-1 mt-6 font-display text-3xl font-extrabold leading-[1.08] tracking-tight sm:text-4xl lg:text-5xl">
+              Ndani ya siku <span className="text-signal">3–10</span>, mzigo
+              wako kutoka China unafika Tanzania
             </h1>
 
-            <p className="rise rise-2 mt-6 max-w-xl text-lg leading-relaxed text-white/75">
-              Tunasafirisha mizigo yako kutoka China hadi Tanzania kwa bei
-              nafuu — na unaweza kufuatilia kila hatua.
-              <span className="mt-2 block text-base text-white/50">
-                Air cargo from Guangzhou and Hong Kong, tracked from our own
-                warehouse in China to the moment you collect it in Dar.
+            {/* The three qualities pulled out of the sentence and given their
+                own line. As a tail on the headline they were swallowed; as a
+                gold rule under it they read as the promise they are. */}
+            <p className="rise rise-2 mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold uppercase tracking-[0.18em] text-gold">
+              <span>kwa haraka</span>
+              <span aria-hidden className="text-gold/40">
+                •
               </span>
+              <span>salama</span>
+              <span aria-hidden className="text-gold/40">
+                •
+              </span>
+              <span>na uhakika</span>
+            </p>
+
+            <p className="rise rise-2 mt-6 max-w-xl text-lg leading-relaxed text-white/75">
+              Pata bidhaa, tafuta suppliers na viwanda bora nchini China.
+              Kupitia Target Express Air Cargo, tunasimamia mchakato mzima wa
+              usafirishaji — kutoka China hadi mzigo wako unapofika salama
+              Tanzania.
             </p>
 
             {/* Tracking stays a field rather than becoming a button. It is the

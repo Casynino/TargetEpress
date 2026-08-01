@@ -201,8 +201,11 @@ export function RouteMap() {
                 { value: "3", label: "flights a week" },
                 { value: "2", label: "loading airports" },
                 {
-                  value: COMPANY.promiseEn.match(/\w+/)?.[0] ?? "Days",
-                  label: "door to door",
+                  // Was the first word of promiseEn, which rendered "Within"
+                  // and would now render "Your". The figure is a field of its
+                  // own rather than something parsed out of a sentence.
+                  value: COMPANY.promiseDays,
+                  label: "days door to door",
                 },
               ].map((item) => (
                 <div key={item.label}>

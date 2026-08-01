@@ -25,9 +25,18 @@ export const COMPANY = {
   name: "Target Express Air Cargo",
   shortName: "Target Express",
 
-  /** The promise the business is built on: three days, door to door. */
-  promiseSw: "Ndani ya siku tatu, mzigo wako uko mlangoni!",
-  promiseEn: "Within three days, your cargo is at your door.",
+  /**
+   * The promise the business is built on: 3-10 days, door to door.
+   *
+   * It said "three days" until the hero copy was rewritten to 3-10. Leaving
+   * this alone would have put a three-day promise in the footer of the same
+   * page whose headline says 3-10 — a contradiction a customer reads as either
+   * carelessness or a bait price.
+   */
+  promiseSw: "Ndani ya siku 3-10, mzigo wako kutoka China unafika Tanzania.",
+  promiseEn: "Your cargo reaches Tanzania in 3-10 days.",
+  /** The same figure on its own, for stat tiles. */
+  promiseDays: "3-10",
   taglineSw: "Kutoka China kwa bei nafuu",
   taglineEn: "From China, at a fair price",
 
