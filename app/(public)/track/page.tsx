@@ -12,7 +12,9 @@ import {
   Wallet,
 } from "lucide-react";
 
+import { PageHero } from "@/components/site/page-hero";
 import { TrackForm } from "@/components/site/track-form";
+import { IMAGES } from "@/lib/imagery";
 import { TrackingTimeline } from "@/components/site/tracking-timeline";
 import { Button } from "@/components/ui/button";
 import { COMPANY } from "@/lib/constants";
@@ -38,30 +40,39 @@ export default async function TrackPage({
   const result = q ? await trackByCode(q) : null;
 
   return (
-    <div className="container py-12 md:py-16">
-      <div className="mx-auto max-w-3xl">
-        <div className="text-center">
-          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-            Track your cargo
-          </h1>
-          <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+    <>
+      {/* The search sits inside the hero rather than under it. This is the page
+          customers arrive on from a WhatsApp message with a number in hand —
+          the field they came to use should be the first thing on the screen,
+          not below a banner. */}
+      <PageHero
+        image={IMAGES.packedCartons}
+        eyebrow="Fuatilia mzigo"
+        title="Track your cargo"
+        body={
+          <>
             Enter the tracking number on your label (
-            <span className="font-mono">TX-000123</span>) or the batch number we
-            gave you (<span className="font-mono">BATCH-2026-001</span>).
-          </p>
-        </div>
-
-        <div className="mt-8">
-          <Suspense fallback={<div className="h-12 rounded-xl border bg-muted/40" />}>
+            <span className="font-mono text-white">TX-000123</span>) or the batch
+            number we gave you (
+            <span className="font-mono text-white">BATCH-2026-001</span>).
+          </>
+        }
+      >
+        <div className="max-w-2xl">
+          <Suspense
+            fallback={<div className="h-12 rounded-xl border border-white/15 bg-white/5" />}
+          >
             <TrackForm />
           </Suspense>
         </div>
+      </PageHero>
 
-        <div className="mt-10">
+      <div className="container py-12 md:py-16">
+        <div className="mx-auto max-w-3xl">
           {result ? <TrackingResultView result={result} /> : <EmptyState />}
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
