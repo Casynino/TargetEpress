@@ -40,6 +40,21 @@
        same colour in both, the way a printed cover is. */
     --ink: 217 45% 8%;
 
+    /* Aviation gold. The accent that separates a freight company from a
+       software product — used for eyebrows, rules, numerals and the quiet
+       marks of quality, never for a primary button. Red stays the call to
+       action; gold is the finish on it. */
+    --gold: 41 72% 44%;
+    --gold-foreground: 217 45% 8%;
+
+    /* Elevation, as tokens rather than one-off greys. Every raised surface in
+       the app picks from these three, so a card is the same card everywhere. */
+    --surface-1: 210 40% 99%;
+    --surface-2: 214 32% 97%;
+    --surface-3: 214 30% 94%;
+    --glass: 0 0% 100% / 0.7;
+    --glass-border: 214 25% 88% / 0.9;
+
     --brand: 216 72% 22%;
     --brand-foreground: 0 0% 100%;
     --brand-muted: 216 62% 96%;
@@ -106,6 +121,17 @@
 
     --border: 220 14% 22%;
     --input: 220 14% 22%;
+
+    /* Gold has to lift off navy without turning mustard, so it goes brighter
+       and slightly warmer in the dark theme. */
+    --gold: 43 78% 62%;
+    --gold-foreground: 220 24% 6%;
+
+    --surface-1: 220 19% 11%;
+    --surface-2: 220 18% 14%;
+    --surface-3: 220 17% 18%;
+    --glass: 220 24% 12% / 0.62;
+    --glass-border: 210 40% 98% / 0.12;
     --ring: 213 70% 62%;
 
     --chart-1: 213 84% 62%;
@@ -265,5 +291,65 @@
 @media (prefers-reduced-motion: reduce) {
   .rise {
     animation: none;
+  }
+}
+
+
+@layer components {
+  /**
+   * Glass, defined once.
+   *
+   * Every panel that floats over photography or the globe uses this rather
+   * than inventing its own white/10. One definition means one look, and it
+   * means changing the blur is a single edit instead of a search.
+   */
+  .glass {
+    background-color: hsl(var(--glass));
+    border: 1px solid hsl(var(--glass-border));
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+  }
+
+  /**
+   * Glass for sections that are dark in BOTH themes — the page heroes and
+   * photographic bands.
+   *
+   * `.glass` follows the theme, which is right for a card sitting on the page
+   * background and wrong inside a hero: in light mode it resolved to white at
+   * 70%, so white heading text landed on a near-white panel and became
+   * unreadable. These sections are always navy, so their glass must be too.
+   */
+  .glass-dark {
+    background-color: hsl(220 30% 8% / 0.5);
+    border: 1px solid hsl(0 0% 100% / 0.14);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+  }
+
+  /** The three raised surfaces. Cards pick one; nothing invents a fourth. */
+  .surface-1 { background-color: hsl(var(--surface-1)); }
+  .surface-2 { background-color: hsl(var(--surface-2)); }
+  .surface-3 { background-color: hsl(var(--surface-3)); }
+
+  /**
+   * A hairline of gold above a section heading. The cheapest possible signal
+   * that somebody designed the page.
+   */
+  .rule-gold::before {
+    content: "";
+    display: block;
+    width: 2.5rem;
+    height: 2px;
+    margin-bottom: 1rem;
+    background: linear-gradient(90deg, hsl(var(--gold)), transparent);
+  }
+
+  /** Numerals and eyebrows that should read as premium rather than loud. */
+  .eyebrow-gold {
+    color: hsl(var(--gold));
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
   }
 }

@@ -24,7 +24,7 @@ export function RouteMap() {
       <div className="container">
         <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.2fr]">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
               Njia yetu · Our route
             </p>
             <h2 className="mt-3 font-display text-3xl font-bold leading-tight sm:text-4xl">

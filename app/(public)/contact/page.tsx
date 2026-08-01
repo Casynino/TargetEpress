@@ -12,7 +12,9 @@ import {
   Warehouse,
 } from "lucide-react";
 
+import { PageHero } from "@/components/site/page-hero";
 import { Button } from "@/components/ui/button";
+import { IMAGES } from "@/lib/imagery";
 import { COMPANY } from "@/lib/constants";
 
 export const metadata: Metadata = {
@@ -23,22 +25,18 @@ export const metadata: Metadata = {
 
 export default function ContactPage() {
   return (
+    <>
+    <PageHero
+      image={IMAGES.apron}
+      eyebrow="Wasiliana nasi"
+      title="Tupigie au tuandikie"
+      body="WhatsApp ni njia ya haraka. Kwa hali ya mzigo, ukurasa wa kufuatilia unajibu haraka kuliko sisi."
+    />
+
     <div className="container py-12 md:py-16">
-      <div className="mx-auto max-w-3xl text-center">
-        <p className="text-sm font-bold uppercase tracking-wider text-signal">
-          Wasiliana nasi
-        </p>
-        <h1 className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
-          Tupigie au tuandikie
-        </h1>
-        <p className="mt-4 text-muted-foreground">
-          WhatsApp ni njia ya haraka. Kwa hali ya mzigo, ukurasa wa kufuatilia
-          unajibu haraka kuliko sisi.
-        </p>
-      </div>
 
       {/* Fast contact */}
-      <div className="mx-auto mt-12 grid max-w-5xl gap-5 md:grid-cols-3">
+      <div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-3">
         {[
           {
             icon: MessageCircle,
@@ -199,5 +197,6 @@ export default function ContactPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }

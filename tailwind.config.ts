@@ -58,6 +58,10 @@ const config: Config = {
           foreground: "hsl(var(--brand-foreground))",
           muted: "hsl(var(--brand-muted))",
         },
+        gold: {
+          DEFAULT: "hsl(var(--gold))",
+          foreground: "hsl(var(--gold-foreground))",
+        },
         signal: {
           DEFAULT: "hsl(var(--signal))",
           foreground: "hsl(var(--signal-foreground))",

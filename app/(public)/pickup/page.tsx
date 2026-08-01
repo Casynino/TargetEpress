@@ -2,7 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, MapPin, Timer, Truck } from "lucide-react";
 
+import { PageHero } from "@/components/site/page-hero";
 import { PickupForm } from "@/components/site/request-forms";
+import { IMAGES } from "@/lib/imagery";
 import { COMPANY } from "@/lib/constants";
 
 export const metadata: Metadata = {
@@ -32,50 +34,14 @@ const POINTS = [
 export default function PickupPage() {
   return (
     <>
-      <section className="relative overflow-hidden bg-[hsl(var(--ink))] py-20 text-white sm:py-28">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-bl from-signal/15 via-transparent to-brand/20"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -left-32 top-10 h-96 w-96 rounded-full bg-signal/15 blur-3xl"
-        />
-        <div className="container relative grid gap-12 lg:grid-cols-[1fr_1.1fr] lg:items-center">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
-              Pick up my package
-            </p>
-            <h1 className="mt-3 font-display text-4xl font-bold leading-[1.08] sm:text-5xl">
-              Your supplier has it.
-              <br />
-              We will go and get it.
-            </h1>
-            <p className="mt-5 max-w-lg text-lg text-white/70">
-              Send us the address and our Guangzhou team collects your cargo,
-              brings it to our warehouse and puts it on the next flight out.
-            </p>
-
-            <ul className="mt-9 space-y-5">
-              {POINTS.map((point) => (
-                <li key={point.title} className="flex gap-4">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-brand">
-                    <point.icon className="h-4.5 w-4.5" />
-                  </span>
-                  <span>
-                    <span className="block font-display font-bold">
-                      {point.title}
-                    </span>
-                    <span className="mt-0.5 block text-sm text-white/60">
-                      {point.body}
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur sm:p-8">
+      <PageHero
+        image={IMAGES.loadingTruck}
+        eyebrow="Pick up my package"
+        size="tall"
+        title={<>Your supplier has it.<br />We will go and get it.</>}
+        body="Send us the address and our Guangzhou team collects your cargo, brings it to our warehouse and puts it on the next flight out."
+        aside={
+          <div className="glass-dark rounded-3xl p-6 shadow-lift sm:p-8">
             <h2 className="font-display text-2xl font-bold">Where should we go?</h2>
             <p className="mt-1.5 text-sm text-white/60">
               A Google Maps pin is the fastest way to get us to the right door.
@@ -84,8 +50,22 @@ export default function PickupPage() {
               <PickupForm />
             </div>
           </div>
-        </div>
-      </section>
+        }
+      >
+        <ul className="space-y-5">
+          {POINTS.map((point) => (
+            <li key={point.title} className="flex gap-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gold/30 bg-gold/10 text-gold">
+                <point.icon className="h-[1.15rem] w-[1.15rem]" />
+              </span>
+              <span>
+                <span className="block font-display font-bold">{point.title}</span>
+                <span className="mt-0.5 block text-sm text-white/60">{point.body}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </PageHero>
 
       <section className="border-t border-white/10 bg-[hsl(var(--ink))] py-14 text-white">
         <div className="container flex flex-wrap items-center justify-between gap-6">

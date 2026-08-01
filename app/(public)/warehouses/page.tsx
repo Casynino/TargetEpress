@@ -10,7 +10,9 @@ import {
   Warehouse,
 } from "lucide-react";
 
+import { PageHero } from "@/components/site/page-hero";
 import { Reveal } from "@/components/site/reveal";
+import { IMAGES } from "@/lib/imagery";
 import { COMPANY } from "@/lib/constants";
 
 export const metadata: Metadata = {
@@ -45,30 +47,17 @@ const HANDLING = [
 export default function WarehousesPage() {
   return (
     <>
-      <section className="relative overflow-hidden bg-[hsl(var(--ink))] py-20 text-white sm:py-24">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/25 via-transparent to-signal/10"
-        />
-        <div className="container relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
-            Our warehouses
-          </p>
-          <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-[1.08] sm:text-5xl">
-            Our own space at both ends of the route.
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg text-white/70">
-            Not an agent&apos;s address, not a shared depot. Your cargo is
-            handled by people who work for us, in Guangzhou and in Dar es
-            Salaam.
-          </p>
-        </div>
-      </section>
+      <PageHero
+        image={IMAGES.warehouseAisle}
+        eyebrow="Our warehouses"
+        title="Our own space at both ends of the route."
+        body={<>Not an agent&apos;s address, not a shared depot. Your cargo is handled by people who work for us, in Guangzhou and in Dar es Salaam.</>}
+      />
 
       <section className="section">
         <div className="container grid gap-6 lg:grid-cols-2">
           <Reveal className="rounded-2xl border bg-card p-7 shadow-soft">
-            <span className="inline-flex items-center gap-2 rounded-full bg-brand/10 px-3 py-1.5 text-xs font-semibold text-brand">
+            <span className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs font-semibold text-gold">
               <Warehouse className="h-3.5 w-3.5" />
               China
             </span>

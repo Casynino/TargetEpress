@@ -73,7 +73,7 @@ export default function PricingPage() {
           className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/25 via-transparent to-signal/10"
         />
         <div className="container relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
             Bei zetu
           </p>
           <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-[1.08] sm:text-5xl">

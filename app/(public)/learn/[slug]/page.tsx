@@ -50,7 +50,7 @@ export default async function ArticlePage({
             <ArrowLeft className="h-4 w-4" />
             All guides
           </Link>
-          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
+          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-gold">
             {article.category}
           </p>
           <h1 className="mt-3 font-display text-3xl font-bold leading-[1.12] sm:text-4xl">

@@ -76,7 +76,7 @@ export function MediaCard({
         "group relative flex flex-col overflow-hidden rounded-2xl border bg-card shadow-soft",
         // 1.02 rather than something dramatic: a card that leaps is a card
         // that fights the one next to it.
-        "transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-brand/40 hover:shadow-lift",
+        "transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-gold/50 hover:shadow-lift",
         "motion-reduce:transition-none motion-reduce:hover:translate-y-0",
         SPAN[size],
         className
@@ -97,7 +97,7 @@ export function MediaCard({
           className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--ink)/0.92)] via-[hsl(var(--ink)/0.25)] to-transparent"
         />
         {eyebrow ? (
-          <span className="absolute left-4 top-4 rounded-full border border-white/20 bg-[hsl(var(--ink)/0.6)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white backdrop-blur">
+          <span className="absolute left-4 top-4 rounded-full border border-gold/40 bg-[hsl(var(--ink)/0.62)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gold backdrop-blur">
             {eyebrow}
           </span>
         ) : null}
@@ -174,7 +174,7 @@ export function MediaBand({
       <div className="container relative">
         <div className={cn(align === "center" && "mx-auto max-w-2xl text-center")}>
           {eyebrow ? (
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
               {eyebrow}
             </p>
           ) : null}

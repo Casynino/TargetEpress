@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { ArrowRight, CalendarDays } from "lucide-react";
 
 import { FlightSchedule } from "@/components/site/flight-schedule";
+import { PageHero } from "@/components/site/page-hero";
+import { IMAGES } from "@/lib/imagery";
 import { upcomingFlights } from "@/lib/flights";
 
 export const metadata: Metadata = {
@@ -23,28 +25,20 @@ export default function SchedulePage() {
     });
 
   return (
-    <section className="relative overflow-hidden bg-[hsl(var(--ink))] py-20 text-white sm:py-28">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-brand/20 via-transparent to-transparent"
-      />
-      <div className="container relative">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
-          Flight schedule
-        </p>
-        <h1 className="mt-3 max-w-2xl font-display text-4xl font-bold leading-[1.08] sm:text-5xl">
-          Three flights a week, every week.
-        </h1>
-        <p className="mt-5 max-w-xl text-lg text-white/70">
-          Guangzhou to Dar es Salaam every Wednesday, Friday and Sunday. Get
-          your cargo to our warehouse by the cut-off day and it goes on that
-          flight.
-        </p>
+    <>
+    <PageHero
+      image={IMAGES.airportNight}
+      eyebrow="Flight schedule"
+      title="Three flights a week, every week."
+      body="Guangzhou to Dar es Salaam every Wednesday, Friday and Sunday. Get your cargo to our warehouse by the cut-off day and it goes on that flight."
+    />
 
-        <h2 className="mt-14 font-display text-xl font-bold">Next three</h2>
+    <section className="bg-[hsl(var(--ink))] pb-24 text-white">
+      <div className="container relative">
+        <h2 className="rule-gold pt-16 font-display text-xl font-bold">Next three</h2>
         <FlightSchedule className="mt-5" />
 
-        <h2 className="mt-14 flex items-center gap-2 font-display text-xl font-bold">
+        <h2 className="mt-16 flex items-center gap-2 font-display text-xl font-bold text-gold">
           <CalendarDays className="h-5 w-5" />
           After that
         </h2>
@@ -89,5 +83,6 @@ export default function SchedulePage() {
         </p>
       </div>
     </section>
+    </>
   );
 }

@@ -2,7 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, BookOpen, Clock } from "lucide-react";
 
+import { PageHero } from "@/components/site/page-hero";
 import { Reveal } from "@/components/site/reveal";
+import { IMAGES } from "@/lib/imagery";
 import { ARTICLES, LEARN_CATEGORIES } from "@/lib/learn";
 
 export const metadata: Metadata = {
@@ -14,25 +16,12 @@ export const metadata: Metadata = {
 export default function LearnPage() {
   return (
     <>
-      <section className="relative overflow-hidden bg-[hsl(var(--ink))] py-20 text-white sm:py-24">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/25 via-transparent to-transparent"
-        />
-        <div className="container relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
-            Learn importing
-          </p>
-          <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-[1.08] sm:text-5xl">
-            Everything we get asked on WhatsApp, written down.
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg text-white/70">
-            No sales pitch. These are the questions first-time importers
-            actually ask us — about weight, suppliers, packing, payment and
-            customs — answered the way we would answer them on the phone.
-          </p>
-        </div>
-      </section>
+      <PageHero
+        image={IMAGES.paperwork}
+        eyebrow="Learn importing"
+        title="Everything we get asked on WhatsApp, written down."
+        body="No sales pitch. These are the questions first-time importers actually ask us — about weight, suppliers, packing, payment and customs — answered the way we would answer them on the phone."
+      />
 
       <section className="section">
         <div className="container">
@@ -42,7 +31,7 @@ export default function LearnPage() {
 
             return (
               <div key={category} className="mb-14 last:mb-0">
-                <h2 className="font-display text-2xl font-bold tracking-tight">
+                <h2 className="rule-gold font-display text-2xl font-bold tracking-tight">
                   {category}
                 </h2>
                 <div className="mt-5 grid gap-4 md:grid-cols-2">

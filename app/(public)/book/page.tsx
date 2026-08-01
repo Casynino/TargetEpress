@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import { ArrowRight, PackageCheck, Plane, Warehouse } from "lucide-react";
 
 import { FlightSchedule } from "@/components/site/flight-schedule";
+import { PageHero } from "@/components/site/page-hero";
 import { BookingForm } from "@/components/site/request-forms";
+import { IMAGES } from "@/lib/imagery";
 import { COMPANY } from "@/lib/constants";
 
 export const metadata: Metadata = {
@@ -33,59 +35,32 @@ const STEPS = [
 export default function BookPage() {
   return (
     <>
-      <section className="relative overflow-hidden bg-[hsl(var(--ink))] py-20 text-white sm:py-28">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/20 via-transparent to-signal/10"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-brand/20 blur-3xl"
-        />
-        <div className="container relative">
-          <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
-              Book a shipment
-            </p>
-            <h1 className="mt-3 font-display text-4xl font-bold leading-[1.08] sm:text-5xl">
-              Tell us it is coming.
-              <br />
-              We will do the rest.
-            </h1>
-            <p className="mt-5 max-w-xl text-lg text-white/70">
-              No account, no deposit, nothing charged. Send us the details and we
-              will reply with where to deliver your cargo in Guangzhou and what
-              it will cost once we have weighed it.
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-4 sm:grid-cols-3">
-            {STEPS.map((step, index) => (
-              <div
-                key={step.title}
-                className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand/20 text-brand">
-                    <step.icon className="h-4 w-4" />
-                  </span>
-                  <span className="font-mono text-xs text-white/40">
-                    0{index + 1}
-                  </span>
-                </div>
-                <h2 className="mt-4 font-display text-base font-bold">
-                  {step.title}
-                </h2>
-                <p className="mt-1.5 text-sm text-white/60">{step.body}</p>
+      <PageHero
+        image={IMAGES.cargoHold}
+        eyebrow="Book a shipment"
+        size="tall"
+        title={<>Tell us it is coming.<br />We will do the rest.</>}
+        body="No account, no deposit, nothing charged. Send us the details and we will reply with where to deliver your cargo in Guangzhou and what it will cost once we have weighed it."
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          {STEPS.map((step, index) => (
+            <div key={step.title} className="glass-dark rounded-2xl p-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-gold/30 bg-gold/10 text-gold">
+                  <step.icon className="h-4 w-4" />
+                </span>
+                <span className="font-mono text-xs text-gold/70">0{index + 1}</span>
               </div>
-            ))}
-          </div>
+              <h2 className="mt-4 font-display text-base font-bold">{step.title}</h2>
+              <p className="mt-1.5 text-sm text-white/60">{step.body}</p>
+            </div>
+          ))}
         </div>
-      </section>
+      </PageHero>
 
       <section className="bg-[hsl(var(--ink))] pb-20 text-white sm:pb-28">
         <div className="container grid gap-10 lg:grid-cols-[1.15fr_1fr]">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 sm:p-8">
+          <div className="glass-dark rounded-3xl p-6 shadow-lift sm:p-8">
             <h2 className="font-display text-2xl font-bold">Your booking</h2>
             <p className="mt-1.5 text-sm text-white/60">
               Everything except your name and number is optional — estimates are
