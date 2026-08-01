@@ -62,7 +62,7 @@ export function Hero() {
         fill
         priority
         sizes="100vw"
-        className="object-cover object-center opacity-40"
+        className="object-cover object-center opacity-25"
       />
       <div
         aria-hidden
@@ -75,15 +75,25 @@ export function Hero() {
         className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[hsl(var(--ink))] to-transparent"
       />
 
-      {/* One globe, repositioned by CSS rather than rendered twice — a second
-          instance would mean a second canvas painting every frame for nothing.
-          On phones it leads the section; on desktop it bleeds off the right
-          edge behind the content. */}
-      <div className="absolute inset-x-0 top-6 mx-auto w-[300px] opacity-90 sm:w-[380px] lg:inset-auto lg:-right-[4%] lg:top-1/2 lg:mx-0 lg:w-[46vw] lg:max-w-[640px] lg:-translate-y-1/2 lg:opacity-100">
-        <CargoGlobe />
+      {/* The globe is the backdrop, not a column.
+          Beside the panel there is simply no room for a sphere — it got sliced
+          by the viewport and read as broken. Centred behind everything it is
+          whole, nothing crops it, and the content floats over the route. */}
+      {/* The mask only softens the very edge, so the sphere fades into the
+          section instead of ending on a hard circle. Any stronger and the
+          globe disappears, which is what happened the first time. */}
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 w-[min(150vw,1150px)] -translate-x-1/2 -translate-y-1/2 opacity-90 sm:w-[min(120vw,1000px)] lg:w-[min(92vw,1080px)]"
+        style={{ maskImage: "radial-gradient(circle at 50% 50%, #000 78%, transparent 97%)", WebkitMaskImage: "radial-gradient(circle at 50% 50%, #000 78%, transparent 97%)" }}
+      >
+        {/* Only the sphere itself takes the pointer, so dragging works without
+            the wrapper swallowing clicks meant for the page. */}
+        <div className="pointer-events-auto">
+          <CargoGlobe />
+        </div>
       </div>
 
-      <div className="container relative pb-16 pt-[330px] sm:pb-20 sm:pt-[410px] lg:py-28">
+      <div className="container relative z-10 py-16 sm:py-20 lg:py-28">
         <div className="grid items-center gap-12 lg:grid-cols-[1fr_minmax(0,380px)] lg:gap-10 xl:gap-16">
           {/* Left — the promise */}
           <div>

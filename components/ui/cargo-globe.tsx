@@ -156,13 +156,15 @@ export function CargoGlobe({
       context!.beginPath();
       path({ type: "Sphere" });
       context!.fillStyle = palette.ocean;
+      context!.globalAlpha = 0.55;
       context!.fill();
+      context!.globalAlpha = 1;
 
       // Graticule, very faint — it reads as engineering, not decoration
       context!.beginPath();
       path(geoGraticule10());
       context!.strokeStyle = palette.grid;
-      context!.globalAlpha = 0.12;
+      context!.globalAlpha = 0.18;
       context!.lineWidth = 0.5;
       context!.stroke();
       context!.globalAlpha = 1;
@@ -174,7 +176,7 @@ export function CargoGlobe({
         const p = projection(dot);
         if (!p) continue;
         context!.beginPath();
-        context!.arc(p[0], p[1], side > 420 ? 1.15 : 0.9, 0, Math.PI * 2);
+        context!.arc(p[0], p[1], side > 700 ? 1.7 : side > 420 ? 1.35 : 1, 0, Math.PI * 2);
         context!.fill();
       }
 
@@ -185,9 +187,9 @@ export function CargoGlobe({
         coordinates: [GUANGZHOU, DAR],
       } as GeoJSON.LineString);
       context!.strokeStyle = palette.route;
-      context!.globalAlpha = 0.55;
-      context!.lineWidth = 1.5;
-      context!.setLineDash([4, 6]);
+      context!.globalAlpha = 0.85;
+      context!.lineWidth = 2;
+      context!.setLineDash([5, 7]);
       context!.stroke();
       context!.setLineDash([]);
       context!.globalAlpha = 1;
