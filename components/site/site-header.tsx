@@ -28,6 +28,7 @@ const NAV = [
   { href: "/pricing", label: "Bei" },
   { href: "/china", label: "Anwani ya China" },
   { href: "/services", label: "Huduma" },
+  { href: "/learn", label: "Learn" },
   { href: "/contact", label: "Wasiliana" },
 ];
 
