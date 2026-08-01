@@ -165,7 +165,7 @@ export default async function PublicMarketsPage() {
             </a>
           </Button>
           <Button asChild size="lg" variant="outline" className="rounded-xl">
-            <Link href="/calculator">Work out the shipping cost</Link>
+            <Link href="/pricing">How we price cargo</Link>
           </Button>
         </div>
       </section>

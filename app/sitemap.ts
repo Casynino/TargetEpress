@@ -23,7 +23,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/book", priority: 0.9, frequency: "monthly" },
     { path: "/track", priority: 0.9, frequency: "daily" },
     { path: "/pickup", priority: 0.8, frequency: "monthly" },
-    { path: "/calculator", priority: 0.8, frequency: "monthly" },
     // Regenerated from today's date, so it is genuinely different every week.
     { path: "/schedule", priority: 0.8, frequency: "daily" },
     { path: "/pricing", priority: 0.8, frequency: "weekly" },

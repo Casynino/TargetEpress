@@ -87,10 +87,10 @@ const CATALOGUE = [
   },
   {
     icon: Calculator,
-    title: "Shipping calculator",
-    body: "Price your cargo before you buy it, on the same rate book we invoice from.",
-    href: "/calculator",
-    cta: "Estimate a cost",
+    title: "Quotes before you buy",
+    body: "Send us a photo of what you are buying and we tell you the category, the airport and the cost.",
+    href: "/pricing",
+    cta: "How pricing works",
   },
   {
     icon: PackageSearch,

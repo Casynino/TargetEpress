@@ -166,10 +166,10 @@ export function Hero() {
                   external: false,
                 },
                 {
-                  href: "/calculator",
+                  href: "/pricing",
                   icon: Calculator,
-                  title: "Calculate the cost",
-                  sub: "Before you buy, not after",
+                  title: "What it will cost",
+                  sub: "How we price, and how to get a quote",
                   external: false,
                 },
                 {

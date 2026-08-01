@@ -124,7 +124,7 @@ export const ARTICLES: Article[] = [
           "Ask your supplier to pack tightly. Air, in a carton, is something you pay to fly.",
           "Consolidate. Three small orders arriving separately are three shipments; arriving together they are one.",
           "Tell us the goods type accurately — under-declaring to get a cheaper rate is what gets a consignment held at customs.",
-          "Check the calculator on this site before you buy, not after.",
+          "Ask us what your goods will cost before you buy, not after.",
         ],
       },
     ],
@@ -293,7 +293,7 @@ export const ARTICLES: Article[] = [
         kind: "list",
         items: [
           "Work out what a competitor sells the same item for in Dar. If freight plus purchase price is close to that, the order does not work — find out now.",
-          "Use the calculator on this site to estimate freight on the weight you expect.",
+          "Ask us for a quote on WhatsApp before you buy — we will tell you the rate for your goods.",
           "Ask us whether your goods are normal, electronics or special. It changes both the price and the airport.",
         ],
       },
