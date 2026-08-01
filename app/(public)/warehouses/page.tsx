@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
@@ -10,9 +11,11 @@ import {
   Warehouse,
 } from "lucide-react";
 
+import { MediaBand } from "@/components/site/media-card";
 import { PageHero } from "@/components/site/page-hero";
 import { Reveal } from "@/components/site/reveal";
-import { IMAGES } from "@/lib/imagery";
+import { SectionBackdrop } from "@/components/site/section-backdrop";
+import { IMAGES, img } from "@/lib/imagery";
 import { COMPANY } from "@/lib/constants";
 
 export const metadata: Metadata = {
@@ -54,95 +57,136 @@ export default function WarehousesPage() {
         body={<>Not an agent&apos;s address, not a shared depot. Your cargo is handled by people who work for us, in Guangzhou and in Dar es Salaam.</>}
       />
 
-      <section className="section">
+      <section className="section relative isolate">
+        <SectionBackdrop variant="aurora" />
         <div className="container grid gap-6 lg:grid-cols-2">
-          <Reveal className="rounded-2xl border bg-card p-7 shadow-soft">
-            <span className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs font-semibold text-gold">
-              <Warehouse className="h-3.5 w-3.5" />
-              China
-            </span>
-            <h2 className="mt-4 font-display text-2xl font-bold">
-              Guangzhou warehouse
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Where everything starts. Suppliers from Baima, Shahe, Zhanxi and
-              the electronics markets deliver here, and we consolidate it into
-              the flight.
-            </p>
-            <dl className="mt-6 space-y-4 border-t pt-6 text-sm">
-              <div>
-                <dt className="text-xs text-muted-foreground">Address</dt>
-                <dd className="mt-1 font-medium">
-                  {COMPANY.chinaOffice.addressCn}
-                </dd>
-                <dd className="mt-0.5 text-muted-foreground">
-                  {COMPANY.chinaOffice.addressEn}
-                </dd>
-                <dd className="mt-0.5 text-muted-foreground">
-                  {COMPANY.chinaOffice.rooms}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">Phone</dt>
-                {COMPANY.chinaOffice.phones.map((phone) => (
-                  <dd key={phone} className="mt-1 font-mono tabular">
-                    {phone}
+          <Reveal className="group flex flex-col overflow-hidden rounded-2xl border bg-card shadow-soft transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-gold/50 hover:shadow-lift motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+            <div className="relative h-52 overflow-hidden sm:h-60">
+              <Image
+                src={img(IMAGES.packedCartons, 900)}
+                alt=""
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover transition-transform duration-500 group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+              />
+              <div
+                aria-hidden
+                className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--ink)/0.94)] via-[hsl(var(--ink)/0.35)] to-transparent"
+              />
+              <span className="absolute left-5 top-5 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-[hsl(var(--ink)/0.62)] px-3 py-1.5 text-xs font-semibold text-gold backdrop-blur">
+                <Warehouse className="h-3.5 w-3.5" />
+                China
+              </span>
+              <h2 className="absolute inset-x-6 bottom-5 font-display text-2xl font-bold text-white drop-shadow">
+                Guangzhou warehouse
+              </h2>
+            </div>
+            <div className="p-7">
+              <p className="text-sm text-muted-foreground">
+                Where everything starts. Suppliers from Baima, Shahe, Zhanxi and
+                the electronics markets deliver here, and we consolidate it into
+                the flight.
+              </p>
+              <dl className="mt-6 space-y-4 border-t pt-6 text-sm">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Address</dt>
+                  <dd className="mt-1 font-medium">
+                    {COMPANY.chinaOffice.addressCn}
                   </dd>
-                ))}
-              </div>
-            </dl>
-            <Link
-              href="/china"
-              className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-brand hover:underline"
-            >
-              Full address for your supplier
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+                  <dd className="mt-0.5 text-muted-foreground">
+                    {COMPANY.chinaOffice.addressEn}
+                  </dd>
+                  <dd className="mt-0.5 text-muted-foreground">
+                    {COMPANY.chinaOffice.rooms}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Phone</dt>
+                  {COMPANY.chinaOffice.phones.map((phone) => (
+                    <dd key={phone} className="mt-1 font-mono tabular">
+                      {phone}
+                    </dd>
+                  ))}
+                </div>
+              </dl>
+              <Link
+                href="/china"
+                className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-brand hover:underline"
+              >
+                Full address for your supplier
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </Reveal>
 
           <Reveal
             delay={80}
-            className="rounded-2xl border bg-card p-7 shadow-soft"
+            className="group flex flex-col overflow-hidden rounded-2xl border bg-card shadow-soft transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-gold/50 hover:shadow-lift motion-reduce:transition-none motion-reduce:hover:translate-y-0"
           >
-            <span className="inline-flex items-center gap-2 rounded-full bg-signal/10 px-3 py-1.5 text-xs font-semibold text-signal">
-              <MapPin className="h-3.5 w-3.5" />
-              Tanzania
-            </span>
-            <h2 className="mt-4 font-display text-2xl font-bold">
-              Dar es Salaam
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Where you collect. Cargo is checked in against the manifest,
-              invoiced, and released against your tracking number.
-            </p>
-            <dl className="mt-6 space-y-4 border-t pt-6 text-sm">
-              {COMPANY.offices.map((office) => (
-                <div key={office.id}>
-                  <dt className="text-xs text-muted-foreground">
-                    {office.name}
-                  </dt>
-                  <dd className="mt-1 font-medium">{office.address}</dd>
-                  <dd className="mt-0.5 text-muted-foreground">{office.note}</dd>
-                  <dd className="mt-0.5 font-mono text-xs tabular text-muted-foreground">
-                    {office.phones.join(" · ")}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <Link
-              href="/contact"
-              className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-brand hover:underline"
-            >
-              Directions and opening hours
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            <div className="relative h-52 overflow-hidden sm:h-60">
+              <Image
+                src={img(IMAGES.loadingTruck, 900)}
+                alt=""
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover transition-transform duration-500 group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+              />
+              <div
+                aria-hidden
+                className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--ink)/0.94)] via-[hsl(var(--ink)/0.35)] to-transparent"
+              />
+              <span className="absolute left-5 top-5 inline-flex items-center gap-2 rounded-full border border-signal/50 bg-[hsl(var(--ink)/0.62)] px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
+                <MapPin className="h-3.5 w-3.5 text-signal" />
+                Tanzania
+              </span>
+              <h2 className="absolute inset-x-6 bottom-5 font-display text-2xl font-bold text-white drop-shadow">
+                Dar es Salaam
+              </h2>
+            </div>
+            <div className="p-7">
+              <p className="text-sm text-muted-foreground">
+                Where you collect. Cargo is checked in against the manifest,
+                invoiced, and released against your tracking number.
+              </p>
+              <dl className="mt-6 space-y-4 border-t pt-6 text-sm">
+                {COMPANY.offices.map((office) => (
+                  <div key={office.id}>
+                    <dt className="text-xs text-muted-foreground">
+                      {office.name}
+                    </dt>
+                    <dd className="mt-1 font-medium">{office.address}</dd>
+                    <dd className="mt-0.5 text-muted-foreground">
+                      {office.note}
+                    </dd>
+                    <dd className="mt-0.5 font-mono text-xs tabular text-muted-foreground">
+                      {office.phones.join(" · ")}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <Link
+                href="/contact"
+                className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-brand hover:underline"
+              >
+                Directions and opening hours
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </Reveal>
         </div>
       </section>
 
-      <section className="section border-y bg-muted/30">
+      <MediaBand
+        image={IMAGES.cargoHold}
+        eyebrow="Between the two"
+        title="Between the two buildings there is one flight."
+        body="What our staff consolidate in Guangzhou is what our staff check in when it lands in Dar es Salaam. Nobody else handles it in between."
+      />
+
+      <section className="section relative isolate border-y bg-muted/30">
+        <SectionBackdrop variant="stars" />
         <div className="container">
-          <h2 className="font-display text-3xl font-bold tracking-tight">
+          <h2 className="rule-gold font-display text-3xl font-bold tracking-tight">
             What happens to your cargo inside
           </h2>
           <p className="mt-2 max-w-2xl text-muted-foreground">
@@ -154,9 +198,9 @@ export default function WarehousesPage() {
               <Reveal
                 key={item.title}
                 delay={index * 70}
-                className="rounded-xl border bg-card p-6 shadow-soft"
+                className="rounded-xl border bg-card p-6 shadow-soft transition-[box-shadow,border-color] duration-300 hover:border-gold/50 hover:shadow-lift motion-reduce:transition-none"
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-gold/30 bg-brand/10 text-brand">
                   <item.icon className="h-5 w-5" />
                 </span>
                 <h3 className="mt-4 font-display text-lg font-bold">

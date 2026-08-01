@@ -1,6 +1,8 @@
+import Image from "next/image";
 import { Boxes, PlaneTakeoff, Users, Warehouse, Weight } from "lucide-react";
 
 import { Reveal } from "@/components/site/reveal";
+import { IMAGES, img } from "@/lib/imagery";
 import { siteStats } from "@/lib/site-stats";
 
 /**
@@ -63,7 +65,38 @@ export async function LiveStats() {
   ];
 
   return (
-    <section className="section">
+    <section className="section relative isolate overflow-hidden text-white">
+      {/* An aircraft behind the numbers.
+          These are the company's real operating figures, and a photograph of
+          the thing that produces them carries them better than empty space.
+
+          The cards are converted to glass with explicit white type rather than
+          left on bg-card / text-muted-foreground. Those are theme-aware — white
+          cards with dark text in light mode — and putting a photograph behind
+          them without converting them is how a section ends up readable in one
+          theme and unreadable in the other. */}
+      <Image
+        src={img(IMAGES.apron, 1920)}
+        alt=""
+        fill
+        sizes="100vw"
+        className="-z-10 object-cover object-center"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-[hsl(var(--ink)/0.74)]"
+      />
+      {/* Fades into the sections above and below so the band does not read as a
+          photograph pasted between two dark rectangles. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-gradient-to-b from-[hsl(var(--ink))] via-transparent to-[hsl(var(--ink))]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-32 bg-gradient-to-t from-[hsl(var(--gold)/0.12)] to-transparent"
+      />
+
       <div className="container">
         <div
           className={
@@ -78,14 +111,16 @@ export async function LiveStats() {
             <Reveal
               key={cell.label}
               delay={index * 70}
-              className="rounded-xl border bg-card p-6 text-center shadow-soft"
+              className="glass-dark rounded-2xl p-6 text-center shadow-lift"
             >
-              <cell.icon className="mx-auto h-6 w-6 text-signal" />
-              <p className="mt-3 font-display text-3xl font-extrabold tracking-tight tabular">
+              <cell.icon className="mx-auto h-6 w-6 text-gold" />
+              <p className="mt-3 font-display text-3xl font-extrabold tracking-tight tabular text-white">
                 {cell.value}
               </p>
-              <p className="mt-1 text-sm font-medium">{cell.label}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{cell.sub}</p>
+              <p className="mt-1 text-sm font-medium text-white/90">
+                {cell.label}
+              </p>
+              <p className="mt-0.5 text-xs text-white/55">{cell.sub}</p>
             </Reveal>
           ))}
         </div>

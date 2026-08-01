@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
@@ -6,13 +7,16 @@ import {
   MessageCircle,
   Package,
   PackageSearch,
-  Plane,
   Scale,
   ShieldCheck,
 } from "lucide-react";
 
+import { MediaBand } from "@/components/site/media-card";
+import { PageHero } from "@/components/site/page-hero";
 import { Reveal } from "@/components/site/reveal";
+import { SectionBackdrop } from "@/components/site/section-backdrop";
 import { COMPANY } from "@/lib/constants";
+import { IMAGES, img } from "@/lib/imagery";
 
 export const metadata: Metadata = {
   title: "Bei / Pricing",
@@ -38,18 +42,21 @@ export const metadata: Metadata = {
 const BASIS = [
   {
     icon: Scale,
+    image: IMAGES.clothingRail,
     title: "Most goods are priced per kilogram",
     body: "Clothes, shoes, bags, car parts, general merchandise. We weigh it on our own scales in Guangzhou, and that weight is what appears on your invoice — not what your supplier told you.",
     note: "Larger consignments are cheaper per kilo than small ones.",
   },
   {
     icon: Package,
+    image: IMAGES.electronicsBench,
     title: "Electronics are priced per item",
     body: "Phones, laptops, tablets, cameras. A laptop weighs almost nothing and is worth a great deal, so pricing it by weight would be pricing the box it came in.",
     note: "These fly from Hong Kong under different rules.",
   },
   {
     icon: Boxes,
+    image: IMAGES.cargoHold,
     title: "Light and bulky costs more than heavy and dense",
     body: "An aircraft runs out of space long before it runs out of lift. A sack of cushions weighing 5 kg takes the room of 40 kg of hardware, and the price reflects the room.",
     note: "Ask your supplier to pack tightly — air, in a carton, is something you pay to fly.",
@@ -67,51 +74,46 @@ const AFFECTS = [
 export default function PricingPage() {
   return (
     <>
-      <section className="relative overflow-hidden bg-[hsl(var(--ink))] py-20 text-white sm:py-24">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/25 via-transparent to-signal/10"
-        />
-        <div className="container relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
-            Bei zetu
-          </p>
-          <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-[1.08] sm:text-5xl">
-            What it costs depends on what you are sending.
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg text-white/70">
+      <PageHero
+        image={IMAGES.packaging}
+        size="tall"
+        eyebrow="Bei zetu"
+        title="What it costs depends on what you are sending."
+        body={
+          <>
             Tuambie unachotuma na tunakupa bei — hakuna gharama za kujificha.
             <span className="mt-2 block text-base text-white/45">
               Tell us what you are sending and we will quote you. Once your
               cargo reaches our warehouse and is weighed, you see the exact
               charge against your own tracking number.
             </span>
-          </p>
-
-          <div className="mt-9 flex flex-wrap gap-3">
-            <a
-              href={`https://wa.me/${COMPANY.whatsapp}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-3 text-sm font-semibold text-signal-foreground transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
-            >
-              <MessageCircle className="h-4 w-4" />
-              Get a quote on WhatsApp
-            </a>
-            <Link
-              href="/book"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-5 py-3 text-sm font-medium transition-colors hover:bg-white/10"
-            >
-              Book a shipment
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+          </>
+        }
+      >
+        <div className="flex flex-wrap gap-3">
+          <a
+            href={`https://wa.me/${COMPANY.whatsapp}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-3 text-sm font-semibold text-signal-foreground transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Get a quote on WhatsApp
+          </a>
+          <Link
+            href="/book"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-5 py-3 text-sm font-medium backdrop-blur transition-colors hover:bg-white/10"
+          >
+            Book a shipment
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
-      </section>
+      </PageHero>
 
-      <section className="section">
+      <section className="section relative isolate">
+        <SectionBackdrop variant="aurora" />
         <div className="container">
-          <h2 className="font-display text-3xl font-bold tracking-tight">
+          <h2 className="rule-gold font-display text-3xl font-bold tracking-tight">
             How you are charged
           </h2>
           <p className="mt-2 max-w-2xl text-muted-foreground">
@@ -124,30 +126,46 @@ export default function PricingPage() {
               <Reveal
                 key={item.title}
                 delay={index * 70}
-                className="flex h-full flex-col rounded-2xl border bg-card p-6 shadow-soft"
+                className="group flex h-full flex-col overflow-hidden rounded-2xl border bg-card shadow-soft transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-gold/50 hover:shadow-lift motion-reduce:transition-none motion-reduce:hover:translate-y-0"
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                  <item.icon className="h-5 w-5" />
-                </span>
-                <h3 className="mt-4 font-display text-lg font-bold leading-snug">
-                  {item.title}
-                </h3>
-                <p className="mt-2 flex-1 text-sm text-muted-foreground">
-                  {item.body}
-                </p>
-                <p className="mt-4 border-t pt-4 text-xs text-muted-foreground">
-                  {item.note}
-                </p>
+                <div className="relative h-44 overflow-hidden">
+                  <Image
+                    src={img(item.image, 700)}
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                  />
+                  <div
+                    aria-hidden
+                    className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--ink)/0.92)] via-[hsl(var(--ink)/0.3)] to-transparent"
+                  />
+                  <span className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-lg border border-gold/40 bg-[hsl(var(--ink)/0.6)] text-gold backdrop-blur">
+                    <item.icon className="h-5 w-5" />
+                  </span>
+                  <h3 className="absolute inset-x-5 bottom-4 font-display text-lg font-bold leading-snug text-white drop-shadow">
+                    {item.title}
+                  </h3>
+                </div>
+                <div className="flex flex-1 flex-col p-6">
+                  <p className="flex-1 text-sm text-muted-foreground">
+                    {item.body}
+                  </p>
+                  <p className="mt-4 border-t pt-4 text-xs text-muted-foreground">
+                    {item.note}
+                  </p>
+                </div>
               </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="section border-y bg-muted/30">
+      <section className="section relative isolate border-y bg-muted/30">
+        <SectionBackdrop variant="stars" />
         <div className="container grid gap-10 lg:grid-cols-2">
           <div>
-            <h2 className="font-display text-3xl font-bold tracking-tight">
+            <h2 className="rule-gold font-display text-3xl font-bold tracking-tight">
               What moves the number
             </h2>
             <ul className="mt-6 space-y-3">
@@ -193,31 +211,21 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <section className="section">
-        <div className="container flex flex-wrap items-center justify-between gap-6 rounded-2xl border bg-card p-8 shadow-soft">
-          <div className="flex items-start gap-4">
-            <Plane className="mt-1 h-6 w-6 shrink-0 text-signal" />
-            <div>
-              <h2 className="font-display text-xl font-bold">
-                Not sure what your goods count as?
-              </h2>
-              <p className="mt-1 max-w-lg text-sm text-muted-foreground">
-                Send us a photo on WhatsApp. We will tell you the category, the
-                airport it flies from, and what it will cost — before you buy.
-              </p>
-            </div>
-          </div>
-          <a
-            href={`https://wa.me/${COMPANY.whatsapp}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-3 text-sm font-semibold text-signal-foreground"
-          >
-            <MessageCircle className="h-4 w-4" />
-            {COMPANY.phone}
-          </a>
-        </div>
-      </section>
+      <MediaBand
+        image={IMAGES.airportNight}
+        title="Not sure what your goods count as?"
+        body="Send us a photo on WhatsApp. We will tell you the category, the airport it flies from, and what it will cost — before you buy."
+      >
+        <a
+          href={`https://wa.me/${COMPANY.whatsapp}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-3 text-sm font-semibold text-signal-foreground transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
+        >
+          <MessageCircle className="h-4 w-4" />
+          {COMPANY.phone}
+        </a>
+      </MediaBand>
     </>
   );
 }

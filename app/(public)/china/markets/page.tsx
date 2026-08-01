@@ -3,9 +3,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock, MapPin, Plane } from "lucide-react";
 
+import { MediaBand } from "@/components/site/media-card";
+import { PageHero } from "@/components/site/page-hero";
+import { Reveal } from "@/components/site/reveal";
+import { SectionBackdrop } from "@/components/site/section-backdrop";
 import { Button } from "@/components/ui/button";
 import { COMPANY } from "@/lib/constants";
-import { img, marketImage } from "@/lib/imagery";
+import { IMAGES, img, marketImage } from "@/lib/imagery";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
@@ -31,145 +35,153 @@ export default async function PublicMarketsPage() {
   });
 
   return (
-    <div className="container py-12 md:py-16">
-      <div className="mx-auto max-w-3xl text-center">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand">
-          Kununua China
-        </p>
-        <h1 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-          Where to buy in China
-        </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          Every trader asks the same question before their first trip: where do I
-          actually go? These are the markets our customers buy from, what each
-          one is good for, and how your goods get home.
-        </p>
-      </div>
+    <>
+      <PageHero
+        image={IMAGES.clothingRail}
+        eyebrow="Kununua China"
+        title="Where to buy in China"
+        body="Every trader asks the same question before their first trip: where do I actually go? These are the markets our customers buy from, what each one is good for, and how your goods get home."
+        size="tall"
+      />
 
       {/* Thirteen markets is too many to scroll past looking for one. Each card
           gets an anchor and this jumps to it — cheaper than splitting the
           directory into thirteen pages that would compete with each other for
           the same search terms. */}
-      <nav
-        aria-label="Jump to a market"
-        className="mx-auto mt-10 flex max-w-5xl flex-wrap justify-center gap-2"
-      >
-        {markets.map((market) => (
-          <a
-            key={market.id}
-            href={`#${market.slug}`}
-            className="rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors hover:border-brand/40 hover:bg-accent"
+      <section className="relative isolate border-b py-8 md:py-10">
+        <SectionBackdrop variant="aurora" />
+        <div className="container">
+          <nav
+            aria-label="Jump to a market"
+            className="mx-auto flex max-w-5xl flex-wrap justify-center gap-2"
           >
-            {market.name}
-          </a>
-        ))}
-      </nav>
+            {markets.map((market) => (
+              <a
+                key={market.id}
+                href={`#${market.slug}`}
+                className="rounded-full border bg-card/70 px-3.5 py-1.5 text-xs font-medium backdrop-blur transition-colors hover:border-gold/50 hover:bg-accent"
+              >
+                {market.name}
+              </a>
+            ))}
+          </nav>
+        </div>
+      </section>
 
-      <div className="mx-auto mt-10 grid max-w-6xl gap-6 lg:grid-cols-2">
-        {markets.map((market) => (
-          <article
-            key={market.id}
-            id={market.slug}
-            className="group flex scroll-mt-24 flex-col overflow-hidden rounded-2xl border bg-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:border-brand/40 hover:shadow-lift motion-reduce:hover:translate-y-0"
-          >
-            {/* The photograph is what tells you a fabric market from a shoe
-                market before you have read a word of it. */}
-            <div className="relative h-44 overflow-hidden">
-              <Image
-                src={img(marketImage(market.slug), 900)}
-                alt=""
-                fill
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                className="object-cover transition-transform duration-500 group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-              />
-              <div
-                aria-hidden
-                className="absolute inset-0 bg-gradient-to-t from-card via-[hsl(var(--ink)/0.35)] to-transparent"
-              />
-            </div>
-
-            <div className="border-b bg-gradient-to-br from-brand/5 to-transparent p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-display text-xl font-bold">{market.name}</h2>
-                  {market.nameCn ? (
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      {market.nameCn}
-                    </p>
-                  ) : null}
-                </div>
-                <span
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
-                    market.route === "HONG_KONG"
-                      ? "bg-info/10 text-info"
-                      : "bg-brand/10 text-brand"
-                  }`}
+      <section className="section relative isolate">
+        <SectionBackdrop variant="stars" />
+        <div className="container">
+          <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-2">
+            {markets.map((market, index) => (
+              <Reveal key={market.id} className="h-full" delay={(index % 2) * 80}>
+                <article
+                  id={market.slug}
+                  className="group flex h-full scroll-mt-24 flex-col overflow-hidden rounded-2xl border bg-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:border-gold/50 hover:shadow-lift motion-reduce:hover:translate-y-0"
                 >
-                  <Plane className="h-3 w-3" />
-                  via {market.route === "HONG_KONG" ? "Hong Kong" : "Guangzhou"}
-                </span>
-              </div>
-              <p className="mt-3 font-medium text-brand">{market.bestFor}</p>
-            </div>
-
-            <div className="flex-1 space-y-5 p-6">
-              <p className="text-sm text-muted-foreground">{market.summary}</p>
-
-              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                  <MapPin className="h-4 w-4" />
-                  {market.city}
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  {(market.hours ?? "Hours vary").split(";")[0]}
-                </span>
-              </div>
-
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  What you will find
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {market.products.map((product) => (
+                  {/* The photograph is what tells you a fabric market from a shoe
+                      market before you have read a word of it — so it carries the
+                      name and the route badge rather than sitting above them. */}
+                  <div className="relative h-52 overflow-hidden sm:h-56">
+                    <Image
+                      src={img(marketImage(market.slug), 900)}
+                      alt=""
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 50vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                    />
+                    <div
+                      aria-hidden
+                      className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--ink)/0.94)] via-[hsl(var(--ink)/0.38)] to-[hsl(var(--ink)/0.1)]"
+                    />
+                    {/* White type on the scrim rather than the route colour: at this
+                        size a mid-blue on a photograph is a legibility gamble, so the
+                        route reads in the border and the wing instead. */}
                     <span
-                      key={product}
-                      className="rounded-full border px-2.5 py-1 text-xs"
+                      className={`absolute left-4 top-4 inline-flex shrink-0 items-center gap-1.5 rounded-full border bg-[hsl(var(--ink)/0.62)] px-3 py-1 text-xs font-medium text-white backdrop-blur ${
+                        market.route === "HONG_KONG"
+                          ? "border-info/60"
+                          : "border-gold/50"
+                      }`}
                     >
-                      {product}
+                      <Plane
+                        className={`h-3 w-3 ${
+                          market.route === "HONG_KONG" ? "text-info" : "text-gold"
+                        }`}
+                      />
+                      via {market.route === "HONG_KONG" ? "Hong Kong" : "Guangzhou"}
                     </span>
-                  ))}
-                </div>
-              </div>
+                    <div className="absolute inset-x-4 bottom-3">
+                      <h2 className="font-display text-xl font-bold leading-tight text-white drop-shadow">
+                        {market.name}
+                      </h2>
+                      {market.nameCn ? (
+                        <p className="mt-0.5 text-sm text-white/75">{market.nameCn}</p>
+                      ) : null}
+                    </div>
+                  </div>
 
-              <div className="rounded-lg bg-muted/40 p-4">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Before you go
-                </p>
-                <ul className="space-y-1.5 text-sm text-muted-foreground">
-                  {market.tips.map((tip) => (
-                    <li key={tip} className="flex gap-2">
-                      <span className="text-brand">•</span>
-                      <span>{tip}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
+                  <div className="border-b bg-gradient-to-br from-brand/5 to-transparent px-6 py-4">
+                    <p className="font-medium text-brand">{market.bestFor}</p>
+                  </div>
 
-      <section className="mx-auto mt-12 max-w-3xl rounded-2xl border bg-card p-8 text-center shadow-soft">
-        <h2 className="font-display text-2xl font-bold">
-          Can&rsquo;t travel? We can buy for you.
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-          Tell us what you need and your budget. Our team finds the supplier,
-          checks the goods, and ships them to Dar es Salaam — you never leave
-          Tanzania.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  <div className="flex-1 space-y-5 p-6">
+                    <p className="text-sm text-muted-foreground">{market.summary}</p>
+
+                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        {market.city}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        {(market.hours ?? "Hours vary").split(";")[0]}
+                      </span>
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        What you will find
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {market.products.map((product) => (
+                          <span
+                            key={product}
+                            className="rounded-full border px-2.5 py-1 text-xs"
+                          >
+                            {product}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg bg-muted/40 p-4">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Before you go
+                      </p>
+                      <ul className="space-y-1.5 text-sm text-muted-foreground">
+                        {market.tips.map((tip) => (
+                          <li key={tip} className="flex gap-2">
+                            <span className="text-brand">•</span>
+                            <span>{tip}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </article>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <MediaBand
+        image={IMAGES.cargoHold}
+        align="center"
+        title="Can’t travel? We can buy for you."
+        body="Tell us what you need and your budget. Our team finds the supplier, checks the goods, and ships them to Dar es Salaam — you never leave Tanzania."
+      >
+        <div className="flex flex-wrap justify-center gap-3">
           <Button asChild size="lg" className="rounded-xl">
             <a
               href={`https://wa.me/${COMPANY.whatsapp}?text=${encodeURIComponent(
@@ -182,11 +194,16 @@ export default async function PublicMarketsPage() {
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
           </Button>
-          <Button asChild size="lg" variant="outline" className="rounded-xl">
+          <Button
+            asChild
+            size="lg"
+            variant="outline"
+            className="rounded-xl border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+          >
             <Link href="/pricing">How we price cargo</Link>
           </Button>
         </div>
-      </section>
-    </div>
+      </MediaBand>
+    </>
   );
 }

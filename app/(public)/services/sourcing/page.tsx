@@ -9,7 +9,11 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { MediaBand } from "@/components/site/media-card";
+import { PageHero } from "@/components/site/page-hero";
+import { SectionBackdrop } from "@/components/site/section-backdrop";
 import { SourcingForm } from "@/components/site/sourcing-form";
+import { IMAGES } from "@/lib/imagery";
 import { Button } from "@/components/ui/button";
 import { COMPANY } from "@/lib/constants";
 
@@ -56,22 +60,18 @@ const STEPS = [
  */
 export default function SourcingServicePage() {
   return (
-    <div className="container py-12 md:py-16">
-      <div className="mx-auto max-w-3xl text-center">
-        <p className="text-sm font-bold uppercase tracking-wider text-signal">
-          Tunanunua kwa niaba yako
-        </p>
-        <h1 className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-5xl">
-          Cannot go to China? We will go for you.
-        </h1>
-        <p className="mt-4 text-muted-foreground">
-          Ticket, visa, hotel, a week away from your shop — a buying trip costs
-          more than most orders are worth. Tell us what you need and our team in
-          Guangzhou finds it, checks it and ships it.
-        </p>
-      </div>
+    <>
+      <PageHero
+        image={IMAGES.clothingRail}
+        eyebrow="Tunanunua kwa niaba yako"
+        title="Cannot go to China? We will go for you."
+        body="Ticket, visa, hotel, a week away from your shop — a buying trip costs more than most orders are worth. Tell us what you need and our team in Guangzhou finds it, checks it and ships it."
+      />
 
-      <div className="mx-auto mt-10 grid max-w-6xl gap-8 lg:grid-cols-[1fr_420px]">
+      <section className="section relative isolate">
+        <SectionBackdrop variant="aurora" />
+        <div className="container">
+          <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1fr_420px]">
         <div className="order-2 lg:order-1">
           <h2 className="font-display text-2xl font-bold tracking-tight">
             How it works
@@ -147,8 +147,18 @@ export default function SourcingServicePage() {
               </a>
             </Button>
           </div>
+          </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+
+      <MediaBand
+        image={IMAGES.packedCartons}
+        align="center"
+        eyebrow="Kutoka soko hadi duka lako"
+        title="You never leave Tanzania."
+        body="We find it, check it, photograph it and fly it — and it arrives with the same tracking number as any other shipment."
+      />
+    </>
   );
 }

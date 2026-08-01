@@ -3,7 +3,34 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft, ArrowRight, Clock, Info } from "lucide-react";
 
+import { MediaBand, MediaCard } from "@/components/site/media-card";
+import { PageHero } from "@/components/site/page-hero";
+import { SectionBackdrop } from "@/components/site/section-backdrop";
+import { IMAGES } from "@/lib/imagery";
 import { ARTICLES, articleBySlug } from "@/lib/learn";
+
+/**
+ * Which photograph opens which guide.
+ *
+ * Picked per article rather than one image for the whole section: a piece about
+ * customs wants an airport at night, a piece about packing wants cartons. A
+ * generic warehouse on all eight would read as decoration, which is the thing
+ * the owner keeps objecting to.
+ */
+const ARTICLE_IMAGES: Record<string, string> = {
+  "how-air-cargo-works": IMAGES.cargoHold,
+  "why-weight-is-charged": IMAGES.packedCartons,
+  "choosing-a-supplier": IMAGES.clothingRail,
+  "packing-for-air-freight": IMAGES.packaging,
+  "paying-suppliers": IMAGES.paperwork,
+  "customs-and-clearing": IMAGES.airportNight,
+  "first-import-checklist": IMAGES.apron,
+  consolidation: IMAGES.warehouseAisle,
+};
+
+function articleImage(slug: string) {
+  return ARTICLE_IMAGES[slug] ?? IMAGES.paperwork;
+}
 
 export function generateStaticParams() {
   return ARTICLES.map((article) => ({ slug: article.slug }));
@@ -37,41 +64,39 @@ export default async function ArticlePage({
 
   return (
     <>
-      <section className="relative overflow-hidden bg-[hsl(var(--ink))] py-16 text-white sm:py-20">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/25 via-transparent to-transparent"
-        />
-        <div className="container relative max-w-3xl">
+      <PageHero
+        image={articleImage(article.slug)}
+        eyebrow={article.category}
+        title={article.title}
+        body={article.summary}
+      >
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <Link
             href="/learn"
-            className="inline-flex items-center gap-1.5 text-sm text-white/60 transition-colors hover:text-white"
+            className="inline-flex items-center gap-1.5 text-sm text-white/70 transition-colors hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
             All guides
           </Link>
-          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-gold">
-            {article.category}
-          </p>
-          <h1 className="mt-3 font-display text-3xl font-bold leading-[1.12] sm:text-4xl">
-            {article.title}
-          </h1>
-          <p className="mt-4 text-lg text-white/70">{article.summary}</p>
-          <p className="mt-5 inline-flex items-center gap-1.5 text-sm text-white/50">
+          <p className="inline-flex items-center gap-1.5 text-sm text-white/50">
             <Clock className="h-4 w-4" />
             {article.readMinutes} minute read
           </p>
         </div>
-      </section>
+      </PageHero>
 
-      <article className="section">
+      <article className="section relative isolate">
+        {/* Drifting colour only. Anything busier behind three thousand words of
+            body copy makes the copy harder to read, which is the one thing an
+            article page cannot afford. */}
+        <SectionBackdrop variant="aurora" />
         <div className="container max-w-3xl">
           {article.body.map((block, index) => {
             if (block.kind === "h") {
               return (
                 <h2
                   key={index}
-                  className="mt-10 font-display text-xl font-bold tracking-tight first:mt-0"
+                  className="rule-gold mt-10 font-display text-xl font-bold tracking-tight first:mt-0"
                 >
                   {block.text}
                 </h2>
@@ -112,49 +137,55 @@ export default async function ArticlePage({
               </p>
             );
           })}
+        </div>
+      </article>
 
-          <div className="mt-14 rounded-2xl border bg-muted/30 p-6">
-            <h2 className="font-display text-lg font-bold">
-              Ready to send something?
-            </h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Book a shipment and we will tell you where to have it delivered in
-              Guangzhou.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                href="/book"
-                className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-2.5 text-sm font-semibold text-signal-foreground"
-              >
-                Book a shipment
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="/pricing"
-                className="inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
-              >
-                Estimate the cost
-              </Link>
-            </div>
-          </div>
+      {/* The end of the article, lifted out of the column and given a
+          photograph — the page's one full-width breath before the next
+          three guides. */}
+      <MediaBand
+        image={IMAGES.loadingTruck}
+        eyebrow="Next step"
+        title="Ready to send something?"
+        body="Book a shipment and we will tell you where to have it delivered in Guangzhou."
+      >
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/book"
+            className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-2.5 text-sm font-semibold text-signal-foreground"
+          >
+            Book a shipment
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link
+            href="/pricing"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/25 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
+          >
+            Estimate the cost
+          </Link>
+        </div>
+      </MediaBand>
 
-          <h2 className="mt-14 font-display text-xl font-bold">Keep reading</h2>
-          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+      <section className="section relative isolate border-t">
+        <SectionBackdrop variant="stars" />
+        <div className="container max-w-5xl">
+          <h2 className="rule-gold font-display text-xl font-bold">
+            Keep reading
+          </h2>
+          <div className="mt-6 grid gap-5 sm:grid-cols-3">
             {others.map((other) => (
-              <Link
+              <MediaCard
                 key={other.slug}
                 href={`/learn/${other.slug}`}
-                className="rounded-xl border bg-card p-5 transition-colors hover:border-brand/40"
-              >
-                <p className="text-xs text-muted-foreground">{other.category}</p>
-                <p className="mt-1.5 font-display text-sm font-bold leading-snug">
-                  {other.title}
-                </p>
-              </Link>
+                image={articleImage(other.slug)}
+                eyebrow={other.category}
+                title={other.title}
+                body={other.summary}
+              />
             ))}
           </div>
         </div>
-      </article>
+      </section>
     </>
   );
 }

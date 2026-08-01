@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Image from "next/image";
 import type { Metadata } from "next";
 import {
   Boxes,
@@ -13,8 +14,9 @@ import {
 } from "lucide-react";
 
 import { PageHero } from "@/components/site/page-hero";
+import { SectionBackdrop } from "@/components/site/section-backdrop";
 import { TrackForm } from "@/components/site/track-form";
-import { IMAGES } from "@/lib/imagery";
+import { IMAGES, img } from "@/lib/imagery";
 import { TrackingTimeline } from "@/components/site/tracking-timeline";
 import { Button } from "@/components/ui/button";
 import { COMPANY } from "@/lib/constants";
@@ -67,21 +69,52 @@ export default async function TrackPage({
         </div>
       </PageHero>
 
-      <div className="container py-12 md:py-16">
-        <div className="mx-auto max-w-3xl">
-          {result ? <TrackingResultView result={result} /> : <EmptyState />}
+      {/* The result column is narrow by design, so most of what a customer
+          sees on this page is the field around it. Aurora rather than photo:
+          everything below is `bg-card` with muted labels — dark-on-light —
+          and an ink section would swallow the whole result card. */}
+      <section className="relative isolate py-12 md:py-16">
+        <SectionBackdrop variant="aurora" />
+        <div className="container">
+          <div className="mx-auto max-w-3xl">
+            {result ? <TrackingResultView result={result} /> : <EmptyState />}
+          </div>
         </div>
-      </div>
+      </section>
     </>
   );
 }
 
+/**
+ * What a customer sees before they have searched — which, on the page most
+ * people arrive at from a WhatsApp link, is the majority of the time.
+ *
+ * A dashed grey rectangle on white was the whole of it. Since this is the one
+ * thing on the screen under the hero, it carries a photograph of the warehouse
+ * the label was applied in. Every class inside is an explicit white/ink value:
+ * `text-muted-foreground` on this panel would be unreadable.
+ */
 function EmptyState() {
   return (
-    <div className="rounded-xl border border-dashed bg-muted/20 p-10 text-center">
-      <CircleHelp className="mx-auto h-8 w-8 text-muted-foreground/50" />
+    <div className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-[hsl(var(--ink))] p-10 text-center text-white shadow-soft">
+      <Image
+        src={img(IMAGES.warehouseAisle, 1200)}
+        alt=""
+        fill
+        sizes="(max-width: 768px) 100vw, 768px"
+        className="-z-10 object-cover"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-[hsl(var(--ink)/0.84)]"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-gradient-to-t from-[hsl(var(--ink))] via-transparent to-[hsl(var(--ink)/0.55)]"
+      />
+      <CircleHelp className="mx-auto h-8 w-8 text-gold" />
       <p className="mt-3 font-medium">Nothing to show yet</p>
-      <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+      <p className="mx-auto mt-1 max-w-sm text-sm text-white/70">
         Your tracking number is printed on the label attached to your cargo and
         was sent to you when your goods were registered in China.
       </p>

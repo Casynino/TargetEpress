@@ -4,6 +4,7 @@ import { ArrowRight, MapPin, Timer, Truck } from "lucide-react";
 
 import { PageHero } from "@/components/site/page-hero";
 import { PickupForm } from "@/components/site/request-forms";
+import { SectionBackdrop } from "@/components/site/section-backdrop";
 import { IMAGES } from "@/lib/imagery";
 import { COMPANY } from "@/lib/constants";
 
@@ -67,10 +68,15 @@ export default function PickupPage() {
         </ul>
       </PageHero>
 
-      <section className="border-t border-white/10 bg-[hsl(var(--ink))] py-14 text-white">
-        <div className="container flex flex-wrap items-center justify-between gap-6">
+      {/* The closer. Drifting colour rather than the flat navy strip this was —
+          the hero above it is a photograph, so this varies instead of
+          repeating. */}
+      <section className="relative isolate border-t border-white/10 bg-[hsl(var(--ink))] py-14 text-white">
+        <SectionBackdrop variant="aurora" />
+
+        <div className="container relative flex flex-wrap items-center justify-between gap-6">
           <div>
-            <h2 className="font-display text-xl font-bold">
+            <h2 className="rule-gold font-display text-xl font-bold">
               Already know what you are sending?
             </h2>
             <p className="mt-1 text-sm text-white/60">

@@ -4,6 +4,7 @@ import { ArrowRight, MessageCircle } from "lucide-react";
 
 import { MediaBand, MediaCard } from "@/components/site/media-card";
 import { Reveal } from "@/components/site/reveal";
+import { SectionBackdrop } from "@/components/site/section-backdrop";
 import { COMPANY } from "@/lib/constants";
 import { IMAGES } from "@/lib/imagery";
 
@@ -140,7 +141,13 @@ export default function ServicesPage() {
         </div>
       </MediaBand>
 
-      <section className="section">
+      {/* The bento used to sit on flat paper between two photographic bands,
+          which made the middle of the page read as a hole. Aurora rather than
+          photo: every card in here is `bg-card` with muted body copy, and that
+          is dark-on-light — flipping the section to ink would take the whole
+          grid down with it. */}
+      <section className="section relative isolate">
+        <SectionBackdrop variant="aurora" />
         <div className="container">
           {/* Bento: the two things people arrive for, given the room.
               The grid is revealed as one block rather than card by card —
