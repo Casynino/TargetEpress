@@ -30,11 +30,36 @@ import { cn } from "@/lib/utils";
  *    circle bolted onto the page.
  */
 
-const GUANGZHOU: [number, number] = [113.26, 23.13];
 const DAR: [number, number] = [39.28, -6.79];
 
-/** Longitude that puts the whole route on screen at once. */
-const ROUTE_CENTRE = -(GUANGZHOU[0] + DAR[0]) / 2;
+/**
+ * The same four lanes the flat route map draws, on the sphere.
+ *
+ * Kept in the same order and with the same wording as `route-map.tsx` so the
+ * two never drift apart — a globe claiming a route the map below it does not
+ * show is worse than either on its own.
+ *
+ * `offset` staggers the aircraft so they do not fly in formation. `dy` nudges
+ * a label off its marker: Guangzhou and Hong Kong are 90 km apart and their
+ * labels collide at this scale.
+ */
+type Lane = {
+  city: string;
+  at: [number, number];
+  main: boolean;
+  offset: number;
+  dy: number;
+};
+
+const LANES: Lane[] = [
+  { city: "Guangzhou", at: [113.26, 23.13], main: true, offset: 0, dy: -16 },
+  { city: "Hong Kong", at: [114.17, 22.32], main: true, offset: 0.25, dy: 22 },
+  { city: "Dubai", at: [55.27, 25.2], main: false, offset: 0.5, dy: -16 },
+  { city: "Addis Ababa", at: [38.74, 8.98], main: false, offset: 0.75, dy: -16 },
+];
+
+/** Longitude that puts the whole network on screen at once. */
+const ROUTE_CENTRE = -(113.26 + DAR[0]) / 2;
 
 type Dot = [number, number];
 
@@ -97,6 +122,7 @@ export function CargoGlobe({
       land: readColour(wrap, "--brand", "hsl(213 84% 64%)"),
       grid: readColour(wrap, "--muted-foreground", "hsl(216 14% 62%)"),
       route: readColour(wrap, "--signal", "hsl(3 84% 58%)"),
+      transit: readColour(wrap, "--gold", "hsl(43 78% 62%)"),
     };
 
     let features: GeoJSON.FeatureCollection | null = null;
@@ -113,8 +139,8 @@ export function CargoGlobe({
     const projection = geoOrthographic().clipAngle(90);
     const path = geoPath(projection, context);
 
-    /** Great-circle position at t, for the aircraft. */
-    const along = geoInterpolate(GUANGZHOU, DAR);
+    /** Great-circle position at t, one per lane, for the aircraft. */
+    const along = LANES.map((lane) => geoInterpolate(lane.at, DAR));
 
     function size() {
       const rect = wrap!.getBoundingClientRect();
@@ -180,71 +206,113 @@ export function CargoGlobe({
         context!.fill();
       }
 
-      // The route
-      context!.beginPath();
-      path({
-        type: "LineString",
-        coordinates: [GUANGZHOU, DAR],
-      } as GeoJSON.LineString);
-      context!.strokeStyle = palette.route;
-      context!.globalAlpha = 0.85;
-      context!.lineWidth = 2;
-      context!.setLineDash([5, 7]);
-      context!.stroke();
-      context!.setLineDash([]);
-      context!.globalAlpha = 1;
+      // The routes. Transit lanes are thinner and gold so the two the company
+      // actually loads at read as the primary pair.
+      for (const [index, lane] of LANES.entries()) {
+        context!.beginPath();
+        path({
+          type: "LineString",
+          coordinates: [lane.at, DAR],
+        } as GeoJSON.LineString);
+        context!.strokeStyle = lane.main ? palette.route : palette.transit;
+        context!.globalAlpha = lane.main ? 0.85 : 0.55;
+        context!.lineWidth = lane.main ? 2 : 1.2;
+        context!.setLineDash(lane.main ? [5, 7] : [3, 6]);
+        context!.stroke();
+        context!.setLineDash([]);
+        context!.globalAlpha = 1;
+        void index;
+      }
 
-      // Endpoints
-      for (const [point, label] of [
-        [GUANGZHOU, "Guangzhou"],
-        [DAR, "Dar es Salaam"],
-      ] as const) {
-        if (!facing(point)) continue;
-        const p = projection(point);
+      // Origin markers
+      for (const lane of LANES) {
+        if (!facing(lane.at)) continue;
+        const p = projection(lane.at);
         if (!p) continue;
 
+        const colour = lane.main ? palette.route : palette.transit;
+
         context!.beginPath();
-        context!.arc(p[0], p[1], 3.5, 0, Math.PI * 2);
-        context!.fillStyle = palette.route;
+        context!.arc(p[0], p[1], lane.main ? 3.5 : 2.6, 0, Math.PI * 2);
+        context!.fillStyle = colour;
         context!.fill();
 
         context!.beginPath();
-        context!.arc(p[0], p[1], 8, 0, Math.PI * 2);
-        context!.strokeStyle = palette.route;
+        context!.arc(p[0], p[1], lane.main ? 8 : 6, 0, Math.PI * 2);
+        context!.strokeStyle = colour;
         context!.globalAlpha = 0.35;
         context!.lineWidth = 1;
         context!.stroke();
         context!.globalAlpha = 1;
 
-        if (side > 380) {
-          context!.font =
-            '600 11px ui-sans-serif, system-ui, -apple-system, sans-serif';
-          context!.fillStyle = palette.route;
+        // Five labels on a small sphere is clutter, so they only appear once
+        // there is room for them.
+        if (side > 420) {
+          context!.font = `600 ${lane.main ? 11 : 10}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
+          context!.fillStyle = colour;
           context!.textAlign = "center";
-          context!.fillText(label, p[0], p[1] - 14);
+          context!.globalAlpha = lane.main ? 1 : 0.8;
+          context!.fillText(lane.city, p[0], p[1] + lane.dy);
+          context!.globalAlpha = 1;
         }
       }
 
-      // The aircraft, travelling the line
-      const here = along(progress);
-      if (facing(here)) {
-        const p = projection(here);
-        const ahead = projection(along(Math.min(progress + 0.01, 1)));
-        if (p && ahead) {
-          const angle = Math.atan2(ahead[1] - p[1], ahead[0] - p[0]);
-          context!.save();
-          context!.translate(p[0], p[1]);
-          context!.rotate(angle);
+      // Destination. Every lane ends here, so it gets the larger mark.
+      if (facing(DAR)) {
+        const p = projection(DAR);
+        if (p) {
           context!.beginPath();
-          context!.moveTo(7, 0);
-          context!.lineTo(-4, 4);
-          context!.lineTo(-1.5, 0);
-          context!.lineTo(-4, -4);
-          context!.closePath();
-          context!.fillStyle = "#fff";
+          context!.arc(p[0], p[1], 4.5, 0, Math.PI * 2);
+          context!.fillStyle = palette.route;
           context!.fill();
-          context!.restore();
+
+          context!.beginPath();
+          context!.arc(p[0], p[1], 11, 0, Math.PI * 2);
+          context!.strokeStyle = palette.route;
+          context!.globalAlpha = 0.4;
+          context!.lineWidth = 1.2;
+          context!.stroke();
+          context!.globalAlpha = 1;
+
+          if (side > 380) {
+            context!.font =
+              '700 12px ui-sans-serif, system-ui, -apple-system, sans-serif';
+            context!.fillStyle = palette.route;
+            context!.textAlign = "center";
+            context!.fillText("Dar es Salaam", p[0], p[1] + 22);
+          }
         }
+      }
+
+      // The aircraft, one per lane, offset around the loop so they are spread
+      // along their routes rather than departing together.
+      for (const [index, lane] of LANES.entries()) {
+        const t = (progress + lane.offset) % 1;
+        const here = along[index](t);
+        if (!facing(here)) continue;
+
+        const p = projection(here);
+        const ahead = projection(along[index](Math.min(t + 0.01, 1)));
+        if (!p || !ahead) continue;
+
+        const angle = Math.atan2(ahead[1] - p[1], ahead[0] - p[0]);
+        const scale = lane.main ? 1 : 0.78;
+
+        context!.save();
+        context!.translate(p[0], p[1]);
+        context!.rotate(angle);
+        context!.scale(scale, scale);
+        context!.beginPath();
+        context!.moveTo(7, 0);
+        context!.lineTo(-4, 4);
+        context!.lineTo(-1.5, 0);
+        context!.lineTo(-4, -4);
+        context!.closePath();
+        context!.fillStyle = "#fff";
+        context!.globalAlpha = lane.main ? 1 : 0.8;
+        context!.fill();
+        context!.restore();
+        context!.globalAlpha = 1;
       }
     }
 
