@@ -3,14 +3,26 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import {
   ArrowRight,
+  Boxes,
+  Calculator,
   Camera,
   ClipboardList,
+  GraduationCap,
   Package,
+  PackageSearch,
+  Plane,
   Scale,
+  SearchCheck,
   ShieldAlert,
+  ShieldCheck,
+  ShoppingBag,
+  Store,
+  Truck,
   Wallet,
+  Warehouse,
 } from "lucide-react";
 
+import { Reveal } from "@/components/site/reveal";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -18,6 +30,104 @@ export const metadata: Metadata = {
   description:
     "Air freight from Guangzhou and Hong Kong to Dar es Salaam: consolidation, batch shipping, arrival verification and QR-secured collection.",
 };
+
+
+/**
+ * Everything the company will do for you, in one grid.
+ *
+ * Ordered by how many people want it, not by what earns most. Air freight is
+ * the business; the rest are the reasons somebody chooses this freight company
+ * over the one down the street.
+ *
+ * Each entry links somewhere that actually does the thing — a service with no
+ * way to start it is a paragraph, not a service.
+ */
+const CATALOGUE = [
+  {
+    icon: Plane,
+    title: "Air cargo",
+    body: "Guangzhou and Hong Kong to Dar es Salaam, three flights a week. The core of everything we do.",
+    href: "/book",
+    cta: "Book a shipment",
+  },
+  {
+    icon: Warehouse,
+    title: "Warehouse receiving",
+    body: "Your supplier delivers to our own address in your name. We weigh, photograph and label it the day it lands.",
+    href: "/china",
+    cta: "Get the address",
+  },
+  {
+    icon: Truck,
+    title: "Pickup from your supplier",
+    body: "We collect from any market or factory in Guangzhou and bring it to our warehouse.",
+    href: "/pickup",
+    cta: "Request a pickup",
+  },
+  {
+    icon: ShoppingBag,
+    title: "Supplier sourcing",
+    body: "Tell us the product; we find who makes it, what it costs and whether they are worth buying from.",
+    href: "/services/sourcing",
+    cta: "Send a request",
+  },
+  {
+    icon: Boxes,
+    title: "Cargo consolidation",
+    body: "Several suppliers, several orders, one shipment and one invoice. Held free while you wait for the rest.",
+    href: "/learn/consolidation",
+    cta: "How it works",
+  },
+  {
+    icon: SearchCheck,
+    title: "Product inspection",
+    body: "We open, check and photograph before it flies. Rejecting goods in China costs a fraction of discovering them in Dar.",
+    href: "/services/sourcing",
+    cta: "Ask us to inspect",
+  },
+  {
+    icon: Calculator,
+    title: "Shipping calculator",
+    body: "Price your cargo before you buy it, on the same rate book we invoice from.",
+    href: "/calculator",
+    cta: "Estimate a cost",
+  },
+  {
+    icon: PackageSearch,
+    title: "Cargo tracking",
+    body: "Every piece, from our China counter to the moment you collect it, with the photos taken along the way.",
+    href: "/track",
+    cta: "Track a shipment",
+  },
+  {
+    icon: Store,
+    title: "China market guides",
+    body: "Where to buy what, in thirteen markets across Guangzhou, Shenzhen, Yiwu and beyond.",
+    href: "/china/markets",
+    cta: "Browse markets",
+  },
+  {
+    icon: GraduationCap,
+    title: "Import consultation",
+    body: "Guides on weight, suppliers, packing, payment and customs — and a person to ask when they do not cover it.",
+    href: "/learn",
+    cta: "Read the guides",
+  },
+  {
+    icon: Package,
+    title: "Short-term storage",
+    body: "Free while your order comes together in Guangzhou. Built for cargo that is moving, not long-term warehousing.",
+    href: "/warehouses",
+    cta: "See our warehouses",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Verified collection",
+    body: "Cargo is released against a paid pickup note and a scanned code, with the handover photographed.",
+    href: "/warehouses",
+    cta: "How collection works",
+  },
+];
 
 const FAQ = [
   {
@@ -61,6 +171,44 @@ export default function ServicesPage() {
           ni kile tunachofanya na mzigo wako na kinachokugharimu.
         </p>
       </div>
+
+      {/* The full catalogue. Everything above this is the pitch; this is the
+          list somebody scans to find the one thing they came for. */}
+      <section className="mt-14">
+        <h2 className="font-display text-2xl font-bold tracking-tight">
+          Huduma zetu zote
+          <span className="mt-1 block text-sm font-normal text-muted-foreground">
+            Everything we do, and where to start it
+          </span>
+        </h2>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {CATALOGUE.map((item, index) => (
+            <Reveal
+              key={item.title}
+              delay={index * 40}
+              className="flex h-full flex-col rounded-xl border bg-card p-6 shadow-soft transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-lift motion-reduce:hover:translate-y-0"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                <item.icon className="h-5 w-5" />
+              </span>
+              <h3 className="mt-4 font-display text-base font-bold">
+                {item.title}
+              </h3>
+              <p className="mt-1.5 flex-1 text-sm text-muted-foreground">
+                {item.body}
+              </p>
+              <Link
+                href={item.href}
+                className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"
+              >
+                {item.cta}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
 
       <div className="mx-auto mt-10 max-w-5xl overflow-hidden rounded-2xl border shadow-lift">
         <Image

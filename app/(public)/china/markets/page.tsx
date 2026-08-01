@@ -44,11 +44,31 @@ export default async function PublicMarketsPage() {
         </p>
       </div>
 
+      {/* Thirteen markets is too many to scroll past looking for one. Each card
+          gets an anchor and this jumps to it — cheaper than splitting the
+          directory into thirteen pages that would compete with each other for
+          the same search terms. */}
+      <nav
+        aria-label="Jump to a market"
+        className="mx-auto mt-10 flex max-w-5xl flex-wrap justify-center gap-2"
+      >
+        {markets.map((market) => (
+          <a
+            key={market.id}
+            href={`#${market.slug}`}
+            className="rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors hover:border-brand/40 hover:bg-accent"
+          >
+            {market.name}
+          </a>
+        ))}
+      </nav>
+
       <div className="mx-auto mt-10 grid max-w-6xl gap-6 lg:grid-cols-2">
         {markets.map((market) => (
           <article
             key={market.id}
-            className="flex flex-col overflow-hidden rounded-2xl border bg-card shadow-soft transition-shadow hover:shadow-lift"
+            id={market.slug}
+            className="flex scroll-mt-24 flex-col overflow-hidden rounded-2xl border bg-card shadow-soft transition-shadow hover:shadow-lift"
           >
             <div className="border-b bg-gradient-to-br from-brand/5 to-transparent p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
