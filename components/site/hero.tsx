@@ -87,7 +87,7 @@ export function Hero() {
         className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[hsl(var(--ink))] to-transparent"
       />
 
-      <div className="container relative z-10 py-16 sm:py-20 lg:py-28">
+      <div className="container relative z-10 pb-16 pt-28 sm:pb-20 sm:pt-32 lg:pb-28 lg:pt-36">
         <div className="grid items-center gap-12 lg:grid-cols-[1.02fr_minmax(0,0.98fr)] lg:gap-8 xl:gap-14">
           {/* Left — the promise, and the three things a visitor can do */}
           <div>

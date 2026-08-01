@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, PackageSearch } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { BrandLockup } from "@/components/brand-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -33,18 +33,52 @@ const NAV = [
 ];
 
 /**
- * Floating navigation bar. The structure (rounded card, mobile Sheet menu,
- * theme toggle) comes from the AcmeHero reference component in
- * components/ui/acme-hero.tsx, re-skinned for Target Express.
+ * The navigation bar.
+ *
+ * It used to be an opaque rounded card — `bg-background/85`, which in the light
+ * theme is a white pill — sitting on top of a dark hero, with padding above it
+ * that let a strip of page background show through as a white band. That is
+ * why it read as bolted on: it belonged to neither the hero nor the page.
+ *
+ * Now it starts transparent and lets the hero run underneath it, then becomes a
+ * dark glass bar once you scroll. Every public page opens on a dark hero
+ * (PageHero, MediaBand or the homepage Hero — checked, all of them), so white
+ * type at the top is legible everywhere without the header having to know which
+ * page it is on.
+ *
+ * The scrolled bar stays dark in both themes rather than following the token.
+ * A theme-aware bar means the text colour has to change with it, and a header
+ * that inverts halfway down the page is worse than one that simply commits.
  */
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    // Threshold rather than `> 0`: a one-pixel scroll should not flip the bar,
+    // and a trackpad at rest often reports a pixel or two.
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-40 pt-3 md:pt-4">
+    <header
+      className={cn(
+        // Fixed, not sticky. A sticky header still occupies a row in the flow, so a
+        // transparent one reveals the page background above the hero — the white
+        // band. Fixed lets the hero photograph run underneath it. Every hero
+        // carries enough top padding to clear it.
+        "fixed inset-x-0 top-0 z-40 text-white transition-[background-color,border-color,backdrop-filter,box-shadow] duration-300",
+        scrolled
+          ? "border-b border-white/10 bg-[hsl(220_30%_7%/0.72)] shadow-lift backdrop-blur-xl"
+          : "border-b border-transparent bg-transparent"
+      )}
+    >
       <div className="container">
-        <nav className="flex items-center justify-between rounded-xl border bg-background/85 px-4 py-2 shadow-soft backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+        <nav className="flex items-center justify-between py-3 md:py-4">
           <div className="flex items-center gap-8">
             <Link href="/" aria-label="Target Express Air Cargo — home">
               <BrandLockup />
@@ -55,10 +89,10 @@ export function SiteHeader() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "text-sm transition-colors hover:text-foreground",
+                    "relative text-sm transition-colors hover:text-gold",
                     pathname === item.href
-                      ? "font-medium text-foreground"
-                      : "text-muted-foreground"
+                      ? "font-semibold text-white after:absolute after:-bottom-1.5 after:left-0 after:h-px after:w-full after:bg-gold"
+                      : "text-white/65"
                   )}
                 >
                   {item.label}
@@ -69,11 +103,11 @@ export function SiteHeader() {
 
           <div className="flex items-center gap-2 sm:gap-3">
             <ThemeToggle className="h-8 w-8" />
-            <Separator orientation="vertical" className="hidden h-6 sm:block" />
+            <Separator orientation="vertical" className="hidden h-6 bg-white/20 sm:block" />
             <Button
               asChild
               variant="ghost"
-              className="hidden h-8 px-2 text-sm font-normal text-muted-foreground hover:text-foreground md:inline-flex"
+              className="hidden h-8 px-2 text-sm font-normal text-white/65 hover:bg-white/10 hover:text-white md:inline-flex"
             >
               <Link href="/login">Staff login</Link>
             </Button>
@@ -93,7 +127,7 @@ export function SiteHeader() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 md:hidden"
+                  className="h-8 w-8 text-white hover:bg-white/10 hover:text-white md:hidden"
                 >
                   <Menu className="h-[18px] w-[18px]" />
                   <span className="sr-only">Open menu</span>

@@ -151,7 +151,7 @@ export function MediaBand({
   return (
     <section
       className={cn(
-        "relative overflow-hidden bg-[hsl(var(--ink))] py-20 text-white sm:py-24",
+        "relative overflow-hidden bg-[hsl(var(--ink))] py-20 text-white sm:py-24 [&:first-child]:pt-28 sm:[&:first-child]:pt-36",
         className
       )}
     >

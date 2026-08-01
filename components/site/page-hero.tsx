@@ -44,7 +44,7 @@ export function PageHero({
     <section
       className={cn(
         "relative isolate overflow-hidden bg-[hsl(var(--ink))] text-white",
-        size === "tall" ? "py-24 sm:py-32" : "py-20 sm:py-24",
+        size === "tall" ? "pb-24 pt-32 sm:pb-32 sm:pt-40" : "pb-20 pt-28 sm:pb-24 sm:pt-36",
         className
       )}
     >

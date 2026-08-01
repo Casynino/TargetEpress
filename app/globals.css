@@ -389,3 +389,16 @@
     .drift-a, .drift-b, .drift-c, .twinkle { animation: none; }
   }
 }
+
+@layer base {
+  /**
+   * Anchor clearance for the fixed header.
+   *
+   * The header used to be sticky, which occupies a row in the flow, so jumping
+   * to #services landed correctly. Fixed takes it out of flow, and without this
+   * every in-page anchor lands with its heading hidden behind the bar.
+   */
+  [id] {
+    scroll-margin-top: 6rem;
+  }
+}
