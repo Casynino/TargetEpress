@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { geoContains, geoDistance, geoGraticule10, geoInterpolate, geoOrthographic, geoPath } from "d3-geo";
 import { timer, type Timer } from "d3-timer";
 
+import { AIRCRAFT_LENGTH, traceAircraft } from "@/lib/aircraft";
 import { cn } from "@/lib/utils";
 
 /**
@@ -296,18 +297,18 @@ export function CargoGlobe({
         if (!p || !ahead) continue;
 
         const angle = Math.atan2(ahead[1] - p[1], ahead[0] - p[0]);
-        const scale = lane.main ? 1 : 0.78;
+
+        // The outline is 28 units nose to tail; size it against the sphere so
+        // the aircraft stay legible on a small globe without turning into
+        // paper darts on a large one.
+        const wanted = side > 700 ? 15 : side > 420 ? 12 : 9;
+        const scale = (wanted / AIRCRAFT_LENGTH) * (lane.main ? 1 : 0.82);
 
         context!.save();
         context!.translate(p[0], p[1]);
         context!.rotate(angle);
         context!.scale(scale, scale);
-        context!.beginPath();
-        context!.moveTo(7, 0);
-        context!.lineTo(-4, 4);
-        context!.lineTo(-1.5, 0);
-        context!.lineTo(-4, -4);
-        context!.closePath();
+        traceAircraft(context!);
         context!.fillStyle = "#fff";
         context!.globalAlpha = lane.main ? 1 : 0.8;
         context!.fill();

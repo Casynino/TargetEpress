@@ -1,3 +1,4 @@
+import { AIRCRAFT_PATH } from "@/lib/aircraft";
 import { COMPANY } from "@/lib/constants";
 
 /**
@@ -353,10 +354,10 @@ export function RouteMap() {
               {LANES.map((lane) => (
                 <g key={lane.id} className="route-plane">
                   <path
-                    d="M 14 0 L -6 6 L -2 0 L -6 -6 Z"
+                    d={AIRCRAFT_PATH}
                     fill="#fff"
                     opacity={lane.main ? 1 : 0.75}
-                    transform={lane.main ? "scale(1)" : "scale(0.8)"}
+                    transform={lane.main ? "scale(0.85)" : "scale(0.68)"}
                   />
                   <animateMotion
                     dur={`${CYCLE}s`}
