@@ -80,7 +80,10 @@
     --background: 220 24% 5%;
     --foreground: 210 24% 96%;
 
-    --card: 220 20% 8%;
+    /* Three points of lightness between page and card is not separation, it
+       is a rumour. Surfaces need to read as surfaces in a dark theme or every
+       screen flattens into one grey field. */
+    --card: 220 19% 11%;
     --card-foreground: 210 24% 96%;
 
     --popover: 220 20% 10%;
@@ -101,8 +104,8 @@
     --destructive: 0 68% 54%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 14% 17%;
-    --input: 220 14% 17%;
+    --border: 220 14% 22%;
+    --input: 220 14% 22%;
     --ring: 213 70% 62%;
 
     --chart-1: 213 84% 62%;

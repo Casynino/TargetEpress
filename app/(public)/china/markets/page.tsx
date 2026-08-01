@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock, MapPin, Plane } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { COMPANY } from "@/lib/constants";
+import { img, marketImage } from "@/lib/imagery";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
@@ -68,8 +70,24 @@ export default async function PublicMarketsPage() {
           <article
             key={market.id}
             id={market.slug}
-            className="flex scroll-mt-24 flex-col overflow-hidden rounded-2xl border bg-card shadow-soft transition-shadow hover:shadow-lift"
+            className="group flex scroll-mt-24 flex-col overflow-hidden rounded-2xl border bg-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:border-brand/40 hover:shadow-lift motion-reduce:hover:translate-y-0"
           >
+            {/* The photograph is what tells you a fabric market from a shoe
+                market before you have read a word of it. */}
+            <div className="relative h-44 overflow-hidden">
+              <Image
+                src={img(marketImage(market.slug), 900)}
+                alt=""
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover transition-transform duration-500 group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+              />
+              <div
+                aria-hidden
+                className="absolute inset-0 bg-gradient-to-t from-card via-[hsl(var(--ink)/0.35)] to-transparent"
+              />
+            </div>
+
             <div className="border-b bg-gradient-to-br from-brand/5 to-transparent p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
