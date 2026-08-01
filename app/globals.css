@@ -224,3 +224,43 @@
     }
   }
 }
+
+
+/**
+ * Entrance for above-the-fold content.
+ *
+ * CSS rather than a JavaScript animation library, for one reason: a hero
+ * headline must never depend on script to be legible. A motion component
+ * server-renders at its `initial` state — opacity 0 — and only becomes visible
+ * once React hydrates. On a slow connection, or if the bundle fails, the page
+ * is blank type on a photograph.
+ *
+ * This starts hidden and arrives on its own, with no JS at all, and honours a
+ * request for stillness by simply being visible from the start.
+ */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.rise-1 { animation-delay: 0.08s; }
+.rise-2 { animation-delay: 0.16s; }
+.rise-3 { animation-delay: 0.24s; }
+.rise-4 { animation-delay: 0.32s; }
+.rise-5 { animation-delay: 0.4s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+}

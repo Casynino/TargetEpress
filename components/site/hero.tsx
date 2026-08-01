@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { motion } from "motion/react";
 import {
   ArrowRight,
   Calculator,
@@ -42,6 +41,12 @@ export function Hero() {
 
   return (
     <section className="relative">
+      <style>{`
+        @media (prefers-reduced-motion: reduce) {
+          .hero-plane animateMotion { display: none; }
+          .hero-plane { opacity: 0; }
+        }
+      `}</style>
       <div className="container relative">
         <div className="relative overflow-hidden rounded-3xl border bg-brand">
           {/* Air cargo apron, dimmed so the type stays legible */}
@@ -57,65 +62,74 @@ export function Hero() {
               it is an aircraft apron — the photo is the point. */}
           <div
             aria-hidden
-            className="absolute inset-0 bg-gradient-to-br from-brand/95 via-brand/80 to-brand/60"
+            className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--ink)/0.95)] via-[hsl(var(--brand)/0.82)] to-[hsl(var(--brand)/0.6)]"
           />
+          {/* The route, drawn behind the type. Same arc as the section further
+              down the page, at a size that reads as texture rather than as a
+              diagram — the hero should feel like the route, not explain it. */}
+          <svg
+            aria-hidden
+            viewBox="0 0 600 300"
+            preserveAspectRatio="xMidYMid slice"
+            className="pointer-events-none absolute inset-0 h-full w-full opacity-50"
+          >
+            <path
+              id="heroRoute"
+              d="M -20 250 Q 300 20 620 210"
+              fill="none"
+              stroke="white"
+              strokeOpacity="0.55"
+              strokeWidth="1.5"
+              strokeDasharray="5 9"
+            />
+            <g className="hero-plane">
+              <path d="M 0 -6 L 14 0 L 0 6 L 3.5 0 Z" fill="white" />
+              <animateMotion dur="11s" repeatCount="indefinite" rotate="auto">
+                <mpath href="#heroRoute" />
+              </animateMotion>
+            </g>
+          </svg>
+          {/* A glow where the cargo lands. */}
           <div
             aria-hidden
-            className="absolute inset-0 bg-brand/25 mix-blend-multiply"
+            className="pointer-events-none absolute -right-24 top-1/3 h-72 w-72 rounded-full bg-signal/25 blur-3xl"
           />
 
           <div className="relative px-5 py-14 text-center sm:px-10 md:py-20">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
+            <div className="rise">
               <span className="inline-flex items-center gap-2 rounded-full bg-signal px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide text-signal-foreground">
                 <Plane className="h-3.5 w-3.5" />
                 China → Tanzania · Siku 3
               </span>
-            </motion.div>
+            </div>
 
-            <motion.h1
-              className="mx-auto mt-6 max-w-4xl font-display text-3xl font-extrabold leading-[1.1] tracking-tight text-brand-foreground sm:text-5xl md:text-6xl"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.5 }}
-            >
+            <h1 className="rise rise-1 mx-auto mt-6 max-w-4xl font-display text-3xl font-extrabold leading-[1.1] tracking-tight text-brand-foreground sm:text-5xl md:text-6xl">
               Ndani ya siku tatu,
               <br />
               <span className="text-signal">mzigo wako</span> uko mlangoni
-            </motion.h1>
+            </h1>
 
-            <motion.p
-              className="mx-auto mt-5 max-w-2xl text-base text-brand-foreground/85 sm:text-lg"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-            >
+            <p className="rise rise-2 mx-auto mt-5 max-w-2xl text-base text-brand-foreground/85 sm:text-lg">
               Tunasafirisha mizigo yako kutoka China hadi Tanzania kwa bei
               nafuu — na unaweza kufuatilia kila hatua.
               <span className="mt-2 block text-sm text-brand-foreground/60">
                 Air cargo from Guangzhou to Dar es Salaam. Every package
                 tracked from our China warehouse to the moment you collect it.
               </span>
-            </motion.p>
+            </p>
 
-            <motion.form
+            <form
               onSubmit={onSubmit}
-              className="mx-auto mt-8 flex w-full max-w-xl flex-col gap-2 sm:flex-row"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.5 }}
+              className="rise rise-3 mx-auto mt-8 flex w-full max-w-xl flex-col gap-2 sm:flex-row"
             >
               <div className="relative flex-1">
-                <PackageSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <PackageSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50" />
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Namba ya mzigo — e.g. TX-000123"
                   aria-label="Tracking or batch number"
-                  className="h-12 rounded-xl border-0 bg-background pl-9 font-mono text-sm uppercase tabular placeholder:font-sans placeholder:normal-case"
+                  className="h-13 rounded-xl border border-white/15 bg-white/10 pl-9 font-mono text-sm uppercase tabular text-white backdrop-blur placeholder:font-sans placeholder:normal-case placeholder:text-white/40"
                 />
               </div>
               <Button
@@ -126,14 +140,9 @@ export function Hero() {
                 Fuatilia
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-            </motion.form>
+            </form>
 
-            <motion.div
-              className="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35, duration: 0.5 }}
-            >
+            <div className="rise rise-4 mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Button
                 asChild
                 className="h-11 rounded-xl bg-background px-5 text-foreground hover:bg-background/90"
@@ -169,14 +178,9 @@ export function Hero() {
                   Calculate cost
                 </Link>
               </Button>
-            </motion.div>
+            </div>
 
-            <motion.div
-              className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.45, duration: 0.5 }}
-            >
+            <div className="rise rise-5 mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
               {[
                 { icon: Warehouse, label: "Our own warehouse in Guangzhou" },
                 { icon: ShieldCheck, label: "QR-verified collection" },
@@ -193,24 +197,19 @@ export function Hero() {
                   {label}
                 </span>
               ))}
-            </motion.div>
+            </div>
           </div>
         </div>
 
         {/* Live tracking panel — the acme-hero preview pattern */}
-        <motion.div
-          className="mx-auto -mt-8 w-full max-w-3xl rounded-3xl border bg-muted/30 p-2 sm:-mt-10"
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.8 }}
-        >
+        <div className="rise rise-5 mx-auto -mt-8 w-full max-w-3xl rounded-3xl border bg-muted/30 p-2 sm:-mt-10">
           <div className="relative w-full">
             <div className="relative w-full overflow-hidden rounded-[1.25rem] border bg-background shadow-lift">
               <TrackingPreview />
             </div>
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[35%] rounded-b-[1.25rem] bg-gradient-to-t from-background to-transparent" />
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );
