@@ -10,6 +10,7 @@ import {
 } from "@/lib/constants";
 import { normaliseCode, toNumber } from "@/lib/format";
 import { toLocal } from "@/lib/fx";
+import { quote } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -47,9 +48,35 @@ export type PublicCharge = {
   status: "PAID" | "PART_PAID" | "UNPAID";
 };
 
+/**
+ * A price worked out from the rate book, for cargo Finance has not billed yet.
+ *
+ * Explicitly an estimate. The real invoice can differ on the exchange rate of
+ * the day, a discount, special handling, or simply because the scale said
+ * something different from what the customer expected.
+ */
+export type PublicEstimate = {
+  currency: string;
+  total: number;
+  basis: string;
+};
+
 export type PublicShipment = {
   kind: "shipment";
   trackingNumber: string;
+  /**
+   * Initials, not the full name. Tracking numbers run in sequence, so anyone
+   * who has one can count upwards; publishing names against them would turn
+   * this page into a customer directory. Initials are enough to confirm you
+   * are looking at your own cargo.
+   */
+  customerInitials: string;
+  registeredAt: string | null;
+  expectedArrival: string | null;
+  /** Proof-of-condition photos taken at the counter. */
+  photos: { id: string; url: string }[];
+  /** Only when there is no invoice yet — otherwise the real charge is shown. */
+  estimate: PublicEstimate | null;
   status: ShipmentStatus;
   statusLabel: string;
   location: string;
@@ -154,7 +181,18 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
       weightKg: true,
       cargoCategory: true,
       batch: { select: { batchNumber: true } },
-      cargoType: { select: { name: true } },
+      cargoType: { select: { id: true, name: true } },
+      cargoTypeId: true,
+      customer: { select: { name: true } },
+      batchId: true,
+      photos: {
+        // Condition on arrival at the China counter. Delivery photos are
+        // deliberately excluded: they show a person's face at a handover.
+        where: { kind: "CARGO" },
+        orderBy: { createdAt: "asc" },
+        take: 6,
+        select: { id: true, url: true },
+      },
       // Totals only. Nothing about who raised it or how it was worked out.
       invoice: {
         select: {
@@ -177,6 +215,36 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
   if (shipment) {
     const meta = SHIPMENT_STATUS_META[shipment.status];
     const invoice = shipment.invoice;
+
+    // What the flight is expected to land, when the cargo is on one.
+    const expectedArrival = shipment.batchId
+      ? (
+          await prisma.batch.findUnique({
+            where: { id: shipment.batchId },
+            select: { expectedArrival: true },
+          })
+        )?.expectedArrival ?? null
+      : null;
+
+    // Finance has not billed it yet, so price it from the published rate book.
+    // This is the number a customer wants long before an invoice exists, and
+    // withholding it just sends them to WhatsApp to ask.
+    let estimate: PublicEstimate | null = null;
+    if (!invoice && shipment.weightKg) {
+      const priced = await quote({
+        category: shipment.cargoCategory,
+        cargoTypeId: shipment.cargoTypeId,
+        weightKg: toNumber(shipment.weightKg),
+        quantity: 1,
+      });
+      if (priced.ok) {
+        estimate = {
+          currency: priced.currency,
+          total: priced.total,
+          basis: priced.basis,
+        };
+      }
+    }
 
     let charge: PublicCharge | null = null;
     if (invoice) {
@@ -242,6 +310,11 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
       batchNumber: shipment.batch?.batchNumber ?? null,
       packages: shipment.packages,
       packagesLabel: formatPackages(shipment.packages, shipment.packageType),
+      customerInitials: initialsOf(shipment.customer.name),
+      registeredAt: shipment.registeredAt.toISOString(),
+      expectedArrival: expectedArrival ? expectedArrival.toISOString() : null,
+      photos: shipment.photos,
+      estimate,
       packageProgress: landed || shipment.status === "DELIVERED"
         ? (() => {
             const arrived = shipment.packageList.filter(
@@ -311,4 +384,17 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
   }
 
   return { kind: "not-found", query: rawQuery };
+}
+
+
+/**
+ * "John Mwanga" → "J. M."
+ *
+ * Enough for someone to recognise their own shipment, not enough to harvest a
+ * name against every tracking number in sequence.
+ */
+function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 3);
+  if (parts.length === 0) return "—";
+  return parts.map((part) => `${part[0].toUpperCase()}.`).join(" ");
 }

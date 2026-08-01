@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import {
   Boxes,
+  Camera,
   CheckCircle2,
   CircleHelp,
   MapPin,
@@ -178,9 +179,10 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
         </span>
       </div>
 
-      <dl className="grid gap-px bg-border sm:grid-cols-3 lg:grid-cols-6">
+      <dl className="grid gap-px bg-border sm:grid-cols-3 lg:grid-cols-4">
         {[
           { label: "Cargo", value: result.description },
+          { label: "Shipper", value: result.customerInitials },
           {
             label: "Weight",
             value:
@@ -190,6 +192,26 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
           { label: "Route", value: `${result.origin} → Dar es Salaam` },
           { label: "Now at", value: result.location },
           { label: "Batch", value: result.batchNumber ?? "Not yet assigned" },
+          {
+            label: "Received in China",
+            value: result.registeredAt
+              ? new Date(result.registeredAt).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })
+              : "—",
+          },
+          {
+            label: "Expected in Dar",
+            value: result.expectedArrival
+              ? new Date(result.expectedArrival).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })
+              : "Once it is on a flight",
+          },
         ].map((item) => (
           <div key={item.label} className="bg-card p-5">
             <dt className="text-xs text-muted-foreground">{item.label}</dt>
@@ -228,6 +250,66 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
               package has arrived, so nothing goes missing between us.
             </p>
           ) : null}
+        </div>
+      ) : null}
+
+      {/* Proof of condition, taken at our counter in Guangzhou. Handover
+          photos are deliberately not here — they show a person's face. */}
+      {result.photos.length > 0 ? (
+        <div className="border-t p-6">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <Camera className="h-4 w-4 text-brand" />
+            Your cargo at our China warehouse
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Taken when we received it, before it was packed for the flight.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {result.photos.map((photo) => (
+              <a
+                key={photo.id}
+                href={photo.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block h-24 w-24 overflow-hidden rounded-lg border transition-transform hover:scale-105 motion-reduce:hover:scale-100"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photo.url}
+                  alt={`Cargo photo for ${result.trackingNumber}`}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Only when Finance has not billed it. Once an invoice exists the real
+          charge replaces this entirely — two numbers on one page is how a
+          customer ends up quoting the wrong one back at you. */}
+      {result.estimate && !result.charge ? (
+        <div className="border-t bg-muted/30 p-6">
+          <h2 className="text-sm font-semibold">Estimated shipping cost</h2>
+          <p className="mt-2 font-display text-3xl font-bold tabular">
+            {result.estimate.currency}{" "}
+            {result.estimate.total.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {result.estimate.basis}
+          </p>
+          <p className="mt-4 rounded-lg border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
+            <span className="font-medium text-warning">
+              This is an estimate, not an invoice.
+            </span>{" "}
+            The final charge can change with the exchange rate on the day, any
+            discount agreed, special handling, and our Finance team&apos;s final
+            check of the weight.
+          </p>
         </div>
       ) : null}
 
