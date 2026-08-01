@@ -62,12 +62,21 @@ export function Hero() {
         fill
         priority
         sizes="100vw"
-        className="object-cover object-center opacity-70"
+        className="object-cover object-center opacity-45"
       />
       <div
         aria-hidden
-        className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--ink)/0.95)] via-[hsl(var(--ink)/0.72)] to-[hsl(var(--ink)/0.32)]"
+        className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--ink)/0.95)] via-[hsl(var(--ink)/0.8)] to-[hsl(var(--ink)/0.62)]"
       />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 hidden lg:block"
+        style={{
+          background:
+            "radial-gradient(circle 460px at 74% 52%, hsl(var(--ink)/0.92) 0%, hsl(var(--ink)/0.72) 45%, transparent 78%)",
+        }}
+      />
+
       {/* Only the last strip, so the section hands off to the page below
           without a hard edge. Any more and the photograph disappears. */}
       <div
