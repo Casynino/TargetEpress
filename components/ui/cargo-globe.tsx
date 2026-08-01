@@ -119,7 +119,6 @@ export function CargoGlobe({
     const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const palette = {
-      ocean: readColour(wrap, "--ink", "hsl(217 45% 8%)"),
       land: readColour(wrap, "--brand", "hsl(213 84% 64%)"),
       grid: readColour(wrap, "--muted-foreground", "hsl(216 14% 62%)"),
       route: readColour(wrap, "--signal", "hsl(3 84% 58%)"),
@@ -160,14 +159,17 @@ export function CargoGlobe({
 
     let side = size();
 
-    // Paint the sphere before the land data arrives, so the element never
+    // Paint the limb before the land data arrives, so the element never
     // occupies space as a blank rectangle. Gating visibility on React state
     // is what left this invisible when a fetch resolved after an unmount.
     projection.rotate([lambda, phi]);
     context.beginPath();
     path({ type: "Sphere" });
-    context.fillStyle = palette.ocean;
-    context.fill();
+    context.strokeStyle = palette.grid;
+    context.globalAlpha = 0.25;
+    context.lineWidth = 1;
+    context.stroke();
+    context.globalAlpha = 1;
 
     /** True when a lon/lat is on the hemisphere facing the viewer. */
     function facing(point: [number, number]) {
@@ -179,12 +181,19 @@ export function CargoGlobe({
       projection.rotate([lambda, phi]);
       context!.clearRect(0, 0, side, side);
 
-      // Globe body
+      // The limb only — no filled body.
+      //
+      // A filled sphere is what made this look pasted onto the page: an opaque
+      // disc sitting over the hero photograph, with a hard edge the mask could
+      // only ever half-hide. Drawing just the outline lets the background come
+      // through the globe, so it reads as part of the section rather than an
+      // object dropped on top of it.
       context!.beginPath();
       path({ type: "Sphere" });
-      context!.fillStyle = palette.ocean;
-      context!.globalAlpha = 0.55;
-      context!.fill();
+      context!.strokeStyle = palette.grid;
+      context!.globalAlpha = 0.22;
+      context!.lineWidth = 1;
+      context!.stroke();
       context!.globalAlpha = 1;
 
       // Graticule, very faint — it reads as engineering, not decoration
@@ -387,12 +396,9 @@ export function CargoGlobe({
         role="img"
         className="h-full w-full cursor-grab touch-none active:cursor-grabbing"
       />
-      {/* A ring of light behind the sphere, so it sits in the page rather than
-          on top of it. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-[8%] -z-10 rounded-full bg-brand/20 blur-3xl"
-      />
+      {/* No halo behind the sphere. It was meant to bed the globe into the
+          page and did the opposite — a soft dark ring that read as a drop
+          shadow, which is exactly what makes an element look pasted on. */}
     </div>
   );
 }

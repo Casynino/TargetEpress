@@ -1,4 +1,5 @@
 import { AIRCRAFT_PATH } from "@/lib/aircraft";
+import { ROUTE_LAND } from "@/lib/route-land";
 import { COMPANY } from "@/lib/constants";
 
 /**
@@ -121,6 +122,17 @@ function arc(lane: Lane) {
   };
 }
 
+/**
+ * The land, as a single path.
+ *
+ * 566 dots rendered as 566 <circle> elements is 566 nodes the browser has to
+ * lay out for a background. One path of tiny squares draws the same picture for
+ * one node.
+ */
+const LAND_PATH = ROUTE_LAND.map(
+  ([x, y]) => `M${x} ${y}h1.5v1.5h-1.5z`
+).join("");
+
 const LOOP = 8; // seconds for one aircraft to fly its lane
 const CYCLE = LOOP + 2; // a beat of empty sky before it comes round again
 
@@ -235,8 +247,12 @@ export function RouteMap() {
                   </linearGradient>
                 ))}
 
-                {/* Faint field of dots, so the routes sit on something rather
-                    than floating in empty navy. */}
+                <radialGradient id="darGlow">
+                  <stop offset="0%" stopColor="hsl(var(--brand))" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="hsl(var(--brand))" stopOpacity="0" />
+                </radialGradient>
+
+                {/* Faint field of dots for the sea, so the water is not a void. */}
                 <pattern
                   id="mapDots"
                   width="16"
@@ -253,7 +269,21 @@ export function RouteMap() {
                 </pattern>
               </defs>
 
+              {/* Sea: a faint uniform grid. Land: the actual continents, from
+                  the same data the globe uses and through the same projection,
+                  so the coastlines line up with the city markers rather than
+                  merely suggesting a map. */}
               <rect width={W} height={H} fill="url(#mapDots)" />
+              <path d={LAND_PATH} fill="hsl(var(--brand))" opacity="0.42" />
+
+              {/* A wash of light where every lane lands. */}
+              <circle
+                cx={DAR[0]}
+                cy={DAR[1]}
+                r="150"
+                fill="url(#darGlow)"
+                opacity="0.6"
+              />
 
               {/* Routes, drawn under the markers */}
               {LANES.map((lane) => {

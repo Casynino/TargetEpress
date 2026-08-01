@@ -62,11 +62,11 @@ export function Hero() {
         fill
         priority
         sizes="100vw"
-        className="object-cover object-center opacity-25"
+        className="object-cover object-center opacity-70"
       />
       <div
         aria-hidden
-        className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--ink)/0.98)] via-[hsl(var(--ink)/0.9)] to-[hsl(var(--ink)/0.82)]"
+        className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--ink)/0.95)] via-[hsl(var(--ink)/0.72)] to-[hsl(var(--ink)/0.32)]"
       />
       {/* Only the last strip, so the section hands off to the page below
           without a hard edge. Any more and the photograph disappears. */}
@@ -165,12 +165,15 @@ export function Hero() {
 
           {/* Right — the globe, in its own column so nothing crops it */}
           <div className="rise rise-4 relative hidden lg:block">
+            {/* The mask existed to hide the hard edge of a filled sphere.
+                There is no longer a filled sphere, so it only has to feather
+                the outermost ring of dots. */}
             <div
               style={{
                 maskImage:
-                  "radial-gradient(circle at 50% 50%, #000 74%, transparent 97%)",
+                  "radial-gradient(circle at 50% 50%, #000 88%, transparent 100%)",
                 WebkitMaskImage:
-                  "radial-gradient(circle at 50% 50%, #000 74%, transparent 97%)",
+                  "radial-gradient(circle at 50% 50%, #000 88%, transparent 100%)",
               }}
             >
               <CargoGlobe />
