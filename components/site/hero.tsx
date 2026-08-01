@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { CargoGlobe } from "@/components/ui/cargo-globe";
+import { ParticleField } from "@/components/ui/particle-field";
 import { COMPANY } from "@/lib/constants";
 import { countdownLabel, upcomingFlights } from "@/lib/flights";
 import { normaliseCode } from "@/lib/format";
@@ -52,7 +53,7 @@ export function Hero() {
   }
 
   return (
-    <section className="relative overflow-hidden bg-[hsl(var(--ink))] text-white">
+    <section className="relative isolate overflow-hidden bg-[hsl(var(--ink))] text-white">
       {/* The apron, full bleed. Dimmed enough for type, bright enough that you
           can still tell it is cargo being loaded — the photograph is doing a
           job, not decorating. */}
@@ -76,6 +77,8 @@ export function Hero() {
             "radial-gradient(circle 460px at 74% 52%, hsl(var(--ink)/0.92) 0%, hsl(var(--ink)/0.72) 45%, transparent 78%)",
         }}
       />
+
+      <ParticleField />
 
       {/* Only the last strip, so the section hands off to the page below
           without a hard edge. Any more and the photograph disappears. */}
