@@ -23,6 +23,7 @@ import {
 import { FlightSchedule } from "@/components/site/flight-schedule";
 import { Hero } from "@/components/site/hero";
 import { LiveStats } from "@/components/site/live-stats";
+import { RouteMap } from "@/components/site/route-map";
 import { Reveal } from "@/components/site/reveal";
 import { Button } from "@/components/ui/button";
 import { COMPANY, GOODS_TYPE_LABELS } from "@/lib/constants";
@@ -101,6 +102,9 @@ export default function HomePage() {
 
       {/* What the company has actually done, counted from the records */}
       <LiveStats />
+
+      {/* The route, with the only moving thing on the site. */}
+      <RouteMap />
 
       {/* The next planes out. Nothing else on the page has a deadline on it. */}
       <section className="section border-y bg-[hsl(var(--ink))] text-white">

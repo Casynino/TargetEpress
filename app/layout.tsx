@@ -4,6 +4,7 @@ import { Inter, Sora, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { COMPANY } from "@/lib/constants";
+import { siteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 const inter = Inter({
@@ -25,9 +26,10 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
-  ),
+  // Shares one source with the sitemap and robots file. Defaulting to
+  // localhost here is how a production build ends up publishing canonical
+  // URLs and share images that point at a laptop.
+  metadataBase: new URL(siteUrl()),
   title: {
     default: `${COMPANY.name} — Air cargo from China to Tanzania`,
     template: `%s · ${COMPANY.shortName}`,
