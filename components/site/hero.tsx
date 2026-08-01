@@ -7,7 +7,9 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import {
   ArrowRight,
+  Calculator,
   MessageCircle,
+  PackagePlus,
   PackageSearch,
   Plane,
   ShieldCheck,
@@ -145,12 +147,27 @@ export function Hero() {
                   WhatsApp {COMPANY.phone}
                 </a>
               </Button>
+              {/* The two things a first-time visitor can actually do. Tracking
+                  is above, for people who are already customers. */}
               <Button
                 asChild
                 variant="outline"
                 className="h-11 rounded-xl border-brand-foreground/25 bg-transparent px-5 text-brand-foreground hover:bg-brand-foreground/10 hover:text-brand-foreground"
               >
-                <Link href="/china">Anwani ya China</Link>
+                <Link href="/book">
+                  <PackagePlus className="mr-2 h-4 w-4" />
+                  Book a shipment
+                </Link>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 rounded-xl border-brand-foreground/25 bg-transparent px-5 text-brand-foreground hover:bg-brand-foreground/10 hover:text-brand-foreground"
+              >
+                <Link href="/calculator">
+                  <Calculator className="mr-2 h-4 w-4" />
+                  Calculate cost
+                </Link>
               </Button>
             </motion.div>
 

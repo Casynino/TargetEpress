@@ -20,7 +20,9 @@ import {
   Warehouse,
 } from "lucide-react";
 
+import { FlightSchedule } from "@/components/site/flight-schedule";
 import { Hero } from "@/components/site/hero";
+import { LiveStats } from "@/components/site/live-stats";
 import { Reveal } from "@/components/site/reveal";
 import { Button } from "@/components/ui/button";
 import { COMPANY, GOODS_TYPE_LABELS } from "@/lib/constants";
@@ -97,43 +99,51 @@ export default function HomePage() {
     <>
       <Hero />
 
-      {/* Why the three-day promise is possible */}
-      <section className="section">
+      {/* What the company has actually done, counted from the records */}
+      <LiveStats />
+
+      {/* The next planes out. Nothing else on the page has a deadline on it. */}
+      <section className="section border-y bg-[hsl(var(--ink))] text-white">
         <div className="container">
-          <div className="grid gap-4 sm:grid-cols-3">
-            {[
-              {
-                icon: Timer,
-                stat: "Siku 3",
-                label: "kutoka China hadi mlangoni",
-                sub: "Within three days, door to door",
-              },
-              {
-                icon: Instagram,
-                stat: COMPANY.instagramFollowers,
-                label: "wateja wanatufuatilia",
-                sub: `Follow @${COMPANY.instagram}`,
-              },
-              {
-                icon: MapPin,
-                stat: "Ofisi 3",
-                label: "Aggrey, Ndanda na Guangzhou",
-                sub: "Two in Dar, one in China",
-              },
-            ].map(({ icon: Icon, stat, label, sub }, index) => (
-              <Reveal
-                key={stat}
-                delay={index * 80}
-                className="rounded-xl border bg-card p-6 text-center shadow-soft"
-              >
-                <Icon className="mx-auto h-6 w-6 text-signal" />
-                <p className="mt-3 font-display text-3xl font-extrabold tracking-tight">
-                  {stat}
-                </p>
-                <p className="mt-1 text-sm font-medium">{label}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>
-              </Reveal>
-            ))}
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="font-display text-3xl font-bold tracking-tight">
+                Ndege zinazofuata
+              </h2>
+              <p className="mt-2 max-w-xl text-white/65">
+                Tunasafirisha kila Jumatano, Ijumaa na Jumapili. Mzigo wako
+                ufike ghala letu Guangzhou kabla ya siku ya mwisho.
+                <span className="mt-1 block text-sm text-white/45">
+                  We fly three times a week. Get your cargo to our Guangzhou
+                  warehouse by the cut-off day and it goes on that flight.
+                </span>
+              </p>
+            </div>
+            <Link
+              href="/schedule"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/10"
+            >
+              Ratiba kamili
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <FlightSchedule className="mt-8" />
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href="/book"
+              className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-3 text-sm font-semibold text-signal-foreground transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
+            >
+              Book a shipment
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/pickup"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-5 py-3 text-sm font-medium transition-colors hover:bg-white/10"
+            >
+              Tunachukua mzigo kwako
+            </Link>
           </div>
         </div>
       </section>
