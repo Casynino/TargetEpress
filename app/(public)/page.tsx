@@ -24,9 +24,11 @@ import { FlightSchedule } from "@/components/site/flight-schedule";
 import { Hero } from "@/components/site/hero";
 import { LiveStats } from "@/components/site/live-stats";
 import { RouteMap } from "@/components/site/route-map";
+import { SectionBackdrop } from "@/components/site/section-backdrop";
 import { Reveal } from "@/components/site/reveal";
 import { Button } from "@/components/ui/button";
 import { COMPANY, GOODS_TYPE_LABELS } from "@/lib/constants";
+import { IMAGES } from "@/lib/imagery";
 
 const SERVICES = [
   {
@@ -107,7 +109,8 @@ export default function HomePage() {
       <RouteMap />
 
       {/* The next planes out. Nothing else on the page has a deadline on it. */}
-      <section className="section border-y bg-[hsl(var(--ink))] text-white">
+      <section className="section relative isolate border-y bg-[hsl(var(--ink))] text-white">
+        <SectionBackdrop variant="photo" image={IMAGES.airportNight} />
         <div className="container">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -153,7 +156,8 @@ export default function HomePage() {
       </section>
 
       {/* China — the part customers actually need */}
-      <section id="china" className="section border-y bg-muted/30">
+      <section id="china" className="section relative isolate border-y bg-muted/30">
+        <SectionBackdrop variant="aurora" />
         <div className="container">
           <Reveal>
           <div className="grid items-center gap-12 lg:grid-cols-2">
@@ -236,7 +240,8 @@ export default function HomePage() {
       </section>
 
       {/* Services */}
-      <section id="services" className="section">
+      <section id="services" className="section relative isolate">
+        <SectionBackdrop variant="aurora" />
         <div className="container">
           <Reveal>
           <div className="max-w-2xl">
@@ -277,7 +282,8 @@ export default function HomePage() {
       </section>
 
       {/* How it works */}
-      <section id="process" className="section border-t bg-muted/30">
+      <section id="process" className="section relative isolate border-t">
+        <SectionBackdrop variant="stars" />
         <div className="container">
           <Reveal>
           <div className="max-w-2xl">
@@ -314,7 +320,8 @@ export default function HomePage() {
       </section>
 
       {/* Cargo we carry, with a photo */}
-      <section className="section">
+      <section className="section relative isolate">
+        <SectionBackdrop variant="aurora" />
         <div className="container">
           <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="relative order-2 overflow-hidden rounded-2xl border shadow-lift lg:order-1">
@@ -368,7 +375,8 @@ export default function HomePage() {
       </section>
 
       {/* Offices */}
-      <section id="offices" className="section border-t bg-muted/30">
+      <section id="offices" className="section relative isolate border-t">
+        <SectionBackdrop variant="aurora" />
         <div className="container">
           <Reveal>
           <div className="max-w-2xl">
@@ -450,7 +458,8 @@ export default function HomePage() {
       </section>
 
       {/* Trust + app */}
-      <section className="section">
+      <section className="section relative isolate">
+        <SectionBackdrop variant="stars" />
         <div className="container">
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="overflow-hidden rounded-2xl border bg-card shadow-soft">

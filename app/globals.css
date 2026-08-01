@@ -353,3 +353,39 @@
     text-transform: uppercase;
   }
 }
+
+@layer utilities {
+  /**
+   * Ambient motion for section backdrops.
+   *
+   * Three different durations and directions so the blobs never sync up — the
+   * moment they do, the eye reads a loop and the effect dies. Transform and
+   * opacity only: both run on the compositor, so a page with eight of these
+   * still scrolls at frame rate on a phone.
+   */
+  @keyframes driftA {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    50%      { transform: translate3d(6%, 8%, 0) scale(1.12); }
+  }
+  @keyframes driftB {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1.08); }
+    50%      { transform: translate3d(-8%, 6%, 0) scale(1); }
+  }
+  @keyframes driftC {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    50%      { transform: translate3d(5%, -7%, 0) scale(1.15); }
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.12; }
+    50%      { opacity: 0.75; }
+  }
+
+  .drift-a { animation: driftA 26s ease-in-out infinite; }
+  .drift-b { animation: driftB 34s ease-in-out infinite; }
+  .drift-c { animation: driftC 30s ease-in-out infinite; }
+  .twinkle { animation: twinkle 4s ease-in-out infinite; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .drift-a, .drift-b, .drift-c, .twinkle { animation: none; }
+  }
+}
