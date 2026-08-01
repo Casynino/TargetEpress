@@ -75,30 +75,12 @@ export function Hero() {
         className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[hsl(var(--ink))] to-transparent"
       />
 
-      {/* The globe is the backdrop, not a column.
-          Beside the panel there is simply no room for a sphere — it got sliced
-          by the viewport and read as broken. Centred behind everything it is
-          whole, nothing crops it, and the content floats over the route. */}
-      {/* The mask only softens the very edge, so the sphere fades into the
-          section instead of ending on a hard circle. Any stronger and the
-          globe disappears, which is what happened the first time. */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/2 w-[min(150vw,1150px)] -translate-x-1/2 -translate-y-1/2 opacity-90 sm:w-[min(120vw,1000px)] lg:w-[min(92vw,1080px)]"
-        style={{ maskImage: "radial-gradient(circle at 50% 50%, #000 78%, transparent 97%)", WebkitMaskImage: "radial-gradient(circle at 50% 50%, #000 78%, transparent 97%)" }}
-      >
-        {/* Only the sphere itself takes the pointer, so dragging works without
-            the wrapper swallowing clicks meant for the page. */}
-        <div className="pointer-events-auto">
-          <CargoGlobe />
-        </div>
-      </div>
-
       <div className="container relative z-10 py-16 sm:py-20 lg:py-28">
-        <div className="grid items-center gap-12 lg:grid-cols-[1fr_minmax(0,380px)] lg:gap-10 xl:gap-16">
-          {/* Left — the promise */}
+        <div className="grid items-center gap-12 lg:grid-cols-[1.02fr_minmax(0,0.98fr)] lg:gap-8 xl:gap-14">
+          {/* Left — the promise, and the three things a visitor can do */}
           <div>
-            <span className="rise inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] backdrop-blur">
-              <Plane className="h-3.5 w-3.5 text-signal" />
+            <span className="rise inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-gold backdrop-blur">
+              <Plane className="h-3.5 w-3.5" />
               Guangzhou → Dar es Salaam
             </span>
 
@@ -117,7 +99,50 @@ export function Hero() {
               </span>
             </p>
 
-            <ul className="rise rise-3 mt-9 grid gap-x-8 gap-y-3 sm:grid-cols-2">
+            {/* Tracking stays a field rather than becoming a button. It is the
+                single most common reason anyone opens this site, and sending
+                someone to another page to type a number they already have in
+                their hand is a step for nothing. */}
+            <form onSubmit={onSubmit} className="rise rise-3 mt-8 max-w-md">
+              <div className="flex gap-2.5">
+                <div className="relative flex-1">
+                  <PackageSearch className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="TX-000123"
+                    aria-label="Tracking or batch number"
+                    className="h-12 w-full rounded-xl border border-white/20 bg-[hsl(var(--ink)/0.5)] pl-10 pr-4 font-mono text-sm uppercase tabular text-white outline-none transition-colors placeholder:font-sans placeholder:normal-case placeholder:text-white/30 focus:border-gold focus:bg-[hsl(var(--ink)/0.75)]"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-signal px-6 font-semibold text-signal-foreground transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
+                >
+                  Fuatilia
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </form>
+
+            <div className="rise rise-3 mt-4 flex flex-wrap gap-2.5">
+              {[
+                { href: "/pricing", icon: Calculator, label: "What it will cost" },
+                { href: "/china/markets", icon: Warehouse, label: "Explore China markets" },
+                { href: "/book", icon: PackagePlus, label: "Book a shipment" },
+              ].map((action) => (
+                <Link
+                  key={action.label}
+                  href={action.href}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium transition-colors hover:border-gold/40 hover:bg-white/10"
+                >
+                  <action.icon className="h-4 w-4 text-gold" />
+                  {action.label}
+                </Link>
+              ))}
+            </div>
+
+            <ul className="rise rise-4 mt-9 grid gap-x-8 gap-y-3 border-t border-white/10 pt-7 sm:grid-cols-2">
               {[
                 { icon: Warehouse, label: "Our own warehouse in Guangzhou" },
                 { icon: ShieldCheck, label: "QR-verified collection" },
@@ -138,107 +163,25 @@ export function Hero() {
             </ul>
           </div>
 
-          {/* Right — the panel that does something */}
-          <div className="rise rise-4 rounded-3xl border border-white/15 bg-white/[0.07] p-6 shadow-2xl backdrop-blur-xl sm:p-7">
-            <h2 className="font-display text-xl font-bold">
-              Fuatilia mzigo wako
-            </h2>
-            <p className="mt-1 text-sm text-white/55">
-              Weka namba uliyopewa — e.g. TX-000123
-            </p>
-
-            <form onSubmit={onSubmit} className="mt-5">
-              <div className="relative">
-                <PackageSearch className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="TX-000123"
-                  aria-label="Tracking or batch number"
-                  className="w-full rounded-xl border border-white/20 bg-[hsl(var(--ink)/0.5)] py-3.5 pl-10 pr-4 font-mono text-sm uppercase tabular text-white outline-none transition-colors placeholder:font-sans placeholder:normal-case placeholder:text-white/30 focus:border-signal focus:bg-[hsl(var(--ink)/0.75)]"
-                />
-              </div>
-              <button
-                type="submit"
-                className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-signal font-semibold text-signal-foreground transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
-              >
-                Fuatilia
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </form>
-
-            {/* Lower case deliberately: "AU" in tracked capitals reads as an
-                airline code sitting in the middle of a cargo site. */}
-            <div className="my-6 flex items-center gap-3 text-xs text-white/35">
-              <span className="h-px flex-1 bg-white/15" />
-              au / or
-              <span className="h-px flex-1 bg-white/15" />
+          {/* Right — the globe, in its own column so nothing crops it */}
+          <div className="rise rise-4 relative hidden lg:block">
+            <div
+              style={{
+                maskImage:
+                  "radial-gradient(circle at 50% 50%, #000 74%, transparent 97%)",
+                WebkitMaskImage:
+                  "radial-gradient(circle at 50% 50%, #000 74%, transparent 97%)",
+              }}
+            >
+              <CargoGlobe />
             </div>
 
-            <div className="grid gap-2.5">
-              {[
-                {
-                  href: "/book",
-                  icon: PackagePlus,
-                  title: "Book a shipment",
-                  sub: "Tell us cargo is coming",
-                  external: false,
-                },
-                {
-                  href: "/pricing",
-                  icon: Calculator,
-                  title: "What it will cost",
-                  sub: "How we price, and how to get a quote",
-                  external: false,
-                },
-                {
-                  href: `https://wa.me/${COMPANY.whatsapp}`,
-                  icon: MessageCircle,
-                  title: "WhatsApp us",
-                  sub: COMPANY.phone,
-                  external: true,
-                },
-              ].map((action) => {
-                const inner = (
-                  <>
-                    <action.icon className="h-4 w-4 shrink-0 text-signal" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold">
-                        {action.title}
-                      </span>
-                      <span className="block text-xs text-white/50">
-                        {action.sub}
-                      </span>
-                    </span>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-white/30" />
-                  </>
-                );
-                const className =
-                  "flex items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-3 transition-colors hover:bg-white/10";
-
-                return action.external ? (
-                  <a
-                    key={action.title}
-                    href={action.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={className}
-                  >
-                    {inner}
-                  </a>
-                ) : (
-                  <Link key={action.title} href={action.href} className={className}>
-                    {inner}
-                  </Link>
-                );
-              })}
-            </div>
-
-            {/* The deadline, where somebody deciding whether to act can see it. */}
+            {/* The deadline, floated over the sphere. It is the one number that
+                turns a browser into a booking, so it does not get buried. */}
             {nextFlight ? (
-              <div className="mt-6 flex items-center justify-between gap-3 rounded-xl border border-signal/25 bg-signal/10 px-4 py-3">
+              <div className="glass-dark absolute bottom-2 left-1/2 flex w-[min(100%,320px)] -translate-x-1/2 items-center justify-between gap-3 rounded-2xl px-4 py-3">
                 <span className="min-w-0">
-                  <span className="block text-[11px] uppercase tracking-widest text-white/50">
+                  <span className="block text-[11px] uppercase tracking-widest text-gold">
                     Ndege inayofuata
                   </span>
                   <span className="block text-sm font-semibold">
@@ -255,6 +198,28 @@ export function Hero() {
               </div>
             ) : null}
           </div>
+
+          {/* Below lg the globe is hidden, so the next flight still needs a
+              home. */}
+          {nextFlight ? (
+            <div className="rise rise-4 flex items-center justify-between gap-3 rounded-xl border border-signal/25 bg-signal/10 px-4 py-3 lg:hidden">
+              <span className="min-w-0">
+                <span className="block text-[11px] uppercase tracking-widest text-white/50">
+                  Ndege inayofuata
+                </span>
+                <span className="block text-sm font-semibold">
+                  {nextFlight.departureDay},{" "}
+                  {nextFlight.departsAt.toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                  })}
+                </span>
+              </span>
+              <span className="shrink-0 rounded-full bg-signal px-2.5 py-1 text-[11px] font-bold text-signal-foreground">
+                {countdownLabel(nextFlight)}
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
