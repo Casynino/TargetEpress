@@ -322,7 +322,21 @@ export async function receivingQueue({
         departureDate: true,
         arrivedAt: true,
         _count: { select: { shipments: true, verifications: true, exceptions: true } },
-        shipments: { select: { weightKg: true, packages: true } },
+        shipments: {
+          select: {
+            weightKg: true,
+            packages: true,
+            // Boxes actually ticked off the manifest. A shipment is short
+            // until every package has a receivedAt, so this is what the
+            // "boxes present" figure counts.
+            packageList: { select: { receivedAt: true } },
+          },
+        },
+        // Who has signed lines off on this batch so far.
+        verifications: {
+          select: { verifiedBy: { select: { name: true } } },
+          take: 20,
+        },
       },
     }),
     prisma.batch.findMany({
@@ -341,7 +355,21 @@ export async function receivingQueue({
         arrivedAt: true,
         verifiedAt: true,
         _count: { select: { shipments: true, verifications: true, exceptions: true } },
-        shipments: { select: { weightKg: true, packages: true } },
+        shipments: {
+          select: {
+            weightKg: true,
+            packages: true,
+            // Boxes actually ticked off the manifest. A shipment is short
+            // until every package has a receivedAt, so this is what the
+            // "boxes present" figure counts.
+            packageList: { select: { receivedAt: true } },
+          },
+        },
+        // Who has signed lines off on this batch so far.
+        verifications: {
+          select: { verifiedBy: { select: { name: true } } },
+          take: 20,
+        },
       },
     }),
   ]);
@@ -349,6 +377,19 @@ export async function receivingQueue({
   const shape = (batch: (typeof live)[number] & { verifiedAt?: Date | null }) => {
     const weightKg = batch.shipments.reduce((sum, s) => sum + toNumber(s.weightKg), 0);
     const packages = batch.shipments.reduce((sum, s) => sum + s.packages, 0);
+    const packagesPresent = batch.shipments.reduce(
+      (sum, s) => sum + s.packageList.filter((row) => row.receivedAt).length,
+      0
+    );
+    // Distinct names, so a batch checked by one person twenty times reads as
+    // one person rather than a wall of the same name.
+    const checkedBy = [
+      ...new Set(
+        batch.verifications
+          .map((v) => v.verifiedBy?.name)
+          .filter((n): n is string => Boolean(n))
+      ),
+    ];
     const unchecked = batch._count.shipments - batch._count.verifications;
 
     // Days waiting: on the floor since landing, or in the air since departure.
@@ -375,6 +416,8 @@ export async function receivingQueue({
       exceptions: batch._count.exceptions,
       weightKg,
       packages,
+      packagesPresent,
+      checkedBy,
       waitDays,
     };
   };

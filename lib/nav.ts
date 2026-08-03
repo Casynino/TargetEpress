@@ -248,15 +248,9 @@ const DAR_SECTIONS: NavSection[] = [
       },
       {
         href: "/app/receive",
-        label: "Receive Cargo",
+        label: "Incoming Shipments",
         icon: "PackagePlus",
         permission: "batch.receive",
-      },
-      {
-        href: "/app/verification",
-        label: "Verification",
-        icon: "ClipboardCheck",
-        permission: "batch.verify",
       },
       {
         href: "/app/inventory",

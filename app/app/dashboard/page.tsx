@@ -562,7 +562,7 @@ async function DarDashboard({ role }: { role: "DAR_WAREHOUSE" | "ADMIN" }) {
           }
           icon={ClipboardCheck}
           tone={stats.awaitingVerification ? "warning" : "success"}
-          href="/app/verification"
+          href="/app/receive"
         />
         <KpiCard
           delay={2}

@@ -18,7 +18,7 @@ import { formatWeight } from "@/lib/format";
 import { receivingQueue } from "@/lib/queries";
 import { requirePermission } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Receive & verify" };
+export const metadata: Metadata = { title: "Incoming shipments" };
 
 export default async function ReceivePage() {
   await requirePermission("batch.receive");
@@ -40,8 +40,8 @@ export default async function ReceivePage() {
   return (
     <>
       <PageHeader
-        title="Receive & verify"
-        description="Everything inbound — in the air and on the floor — oldest first. Cargo on the floor comes before cargo in the air."
+        title="Incoming shipments"
+        description="Everything inbound — in the air, on the floor, and being checked off. Oldest first; cargo on the floor comes before cargo in the air."
         actions={
           next ? (
             <Button asChild variant="signal" className="rounded-lg">

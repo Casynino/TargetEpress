@@ -194,6 +194,43 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
       },
     },
     {
+      id: "boxes",
+      header: "Boxes present",
+      align: "right",
+      hideBelow: "lg",
+      sortValue: (row) => row.packages - row.packagesPresent,
+      cell: (row) => (
+        // Carried over from the verification list. "Shipments checked off" is
+        // not the same question as "boxes on the floor" — a shipment can be
+        // signed off while one of its five cartons is still missing, and the
+        // counter is where that difference shows up.
+        <span
+          className={
+            row.packagesPresent < row.packages
+              ? "whitespace-nowrap text-sm tabular text-warning"
+              : "whitespace-nowrap text-sm tabular text-muted-foreground"
+          }
+        >
+          {row.packagesPresent}/{row.packages}
+        </span>
+      ),
+    },
+    {
+      id: "checkedBy",
+      header: "Checked by",
+      hideBelow: "xl",
+      sortValue: (row) => row.checkedBy[0] ?? "",
+      cell: (row) =>
+        row.checkedBy.length ? (
+          <span className="truncate text-sm text-muted-foreground">
+            {row.checkedBy.slice(0, 2).join(", ")}
+            {row.checkedBy.length > 2 ? ` +${row.checkedBy.length - 2}` : ""}
+          </span>
+        ) : (
+          <span className="text-sm text-muted-foreground">Nobody yet</span>
+        ),
+    },
+    {
       id: "wait",
       header: "Waiting",
       align: "right",
