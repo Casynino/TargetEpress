@@ -217,83 +217,22 @@ function VerificationRow({
         </p>
       ) : null}
 
-      {/* Every box, individually. Untick one and the shipment is recorded short
-          — which is the whole reason each package carries its own QR.
-
-          Only shown once the operator is flagging a problem. In the normal
-          case the boxes are all here, and putting a grid of numbered buttons
-          on every one of eighty-seven rows asks the floor to confirm something
-          it has already confirmed by not flagging it. */}
-      {!locked && flagging && shipment.packageList.length > 1 ? (
-        <div className="mt-3 border-t pt-3">
-          <p className="text-xs text-muted-foreground">
-            Tick each {unit.one} that is physically here
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {shipment.packageList.map((pkg) => {
-              const on = present.includes(pkg.id);
-              return (
-                <button
-                  key={pkg.id}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() =>
-                    setPresent((current) =>
-                      current.includes(pkg.id)
-                        ? current.filter((id) => id !== pkg.id)
-                        : [...current, pkg.id]
-                    )
-                  }
-                  className={`inline-flex h-10 min-w-10 items-center justify-center rounded-md border px-3 text-sm font-semibold tabular transition-colors ${
-                    on
-                      ? "border-brand bg-brand/10 text-brand"
-                      : "border-dashed text-muted-foreground"
-                  }`}
-                >
-                  {pkg.sequence}
-                </button>
-              );
-            })}
-          </div>
-          {present.length < shipment.packageList.length ? (
-            <p className="mt-2 text-xs text-warning">
-              {shipment.packageList.length - present.length} of{" "}
-              {shipment.packageList.length} not here — checking in will raise a
-              shortage and block release until they arrive.
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-
-      {/* Full-width and 48px tall on a phone: these are pressed with a thumb,
-          one-handed, while the other hand holds the carton. On a desk they
-          shrink back to a normal inline pair. */}
+      {/* The default row is two buttons: it was fine, or it was not.
+          Everything about which boxes are where lives behind "Something is
+          wrong", because in the normal case there is nothing to say. */}
       {locked ? null : (
-        <div className="mt-4 flex flex-col gap-2 border-t pt-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="mt-3 flex flex-col gap-2 border-t pt-3 sm:flex-row sm:flex-wrap sm:items-center">
           <form action={action} className="w-full sm:w-auto">
             <input type="hidden" name="batchId" value={batchId} />
             <input type="hidden" name="shipmentId" value={shipment.id} />
             <input type="hidden" name="result" value="VERIFIED" />
-            <input type="hidden" name="packageSelection" value="explicit" />
-            {shipment.packageList.map((pkg) => (
-              <input
-                key={pkg.id}
-                type="hidden"
-                name="packageIds"
-                value={present.includes(pkg.id) ? pkg.id : ""}
-              />
-            ))}
             <SubmitButton
               variant={done ? "outline" : "brand"}
               pendingLabel="Checking…"
               className="h-12 w-full text-base sm:h-9 sm:w-auto sm:text-sm"
             >
               <Check className="mr-1.5 h-5 w-5 sm:h-4 sm:w-4" />
-              {done
-                ? "Checked"
-                : present.length === shipment.packageList.length
-                  ? "Present & correct"
-                  : `Check in ${present.length} of ${shipment.packageList.length}`}
+              {done ? "Checked" : "Present & correct"}
             </SubmitButton>
           </form>
 
@@ -303,13 +242,95 @@ function VerificationRow({
             className="inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-md border text-base text-destructive hover:bg-destructive/5 sm:h-9 sm:w-auto sm:px-3 sm:text-sm"
           >
             <AlertTriangle className="h-5 w-5 sm:h-4 sm:w-4" />
-            Flag a problem
+            {flagging ? "Never mind" : "Something is wrong"}
           </button>
         </div>
       )}
 
+
       {flagging && !locked ? (
-        <form action={action} className="mt-3 space-y-3 rounded-lg border p-3">
+        <div className="mt-3 space-y-4 rounded-lg border border-destructive/30 bg-destructive/[0.03] p-3">
+          {/* PATH 1 — some boxes short.
+              Only for multi-package shipments: a single-package shipment is
+              either here or it is not, and "1 of 1 missing" is the whole
+              shipment, which is the other path. */}
+          {shipment.packageList.length > 1 ? (
+            <div>
+              <p className="text-xs font-medium">
+                Which {unit.many} are on the floor?
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Untick anything that did not arrive.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {shipment.packageList.map((pkg) => {
+                  const on = present.includes(pkg.id);
+                  return (
+                    <button
+                      key={pkg.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() =>
+                        setPresent((current) =>
+                          current.includes(pkg.id)
+                            ? current.filter((id) => id !== pkg.id)
+                            : [...current, pkg.id]
+                        )
+                      }
+                      className={`inline-flex h-11 min-w-11 items-center justify-center rounded-md border px-3 text-sm font-semibold tabular transition-colors ${
+                        on
+                          ? "border-brand bg-brand/10 text-brand"
+                          : "border-dashed border-destructive/50 text-destructive line-through"
+                      }`}
+                    >
+                      {pkg.sequence}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <form action={action} className="mt-3">
+                <input type="hidden" name="batchId" value={batchId} />
+                <input type="hidden" name="shipmentId" value={shipment.id} />
+                <input type="hidden" name="result" value="VERIFIED" />
+                <input type="hidden" name="packageSelection" value="explicit" />
+                {shipment.packageList.map((pkg) => (
+                  <input
+                    key={pkg.id}
+                    type="hidden"
+                    name="packageIds"
+                    value={present.includes(pkg.id) ? pkg.id : ""}
+                  />
+                ))}
+                <SubmitButton
+                  variant="brand"
+                  pendingLabel="Recording…"
+                  className="h-11 w-full text-sm sm:w-auto"
+                  disabled={present.length === shipment.packageList.length}
+                >
+                  <Check className="mr-1.5 h-4 w-4" />
+                  Check in {present.length} of {shipment.packageList.length}
+                </SubmitButton>
+                {present.length < shipment.packageList.length ? (
+                  <p className="mt-2 text-xs text-warning">
+                    {shipment.packageList.length - present.length} missing —
+                    this raises a shortage and blocks release until they arrive.
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Untick a {unit.one} above to record it short.
+                  </p>
+                )}
+              </form>
+
+              <div className="mt-4 border-t pt-3 text-xs font-medium">
+                Or the cargo is damaged / wrong
+              </div>
+            </div>
+          ) : null}
+
+          {/* PATH 2 — damaged, wrong, or the whole shipment absent. */}
+          <form action={action} className="space-y-3">
           <input type="hidden" name="batchId" value={batchId} />
           <input type="hidden" name="shipmentId" value={shipment.id} />
           <input type="hidden" name="result" value="EXCEPTION" />
@@ -347,6 +368,7 @@ function VerificationRow({
             Record exception
           </SubmitButton>
         </form>
+        </div>
       ) : null}
 
       <div className="mt-2">
