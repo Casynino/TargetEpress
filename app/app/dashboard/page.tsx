@@ -161,12 +161,17 @@ export default async function DashboardPage() {
           warehouseName={inChina ? "China Warehouse" : "Dar es Salaam Warehouse"}
           emphasis={inChina ? "CN" : "TZ"}
           chips={inChina ? await chinaHeroChips() : await darHeroChips()}
-          // Where this desk's day starts. Dar cannot create cargo, so sending
-          // them to the registration form was a link straight to no-access.
+          // Where this desk's day starts.
+          //
+          // China registers cargo, so their day begins at the registration
+          // form. Dar's begins at the scanner: checking a batch in, finding a
+          // box, handing it over — every one of those starts by reading a
+          // label China already printed. "Receive cargo" was borrowed from the
+          // China desk and named the wrong action for Dar.
           action={
             can(user.role, "shipment.create")
               ? { href: "/app/cargo/new", label: "Receive cargo" }
-              : { href: "/app/receive", label: "Receive cargo" }
+              : { href: "/app/scan", label: "Scan a label" }
           }
           hourOfDay={localHour(inChina ? "CN" : "TZ")}
         />
