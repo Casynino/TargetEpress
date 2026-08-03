@@ -399,16 +399,15 @@ function VerificationRow({
       {/* Everything that is not a column: the China photos, the package list,
           the flag form, and any error. One spanning row so the table keeps its
           alignment. */}
-      {open || flagging || shipment.verification?.note || !state.ok ? (
+      {/* The note is deliberately not rendered here. A row that unfolds to
+          show somebody's typed sentence breaks the scan down the column of
+          tracking numbers, which is the one thing this table is for. The badge
+          and the Case link carry the fact; the words live in the investigation
+          queue and on the cargo page. */}
+      {open || flagging || !state.ok ? (
         <tr className="border-t-0">
           <td colSpan={11} className="bg-muted/20 px-3 pb-3 pt-0">
             {open ? <CargoDetail id={detailId} shipment={shipment} /> : null}
-
-            {shipment.verification?.note ? (
-              <p className="mt-2 rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
-                {shipment.verification.note}
-              </p>
-            ) : null}
 
             {flagging && !locked ? (
               <div className="mt-2 space-y-4 rounded-lg border border-destructive/30 bg-destructive/[0.03] p-3">
