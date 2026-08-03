@@ -14,12 +14,12 @@ import {
 import { EmptyState } from "@/components/app/empty-state";
 import {
   EXCEPTION_GROUPS,
-  ExceptionCard,
   type ExceptionCardData,
   type ExceptionGroupKey,
   daysOpen,
   groupOf,
 } from "@/components/app/exception-card";
+import { ExceptionTable } from "@/components/app/exception-table";
 import { PageHeader } from "@/components/app/page-header";
 import { StatStrip } from "@/components/app/stat-strip";
 import { normaliseCode } from "@/lib/format";
@@ -308,15 +308,7 @@ export default async function ExceptionsPage({
             }
           />
         ) : (
-          <ul className="space-y-3">
-            {visibleOpen.map((exception) => (
-              <ExceptionCard
-                key={exception.id}
-                exception={exception}
-                canResolve={canResolve}
-              />
-            ))}
-          </ul>
+          <ExceptionTable exceptions={visibleOpen} canResolve={canResolve} />
         )}
       </section>
 
@@ -325,15 +317,14 @@ export default async function ExceptionsPage({
           <h2 className="text-sm font-semibold">
             Closed ({visibleResolved.length})
           </h2>
-          <ul className="space-y-3">
-            {visibleResolved.map((exception) => (
-              <ExceptionCard
-                key={exception.id}
-                exception={exception}
-                canResolve={false}
-              />
-            ))}
-          </ul>
+          {/* Closed cases stay on the page but read back: they are a record,
+              not a queue. Same table so the eye does not have to re-learn the
+              columns halfway down. */}
+          <ExceptionTable
+            exceptions={visibleResolved}
+            canResolve={false}
+            closed
+          />
         </section>
       ) : null}
     </>

@@ -102,7 +102,7 @@ export function groupOf(type: ExceptionType): ExceptionGroupKey {
   return "other";
 }
 
-const TYPE_META = {
+export const TYPE_META = {
   MISSING_SHIPMENT: { icon: PackageX, stripe: "border-l-destructive" },
   PACKAGE_COUNT_MISMATCH: { icon: PackageMinus, stripe: "border-l-destructive" },
   DAMAGED_CARGO: { icon: PackageOpen, stripe: "border-l-warning" },
