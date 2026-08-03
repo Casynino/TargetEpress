@@ -9,7 +9,9 @@ import {
   MapPin,
   MessageCircle,
   Plane,
+  Scale,
   SearchX,
+  ShieldAlert,
   Wallet,
 } from "lucide-react";
 
@@ -24,6 +26,8 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import {
   trackByCode,
   type PublicCharge,
+  type PublicInvestigation,
+  type PublicTone,
   type TrackingResult,
 } from "@/lib/tracking";
 
@@ -122,6 +126,72 @@ function EmptyState() {
   );
 }
 
+const TONE_CLASS: Record<PublicTone, string> = {
+  muted: "bg-muted text-muted-foreground",
+  info: "bg-info/10 text-info",
+  warning: "bg-warning/10 text-warning",
+  success: "bg-success/10 text-success",
+  brand: "bg-brand/10 text-brand",
+  destructive: "bg-destructive/10 text-destructive",
+};
+
+/**
+ * An open investigation, said plainly and once.
+ *
+ * Everything in here comes from `lib/tracking-investigation.ts`, which writes
+ * the words itself: no staff note, no case description, no severity, no
+ * settlement amount and no name ever reaches this component. What the customer
+ * gets is the state, the date it started, and a way to reach a human.
+ */
+function InvestigationPanel({
+  investigation,
+  trackingNumber,
+}: {
+  investigation: PublicInvestigation;
+  trackingNumber: string;
+}) {
+  const compensation = investigation.state === "COMPENSATION_IN_PROGRESS";
+  const Icon = compensation ? Scale : ShieldAlert;
+
+  return (
+    <div
+      className={`border-b p-6 ${
+        compensation ? "bg-info/5" : "bg-warning/5"
+      }`}
+    >
+      <div className="flex gap-3">
+        <Icon
+          className={`mt-0.5 h-5 w-5 shrink-0 ${
+            compensation ? "text-info" : "text-warning"
+          }`}
+        />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">{investigation.label}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {investigation.note}
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            {investigation.since ? (
+              <span>Opened {formatDate(investigation.since)}</span>
+            ) : null}
+            <a
+              href={`https://wa.me/${COMPANY.whatsapp}?text=${encodeURIComponent(
+                `Hello Target Express, I am asking about shipment ${trackingNumber}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-brand"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              Talk to us about it
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TrackingResultView({ result }: { result: TrackingResult }) {
   if (result.kind === "not-found") {
     return (
@@ -193,16 +263,11 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
     );
   }
 
-  const toneClass =
-    result.status === "DELIVERED"
-      ? "bg-success/10 text-success"
-      : result.status === "READY_FOR_PICKUP"
-        ? "bg-brand/10 text-brand"
-        : result.status === "CANCELLED"
-          ? "bg-destructive/10 text-destructive"
-          : result.status === "IN_TRANSIT"
-            ? "bg-info/10 text-info"
-            : "bg-warning/10 text-warning";
+  // The tone is decided on the server alongside the words it colours. Deriving
+  // it here from `status` is how a badge ends up brand-coloured and reading
+  // "Under investigation" — the shipment status and the label stopped agreeing
+  // the moment an investigation was opened.
+  const toneClass = TONE_CLASS[result.statusTone];
 
   return (
     <div className="rounded-xl border bg-card shadow-soft">
@@ -222,6 +287,15 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
           {result.statusLabel}
         </span>
       </div>
+
+      {/* Above the details, not below them. Someone whose cargo is on hold
+          should not have to scroll past its weight to find that out. */}
+      {result.investigation ? (
+        <InvestigationPanel
+          investigation={result.investigation}
+          trackingNumber={result.trackingNumber}
+        />
+      ) : null}
 
       <dl className="grid gap-px bg-border sm:grid-cols-3 lg:grid-cols-4">
         {[
@@ -361,6 +435,7 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
         charge={result.charge}
         collectable={result.collectable}
         note={result.collectionNote}
+        held={result.investigation?.blocksCollection ?? false}
       />
 
       <div className="p-6">
@@ -405,18 +480,24 @@ function ChargePanel({
   charge,
   collectable,
   note,
+  held,
 }: {
   charge: PublicCharge | null;
   collectable: boolean;
   note: string;
+  /** An investigation is holding the cargo — do not promise the next step. */
+  held: boolean;
 }) {
   if (!charge) {
     return (
       <div className="border-t bg-muted/30 p-5 text-sm text-muted-foreground">
         <p>{note}</p>
-        <p className="mt-1 text-xs">
-          Your invoice is raised once the cargo is checked in at Dar es Salaam.
-        </p>
+        {held ? null : (
+          <p className="mt-1 text-xs">
+            Your invoice is raised once the cargo is checked in at Dar es
+            Salaam.
+          </p>
+        )}
       </div>
     );
   }

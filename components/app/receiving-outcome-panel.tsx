@@ -1,0 +1,290 @@
+"use client";
+
+import { useState } from "react";
+import {
+  AlertTriangle,
+  Check,
+  CircleHelp,
+  Hash,
+  PackageX,
+  Shuffle,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+import { SubmitButton } from "@/components/app/form-feedback";
+import { PhotoCapture } from "@/components/app/photo-capture";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  DAMAGE_SEVERITY_LABELS,
+  PACKAGE_TYPE_LABELS,
+  enumOptions,
+} from "@/lib/constants";
+import {
+  RECEIVING_OUTCOMES,
+  RECEIVING_OUTCOME_HINTS,
+  RECEIVING_OUTCOME_LABELS,
+  outcomeNeedsNote,
+  outcomeNeedsPackageTicker,
+  type ReceivingOutcome,
+} from "@/lib/receiving-outcomes";
+
+const OUTCOME_ICONS: Record<ReceivingOutcome, LucideIcon> = {
+  RECEIVED: Check,
+  MISSING: PackageX,
+  DAMAGED: AlertTriangle,
+  WRONG_ITEM: Shuffle,
+  WRONG_QUANTITY: Hash,
+  HOLD: CircleHelp,
+};
+
+const NOTE_PLACEHOLDERS: Record<ReceivingOutcome, string> = {
+  RECEIVED: "",
+  MISSING: "e.g. nothing with this label came off the flight; not on any pallet",
+  DAMAGED: "e.g. one carton crushed down one side, contents wet",
+  WRONG_ITEM: "e.g. label says phone cases, the box holds shoes",
+  WRONG_QUANTITY: "e.g. manifest says five cartons, three on the floor",
+  HOLD: "e.g. label unreadable and no paperwork — held until checked",
+};
+
+type PackageRow = { id: string; sequence: number };
+
+/**
+ * The six answers, on one carton.
+ *
+ * This replaced a dropdown of internal enum names sitting next to a free-text
+ * box. The dropdown asked a clerk holding a torn box to pick which schema value
+ * best described it, and offered "Weight mismatch" and "Wrong batch" — problems
+ * an arrival clerk is not in a position to see — alongside the ones they are.
+ *
+ * So the choices are the six things that actually happen at a door, each one
+ * says what it means in a sentence, and the fields that follow are only the
+ * fields that outcome needs. Damage asks for photographs because the moment the
+ * carton leaves the floor the picture cannot be taken any more. A short count
+ * asks which boxes, because "some are missing" is not a thing anybody can
+ * search a warehouse with.
+ *
+ * Everything posts to the same server action as the ✓ in the row above it —
+ * this panel is the long way round to the same decision, not a second system.
+ */
+export function ReceivingOutcomePanel({
+  batchId,
+  shipmentId,
+  trackingNumber,
+  packageType,
+  packageList,
+  photosDurable,
+  action,
+}: {
+  batchId: string;
+  shipmentId: string;
+  trackingNumber: string;
+  packageType: string;
+  packageList: PackageRow[];
+  photosDurable: boolean;
+  /** The row's own action, so one error surface serves the whole row. */
+  action: (formData: FormData) => void;
+}) {
+  const [outcome, setOutcome] = useState<ReceivingOutcome | null>(null);
+  // Everything is assumed present — the common case is a complete shipment, and
+  // the clerk only has to act on what is not.
+  const [present, setPresent] = useState<string[]>(
+    packageList.map((pkg) => pkg.id)
+  );
+
+  const unit = PACKAGE_TYPE_LABELS[packageType] ?? PACKAGE_TYPE_LABELS.PACKAGE;
+  const ticker = outcome ? outcomeNeedsPackageTicker(outcome) : false;
+  const manyBoxes = packageList.length > 1;
+  const missingCount = packageList.length - present.length;
+
+  // A short count on a multi-box shipment that is not actually short is not a
+  // short count. Naming which boxes is the entire content of the report.
+  const blocked = ticker && manyBoxes && missingCount === 0;
+
+  return (
+    <div className="mt-2 space-y-4 rounded-lg border border-destructive/30 bg-destructive/[0.03] p-3">
+      <div>
+        <p className="text-xs font-medium">What happened to this cargo?</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Only <span className="font-medium">Received</span> reaches the pickup
+          counter. Everything else opens a case and holds the cargo.
+        </p>
+      </div>
+
+      <div
+        role="radiogroup"
+        aria-label={`Check-in outcome for ${trackingNumber}`}
+        className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+      >
+        {RECEIVING_OUTCOMES.map((value) => {
+          const Icon = OUTCOME_ICONS[value];
+          const on = outcome === value;
+          const clean = value === "RECEIVED";
+          return (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => setOutcome(on ? null : value)}
+              className={`focus-ring flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm font-medium transition-colors ${
+                on
+                  ? clean
+                    ? "border-success bg-success/10 text-success"
+                    : "border-destructive bg-destructive/10 text-destructive"
+                  : "bg-card hover:bg-muted"
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="min-w-0">{RECEIVING_OUTCOME_LABELS[value]}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {outcome ? (
+        <form action={action} className="space-y-3 border-t pt-3">
+          <input type="hidden" name="batchId" value={batchId} />
+          <input type="hidden" name="shipmentId" value={shipmentId} />
+          <input type="hidden" name="outcome" value={outcome} />
+
+          <p className="text-xs text-muted-foreground">
+            {RECEIVING_OUTCOME_HINTS[outcome]}
+          </p>
+
+          {/* Which boxes are on the floor. The short-shipment case is the only
+              one that asks, and it always states its answer to the server —
+              including on a single-box shipment, where the answer is "the one
+              box is here and its contents are short". */}
+          {ticker ? (
+            <div>
+              <input type="hidden" name="packageSelection" value="explicit" />
+              {packageList.map((pkg) => (
+                <input
+                  key={pkg.id}
+                  type="hidden"
+                  name="packageIds"
+                  value={present.includes(pkg.id) ? pkg.id : ""}
+                />
+              ))}
+
+              {manyBoxes ? (
+                <>
+                  <p className="text-xs font-medium">
+                    Which {unit.many} are on the floor?
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Untick anything that did not arrive.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {packageList.map((pkg) => {
+                      const on = present.includes(pkg.id);
+                      return (
+                        <button
+                          key={pkg.id}
+                          type="button"
+                          aria-pressed={on}
+                          aria-label={`${unit.one} ${pkg.sequence} — ${on ? "on the floor" : "did not arrive"}`}
+                          onClick={() =>
+                            setPresent((current) =>
+                              current.includes(pkg.id)
+                                ? current.filter((id) => id !== pkg.id)
+                                : [...current, pkg.id]
+                            )
+                          }
+                          className={`inline-flex h-11 min-w-11 items-center justify-center rounded-md border px-3 text-sm font-semibold tabular transition-colors ${
+                            on
+                              ? "border-brand bg-brand/10 text-brand"
+                              : "border-dashed border-destructive/50 text-destructive line-through"
+                          }`}
+                        >
+                          {pkg.sequence}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p
+                    className={`mt-2 text-xs ${missingCount > 0 ? "text-warning" : "text-muted-foreground"}`}
+                  >
+                    {missingCount > 0
+                      ? `${missingCount} of ${packageList.length} short. The ${packageList.length - missingCount} that arrived are checked into the warehouse; release stays shut until the rest turn up.`
+                      : `Untick a ${unit.one} above to record it short.`}
+                  </p>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* How bad, in the four words Finance and the customer both use. */}
+          {outcome === "DAMAGED" ? (
+            <div className="space-y-1.5">
+              <Label htmlFor={`severity-${shipmentId}`} className="text-xs">
+                How bad is it?
+              </Label>
+              <NativeSelect
+                id={`severity-${shipmentId}`}
+                name="severity"
+                defaultValue="MODERATE"
+              >
+                {enumOptions(DAMAGE_SEVERITY_LABELS).map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          ) : null}
+
+          {outcomeNeedsNote(outcome) ? (
+            <div className="space-y-1.5">
+              <Label htmlFor={`note-${shipmentId}`} className="text-xs">
+                What did you see?
+              </Label>
+              <Textarea
+                id={`note-${shipmentId}`}
+                name="note"
+                rows={2}
+                required
+                placeholder={NOTE_PLACEHOLDERS[outcome]}
+              />
+            </div>
+          ) : null}
+
+          {/* Evidence. Required on damage — this is the only moment the picture
+              is takeable, and a damage claim with nothing behind it is worth
+              nothing to the customer or to Finance. */}
+          {outcome === "DAMAGED" ? (
+            <PhotoCapture
+              name="photos"
+              required
+              max={4}
+              label="Photograph the damage"
+              hint="The damage itself, and the label, so the case can be matched to the carton later."
+              durable={photosDurable}
+            />
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-3">
+            <SubmitButton
+              variant={outcome === "RECEIVED" ? "brand" : "destructive"}
+              disabled={blocked}
+              pendingLabel="Recording…"
+              className="h-11 text-sm"
+            >
+              {outcome === "RECEIVED"
+                ? "Check in — present & correct"
+                : `Open a case — ${RECEIVING_OUTCOME_LABELS[outcome].toLowerCase()}`}
+            </SubmitButton>
+            {outcome !== "RECEIVED" ? (
+              <p className="text-xs text-muted-foreground">
+                Tracking will read <span className="font-medium">Under
+                investigation</span>, not Ready for pickup.
+              </p>
+            ) : null}
+          </div>
+        </form>
+      ) : null}
+    </div>
+  );
+}

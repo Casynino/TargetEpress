@@ -9,7 +9,10 @@ import {
 } from "@/components/app/inventory-table";
 import { KpiCard } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
-import { STORAGE_POLICY } from "@/lib/constants";
+import {
+  EXCEPTION_OPEN_STATUSES,
+  STORAGE_POLICY,
+} from "@/lib/constants";
 import { formatDate, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -66,7 +69,7 @@ export default async function InventoryPage() {
       // Manifest packages still unticked. Usually empty, and when it is not,
       // the shipment is short and must not go out.
       packageList: { where: { receivedAt: null }, select: { id: true } },
-      exceptions: { where: { status: "OPEN" }, select: { id: true } },
+      exceptions: { where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } }, select: { id: true } },
     },
   });
 

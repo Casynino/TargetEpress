@@ -9,7 +9,9 @@ import {
   PackageMinus,
   PackageOpen,
   PackageX,
+  PauseCircle,
   Plane,
+  Replace,
   Scale,
   Shuffle,
   User,
@@ -19,7 +21,11 @@ import {
 import { ResolveExceptionForm } from "@/components/app/resolve-exception-form";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
-import { EXCEPTION_TYPE_LABELS, PACKAGE_TYPE_LABELS } from "@/lib/constants";
+import {
+  EXCEPTION_OPEN_STATUSES,
+  EXCEPTION_TYPE_LABELS,
+  PACKAGE_TYPE_LABELS,
+} from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/lib/format";
 
 /**
@@ -73,34 +79,58 @@ export type ExceptionCardData = {
   } | null;
 };
 
-/** Which flag is it — used for the pills, the icon and the stripe colour. */
-export const EXCEPTION_GROUPS = {
-  missing: {
-    label: "Missing",
-    types: ["MISSING_SHIPMENT", "PACKAGE_COUNT_MISMATCH"] as ExceptionType[],
-  },
-  damaged: {
-    label: "Damaged",
-    types: ["DAMAGED_CARGO"] as ExceptionType[],
-  },
-  mismatch: {
-    label: "Wrong batch or weight",
-    types: ["WEIGHT_MISMATCH", "WRONG_BATCH"] as ExceptionType[],
-  },
-  other: {
-    label: "Other",
-    types: ["OTHER"] as ExceptionType[],
-  },
-} as const;
+export type ExceptionGroupKey =
+  | "missing"
+  | "damaged"
+  | "mismatch"
+  | "hold"
+  | "other";
 
-export type ExceptionGroupKey = keyof typeof EXCEPTION_GROUPS;
+/**
+ * Which pill a flag belongs under.
+ *
+ * Exhaustive by construction — `satisfies Record<ExceptionType, …>` means a new
+ * exception type is a compile error here rather than a case that silently falls
+ * into "Other" and is never chased. That is exactly how WRONG_ITEM and
+ * HOLD_FOR_INVESTIGATION would have arrived if this were still a chain of ifs.
+ */
+const TYPE_GROUP = {
+  MISSING_SHIPMENT: "missing",
+  PACKAGE_COUNT_MISMATCH: "missing",
+  DAMAGED_CARGO: "damaged",
+  WEIGHT_MISMATCH: "mismatch",
+  WRONG_BATCH: "mismatch",
+  // The box is here and intact; what is inside it is not what was booked. That
+  // is a mismatch between the paperwork and the goods, not a shortage.
+  WRONG_ITEM: "mismatch",
+  // A quarantine, not a fault — nothing is provably wrong, the box is simply
+  // not to be released until somebody has looked at it. It gets its own pill
+  // because "why is this not going out" has a different answer here.
+  HOLD_FOR_INVESTIGATION: "hold",
+  OTHER: "other",
+} as const satisfies Record<ExceptionType, ExceptionGroupKey>;
 
 export function groupOf(type: ExceptionType): ExceptionGroupKey {
-  if (EXCEPTION_GROUPS.missing.types.includes(type)) return "missing";
-  if (EXCEPTION_GROUPS.damaged.types.includes(type)) return "damaged";
-  if (EXCEPTION_GROUPS.mismatch.types.includes(type)) return "mismatch";
-  return "other";
+  return TYPE_GROUP[type];
 }
+
+function typesIn(group: ExceptionGroupKey): ExceptionType[] {
+  return (Object.keys(TYPE_GROUP) as ExceptionType[]).filter(
+    (type) => TYPE_GROUP[type] === group
+  );
+}
+
+/** Which flag is it — used for the pills, the icon and the stripe colour. */
+export const EXCEPTION_GROUPS: Record<
+  ExceptionGroupKey,
+  { label: string; types: ExceptionType[] }
+> = {
+  missing: { label: "Missing", types: typesIn("missing") },
+  damaged: { label: "Damaged", types: typesIn("damaged") },
+  mismatch: { label: "Wrong item, batch or weight", types: typesIn("mismatch") },
+  hold: { label: "On hold", types: typesIn("hold") },
+  other: { label: "Other", types: typesIn("other") },
+};
 
 export const TYPE_META = {
   MISSING_SHIPMENT: { icon: PackageX, stripe: "border-l-destructive" },
@@ -108,6 +138,8 @@ export const TYPE_META = {
   DAMAGED_CARGO: { icon: PackageOpen, stripe: "border-l-warning" },
   WEIGHT_MISMATCH: { icon: Scale, stripe: "border-l-info" },
   WRONG_BATCH: { icon: Shuffle, stripe: "border-l-info" },
+  WRONG_ITEM: { icon: Replace, stripe: "border-l-warning" },
+  HOLD_FOR_INVESTIGATION: { icon: PauseCircle, stripe: "border-l-warning" },
   OTHER: { icon: CircleHelp, stripe: "border-l-muted-foreground/40" },
 } as const satisfies Record<
   ExceptionType,
@@ -126,7 +158,12 @@ export function ExceptionCard({
   exception: ExceptionCardData;
   canResolve: boolean;
 }) {
-  const open = exception.status === "OPEN";
+  // "Open" is no longer one status. A case being worked, waiting on a customer
+  // or approved for a payout is still unfinished, and reading `=== "OPEN"` here
+  // would draw a case under active investigation as though it were closed.
+  const open = (EXCEPTION_OPEN_STATUSES as readonly ExceptionStatus[]).includes(
+    exception.status
+  );
   const meta = TYPE_META[exception.type];
   const Icon = meta.icon;
   const age = daysOpen(exception.raisedAt, exception.resolvedAt);

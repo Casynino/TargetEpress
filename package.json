@@ -22,7 +22,9 @@
     "verify:pricing": "tsx --conditions=react-server prisma/verify-pricing.ts",
     "import:packing-list": "tsx prisma/import-packing-list.ts",
     "verify:batching": "tsx --conditions=react-server prisma/verify-batching.ts",
-    "verify:packages": "tsx --conditions=react-server prisma/verify-packages.ts"
+    "verify:packages": "tsx --conditions=react-server prisma/verify-packages.ts",
+    "verify:tracking": "tsx --conditions=react-server prisma/verify-tracking-hold.ts",
+    "verify:investigations": "tsx --conditions=react-server prisma/verify-investigations.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

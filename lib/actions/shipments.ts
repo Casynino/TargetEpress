@@ -454,7 +454,11 @@ export async function resolveException(
 ): Promise<ActionResult> {
   let user: SessionUser;
   try {
-    user = await authorize("exception.resolve");
+    // exception.close, not exception.resolve: this writes a TERMINAL status,
+    // and a terminal status lifts the pickup lock (lib/pickup-lock.ts). The Dar
+    // floor holds exception.resolve, so gating on it let the desk that reported
+    // cargo missing close its own case and release the cargo it could not find.
+    user = await authorize("exception.close");
   } catch (error) {
     return fail(toActionError(error));
   }

@@ -12,6 +12,15 @@ import { normaliseCode, toNumber } from "@/lib/format";
 import { toLocal } from "@/lib/fx";
 import { quote } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import {
+  PUBLIC_TRACKING_CASE_SELECT,
+  PUBLIC_TRACKING_CASE_WHERE,
+  derivePublicInvestigation,
+  type PublicInvestigation,
+  type PublicTone,
+} from "@/lib/tracking-investigation";
+
+export type { PublicInvestigation, PublicTone } from "@/lib/tracking-investigation";
 
 /**
  * Public tracking.
@@ -78,7 +87,14 @@ export type PublicShipment = {
   /** Only when there is no invoice yet — otherwise the real charge is shown. */
   estimate: PublicEstimate | null;
   status: ShipmentStatus;
+  /**
+   * What the customer is told, which is NOT always the shipment's own status.
+   * An open investigation speaks over it — see `investigation`.
+   */
   statusLabel: string;
+  /** Badge tone for `statusLabel`, decided here so the page cannot re-derive it
+   *  from `status` and contradict the label sitting next to it. */
+  statusTone: PublicTone;
   location: string;
   batchNumber: string | null;
   packages: number;
@@ -102,10 +118,18 @@ export type PublicShipment = {
   lastUpdate: string | null;
   timeline: PublicTimelineEntry[];
   charge: PublicCharge | null;
-  /** Cargo has landed, is paid for, and is waiting to be collected. */
+  /**
+   * Cargo has landed, is paid for, is waiting to be collected — and no open
+   * investigation is holding it. All four, or this is false.
+   */
   collectable: boolean;
   /** Why not, when it is not — in a customer's terms. */
   collectionNote: string;
+  /**
+   * The state, and that someone is on it. Null when there is nothing open.
+   * Derived from the case on every request, never stored on the shipment.
+   */
+  investigation: PublicInvestigation | null;
 };
 
 export type PublicBatch = {
@@ -209,6 +233,13 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
         select: { sequence: true, receivedAt: true, deliveredAt: true },
         orderBy: { sequence: "asc" },
       },
+      // Open investigations, read through an allow-list that carries no staff
+      // words at all — type, status, when it started, and whether a settlement
+      // has been paid. See lib/tracking-investigation.ts.
+      exceptions: {
+        where: PUBLIC_TRACKING_CASE_WHERE,
+        select: PUBLIC_TRACKING_CASE_SELECT,
+      },
     },
   });
 
@@ -270,43 +301,74 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
       };
     }
 
+    // The one thing that overrides the shipment's own status. A shipment can
+    // sit at READY_FOR_PICKUP with a carton nobody can find — the record was
+    // true when Finance issued the note and stopped being true at the counter.
+    const investigation = derivePublicInvestigation(shipment.exceptions);
+    const held = investigation?.blocksCollection ?? false;
+
     // Deliberately mirrors the release rule the Dar warehouse enforces, so the
     // page never tells a customer to come and collect cargo that will be
     // refused at the counter.
     const landed =
       shipment.status === "RECEIVED_AT_DAR" ||
       shipment.status === "READY_FOR_PICKUP";
-    const collectable = shipment.status === "READY_FOR_PICKUP";
+    const collectable = shipment.status === "READY_FOR_PICKUP" && !held;
 
-    let collectionNote: string;
+    let baseNote: string;
     if (shipment.status === "DELIVERED") {
-      collectionNote = "Collected. Thank you for shipping with us.";
+      baseNote = "Collected. Thank you for shipping with us.";
     } else if (shipment.status === "CANCELLED") {
-      collectionNote = "This shipment was cancelled. Talk to us on WhatsApp.";
+      baseNote = "This shipment was cancelled. Talk to us on WhatsApp.";
     } else if (collectable) {
-      collectionNote =
+      baseNote =
         "Paid and ready. Bring your pickup note or this tracking number to our Kariakoo office.";
     } else if (landed && charge && charge.outstanding > 0) {
-      collectionNote =
+      baseNote =
         "Your cargo has landed in Dar es Salaam. Settle the balance and we will release it the same day.";
     } else if (landed) {
-      collectionNote =
+      baseNote =
         "Your cargo has landed and is being checked in. We will message you the moment it is ready.";
     } else if (shipment.status === "IN_TRANSIT") {
-      collectionNote =
+      baseNote =
         "In the air. We will message you the moment it lands in Dar es Salaam.";
     } else {
-      collectionNote =
+      baseNote =
         `Received at our ${ORIGIN_PUBLIC[shipment.origin] ?? shipment.origin} warehouse and ` +
         "waiting for the next flight. Nothing to collect yet.";
     }
+
+    // A hold replaces the note outright — "settle the balance and we will
+    // release it the same day" is a promise nobody can keep on cargo that is
+    // being looked for. A claim that is not holding anything (the goods were
+    // released, the money was not) is added to it instead.
+    const collectionNote = investigation
+      ? held
+        ? investigation.note
+        : `${baseNote} ${investigation.note}`
+      : baseNote;
+
+    // The timeline must not run past what is true either. A held shipment is
+    // shown as far as "Arrived in Tanzania" — its pickup stamp is real but it
+    // no longer describes anything the customer can act on.
+    const timelineStatus: ShipmentStatus =
+      held && shipment.status === "READY_FOR_PICKUP"
+        ? "RECEIVED_AT_DAR"
+        : shipment.status;
 
     return {
       kind: "shipment",
       trackingNumber: shipment.trackingNumber,
       status: shipment.status,
-      statusLabel: meta.publicLabel,
-      location: meta.publicLocation,
+      statusLabel: investigation ? investigation.label : meta.publicLabel,
+      statusTone: investigation
+        ? investigation.state === "COMPENSATION_IN_PROGRESS"
+          ? "info"
+          : "warning"
+        : meta.tone,
+      // Only a hold moves the cargo somewhere else. A settlement being paid on
+      // goods the customer already has does not.
+      location: held ? investigation!.location : meta.publicLocation,
       batchNumber: shipment.batch?.batchNumber ?? null,
       packages: shipment.packages,
       packagesLabel: formatPackages(shipment.packages, shipment.packageType),
@@ -342,10 +404,18 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
       weightKg: shipment.weightKg === null ? null : toNumber(shipment.weightKg),
       origin: ORIGIN_PUBLIC[shipment.origin] ?? shipment.origin,
       lastUpdate: shipment.updatedAt.toISOString(),
-      timeline: buildTimeline(shipment),
+      timeline: buildTimeline({
+        ...shipment,
+        status: timelineStatus,
+        // Dropped with the step it belongs to: a "ready for pickup" date under
+        // a step the customer has not reached yet reads as a contradiction.
+        readyForPickup:
+          timelineStatus === shipment.status ? shipment.readyForPickup : null,
+      }),
       charge,
       collectable,
       collectionNote,
+      investigation,
     };
   }
 

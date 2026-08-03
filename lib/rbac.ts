@@ -28,9 +28,20 @@ export type Permission =
   | "batch.manage" // add/remove shipments, seal, record flight
   | "batch.receive" // mark arrived in Dar
   | "batch.verify" // tick shipments off the manifest
-  // Exceptions
+  // Exceptions / investigations
   | "exception.raise"
   | "exception.resolve"
+  /// Work a case: move it along the lifecycle, add notes and evidence, assign
+  /// it, mark cargo found. Everything that is not money and not final.
+  | "exception.investigate"
+  /// Record what was actually paid out, and attach the payment evidence.
+  /// Finance's hand on the till — never the warehouse's.
+  | "exception.compensate"
+  /// Say yes to a payout or a replacement. The decision, not the payment:
+  /// separated so that nobody both approves an amount and pays it.
+  | "exception.approve"
+  /// Finish a case for good.
+  | "exception.close"
   // Finance
   | "finance.view"
   | "invoice.manage"
@@ -110,6 +121,12 @@ const DAR: Permission[] = [
   "batch.verify",
   "exception.raise",
   "exception.resolve",
+  // Dar works the investigation: reports missing, uploads damage evidence,
+  // writes notes, marks cargo found. The owner's CANNOT list is what is absent
+  // here — no exception.compensate, no exception.approve, no exception.close.
+  // The floor that lost the box does not get to decide what it was worth, and
+  // does not get to declare the matter finished.
+  "exception.investigate",
   "shipment.release",
   "inventory.view",
   "delivery.history",
@@ -147,6 +164,10 @@ const CUSTOMER_CARE: Permission[] = [
   "customer.view",
   "customer.manage",
   "exception.raise",
+  // The desk that phones the customer while their cargo is being looked for.
+  // It monitors cases and writes the communication notes; it never touches the
+  // payout — no exception.compensate, no exception.approve, no exception.close.
+  "exception.investigate",
 ];
 
 const FINANCE: Permission[] = [
@@ -171,6 +192,10 @@ const FINANCE: Permission[] = [
   "customer.view",
   "customer.manage",
   "exception.raise",
+  // Records the payout and attaches the evidence for it. Notably absent:
+  // exception.approve — Finance pays what the CEO approved, so the amount is
+  // never decided and disbursed by the same desk.
+  "exception.compensate",
   "report.view",
 ];
 
@@ -184,6 +209,16 @@ const ALL: Permission[] = Array.from(
     "shipment.cancel",
     // Erasing a record for good. Nobody else has it, at any rank.
     "shipment.purge",
+    // Approving a payout or a replacement, and declaring a case finished.
+    // Held by nobody else — including the Dar floor, which the owner's CANNOT
+    // list bars from closing compensation cases. Rather than try to tell a
+    // money case from a cargo case at the permission layer, no case is closed
+    // by the warehouse at all; Dar drives one to CARGO_FOUND or hands it over,
+    // and the CEO signs it off. If the owner later wants Dar to close its own
+    // no-money cases, that is one line: add "exception.close" to DAR and gate
+    // the close action on the case having no Compensation row.
+    "exception.approve",
+    "exception.close",
     "user.manage",
     "pricing.manage",
     "audit.view",
@@ -221,6 +256,10 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/batches/new", permission: "batch.create" },
   { prefix: "/app/receive", permission: "batch.receive" },
   { prefix: "/app/release", permission: "shipment.release" },
+  // The investigation queue and every case detail page under it. Read access
+  // is exception.raise, which Dar, Support, Finance and the CEO all hold — the
+  // four desks the owner named. What each may *do* on a case is gated action by
+  // action on investigate / compensate / approve / close.
   { prefix: "/app/exceptions", permission: "exception.raise" },
   // The Dar warehouse floor. The arrivals board and the verification bench
   // belong to the desk that receives, so they carry the receiving permissions
@@ -239,6 +278,9 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/support/sourcing", permission: "sourcing.manage" },
   { prefix: "/app/support", permission: "ticket.manage" },
   { prefix: "/app/finance/exchange-rate", permission: "fx.manage" },
+  // Payouts on investigations. Guarded ahead of /app/finance because
+  // finance.view is also held by Customer Care, which must not reach the till.
+  { prefix: "/app/finance/compensation", permission: "exception.compensate" },
   { prefix: "/app/finance", permission: "finance.view" },
   { prefix: "/app/admin/deleted", permission: "shipment.cancel" },
   { prefix: "/app/admin/pricing", permission: "pricing.manage" },

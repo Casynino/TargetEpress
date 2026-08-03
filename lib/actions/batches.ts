@@ -3,11 +3,24 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import type { ExceptionType } from "@prisma/client";
+import type { DamageSeverity, ExceptionType } from "@prisma/client";
 
-import { EXCEPTION_TYPE_LABELS, PACKAGE_TYPE_LABELS } from "@/lib/constants";
+import {
+  DAMAGE_SEVERITY_LABELS,
+  EXCEPTION_OPEN_STATUSES,
+  EXCEPTION_TYPE_LABELS,
+  PACKAGE_TYPE_LABELS,
+} from "@/lib/constants";
 import { recordAudit } from "@/lib/audit";
+import { notifyReceivingOutcome } from "@/lib/exception-audience";
 import { contributorsTo, notify } from "@/lib/notify";
+import {
+  RECEIVING_OUTCOME_EXCEPTION,
+  RECEIVING_OUTCOME_LABELS,
+  isReceivingOutcome,
+  type ReceivingOutcome,
+} from "@/lib/receiving-outcomes";
+import { filesFrom, putImages, type StoredImage } from "@/lib/storage";
 import {
   AIRPORT_LABELS,
   CATEGORY_LABELS,
@@ -574,23 +587,40 @@ const CARGO_PHYSICALLY_HERE: Record<ExceptionType, boolean> = {
   WEIGHT_MISMATCH: true,
   PACKAGE_COUNT_MISMATCH: true,
   WRONG_BATCH: true,
+  // The box is on the floor; its contents are not what was booked. Refusing to
+  // receive it would leave a real carton the warehouse is holding invisible to
+  // Inventory — the exact failure this table was written to stop.
+  WRONG_ITEM: true,
+  // A quarantine, and you cannot quarantine something you do not have. It is
+  // received, and the open case is what keeps it off the pickup counter.
+  HOLD_FOR_INVESTIGATION: true,
   OTHER: true,
 };
 
 const isExceptionType = (value: string): value is ExceptionType =>
   Object.prototype.hasOwnProperty.call(CARGO_PHYSICALLY_HERE, value);
 
+const isDamageSeverity = (value: string): value is DamageSeverity =>
+  Object.prototype.hasOwnProperty.call(DAMAGE_SEVERITY_LABELS, value);
+
 /**
- * Open a case for investigation, or update the one already open.
+ * Open a case for investigation, or update the one already running.
  *
  * Check-in is re-runnable by design: an operator corrects a miscount, two
  * people tick the same line, a form is submitted twice on a slow connection.
  * Creating a row every time would bury the investigation queue under identical
- * duplicates of the same carton. One open case per shipment per kind of
+ * duplicates of the same carton. One live case per shipment per kind of
  * problem; a later run rewrites its description instead of adding another.
  *
+ * "Live" is the whole open lifecycle, not literally OPEN. Matching only OPEN
+ * would open a second identical case the moment somebody moved the first one to
+ * Under Investigation — the queue would show two cartons where there is one.
+ * A case that has been closed is a different matter: if the same problem is
+ * reported again afterwards, that is genuinely a new case and gets one.
+ *
  * The original raiser and raisedAt are kept — that is the person who was
- * standing in front of the cargo.
+ * standing in front of the cargo. Returns the case id so the caller can hang
+ * photographs and timeline entries off it.
  */
 async function raiseException(
   tx: TxClient,
@@ -600,32 +630,120 @@ async function raiseException(
     type: ExceptionType;
     description: string;
     raisedById: string;
+    severity?: DamageSeverity | null;
   }
-) {
+): Promise<string> {
+  const { severity = null, ...core } = input;
+
   const existing = await tx.shipmentException.findFirst({
     where: {
-      shipmentId: input.shipmentId,
-      batchId: input.batchId,
-      type: input.type,
-      status: "OPEN",
+      shipmentId: core.shipmentId,
+      batchId: core.batchId,
+      type: core.type,
+      status: { in: [...EXCEPTION_OPEN_STATUSES] },
     },
-    select: { id: true, description: true },
+    select: { id: true, description: true, severity: true },
   });
 
   if (!existing) {
-    await tx.shipmentException.create({ data: input });
-    return;
+    const created = await tx.shipmentException.create({
+      data: { ...core, severity },
+      select: { id: true },
+    });
+    await tx.exceptionEvent.create({
+      data: {
+        exceptionId: created.id,
+        action: "opened",
+        note: `Raised at Dar check-in — ${EXCEPTION_TYPE_LABELS[core.type]}: ${core.description}`,
+        actorId: core.raisedById,
+      },
+    });
+    return created.id;
   }
-  if (existing.description !== input.description) {
+
+  const changed =
+    existing.description !== core.description ||
+    (severity !== null && existing.severity !== severity);
+
+  if (changed) {
     await tx.shipmentException.update({
       where: { id: existing.id },
-      data: { description: input.description },
+      data: {
+        description: core.description,
+        ...(severity !== null ? { severity } : {}),
+      },
+    });
+    // The timeline is append-only: a correction is another line, never an
+    // edit of the one before it.
+    await tx.exceptionEvent.create({
+      data: {
+        exceptionId: existing.id,
+        action: "note.added",
+        note: `Re-checked at Dar arrival: ${core.description}`,
+        actorId: core.raisedById,
+      },
+    });
+  }
+
+  return existing.id;
+}
+
+/**
+ * Photographs taken on the Dar floor, filed against the cargo and — when there
+ * is one — against the case.
+ *
+ * ARRIVAL rather than CARGO on purpose: CARGO is what Guangzhou registered, and
+ * an investigation is settled by comparing the two. Collapsing them would throw
+ * away the only distinction that matters. DAMAGE keeps its own kind because
+ * that is the one Finance goes looking for.
+ *
+ * Filed even when nothing is wrong, so a clerk who photographs a suspicious
+ * carton and then decides it is fine has still left the picture behind.
+ */
+async function attachArrivalPhotos(
+  tx: TxClient,
+  input: {
+    shipmentId: string;
+    exceptionId: string | null;
+    images: StoredImage[];
+    damage: boolean;
+    caption: string;
+    uploadedById: string;
+  }
+) {
+  if (input.images.length === 0) return;
+
+  await tx.shipmentPhoto.createMany({
+    data: input.images.map((image) => ({
+      shipmentId: input.shipmentId,
+      exceptionId: input.exceptionId,
+      url: image.url,
+      kind: input.damage ? ("DAMAGE" as const) : ("ARRIVAL" as const),
+      caption: input.caption,
+      uploadedById: input.uploadedById,
+    })),
+  });
+
+  if (input.exceptionId) {
+    await tx.exceptionEvent.create({
+      data: {
+        exceptionId: input.exceptionId,
+        action: "photo.added",
+        note: `${input.images.length} photo(s) taken on the Dar floor at check-in.`,
+        actorId: input.uploadedById,
+      },
     });
   }
 }
 
 /**
  * Ticking one shipment off the printed manifest.
+ *
+ * The clerk gives one of six answers — Received, Missing, Damaged, Wrong item,
+ * Wrong quantity, Hold for investigation (see lib/receiving-outcomes.ts). Only
+ * Received leaves the cargo clean; the other five open a case, and the shipment
+ * around them is checked in regardless. One torn carton does not put
+ * eighty-six good ones back on the plane.
  *
  * Two independent facts come out of this screen and the code keeps them
  * separate, because conflating them is what stranded cargo before:
@@ -658,9 +776,11 @@ export async function verifyShipment(
 
   const batchId = String(formData.get("batchId") ?? "");
   const shipmentId = String(formData.get("shipmentId") ?? "");
-  const result = String(formData.get("result") ?? "");
   const note = String(formData.get("note") ?? "").trim();
+  const outcomeField = String(formData.get("outcome") ?? "").trim();
+  const legacyResult = String(formData.get("result") ?? "");
   const exceptionType = String(formData.get("exceptionType") ?? "OTHER");
+  const severityField = String(formData.get("severity") ?? "").trim();
   // The arrival screen always states which boxes it checked, even when that is
   // none of them. Without the flag, "nothing ticked" and "not a package-aware
   // form" look identical, and the safe reading of those is the opposite.
@@ -672,21 +792,73 @@ export async function verifyShipment(
     .filter(Boolean);
 
   if (!batchId || !shipmentId) return fail("Missing shipment.");
-  if (result !== "VERIFIED" && result !== "EXCEPTION") {
-    return fail("Choose verified or exception.");
+
+  // Which of the six the clerk chose, and what kind of case that opens.
+  //
+  // Validated rather than cast: this value decides whether cargo enters the
+  // warehouse and whether a customer is told their box is ready, and an
+  // unrecognised string must not reach either decision.
+  //
+  // The older result/exceptionType pair is still accepted underneath. The
+  // check-in screen no longer sends it, but the bulk-accept path and anything
+  // else already posting to this action keeps working unchanged.
+  let outcome: ReceivingOutcome | null = null;
+  let problem: ExceptionType | null;
+
+  if (outcomeField) {
+    if (!isReceivingOutcome(outcomeField)) {
+      return fail("That is not one of the six check-in outcomes.");
+    }
+    outcome = outcomeField;
+    problem = RECEIVING_OUTCOME_EXCEPTION[outcome];
+  } else {
+    if (legacyResult !== "VERIFIED" && legacyResult !== "EXCEPTION") {
+      return fail("Say what happened to this cargo.");
+    }
+    if (legacyResult === "EXCEPTION" && !isExceptionType(exceptionType)) {
+      return fail("That is not a kind of problem this system records.");
+    }
+    problem =
+      legacyResult === "EXCEPTION" && isExceptionType(exceptionType)
+        ? exceptionType
+        : null;
   }
-  if (result === "EXCEPTION" && note.length < 3) {
+
+  const result: "VERIFIED" | "EXCEPTION" = problem ? "EXCEPTION" : "VERIFIED";
+
+  if (problem && note.length < 3) {
     return fail("Describe the problem before flagging an exception.");
   }
-  // Validated rather than cast: this value decides whether cargo enters the
-  // warehouse, and an unrecognised string must not reach that decision.
-  if (result === "EXCEPTION" && !isExceptionType(exceptionType)) {
-    return fail("That is not a kind of problem this system records.");
+
+  // Severity is only meaningful on damage, and on damage it is not optional:
+  // "minor scuff" and "total loss" are two different conversations with the
+  // customer, and the person holding the carton is the only one who can tell
+  // them apart.
+  const severity: DamageSeverity | null = isDamageSeverity(severityField)
+    ? severityField
+    : null;
+  if (problem === "DAMAGED_CARGO" && !severity) {
+    return fail("How bad is the damage? Choose a severity.");
   }
-  const problem: ExceptionType | null =
-    result === "EXCEPTION" && isExceptionType(exceptionType)
-      ? exceptionType
-      : null;
+
+  // Evidence. Uploaded before the transaction opens — a phone photo over a
+  // warehouse connection is slow, and holding a database transaction open for
+  // it would lock the row while somebody's 4G decides what to do.
+  const photoFiles = filesFrom(formData, "photos");
+  if (problem === "DAMAGED_CARGO" && photoFiles.length === 0) {
+    return fail(
+      "Photograph the damage before recording it. This is the only moment the picture can be taken, and without it there is nothing to show the customer or Finance."
+    );
+  }
+
+  let uploaded: StoredImage[] = [];
+  if (photoFiles.length > 0) {
+    try {
+      uploaded = await putImages(photoFiles, "arrival");
+    } catch (error) {
+      return fail(toActionError(error));
+    }
+  }
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -781,7 +953,14 @@ export async function verifyShipment(
               toStatus: "RECEIVED_AT_DAR",
               location: "Dar es Salaam warehouse",
               note: problem
-                ? `Checked in with a problem — ${EXCEPTION_TYPE_LABELS[problem].toLowerCase()}: ${note}`
+                ? `Checked in with a problem — ${(outcome
+                    ? RECEIVING_OUTCOME_LABELS[outcome]
+                    : EXCEPTION_TYPE_LABELS[problem]
+                  ).toLowerCase()}${
+                    problem === "DAMAGED_CARGO" && severity
+                      ? ` (${DAMAGE_SEVERITY_LABELS[severity].toLowerCase()})`
+                      : ""
+                  }: ${note}`
                 : note || "Checked in against the batch manifest.",
               actorId: user.id,
             },
@@ -790,32 +969,90 @@ export async function verifyShipment(
       }
 
       // ── 2. Is it right? ───────────────────────────────────────────────────
+      // Which boxes are unaccounted for, worked out before any case is written
+      // so the shortage can be named *inside* the case instead of described
+      // vaguely beside it. "3 of 5 missing (2, 4, 5)" is something a person can
+      // act on a week later; "wrong quantity" on its own is not.
+      const short = shipment.packageList.filter(
+        (pkg) => !pkg.receivedAt && !present.some((p) => p.id === pkg.id)
+      );
+      const shortDetail =
+        short.length > 0
+          ? `Short on arrival: ${short.length} of ${shipment.packageList.length} ${PACKAGE_TYPE_LABELS[shipment.packageType]?.many ?? "packages"} missing (${short.map((pkg) => pkg.sequence).join(", ")}).`
+          : null;
+
+      let exceptionId: string | null = null;
+
       if (problem) {
-        await raiseException(tx, {
+        exceptionId = await raiseException(tx, {
           shipmentId,
           batchId,
           type: problem,
-          description: note,
+          description:
+            problem === "PACKAGE_COUNT_MISMATCH" && shortDetail
+              ? `${note} — ${shortDetail}`
+              : note,
           raisedById: user.id,
+          // Carried only where it means anything. A severity on a wrong-item
+          // case would be a number nobody can explain the origin of.
+          severity: problem === "DAMAGED_CARGO" ? severity : null,
         });
       }
 
       // A partial arrival is still an arrival — the cargo that came is in the
       // warehouse. But it cannot be released, so the shortage is raised the
-      // moment it is noticed rather than at the counter.
-      const short = shipment.packageList.filter(
-        (pkg) => !pkg.receivedAt && !present.some((p) => p.id === pkg.id)
-      );
-      if (arrived && short.length > 0 && problem !== "PACKAGE_COUNT_MISMATCH") {
-        const sequences = short.map((pkg) => pkg.sequence).join(", ");
+      // moment it is noticed rather than at the counter. Skipped when the clerk
+      // reported the shortage themselves: that case already exists, and says
+      // the same thing in their words.
+      if (arrived && shortDetail && problem !== "PACKAGE_COUNT_MISMATCH") {
         await raiseException(tx, {
           shipmentId,
           batchId,
           type: "PACKAGE_COUNT_MISMATCH",
-          description: `Short on arrival: ${short.length} of ${shipment.packageList.length} ${PACKAGE_TYPE_LABELS[shipment.packageType]?.many ?? "packages"} missing (${sequences}).`,
+          description: shortDetail,
           raisedById: user.id,
         });
       }
+
+      // ── 3. What it looked like ────────────────────────────────────────────
+      await attachArrivalPhotos(tx, {
+        shipmentId,
+        exceptionId,
+        images: uploaded,
+        damage: problem === "DAMAGED_CARGO",
+        caption: outcome
+          ? `${RECEIVING_OUTCOME_LABELS[outcome]} at Dar check-in`
+          : "Dar check-in",
+        uploadedById: user.id,
+      });
+
+      // ── 4. Who has to hear about it ───────────────────────────────────────
+      // Inside the transaction, so a case that exists and a notification saying
+      // so cannot disagree. Nothing is sent for a clean check-in: eighty-seven
+      // "cargo arrived normally" messages a flight is how people learn to
+      // ignore the ones that matter.
+      if (outcome && exceptionId) {
+        await notifyReceivingOutcome(
+          {
+            outcome,
+            trackingNumber: shipment.trackingNumber,
+            raisedById: user.id,
+            headline: `${shipment.trackingNumber} — ${RECEIVING_OUTCOME_LABELS[outcome].toLowerCase()} at Dar check-in`,
+            detail:
+              problem === "DAMAGED_CARGO" && severity
+                ? `${DAMAGE_SEVERITY_LABELS[severity]} damage. ${note}`
+                : note,
+          },
+          tx
+        );
+      }
+
+      const auditMeta: Record<string, string | number> = {
+        ...(outcome ? { outcome } : {}),
+        ...(severity && problem === "DAMAGED_CARGO" ? { severity } : {}),
+        ...(uploaded.length > 0 ? { photos: uploaded.length } : {}),
+        ...(note ? { note } : {}),
+      };
 
       await recordAudit(
         {
@@ -833,9 +1070,10 @@ export async function verifyShipment(
           summary: !problem
             ? `Checked in ${shipment.trackingNumber}`
             : arrived
-              ? `Checked in ${shipment.trackingNumber} with a problem: ${EXCEPTION_TYPE_LABELS[problem]}`
-              : `${shipment.trackingNumber} did not arrive: ${EXCEPTION_TYPE_LABELS[problem]}`,
-          metadata: note ? { note } : undefined,
+              ? `Checked in ${shipment.trackingNumber} with a problem: ${outcome ? RECEIVING_OUTCOME_LABELS[outcome] : EXCEPTION_TYPE_LABELS[problem]}`
+              : `${shipment.trackingNumber} did not arrive: ${outcome ? RECEIVING_OUTCOME_LABELS[outcome] : EXCEPTION_TYPE_LABELS[problem]}`,
+          metadata:
+            Object.keys(auditMeta).length > 0 ? auditMeta : undefined,
         },
         tx
       );

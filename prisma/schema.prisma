@@ -156,6 +156,10 @@ enum PhotoKind {
   PACKAGING
   DAMAGE
   PROOF_OF_DELIVERY
+  /// Taken on the Dar floor when the box comes off the plane. Distinct from
+  /// CARGO, which is what China photographed at registration: an investigation
+  /// is decided by comparing the two, so they cannot share one kind.
+  ARRIVAL
 }
 
 enum InvoiceStatus {
@@ -177,19 +181,56 @@ enum VerificationResult {
   EXCEPTION
 }
 
+/// What is wrong with a consignment. One of these is chosen at check-in, or
+/// at the counter when the boxes cannot be found.
+///
+/// Adding a value here deliberately breaks lib/actions/batches.ts, which holds
+/// an exhaustive map answering "is this cargo physically in the warehouse?".
 enum ExceptionType {
   MISSING_SHIPMENT
   DAMAGED_CARGO
   WEIGHT_MISMATCH
   PACKAGE_COUNT_MISMATCH
   WRONG_BATCH
+  /// The box is here and intact — what is inside it is not what was booked.
+  WRONG_ITEM
+  /// Nothing is provably wrong yet, but the box is not to be released until
+  /// somebody has looked at it. A quarantine, not a fault.
+  HOLD_FOR_INVESTIGATION
   OTHER
 }
 
+/// Where an investigation has got to.
+///
+/// OPEN … CLOSED is the owner's lifecycle. RESOLVED and WRITTEN_OFF are the
+/// two values that existed before it and are kept, not dropped: rows already
+/// carry RESOLVED and that history is the record of what a warehouse actually
+/// did. Nothing new should be written with either — new cases finish at
+/// CLOSED. Read them as terminal (see EXCEPTION_TERMINAL_STATUSES in
+/// lib/constants.ts) and never re-open one.
 enum ExceptionStatus {
   OPEN
+  UNDER_INVESTIGATION
+  WAITING_CUSTOMER
+  COMPENSATION_APPROVED
+  REPLACEMENT_APPROVED
+  /// The box turned up. Terminal for the investigation; the cargo goes back to
+  /// its previous operational status.
+  CARGO_FOUND
+  CLOSED
+  /// Legacy terminal — pre-lifecycle "resolved". Kept for existing rows.
   RESOLVED
+  /// Legacy terminal — cargo written off. Kept for existing rows.
   WRITTEN_OFF
+}
+
+/// How bad the damage is. Drives the outcome: a MINOR scuff is released to the
+/// customer, a TOTAL_LOSS is a compensation case.
+enum DamageSeverity {
+  MINOR
+  MODERATE
+  SEVERE
+  TOTAL_LOSS
 }
 
 enum PickupNoteStatus {
@@ -255,6 +296,9 @@ model User {
   verifications      BatchVerification[]
   raisedExceptions   ShipmentException[]      @relation("ExceptionRaisedBy")
   resolvedExceptions ShipmentException[]      @relation("ExceptionResolvedBy")
+  assignedExceptions ShipmentException[]      @relation("ExceptionAssignedTo")
+  exceptionEvents    ExceptionEvent[]         @relation("ExceptionEventActor")
+  recordedCompensations Compensation[]        @relation("CompensationRecordedBy")
   issuedInvoices     Invoice[]
   receivedPayments   Payment[]
   issuedReceipts     Receipt[]
@@ -514,6 +558,12 @@ model ShipmentPhoto {
   shipmentId String
   shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
 
+  /// Evidence on an investigation. A photo never stops belonging to its
+  /// shipment — it gains a case as well, so the China registration shots and
+  /// the arrival shots both stay on the cargo record after the case closes.
+  exceptionId String?
+  exception   ShipmentException? @relation(fields: [exceptionId], references: [id], onDelete: SetNull)
+
   url     String
   kind    PhotoKind @default(CARGO)
   caption String?
@@ -524,6 +574,7 @@ model ShipmentPhoto {
   createdAt DateTime @default(now())
 
   @@index([shipmentId])
+  @@index([exceptionId])
 }
 
 // ---------------------------------------------------------------------------
@@ -561,6 +612,15 @@ model ShipmentException {
   status      ExceptionStatus @default(OPEN)
   description String
 
+  /// Only meaningful on DAMAGED_CARGO. Null everywhere else.
+  severity DamageSeverity?
+
+  /// Who is carrying the case. Reassignment is the CEO's, and the field is
+  /// optional because a case is raised by whoever is standing in front of the
+  /// cargo, long before anyone decides who owns it.
+  assignedToId String?
+  assignedTo   User?   @relation("ExceptionAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
   raisedById String?
   raisedBy   User?   @relation("ExceptionRaisedBy", fields: [raisedById], references: [id], onDelete: SetNull)
   raisedAt   DateTime @default(now())
@@ -570,8 +630,67 @@ model ShipmentException {
   resolvedAt     DateTime?
   resolutionNote String?
 
+  events       ExceptionEvent[]
+  photos       ShipmentPhoto[]
+  compensation Compensation?
+
   @@index([status, raisedAt])
   @@index([shipmentId])
+  @@index([assignedToId, status])
+}
+
+/// The audit trail of an investigation: one row per thing anybody did.
+///
+/// Append-only by contract — there is no update path and no delete path in the
+/// application. A wrong note is corrected by writing another note, the same way
+/// a warehouse ledger is corrected. The owner's rule is that history stays
+/// permanently visible, and a row that can be edited is not history.
+model ExceptionEvent {
+  id          String            @id @default(cuid())
+  exceptionId String
+  exception   ShipmentException @relation(fields: [exceptionId], references: [id], onDelete: Cascade)
+
+  /// Short machine string — "opened", "status.changed", "note.added",
+  /// "photo.added", "cargo.found", "compensation.recorded", "assigned",
+  /// "closed". Rendered through a label map, never shown raw.
+  action String
+  note   String?
+
+  actorId String?
+  actor   User?   @relation("ExceptionEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([exceptionId, createdAt])
+}
+
+/// What was paid out for a case. Finance's record, one per investigation.
+///
+/// Deliberately not an Invoice or a Payment: this is money leaving the company
+/// over cargo it failed to deliver, and it must never be netted against what
+/// the customer owes for freight.
+model Compensation {
+  id String @id @default(cuid())
+
+  /// One case, one settlement. A second payout is a second case.
+  exceptionId String            @unique
+  exception   ShipmentException @relation(fields: [exceptionId], references: [id], onDelete: Cascade)
+
+  amount   Decimal @db.Decimal(12, 2)
+  currency String  @default("TZS")
+
+  /// Null until the money has actually gone out — that is the "compensation
+  /// pending" the dashboard counts.
+  paidAt DateTime?
+  method PaymentMethod?
+  note   String?
+
+  recordedById String?
+  recordedBy   User?   @relation("CompensationRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([paidAt])
 }
 
 // ---------------------------------------------------------------------------

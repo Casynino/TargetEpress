@@ -29,7 +29,10 @@ import { AreaChart } from "@/components/charts/area-chart";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ROLE_LABELS } from "@/lib/constants";
+import {
+  EXCEPTION_OPEN_STATUSES,
+  ROLE_LABELS,
+} from "@/lib/constants";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
 import {
   agingInWarehouse,
@@ -469,7 +472,7 @@ async function darFloorStats() {
     }),
     prisma.shipmentException.groupBy({
       by: ["type"],
-      where: { status: "OPEN", shipment: { deletedAt: null } },
+      where: { status: { in: [...EXCEPTION_OPEN_STATUSES] }, shipment: { deletedAt: null } },
       _count: { _all: true },
     }),
   ]);

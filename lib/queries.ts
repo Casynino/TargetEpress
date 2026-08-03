@@ -1,3 +1,4 @@
+import { EXCEPTION_OPEN_STATUSES } from "@/lib/constants";
 import "server-only";
 
 import { Prisma } from "@prisma/client";
@@ -191,7 +192,7 @@ export async function darStats() {
       prisma.batch.count({ where: { status: "ARRIVED" } }),
       prisma.shipment.count({ where: { status: "RECEIVED_AT_DAR" } }),
       prisma.shipment.count({ where: { status: "READY_FOR_PICKUP" } }),
-      prisma.shipmentException.count({ where: { status: "OPEN" } }),
+      prisma.shipmentException.count({ where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } } }),
     ]);
 
   return { incoming, awaitingCheck, inWarehouse, readyForPickup, openExceptions };
@@ -266,7 +267,7 @@ export async function executiveStats() {
     prisma.batch.count({
       where: { status: { in: ["OPEN", "READY_TO_DEPART", "IN_TRANSIT", "ARRIVED"] } },
     }),
-    prisma.shipmentException.count({ where: { status: "OPEN" } }),
+    prisma.shipmentException.count({ where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } } }),
     prisma.user.count({ where: { active: true } }),
     prisma.customer.count(),
     prisma.payment.aggregate({
@@ -495,7 +496,7 @@ export async function attentionItems(
     await Promise.all([
       sees.exceptions
         ? prisma.shipmentException.findMany({
-            where: { status: "OPEN" },
+            where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } },
             orderBy: { raisedAt: "asc" },
             take: 12,
             select: {
@@ -569,6 +570,8 @@ export async function attentionItems(
         : [],
       sees.china
         ? prisma.batch.findMany({
+            // BatchStatus.OPEN — "still accepting shipments in China".
+            // Nothing to do with an investigation status of the same name.
             where: { status: "OPEN", createdAt: { lt: new Date(now - 7 * DAY) } },
             select: {
               id: true,

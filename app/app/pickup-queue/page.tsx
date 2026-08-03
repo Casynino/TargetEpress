@@ -9,12 +9,19 @@ import {
   type PickupQueueRow,
 } from "@/components/app/pickup-queue-table";
 import {
+  EXCEPTION_STATUS_LABELS,
+  EXCEPTION_TYPE_LABELS,
   SHIPMENT_STATUS_META,
   formatPackages,
   formatPackagesShort,
   storageDaysFor,
 } from "@/lib/constants";
 import { formatDate, formatDateTime, toNumber } from "@/lib/format";
+import {
+  PICKUP_LOCKING_STATUSES,
+  PICKUP_LOCKING_TYPES,
+  caseReference,
+} from "@/lib/pickup-lock";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -78,6 +85,18 @@ export default async function PickupQueuePage() {
             select: { sequence: true, receivedAt: true },
             orderBy: { sequence: "asc" },
           },
+          // The investigation lock, asked for in the same query the counter's
+          // guard asks in — see lib/pickup-lock.ts. Oldest live case only:
+          // the row needs to say why it is held, not list everything.
+          exceptions: {
+            where: {
+              status: { in: PICKUP_LOCKING_STATUSES },
+              type: { in: PICKUP_LOCKING_TYPES },
+            },
+            orderBy: { raisedAt: "asc" },
+            select: { id: true, type: true, status: true },
+            take: 1,
+          },
         },
       },
     },
@@ -97,6 +116,12 @@ export default async function PickupQueuePage() {
     if (shipment.status !== "READY_FOR_PICKUP") {
       blockers.push(
         `Cargo is not cleared for release — it is still "${SHIPMENT_STATUS_META[shipment.status].label}".`
+      );
+    }
+    const lock = shipment.exceptions[0];
+    if (lock) {
+      blockers.push(
+        `Under investigation — ${EXCEPTION_TYPE_LABELS[lock.type]}, currently "${EXCEPTION_STATUS_LABELS[lock.status]}" (case ${caseReference(lock.id)}). Locked against pickup until the case is closed.`
       );
     }
     if (packagesTotal === 0) {

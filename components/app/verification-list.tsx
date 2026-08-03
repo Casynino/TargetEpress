@@ -18,11 +18,9 @@ import {
 } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { ReceivingOutcomePanel } from "@/components/app/receiving-outcome-panel";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
 import {
   completeVerification,
   verifyBatchAll,
@@ -30,11 +28,9 @@ import {
 } from "@/lib/actions/batches";
 import type { ActionResult } from "@/lib/actions/types";
 import {
-  EXCEPTION_TYPE_LABELS,
   GOODS_TYPE_LABELS,
   ORIGIN_LABELS,
   PACKAGE_TYPE_LABELS,
-  enumOptions,
   formatPackages,
   formatPackagesShort,
 } from "@/lib/constants";
@@ -87,10 +83,14 @@ export function VerificationList({
   batchId,
   batchStatus,
   shipments,
+  photosDurable,
 }: {
   batchId: string;
   batchStatus: BatchStatus;
   shipments: Row[];
+  /** False when photo storage is local disk — the panel says so rather than
+      letting somebody photograph damage into a folder that will not survive. */
+  photosDurable: boolean;
 }) {
   const checked = shipments.filter((s) => s.verification).length;
   const flagged = shipments.filter(
@@ -168,6 +168,7 @@ export function VerificationList({
                   batchId={batchId}
                   shipment={shipment}
                   locked={batchStatus !== "ARRIVED"}
+                  photosDurable={photosDurable}
                 />
               ))}
             </tbody>
@@ -213,10 +214,12 @@ function VerificationRow({
   batchId,
   shipment,
   locked,
+  photosDurable,
 }: {
   batchId: string;
   shipment: Row;
   locked: boolean;
+  photosDurable: boolean;
 }) {
   const [state, action] = useActionState<ActionResult, FormData>(
     verifyShipment,
@@ -228,13 +231,6 @@ function VerificationRow({
   // only when opened so the other eighty-six cost nothing to render or fetch.
   const [open, setOpen] = useState(false);
   const detailId = useId();
-  // Everything is assumed present — the common case is a complete shipment, and
-  // the operator only has to act when something is missing.
-  const [present, setPresent] = useState<string[]>(
-    shipment.packageList.map((pkg) => pkg.id)
-  );
-  const unit =
-    PACKAGE_TYPE_LABELS[shipment.packageType] ?? PACKAGE_TYPE_LABELS.PACKAGE;
 
   const done = shipment.verification?.result === "VERIFIED";
   const flagged = shipment.verification?.result === "EXCEPTION";
@@ -346,7 +342,10 @@ function VerificationRow({
               <form action={action}>
                 <input type="hidden" name="batchId" value={batchId} />
                 <input type="hidden" name="shipmentId" value={shipment.id} />
-                <input type="hidden" name="result" value="VERIFIED" />
+                {/* The first of the six outcomes, taken in one click because it
+                    is the one taken almost every time. The other five live in
+                    the panel behind the ⚠. */}
+                <input type="hidden" name="outcome" value="RECEIVED" />
                 <SubmitButton
                   variant={done ? "outline" : "brand"}
                   size="icon"
@@ -410,139 +409,15 @@ function VerificationRow({
             {open ? <CargoDetail id={detailId} shipment={shipment} /> : null}
 
             {flagging && !locked ? (
-              <div className="mt-2 space-y-4 rounded-lg border border-destructive/30 bg-destructive/[0.03] p-3">
-                {/* PATH 1 — some boxes short. Multi-package shipments only: a
-                    single-package shipment is either here or it is not, which
-                    is the other path. */}
-                {shipment.packageList.length > 1 ? (
-                  <div>
-                    <p className="text-xs font-medium">
-                      Which {unit.many} are on the floor?
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Untick anything that did not arrive.
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {shipment.packageList.map((pkg) => {
-                        const on = present.includes(pkg.id);
-                        return (
-                          <button
-                            key={pkg.id}
-                            type="button"
-                            aria-pressed={on}
-                            onClick={() =>
-                              setPresent((current) =>
-                                current.includes(pkg.id)
-                                  ? current.filter((id) => id !== pkg.id)
-                                  : [...current, pkg.id]
-                              )
-                            }
-                            className={`inline-flex h-11 min-w-11 items-center justify-center rounded-md border px-3 text-sm font-semibold tabular transition-colors ${
-                              on
-                                ? "border-brand bg-brand/10 text-brand"
-                                : "border-dashed border-destructive/50 text-destructive line-through"
-                            }`}
-                          >
-                            {pkg.sequence}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <form action={action} className="mt-3">
-                      <input type="hidden" name="batchId" value={batchId} />
-                      <input
-                        type="hidden"
-                        name="shipmentId"
-                        value={shipment.id}
-                      />
-                      <input type="hidden" name="result" value="VERIFIED" />
-                      <input
-                        type="hidden"
-                        name="packageSelection"
-                        value="explicit"
-                      />
-                      {shipment.packageList.map((pkg) => (
-                        <input
-                          key={pkg.id}
-                          type="hidden"
-                          name="packageIds"
-                          value={present.includes(pkg.id) ? pkg.id : ""}
-                        />
-                      ))}
-                      <SubmitButton
-                        variant="brand"
-                        pendingLabel="Recording…"
-                        className="h-11 w-full text-sm sm:w-auto"
-                        disabled={present.length === shipment.packageList.length}
-                      >
-                        <Check className="mr-1.5 h-4 w-4" />
-                        Check in {present.length} of{" "}
-                        {shipment.packageList.length}
-                      </SubmitButton>
-                      {present.length < shipment.packageList.length ? (
-                        <p className="mt-2 text-xs text-warning">
-                          {shipment.packageList.length - present.length} missing
-                          — this raises a shortage and blocks release until they
-                          arrive.
-                        </p>
-                      ) : (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          Untick a {unit.one} above to record it short.
-                        </p>
-                      )}
-                    </form>
-
-                    <div className="mt-4 border-t pt-3 text-xs font-medium">
-                      Or the cargo is damaged / wrong
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* PATH 2 — damaged, wrong, or the whole shipment absent. */}
-                <form action={action} className="space-y-3">
-                  <input type="hidden" name="batchId" value={batchId} />
-                  <input type="hidden" name="shipmentId" value={shipment.id} />
-                  <input type="hidden" name="result" value="EXCEPTION" />
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`type-${shipment.id}`} className="text-xs">
-                      What is wrong?
-                    </Label>
-                    <NativeSelect
-                      id={`type-${shipment.id}`}
-                      name="exceptionType"
-                      defaultValue="DAMAGED_CARGO"
-                    >
-                      {enumOptions(EXCEPTION_TYPE_LABELS).map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`note-${shipment.id}`} className="text-xs">
-                      Details
-                    </Label>
-                    <Input
-                      id={`note-${shipment.id}`}
-                      name="note"
-                      placeholder="e.g. one carton torn open, contents wet"
-                      required
-                    />
-                  </div>
-
-                  <SubmitButton
-                    size="sm"
-                    variant="destructive"
-                    pendingLabel="Flagging…"
-                  >
-                    Record exception
-                  </SubmitButton>
-                </form>
-              </div>
+              <ReceivingOutcomePanel
+                batchId={batchId}
+                shipmentId={shipment.id}
+                trackingNumber={shipment.trackingNumber}
+                packageType={shipment.packageType}
+                packageList={shipment.packageList}
+                photosDurable={photosDurable}
+                action={action}
+              />
             ) : null}
 
             <div className="mt-2">

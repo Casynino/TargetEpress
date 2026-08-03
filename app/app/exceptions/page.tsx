@@ -1,30 +1,34 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import type { Prisma } from "@prisma/client";
-import {
-  AlertTriangle,
-  Clock,
-  PackageOpen,
-  PackageX,
-  Search,
-  ShieldCheck,
-  X,
-} from "lucide-react";
+import type { ExceptionType, Prisma, Role } from "@prisma/client";
+import { Clock, PackageX, Search, ShieldCheck, UserX, X } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import {
   EXCEPTION_GROUPS,
-  type ExceptionCardData,
-  type ExceptionGroupKey,
-  daysOpen,
   groupOf,
+  type ExceptionGroupKey,
 } from "@/components/app/exception-card";
 import { ExceptionTable } from "@/components/app/exception-table";
+import { InvestigationCards } from "@/components/app/investigation-cards";
+import type { InvestigationAllowances } from "@/components/app/investigation-actions";
 import { PageHeader } from "@/components/app/page-header";
 import { StatStrip } from "@/components/app/stat-strip";
-import { normaliseCode } from "@/lib/format";
+import {
+  EXCEPTION_OPEN_STATUSES,
+  PAYMENT_METHOD_LABELS,
+  ROLE_LABELS,
+} from "@/lib/constants";
+import { formatMoney, normaliseCode } from "@/lib/format";
+import type { InvestigationRecord } from "@/lib/investigation-lifecycle";
+import {
+  investigationCounts,
+  isQueueSet,
+  whereForSet,
+  type QueueSet,
+} from "@/lib/investigation-queue";
 import { prisma } from "@/lib/prisma";
-import { can } from "@/lib/rbac";
+import { ROLE_PERMISSIONS, can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Investigation queue" };
@@ -38,8 +42,14 @@ export const metadata: Metadata = { title: "Investigation queue" };
  * parked here with its shipment, its flight and, above all, where its boxes
  * physically are, until somebody closes it out.
  *
- * Sorted oldest first on purpose. A shortage that has sat for two weeks is the
- * one costing the company a customer; a flag raised this morning can wait.
+ * Two filters, and they answer different questions. The six cards choose the
+ * *set* of cases — open, found, waiting on a payout, finished — and the pills
+ * underneath narrow that set by *what went wrong*. Keeping them apart is what
+ * makes "damaged cargo that was later found" askable.
+ *
+ * The live queue is sorted oldest first on purpose. A shortage that has sat for
+ * two weeks is the one costing the company a customer; a flag raised this
+ * morning can wait.
  */
 
 const GROUP_FILTERS: { key: ExceptionGroupKey | "all"; label: string }[] = [
@@ -47,12 +57,60 @@ const GROUP_FILTERS: { key: ExceptionGroupKey | "all"; label: string }[] = [
   { key: "missing", label: EXCEPTION_GROUPS.missing.label },
   { key: "damaged", label: EXCEPTION_GROUPS.damaged.label },
   { key: "mismatch", label: EXCEPTION_GROUPS.mismatch.label },
+  { key: "hold", label: EXCEPTION_GROUPS.hold.label },
   { key: "other", label: EXCEPTION_GROUPS.other.label },
 ];
+
+const SET_COPY: Record<
+  QueueSet,
+  { heading: string; note: string; emptyTitle: string; emptyBody: string }
+> = {
+  open: {
+    heading: "Under investigation",
+    note: "oldest first",
+    emptyTitle: "Nothing outstanding",
+    emptyBody:
+      "Every flagged item has been accounted for. Cargo flagged at check-in lands here on its own.",
+  },
+  found: {
+    heading: "Cargo found",
+    note: "most recent first",
+    emptyTitle: "Nothing has turned up yet",
+    emptyBody:
+      "Cases marked Cargo found appear here — the boxes are back in the warehouse and the cargo reads as received again.",
+  },
+  compensation: {
+    heading: "Waiting on a payout",
+    note: "oldest first",
+    emptyTitle: "No payouts outstanding",
+    emptyBody:
+      "A case lands here once a compensation payment has been recorded against it and the money has not gone out yet.",
+  },
+  closed: {
+    heading: "Closed cases",
+    note: "most recently closed first",
+    emptyTitle: "Nothing closed yet",
+    emptyBody: "Cases signed off by management are kept here permanently.",
+  },
+};
+
+const PHOTO_SELECT = {
+  select: {
+    id: true,
+    url: true,
+    kind: true,
+    caption: true,
+    createdAt: true,
+    exceptionId: true,
+  },
+  orderBy: { createdAt: "asc" as const },
+  take: 24,
+};
 
 const EXCEPTION_INCLUDE = {
   raisedBy: { select: { name: true } },
   resolvedBy: { select: { name: true } },
+  assignedTo: { select: { id: true, name: true } },
   batch: {
     select: {
       id: true,
@@ -61,6 +119,28 @@ const EXCEPTION_INCLUDE = {
       flightNumber: true,
       waybillNumber: true,
       arrivalDate: true,
+    },
+  },
+  // The permanent audit trail. Oldest first so it reads as a story.
+  events: {
+    select: {
+      id: true,
+      action: true,
+      note: true,
+      createdAt: true,
+      actor: { select: { name: true } },
+    },
+    orderBy: { createdAt: "asc" as const },
+    take: 100,
+  },
+  compensation: {
+    select: {
+      amount: true,
+      currency: true,
+      paidAt: true,
+      method: true,
+      note: true,
+      recordedBy: { select: { name: true } },
     },
   },
   shipment: {
@@ -75,6 +155,10 @@ const EXCEPTION_INCLUDE = {
         select: { sequence: true, receivedAt: true, deliveredAt: true },
         orderBy: { sequence: "asc" as const },
       },
+      // Every photo on the cargo, whichever end took it. Split by kind on the
+      // way out: China's registration shots and the Dar floor's arrival shots
+      // are what an investigation is decided by comparing.
+      photos: PHOTO_SELECT,
       // Payment STATUS only. Dar never sees what anything cost, but "the
       // customer has already paid for the carton we cannot find" changes how
       // hard this gets chased.
@@ -87,7 +171,23 @@ type ExceptionRow = Prisma.ShipmentExceptionGetPayload<{
   include: typeof EXCEPTION_INCLUDE;
 }>;
 
-function toCardData(row: ExceptionRow): ExceptionCardData {
+/**
+ * One database row, as the queue renders it.
+ *
+ * `canSeeMoney` is applied here rather than in the component. A figure that is
+ * hidden with CSS is a figure that was sent to a warehouse phone, so the amount
+ * is simply never built for anybody without `finance.view`.
+ */
+function toRecord(row: ExceptionRow, canSeeMoney: boolean): InvestigationRecord {
+  const photos = row.shipment.photos.map((photo) => ({
+    id: photo.id,
+    url: photo.url,
+    kind: photo.kind,
+    caption: photo.caption,
+    createdAt: photo.createdAt,
+    onCase: photo.exceptionId === row.id,
+  }));
+
   return {
     id: row.id,
     type: row.type,
@@ -98,6 +198,37 @@ function toCardData(row: ExceptionRow): ExceptionCardData {
     resolvedAt: row.resolvedAt,
     resolvedByName: row.resolvedBy?.name ?? null,
     resolutionNote: row.resolutionNote,
+    severity: row.severity,
+    assignedToId: row.assignedTo?.id ?? null,
+    assignedToName: row.assignedTo?.name ?? null,
+    chinaPhotos: photos.filter(
+      (p) => p.kind === "CARGO" || p.kind === "PACKAGING"
+    ),
+    arrivalPhotos: photos.filter(
+      (p) => p.kind === "ARRIVAL" || p.kind === "DAMAGE"
+    ),
+    events: row.events.map((event) => ({
+      id: event.id,
+      action: event.action,
+      note: event.note,
+      actorName: event.actor?.name ?? null,
+      createdAt: event.createdAt,
+    })),
+    compensation: row.compensation
+      ? {
+          exists: true,
+          paidAt: row.compensation.paidAt,
+          amount: canSeeMoney
+            ? formatMoney(row.compensation.amount, row.compensation.currency)
+            : null,
+          methodLabel: row.compensation.method
+            ? PAYMENT_METHOD_LABELS[row.compensation.method]
+            : null,
+          // Free text can quote a figure, so it travels with the figure.
+          note: canSeeMoney ? row.compensation.note : null,
+          recordedByName: row.compensation.recordedBy?.name ?? null,
+        }
+      : null,
     shipment: {
       trackingNumber: row.shipment.trackingNumber,
       status: row.shipment.status,
@@ -121,11 +252,12 @@ function toCardData(row: ExceptionRow): ExceptionCardData {
 export default async function ExceptionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ group?: string; tracking?: string }>;
+  searchParams: Promise<{ set?: string; group?: string; tracking?: string }>;
 }) {
   const user = await requirePermission("exception.raise");
   const params = await searchParams;
 
+  const set: QueueSet = isQueueSet(params.set) ? params.set : "open";
   const group = (GROUP_FILTERS.find((f) => f.key === params.group)?.key ??
     "all") as ExceptionGroupKey | "all";
   const tracking = params.tracking ? normaliseCode(params.tracking) : "";
@@ -139,56 +271,117 @@ export default async function ExceptionsPage({
     },
   };
 
-  const [openRows, resolvedRows] = await Promise.all([
-    // Everything still open, unfiltered by type: the counters on the pills have
-    // to be honest about what is hiding behind the other pills.
-    prisma.shipmentException.findMany({
-      where: { status: "OPEN", ...scope },
-      orderBy: { raisedAt: "asc" },
-      include: EXCEPTION_INCLUDE,
-    }),
-    // Closed cases are filtered in the query, not after it: taking the newest
-    // 25 and then filtering would show an empty history for a type that has
-    // plenty of it.
-    prisma.shipmentException.findMany({
-      where: {
-        status: { not: "OPEN" },
-        ...scope,
-        ...(group === "all"
-          ? {}
-          : { type: { in: [...EXCEPTION_GROUPS[group].types] } }),
-      },
-      orderBy: { resolvedAt: "desc" },
-      take: 25,
-      include: EXCEPTION_INCLUDE,
-    }),
-  ]);
+  const setWhere = { ...whereForSet(set), ...scope };
+  const typeWhere =
+    group === "all" ? {} : { type: { in: EXCEPTION_GROUPS[group].types } };
 
-  const canResolve = can(user.role, "exception.resolve");
+  // A live queue is chased oldest first; a history is read newest first.
+  const orderBy: Prisma.ShipmentExceptionOrderByWithRelationInput =
+    set === "open" || set === "compensation"
+      ? { raisedAt: "asc" }
+      : { resolvedAt: "desc" };
 
-  const openCards = openRows.map(toCardData);
-  const visibleResolved = resolvedRows.map(toCardData);
-  const visibleOpen = openCards.filter(
-    (e) => group === "all" || groupOf(e.type) === group
-  );
+  const allow: InvestigationAllowances = {
+    investigate: can(user.role, "exception.investigate"),
+    approve: can(user.role, "exception.approve"),
+    close: can(user.role, "exception.close"),
+  };
+  const canSeeMoney = can(user.role, "finance.view");
+
+  const [counts, rows, closedRows, pillCounts, unassigned, assigneeRows] =
+    await Promise.all([
+      investigationCounts(),
+      prisma.shipmentException.findMany({
+        where: { ...setWhere, ...typeWhere },
+        orderBy,
+        take: 100,
+        include: EXCEPTION_INCLUDE,
+      }),
+      // The second section only exists on the live queue: an open list next to
+      // what was recently signed off is how a desk sees its own progress. The
+      // history views are already a history.
+      set === "open"
+        ? prisma.shipmentException.findMany({
+            where: {
+              status: { in: ["CARGO_FOUND", "CLOSED", "RESOLVED", "WRITTEN_OFF"] },
+              ...scope,
+              ...typeWhere,
+            },
+            orderBy: { resolvedAt: "desc" },
+            take: 25,
+            include: EXCEPTION_INCLUDE,
+          })
+        : Promise.resolve([]),
+      // Pill counts come from the database, not from the rows on screen. The
+      // list is capped and already filtered by type, so counting it would make
+      // every pill read either its own size or zero.
+      prisma.shipmentException.groupBy({
+        by: ["type"],
+        where: setWhere,
+        _count: { _all: true },
+      }),
+      prisma.shipmentException.count({
+        where: {
+          status: { in: [...EXCEPTION_OPEN_STATUSES] },
+          assignedToId: null,
+          ...scope,
+        },
+      }),
+      // Only the people who could actually work a case, and only fetched for
+      // the one role that may reassign.
+      can(user.role, "exception.approve")
+        ? prisma.user.findMany({
+            where: {
+              active: true,
+              role: {
+                in: (Object.keys(ROLE_PERMISSIONS) as Role[]).filter((role) =>
+                  can(role, "exception.investigate")
+                ),
+              },
+            },
+            select: { id: true, name: true, role: true },
+            orderBy: { name: "asc" },
+          })
+        : Promise.resolve([]),
+    ]);
+
+  const records = rows.map((row) => toRecord(row, canSeeMoney));
+  const closedRecords = closedRows.map((row) => toRecord(row, canSeeMoney));
+  const assignees = assigneeRows.map((person) => ({
+    id: person.id,
+    name: person.name,
+    roleLabel: ROLE_LABELS[person.role],
+  }));
 
   const countFor = (key: ExceptionGroupKey | "all") =>
-    key === "all"
-      ? openCards.length
-      : openCards.filter((e) => groupOf(e.type) === key).length;
+    pillCounts
+      .filter(
+        (bucket) =>
+          key === "all" || groupOf(bucket.type as ExceptionType) === key
+      )
+      .reduce((total, bucket) => total + bucket._count._all, 0);
 
-  const oldest = openCards.length > 0 ? daysOpen(openCards[0].raisedAt) : 0;
+  const copy = SET_COPY[set];
 
   // Boxes, not flags: two exceptions on one shipment must not count its missing
   // cartons twice.
   const unaccounted = new Map<string, number>();
-  for (const e of openCards) {
+  for (const record of records) {
     unaccounted.set(
-      e.shipment.trackingNumber,
-      e.shipment.packages.filter((p) => !p.receivedAt).length
+      record.shipment.trackingNumber,
+      record.shipment.packages.filter((p) => !p.receivedAt).length
     );
   }
   const missingPieces = [...unaccounted.values()].reduce((a, b) => a + b, 0);
+  const oldest =
+    set === "open" && records.length > 0
+      ? Math.max(
+          0,
+          Math.floor(
+            (Date.now() - records[0].raisedAt.getTime()) / 86_400_000
+          )
+        )
+      : 0;
 
   return (
     <>
@@ -197,27 +390,18 @@ export default async function ExceptionsPage({
         description="Every item flagged missing, damaged or wrong on arrival — held here, with the boxes it belongs to, until someone closes it out."
       />
 
+      <InvestigationCards
+        counts={counts}
+        set={set}
+        group={group}
+        tracking={tracking}
+      />
+
+      {/* The cards count cases. These count the things a case does not: boxes
+          on the floor, days lost, and cases with nobody's name on them. */}
       <StatStrip
         className="mb-5"
         chips={[
-          {
-            label: "Open",
-            value: String(openCards.length),
-            icon: AlertTriangle,
-            tone: openCards.length > 0 ? "danger" : "success",
-          },
-          {
-            label: "Missing",
-            value: String(countFor("missing")),
-            icon: PackageX,
-            tone: countFor("missing") > 0 ? "danger" : "success",
-          },
-          {
-            label: "Damaged",
-            value: String(countFor("damaged")),
-            icon: PackageOpen,
-            tone: countFor("damaged") > 0 ? "warning" : "success",
-          },
           {
             label: "Packages unaccounted for",
             value: String(missingPieces),
@@ -230,6 +414,12 @@ export default async function ExceptionsPage({
             icon: Clock,
             tone: oldest >= 7 ? "danger" : oldest >= 2 ? "warning" : "neutral",
           },
+          {
+            label: "Nobody carrying",
+            value: String(unassigned),
+            icon: UserX,
+            tone: unassigned > 0 ? "warning" : "success",
+          },
         ]}
       />
 
@@ -241,7 +431,7 @@ export default async function ExceptionsPage({
             <span className="font-mono font-semibold tabular">{tracking}</span>
           </p>
           <Link
-            href={group === "all" ? "/app/exceptions" : `/app/exceptions?group=${group}`}
+            href={queryHref(set, group, "")}
             className="focus-ring inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" />
@@ -252,16 +442,12 @@ export default async function ExceptionsPage({
 
       <div className="mb-4 flex flex-wrap gap-2">
         {GROUP_FILTERS.map((option) => {
-          const href = new URLSearchParams();
-          if (option.key !== "all") href.set("group", option.key);
-          if (tracking) href.set("tracking", tracking);
-          const query = href.toString();
           const count = countFor(option.key);
           const active = option.key === group;
           return (
             <Link
               key={option.key}
-              href={query ? `/app/exceptions?${query}` : "/app/exceptions"}
+              href={queryHref(set, option.key, tracking)}
               className={`focus-ring inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                 active ? "border-brand bg-brand text-brand-foreground" : "hover:bg-accent"
               }`}
@@ -281,52 +467,71 @@ export default async function ExceptionsPage({
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">
-          Under investigation ({visibleOpen.length})
-          {visibleOpen.length > 1 ? (
+          {copy.heading} ({records.length})
+          {records.length > 1 ? (
             <span className="ml-2 font-normal text-muted-foreground">
-              oldest first
+              {copy.note}
             </span>
           ) : null}
         </h2>
 
-        {visibleOpen.length === 0 ? (
+        {records.length === 0 ? (
           <EmptyState
             icon={ShieldCheck}
             title={
-              openCards.length > 0
-                ? "Nothing of this kind is open"
-                : tracking
-                  ? `Nothing open on ${tracking}`
-                  : "Nothing outstanding"
+              group === "all"
+                ? tracking
+                  ? `Nothing on ${tracking}`
+                  : copy.emptyTitle
+                : "Nothing of this kind here"
             }
             description={
-              openCards.length > 0
-                ? "Other flags are still open — switch the filter above to see them."
-                : tracking
-                  ? "This shipment has no case under investigation. Anything already closed is listed below."
-                  : "Every flagged item has been accounted for. Cargo flagged at check-in lands here on its own."
+              group === "all"
+                ? tracking
+                  ? "This shipment has no case in this view. Try another card above."
+                  : copy.emptyBody
+                : "Other cases are in this view — switch the filter above to see them."
             }
           />
         ) : (
-          <ExceptionTable exceptions={visibleOpen} canResolve={canResolve} />
+          <ExceptionTable
+            exceptions={records}
+            allow={allow}
+            assignees={assignees}
+            closed={set !== "open" && set !== "compensation"}
+          />
         )}
       </section>
 
-      {visibleResolved.length > 0 ? (
+      {closedRecords.length > 0 ? (
         <section className="mt-8 space-y-3">
           <h2 className="text-sm font-semibold">
-            Closed ({visibleResolved.length})
+            Recently closed ({closedRecords.length})
           </h2>
           {/* Closed cases stay on the page but read back: they are a record,
               not a queue. Same table so the eye does not have to re-learn the
               columns halfway down. */}
           <ExceptionTable
-            exceptions={visibleResolved}
-            canResolve={false}
+            exceptions={closedRecords}
+            allow={allow}
+            assignees={assignees}
             closed
           />
         </section>
       ) : null}
     </>
   );
+}
+
+function queryHref(
+  set: QueueSet,
+  group: ExceptionGroupKey | "all",
+  tracking: string
+) {
+  const query = new URLSearchParams();
+  if (set !== "open") query.set("set", set);
+  if (group !== "all") query.set("group", group);
+  if (tracking) query.set("tracking", tracking);
+  const search = query.toString();
+  return search ? `/app/exceptions?${search}` : "/app/exceptions";
 }

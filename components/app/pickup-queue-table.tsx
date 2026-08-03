@@ -5,6 +5,7 @@ import type { ShipmentStatus } from "@prisma/client";
 import { AlertTriangle, ArrowRight, PackageCheck, ShieldCheck } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
+import { ReportMissingCargoForm } from "@/components/app/missing-cargo-report";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -339,6 +340,17 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
               <Button asChild variant="ghost" size="sm" className="rounded-lg">
                 <Link href={`/app/customers/${row.customerId}`}>Customer</Link>
               </Button>
+            </div>
+            {/*
+              Discovering a hole on the shelf here is a phone call; discovering
+              it with the customer at the counter is a claim. The row already
+              carries the pickup note id, which is enough to identify the cargo.
+            */}
+            <div className="pt-2">
+              <ReportMissingCargoForm
+                pickupNoteId={row.id}
+                trackingNumber={row.trackingNumber}
+              />
             </div>
           </div>
         </div>

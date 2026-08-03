@@ -5,7 +5,11 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
-import { STORAGE_POLICY, storageDaysFor } from "@/lib/constants";
+import {
+  EXCEPTION_OPEN_STATUSES,
+  STORAGE_POLICY,
+  storageDaysFor,
+} from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { LOCAL_CURRENCY, currentRateValue, toLocal } from "@/lib/fx";
 import { quote } from "@/lib/pricing";
@@ -431,8 +435,16 @@ export async function recordPayment(
             customerId: true,
             currency: true,
             pickupNote: { select: { id: true, status: true } },
+            // Any case that blocks pickup, not just a missing shipment.
+            //
+            // This filtered on status "OPEN" and type MISSING_SHIPMENT, which
+            // was two holes at once. A case moved to UNDER_INVESTIGATION stops
+            // matching "OPEN", so the gate opened and a pickup note could be
+            // issued for cargo somebody was actively hunting for — the exact
+            // thing the owner said must never happen. And damaged, wrong-item
+            // and held cargo were never covered at all.
             exceptions: {
-              where: { status: "OPEN", type: "MISSING_SHIPMENT" },
+              where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } },
               select: { id: true },
             },
           },
@@ -532,8 +544,16 @@ export async function issuePickupNote(
           invoice: {
             select: { id: true, status: true, total: true, amountPaid: true },
           },
+          // Any case that blocks pickup, not just a missing shipment.
+          //
+          // This filtered on status "OPEN" and type MISSING_SHIPMENT, which
+          // was two holes at once. A case moved to UNDER_INVESTIGATION stops
+          // matching "OPEN", so the gate opened and a pickup note could be
+          // issued for cargo somebody was actively hunting for — the exact
+          // thing the owner said must never happen. And damaged, wrong-item
+          // and held cargo were never covered at all.
           exceptions: {
-            where: { status: "OPEN", type: "MISSING_SHIPMENT" },
+            where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } },
             select: { id: true },
           },
         },

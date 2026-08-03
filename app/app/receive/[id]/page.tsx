@@ -12,6 +12,7 @@ import { formatDate, formatWeight, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { storageIsDurable } from "@/lib/storage";
 
 export const metadata: Metadata = { title: "Check in cargo" };
 
@@ -91,6 +92,7 @@ export default async function VerifyBatchPage({
       <VerificationList
         batchId={batch.id}
         batchStatus={batch.status}
+        photosDurable={storageIsDurable()}
         shipments={batch.shipments.map((shipment) => {
           const verification = verificationByShipment.get(shipment.id);
           return {

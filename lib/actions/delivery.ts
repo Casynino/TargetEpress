@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { recordAudit } from "@/lib/audit";
 import { packageProgress, resolveScannedCode } from "@/lib/packages";
+import { findPickupLock, pickupLockMessage } from "@/lib/pickup-lock";
 import { prisma } from "@/lib/prisma";
 import { filesFrom, putImages } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -103,6 +104,19 @@ export async function releaseShipment(
       }
       if (note.shipment.status !== "READY_FOR_PICKUP") {
         throw new Error("This shipment is not cleared for release.");
+      }
+
+      // The investigation lock, and it is checked here rather than only in the
+      // queue because this is the last point at which anything can be stopped.
+      // A shipment can be READY_FOR_PICKUP, fully paid, every box ticked in —
+      // and still be under investigation for damage, wrong contents, or a box
+      // nobody can find. The shipment status answers "has Finance cleared it";
+      // it does not answer "may this leave the building", and only an open case
+      // answers that. The lock lifts by itself when the case reaches
+      // CARGO_FOUND or is closed; nobody has to remember to unlock anything.
+      const lock = await findPickupLock(tx, note.shipment.id);
+      if (lock) {
+        throw new Error(pickupLockMessage(lock, note.shipment.trackingNumber));
       }
 
       // Everything the customer paid for has to be on the floor. Handing over

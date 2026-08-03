@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { CheckCircle2, PackageCheck, ScanLine, Search } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { UnableToLocateForm } from "@/components/app/missing-cargo-report";
 import { PhotoCapture } from "@/components/app/photo-capture";
 import { QrScanner } from "@/components/app/qr-scanner";
 import { Button } from "@/components/ui/button";
@@ -158,6 +159,7 @@ function ReleaseForm({
   }
 
   return (
+    <div className="space-y-4">
     <form action={action} className="space-y-6 rounded-xl border bg-card p-6 shadow-soft">
       <input type="hidden" name="pickupNoteId" value={note.id} />
       <input type="hidden" name="shipmentQr" value={scanned} />
@@ -314,5 +316,19 @@ function ReleaseForm({
         </Button>
       </div>
     </form>
+
+      {/*
+        The other outcome. Sometimes the record says the cargo is here and the
+        shelf says otherwise, and the wrong thing to do then is to mark it
+        delivered and sort it out afterwards. Sits outside the release form —
+        a form inside a form is invalid, and this must never be submitted by
+        the same click as a handover.
+      */}
+      <UnableToLocateForm
+        pickupNoteId={note.id}
+        trackingNumber={note.trackingNumber}
+        onReported={onDone}
+      />
+    </div>
   );
 }

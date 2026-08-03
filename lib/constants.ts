@@ -1,6 +1,8 @@
 import type {
   BatchStatus,
+  DamageSeverity,
   Department,
+  ExceptionStatus,
   ExceptionType,
   GoodsType,
   Origin,
@@ -360,7 +362,64 @@ export const EXCEPTION_TYPE_LABELS: Record<ExceptionType, string> = {
   WEIGHT_MISMATCH: "Weight mismatch",
   PACKAGE_COUNT_MISMATCH: "Package count mismatch",
   WRONG_BATCH: "Wrong batch",
+  WRONG_ITEM: "Wrong item",
+  HOLD_FOR_INVESTIGATION: "Hold for investigation",
   OTHER: "Other",
+};
+
+export const EXCEPTION_STATUS_LABELS: Record<ExceptionStatus, string> = {
+  OPEN: "Open",
+  UNDER_INVESTIGATION: "Under investigation",
+  WAITING_CUSTOMER: "Waiting for customer decision",
+  COMPENSATION_APPROVED: "Compensation approved",
+  REPLACEMENT_APPROVED: "Replacement approved",
+  CARGO_FOUND: "Cargo found",
+  CLOSED: "Closed",
+  RESOLVED: "Resolved",
+  WRITTEN_OFF: "Written off",
+};
+
+/**
+ * A case nobody has finished with. The queue, the dashboard counts and the
+ * public "Under Investigation" line all key off this one list, so a new
+ * lifecycle value is live everywhere the moment it is added here.
+ */
+export const EXCEPTION_OPEN_STATUSES = [
+  "OPEN",
+  "UNDER_INVESTIGATION",
+  "WAITING_CUSTOMER",
+  "COMPENSATION_APPROVED",
+  "REPLACEMENT_APPROVED",
+] as const satisfies readonly ExceptionStatus[];
+
+/**
+ * Finished. CARGO_FOUND is terminal because the box is back on the shelf and
+ * the cargo returns to its normal operational status; RESOLVED and WRITTEN_OFF
+ * are the pre-lifecycle values, kept so old rows still read correctly and never
+ * written by new code.
+ */
+export const EXCEPTION_TERMINAL_STATUSES = [
+  "CARGO_FOUND",
+  "CLOSED",
+  "RESOLVED",
+  "WRITTEN_OFF",
+] as const satisfies readonly ExceptionStatus[];
+
+/**
+ * Statuses that mean the cargo must not be handed over, whatever the shipment
+ * record says. The pickup counter and the public tracking page both ask this
+ * question, and they must never disagree — the owner's rule is that a customer
+ * never sees "Ready for Pickup" for cargo that is missing or unavailable.
+ */
+export function blocksPickup(status: ExceptionStatus) {
+  return (EXCEPTION_OPEN_STATUSES as readonly ExceptionStatus[]).includes(status);
+}
+
+export const DAMAGE_SEVERITY_LABELS: Record<DamageSeverity, string> = {
+  MINOR: "Minor",
+  MODERATE: "Moderate",
+  SEVERE: "Severe",
+  TOTAL_LOSS: "Total loss",
 };
 
 /** Common airlines on the China → Tanzania corridor, offered as suggestions. */
