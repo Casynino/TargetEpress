@@ -36,6 +36,7 @@ import {
   PACKAGE_TYPE_LABELS,
   enumOptions,
   formatPackages,
+  formatPackagesShort,
 } from "@/lib/constants";
 import { formatWeight } from "@/lib/format";
 
@@ -131,16 +132,48 @@ export function VerificationList({
         </p>
       ) : null}
 
-      <ul className="space-y-1.5">
-        {shipments.map((shipment) => (
-          <VerificationRow
-            key={shipment.id}
-            batchId={batchId}
-            shipment={shipment}
-            locked={batchStatus !== "ARRIVED"}
-          />
-        ))}
-      </ul>
+      {/* The same table the China desk reads, so a person who works both ends
+          is looking at one layout. The only additions are the two actions and
+          the row expander — check-in is the China cargo list plus a decision. */}
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="max-h-[70vh] overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th className="w-8 px-2 py-2" />
+                <th className="px-3 py-2 font-medium">Tracking</th>
+                <th className="px-3 py-2 font-medium">Customer</th>
+                <th className="px-3 py-2 font-medium">Goods</th>
+                <th className="hidden px-3 py-2 font-medium lg:table-cell">
+                  Type
+                </th>
+                <th className="px-3 py-2 text-right font-medium">Weight</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
+                  Counted as
+                </th>
+                <th className="hidden px-3 py-2 font-medium md:table-cell">
+                  Proof
+                </th>
+                <th className="hidden px-3 py-2 font-medium md:table-cell">
+                  Status
+                </th>
+                <th className="w-24 px-3 py-2 text-center font-medium">Check</th>
+                <th className="w-16 px-3 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {shipments.map((shipment) => (
+                <VerificationRow
+                  key={shipment.id}
+                  batchId={batchId}
+                  shipment={shipment}
+                  locked={batchStatus !== "ARRIVED"}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
@@ -214,250 +247,175 @@ function VerificationRow({
   const investigate = Boolean(shipment.verification) && (flagged || short > 0);
 
   return (
-    // One line per shipment rather than a card each. Eighty-seven cards is a
-    // page nobody reads to the bottom of; eighty-seven rows can be scanned for
-    // the one that looks wrong, which is the only thing anybody is looking for.
-    <li
-      className={`rounded-lg border bg-card px-3 py-2.5 ${
-        done
-          ? "border-success/30 bg-success/[0.03]"
-          : flagged
-            ? "border-destructive/40"
-            : ""
-      }`}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        {/* The whole identity line opens the detail. Nothing else in this line
-            is interactive, so the big target costs nothing. */}
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-controls={detailId}
-          className="focus-ring -mx-1 flex min-w-0 flex-1 items-center gap-3 rounded-md px-1 py-0.5 text-left"
-        >
-          {done ? (
-            <Check className="h-4 w-4 shrink-0 text-success" />
-          ) : flagged ? (
-            <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />
+    <>
+      <tr
+        className={`border-t align-middle ${
+          done
+            ? "bg-success/[0.04]"
+            : flagged
+              ? "bg-destructive/[0.05]"
+              : "hover:bg-muted/40"
+        }`}
+      >
+        {/* Expander. The chevron is the whole affordance — the row itself stays
+            a table row so the columns line up with the China list. */}
+        <td className="px-2 py-1.5">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-controls={detailId}
+            className="focus-ring flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+          >
+            <ChevronRight
+              className={`h-4 w-4 transition-transform motion-reduce:transition-none ${
+                open ? "rotate-90" : ""
+              }`}
+            />
+            <span className="sr-only">
+              {open ? "Hide cargo detail" : "Show cargo detail"}
+            </span>
+          </button>
+        </td>
+
+        <td className="whitespace-nowrap px-3 py-1.5">
+          <span className="flex items-center gap-2">
+            {done ? (
+              <Check className="h-3.5 w-3.5 shrink-0 text-success" />
+            ) : flagged ? (
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive" />
+            ) : null}
+            <span className="font-mono text-xs font-semibold tabular">
+              {shipment.trackingNumber}
+            </span>
+          </span>
+        </td>
+
+        <td className="max-w-[10rem] truncate px-3 py-1.5">
+          {shipment.customerName}
+        </td>
+
+        <td className="max-w-[14rem] truncate px-3 py-1.5">
+          {shipment.description}
+        </td>
+
+        <td className="hidden whitespace-nowrap px-3 py-1.5 text-muted-foreground lg:table-cell">
+          {GOODS_TYPE_LABELS[shipment.goodsType] ?? shipment.goodsType}
+        </td>
+
+        <td className="whitespace-nowrap px-3 py-1.5 text-right tabular">
+          {formatWeight(shipment.weightKg)}
+        </td>
+
+        <td className="whitespace-nowrap px-3 py-1.5 text-right tabular">
+          {short > 0 && shipment.verification ? (
+            <span className="font-semibold text-warning">
+              {shipment.packages - short} of{" "}
+              {formatPackagesShort(shipment.packages, shipment.packageType)}
+            </span>
           ) : (
-            <span className="h-4 w-4 shrink-0 rounded-full border border-dashed" />
+            formatPackagesShort(shipment.packages, shipment.packageType)
           )}
-          <ChevronRight
-            className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none ${
-              open ? "rotate-90" : ""
-            }`}
-          />
-          <span className="shrink-0 font-mono text-sm font-semibold tabular">
-            {shipment.trackingNumber}
-          </span>
-          <span className="shrink-0 text-sm">{shipment.customerName}</span>
-          <span className="truncate text-xs text-muted-foreground">
-            {formatPackages(shipment.packages, shipment.packageType)} ·{" "}
-            {formatWeight(shipment.weightKg)} · {shipment.description}
-          </span>
-          <span className="sr-only">
-            {open ? "Hide cargo detail" : "Show cargo detail"}
-          </span>
-        </button>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {shipment.photos.length > 0 && !open ? (
-            <span
-              className="flex items-center gap-1 text-xs text-muted-foreground tabular"
-              title={`${shipment.photos.length} photo${shipment.photos.length === 1 ? "" : "s"} from China`}
-            >
+        </td>
+
+        <td className="hidden whitespace-nowrap px-3 py-1.5 md:table-cell">
+          {shipment.photos.length > 0 ? (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground tabular">
               <Camera className="h-3.5 w-3.5" />
               {shipment.photos.length}
             </span>
-          ) : null}
-          {flagged ? <Badge variant="destructive">Exception</Badge> : null}
-          {!flagged && short > 0 && shipment.verification ? (
-            <Badge variant="warning">
-              {short} {short === 1 ? unit.one : unit.many} short
-            </Badge>
-          ) : null}
-          {investigate ? (
-            <Link
-              href={`/app/exceptions?tracking=${shipment.trackingNumber}`}
-              title="Open this shipment in the investigation queue"
-              className="focus-ring inline-flex items-center gap-1 rounded-full border border-destructive/40 px-2.5 py-0.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/5"
-            >
-              <Search className="h-3 w-3" />
-              Investigation
-            </Link>
-          ) : null}
-          {!done && !flagged ? (
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </td>
+
+        <td className="hidden whitespace-nowrap px-3 py-1.5 md:table-cell">
+          {flagged ? (
+            <Badge variant="destructive">Exception</Badge>
+          ) : (
             <ShipmentStatusBadge status={shipment.status} />
-          ) : null}
-        </div>
-      </div>
+          )}
+        </td>
 
-      {open ? <CargoDetail id={detailId} shipment={shipment} /> : null}
-
-      {shipment.verification?.note ? (
-        <p className="mt-2 rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
-          {shipment.verification.note}
-        </p>
-      ) : null}
-
-      {/* The default row is two buttons: it was fine, or it was not.
-          Everything about which boxes are where lives behind "Something is
-          wrong", because in the normal case there is nothing to say. */}
-      {locked ? null : (
-        <div className="mt-3 flex flex-col gap-2 border-t pt-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <form action={action} className="w-full sm:w-auto">
-            <input type="hidden" name="batchId" value={batchId} />
-            <input type="hidden" name="shipmentId" value={shipment.id} />
-            <input type="hidden" name="result" value="VERIFIED" />
-            <SubmitButton
-              variant={done ? "outline" : "brand"}
-              pendingLabel="Checking…"
-              className="h-12 w-full text-base sm:h-9 sm:w-auto sm:text-sm"
-            >
-              <Check className="mr-1.5 h-5 w-5 sm:h-4 sm:w-4" />
-              {done ? "Checked" : "Present & correct"}
-            </SubmitButton>
-          </form>
-
-          <button
-            type="button"
-            onClick={() => setFlagging((v) => !v)}
-            className="inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-md border text-base text-destructive hover:bg-destructive/5 sm:h-9 sm:w-auto sm:px-3 sm:text-sm"
-          >
-            <AlertTriangle className="h-5 w-5 sm:h-4 sm:w-4" />
-            {flagging ? "Never mind" : "Something is wrong"}
-          </button>
-        </div>
-      )}
-
-
-      {flagging && !locked ? (
-        <div className="mt-3 space-y-4 rounded-lg border border-destructive/30 bg-destructive/[0.03] p-3">
-          {/* PATH 1 — some boxes short.
-              Only for multi-package shipments: a single-package shipment is
-              either here or it is not, and "1 of 1 missing" is the whole
-              shipment, which is the other path. */}
-          {shipment.packageList.length > 1 ? (
-            <div>
-              <p className="text-xs font-medium">
-                Which {unit.many} are on the floor?
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Untick anything that did not arrive.
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {shipment.packageList.map((pkg) => {
-                  const on = present.includes(pkg.id);
-                  return (
-                    <button
-                      key={pkg.id}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() =>
-                        setPresent((current) =>
-                          current.includes(pkg.id)
-                            ? current.filter((id) => id !== pkg.id)
-                            : [...current, pkg.id]
-                        )
-                      }
-                      className={`inline-flex h-11 min-w-11 items-center justify-center rounded-md border px-3 text-sm font-semibold tabular transition-colors ${
-                        on
-                          ? "border-brand bg-brand/10 text-brand"
-                          : "border-dashed border-destructive/50 text-destructive line-through"
-                      }`}
-                    >
-                      {pkg.sequence}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <form action={action} className="mt-3">
+        {/* The two answers, as icons. Naming them on every one of eighty-seven
+            rows spent a third of the table width repeating the same two words;
+            the icons carry a title and an sr-only label instead. */}
+        <td className="px-3 py-1.5">
+          {locked ? null : (
+            <div className="flex items-center justify-center gap-1">
+              <form action={action}>
                 <input type="hidden" name="batchId" value={batchId} />
                 <input type="hidden" name="shipmentId" value={shipment.id} />
                 <input type="hidden" name="result" value="VERIFIED" />
-                <input type="hidden" name="packageSelection" value="explicit" />
-                {shipment.packageList.map((pkg) => (
-                  <input
-                    key={pkg.id}
-                    type="hidden"
-                    name="packageIds"
-                    value={present.includes(pkg.id) ? pkg.id : ""}
-                  />
-                ))}
                 <SubmitButton
-                  variant="brand"
-                  pendingLabel="Recording…"
-                  className="h-11 w-full text-sm sm:w-auto"
-                  disabled={present.length === shipment.packageList.length}
+                  variant={done ? "outline" : "brand"}
+                  size="icon"
+                  className="h-8 w-8"
+                  title="Present & correct"
+                  pendingLabel=""
                 >
-                  <Check className="mr-1.5 h-4 w-4" />
-                  Check in {present.length} of {shipment.packageList.length}
+                  <Check className="h-4 w-4" />
+                  <span className="sr-only">
+                    Present and correct — {shipment.trackingNumber}
+                  </span>
                 </SubmitButton>
-                {present.length < shipment.packageList.length ? (
-                  <p className="mt-2 text-xs text-warning">
-                    {shipment.packageList.length - present.length} missing —
-                    this raises a shortage and blocks release until they arrive.
-                  </p>
-                ) : (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Untick a {unit.one} above to record it short.
-                  </p>
-                )}
               </form>
-
-              <div className="mt-4 border-t pt-3 text-xs font-medium">
-                Or the cargo is damaged / wrong
-              </div>
+              <button
+                type="button"
+                onClick={() => setFlagging((v) => !v)}
+                title="Something is wrong"
+                className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-md border text-destructive hover:bg-destructive/5"
+              >
+                <AlertTriangle className="h-4 w-4" />
+                <span className="sr-only">
+                  Something is wrong — {shipment.trackingNumber}
+                </span>
+              </button>
             </div>
-          ) : null}
+          )}
+        </td>
 
-          {/* PATH 2 — damaged, wrong, or the whole shipment absent. */}
-          <form action={action} className="space-y-3">
-          <input type="hidden" name="batchId" value={batchId} />
-          <input type="hidden" name="shipmentId" value={shipment.id} />
-          <input type="hidden" name="result" value="EXCEPTION" />
-
-          <div className="space-y-1.5">
-            <Label htmlFor={`type-${shipment.id}`} className="text-xs">
-              What is wrong?
-            </Label>
-            <NativeSelect
-              id={`type-${shipment.id}`}
-              name="exceptionType"
-              defaultValue="MISSING_SHIPMENT"
+        <td className="whitespace-nowrap px-3 py-1.5 text-right">
+          {investigate ? (
+            <Link
+              href={`/app/exceptions?tracking=${shipment.trackingNumber}`}
+              title="Open in the investigation queue"
+              className="focus-ring inline-flex items-center gap-1 text-xs font-medium text-destructive hover:underline"
             >
-              {enumOptions(EXCEPTION_TYPE_LABELS).map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
+              <Search className="h-3 w-3" />
+              Case
+            </Link>
+          ) : (
+            <Link
+              href={`/app/cargo/${shipment.trackingNumber}`}
+              className="focus-ring text-xs font-medium text-brand hover:underline"
+            >
+              Open
+            </Link>
+          )}
+        </td>
+      </tr>
 
-          <div className="space-y-1.5">
-            <Label htmlFor={`note-${shipment.id}`} className="text-xs">
-              Details
-            </Label>
-            <Input
-              id={`note-${shipment.id}`}
-              name="note"
-              placeholder="e.g. 3 of 4 cartons arrived, one carton torn open"
-              required
-            />
-          </div>
+      {/* Everything that is not a column: the China photos, the package list,
+          the flag form, and any error. One spanning row so the table keeps its
+          alignment. */}
+      {open || flagging || shipment.verification?.note || !state.ok ? (
+        <tr className="border-t-0">
+          <td colSpan={11} className="bg-muted/20 px-3 pb-3 pt-0">
+            {open ? <CargoDetail id={detailId} shipment={shipment} /> : null}
 
-          <SubmitButton size="sm" variant="destructive" pendingLabel="Flagging…">
-            Record exception
-          </SubmitButton>
-        </form>
-        </div>
+            {shipment.verification?.note ? (
+              <p className="mt-2 rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
+                {shipment.verification.note}
+              </p>
+            ) : null}
+            <div className="mt-2">
+              <FormError state={state} />
+            </div>
+          </td>
+        </tr>
       ) : null}
-
-      <div className="mt-2">
-        <FormError state={state} />
-      </div>
-    </li>
+    </>
   );
 }
 
