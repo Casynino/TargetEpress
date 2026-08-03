@@ -255,6 +255,18 @@ const DAR_SECTIONS: NavSection[] = [
         permission: "batch.receive",
       },
       {
+        href: "/app/exceptions",
+        // Named for what the desk does there rather than the database word:
+        // it is where flagged cargo is chased until it is found or written off.
+        //
+        // It was reachable only from a dashboard card, which meant the one
+        // place that answers "where is that missing box?" could not be found
+        // from the sidebar at all.
+        label: "Investigation queue",
+        icon: "TriangleAlert",
+        permission: "exception.raise",
+      },
+      {
         href: "/app/inventory",
         label: "Warehouse Inventory",
         icon: "Boxes",
