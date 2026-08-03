@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  AlertTriangle,
   ChevronRight,
   Download,
   FileText,
@@ -31,6 +32,12 @@ export type CargoLine = {
   status: string;
   statusLabel: string;
   receivedLabel: string;
+  /**
+   * Open problems raised against this line, so a flagged shipment is visible
+   * wherever the cargo is listed rather than only in the investigation queue.
+   * Empty for a clean line.
+   */
+  problems: string[];
   /** Proof photos, carried by the cargo itself all the way to the counter. */
   photos: { id: string; url: string; caption: string | null }[];
   /** Undefined for roles that may not see money. */
@@ -223,6 +230,21 @@ export function ShipmentDetailTabs({
                       >
                         {line.trackingNumber}
                       </Link>
+                      {/* The flag travels with the line. Somebody scanning this
+                          list for a customer's cargo should see the problem
+                          here, not have to open the shipment to find it. */}
+                      {line.problems.length > 0 ? (
+                        <span
+                          title={line.problems.join(", ")}
+                          className="ml-2 inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive"
+                        >
+                          <AlertTriangle className="h-3 w-3" />
+                          {line.problems[0]}
+                          {line.problems.length > 1
+                            ? ` +${line.problems.length - 1}`
+                            : ""}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="max-w-[12rem] truncate px-3 py-1.5">
                       <Link

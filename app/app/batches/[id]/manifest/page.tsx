@@ -9,6 +9,7 @@ import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
 import {
   COMPANY,
+  EXCEPTION_TYPE_LABELS,
   ORIGIN_LABELS,
   formatPackagesShort,
 } from "@/lib/constants";
@@ -42,6 +43,15 @@ export default async function ManifestPage({
           customer: { select: { name: true, phone: true } },
           createdBy: { select: { name: true } },
           cargoType: { select: { name: true } },
+          // What actually came off the plane, and anything raised against this
+          // line. A manifest that only ever prints the declared count cannot
+          // show a shortage, which is the one thing a checked manifest is for.
+          packageList: { select: { receivedAt: true } },
+          exceptions: {
+            where: { resolvedAt: null },
+            select: { type: true, description: true },
+            orderBy: { raisedAt: "asc" },
+          },
         },
       },
     },
@@ -54,6 +64,12 @@ export default async function ManifestPage({
     0
   );
   const totalPackages = batch.shipments.reduce((sum, s) => sum + s.packages, 0);
+  // Counted from Package.receivedAt, so the total falls when boxes are short.
+  const totalArrived = batch.shipments.reduce(
+    (sum, s) => sum + s.packageList.filter((pkg) => pkg.receivedAt).length,
+    0
+  );
+  const flagged = batch.shipments.filter((s) => s.exceptions.length > 0);
 
   // Broken down by unit, because "148" on a manifest is not a checkable number:
   // customs and the warehouse both need to know 96 ctn and 52 bag. Short forms
@@ -164,6 +180,7 @@ export default async function ManifestPage({
               {/* Physically ticked with a pen while checking the cargo. The
                   count is already in "Counted as" — one box per package only
                   repeated it. */}
+              <th className="py-2 pr-2 font-semibold">Problem</th>
               <th className="w-16 py-2 text-center font-semibold">Checked</th>
             </tr>
           </thead>
@@ -185,12 +202,39 @@ export default async function ManifestPage({
                   {cargoLabel(shipment.cargoType?.name, shipment.description)}
                 </td>
                 <td className="py-2 pr-2 text-right tabular">
-                  {formatPackagesShort(shipment.packages, shipment.packageType)}
+                  {(() => {
+                    const here = shipment.packageList.filter(
+                      (pkg) => pkg.receivedAt
+                    ).length;
+                    const short = here < shipment.packages;
+                    return short ? (
+                      <span className="font-semibold">
+                        {here} of{" "}
+                        {formatPackagesShort(
+                          shipment.packages,
+                          shipment.packageType
+                        )}
+                      </span>
+                    ) : (
+                      formatPackagesShort(shipment.packages, shipment.packageType)
+                    );
+                  })()}
                 </td>
                 <td className="py-2 pr-2 text-right tabular">
                   {formatWeight(shipment.weightKg)}
                 </td>
                 <td className="py-2 pr-2">{shipment.createdBy?.name ?? "—"}</td>
+                <td className="py-2 pr-2">
+                  {shipment.exceptions.length > 0 ? (
+                    <span className="font-semibold">
+                      {shipment.exceptions
+                        .map((e) => EXCEPTION_TYPE_LABELS[e.type] ?? e.type)
+                        .join(", ")}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td className="py-2 text-center">
                   <span className="inline-block h-3.5 w-3.5 border border-black/60" />
                 </td>

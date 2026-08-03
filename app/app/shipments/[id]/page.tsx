@@ -13,6 +13,7 @@ import {
 import { BatchStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import {
+  EXCEPTION_TYPE_LABELS,
   ORIGIN_LABELS,
   SHIPMENT_STATUS_META,
   formatPackagesShort,
@@ -52,6 +53,13 @@ export default async function ShipmentPage({
             orderBy: { createdAt: "asc" },
             select: { id: true, url: true, caption: true },
           },
+          // Unresolved problems only. A resolved shortage is history; an open
+          // one is the reason this line cannot be released.
+          exceptions: {
+            where: { resolvedAt: null },
+            select: { type: true },
+            orderBy: { raisedAt: "asc" },
+          },
         },
       },
     },
@@ -77,6 +85,9 @@ export default async function ShipmentPage({
     status: item.status,
     statusLabel: SHIPMENT_STATUS_META[item.status].label,
     receivedLabel: formatDate(item.registeredAt),
+    problems: item.exceptions.map(
+      (exception) => EXCEPTION_TYPE_LABELS[exception.type] ?? exception.type
+    ),
     photos: item.photos,
   }));
 
