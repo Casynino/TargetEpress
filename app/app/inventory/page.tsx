@@ -108,7 +108,14 @@ export default async function InventoryPage() {
 
   const unpaid = rows.filter((row) => !row.paid);
   const cleared = rows.filter((row) => row.paid);
-  const totalPackages = rows.reduce((sum, row) => sum + row.packages, 0);
+  // Boxes actually ticked off the manifest, not boxes declared in China. A
+  // shipment checked in short — or flagged on a count mismatch — is on the
+  // floor with fewer cartons than its paperwork claims, and this hint says
+  // what is standing there.
+  const totalPackages = rows.reduce(
+    (sum, row) => sum + row.packages - row.packagesPending,
+    0
+  );
   const totalWeight = rows.reduce((sum, row) => sum + row.weightKg, 0);
   const aging = rows.filter(
     (row) => row.daysHeld !== null && row.daysHeld > STORAGE_POLICY.freeDays

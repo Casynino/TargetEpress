@@ -1,8 +1,21 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import type { BatchStatus, ShipmentStatus } from "@prisma/client";
-import { AlertTriangle, Check, CheckCheck } from "lucide-react";
+import Link from "next/link";
+import { useActionState, useId, useState } from "react";
+import type {
+  BatchStatus,
+  GoodsType,
+  Origin,
+  ShipmentStatus,
+} from "@prisma/client";
+import {
+  AlertTriangle,
+  Camera,
+  Check,
+  CheckCheck,
+  ChevronRight,
+  Search,
+} from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
@@ -18,11 +31,22 @@ import {
 import type { ActionResult } from "@/lib/actions/types";
 import {
   EXCEPTION_TYPE_LABELS,
+  GOODS_TYPE_LABELS,
+  ORIGIN_LABELS,
   PACKAGE_TYPE_LABELS,
   enumOptions,
   formatPackages,
 } from "@/lib/constants";
 import { formatWeight } from "@/lib/format";
+
+type PackageRow = {
+  id: string;
+  sequence: number;
+  reference: string;
+  /** Formatted server-side; null when only the shipment total was weighed. */
+  weightLabel: string | null;
+  received: boolean;
+};
 
 type Row = {
   id: string;
@@ -31,9 +55,14 @@ type Row = {
   customerPhone: string | null;
   packages: number;
   packageType: string;
-  packageList: { id: string; sequence: number; received: boolean }[];
+  packageList: PackageRow[];
+  photos: { id: string; url: string; kind: string; caption: string | null }[];
   weightKg: number;
   description: string;
+  goodsType: GoodsType;
+  origin: Origin;
+  cartonRef: string | null;
+  internalNote: string | null;
   status: ShipmentStatus;
   verification: { result: string; note: string | null } | null;
 };
@@ -161,6 +190,11 @@ function VerificationRow({
     { ok: true }
   );
   const [flagging, setFlagging] = useState(false);
+  // Collapsed by default. The dense list is the point of this screen; the detail
+  // is for the one row the operator is standing in front of, and it is mounted
+  // only when opened so the other eighty-six cost nothing to render or fetch.
+  const [open, setOpen] = useState(false);
+  const detailId = useId();
   // Everything is assumed present — the common case is a complete shipment, and
   // the operator only has to act when something is missing.
   const [present, setPresent] = useState<string[]>(
@@ -171,6 +205,13 @@ function VerificationRow({
 
   const done = shipment.verification?.result === "VERIFIED";
   const flagged = shipment.verification?.result === "EXCEPTION";
+  const short = shipment.packageList.filter((pkg) => !pkg.received).length;
+  // Anything flagged, or checked in short, now lives in the investigation
+  // queue. The row it was flagged on is where somebody stands when they ask
+  // "and where did that carton go?", so the answer is one click from here.
+  // Untouched rows are excluded: their boxes read "not received" simply
+  // because nobody has checked them in yet.
+  const investigate = Boolean(shipment.verification) && (flagged || short > 0);
 
   return (
     // One line per shipment rather than a card each. Eighty-seven cards is a
@@ -186,7 +227,15 @@ function VerificationRow({
       }`}
     >
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+        {/* The whole identity line opens the detail. Nothing else in this line
+            is interactive, so the big target costs nothing. */}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls={detailId}
+          className="focus-ring -mx-1 flex min-w-0 flex-1 items-center gap-3 rounded-md px-1 py-0.5 text-left"
+        >
           {done ? (
             <Check className="h-4 w-4 shrink-0 text-success" />
           ) : flagged ? (
@@ -194,22 +243,56 @@ function VerificationRow({
           ) : (
             <span className="h-4 w-4 shrink-0 rounded-full border border-dashed" />
           )}
-          <p className="shrink-0 font-mono text-sm font-semibold tabular">
+          <ChevronRight
+            className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none ${
+              open ? "rotate-90" : ""
+            }`}
+          />
+          <span className="shrink-0 font-mono text-sm font-semibold tabular">
             {shipment.trackingNumber}
-          </p>
-          <p className="shrink-0 text-sm">{shipment.customerName}</p>
-          <p className="truncate text-xs text-muted-foreground">
+          </span>
+          <span className="shrink-0 text-sm">{shipment.customerName}</span>
+          <span className="truncate text-xs text-muted-foreground">
             {formatPackages(shipment.packages, shipment.packageType)} ·{" "}
             {formatWeight(shipment.weightKg)} · {shipment.description}
-          </p>
-        </div>
+          </span>
+          <span className="sr-only">
+            {open ? "Hide cargo detail" : "Show cargo detail"}
+          </span>
+        </button>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {shipment.photos.length > 0 && !open ? (
+            <span
+              className="flex items-center gap-1 text-xs text-muted-foreground tabular"
+              title={`${shipment.photos.length} photo${shipment.photos.length === 1 ? "" : "s"} from China`}
+            >
+              <Camera className="h-3.5 w-3.5" />
+              {shipment.photos.length}
+            </span>
+          ) : null}
           {flagged ? <Badge variant="destructive">Exception</Badge> : null}
+          {!flagged && short > 0 && shipment.verification ? (
+            <Badge variant="warning">
+              {short} {short === 1 ? unit.one : unit.many} short
+            </Badge>
+          ) : null}
+          {investigate ? (
+            <Link
+              href={`/app/exceptions?tracking=${shipment.trackingNumber}`}
+              title="Open this shipment in the investigation queue"
+              className="focus-ring inline-flex items-center gap-1 rounded-full border border-destructive/40 px-2.5 py-0.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/5"
+            >
+              <Search className="h-3 w-3" />
+              Investigation
+            </Link>
+          ) : null}
           {!done && !flagged ? (
             <ShipmentStatusBadge status={shipment.status} />
           ) : null}
         </div>
       </div>
+
+      {open ? <CargoDetail id={detailId} shipment={shipment} /> : null}
 
       {shipment.verification?.note ? (
         <p className="mt-2 rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
@@ -375,6 +458,136 @@ function VerificationRow({
         <FormError state={state} />
       </div>
     </li>
+  );
+}
+
+/**
+ * What was shipped, so the operator can confirm against the box in front of
+ * them rather than against a tracking number.
+ *
+ * Photos lead because they are the only thing here that settles an argument:
+ * Guangzhou photographed six taped cartons, the floor has six taped cartons,
+ * done. Everything else is supporting detail. Money is deliberately absent —
+ * warehouse users never see what cargo is worth or what it cost.
+ *
+ * Rendered only while open, so the ninety-row list stays a ninety-row list.
+ */
+function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
+  const unit =
+    PACKAGE_TYPE_LABELS[shipment.packageType] ?? PACKAGE_TYPE_LABELS.PACKAGE;
+
+  const facts = [
+    {
+      label: "Counted as",
+      value: formatPackages(shipment.packages, shipment.packageType),
+    },
+    { label: "Declared weight", value: formatWeight(shipment.weightKg) },
+    { label: "Goods", value: GOODS_TYPE_LABELS[shipment.goodsType] },
+    { label: "Origin", value: ORIGIN_LABELS[shipment.origin] },
+    { label: "Carton in China", value: shipment.cartonRef ?? "—" },
+    { label: "Phone", value: shipment.customerPhone ?? "No phone recorded" },
+  ];
+
+  return (
+    <div id={id} className="mt-3 space-y-4 border-t pt-3">
+      {/* Photos — the comparison that actually confirms the cargo */}
+      {shipment.photos.length > 0 ? (
+        <div>
+          <p className="flex items-center gap-1.5 text-xs font-medium">
+            <Camera className="h-3.5 w-3.5 text-muted-foreground" />
+            Photographed in {ORIGIN_LABELS[shipment.origin]}
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {shipment.photos.map((photo) => (
+              <li key={photo.id}>
+                <a
+                  href={photo.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="focus-ring block overflow-hidden rounded-lg border"
+                  title={photo.caption ?? "Open full size"}
+                >
+                  {/* Remote Blob URLs from a host list that keeps growing; a
+                      plain img avoids configuring a loader for each one. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photo.url}
+                    alt={photo.caption ?? `${shipment.trackingNumber} in China`}
+                    className="h-24 w-24 object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          No photos were taken in China for this shipment — check the label and
+          the {unit.one} count instead.
+        </p>
+      )}
+
+      <div>
+        <p className="text-xs text-muted-foreground">Description</p>
+        <p className="mt-0.5 text-sm">{shipment.description}</p>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+        {facts.map((fact) => (
+          <div key={fact.label} className="min-w-0">
+            <dt className="text-xs text-muted-foreground">{fact.label}</dt>
+            <dd className="truncate text-sm font-medium">{fact.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {/* The physical boxes. The gap between ticked and not is the shortage. */}
+      {shipment.packageList.length > 0 ? (
+        <div>
+          <p className="text-xs font-medium">
+            {shipment.packageList.filter((pkg) => pkg.received).length} of{" "}
+            {formatPackages(shipment.packageList.length, shipment.packageType)}{" "}
+            checked in
+          </p>
+          <ul className="mt-2 divide-y rounded-lg border">
+            {shipment.packageList.map((pkg) => (
+              <li
+                key={pkg.id}
+                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  {pkg.received ? (
+                    <Check className="h-3.5 w-3.5 shrink-0 text-success" />
+                  ) : (
+                    <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-dashed" />
+                  )}
+                  <span className="shrink-0 text-sm tabular">
+                    {unit.one.charAt(0).toUpperCase() + unit.one.slice(1)}{" "}
+                    {pkg.sequence} of {shipment.packageList.length}
+                  </span>
+                  <span className="code-chip shrink-0">{pkg.reference}</span>
+                </div>
+                <span className="text-xs text-muted-foreground tabular">
+                  {pkg.weightLabel ?? "no separate weight"}
+                  {pkg.received ? "" : " · not checked in"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {shipment.internalNote ? (
+        <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
+          <p className="text-xs font-medium text-warning">
+            Note from China — never shown to the customer
+          </p>
+          <p className="mt-1 text-sm">{shipment.internalNote}</p>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

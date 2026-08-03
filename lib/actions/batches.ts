@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { PACKAGE_TYPE_LABELS } from "@/lib/constants";
+import type { ExceptionType } from "@prisma/client";
+
+import { EXCEPTION_TYPE_LABELS, PACKAGE_TYPE_LABELS } from "@/lib/constants";
 import { recordAudit } from "@/lib/audit";
 import { contributorsTo, notify } from "@/lib/notify";
 import {
@@ -14,7 +16,7 @@ import {
 } from "@/lib/cargo";
 import { nextBatchNumber } from "@/lib/ids";
 import { nextDispatchNumber } from "@/lib/ids";
-import { prisma } from "@/lib/prisma";
+import { prisma, type TxClient } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { batchSchema, departureSchema, firstError } from "@/lib/validation";
@@ -545,11 +547,103 @@ export async function receiveBatch(
 }
 
 /**
+ * Does this kind of problem mean the cargo is standing in the Dar warehouse?
+ *
+ * A damaged carton is still a carton on the floor. Somebody has to store it,
+ * find it again, and answer the customer asking where it is — and none of that
+ * is possible if flagging the damage is what keeps it out of the system. The
+ * old code refused to receive anything flagged, so a torn box sat on a shelf in
+ * Dar while the record said it was in the air: invisible to Warehouse
+ * Inventory, invisible to the counter, and invisible on the customer's
+ * tracking. That is exactly how a box goes missing while nobody has moved it.
+ *
+ * So the flag no longer decides whether the cargo enters the warehouse. Only
+ * this table does, and it answers one physical question: did anything arrive?
+ * MISSING_SHIPMENT is the single case where the answer is no.
+ *
+ * Written as an exhaustive Record on purpose. Add an ExceptionType to the
+ * schema and this file stops compiling until somebody says where that cargo
+ * physically is. The answer is not guessable and the cost of guessing it wrong
+ * is a lost carton.
+ */
+const CARGO_PHYSICALLY_HERE: Record<ExceptionType, boolean> = {
+  // Nothing came off the plane. There is no cargo to receive.
+  MISSING_SHIPMENT: false,
+  // All of these arrived. They arrived wrong, which is a different problem.
+  DAMAGED_CARGO: true,
+  WEIGHT_MISMATCH: true,
+  PACKAGE_COUNT_MISMATCH: true,
+  WRONG_BATCH: true,
+  OTHER: true,
+};
+
+const isExceptionType = (value: string): value is ExceptionType =>
+  Object.prototype.hasOwnProperty.call(CARGO_PHYSICALLY_HERE, value);
+
+/**
+ * Open a case for investigation, or update the one already open.
+ *
+ * Check-in is re-runnable by design: an operator corrects a miscount, two
+ * people tick the same line, a form is submitted twice on a slow connection.
+ * Creating a row every time would bury the investigation queue under identical
+ * duplicates of the same carton. One open case per shipment per kind of
+ * problem; a later run rewrites its description instead of adding another.
+ *
+ * The original raiser and raisedAt are kept — that is the person who was
+ * standing in front of the cargo.
+ */
+async function raiseException(
+  tx: TxClient,
+  input: {
+    shipmentId: string;
+    batchId: string;
+    type: ExceptionType;
+    description: string;
+    raisedById: string;
+  }
+) {
+  const existing = await tx.shipmentException.findFirst({
+    where: {
+      shipmentId: input.shipmentId,
+      batchId: input.batchId,
+      type: input.type,
+      status: "OPEN",
+    },
+    select: { id: true, description: true },
+  });
+
+  if (!existing) {
+    await tx.shipmentException.create({ data: input });
+    return;
+  }
+  if (existing.description !== input.description) {
+    await tx.shipmentException.update({
+      where: { id: existing.id },
+      data: { description: input.description },
+    });
+  }
+}
+
+/**
  * Ticking one shipment off the printed manifest.
  *
- * VERIFIED moves the shipment to RECEIVED_AT_DAR — the only path into that
- * status. EXCEPTION leaves the shipment where it is and opens a case, because
- * cargo that is missing or damaged has not truly "arrived".
+ * Two independent facts come out of this screen and the code keeps them
+ * separate, because conflating them is what stranded cargo before:
+ *
+ *   1. IS IT HERE? — everything that physically arrived is received:
+ *      RECEIVED_AT_DAR, arrivedAt stamped, packages ticked, a history line the
+ *      customer's tracking reads from. True for a clean check-in and true for
+ *      damaged, mis-weighed, short or wrong-batch cargo alike. Only
+ *      MISSING_SHIPMENT — nothing came off the plane — leaves the shipment
+ *      IN_TRANSIT, because there is nothing in the building to record.
+ *
+ *   2. IS IT RIGHT? — anything wrong opens a case on /app/exceptions, which is
+ *      the one place cargo under investigation is tracked. The release counter
+ *      refuses to hand over a shipment whose packages are not all ticked, so an
+ *      unresolved shortage cannot walk out of the door.
+ *
+ * Flagging a problem therefore adds a case. It never withholds the cargo from
+ * the warehouse.
  */
 export async function verifyShipment(
   _prev: ActionResult | undefined,
@@ -584,6 +678,15 @@ export async function verifyShipment(
   if (result === "EXCEPTION" && note.length < 3) {
     return fail("Describe the problem before flagging an exception.");
   }
+  // Validated rather than cast: this value decides whether cargo enters the
+  // warehouse, and an unrecognised string must not reach that decision.
+  if (result === "EXCEPTION" && !isExceptionType(exceptionType)) {
+    return fail("That is not a kind of problem this system records.");
+  }
+  const problem: ExceptionType | null =
+    result === "EXCEPTION" && isExceptionType(exceptionType)
+      ? exceptionType
+      : null;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -623,69 +726,94 @@ export async function verifyShipment(
         },
       });
 
-      if (result === "VERIFIED") {
-        // Ticking a shipment off the manifest is a statement about boxes: the
-        // ones checked are physically on the floor. With no explicit selection
-        // the operator is saying the whole shipment is here.
-        const present = explicitSelection
+      // ── 1. Is it here? ────────────────────────────────────────────────────
+      // A clean check-in means it arrived. A flagged check-in means it arrived
+      // too, unless the flag is "nothing came off the plane".
+      const arrived = problem === null || CARGO_PHYSICALLY_HERE[problem];
+
+      // Which boxes the operator is stating are on the floor.
+      //
+      // An explicit selection is always believed — that is the operator naming
+      // the boxes in front of them. Without one:
+      //   · a clean check-in, or a problem that is not about the count, means
+      //     the whole shipment is here (a torn carton is still a carton);
+      //   · PACKAGE_COUNT_MISMATCH means the count is wrong but nobody has
+      //     said which boxes are short, so nothing is ticked. Ticking all of
+      //     them would assert the one thing we have just been told is false,
+      //     and it would open the release counter on a short shipment. Left
+      //     unticked, the manifest count reads low and release stays shut
+      //     until somebody records which boxes actually landed.
+      const present = !arrived
+        ? []
+        : explicitSelection
           ? shipment.packageList.filter((pkg) =>
               checkedPackageIds.includes(pkg.id)
             )
-          : shipment.packageList;
+          : problem === "PACKAGE_COUNT_MISMATCH"
+            ? []
+            : shipment.packageList;
 
-        const now = new Date();
+      const now = new Date();
+
+      if (present.length > 0) {
+        // receivedAt: null keeps a box already ticked on its original
+        // timestamp and its original receiver, so a re-run changes nothing.
         await tx.package.updateMany({
-          where: {
-            id: { in: present.map((pkg) => pkg.id) },
-            receivedAt: null,
-          },
+          where: { id: { in: present.map((pkg) => pkg.id) }, receivedAt: null },
           data: { receivedAt: now, receivedById: user.id },
         });
+      }
 
-        const short = shipment.packageList.filter(
-          (pkg) => !pkg.receivedAt && !present.some((p) => p.id === pkg.id)
-        );
-        if (short.length > 0) {
-          // A partial arrival is still an arrival — the cargo that came is in
-          // the warehouse. But it cannot be released, so it is raised as a
-          // shortage the moment it is noticed rather than at the counter.
-          const sequences = short.map((pkg) => pkg.sequence).join(", ");
-          await tx.shipmentException.create({
-            data: {
-              shipmentId,
-              batchId,
-              type: "PACKAGE_COUNT_MISMATCH",
-              description: `Short on arrival: ${short.length} of ${shipment.packageList.length} ${PACKAGE_TYPE_LABELS[shipment.packageType]?.many ?? "packages"} missing (${sequences}).`,
-              raisedById: user.id,
-            },
-          });
-        }
+      if (arrived) {
+        // updateMany with the status in the WHERE clause rather than a read
+        // followed by an update: two operators ticking the same line at the
+        // same moment produce one status change and one history line, not two.
+        const moved = await tx.shipment.updateMany({
+          where: { id: shipmentId, status: "IN_TRANSIT" },
+          data: { status: "RECEIVED_AT_DAR", arrivedAt: now },
+        });
 
-        if (shipment.status === "IN_TRANSIT") {
-          await tx.shipment.update({
-            where: { id: shipmentId },
-            data: { status: "RECEIVED_AT_DAR", arrivedAt: now },
-          });
+        if (moved.count > 0) {
           await tx.shipmentStatusHistory.create({
             data: {
               shipmentId,
               fromStatus: "IN_TRANSIT",
               toStatus: "RECEIVED_AT_DAR",
               location: "Dar es Salaam warehouse",
-              note: note || "Checked in against the batch manifest.",
+              note: problem
+                ? `Checked in with a problem — ${EXCEPTION_TYPE_LABELS[problem].toLowerCase()}: ${note}`
+                : note || "Checked in against the batch manifest.",
               actorId: user.id,
             },
           });
         }
-      } else {
-        await tx.shipmentException.create({
-          data: {
-            shipmentId,
-            batchId,
-            type: exceptionType as never,
-            description: note,
-            raisedById: user.id,
-          },
+      }
+
+      // ── 2. Is it right? ───────────────────────────────────────────────────
+      if (problem) {
+        await raiseException(tx, {
+          shipmentId,
+          batchId,
+          type: problem,
+          description: note,
+          raisedById: user.id,
+        });
+      }
+
+      // A partial arrival is still an arrival — the cargo that came is in the
+      // warehouse. But it cannot be released, so the shortage is raised the
+      // moment it is noticed rather than at the counter.
+      const short = shipment.packageList.filter(
+        (pkg) => !pkg.receivedAt && !present.some((p) => p.id === pkg.id)
+      );
+      if (arrived && short.length > 0 && problem !== "PACKAGE_COUNT_MISMATCH") {
+        const sequences = short.map((pkg) => pkg.sequence).join(", ");
+        await raiseException(tx, {
+          shipmentId,
+          batchId,
+          type: "PACKAGE_COUNT_MISMATCH",
+          description: `Short on arrival: ${short.length} of ${shipment.packageList.length} ${PACKAGE_TYPE_LABELS[shipment.packageType]?.many ?? "packages"} missing (${sequences}).`,
+          raisedById: user.id,
         });
       }
 
@@ -698,10 +826,15 @@ export async function verifyShipment(
               : "batch.flagShipment",
           entity: "Shipment",
           entityId: shipmentId,
-          summary:
-            result === "VERIFIED"
-              ? `Checked in ${shipment.trackingNumber}`
-              : `Flagged ${shipment.trackingNumber}: ${exceptionType}`,
+          // The audit line says where the cargo ended up, not just that a flag
+          // was raised — "flagged and left in the air" and "flagged and taken
+          // into the warehouse" are the two things this record has to tell
+          // apart months later.
+          summary: !problem
+            ? `Checked in ${shipment.trackingNumber}`
+            : arrived
+              ? `Checked in ${shipment.trackingNumber} with a problem: ${EXCEPTION_TYPE_LABELS[problem]}`
+              : `${shipment.trackingNumber} did not arrive: ${EXCEPTION_TYPE_LABELS[problem]}`,
           metadata: note ? { note } : undefined,
         },
         tx
@@ -709,7 +842,12 @@ export async function verifyShipment(
     });
 
     revalidatePath(`/app/receive/${batchId}`);
+    revalidatePath("/app/receive");
     revalidatePath("/app/exceptions");
+    // Flagged cargo now lands in the warehouse, so the views that count what is
+    // standing on the floor have to be told about it too.
+    revalidatePath("/app/inventory");
+    revalidatePath("/app/dashboard");
     return ok();
   } catch (error) {
     return fail(toActionError(error));

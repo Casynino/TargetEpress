@@ -96,7 +96,9 @@ const SECTIONS: NavSection[] = [
       },
       {
         href: "/app/exceptions",
-        label: "Exceptions",
+        // Named for what the desk does there rather than for the database word:
+        // it is where flagged cargo is chased until it is found or written off.
+        label: "Investigation queue",
         icon: "TriangleAlert",
         permission: "exception.raise",
       },

@@ -8,8 +8,9 @@ import { VerificationList } from "@/components/app/verification-list";
 import { BatchStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import { ORIGIN_LABELS } from "@/lib/constants";
-import { formatDate, toNumber } from "@/lib/format";
+import { formatDate, formatWeight, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Check in cargo" };
@@ -19,7 +20,7 @@ export default async function VerifyBatchPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePermission("batch.verify");
+  const user = await requirePermission("batch.verify");
   const { id } = await params;
 
   const batch = await prisma.batch.findUnique({
@@ -30,8 +31,23 @@ export default async function VerifyBatchPage({
         include: {
           customer: { select: { name: true, phone: true } },
           packageList: {
-            select: { id: true, sequence: true, receivedAt: true },
+            select: {
+              id: true,
+              sequence: true,
+              reference: true,
+              weightKg: true,
+              receivedAt: true,
+            },
             orderBy: { sequence: "asc" },
+          },
+          // What Guangzhou photographed. The operator holds the box and
+          // compares. Nested relation loads are one query for the whole page,
+          // not one per row — this list is eighty-seven long.
+          photos: {
+            where: { kind: { in: ["CARGO", "PACKAGING"] } },
+            select: { id: true, url: true, kind: true, caption: true },
+            orderBy: { createdAt: "asc" },
+            take: 6,
           },
         },
       },
@@ -44,6 +60,9 @@ export default async function VerifyBatchPage({
   const verificationByShipment = new Map(
     batch.verifications.map((v) => [v.shipmentId, v])
   );
+
+  // The China-side note is internal — it never leaves this permission.
+  const showInternal = can(user.role, "shipment.viewInternal");
 
   return (
     <>
@@ -84,10 +103,19 @@ export default async function VerifyBatchPage({
             packageList: shipment.packageList.map((pkg) => ({
               id: pkg.id,
               sequence: pkg.sequence,
+              reference: pkg.reference,
+              // Formatted here so the Decimal never crosses into the client as
+              // a float. Null means the desk never weighed this box alone.
+              weightLabel: pkg.weightKg ? formatWeight(pkg.weightKg) : null,
               received: pkg.receivedAt !== null,
             })),
+            photos: shipment.photos,
             weightKg: toNumber(shipment.weightKg),
             description: shipment.description,
+            goodsType: shipment.goodsType,
+            origin: shipment.origin,
+            cartonRef: shipment.cartonRef,
+            internalNote: showInternal ? shipment.internalNotes : null,
             status: shipment.status,
             verification: verification
               ? { result: verification.result, note: verification.note }
