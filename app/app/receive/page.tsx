@@ -41,7 +41,7 @@ export default async function ReceivePage() {
     <>
       <PageHeader
         title="Receive & verify"
-        description="Everything inbound, oldest first. Cargo on the floor comes before cargo in the air."
+        description="Everything inbound — in the air and on the floor — oldest first. Cargo on the floor comes before cargo in the air."
         actions={
           next ? (
             <Button asChild variant="signal" className="rounded-lg">

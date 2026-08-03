@@ -154,7 +154,10 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
         <div className="whitespace-nowrap">
           <p className="text-sm font-medium tabular">{row.shipments} shpt</p>
           <p className="text-xs text-muted-foreground tabular">
-            {formatWeight(row.weightKg)}
+            {/* The piece count came off the old Incoming Shipments page when
+                the two were merged. It is the number the floor counts against,
+                so it cannot be the thing that gets dropped. */}
+            {row.packages} pcs · {formatWeight(row.weightKg)}
           </p>
         </div>
       ),

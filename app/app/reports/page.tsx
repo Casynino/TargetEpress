@@ -508,7 +508,7 @@ export default async function WarehouseReportsPage({
               <Package className="mr-1 inline h-3 w-3" />
               Delivery history
             </Link>
-            <Link href="/app/incoming" className="text-brand hover:underline">
+            <Link href="/app/receive" className="text-brand hover:underline">
               <ScanLine className="mr-1 inline h-3 w-3" />
               Incoming shipments
             </Link>

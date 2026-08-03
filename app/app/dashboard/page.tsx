@@ -549,7 +549,7 @@ async function DarDashboard({ role }: { role: "DAR_WAREHOUSE" | "ADMIN" }) {
           }
           icon={Plane}
           tone="info"
-          href="/app/incoming"
+          href="/app/receive"
         />
         <KpiCard
           delay={1}
