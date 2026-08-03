@@ -776,3 +776,118 @@ export async function completeVerification(
     return fail(toActionError(error));
   }
 }
+
+/**
+ * Accept a whole manifest at once.
+ *
+ * Loss and damage are rare. A flight arrives intact almost every time, so the
+ * screen that confirms it should cost one action, not eighty-seven. This is
+ * that action: everything still unchecked on the batch is marked present and
+ * undamaged, every one of its packages is ticked off, and each shipment moves
+ * to RECEIVED_AT_DAR with a history line.
+ *
+ * The rule that makes it safe: **it never touches a shipment that already has
+ * a verification.** If somebody has flagged a box short or damaged, pressing
+ * "everything is fine" must not quietly overwrite that — the exception is the
+ * expensive fact on this page, and the bulk path is not allowed to erase it.
+ * Only shipments nobody has ruled on are affected.
+ *
+ * Idempotent for the same reason: run it twice and the second run finds
+ * nothing unverified and writes nothing.
+ */
+export async function verifyBatchAll(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  let user: SessionUser;
+  try {
+    user = await authorize("batch.verify");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const batchId = String(formData.get("batchId") ?? "");
+  if (!batchId) return fail("Missing batch.");
+
+  try {
+    const accepted = await prisma.$transaction(async (tx) => {
+      const batch = await tx.batch.findUnique({
+        where: { id: batchId },
+        select: { id: true, status: true },
+      });
+      if (!batch) throw new Error("Batch not found.");
+      if (batch.status !== "ARRIVED") {
+        throw new Error(
+          "This batch has not landed yet. Mark it arrived before checking it in."
+        );
+      }
+
+      // Only the lines nobody has ruled on. `verifications: none` is what
+      // protects an already-raised exception from being overwritten.
+      const pending = await tx.shipment.findMany({
+        where: { batchId, verifications: { none: {} } },
+        select: {
+          id: true,
+          status: true,
+          packageList: { select: { id: true } },
+        },
+      });
+      if (pending.length === 0) return 0;
+
+      const now = new Date();
+
+      await tx.batchVerification.createMany({
+        data: pending.map((shipment) => ({
+          batchId,
+          shipmentId: shipment.id,
+          result: "VERIFIED" as const,
+          note: "Checked in with the rest of the manifest.",
+          verifiedById: user.id,
+        })),
+        skipDuplicates: true,
+      });
+
+      // Every package on those shipments is on the floor. Guarded on
+      // receivedAt: null so a box already ticked keeps its original timestamp
+      // and the person who first saw it.
+      await tx.package.updateMany({
+        where: {
+          id: { in: pending.flatMap((s) => s.packageList.map((p) => p.id)) },
+          receivedAt: null,
+        },
+        data: { receivedAt: now, receivedById: user.id },
+      });
+
+      const arriving = pending.filter((s) => s.status === "IN_TRANSIT");
+      if (arriving.length > 0) {
+        await tx.shipment.updateMany({
+          where: { id: { in: arriving.map((s) => s.id) }, status: "IN_TRANSIT" },
+          data: { status: "RECEIVED_AT_DAR", arrivedAt: now },
+        });
+        await tx.shipmentStatusHistory.createMany({
+          data: arriving.map((shipment) => ({
+            shipmentId: shipment.id,
+            fromStatus: "IN_TRANSIT" as const,
+            toStatus: "RECEIVED_AT_DAR" as const,
+            location: "Dar es Salaam warehouse",
+            note: "Checked in with the rest of the manifest.",
+            actorId: user.id,
+          })),
+        });
+      }
+
+      return pending.length;
+    });
+
+    revalidatePath(`/app/receive/${batchId}`);
+    revalidatePath("/app/receive");
+    revalidatePath("/app/dashboard");
+    revalidatePath("/app/inventory");
+
+    // ActionResult carries no message channel, and the page re-reads the batch
+    // on revalidate, so the new counts are the feedback.
+    return ok();
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}

@@ -10,7 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { completeVerification, verifyShipment } from "@/lib/actions/batches";
+import {
+  completeVerification,
+  verifyBatchAll,
+  verifyShipment,
+} from "@/lib/actions/batches";
 import type { ActionResult } from "@/lib/actions/types";
 import {
   EXCEPTION_TYPE_LABELS,
@@ -35,9 +39,19 @@ type Row = {
 };
 
 /**
- * The arrival checklist. One row per shipment on the manifest; each is either
- * ticked off or flagged. Nothing here bulk-approves — the whole point is that
- * a human confirmed each box is physically present.
+ * The arrival checklist.
+ *
+ * Built around what actually happens: a flight arrives intact almost every
+ * time. Loss and damage are real but rare, so the screen is shaped for the
+ * common case — one button accepts the whole manifest — and the per-shipment
+ * controls exist for the handful that need flagging.
+ *
+ * It used to demand eighty-seven individual confirmations to record "the
+ * flight was fine", which is the same information at eighty-seven times the
+ * cost, and a checklist that expensive gets clicked through without being read.
+ *
+ * Accepting in bulk deliberately skips any shipment that already has a
+ * verification, so pressing it cannot wipe an exception somebody raised.
  */
 export function VerificationList({
   batchId,
@@ -72,11 +86,23 @@ export function VerificationList({
           </div>
         </div>
         {batchStatus === "ARRIVED" ? (
-          <CompleteButton batchId={batchId} disabled={remaining > 0} />
+          <div className="flex flex-wrap items-center gap-2">
+            {remaining > 0 ? (
+              <AcceptAllButton batchId={batchId} remaining={remaining} />
+            ) : null}
+            <CompleteButton batchId={batchId} disabled={remaining > 0} />
+          </div>
         ) : null}
       </div>
 
-      <ul className="space-y-3">
+      {batchStatus === "ARRIVED" && remaining > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Everything normally arrives as sent. Accept the whole manifest, then
+          flag only what is missing or damaged.
+        </p>
+      ) : null}
+
+      <ul className="space-y-1.5">
         {shipments.map((shipment) => (
           <VerificationRow
             key={shipment.id}
@@ -87,6 +113,37 @@ export function VerificationList({
         ))}
       </ul>
     </div>
+  );
+}
+
+/**
+ * Accept everything still unruled on.
+ *
+ * Sized and coloured as the primary action because it is the one taken almost
+ * every time. The count is in the label so nobody presses it without seeing
+ * how many lines it covers.
+ */
+function AcceptAllButton({
+  batchId,
+  remaining,
+}: {
+  batchId: string;
+  remaining: number;
+}) {
+  const [state, action] = useActionState<ActionResult, FormData>(
+    verifyBatchAll,
+    { ok: true }
+  );
+
+  return (
+    <form action={action} className="flex items-center gap-2">
+      <input type="hidden" name="batchId" value={batchId} />
+      <SubmitButton variant="signal" className="rounded-lg" size="sm">
+        <CheckCheck className="mr-2 h-4 w-4" />
+        All {remaining} present &amp; undamaged
+      </SubmitButton>
+      <FormError state={state} />
+    </form>
   );
 }
 
@@ -116,26 +173,41 @@ function VerificationRow({
   const flagged = shipment.verification?.result === "EXCEPTION";
 
   return (
+    // One line per shipment rather than a card each. Eighty-seven cards is a
+    // page nobody reads to the bottom of; eighty-seven rows can be scanned for
+    // the one that looks wrong, which is the only thing anybody is looking for.
     <li
-      className={`rounded-xl border bg-card p-4 shadow-soft ${
-        done ? "border-success/40" : flagged ? "border-destructive/40" : ""
+      className={`rounded-lg border bg-card px-3 py-2.5 ${
+        done
+          ? "border-success/30 bg-success/[0.03]"
+          : flagged
+            ? "border-destructive/40"
+            : ""
       }`}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-mono text-base font-bold tabular sm:text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          {done ? (
+            <Check className="h-4 w-4 shrink-0 text-success" />
+          ) : flagged ? (
+            <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />
+          ) : (
+            <span className="h-4 w-4 shrink-0 rounded-full border border-dashed" />
+          )}
+          <p className="shrink-0 font-mono text-sm font-semibold tabular">
             {shipment.trackingNumber}
           </p>
-          <p className="mt-0.5 text-sm font-medium">{shipment.customerName}</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="shrink-0 text-sm">{shipment.customerName}</p>
+          <p className="truncate text-xs text-muted-foreground">
             {formatPackages(shipment.packages, shipment.packageType)} ·{" "}
             {formatWeight(shipment.weightKg)} · {shipment.description}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {done ? <Badge variant="success">Checked in</Badge> : null}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           {flagged ? <Badge variant="destructive">Exception</Badge> : null}
-          <ShipmentStatusBadge status={shipment.status} />
+          {!done && !flagged ? (
+            <ShipmentStatusBadge status={shipment.status} />
+          ) : null}
         </div>
       </div>
 
@@ -146,8 +218,13 @@ function VerificationRow({
       ) : null}
 
       {/* Every box, individually. Untick one and the shipment is recorded short
-          — which is the whole reason each package carries its own QR. */}
-      {!locked && shipment.packageList.length > 1 ? (
+          — which is the whole reason each package carries its own QR.
+
+          Only shown once the operator is flagging a problem. In the normal
+          case the boxes are all here, and putting a grid of numbered buttons
+          on every one of eighty-seven rows asks the floor to confirm something
+          it has already confirmed by not flagging it. */}
+      {!locked && flagging && shipment.packageList.length > 1 ? (
         <div className="mt-3 border-t pt-3">
           <p className="text-xs text-muted-foreground">
             Tick each {unit.one} that is physically here
