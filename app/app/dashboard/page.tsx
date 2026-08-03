@@ -6,9 +6,12 @@ import {
   ClipboardCheck,
   Clock,
   Package,
+  PackageCheck,
   PackagePlus,
   Plane,
+  Printer,
   QrCode,
+  Scale,
   ScanLine,
   Timer,
   Truck,
@@ -35,7 +38,6 @@ import {
   cargoMix,
   chinaStats,
   corridorPerformance,
-  darStats,
   executiveStats,
   financeStats,
   monthlyRevenue,
@@ -45,9 +47,15 @@ import {
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { CargoMix } from "@/components/app/cargo-mix";
-import { WarehouseHero } from "@/components/app/warehouse-hero";
+import { WarehouseHero, type HeroChip } from "@/components/app/warehouse-hero";
 import { todaySummary } from "@/lib/warehouse-home";
 import { requireUser } from "@/lib/session";
+
+/** Midnight where the cargo is, in the server's local zone. */
+function startOfToday() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
 
 /** Percentage change, guarding the divide-by-zero that makes dashboards lie. */
 /** The hour where the warehouse is standing, not where the server is. */
@@ -65,6 +73,58 @@ function localHour(side: "CN" | "TZ") {
 function delta(current: number, previous: number): number | undefined {
   if (!previous) return undefined;
   return ((current - previous) / previous) * 100;
+}
+
+/** China's banner numbers: what the registration desk booked in today. */
+async function chinaHeroChips(): Promise<HeroChip[]> {
+  const summary = await todaySummary();
+  return [
+    { icon: Package, label: "Cargo today", value: String(summary.shipments) },
+    {
+      icon: Scale,
+      label: "Weight today",
+      value: `${summary.weightKg.toFixed(1)} kg`,
+    },
+    {
+      icon: Printer,
+      label: "Labels printed",
+      value: String(summary.labelsPrinted),
+    },
+  ];
+}
+
+/**
+ * Dar's banner numbers: what came off a manifest today.
+ *
+ * `arrivedAt` is stamped in exactly one place — verifyShipment — so this is the
+ * receiving desk's own work. The banner used to show a Dar user China's
+ * registrations and printed labels under "here is what is happening today",
+ * which is somebody else's day in a nice box.
+ */
+async function darHeroChips(): Promise<HeroChip[]> {
+  const checkedIn = await prisma.shipment.aggregate({
+    where: { arrivedAt: { gte: startOfToday() } },
+    _count: true,
+    _sum: { weightKg: true, packages: true },
+  });
+
+  return [
+    {
+      icon: PackageCheck,
+      label: "Cargo checked in",
+      value: String(checkedIn._count),
+    },
+    {
+      icon: Scale,
+      label: "Weight checked in",
+      value: formatWeight(checkedIn._sum.weightKg ?? 0),
+    },
+    {
+      icon: Boxes,
+      label: "Packages checked in",
+      value: String(checkedIn._sum.packages ?? 0),
+    },
+  ];
 }
 
 export default async function DashboardPage() {
@@ -88,6 +148,7 @@ export default async function DashboardPage() {
 
   const warehouse =
     user.role === "CHINA_WAREHOUSE" || user.role === "DAR_WAREHOUSE";
+  const inChina = user.role === "CHINA_WAREHOUSE";
 
   return (
     <>
@@ -97,14 +158,17 @@ export default async function DashboardPage() {
       {warehouse ? (
         <WarehouseHero
           firstName={firstName}
-          warehouseName={
-            user.role === "CHINA_WAREHOUSE"
-              ? "China Warehouse"
-              : "Dar es Salaam Warehouse"
+          warehouseName={inChina ? "China Warehouse" : "Dar es Salaam Warehouse"}
+          emphasis={inChina ? "CN" : "TZ"}
+          chips={inChina ? await chinaHeroChips() : await darHeroChips()}
+          // Where this desk's day starts. Dar cannot create cargo, so sending
+          // them to the registration form was a link straight to no-access.
+          action={
+            can(user.role, "shipment.create")
+              ? { href: "/app/cargo/new", label: "Receive cargo" }
+              : { href: "/app/receive", label: "Receive cargo" }
           }
-          emphasis={user.role === "CHINA_WAREHOUSE" ? "CN" : "TZ"}
-          summary={await todaySummary()}
-          hourOfDay={localHour(user.role === "CHINA_WAREHOUSE" ? "CN" : "TZ")}
+          hourOfDay={localHour(inChina ? "CN" : "TZ")}
         />
       ) : (
       <div className="relative mb-6 overflow-hidden rounded-xl border bg-card">
@@ -349,9 +413,93 @@ async function ChinaDashboard({ role }: { role: "CHINA_WAREHOUSE" | "ADMIN" }) {
 // Dar warehouse — receiving and releasing
 // ---------------------------------------------------------------------------
 
+/**
+ * The five numbers the Dar floor is measured by, in one round trip.
+ *
+ * Each one is a state the cargo is actually in, and the states do not overlap:
+ * a shipment in the air is counted as incoming, and the moment its batch is
+ * marked arrived the same shipment moves to awaiting-verification instead of
+ * appearing under both. A card that double-counts is a card nobody trusts.
+ */
+async function darFloorStats() {
+  const since = startOfToday();
+
+  const [
+    inAir,
+    batchesInAir,
+    awaitingVerification,
+    batchesOnFloor,
+    ready,
+    released,
+    exceptions,
+  ] = await Promise.all([
+    // Still flying. Cargo whose batch has landed is on the floor, not incoming.
+    prisma.shipment.aggregate({
+      where: { status: "IN_TRANSIT", batch: { status: "IN_TRANSIT" } },
+      _count: true,
+      _sum: { weightKg: true },
+    }),
+    prisma.batch.count({ where: { status: "IN_TRANSIT" } }),
+    // Landed, but not yet ticked off the manifest. verifyShipment writes a
+    // BatchVerification row for both outcomes, so "no row" is the true backlog.
+    prisma.shipment.count({
+      where: {
+        status: "IN_TRANSIT",
+        batch: { status: "ARRIVED" },
+        verifications: { none: {} },
+      },
+    }),
+    prisma.batch.count({ where: { status: "ARRIVED" } }),
+    // Finance issues the pickup note and flips the status in the same
+    // transaction, so this is exactly the paid, collectable cargo.
+    prisma.shipment.aggregate({
+      where: { status: "READY_FOR_PICKUP" },
+      _count: true,
+      _sum: { packages: true },
+    }),
+    prisma.shipment.aggregate({
+      where: { status: "DELIVERED", deliveredAt: { gte: since } },
+      _count: true,
+      _sum: { packages: true },
+    }),
+    prisma.shipmentException.groupBy({
+      by: ["type"],
+      where: { status: "OPEN", shipment: { deletedAt: null } },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const tally = (rows: typeof exceptions) =>
+    rows.reduce((sum, row) => sum + row._count._all, 0);
+
+  const missing = tally(
+    exceptions.filter(
+      (row) =>
+        row.type === "MISSING_SHIPMENT" || row.type === "PACKAGE_COUNT_MISMATCH"
+    )
+  );
+  const damaged = tally(exceptions.filter((row) => row.type === "DAMAGED_CARGO"));
+  const openExceptions = tally(exceptions);
+
+  return {
+    incoming: inAir._count,
+    incomingWeightKg: toNumber(inAir._sum.weightKg ?? 0),
+    batchesInAir,
+    awaitingVerification,
+    batchesOnFloor,
+    readyForPickup: ready._count,
+    readyPackages: ready._sum.packages ?? 0,
+    releasedToday: released._count,
+    releasedPackages: released._sum.packages ?? 0,
+    openExceptions,
+    missing,
+    damaged,
+  };
+}
+
 async function DarDashboard({ role }: { role: "DAR_WAREHOUSE" | "ADMIN" }) {
   const [stats, alerts, activity, perf, incoming] = await Promise.all([
-    darStats(),
+    darFloorStats(),
     attentionItems(role),
     recentActivity(8),
     corridorPerformance(),
@@ -372,60 +520,80 @@ async function DarDashboard({ role }: { role: "DAR_WAREHOUSE" | "ADMIN" }) {
     }),
   ]);
 
-  const checkInBacklog = incoming
-    .filter((b) => b.status === "ARRIVED")
-    .reduce((sum, b) => sum + (b._count.shipments - b._count.verifications), 0);
+  const exceptionParts = [
+    stats.missing ? `${stats.missing} missing` : null,
+    stats.damaged ? `${stats.damaged} damaged` : null,
+    stats.openExceptions - stats.missing - stats.damaged
+      ? `${stats.openExceptions - stats.missing - stats.damaged} other`
+      : null,
+  ].filter(Boolean);
 
   return (
     <div className="space-y-6">
-      <StatStrip
-        chips={[
-          { label: "Inbound", value: String(stats.incoming), icon: Plane, tone: "brand" },
-          { label: "To check in", value: String(checkInBacklog), icon: ClipboardCheck, tone: "warning" },
-          { label: "Holding", value: String(stats.inWarehouse), icon: Warehouse },
-          { label: "Ready", value: String(stats.readyForPickup), icon: Truck, tone: "success" },
-          {
-            label: "Exceptions",
-            value: String(stats.openExceptions),
-            icon: AlertTriangle,
-            tone: stats.openExceptions ? "danger" : "success",
-          },
-        ]}
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* The floor, in the five states cargo can be in between the plane and
+          the customer. No strip repeating them in shorter words above. */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           delay={0}
-          label="Awaiting check-in"
-          numeric={checkInBacklog}
-          hint={`${stats.awaitingCheck} batch(es) on the floor`}
-          icon={ClipboardCheck}
-          tone="warning"
-          href="/app/receive"
+          label="Incoming shipments"
+          numeric={stats.incoming}
+          hint={
+            stats.batchesInAir
+              ? `${stats.batchesInAir} batch(es) · ${formatWeight(stats.incomingWeightKg)} in the air`
+              : "Nothing in the air from China"
+          }
+          icon={Plane}
+          tone="info"
+          href="/app/incoming"
         />
         <KpiCard
           delay={1}
-          label="Ready for pickup"
-          numeric={stats.readyForPickup}
-          hint="Paid, awaiting collection"
-          icon={Truck}
-          tone="success"
-          href="/app/release"
+          label="Awaiting verification"
+          numeric={stats.awaitingVerification}
+          hint={
+            stats.batchesOnFloor
+              ? `${stats.batchesOnFloor} batch(es) landed, not checked in`
+              : "Every landed batch is checked in"
+          }
+          icon={ClipboardCheck}
+          tone={stats.awaitingVerification ? "warning" : "success"}
+          href="/app/verification"
         />
         <KpiCard
           delay={2}
-          label="Held in warehouse"
-          numeric={stats.inWarehouse}
-          hint="Not yet paid for"
-          icon={Warehouse}
-          tone="info"
-          href="/app/cargo?status=RECEIVED_AT_DAR"
+          label="Ready for pickup"
+          numeric={stats.readyForPickup}
+          hint={
+            stats.readyForPickup
+              ? `${stats.readyPackages} package(s) paid for, on the shelf`
+              : "Nothing waiting to be collected"
+          }
+          icon={Truck}
+          tone="success"
+          href="/app/pickup-queue"
         />
         <KpiCard
           delay={3}
-          label="Open exceptions"
+          label="Released today"
+          numeric={stats.releasedToday}
+          hint={
+            stats.releasedToday
+              ? `${stats.releasedPackages} package(s) handed over`
+              : "No cargo released yet today"
+          }
+          icon={PackageCheck}
+          tone="brand"
+          href="/app/deliveries"
+        />
+        <KpiCard
+          delay={4}
+          label="Missing or damaged"
           numeric={stats.openExceptions}
-          hint="Needing a decision"
+          hint={
+            exceptionParts.length
+              ? exceptionParts.join(" · ")
+              : "Nothing flagged on the floor"
+          }
           icon={AlertTriangle}
           tone={stats.openExceptions ? "danger" : "success"}
           href="/app/exceptions"

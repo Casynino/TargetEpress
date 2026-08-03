@@ -43,6 +43,10 @@ export type Permission =
   | "fx.manage" // publish the USD→TZS rate
   // Delivery
   | "shipment.release"
+  | "delivery.history" // cargo already handed over — the Dar release log
+  // Dar warehouse floor
+  | "inventory.view" // cargo physically held at the Dar warehouse
+  | "warehouse.reports" // Dar-scoped throughput/exception reporting
   // Customers
   | "customer.view"
   | "customer.manage"
@@ -73,18 +77,43 @@ const CHINA: Permission[] = [
   "customer.manage",
 ];
 
+/**
+ * Dar warehouse — the desk that receives cargo in Tanzania and hands it over.
+ *
+ * Its authority starts when the plane lands. It reads the China registration,
+ * checks the boxes against it, stores them, and releases them once Finance says
+ * the bill is settled. It never writes the China record and never touches money.
+ *
+ * Deliberately absent, and each for a reason:
+ *
+ * `shipment.edit` / `shipment.delete` — both are gated on the cargo still being
+ * READY_TO_DEPART, which means "still sitting in the China warehouse". Granting
+ * them to Dar does not give Dar a way to correct cargo it is holding; it gives
+ * Dar a way to rewrite and soft-delete China's cargo that has not flown yet —
+ * exactly the thing the spec forbids. A weight or count that disagrees with the
+ * manifest is raised as an exception (`exception.raise`), which is a record of
+ * the disagreement, not a silent overwrite of it.
+ *
+ * Also absent: shipment.create, batch.create, batch.manage (batches are China's
+ * and management's), and every finance/invoice/payment permission — Finance
+ * confirms payment and issues the pickup note, Dar only scans it.
+ */
 const DAR: Permission[] = [
   "shipment.view",
   "shipment.viewInternal",
-  "shipment.edit",
-  "shipment.delete",
   "shipment.scan",
+  // Batch data is readable because a shipment names its batch and flight; there
+  // is no batch.create / batch.manage here, so there is no way in to managing
+  // one.
   "batch.view",
   "batch.receive",
   "batch.verify",
   "exception.raise",
   "exception.resolve",
   "shipment.release",
+  "inventory.view",
+  "delivery.history",
+  "warehouse.reports",
   "customer.view",
 ];
 
@@ -182,6 +211,9 @@ export function canAny(role: Role | undefined | null, permissions: Permission[])
 /**
  * Route guard table, evaluated longest-prefix-first in middleware and again in
  * the layout. Anything under /app not listed here needs only a valid session.
+ *
+ * Listed longest-prefix-first for reading; `permissionForPath` sorts anyway, so
+ * a misplaced row cannot open a hole.
  */
 export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/scan", permission: "shipment.scan" },
@@ -190,6 +222,20 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/receive", permission: "batch.receive" },
   { prefix: "/app/release", permission: "shipment.release" },
   { prefix: "/app/exceptions", permission: "exception.raise" },
+  // The Dar warehouse floor. The arrivals board and the verification bench
+  // belong to the desk that receives, so they carry the receiving permissions
+  // rather than a new one each.
+  { prefix: "/app/incoming", permission: "batch.receive" },
+  { prefix: "/app/verification", permission: "batch.verify" },
+  { prefix: "/app/inventory", permission: "inventory.view" },
+  // Who may collect today is the same authority as handing it over.
+  { prefix: "/app/pickup-queue", permission: "shipment.release" },
+  // Finding a box is a read; every desk that may see a shipment may look one up.
+  { prefix: "/app/search", permission: "shipment.view" },
+  { prefix: "/app/deliveries", permission: "delivery.history" },
+  // Distinct from /app/admin/reports (report.view): this one is the warehouse's
+  // own throughput, not the company's numbers.
+  { prefix: "/app/reports", permission: "warehouse.reports" },
   { prefix: "/app/support/sourcing", permission: "sourcing.manage" },
   { prefix: "/app/support", permission: "ticket.manage" },
   { prefix: "/app/finance/exchange-rate", permission: "fx.manage" },

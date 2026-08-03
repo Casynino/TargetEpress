@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { Package, PackagePlus, Printer, Scale } from "lucide-react";
+import { PackagePlus, type LucideIcon } from "lucide-react";
 
 import { DualClock } from "@/components/app/dual-clock";
-import type { TodaySummary } from "@/lib/warehouse-home";
+
+/** One of the three "today" numbers under the greeting. */
+export type HeroChip = { icon: LucideIcon; label: string; value: string };
 
 /**
  * The first thing the warehouse sees.
@@ -13,39 +15,32 @@ import type { TodaySummary } from "@/lib/warehouse-home";
  *
  * The greeting follows the reader's own clock, not the server's — a Guangzhou
  * desk at 9am should not be told good evening because the host is in Virginia.
+ *
+ * The chips and the call to action are passed in rather than derived here: the
+ * two warehouses do different work, and a Dar desk being shown China's
+ * registration count under "here is what is happening today" is a lie told in
+ * a nice box.
  */
 export function WarehouseHero({
   firstName,
   warehouseName,
   emphasis,
-  summary,
+  chips,
+  action,
   hourOfDay,
 }: {
   firstName: string;
   warehouseName: string;
   emphasis: "CN" | "TZ";
-  summary: TodaySummary;
+  /** Today's numbers for *this* warehouse. */
+  chips: HeroChip[];
+  /** The one thing this desk starts its day with. */
+  action: { href: string; label: string };
   /** Local hour at the warehouse, computed on the server for that zone. */
   hourOfDay: number;
 }) {
   const greeting =
     hourOfDay < 12 ? "Good morning" : hourOfDay < 17 ? "Good afternoon" : "Good evening";
-
-  // Today only. What is staged, open and in the air is on the strip directly
-  // below this banner, and saying it twice makes both copies easier to ignore.
-  const chips = [
-    { icon: Package, label: "Cargo today", value: String(summary.shipments) },
-    {
-      icon: Scale,
-      label: "Weight today",
-      value: `${summary.weightKg.toFixed(1)} kg`,
-    },
-    {
-      icon: Printer,
-      label: "Labels printed",
-      value: String(summary.labelsPrinted),
-    },
-  ];
 
   return (
     <section className="relative mb-6 overflow-hidden rounded-2xl border bg-card">
@@ -80,11 +75,11 @@ export function WarehouseHero({
           <div className="flex flex-wrap items-center gap-5">
             <DualClock emphasis={emphasis} />
             <Link
-              href="/app/cargo/new"
+              href={action.href}
               className="inline-flex items-center gap-2 rounded-xl bg-signal px-4 py-2.5 text-sm font-semibold text-signal-foreground shadow-soft transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
             >
               <PackagePlus className="h-4 w-4" />
-              Receive cargo
+              {action.label}
             </Link>
           </div>
         </div>

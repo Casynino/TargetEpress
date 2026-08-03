@@ -223,12 +223,118 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
+/**
+ * Dar warehouse gets its own menu rather than a filtered slice of the shared
+ * one.
+ *
+ * Filtering produced a menu in the wrong words: "Receive & verify" is two jobs
+ * to that floor, "Shipments" is everything ever flown when what they want is
+ * what is landing this week, and "Batches" is a door into work that is China's.
+ * The floor works a line — arrivals, receive, verify, store, hand over — so the
+ * menu is that line, in that order.
+ *
+ * Every item still declares its permission and is still filtered below, so this
+ * is a different arrangement of the same gates, never a way around them.
+ */
+const DAR_SECTIONS: NavSection[] = [
+  {
+    title: "Floor",
+    items: [
+      {
+        href: "/app/dashboard",
+        label: "Dashboard",
+        icon: "LayoutDashboard",
+        exact: true,
+      },
+      {
+        href: "/app/incoming",
+        label: "Incoming Shipments",
+        icon: "Inbox",
+        permission: "batch.receive",
+      },
+      {
+        href: "/app/receive",
+        label: "Receive Cargo",
+        icon: "PackagePlus",
+        permission: "batch.receive",
+      },
+      {
+        href: "/app/verification",
+        label: "Verification",
+        icon: "ClipboardCheck",
+        permission: "batch.verify",
+      },
+      {
+        href: "/app/inventory",
+        label: "Warehouse Inventory",
+        icon: "Boxes",
+        permission: "inventory.view",
+      },
+    ],
+  },
+  {
+    title: "Handover",
+    items: [
+      {
+        href: "/app/pickup-queue",
+        label: "Pickup Queue",
+        icon: "Truck",
+        permission: "shipment.release",
+      },
+      {
+        href: "/app/scan",
+        label: "Scan QR",
+        icon: "ScanLine",
+        permission: "shipment.scan",
+      },
+      {
+        href: "/app/search",
+        label: "Search Cargo",
+        icon: "Package",
+        permission: "shipment.view",
+      },
+    ],
+  },
+  {
+    title: "Record",
+    items: [
+      {
+        href: "/app/deliveries",
+        label: "Delivery History",
+        icon: "History",
+        permission: "delivery.history",
+      },
+      {
+        href: "/app/reports",
+        label: "Reports",
+        icon: "ChartNoAxesCombined",
+        permission: "warehouse.reports",
+      },
+      // The name at the foot of the sidebar is still the way most people open
+      // this. It is named here because the floor is told to find it by name,
+      // and a shift worker should not have to learn that their photo is a link.
+      { href: "/app/profile", label: "My Profile", icon: "UserRound" },
+    ],
+  },
+];
+
+/**
+ * Menus that are a department's own shape rather than a subset of the shared
+ * one. Everyone absent from this table gets SECTIONS, filtered.
+ */
+const ROLE_SECTIONS: Partial<Record<Role, NavSection[]>> = {
+  DAR_WAREHOUSE: DAR_SECTIONS,
+};
+
 /** Drops every item and every empty section the role cannot reach. */
 export function navForRole(role: Role): NavSection[] {
-  return SECTIONS.map((section) => ({
-    ...section,
-    items: section.items.filter(
-      (item) => !item.permission || can(role, item.permission)
-    ),
-  })).filter((section) => section.items.length > 0);
+  const sections = ROLE_SECTIONS[role] ?? SECTIONS;
+  return sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) => !item.permission || can(role, item.permission)
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
 }
