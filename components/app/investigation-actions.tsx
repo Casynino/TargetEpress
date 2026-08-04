@@ -6,10 +6,7 @@ import type { ExceptionStatus } from "@prisma/client";
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  addInvestigationNote,
-  assignInvestigation,
-} from "@/lib/actions/investigation-queue";
+import { assignInvestigation } from "@/lib/actions/investigation-queue";
 import type { ActionResult } from "@/lib/actions/types";
 
 /**
@@ -52,7 +49,7 @@ export function InvestigationActions({
 }) {
   const canAssign = allow.approve && assignees.length > 0;
 
-  if (!allow.investigate && !canAssign) return null;
+  if (!canAssign) return null;
 
   return (
     <div className="space-y-3 rounded-lg border bg-card p-3">
@@ -64,8 +61,9 @@ export function InvestigationActions({
           anything happened to the cargo. The owner's rule is two states — it is
           being worked, or it is finished — and finishing is the resolve form,
           which at least demands an answer. */}
-      {allow.investigate ? <NoteForm exceptionId={exceptionId} /> : null}
-
+      {/* The standalone note box is gone. The resolve form already asks what
+          happened, and two note fields stacked on one screen means typing the
+          same sentence twice or guessing which one is read later. */}
       {canAssign ? (
         <AssignForm
           exceptionId={exceptionId}
@@ -78,36 +76,6 @@ export function InvestigationActions({
 }
 
 
-function NoteForm({ exceptionId }: { exceptionId: string }) {
-  const [state, action] = useActionState<ActionResult, FormData>(
-    addInvestigationNote,
-    { ok: true }
-  );
-
-  return (
-    <form action={action} className="space-y-2 border-t pt-3">
-      <input type="hidden" name="exceptionId" value={exceptionId} />
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Textarea
-          name="note"
-          rows={1}
-          className="min-h-0"
-          placeholder="Add a note without changing the status — a phone call, a search, what the customer said."
-          required
-        />
-        <SubmitButton
-          size="sm"
-          variant="outline"
-          className="shrink-0"
-          pendingLabel="Adding…"
-        >
-          Add note
-        </SubmitButton>
-      </div>
-      <FormError state={state} />
-    </form>
-  );
-}
 
 function AssignForm({
   exceptionId,
