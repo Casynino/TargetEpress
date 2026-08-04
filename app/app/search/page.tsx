@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EXCEPTION_TYPE_LABELS } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
 import { resolveScannedCode } from "@/lib/packages";
@@ -123,6 +124,15 @@ export default async function SearchCargoPage({
       batchNumber: shipment.batch?.batchNumber ?? null,
       arrivedAt: shipment.arrivedAt?.toISOString() ?? null,
       fromLabel: scanned?.shipmentId === shipment.id,
+      // De-duplicated: two damage reports against one consignment are one
+      // problem to whoever is reading the row, not two badges.
+      problems: [
+        ...new Set(
+          shipment.exceptions.map(
+            (exception) => EXCEPTION_TYPE_LABELS[exception.type]
+          )
+        ),
+      ],
       ...(showMoney
         ? {
             owed: {

@@ -2,7 +2,11 @@ import "server-only";
 
 import type { Prisma } from "@prisma/client";
 
-import { STORAGE_POLICY, storageDaysFor } from "@/lib/constants";
+import {
+  EXCEPTION_OPEN_STATUSES,
+  STORAGE_POLICY,
+  storageDaysFor,
+} from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -340,6 +344,14 @@ export async function searchShipments(query: string, take = 40) {
       batch: { select: { batchNumber: true } },
       invoice: {
         select: { invoiceNumber: true, total: true, amountPaid: true, sentAt: true },
+      },
+      // Unfinished cases only. A shipment can sit at RECEIVED_AT_DAR and still
+      // be damaged — the shipment status says where the cargo is, never what
+      // is wrong with it, so anyone looking a box up has to be told both.
+      exceptions: {
+        where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } },
+        orderBy: { raisedAt: "desc" },
+        select: { type: true },
       },
     },
   });

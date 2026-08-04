@@ -21,10 +21,14 @@ import { PackageList } from "@/components/app/package-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  DAMAGE_SEVERITY_LABELS,
+  EXCEPTION_STATUS_LABELS,
   EXCEPTION_TYPE_LABELS,
   GOODS_TYPE_LABELS,
   ORIGIN_LABELS,
+  RESOLUTION_TYPE_LABELS,
   SHIPMENT_STATUS_META,
+  blocksPickup,
   formatPackages,
 } from "@/lib/constants";
 import {
@@ -100,6 +104,9 @@ export default async function ShipmentDetailPage({
   if (!shipment) notFound();
 
   const qr = await shipmentQrDataUrl(shipment.qrToken, 200);
+  const openExceptions = shipment.exceptions.filter((exception) =>
+    blocksPickup(exception.status)
+  );
   const showInternal = can(user.role, "shipment.viewInternal");
   const showMoney = can(user.role, "finance.view");
   const outstanding = shipment.invoice
@@ -114,6 +121,15 @@ export default async function ShipmentDetailPage({
         actions={
           <>
             <ShipmentStatusBadge status={shipment.status} />
+            {/* The status says where the cargo is; this says what is wrong
+                with it. Damaged cargo is still "Received at Dar", so the two
+                have to be read together or a broken box looks healthy. */}
+            {openExceptions.map((exception) => (
+              <Badge key={exception.id} variant="destructive">
+                <AlertTriangle className="mr-1 h-3 w-3" />
+                {EXCEPTION_TYPE_LABELS[exception.type]}
+              </Badge>
+            ))}
             {/* Offered only while the record can actually be changed — a
                 disabled button that explains itself on click is worse than no
                 button. */}
@@ -263,38 +279,103 @@ export default async function ShipmentDetailPage({
             </section>
           )}
 
-          {/* Exceptions */}
+          {/* What is wrong with this cargo.
+              Kept above the money and below the boxes: whoever opens a
+              shipment because a customer is standing at the counter needs to
+              know it is damaged before they read anything else about it. */}
           {shipment.exceptions.length > 0 ? (
-            <section className="rounded-xl border border-destructive/30 bg-card shadow-soft">
-              <h2 className="flex items-center gap-2 border-b px-5 py-4 font-display font-semibold text-destructive">
-                <AlertTriangle className="h-4 w-4" />
-                Exceptions
-              </h2>
+            <section
+              className={`rounded-xl border bg-card shadow-soft ${
+                openExceptions.length > 0 ? "border-destructive/40" : ""
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-4">
+                <h2
+                  className={`flex items-center gap-2 font-display font-semibold ${
+                    openExceptions.length > 0 ? "text-destructive" : ""
+                  }`}
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  {openExceptions.length > 0
+                    ? "This cargo has a problem"
+                    : "Problems on record"}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {openExceptions.length > 0
+                    ? `${openExceptions.length} under investigation · do not hand over`
+                    : "All resolved"}
+                </p>
+              </div>
               <ul className="divide-y">
-                {shipment.exceptions.map((exception) => (
-                  <li key={exception.id} className="px-5 py-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge
-                        variant={
-                          exception.status === "OPEN" ? "destructive" : "muted"
-                        }
-                      >
-                        {EXCEPTION_TYPE_LABELS[exception.type]}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {exception.status === "OPEN" ? "Open" : "Resolved"} ·{" "}
-                        {formatDateTime(exception.raisedAt)}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm">{exception.description}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Raised by {exception.raisedBy?.name ?? "—"}
-                      {exception.resolutionNote
-                        ? ` · Resolved by ${exception.resolvedBy?.name ?? "—"}: ${exception.resolutionNote}`
-                        : ""}
-                    </p>
-                  </li>
-                ))}
+                {shipment.exceptions.map((exception) => {
+                  const open = blocksPickup(exception.status);
+                  return (
+                    <li key={exception.id} className="px-5 py-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={open ? "destructive" : "muted"}>
+                          {EXCEPTION_TYPE_LABELS[exception.type]}
+                        </Badge>
+                        {exception.severity ? (
+                          <Badge variant="muted" className="text-[10px]">
+                            {DAMAGE_SEVERITY_LABELS[exception.severity]}
+                          </Badge>
+                        ) : null}
+                        <span className="text-xs text-muted-foreground">
+                          {EXCEPTION_STATUS_LABELS[exception.status]} ·{" "}
+                          {formatDateTime(exception.raisedAt)}
+                        </span>
+                      </div>
+
+                      <p className="mt-2 text-sm">{exception.description}</p>
+
+                      {/* The outcome, in the shape the resolution was filed in.
+                          Only the fields that outcome actually has — a found
+                          box has no weight correction to show. */}
+                      {exception.resolutionType ? (
+                        <div className="mt-3 rounded-lg border bg-muted/30 p-3">
+                          <p className="text-xs font-medium">
+                            {RESOLUTION_TYPE_LABELS[exception.resolutionType]}
+                            {exception.resolvedAt
+                              ? ` · ${formatDate(exception.resolvedAt)}`
+                              : ""}
+                          </p>
+                          {exception.resolutionNote ? (
+                            <p className="mt-1 text-sm">
+                              {exception.resolutionNote}
+                            </p>
+                          ) : null}
+                          {exception.foundLocation ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Found: {exception.foundLocation}
+                            </p>
+                          ) : null}
+                          {exception.weightWasKg && exception.weightNowKg ? (
+                            <p className="mt-1 text-xs text-muted-foreground tabular">
+                              Weight {formatWeight(exception.weightWasKg)} →{" "}
+                              {formatWeight(exception.weightNowKg)}
+                            </p>
+                          ) : null}
+                          {exception.damageOutcome ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Settled: {exception.damageOutcome}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      {/* Names are internal. The warehouse needs to know the
+                          cargo is damaged, not which colleague reported it. */}
+                      {showInternal ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Raised by {exception.raisedBy?.name ?? "—"}
+                          {exception.resolvedBy
+                            ? ` · Closed by ${exception.resolvedBy.name}`
+                            : ""}
+                        </p>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           ) : null}

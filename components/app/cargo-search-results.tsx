@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { QrCode } from "lucide-react";
+import { AlertTriangle, ChevronRight, QrCode } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
@@ -32,6 +32,16 @@ export type CargoSearchRow = {
   arrivedAt: string | null;
   /** True when a scanned label — not the typed text — resolved to this row. */
   fromLabel: boolean;
+  /**
+   * Open cases against this cargo, worst first. Empty for the overwhelming
+   * majority of rows.
+   *
+   * The status badge answers "where is it"; this answers "is anything wrong
+   * with it". Damaged cargo is still `RECEIVED_AT_DAR` — it is on the floor,
+   * that is the truth — so without this a clerk reads a clean green row and
+   * hands over a broken box.
+   */
+  problems: string[];
   /** Omitted for viewers without finance.view. */
   owed?: { label: string; state: "unbilled" | "due" | "settled" };
 };
@@ -98,7 +108,17 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
       id: "status",
       header: "Status",
       sortValue: (row) => Object.keys(SHIPMENT_STATUS_META).indexOf(row.status),
-      cell: (row) => <ShipmentStatusBadge status={row.status} />,
+      cell: (row) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <ShipmentStatusBadge status={row.status} />
+          {row.problems.map((problem) => (
+            <Badge key={problem} variant="destructive" className="text-[10px]">
+              <AlertTriangle className="mr-1 h-3 w-3" />
+              {problem}
+            </Badge>
+          ))}
+        </div>
+      ),
     },
     {
       id: "where",
@@ -154,6 +174,16 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
           },
         ] satisfies Column<CargoSearchRow>[])
       : []),
+    {
+      id: "open",
+      header: "",
+      align: "right",
+      className: "w-8",
+      // The whole row opens the cargo; this is the sign that says so.
+      cell: () => (
+        <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+      ),
+    },
   ];
 
   const filters: TableFilter<CargoSearchRow>[] = [
@@ -184,6 +214,7 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
       }
       searchPlaceholder="Narrow these results…"
       filters={filters}
+      rowHref={(row) => `/app/cargo/${row.trackingNumber}`}
       emptyTitle="Nothing left after narrowing"
       emptyDescription="Clear the box above to see the full result set again."
       renderCard={(row) => (
@@ -197,6 +228,16 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
             </p>
             <ShipmentStatusBadge status={row.status} />
           </div>
+          {row.problems.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {row.problems.map((problem) => (
+                <Badge key={problem} variant="destructive" className="text-[10px]">
+                  <AlertTriangle className="mr-1 h-3 w-3" />
+                  {problem}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
           <p className="mt-1 truncate text-sm">{row.customerName}</p>
           <p className="text-xs text-muted-foreground tabular">
             {row.customerPhone ?? "No phone recorded"}

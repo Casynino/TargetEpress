@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ChevronDown,
@@ -86,6 +87,7 @@ export function DataTable<T>({
   pageSize = 25,
   renderExpanded,
   renderCard,
+  rowHref,
   bulkActions,
   toolbar,
   emptyTitle = "Nothing to show",
@@ -103,6 +105,17 @@ export function DataTable<T>({
   pageSize?: number;
   renderExpanded?: (row: T) => React.ReactNode;
   renderCard?: (row: T) => React.ReactNode;
+  /**
+   * Where a row opens. Given this, the whole row is a click target, not just
+   * whichever cell happens to contain a link — somebody who has found their
+   * cargo in a list expects to press it, anywhere.
+   *
+   * Keep a real `<Link>` in one of the cells as well. This is a convenience on
+   * top of that link, never a replacement for it: a `<tr>` cannot be tabbed to,
+   * middle-clicked or opened in a new tab, and a row that is *only* clickable
+   * is unreachable from a keyboard.
+   */
+  rowHref?: (row: T) => string;
   /** Rendered when at least one row is selected. */
   bulkActions?: (selected: T[], clear: () => void) => React.ReactNode;
   toolbar?: React.ReactNode;
@@ -111,6 +124,7 @@ export function DataTable<T>({
   initialSort?: { columnId: string; direction: "asc" | "desc" };
   className?: string;
 }) {
+  const router = useRouter();
   const [query, setQuery] = React.useState("");
   const [sort, setSort] = React.useState(initialSort ?? null);
   const [page, setPage] = React.useState(1);
@@ -497,11 +511,34 @@ export function DataTable<T>({
                     const id = getRowId(row);
                     const isOpen = expanded.has(id);
                     const isSelected = selected.has(id);
+                    const href = rowHref?.(row);
                     return (
                       <React.Fragment key={id}>
                         <tr
+                          onClick={
+                            href
+                              ? (event) => {
+                                  // Anything the row already contains keeps its
+                                  // own behaviour: a link inside a row must go
+                                  // where the link says, a checkbox must tick.
+                                  if (
+                                    (event.target as HTMLElement).closest(
+                                      "a, button, input, label, select, textarea"
+                                    )
+                                  ) {
+                                    return;
+                                  }
+                                  // Somebody reading a long description drags
+                                  // across it and lets go — that is a
+                                  // selection, not a request to navigate.
+                                  if (window.getSelection()?.toString()) return;
+                                  router.push(href);
+                                }
+                              : undefined
+                          }
                           className={cn(
                             "border-b transition-colors hover:bg-muted/40",
+                            href && "cursor-pointer",
                             isSelected && "bg-brand/5"
                           )}
                         >
