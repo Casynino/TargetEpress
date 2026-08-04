@@ -5,6 +5,7 @@ import {
   Prisma,
   type ExceptionStatus,
   type PaymentMethod,
+  type ResolutionType,
   type ShipmentStatus,
 } from "@prisma/client";
 import { z } from "zod";
@@ -15,6 +16,8 @@ import {
   EXCEPTION_TERMINAL_STATUSES,
   EXCEPTION_TYPE_LABELS,
   PAYMENT_METHOD_LABELS,
+  RESOLUTION_NOTE_REQUIRED,
+  RESOLUTION_TYPE_LABELS,
 } from "@/lib/constants";
 import { desksHolding } from "@/lib/exception-audience";
 import { formatDate } from "@/lib/format";
@@ -792,6 +795,168 @@ export async function recordCompensation(
     revalidatePath(`/app/cargo/${shipmentId}`);
     revalidatePath("/app/finance/compensation");
     revalidatePath("/app/finance");
+    revalidatePath("/app/dashboard");
+    return ok();
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
+
+/* ------------------------------------------------------------------------- *
+ * Closing a case
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Which extra fields each outcome demands.
+ *
+ * Exhaustive over ResolutionType on purpose: adding an outcome to the enum
+ * fails this build until somebody says what evidence it requires, which is the
+ * only thing stopping a new option from quietly closing cases with nothing
+ * recorded.
+ */
+const REQUIRED_BY_TYPE: Record<ResolutionType, readonly string[]> = {
+  // Nothing required. "We found it" is a complete answer, and the location is
+  // offered as a courtesy to whoever looks next time.
+  CARGO_FOUND: [],
+  WEIGHT_CORRECTED: ["weightWasKg", "weightNowKg"],
+  DAMAGE_SETTLED: ["damageOutcome"],
+  CARGO_LOST: [],
+  OTHER: [],
+};
+
+/** Fields on this outcome that are numbers, not text. */
+const DECIMAL_FIELDS = new Set(["weightWasKg", "weightNowKg"]);
+
+const FIELD_LABELS: Record<string, string> = {
+  weightWasKg: "the previous weight",
+  weightNowKg: "the actual weight",
+  damageOutcome: "how the damage was settled",
+};
+
+const isResolutionType = (v: string): v is ResolutionType =>
+  Object.prototype.hasOwnProperty.call(REQUIRED_BY_TYPE, v);
+
+/**
+ * Close an investigation, with an answer attached.
+ *
+ * The owner's rule is that a case cannot be closed without a resolution type,
+ * an explanation and a deliberate confirmation. All three are checked HERE
+ * rather than in the form: `required` on an input is a hint to a browser, not a
+ * rule, and this action is reachable without one.
+ *
+ * Nothing is overwritten. The original description, severity, photos, reporter
+ * and raise date all stay exactly as they were — a resolution is an addition to
+ * the record, not a replacement for it.
+ */
+export async function resolveInvestigation(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  let user: SessionUser;
+  try {
+    user = await authorize("exception.close");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const exceptionId = String(formData.get("exceptionId") ?? "");
+  const rawType = String(formData.get("resolutionType") ?? "");
+  const note = String(formData.get("resolutionNote") ?? "").trim();
+  const confirmed = formData.get("confirm") === "yes";
+
+  if (!exceptionId) return fail("Missing case.");
+  if (!rawType) return fail("Choose what happened before closing the case.");
+  if (!isResolutionType(rawType)) return fail("That is not a resolution type.");
+  // Cargo Found is the one outcome that closes without an explanation. Every
+  // other outcome closes a case that cost somebody something, and a year from
+  // now the only record of why will be this sentence.
+  if (RESOLUTION_NOTE_REQUIRED.includes(rawType) && note.length < 10) {
+    return fail(
+      `Say what happened and how it was solved — ${RESOLUTION_TYPE_LABELS[
+        rawType
+      ].toLowerCase()} cannot be filed without it.`
+    );
+  }
+  if (!confirmed) return fail("Tick the confirmation before closing the case.");
+
+  const detail: Record<string, unknown> = {};
+  for (const field of REQUIRED_BY_TYPE[rawType]) {
+    const raw = String(formData.get(field) ?? "").trim();
+    if (!raw) return fail(`Enter ${FIELD_LABELS[field] ?? field}.`);
+
+    if (DECIMAL_FIELDS.has(field)) {
+      // Decimal from the string, never parseFloat. A weight that goes through a
+      // float is a weight that can print 22.999999999999996 on an invoice.
+      if (!/^\d+(\.\d+)?$/.test(raw)) {
+        return fail(`${FIELD_LABELS[field]} must be a number in kilograms.`);
+      }
+      detail[field] = new Prisma.Decimal(raw);
+    } else {
+      detail[field] = raw;
+    }
+  }
+
+  // Optional extras, taken only where the outcome uses them.
+  if (rawType === "CARGO_FOUND") {
+    const where = String(formData.get("foundLocation") ?? "").trim();
+    if (where) detail.foundLocation = where;
+  }
+  if (rawType === "CARGO_LOST") {
+    detail.compensationOwed = formData.get("compensationOwed") === "yes";
+    detail.financeNotified = formData.get("financeNotified") === "yes";
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.shipmentException.findUnique({
+        where: { id: exceptionId },
+        select: { id: true, status: true, shipmentId: true, type: true },
+      });
+      if (!existing) throw new Error("Case not found.");
+      if (EXCEPTION_TERMINAL_STATUSES.includes(existing.status as never)) {
+        throw new Error("This case is already closed.");
+      }
+
+      await tx.shipmentException.update({
+        where: { id: exceptionId },
+        data: {
+          status: "RESOLVED",
+          resolutionType: rawType,
+          resolutionNote: note,
+          resolvedById: user.id,
+          resolvedAt: new Date(),
+          ...detail,
+        },
+      });
+
+      await tx.exceptionEvent.create({
+        data: {
+          exceptionId,
+          action: "closed",
+          note: `${RESOLUTION_TYPE_LABELS[rawType]} — ${note}`,
+          actorId: user.id,
+        },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "exception.resolve",
+          entity: "ShipmentException",
+          entityId: exceptionId,
+          summary: `Closed as ${RESOLUTION_TYPE_LABELS[rawType]}`,
+        },
+        tx
+      );
+    });
+
+    // Cargo Found restores the shipment and re-ticks its boxes. That logic
+    // already exists in markCargoFound and is NOT copied here — a second
+    // implementation of "put the cargo back" is two things to keep in step.
+    // The form points the operator at that action for this outcome; closing as
+    // CARGO_FOUND here only records the answer.
+    revalidatePath("/app/exceptions");
+    revalidatePath("/app/inventory");
     revalidatePath("/app/dashboard");
     return ok();
   } catch (error) {

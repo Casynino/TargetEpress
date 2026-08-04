@@ -13,10 +13,12 @@ import {
   type InvestigationAllowances,
 } from "@/components/app/investigation-actions";
 import { InvestigationTimeline } from "@/components/app/investigation-timeline";
+import { ResolveInvestigationForm } from "@/components/app/resolve-investigation-form";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
 import {
   DAMAGE_SEVERITY_LABELS,
+  EXCEPTION_TERMINAL_STATUSES,
   EXCEPTION_STATUS_LABELS,
   EXCEPTION_TYPE_LABELS,
   PACKAGE_TYPE_LABELS,
@@ -442,6 +444,18 @@ function CaseRecord({
             assignees={assignees}
             assignedToId={exception.assignedToId}
           />
+
+          {/* Closing the case. Offered only to someone who may close, and only
+              while it is still open — a resolved case shows its outcome above
+              instead. */}
+          {!(EXCEPTION_TERMINAL_STATUSES as readonly string[]).includes(
+            exception.status
+          ) && allow.close ? (
+            <div className="mt-3">
+              <p className="mb-2 text-xs font-medium">Resolve investigation</p>
+              <ResolveInvestigationForm exceptionId={exception.id} />
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

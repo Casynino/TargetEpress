@@ -7,6 +7,7 @@ import type {
   GoodsType,
   Origin,
   PaymentMethod,
+  ResolutionType,
   Role,
   ShipmentStatus,
 } from "@prisma/client";
@@ -424,6 +425,29 @@ export const EXCEPTION_TERMINAL_STATUSES = [
 export function blocksPickup(status: ExceptionStatus) {
   return (EXCEPTION_OPEN_STATUSES as readonly ExceptionStatus[]).includes(status);
 }
+
+/**
+ * What happened, in the words the desk uses.
+ *
+ * Cargo Found is the only outcome whose note is optional — "we found it" is a
+ * complete answer. Every other outcome closes a case that cost somebody
+ * something, and those must say how it was settled.
+ */
+export const RESOLUTION_TYPE_LABELS: Record<ResolutionType, string> = {
+  CARGO_FOUND: "Cargo found",
+  WEIGHT_CORRECTED: "Weight corrected",
+  DAMAGE_SETTLED: "Damaged cargo settled",
+  CARGO_LOST: "Cargo lost",
+  OTHER: "Other",
+};
+
+/** Outcomes that cannot be filed without an explanation. */
+export const RESOLUTION_NOTE_REQUIRED: readonly ResolutionType[] = [
+  "WEIGHT_CORRECTED",
+  "DAMAGE_SETTLED",
+  "CARGO_LOST",
+  "OTHER",
+];
 
 export const DAMAGE_SEVERITY_LABELS: Record<DamageSeverity, string> = {
   MINOR: "Minor",

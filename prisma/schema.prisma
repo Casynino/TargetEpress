@@ -231,6 +231,28 @@ enum ExceptionStatus {
 
 /// How bad the damage is. Drives the outcome: a MINOR scuff is released to the
 /// customer, a TOTAL_LOSS is a compensation case.
+/**
+ * How a case ended.
+ *
+ * A closed case has to answer "what happened and how was it solved?" years
+ * later, and a free-text note alone cannot be counted, filtered or audited.
+ * The type is the answer to "what happened"; the fields below it are the
+ * evidence for "how".
+ */
+enum ResolutionType {
+  /// The box turned up. Restores the cargo to inventory. The only outcome
+  /// whose note is optional — "found it" is a complete answer on its own.
+  CARGO_FOUND
+  /// Recorded weight was wrong. Carries the old and new figures.
+  WEIGHT_CORRECTED
+  /// Arrived damaged; an outcome was agreed with the customer.
+  DAMAGE_SETTLED
+  /// Never found. Records whether the customer is owed and whether Finance knows.
+  CARGO_LOST
+  /// Anything the four above do not describe.
+  OTHER
+}
+
 enum DamageSeverity {
   MINOR
   MODERATE
@@ -633,7 +655,34 @@ model ShipmentException {
   resolvedById   String?
   resolvedBy     User?     @relation("ExceptionResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
   resolvedAt     DateTime?
+
+  /// What happened. Null until the case is closed.
+  resolutionType ResolutionType?
+  /// How it was solved, in words. Required on every resolution — this is the
+  /// sentence somebody reads in a year when they ask what became of the cargo.
   resolutionNote String?
+
+  /// CARGO_FOUND — where the box was eventually found. Optional; the outcome
+  /// is the fact, and the location is a courtesy to whoever looks next time.
+  foundLocation String?
+
+  /// WEIGHT_CORRECTED — the figures. Decimal, like every other weight here, so
+  /// the difference is exact rather than a float subtraction that reports
+  /// 2.9999999999999996 kg. The difference is DERIVED, never stored: two
+  /// numbers and their subtraction is one fact, and storing it twice is how
+  /// they end up disagreeing.
+  weightWasKg Decimal? @db.Decimal(10, 3)
+  weightNowKg Decimal? @db.Decimal(10, 3)
+
+  /// DAMAGE_SETTLED — what was agreed. The damage itself is already on
+  /// `description` and `severity`; this is the outcome.
+  damageOutcome String?
+
+  /// CARGO_LOST — the two questions somebody will ask about a lost box.
+  /// Whether money is actually owed, and how much, stays on Compensation
+  /// behind finance.view; these are only "was this started".
+  compensationOwed Boolean?
+  financeNotified  Boolean?
 
   events       ExceptionEvent[]
   photos       ShipmentPhoto[]
