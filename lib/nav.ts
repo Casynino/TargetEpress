@@ -240,6 +240,30 @@ const SECTIONS: NavSection[] = [
  */
 const DAR_SECTIONS: NavSection[] = [
   {
+    // Scan and search sit above everything else.
+    //
+    // They are not a stage of the work — they are how every job on this floor
+    // starts. A box arrives and somebody reads its label; a customer asks and
+    // somebody looks the number up. Filed under "handover" they sat behind the
+    // one task that happens least, which is the wrong way round for the two
+    // links this desk touches most.
+    title: "Find it",
+    items: [
+      {
+        href: "/app/scan",
+        label: "Scan QR",
+        icon: "ScanLine",
+        permission: "shipment.scan",
+      },
+      {
+        href: "/app/search",
+        label: "Search Cargo",
+        icon: "Package",
+        permission: "shipment.view",
+      },
+    ],
+  },
+  {
     title: "Floor",
     items: [
       {
@@ -250,7 +274,7 @@ const DAR_SECTIONS: NavSection[] = [
       },
       {
         href: "/app/receive",
-        label: "Incoming Shipments",
+        label: "Receiving Dock",
         icon: "PackagePlus",
         permission: "batch.receive",
       },
@@ -258,11 +282,7 @@ const DAR_SECTIONS: NavSection[] = [
         href: "/app/exceptions",
         // Named for what the desk does there rather than the database word:
         // it is where flagged cargo is chased until it is found or written off.
-        //
-        // It was reachable only from a dashboard card, which meant the one
-        // place that answers "where is that missing box?" could not be found
-        // from the sidebar at all.
-        label: "Investigation queue",
+        label: "Investigation Hub",
         icon: "TriangleAlert",
         permission: "exception.raise",
       },
@@ -283,18 +303,6 @@ const DAR_SECTIONS: NavSection[] = [
         icon: "Truck",
         permission: "shipment.release",
       },
-      {
-        href: "/app/scan",
-        label: "Scan QR",
-        icon: "ScanLine",
-        permission: "shipment.scan",
-      },
-      {
-        href: "/app/search",
-        label: "Search Cargo",
-        icon: "Package",
-        permission: "shipment.view",
-      },
     ],
   },
   {
@@ -312,12 +320,10 @@ const DAR_SECTIONS: NavSection[] = [
         icon: "ChartNoAxesCombined",
         permission: "warehouse.reports",
       },
-      // The name at the foot of the sidebar is still the way most people open
-      // this. It is named here because the floor is told to find it by name,
-      // and a shift worker should not have to learn that their photo is a link.
       { href: "/app/profile", label: "My Profile", icon: "UserRound" },
     ],
   },
+
 ];
 
 /**
