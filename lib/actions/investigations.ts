@@ -910,11 +910,27 @@ export async function resolveInvestigation(
     await prisma.$transaction(async (tx) => {
       const existing = await tx.shipmentException.findUnique({
         where: { id: exceptionId },
-        select: { id: true, status: true, shipmentId: true, type: true },
+        select: {
+          id: true,
+          status: true,
+          shipmentId: true,
+          type: true,
+          compensation: { select: { id: true } },
+        },
       });
       if (!existing) throw new Error("Case not found.");
       if (EXCEPTION_TERMINAL_STATUSES.includes(existing.status as never)) {
         throw new Error("This case is already closed.");
+      }
+
+      // The owner's CANNOT list: the warehouse may close a case it solved, but
+      // not one with money attached. A permission alone cannot express that —
+      // whether a payout exists is a fact about this row, not about the user —
+      // so the rule lives here.
+      if (existing.compensation && !can(user.role, "exception.compensate")) {
+        throw new Error(
+          "This case has a compensation attached. Only Finance or the CEO can close it."
+        );
       }
 
       await tx.shipmentException.update({

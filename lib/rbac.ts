@@ -127,6 +127,12 @@ const DAR: Permission[] = [
   // The floor that lost the box does not get to decide what it was worth, and
   // does not get to declare the matter finished.
   "exception.investigate",
+  // The desk that physically solves the problem is the desk that records what
+  // happened — the owner's spec puts the resolution in the hands of whoever
+  // found the box or agreed the damage. The CANNOT list bars Dar from closing
+  // *compensation* cases specifically, and that is enforced in the action
+  // rather than here: a permission cannot see whether a payout is attached.
+  "exception.close",
   "shipment.release",
   "inventory.view",
   "delivery.history",
