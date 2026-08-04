@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Boxes, Hourglass, PackageCheck, Scale, Wallet } from "lucide-react";
@@ -39,6 +40,31 @@ const DAY_MS = 86_400_000;
  * a value never fetched cannot leak through a serialised prop, an expanded row
  * or a future edit to the table.
  */
+/**
+ * Kilos physically on the floor for one shipment.
+ *
+ * Prefers the per-package weights the desk recorded. When they are absent —
+ * which is the common case, since only the shipment total is usually weighed —
+ * it pro-rates the declared weight by the fraction of boxes that arrived.
+ * Neither is a guess dressed as a fact: a shipment with every box present
+ * returns its declared weight unchanged.
+ */
+function weightOnFloor(
+  declaredKg: number,
+  packages: { receivedAt: Date | null; weightKg: Prisma.Decimal | null }[]
+) {
+  if (packages.length === 0) return declaredKg;
+  const here = packages.filter((pkg) => pkg.receivedAt);
+  if (here.length === packages.length) return declaredKg;
+  if (here.length === 0) return 0;
+
+  const weighed = packages.every((pkg) => pkg.weightKg !== null);
+  if (weighed) {
+    return here.reduce((sum, pkg) => sum + toNumber(pkg.weightKg), 0);
+  }
+  return (declaredKg * here.length) / packages.length;
+}
+
 export default async function InventoryPage() {
   await requirePermission("inventory.view");
 
@@ -68,7 +94,9 @@ export default async function InventoryPage() {
       pickupNote: { select: { noteNumber: true, status: true, issuedAt: true } },
       // Manifest packages still unticked. Usually empty, and when it is not,
       // the shipment is short and must not go out.
-      packageList: { where: { receivedAt: null }, select: { id: true } },
+      // Every package, with whether it arrived and what it weighs. The pending
+      // count and the weight on the floor are both read off this.
+      packageList: { select: { id: true, receivedAt: true, weightKg: true } },
       exceptions: { where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } }, select: { id: true } },
     },
   });
@@ -93,8 +121,21 @@ export default async function InventoryPage() {
       description: shipment.description,
       packages: shipment.packages,
       packageType: shipment.packageType,
-      packagesPending: shipment.packageList.length,
+      packagesPending: shipment.packageList.filter((pkg) => !pkg.receivedAt)
+        .length,
       weightKg: toNumber(shipment.weightKg),
+      // Weight of what is actually standing here.
+      //
+      // A shipment checked in short keeps its full declared weight on the
+      // paperwork, so summing declared weight told the floor it was holding
+      // kilos that never landed. Per-package weights are used when the desk
+      // recorded them; otherwise the declared total is pro-rated by how many
+      // boxes arrived, which is the best answer the data supports and is
+      // stated rather than hidden.
+      weightHereKg: weightOnFloor(
+        toNumber(shipment.weightKg),
+        shipment.packageList
+      ),
       batchNumber: shipment.batch?.batchNumber ?? null,
       cartonRef: shipment.cartonRef,
       arrivedLabel: shipment.arrivedAt ? formatDate(shipment.arrivedAt) : "Not recorded",
@@ -119,7 +160,7 @@ export default async function InventoryPage() {
     (sum, row) => sum + row.packages - row.packagesPending,
     0
   );
-  const totalWeight = rows.reduce((sum, row) => sum + row.weightKg, 0);
+  const totalWeight = rows.reduce((sum, row) => sum + row.weightHereKg, 0);
   const aging = rows.filter(
     (row) => row.daysHeld !== null && row.daysHeld > STORAGE_POLICY.freeDays
   );

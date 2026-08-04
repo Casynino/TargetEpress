@@ -1004,6 +1004,33 @@ export async function verifyShipment(
       // moment it is noticed rather than at the counter. Skipped when the clerk
       // reported the shortage themselves: that case already exists, and says
       // the same thing in their words.
+      if (!arrived) {
+        // The flight landed; this line did not.
+        //
+        // Leaving it IN_TRANSIT said the box was still in the air, which is a
+        // different and comforting untruth: the aircraft is on the ground and
+        // the carton is not on the floor. UNDER_INVESTIGATION is the honest
+        // state, and it is what stops the line being counted as cargo the
+        // warehouse holds.
+        const moved = await tx.shipment.updateMany({
+          where: { id: shipmentId, status: "IN_TRANSIT" },
+          data: { status: "UNDER_INVESTIGATION" },
+        });
+
+        if (moved.count > 0) {
+          await tx.shipmentStatusHistory.create({
+            data: {
+              shipmentId,
+              fromStatus: "IN_TRANSIT",
+              toStatus: "UNDER_INVESTIGATION",
+              location: "Dar es Salaam warehouse",
+              note: `Did not arrive with the flight: ${note}`,
+              actorId: user.id,
+            },
+          });
+        }
+      }
+
       if (arrived && shortDetail && problem !== "PACKAGE_COUNT_MISMATCH") {
         await raiseException(tx, {
           shipmentId,

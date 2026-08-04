@@ -35,6 +35,8 @@ export type InventoryRow = {
   /** Packages on the manifest that have not been ticked off in Dar. */
   packagesPending: number;
   weightKg: number;
+  /** Kilos actually on the floor — declared weight minus what never arrived. */
+  weightHereKg: number;
   batchNumber: string | null;
   /** The China carton this cargo was packed into — how it is found on a pallet. */
   cartonRef: string | null;
