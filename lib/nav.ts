@@ -240,7 +240,14 @@ const SECTIONS: NavSection[] = [
  */
 const DAR_SECTIONS: NavSection[] = [
   {
-    // Scan and search sit above everything else.
+    // Dashboard, then the two ways in.
+    //
+    // Scan and search are not a stage of the work — they are how every job on
+    // this floor starts: a box arrives and somebody reads its label, a customer
+    // asks and somebody looks the number up. Filed under "handover" they sat
+    // behind the one task that happens least. Dashboard keeps the top spot
+    // because that is where every app puts it and nobody should have to learn
+    // otherwise.
     //
     // They are not a stage of the work — they are how every job on this floor
     // starts. A box arrives and somebody reads its label; a customer asks and
@@ -249,6 +256,12 @@ const DAR_SECTIONS: NavSection[] = [
     // links this desk touches most.
     title: "Find it",
     items: [
+      {
+        href: "/app/dashboard",
+        label: "Dashboard",
+        icon: "LayoutDashboard",
+        exact: true,
+      },
       {
         href: "/app/scan",
         label: "Scan QR",
@@ -266,12 +279,6 @@ const DAR_SECTIONS: NavSection[] = [
   {
     title: "Floor",
     items: [
-      {
-        href: "/app/dashboard",
-        label: "Dashboard",
-        icon: "LayoutDashboard",
-        exact: true,
-      },
       {
         href: "/app/receive",
         label: "Receiving Dock",
