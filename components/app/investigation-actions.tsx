@@ -7,13 +7,7 @@ import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  LIFECYCLE_STEPS,
-  NOTE_REQUIRED_ON,
-  type LifecycleStep,
-} from "@/lib/investigation-lifecycle";
-import {
   addInvestigationNote,
-  advanceInvestigation,
   assignInvestigation,
 } from "@/lib/actions/investigation-queue";
 import type { ActionResult } from "@/lib/actions/types";
@@ -40,35 +34,7 @@ export type InvestigationAllowances = {
   close: boolean;
 };
 
-function allowed(step: LifecycleStep, allow: InvestigationAllowances) {
-  switch (step.permission) {
-    case "exception.investigate":
-      return allow.investigate;
-    case "exception.approve":
-      return allow.approve;
-    case "exception.close":
-      return allow.close;
-    default:
-      return false;
-  }
-}
 
-const TONE_BUTTON: Record<
-  LifecycleStep["tone"],
-  { variant: "brand" | "outline" | "destructive"; className?: string }
-> = {
-  brand: { variant: "brand" },
-  success: {
-    variant: "outline",
-    className: "border-success/50 text-success hover:bg-success/10",
-  },
-  warning: {
-    variant: "outline",
-    className: "border-warning/60 text-warning hover:bg-warning/10",
-  },
-  danger: { variant: "destructive" },
-  neutral: { variant: "outline" },
-};
 
 export function InvestigationActions({
   exceptionId,
@@ -84,17 +50,20 @@ export function InvestigationActions({
   assignees: { id: string; name: string; roleLabel: string }[];
   assignedToId: string | null;
 }) {
-  const steps = LIFECYCLE_STEPS[status].filter((step) => allowed(step, allow));
   const canAssign = allow.approve && assignees.length > 0;
 
-  if (steps.length === 0 && !allow.investigate && !canAssign) return null;
+  if (!allow.investigate && !canAssign) return null;
 
   return (
     <div className="space-y-3 rounded-lg border bg-card p-3">
-      {steps.length > 0 ? (
-        <AdvanceForm exceptionId={exceptionId} steps={steps} />
-      ) : null}
-
+      {/* The lifecycle stepper is gone.
+          It offered Open -> Under investigation -> Waiting for customer ->
+          Compensation approved -> ... and the timeline it produced was status
+          ping-pong: "under investigation -> waiting for customer -> under
+          investigation" records that somebody pressed two buttons, not that
+          anything happened to the cargo. The owner's rule is two states — it is
+          being worked, or it is finished — and finishing is the resolve form,
+          which at least demands an answer. */}
       {allow.investigate ? <NoteForm exceptionId={exceptionId} /> : null}
 
       {canAssign ? (
@@ -108,67 +77,6 @@ export function InvestigationActions({
   );
 }
 
-function AdvanceForm({
-  exceptionId,
-  steps,
-}: {
-  exceptionId: string;
-  steps: LifecycleStep[];
-}) {
-  const [state, action] = useActionState<ActionResult, FormData>(
-    advanceInvestigation,
-    { ok: true }
-  );
-
-  // The note is only compulsory for the decisions that have to be justified —
-  // approving money, approving a replacement, closing a case. Requiring one to
-  // say "I have started looking" only teaches people to type a full stop.
-  const noteNeeded = steps.some((step) => NOTE_REQUIRED_ON.includes(step.to));
-
-  return (
-    <form action={action} className="space-y-2">
-      <input type="hidden" name="exceptionId" value={exceptionId} />
-
-      <label className="block">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          What happened
-        </span>
-        <Textarea
-          name="note"
-          rows={2}
-          className="mt-1 min-h-0"
-          placeholder={
-            noteNeeded
-              ? "Required when approving, closing, or marking cargo found — say why."
-              : "Optional. Goes on the case timeline."
-          }
-        />
-      </label>
-
-      <div className="flex flex-wrap gap-2">
-        {steps.map((step) => {
-          const tone = TONE_BUTTON[step.tone];
-          return (
-            <SubmitButton
-              key={step.to}
-              name="to"
-              value={step.to}
-              size="sm"
-              variant={tone.variant}
-              className={tone.className}
-              title={step.hint}
-              pendingLabel="Saving…"
-            >
-              {step.label}
-            </SubmitButton>
-          );
-        })}
-      </div>
-
-      <FormError state={state} />
-    </form>
-  );
-}
 
 function NoteForm({ exceptionId }: { exceptionId: string }) {
   const [state, action] = useActionState<ActionResult, FormData>(

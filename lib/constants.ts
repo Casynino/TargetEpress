@@ -378,16 +378,26 @@ export const EXCEPTION_TYPE_LABELS: Record<ExceptionType, string> = {
   OTHER: "Other",
 };
 
+/**
+ * Two states, whatever the column holds.
+ *
+ * The owner's rule: a case is being worked, or it is finished. The enum still
+ * carries the older values because rows exist with them and rewriting history
+ * to tidy a label is not a trade worth making — but nothing new is written to
+ * them, and none of them earns its own word on screen. A queue that
+ * distinguishes "open" from "under investigation" is asking the floor to
+ * maintain a distinction that changes nothing about the cargo.
+ */
 export const EXCEPTION_STATUS_LABELS: Record<ExceptionStatus, string> = {
-  OPEN: "Open",
+  OPEN: "Under investigation",
   UNDER_INVESTIGATION: "Under investigation",
-  WAITING_CUSTOMER: "Waiting for customer decision",
-  COMPENSATION_APPROVED: "Compensation approved",
-  REPLACEMENT_APPROVED: "Replacement approved",
-  CARGO_FOUND: "Cargo found",
-  CLOSED: "Closed",
+  WAITING_CUSTOMER: "Under investigation",
+  COMPENSATION_APPROVED: "Under investigation",
+  REPLACEMENT_APPROVED: "Under investigation",
+  CARGO_FOUND: "Resolved",
+  CLOSED: "Resolved",
   RESOLVED: "Resolved",
-  WRITTEN_OFF: "Written off",
+  WRITTEN_OFF: "Resolved",
 };
 
 /**
