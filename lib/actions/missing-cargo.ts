@@ -135,6 +135,43 @@ async function openOrAppendLossCase(
     select: { id: true },
   });
 
+  // The record must stop claiming the cargo is here.
+  //
+  // Opening the case used to be the whole of it, which left a shipment reading
+  // "Received at Dar warehouse", its boxes ticked, sitting in Inventory — while
+  // its own case said "Missing shipment". The warehouse was asserting both that
+  // it had the cargo and that it did not.
+  //
+  // So the shipment moves to UNDER_INVESTIGATION and its packages are un-ticked:
+  // receivedAt records "this box is on the floor", and it is not. Only a
+  // shipment that has not already been handed over is touched — a delivered or
+  // cancelled shipment reported missing is a different problem, and rewinding
+  // its status would erase a handover that really happened.
+  const moved = await tx.shipment.updateMany({
+    where: {
+      id: cargo.id,
+      status: { in: ["RECEIVED_AT_DAR", "READY_FOR_PICKUP"] },
+    },
+    data: { status: "UNDER_INVESTIGATION" },
+  });
+
+  if (moved.count > 0) {
+    await tx.package.updateMany({
+      where: { shipmentId: cargo.id },
+      data: { receivedAt: null, receivedById: null },
+    });
+    await tx.shipmentStatusHistory.create({
+      data: {
+        shipmentId: cargo.id,
+        fromStatus: "RECEIVED_AT_DAR",
+        toStatus: "UNDER_INVESTIGATION",
+        location: "Dar es Salaam warehouse",
+        note: description,
+        actorId: user.id,
+      },
+    });
+  }
+
   return { exceptionId: created.id, created: true };
 }
 

@@ -70,6 +70,11 @@ enum ShipmentStatus {
   IN_TRANSIT
   RECEIVED_AT_DAR
   READY_FOR_PICKUP
+  /// Reported missing or unlocatable. The cargo is not on the floor and is not
+  /// in the air — it is being looked for. Without this the record had to claim
+  /// one of the two, and it claimed "received at Dar" for boxes nobody could
+  /// find, which is the one thing the warehouse must never assert.
+  UNDER_INVESTIGATION
   DELIVERED
   CANCELLED
 }

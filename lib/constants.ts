@@ -283,6 +283,16 @@ export const SHIPMENT_STATUS_META: Record<ShipmentStatus, StatusMeta> = {
     tone: "brand",
     owner: "Finance",
   },
+  UNDER_INVESTIGATION: {
+    label: "Under investigation",
+    publicLabel: "Under investigation",
+    publicLocation: "Dar es Salaam",
+    // Said to the customer without alarming them and without promising a
+    // recovery nobody has made yet.
+    description: "Reported missing or unlocatable. Being searched for.",
+    tone: "warning",
+    owner: "Dar warehouse",
+  },
   DELIVERED: {
     label: "Delivered",
     publicLabel: "Delivered",
