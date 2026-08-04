@@ -269,6 +269,12 @@ const DAR_SECTIONS: NavSection[] = [
         permission: "shipment.scan",
       },
       {
+        href: "/app/pickup-queue",
+        label: "Pickup Queue",
+        icon: "Truck",
+        permission: "shipment.release",
+      },
+      {
         href: "/app/search",
         label: "Search Cargo",
         icon: "Package",
@@ -298,17 +304,6 @@ const DAR_SECTIONS: NavSection[] = [
         label: "Warehouse Inventory",
         icon: "Boxes",
         permission: "inventory.view",
-      },
-    ],
-  },
-  {
-    title: "Handover",
-    items: [
-      {
-        href: "/app/pickup-queue",
-        label: "Pickup Queue",
-        icon: "Truck",
-        permission: "shipment.release",
       },
     ],
   },
