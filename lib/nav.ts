@@ -314,6 +314,9 @@ const DAR_SECTIONS: NavSection[] = [
     ],
   },
   {
+    // No profile entry: the name and photo at the foot of the sidebar are
+    // already a link to it. Listing it twice spends a row on a destination
+    // that is never more than one click away.
     title: "Record",
     items: [
       {
@@ -322,7 +325,6 @@ const DAR_SECTIONS: NavSection[] = [
         icon: "ChartNoAxesCombined",
         permission: "warehouse.reports",
       },
-      { href: "/app/profile", label: "My Profile", icon: "UserRound" },
     ],
   },
 
