@@ -305,17 +305,17 @@ const DAR_SECTIONS: NavSection[] = [
         icon: "Boxes",
         permission: "inventory.view",
       },
-    ],
-  },
-  {
-    title: "Record",
-    items: [
       {
         href: "/app/deliveries",
         label: "Delivery History",
         icon: "History",
         permission: "delivery.history",
       },
+    ],
+  },
+  {
+    title: "Record",
+    items: [
       {
         href: "/app/reports",
         label: "Reports",
