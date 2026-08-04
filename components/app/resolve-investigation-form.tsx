@@ -68,7 +68,7 @@ export function ResolveInvestigationForm({
       : null;
 
   return (
-    <form action={action} className="space-y-4 rounded-lg border p-3">
+    <form action={action} className="space-y-4">
       <input type="hidden" name="exceptionId" value={exceptionId} />
 
       <div className="space-y-2">

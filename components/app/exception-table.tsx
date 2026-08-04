@@ -290,17 +290,17 @@ function CaseRecord({
   const { shipment } = exception;
 
   return (
+    // Two columns of equal weight. At 3fr/2fr the left ran out of content
+    // halfway down and left a column of empty grey beside a dense form; the
+    // case and what was done about it deserve the same room.
     <div className="space-y-3 pt-3">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         {/* ---- The case ------------------------------------------------ */}
         <div className="space-y-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Reported issue
-            </p>
-            <p className="mt-1 text-sm">{exception.description}</p>
+          <Panel title="Reported issue">
+            <p className="text-sm">{exception.description}</p>
             {exception.severity ? (
-              <p className="mt-1.5 text-xs">
+              <p className="mt-2 text-xs">
                 <span className="text-muted-foreground">Damage severity: </span>
                 <Badge
                   variant={
@@ -314,9 +314,10 @@ function CaseRecord({
                 </Badge>
               </p>
             ) : null}
-          </div>
+          </Panel>
 
-          <dl className="grid gap-x-6 gap-y-2 text-xs sm:grid-cols-3">
+          <Panel title="The case">
+          <dl className="grid gap-x-6 gap-y-3 text-xs sm:grid-cols-2">
             <Fact label="Reported by">
               {exception.raisedByName ?? "—"}
               <span className="block text-muted-foreground">
@@ -368,10 +369,27 @@ function CaseRecord({
                 : `${unit.one} ${absent.join(", ")} not accounted for.`}
             </Fact>
           </dl>
+          </Panel>
 
           {/* Every box, so a shortage names the missing sequence rather than
-              only counting it. */}
+              only counting it. Floating loose above the photos they read as
+              decoration; labelled and with a key they read as a count. */}
           {shipment.packages.length > 0 ? (
+            <Panel
+              title={`${unit.many} on the manifest`}
+              aside={
+                <span className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-sm bg-success/60" />
+                    here
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-sm border border-dashed border-destructive/60" />
+                    not accounted for
+                  </span>
+                </span>
+              }
+            >
             <div className="flex flex-wrap gap-1.5">
               {shipment.packages.map((pkg) => (
                 <span
@@ -393,39 +411,39 @@ function CaseRecord({
                 </span>
               ))}
             </div>
+            </Panel>
           ) : null}
 
           {/* Two sets of photos, kept apart on purpose: an investigation is
               decided by comparing what China photographed against what came
               off the plane. */}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <PhotoStrip
-              title="Photographed in China"
-              photos={exception.chinaPhotos}
-              empty="No registration photos on file."
-            />
-            <PhotoStrip
-              title="Photographed on arrival"
-              photos={exception.arrivalPhotos}
-              empty="Nothing photographed at check-in."
-            />
-          </div>
+          <Panel title="Evidence">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <PhotoStrip
+                title="Photographed in China"
+                photos={exception.chinaPhotos}
+                empty="No registration photos on file."
+              />
+              <PhotoStrip
+                title="Photographed on arrival"
+                photos={exception.arrivalPhotos}
+                empty="Nothing photographed at check-in."
+              />
+            </div>
+          </Panel>
 
           <CompensationPanel exception={exception} />
         </div>
 
         {/* ---- What was done about it ---------------------------------- */}
         <div className="space-y-3">
-          <div className="rounded-lg border bg-card p-3">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Timeline · oldest first
-            </p>
+          <Panel title="Timeline" aside={<span className="text-[11px] text-muted-foreground">oldest first</span>}>
             <InvestigationTimeline
               events={exception.events}
               openedAt={exception.raisedAt}
               openedByName={exception.raisedByName}
             />
-          </div>
+          </Panel>
 
           {exception.resolutionNote ? (
             <p className="rounded-md bg-muted/60 p-2 text-xs">
@@ -451,14 +469,44 @@ function CaseRecord({
           {!(EXCEPTION_TERMINAL_STATUSES as readonly string[]).includes(
             exception.status
           ) && allow.close ? (
-            <div className="mt-3">
-              <p className="mb-2 text-xs font-medium">Resolve investigation</p>
+            <Panel title="Resolve investigation">
               <ResolveInvestigationForm exceptionId={exception.id} />
-            </div>
+            </Panel>
           ) : null}
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * One labelled block of the case record.
+ *
+ * The detail used to be a run of headings and text with nothing separating
+ * them, so the eye had to work out where the issue ended and the cargo began.
+ * A panel per subject does that work instead, and gives the two columns a
+ * shared rhythm.
+ */
+function Panel({
+  title,
+  aside,
+  children,
+}: {
+  title: string;
+  /** Optional right-aligned extra — a legend, a count. */
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-lg border bg-card p-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {title}
+        </h4>
+        {aside}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -517,7 +565,9 @@ function PhotoStrip({
                 src={photo.url}
                 alt={photo.caption ?? "Cargo photo"}
                 loading="lazy"
-                className={`h-14 w-14 object-cover ${
+                // 56px was too small to tell a crushed corner from a shadow,
+                // which is the entire job of these photos on this page.
+                className={`h-20 w-20 object-cover transition-transform hover:scale-105 motion-reduce:transition-none motion-reduce:hover:scale-100 ${
                   photo.onCase ? "ring-2 ring-inset ring-warning/60" : ""
                 }`}
               />
