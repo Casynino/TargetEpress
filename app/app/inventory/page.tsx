@@ -15,7 +15,7 @@ import {
   STORAGE_POLICY,
 } from "@/lib/constants";
 import { ON_THE_FLOOR, weightOnFloor } from "@/lib/floor";
-import { formatDate, toNumber } from "@/lib/format";
+import { formatDate, formatWeight, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 
@@ -205,7 +205,11 @@ export default async function InventoryPage() {
             <KpiCard
               delay={4}
               label="Weight on the floor"
-              value={`${Math.round(totalWeight).toLocaleString()} kg`}
+              // formatWeight, not Math.round. The dashboard banner carries a
+              // tile with this exact label and links straight here, so the two
+              // must round the same way — otherwise one screen says 754.3 kg
+              // and the next says 754 kg about the same stack of boxes.
+              value={formatWeight(totalWeight)}
               hint={`Across ${rows.length} shipment${rows.length === 1 ? "" : "s"}`}
               icon={Scale}
               tone="info"

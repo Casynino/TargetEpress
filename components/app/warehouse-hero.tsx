@@ -15,6 +15,8 @@ export type HeroChip = {
   label: string;
   value: string;
   sub?: string;
+  /** Where the number goes when pressed. Omit for a figure with no list behind it. */
+  href?: string;
 };
 
 /**
@@ -96,25 +98,44 @@ export function WarehouseHero({
         </div>
 
         <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {chips.map((chip) => (
-            <div
-              key={chip.label}
-              className="rounded-xl border bg-background/60 p-3 backdrop-blur"
-            >
-              <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <chip.icon className="h-3.5 w-3.5" />
-                {chip.label}
-              </dt>
-              <dd className="mt-1 font-display text-xl font-bold tabular">
-                {chip.value}
-              </dd>
-              {chip.sub ? (
-                <p className="mt-0.5 text-[11px] text-muted-foreground tabular">
-                  {chip.sub}
-                </p>
-              ) : null}
-            </div>
-          ))}
+          {chips.map((chip) => {
+            const body = (
+              <>
+                <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <chip.icon className="h-3.5 w-3.5" />
+                  {chip.label}
+                </dt>
+                <dd className="mt-1 font-display text-xl font-bold tabular">
+                  {chip.value}
+                </dd>
+                {chip.sub ? (
+                  <p className="mt-0.5 text-[11px] text-muted-foreground tabular">
+                    {chip.sub}
+                  </p>
+                ) : null}
+              </>
+            );
+
+            // A number somebody wants to act on is the way through to the list
+            // behind it. Chips with nothing to open stay plain rather than
+            // pretending to be pressable.
+            return chip.href ? (
+              <Link
+                key={chip.label}
+                href={chip.href}
+                className="focus-ring rounded-xl border bg-background/60 p-3 backdrop-blur transition-colors hover:border-brand/40 hover:bg-background/80"
+              >
+                {body}
+              </Link>
+            ) : (
+              <div
+                key={chip.label}
+                className="rounded-xl border bg-background/60 p-3 backdrop-blur"
+              >
+                {body}
+              </div>
+            );
+          })}
         </dl>
       </div>
     </section>

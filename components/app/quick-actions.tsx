@@ -25,7 +25,11 @@ export function QuickActions({ items }: { items: QuickActionItem[] }) {
 
   return (
     <nav aria-label="Quick actions" className="mb-6">
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {/* Four across, never five. At the width this app is actually used —
+          1280px with a 320px sidebar — a fifth column leaves each card too
+          narrow for its own label, and a shortcut whose name reads "What is
+          on th…" is not a shortcut. */}
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((item) => (
           <li key={item.href}>
             <Link

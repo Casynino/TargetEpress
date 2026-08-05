@@ -132,6 +132,7 @@ async function darHeroChips(floor: FloorSnapshot): Promise<HeroChip[]> {
       icon: Boxes,
       label: "Cargo in the warehouse",
       value: String(floor.shipments),
+      href: "/app/inventory",
       sub: checkedIn._count
         ? `${checkedIn._count} checked in today`
         : "Nothing checked in yet today",
@@ -140,6 +141,7 @@ async function darHeroChips(floor: FloorSnapshot): Promise<HeroChip[]> {
       icon: PackageCheck,
       label: "Boxes on the floor",
       value: floor.packages.toLocaleString(),
+      href: "/app/inventory",
       sub: shortBoxes
         ? `${shortBoxes} short of the manifest`
         : `All ${floor.declaredPackages.toLocaleString()} accounted for`,
@@ -148,6 +150,7 @@ async function darHeroChips(floor: FloorSnapshot): Promise<HeroChip[]> {
       icon: Scale,
       label: "Weight on the floor",
       value: formatWeight(floor.weightKg),
+      href: "/app/inventory",
       sub: `${formatWeight(toNumber(checkedIn._sum.weightKg ?? 0))} checked in today`,
     },
   ];
@@ -549,7 +552,7 @@ const DAR_QUICK_ACTIONS: QuickActionItem[] = [
   {
     href: "/app/search",
     label: "Find cargo",
-    hint: "By number, name or phone",
+    hint: "Number, name or phone",
     icon: PackageSearch,
   },
   {
@@ -565,21 +568,17 @@ const DAR_QUICK_ACTIONS: QuickActionItem[] = [
     icon: Truck,
   },
   {
-    href: "/app/inventory",
-    label: "What is on the floor",
-    hint: "Everything being held here",
-    icon: Boxes,
-  },
-  {
     href: "/app/exceptions",
     label: "Investigation Hub",
-    hint: "Missing and damaged cargo",
+    hint: "Missing and damaged",
     icon: AlertTriangle,
   },
 ];
-// Scanning is deliberately not in this row. It is already the big button in
-// the banner directly above, and the same action twice on one screen is the
-// clutter the owner asked us to avoid.
+// Two things are deliberately not in this row. Scanning, because it is already
+// the big button in the banner directly above, and the same action twice on one
+// screen is the clutter the owner asked us to avoid. And the inventory list,
+// because the three banner tiles that count the floor are themselves links to
+// it — the number and the way through to it are the same control.
 
 async function DarDashboard({
   role,
