@@ -44,11 +44,11 @@ export function financeTabs(role: Role): FinanceTab[] {
       label: "Expenses",
       visible: can(role, "expense.view"),
     },
-    {
-      href: "/app/finance/pickup-notes",
-      label: "Pickup notes",
-      visible: can(role, "pickupNote.view"),
-    },
+    // NOTE: no Pickup notes tab. It sits in the sidebar beside Search Cargo,
+    // because a pickup note is an operational document rather than a financial
+    // one — Finance issues it, but the people reaching for it all day are at
+    // the counter with a customer in front of them. Two doors into one room is
+    // what this navigation avoids everywhere else, so it is not also a tab.
     {
       href: "/app/finance/reports",
       label: "Profit & loss",

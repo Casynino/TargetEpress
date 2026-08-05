@@ -181,6 +181,21 @@ function NavList({
 }) {
   const pathname = usePathname();
 
+  // Longest match wins, across the whole sidebar rather than row by row.
+  //
+  // Rows can nest — Pickup notes lives under /app/finance/pickup-notes while
+  // Finance owns /app/finance — and matching each row independently lights up
+  // both at once, which tells you two contradictory things about where you
+  // are. The most specific row that matches is the one you are actually on.
+  const activeHref = sections
+    .flatMap((section) => section.items)
+    .filter((item) =>
+      item.exact
+        ? pathname === item.href
+        : pathname === item.href || pathname.startsWith(`${item.href}/`)
+    )
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+
   return (
     <nav className={className}>
       {sections.map((section) => (
@@ -193,10 +208,7 @@ function NavList({
           <ul className="space-y-0.5">
             {section.items.map((item) => {
               const Icon = ICONS[item.icon] ?? Package;
-              const active = item.exact
-                ? pathname === item.href
-                : pathname === item.href ||
-                  pathname.startsWith(`${item.href}/`);
+              const active = item.href === activeHref;
               return (
                 <li key={item.href}>
                   <Link

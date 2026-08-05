@@ -84,6 +84,18 @@ const SECTIONS: NavSection[] = [
         permission: "shipment.view",
       },
       {
+        href: "/app/finance/pickup-notes",
+        label: "Pickup notes",
+        icon: "QrCode",
+        // Beside Search Cargo rather than inside Finance, because a pickup note
+        // is an operational document, not a financial one. Finance issues it,
+        // but the people reaching for it all day are at the counter with a
+        // customer in front of them — and the counter is what this section is.
+        //
+        // Read, not issue: Support prints these and needs the door.
+        permission: "pickupNote.view",
+      },
+      {
         href: "/app/scan",
         label: "Scan QR",
         icon: "ScanLine",
