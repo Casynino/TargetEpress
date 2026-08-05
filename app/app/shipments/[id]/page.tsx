@@ -10,6 +10,7 @@ import {
   type DocumentEntry,
   type TimelineEntry,
 } from "@/components/app/shipment-detail-tabs";
+import { BatchFinanceBand } from "@/components/app/batch-finance-band";
 import { BatchStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,8 +20,10 @@ import {
   formatPackagesShort,
 } from "@/lib/constants";
 import { formatDate, formatDateTime, toNumber } from "@/lib/format";
+import { batchFinance } from "@/lib/batch-finance";
 import { cargoLabel } from "@/lib/cargo";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Shipment" };
@@ -37,7 +40,9 @@ export default async function ShipmentPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePermission("batch.view");
+  // The page is a batch.view page; the money band on it is not. Capture the
+  // user rather than discarding them, so the band can be gated on its own.
+  const user = await requirePermission("batch.view");
   const { id } = await params;
 
   const dispatch = await prisma.batch.findUnique({
@@ -90,6 +95,12 @@ export default async function ShipmentPage({
     ),
     photos: item.photos,
   }));
+
+  // Only fetched for desks that may see money — the warehouse opens this page
+  // too, and a figure never queried cannot leak through a prop.
+  const finance = can(user.role, "finance.view")
+    ? await batchFinance(dispatch.id)
+    : null;
 
   const weight = cargo.reduce((sum, line) => sum + line.weightKg, 0);
   const packages = cargo.reduce((sum, line) => sum + line.packages, 0);
@@ -173,6 +184,10 @@ export default async function ShipmentPage({
           </>
         }
       />
+
+      {/* Money first, for the desks that came here to ask a money question.
+          Everyone else goes straight to the cargo. */}
+      {finance ? <BatchFinanceBand finance={finance} /> : null}
 
       {/* Overview card — everything a manager asks standing up. */}
       <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">

@@ -1,0 +1,180 @@
+import "server-only";
+
+import { STORAGE_POLICY, storageDaysFor } from "@/lib/constants";
+import { toNumber } from "@/lib/format";
+import { currentRateValue, toLocal } from "@/lib/fx";
+import { quote } from "@/lib/pricing";
+import { prisma } from "@/lib/prisma";
+
+/**
+ * What one dispatch is worth, and how much of it has been collected.
+ *
+ * This is the band Finance reads before anything else on a batch: is this
+ * flight worth what we expected, and how much of it is still outstanding.
+ *
+ * TWO SOURCES, DELIBERATELY. A consignment that has been invoiced is worth its
+ * invoice — the figure Finance confirmed, at the rate frozen onto it. One that
+ * has not is priced live from the rate book, so the band reads correctly today
+ * on cargo that has landed but has not been billed yet. Without the second
+ * half this panel would show near-zero on a batch of 87 pieces with one
+ * invoice against it, which is exactly the state a real batch is in for the
+ * first days after it lands.
+ *
+ * The two halves are reported separately as well as summed, because "USD 40k
+ * expected, of which 38k is still only an estimate" is a different sentence
+ * from "USD 40k invoiced".
+ */
+
+export type BatchFinance = {
+  /** Every piece of cargo on the dispatch. */
+  pieces: number;
+  customers: number;
+  weightKg: number;
+
+  /** Invoice raised, at any status. */
+  invoiced: number;
+  /** Cargo with no invoice yet — the rest of `pieces`. */
+  uninvoiced: number;
+  /** Cargo the rate book cannot price yet, with the reason it gave. */
+  unpriceable: { trackingNumber: string; reason: string }[];
+
+  /** Confirmed invoice totals, in invoice currency (USD). */
+  invoicedUsd: number;
+  /** Rate-book estimate for everything not yet invoiced. */
+  estimatedUsd: number;
+  /** The two together — the headline "expected revenue". */
+  expectedUsd: number;
+
+  /**
+   * The same figure in shillings. Invoiced cargo contributes the rate frozen
+   * onto its own invoice and is never re-converted; only the estimate is
+   * converted, at today's published rate.
+   */
+  expectedTzs: number | null;
+  /** The rate used for the estimated part. Null when none is published. */
+  rate: number | null;
+
+  /** Money actually received, in invoice currency. */
+  receivedUsd: number;
+  /** Billed but not yet paid. Estimates are excluded — nobody owes an estimate. */
+  outstandingUsd: number;
+};
+
+export async function batchFinance(batchId: string): Promise<BatchFinance> {
+  const cargo = await prisma.shipment.findMany({
+    where: { batchId, deletedAt: null },
+    select: {
+      trackingNumber: true,
+      customerId: true,
+      weightKg: true,
+      packages: true,
+      cargoCategory: true,
+      cargoTypeId: true,
+      arrivedAt: true,
+      deliveredAt: true,
+      invoice: {
+        select: {
+          total: true,
+          amountPaid: true,
+          totalLocal: true,
+          status: true,
+        },
+      },
+    },
+  });
+
+  const rate = await currentRateValue();
+
+  let invoicedUsd = 0;
+  let receivedUsd = 0;
+  let outstandingUsd = 0;
+  let invoicedTzs = 0;
+  let invoiced = 0;
+  let weightKg = 0;
+
+  const needsEstimate: typeof cargo = [];
+
+  for (const piece of cargo) {
+    weightKg += toNumber(piece.weightKg);
+
+    if (!piece.invoice) {
+      needsEstimate.push(piece);
+      continue;
+    }
+
+    invoiced += 1;
+    const total = toNumber(piece.invoice.total);
+    const paid = toNumber(piece.invoice.amountPaid);
+
+    // A voided invoice is not revenue and is not a debt. It stays out of every
+    // figure rather than being counted and then subtracted.
+    if (piece.invoice.status === "VOID") continue;
+
+    invoicedUsd += total;
+    receivedUsd += paid;
+    outstandingUsd += Math.max(0, total - paid);
+    // The rate frozen at issue, not today's. An invoice is a promise in
+    // shillings and does not move when the rate does.
+    invoicedTzs +=
+      piece.invoice.totalLocal === null
+        ? rate === null
+          ? 0
+          : toLocal(total, rate)
+        : toNumber(piece.invoice.totalLocal);
+  }
+
+  // Priced in parallel: the rate book is a handful of rows and every lookup is
+  // independent, so this is one round of concurrent reads rather than a walk.
+  const estimates = await Promise.all(
+    needsEstimate.map(async (piece) => {
+      const priced = await quote({
+        category: piece.cargoCategory,
+        cargoTypeId: piece.cargoTypeId,
+        weightKg: toNumber(piece.weightKg),
+        quantity: piece.packages,
+      });
+      if (!priced.ok) {
+        return {
+          trackingNumber: piece.trackingNumber,
+          reason: priced.message,
+          amount: 0,
+        };
+      }
+      // Storage is part of what the customer will owe, and it is already
+      // running on cargo that landed a week ago.
+      const storage =
+        storageDaysFor(piece.arrivedAt, piece.deliveredAt) *
+        STORAGE_POLICY.perDayUsd;
+      return {
+        trackingNumber: piece.trackingNumber,
+        reason: null,
+        amount: priced.total + storage,
+      };
+    })
+  );
+
+  const estimatedUsd = estimates.reduce((sum, e) => sum + e.amount, 0);
+  const unpriceable = estimates
+    .filter((e) => e.reason !== null)
+    .map((e) => ({ trackingNumber: e.trackingNumber, reason: e.reason! }));
+
+  const expectedUsd = invoicedUsd + estimatedUsd;
+  const expectedTzs =
+    rate === null ? null : invoicedTzs + toLocal(estimatedUsd, rate);
+
+  return {
+    pieces: cargo.length,
+    customers: new Set(cargo.map((c) => c.customerId)).size,
+    weightKg,
+    invoiced,
+    uninvoiced: cargo.length - invoiced,
+    unpriceable,
+    invoicedUsd,
+    estimatedUsd,
+    expectedUsd,
+    expectedTzs,
+    rate,
+    receivedUsd,
+    outstandingUsd,
+  };
+}
