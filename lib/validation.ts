@@ -124,6 +124,28 @@ export const paymentSchema = z.object({
    * settle for a different amount depending on when it was paid.
    */
   currency: z.enum(["USD", "TZS"]).optional(),
+  /**
+   * The rate to convert this payment at, when it is tendered in a currency the
+   * invoice is not denominated in.
+   *
+   * Defaults to the rate frozen onto the invoice — that is what the customer
+   * was quoted. It is editable because the counter sometimes agrees a
+   * different one: a bill raised weeks ago at 2,700 settled today when the
+   * street rate is 2,760 is a conversation, and whatever they agree has to be
+   * the number that goes in the books.
+   *
+   * Banded like every other rate in the app, so a mistyped digit is refused
+   * rather than silently crediting ten times the money.
+   */
+  exchangeRate: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? Number(v) : null))
+    .refine(
+      (v) => v === null || (Number.isFinite(v) && v >= 100 && v <= 100_000),
+      "That rate looks wrong for USD→TZS. Check the number of digits."
+    ),
   reference: z.string().trim().optional(),
   note: z.string().trim().optional(),
   /**

@@ -262,8 +262,23 @@ function PaymentPanel(props: Props) {
   // Open unless there is nothing to take. A collapsed panel makes the main
   // job of this desk a thing you have to find first.
   const [open, setOpen] = useState(!settledOnLoad);
-  const [amount, setAmount] = useState(String(props.outstanding ?? ""));
-  const [currency, setCurrency] = useState(props.currency);
+  // Shillings by default. Bills are quoted in dollars because that is what the
+  // rate book is in, but almost every customer pays in shillings at the
+  // counter — so the form opens on the currency the money is actually in, and
+  // the dollar option is one click away for the ones who do not.
+  const [currency, setCurrency] = useState(
+    props.invoiceRate === null ? props.currency : "TZS"
+  );
+  const [rate, setRate] = useState(
+    props.invoiceRate === null ? "" : String(props.invoiceRate)
+  );
+  // ...and the amount defaults to the balance expressed in that currency,
+  // rounded to the shilling, because nobody hands over 405.27 TZS.
+  const [amount, setAmount] = useState(() => {
+    if (props.outstanding === null) return "";
+    if (props.invoiceRate === null) return String(props.outstanding);
+    return String(Math.round(props.outstanding * props.invoiceRate));
+  });
   const [state, action] = useActionState<
     ActionResult<{ receiptNumber: string; pickupNoteNumber: string | null }>,
     FormData
@@ -275,17 +290,46 @@ function PaymentPanel(props: Props) {
   // visible before it is committed. The server recomputes it from the invoice's
   // own frozen rate — this is a preview, never the stored value.
   const typed = Number(amount);
-  const rate = props.invoiceRate;
+  const activeRate = Number(rate);
+  const rateUsable = Number.isFinite(activeRate) && activeRate > 0;
   const converted =
     currency === props.currency
       ? null
-      : rate === null
-        ? `This invoice carries no exchange rate, so it can only be settled in ${props.currency}.`
+      : !rateUsable
+        ? `Set an exchange rate to take a payment in ${currency}.`
         : Number.isFinite(typed) && typed > 0
           ? `${currency} ${typed.toLocaleString()} settles ${props.currency} ${(
-              currency === "TZS" ? typed / rate : typed * rate
-            ).toFixed(2)} at this invoice's rate of ${rate.toLocaleString()}.`
+              currency === "TZS" ? typed / activeRate : typed * activeRate
+            ).toFixed(2)} at ${activeRate.toLocaleString()}.`
           : null;
+
+  // Agreeing a different rate changes what the same shillings are worth, so a
+  // figure that cleared the bill a moment ago may no longer. Say what would,
+  // rather than leaving the clerk to work it out and leave 3 dollars behind —
+  // an unsettled cent is a pickup note that never issues.
+  const clearing =
+    currency !== props.currency && rateUsable && props.outstanding !== null
+      ? currency === "TZS"
+        ? Math.round(props.outstanding * activeRate)
+        : Number((props.outstanding / activeRate).toFixed(2))
+      : null;
+  const shortfall =
+    clearing !== null &&
+    Number.isFinite(typed) &&
+    typed > 0 &&
+    Math.abs(typed - clearing) > 0.5;
+
+  // Switching currency re-expresses the outstanding balance, so the figure in
+  // the box is always the whole balance in whatever is selected.
+  const switchCurrency = (next: string) => {
+    setCurrency(next);
+    if (props.outstanding === null || !rateUsable) return;
+    setAmount(
+      next === "TZS"
+        ? String(Math.round(props.outstanding * activeRate))
+        : String(props.outstanding)
+    );
+  };
 
   return (
     <div
@@ -343,7 +387,7 @@ function PaymentPanel(props: Props) {
                 id="paymentCurrency"
                 name="currency"
                 value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
+                onChange={(e) => switchCurrency(e.target.value)}
               >
                 <option value={props.currency}>{props.currency}</option>
                 {props.currency !== "TZS" ? <option value="TZS">TZS</option> : null}
@@ -351,9 +395,52 @@ function PaymentPanel(props: Props) {
               </NativeSelect>
             </div>
           </div>
+          {currency !== props.currency ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="paymentRate" className="text-xs">
+                Exchange rate{" "}
+                <span className="text-muted-foreground">
+                  ({props.currency} → TZS)
+                </span>
+              </Label>
+              <Input
+                id="paymentRate"
+                name="exchangeRate"
+                type="number"
+                min="100"
+                step="1"
+                inputMode="decimal"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                placeholder={
+                  props.invoiceRate === null
+                    ? "e.g. 2700"
+                    : String(props.invoiceRate)
+                }
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                {props.invoiceRate === null
+                  ? "This invoice carries no rate, so the one you agreed at the counter is the one that counts."
+                  : `The invoice was raised at ${props.invoiceRate.toLocaleString()}. Change it if you agreed a different rate — this payment is recorded at whatever you put here.`}
+              </p>
+            </div>
+          ) : null}
           {converted ? (
             <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
               {converted}
+              {shortfall ? (
+                <>
+                  {" "}
+                  <button
+                    type="button"
+                    onClick={() => setAmount(String(clearing))}
+                    className="font-medium text-brand underline-offset-2 hover:underline"
+                  >
+                    {currency} {clearing!.toLocaleString()} clears the balance.
+                  </button>
+                </>
+              ) : null}
             </p>
           ) : null}
           <div className="space-y-1.5">

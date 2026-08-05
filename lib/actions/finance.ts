@@ -703,18 +703,23 @@ export async function recordPayment(
       let rateUsed: number | null = null;
 
       if (tenderedCurrency !== invoice.currency) {
-        if (invoiceRate === null) {
+        // The rate the desk agreed, or the one frozen onto the invoice when
+        // they did not touch it. Never today's published rate silently: the
+        // customer was quoted a figure and a rate that moves under them
+        // without anybody saying so is how a bill gets argued about.
+        const agreedRate = input.exchangeRate ?? invoiceRate;
+        if (agreedRate === null) {
           throw new Error(
-            `${invoice.invoiceNumber} carries no exchange rate, so a payment in ${tenderedCurrency} cannot be converted. Publish a rate and regenerate the invoice.`
+            `${invoice.invoiceNumber} carries no exchange rate, so a payment in ${tenderedCurrency} cannot be converted. Set one on this payment, or publish a rate and regenerate the invoice.`
           );
         }
-        rateUsed = invoiceRate;
+        rateUsed = agreedRate;
         // Both directions, so this keeps working if an invoice is ever raised
         // in shillings.
         credited =
           tenderedCurrency === LOCAL_CURRENCY
-            ? input.amount / invoiceRate
-            : input.amount * invoiceRate;
+            ? input.amount / rateUsed
+            : input.amount * rateUsed;
         // Round to the cent the invoice is denominated in, or a payment meant
         // to settle a bill exactly leaves a fraction behind and the pickup
         // note never unlocks.
