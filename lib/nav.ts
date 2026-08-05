@@ -10,6 +10,15 @@ export type NavItem = {
   permission?: Permission;
   /** Match child routes too (e.g. /app/cargo/TX-000123). */
   exact?: boolean;
+  /**
+   * Extra paths this row owns.
+   *
+   * For pages that belong to a section but do not live under its path — the
+   * operational Reports page sits at /app/admin/reports and is reached from
+   * inside the General ledger. Without this the sidebar highlights nothing
+   * while you are plainly somewhere, which reads as a bug.
+   */
+  alsoMatches?: string[];
 };
 
 export type NavSection = {
@@ -150,9 +159,11 @@ const SECTIONS: NavSection[] = [
       // numbers on its own says nothing about which box it is or where.
       {
         href: "/app/finance",
-        label: "Finance",
+        label: "General ledger",
         icon: "Wallet",
         permission: "finance.view",
+        // Reports is a tab in this workspace but lives under /app/admin.
+        alsoMatches: ["/app/admin/reports"],
       },
     ],
   },
@@ -195,13 +206,12 @@ const SECTIONS: NavSection[] = [
   {
     title: "Management",
     items: [
-      {
-        href: "/app/admin/reports",
-        label: "Reports",
-        icon: "ChartNoAxesCombined",
-        permission: "report.view",
-      },
-      // No Products & pricing row here. The rate book moved into the Finance
+      // No Reports row here. It is a tab inside the General ledger, beside
+      // Profit & loss — the two answer the same question from different ends
+      // (what the business did, and what it earned doing it), and splitting
+      // them across the sidebar and a tab row meant nobody could find both.
+      //
+      // No Products & pricing row here either. The rate book moved into the Finance
       // portal, where the desk that owns it works — and the CEO reaches the
       // same page from the same place rather than a second copy in Management.
       {

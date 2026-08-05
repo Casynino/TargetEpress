@@ -17,12 +17,14 @@ import { formatMoney, formatWeight, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
 import { executiveStats } from "@/lib/queries";
+import { FinanceNav } from "@/components/app/finance-nav";
+import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Reports" };
 
 export default async function ReportsPage() {
-  await requirePermission("report.view");
+  const user = await requirePermission("report.view");
 
   const monthStart = new Date();
   monthStart.setDate(1);
@@ -98,6 +100,11 @@ export default async function ReportsPage() {
         title="Reports"
         description="The whole business, measured from the operational record — no separate bookkeeping."
       />
+
+      {/* This page sits inside the General ledger workspace. It lives under
+          /app/admin for historical reasons; the tab row is what says where it
+          actually belongs. */}
+      <FinanceNav tabs={financeTabs(user.role)} />
 
       <section className="space-y-4">
         <h2 className="text-sm font-semibold">Money</h2>

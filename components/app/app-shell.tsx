@@ -189,11 +189,14 @@ function NavList({
   // are. The most specific row that matches is the one you are actually on.
   const activeHref = sections
     .flatMap((section) => section.items)
-    .filter((item) =>
-      item.exact
-        ? pathname === item.href
-        : pathname === item.href || pathname.startsWith(`${item.href}/`)
-    )
+    .filter((item) => {
+      const paths = [item.href, ...(item.alsoMatches ?? [])];
+      return paths.some((path) =>
+        item.exact
+          ? pathname === path
+          : pathname === path || pathname.startsWith(`${path}/`)
+      );
+    })
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (

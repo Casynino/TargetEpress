@@ -54,6 +54,15 @@ export function financeTabs(role: Role): FinanceTab[] {
       label: "Profit & loss",
       visible: can(role, "report.view"),
     },
+    // The operational report — volumes, speed, what we carry. It lives under
+    // /app/admin for historical reasons and is reached from here, because the
+    // question "how did the business do" is asked in one place or it is asked
+    // nowhere.
+    {
+      href: "/app/admin/reports",
+      label: "Reports",
+      visible: can(role, "report.view"),
+    },
     {
       href: "/app/finance/pricing",
       label: "Pricing & configuration",
