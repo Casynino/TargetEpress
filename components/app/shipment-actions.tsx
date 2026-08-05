@@ -3,7 +3,16 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import type { Role, ShipmentStatus } from "@prisma/client";
-import { Ban, FileText, Printer, QrCode, ReceiptText, Wallet } from "lucide-react";
+import {
+  Ban,
+  Download,
+  FileText,
+  MessageCircle,
+  Printer,
+  QrCode,
+  ReceiptText,
+  Wallet,
+} from "lucide-react";
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
 import { Button } from "@/components/ui/button";
@@ -43,6 +52,12 @@ type Props = {
   invoiceRate: number | null;
   /** DRAFT while the system's price is waiting on Finance to sign it off. */
   invoiceStatus: string | null;
+  /**
+   * A pre-composed WhatsApp link with the bill in it, or null when the
+   * customer has no number on file. Built on the server so the message says
+   * the same thing here as it does on the invoice page.
+   */
+  customerWhatsapp: string | null;
 };
 
 /**
@@ -72,6 +87,10 @@ export function ShipmentActions(props: Props) {
     <section className="rounded-xl border bg-card shadow-soft">
       <h2 className="border-b px-5 py-3.5 text-sm font-semibold">Actions</h2>
       <div className="divide-y">
+        {/* Money first. Everything else on this panel is preparation for it,
+            and a clerk with a customer at the counter should not have to read
+            past two other panels to find the one button they came for. */}
+        {canPay ? <PaymentPanel {...props} /> : null}
         {canInvoice && props.invoiceStatus === "DRAFT" ? (
           <ConfirmPricePanel {...props} />
         ) : null}
@@ -80,7 +99,6 @@ export function ShipmentActions(props: Props) {
             the invoice, and confirming a draft re-prices it anyway. Two ways to
             re-price from two screens is how they end up disagreeing. */}
         {canInvoice ? <InvoicePanel {...props} /> : null}
-        {canPay ? <PaymentPanel {...props} /> : null}
         {can(role, "pickupNote.view") ? <PickupNotePanel {...props} /> : null}
         {canCancel ? <CancelPanel shipmentId={props.shipmentId} /> : null}
       </div>
@@ -151,8 +169,10 @@ function InvoicePanel(props: Props) {
     FormData
   >(generateInvoice, { ok: true });
 
-  // Already has one: this is just the door to it.
+  // Already has one: this is the door to it, and — once the price has been
+  // signed off — the two things you do with a finished bill.
   if (props.invoiceNumber) {
+    const confirmed = props.invoiceStatus !== "DRAFT";
     return (
       <div className="p-5">
         <p className="flex items-center gap-2 text-sm font-medium">
@@ -160,14 +180,41 @@ function InvoicePanel(props: Props) {
           Invoice {props.invoiceNumber}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Open it to change the freight, add a charge, apply a discount, move
-          the exchange rate or send it to the customer.
+          {confirmed
+            ? "Confirmed. Send it to the customer, or open it to adjust anything before they pay."
+            : "Open it to change the freight, add a charge, apply a discount or move the exchange rate. Confirm the price above before sending it."}
         </p>
-        <Button asChild size="sm" variant="outline" className="mt-3">
-          <Link href={`/app/finance/invoices/${props.invoiceNumber}`}>
-            Open invoice
-          </Link>
-        </Button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {/* Only on a confirmed price. A draft is the system's own working
+              figure and must not leave the building. */}
+          {confirmed ? (
+            <>
+              <Button asChild size="sm" variant="brand">
+                <a href={`/app/finance/invoices/${props.invoiceNumber}/pdf`}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download
+                </a>
+              </Button>
+              {props.customerWhatsapp ? (
+                <Button asChild size="sm" variant="outline">
+                  <a
+                    href={props.customerWhatsapp}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    Share
+                  </a>
+                </Button>
+              ) : null}
+            </>
+          ) : null}
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/app/finance/invoices/${props.invoiceNumber}`}>
+              Open invoice
+            </Link>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -211,7 +258,10 @@ function InvoicePanel(props: Props) {
 const TODAY = new Date().toISOString().slice(0, 10);
 
 function PaymentPanel(props: Props) {
-  const [open, setOpen] = useState(false);
+  const settledOnLoad = props.outstanding !== null && props.outstanding <= 0;
+  // Open unless there is nothing to take. A collapsed panel makes the main
+  // job of this desk a thing you have to find first.
+  const [open, setOpen] = useState(!settledOnLoad);
   const [amount, setAmount] = useState(String(props.outstanding ?? ""));
   const [currency, setCurrency] = useState(props.currency);
   const [state, action] = useActionState<
@@ -238,15 +288,28 @@ function PaymentPanel(props: Props) {
           : null;
 
   return (
-    <div className="p-5">
+    <div
+      className={
+        settled ? "p-5" : "border-l-2 border-brand bg-brand/5 p-5"
+      }
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 text-sm font-medium"
+        className="flex w-full items-center gap-2 text-left font-medium"
         disabled={settled}
       >
-        <Wallet className="h-4 w-4 text-brand" />
-        {settled ? "Settled in full" : "Confirm payment"}
+        <Wallet
+          className={settled ? "h-4 w-4 text-success" : "h-5 w-5 text-brand"}
+        />
+        <span className={settled ? "text-sm" : "text-base"}>
+          {settled ? "Settled in full" : "Confirm payment"}
+        </span>
+        {!settled && props.outstanding !== null ? (
+          <span className="ml-auto font-mono text-sm tabular-nums text-brand">
+            {props.currency} {props.outstanding.toFixed(2)}
+          </span>
+        ) : null}
       </button>
 
       {open && !settled ? (

@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, MessageCircle } from "lucide-react";
+import { ArrowLeft, Download, MessageCircle } from "lucide-react";
 
 import { BrandMark } from "@/components/brand-mark";
 import { InvoiceEditor } from "@/components/app/invoice-editor";
@@ -125,7 +125,15 @@ export default async function InvoicePage({
               Send on WhatsApp
             </a>
           </Button>
-          <PrintButton label="Print / save PDF" />
+          {/* A real file, not a print dialog — the point is something that can
+              be attached to a WhatsApp message. Refused on a draft. */}
+          <Button asChild variant="brand">
+            <a href={`/app/finance/invoices/${invoice.invoiceNumber}/pdf`}>
+              <Download className="mr-2 h-4 w-4" />
+              Download PDF
+            </a>
+          </Button>
+          <PrintButton label="Print" />
         </div>
       </div>
 

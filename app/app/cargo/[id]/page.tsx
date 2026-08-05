@@ -39,6 +39,7 @@ import {
   roundMoney,
   toNumber,
 } from "@/lib/format";
+import { composeMessage, whatsappLink } from "@/lib/messages";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { can } from "@/lib/rbac";
@@ -549,39 +550,78 @@ export default async function ShipmentDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Actions first. This column is what somebody does with the cargo;
+              who the customer is and which flight it came on are reference,
+              and reference does not go above the work. */}
+          <ShipmentActions
+            shipmentId={shipment.id}
+            status={shipment.status}
+            role={user.role}
+            hasInvoice={Boolean(shipment.invoice)}
+            invoiceId={shipment.invoice?.id ?? null}
+            invoiceNumber={shipment.invoice?.invoiceNumber ?? null}
+            invoiceStatus={shipment.invoice?.status ?? null}
+            customerWhatsapp={
+              // Only for a confirmed bill — the panel hides Share on a draft,
+              // and a link that says "you owe X" must never carry a figure
+              // nobody has signed off.
+              shipment.invoice && shipment.invoice.status !== "DRAFT"
+                ? whatsappLink(
+                    shipment.customer.phone,
+                    composeMessage("INVOICE_ISSUED", {
+                      customerName: shipment.customer.name,
+                      trackingNumber: shipment.trackingNumber,
+                      description: shipment.description,
+                      invoiceNumber: shipment.invoice.invoiceNumber,
+                      amountUsd: toNumber(shipment.invoice.total),
+                      amountLocal:
+                        shipment.invoice.totalLocal === null
+                          ? null
+                          : toNumber(shipment.invoice.totalLocal),
+                      localCurrency: shipment.invoice.localCurrency,
+                    })
+                  )
+                : null
+            }
+            invoiceRate={
+              shipment.invoice?.exchangeRate
+                ? toNumber(shipment.invoice.exchangeRate)
+                : null
+            }
+            outstanding={outstanding}
+            currency={shipment.currency}
+            pickupNoteId={shipment.pickupNote?.id ?? null}
+            pickupNoteNumber={shipment.pickupNote?.noteNumber ?? null}
+            pickupNoteStatus={shipment.pickupNote?.status ?? null}
+            defaultFreight={
+              toNumber(shipment.unitRate) * toNumber(shipment.weightKg)
+            }
+          />
           {/* The code that is printed on the sticker, shown at a size a phone
               can read. That makes it a second copy of the label, so it belongs
-              to the desk that owns the label. Every other desk reads the paper
-              one off the box — which is the point of putting it there. */}
-          <section className="rounded-xl border bg-card p-5 text-center shadow-soft">
-            {canPrintLabel && qr ? (
-              <>
-                <Image
-                  src={qr}
-                  alt={`QR code for ${shipment.trackingNumber}`}
-                  width={200}
-                  height={200}
-                  className="mx-auto rounded-lg border bg-white p-2"
-                  unoptimized
-                />
-                <p className="mt-3 font-mono text-sm font-semibold tabular">
-                  {shipment.trackingNumber}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  The same code from China to release.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="font-mono text-lg font-semibold tabular">
-                  {shipment.trackingNumber}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Scan the sticker on the box to open this record.
-                </p>
-              </>
-            )}
-          </section>
+              to the desk that owns the label and to nobody else.
+              There is no fallback card for other desks: the tracking number is
+              already the heading of this page, and repeating it in the sidebar
+              spent the most valuable column on a number the reader is looking
+              at. That column is for things to do. */}
+          {canPrintLabel && qr ? (
+            <section className="rounded-xl border bg-card p-5 text-center shadow-soft">
+              <Image
+                src={qr}
+                alt={`QR code for ${shipment.trackingNumber}`}
+                width={200}
+                height={200}
+                className="mx-auto rounded-lg border bg-white p-2"
+                unoptimized
+              />
+              <p className="mt-3 font-mono text-sm font-semibold tabular">
+                {shipment.trackingNumber}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                The same code from China to release.
+              </p>
+            </section>
+          ) : null}
 
           <section className="rounded-xl border bg-card shadow-soft">
             <h2 className="flex items-center gap-2 border-b px-5 py-3.5 text-sm font-semibold">
@@ -629,28 +669,6 @@ export default async function ShipmentDetailPage({
             </section>
           ) : null}
 
-          <ShipmentActions
-            shipmentId={shipment.id}
-            status={shipment.status}
-            role={user.role}
-            hasInvoice={Boolean(shipment.invoice)}
-            invoiceId={shipment.invoice?.id ?? null}
-            invoiceNumber={shipment.invoice?.invoiceNumber ?? null}
-            invoiceStatus={shipment.invoice?.status ?? null}
-            invoiceRate={
-              shipment.invoice?.exchangeRate
-                ? toNumber(shipment.invoice.exchangeRate)
-                : null
-            }
-            outstanding={outstanding}
-            currency={shipment.currency}
-            pickupNoteId={shipment.pickupNote?.id ?? null}
-            pickupNoteNumber={shipment.pickupNote?.noteNumber ?? null}
-            pickupNoteStatus={shipment.pickupNote?.status ?? null}
-            defaultFreight={
-              toNumber(shipment.unitRate) * toNumber(shipment.weightKg)
-            }
-          />
 
           {showInternal ? (
             <p className="px-1 text-xs text-muted-foreground">
