@@ -1,6 +1,7 @@
 import "server-only";
 
 import { toNumber } from "@/lib/format";
+import { currentRateValue } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -47,7 +48,8 @@ export function yearWindow(): ProfitWindow {
 export async function profitAndLoss(window: ProfitWindow) {
   const range = { gte: window.from, lt: window.to };
 
-  const [billed, collected, incurred, paidOut, byCategory] = await Promise.all([
+  const [billed, collected, incurred, paidOut, byCategory, transferFees] =
+    await Promise.all([
     // Accrual revenue: bills raised in the window that Finance has confirmed.
     prisma.invoice.aggregate({
       where: { issuedAt: range, status: { notIn: ["DRAFT", "VOID"] } },
@@ -78,12 +80,35 @@ export async function profitAndLoss(window: ProfitWindow) {
       _sum: { amountUsd: true },
       orderBy: { _sum: { amountUsd: "desc" } },
     }),
+    // Bank charges on our own transfers.
+    //
+    // These are a genuine cost that never passes through the expense table:
+    // the fee is taken out of the movement itself, so the cash balances are
+    // already right and nothing is missing from the ledger. But a cost that
+    // reduces cash and appears in no cost line overstates profit by exactly
+    // its own size, every single time — small per transfer and relentless
+    // over a year. Counted here rather than left out.
+    prisma.accountTransfer.aggregate({
+      where: { occurredAt: range, fee: { gt: 0 } },
+      _sum: { fee: true },
+      _count: true,
+    }),
   ]);
 
   const revenue = toNumber(billed._sum.total);
-  const costs = toNumber(incurred._sum.amountUsd);
   const cashIn = toNumber(collected._sum.creditedAmount);
-  const cashOut = toNumber(paidOut._sum.amountUsd);
+
+  // Fees are recorded in the source account's currency, which for every
+  // account but one is shillings. Valued at the rate on the day would be more
+  // precise; at this size the published rate is close enough, and a fee that
+  // cannot be valued at all would simply be dropped — which is the failure
+  // this exists to prevent.
+  const rate = await currentRateValue();
+  const feeLocal = toNumber(transferFees._sum.fee);
+  const feeUsd = rate ? Math.round((feeLocal / rate) * 100) / 100 : 0;
+
+  const costs = toNumber(incurred._sum.amountUsd) + feeUsd;
+  const cashOut = toNumber(paidOut._sum.amountUsd) + feeUsd;
 
   return {
     window,
@@ -96,10 +121,16 @@ export async function profitAndLoss(window: ProfitWindow) {
     cashIn,
     cashOut,
     netCash: cashIn - cashOut,
-    categories: byCategory.map((row) => ({
-      category: row.category,
-      amount: toNumber(row._sum.amountUsd),
-    })),
+    bankCharges: feeUsd,
+    categories: [
+      ...byCategory.map((row) => ({
+        category: row.category,
+        amount: toNumber(row._sum.amountUsd),
+      })),
+      ...(feeUsd > 0
+        ? [{ category: "BANK_CHARGES", amount: feeUsd }]
+        : []),
+    ].sort((a, b) => b.amount - a.amount),
   };
 }
 
