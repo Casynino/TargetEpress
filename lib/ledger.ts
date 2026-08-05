@@ -39,6 +39,7 @@ export type PostEntry = {
   sourceEntity: string;
   sourceId?: string | null;
   paymentId?: string | null;
+  expenseId?: string | null;
   recordedById?: string | null;
 };
 
@@ -61,6 +62,7 @@ export async function postLedgerEntry(tx: TxClient, entry: PostEntry) {
       sourceEntity: entry.sourceEntity,
       sourceId: entry.sourceId ?? null,
       paymentId: entry.paymentId ?? null,
+      expenseId: entry.expenseId ?? null,
       recordedById: entry.recordedById ?? null,
     },
   });

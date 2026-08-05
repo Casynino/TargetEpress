@@ -40,6 +40,11 @@ export function financeTabs(role: Role): FinanceTab[] {
       visible: can(role, "ledger.view"),
     },
     {
+      href: "/app/finance/expenses",
+      label: "Expenses",
+      visible: can(role, "expense.view"),
+    },
+    {
       href: "/app/finance/pickup-notes",
       label: "Pickup notes",
       visible: can(role, "pickupNote.view"),

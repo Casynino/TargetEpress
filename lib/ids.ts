@@ -100,6 +100,15 @@ export async function nextPickupNoteNumber(
   return `PN-${year}-${pad(n)}`;
 }
 
+/** The number on a cost the business paid: EXP-2026-000123. */
+export async function nextExpenseNumber(
+  tx: TxClient,
+  year = new Date().getFullYear()
+) {
+  const n = await nextSequence(tx, `expense:${year}`);
+  return `EXP-${year}-${pad(n)}`;
+}
+
 /**
  * The number on a line in the general ledger: GL-2026-000123.
  *

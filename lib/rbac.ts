@@ -84,6 +84,20 @@ export type Permission =
   | "account.manage"
   /// Read the register: every movement in and out, and what it left behind.
   | "ledger.view"
+  /// See what the business spends and what it has spent.
+  | "expense.view"
+  /// Record a cost, attach its receipt, and disburse it from an account.
+  | "expense.record"
+  /**
+   * Approve a cost above the threshold before it can be paid.
+   *
+   * Separated from expense.record for the reason already established here for
+   * compensation: the amount is never both decided and disbursed by the same
+   * desk. Below the threshold Finance records and pays in one action, because
+   * routing a taxi fare through an approval queue is how a system stops being
+   * used by Thursday.
+   */
+  | "expense.approve"
   /**
    * Write a correcting line into the ledger.
    *
@@ -277,6 +291,8 @@ const FINANCE: Permission[] = [
   // the desk that records the money does not also get to restate it.
   "account.view",
   "ledger.view",
+  "expense.view",
+  "expense.record",
   "customer.view",
   "customer.manage",
   // The Pricing & Configuration centre. Finance owns what the business
@@ -320,6 +336,9 @@ const ALL: Permission[] = Array.from(
     // it, and a correcting line is always visible as one in the register.
     "account.manage",
     "ledger.adjust",
+    // Signing off a cost above the threshold. Finance records and pays it;
+    // the CEO is the one who says yes to it.
+    "expense.approve",
     "audit.view",
     "report.view",
   ])
@@ -400,6 +419,7 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // below and stopped one layer later. Defence in depth did its job; the table
   // was still saying something untrue about who gets in.
   { prefix: "/app/finance/payments", permission: "payment.record" },
+  { prefix: "/app/finance/expenses", permission: "expense.view" },
   // Reading the rate book is pricing.view; every mutation on that page is
   // separately gated on pricing.manage or fx.manage in its own action.
   { prefix: "/app/finance/pricing", permission: "pricing.view" },
