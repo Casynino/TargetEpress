@@ -7,15 +7,20 @@ import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
+// Invoices are denominated in USD; formatMoney defaults to TZS and was
+// putting a shilling label on dollar figures.
+import { formatUsd } from "@/lib/fx";
 import { formatMoney, formatRelative, toNumber } from "@/lib/format";
 import { agingInWarehouse, financeStats } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
+import { FinanceNav } from "@/components/app/finance-nav";
+import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Finance" };
 
 export default async function FinanceOverviewPage() {
-  await requirePermission("finance.view");
+  const user = await requirePermission("finance.view");
 
   const [stats, aging, recentPayments] = await Promise.all([
     financeStats(),
@@ -50,10 +55,12 @@ export default async function FinanceOverviewPage() {
         }
       />
 
+      <FinanceNav tabs={financeTabs(user.role)} />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Collected"
-          value={formatMoney(stats.collected)}
+          value={formatUsd(stats.collected)}
           hint="All time"
           icon={Banknote}
           tone="success"
@@ -61,7 +68,7 @@ export default async function FinanceOverviewPage() {
         />
         <StatCard
           label="Outstanding"
-          value={formatMoney(stats.outstanding)}
+          value={formatUsd(stats.outstanding)}
           hint={`${stats.unpaid} unpaid · ${stats.partiallyPaid} part-paid`}
           icon={Wallet}
           tone={stats.outstanding > 0 ? "warning" : "success"}

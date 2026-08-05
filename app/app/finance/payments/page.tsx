@@ -16,12 +16,14 @@ import { Banknote } from "lucide-react";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { FinanceNav } from "@/components/app/finance-nav";
+import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Payments" };
 
 export default async function PaymentsPage() {
-  await requirePermission("payment.record");
+  const user = await requirePermission("payment.record");
 
   const monthStart = new Date();
   monthStart.setDate(1);
@@ -59,6 +61,8 @@ export default async function PaymentsPage() {
         title="Payments"
         description="Every shilling received, with the receipt it was issued against."
       />
+
+      <FinanceNav tabs={financeTabs(user.role)} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard

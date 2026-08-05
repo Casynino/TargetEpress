@@ -24,6 +24,8 @@ import { formatDateTime, formatRelative, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
+import { FinanceNav } from "@/components/app/finance-nav";
+import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Pricing & configuration" };
@@ -196,6 +198,8 @@ export default async function PricingConfigurationPage() {
         title="Pricing & configuration"
         description="Every figure this business quotes comes from this page. Change it here and the whole system follows — cargo, invoices, tracking and reports."
       />
+
+      <FinanceNav tabs={financeTabs(user.role)} />
 
       {!canManage ? (
         <p className="mb-6 rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">

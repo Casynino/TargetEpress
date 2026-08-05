@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { FinanceNav } from "@/components/app/finance-nav";
+import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Pickup notes" };
@@ -27,7 +29,7 @@ export default async function PickupNotesPage({
 }) {
   // Reading the register is not issuing from it. Support answers "has my
   // note been issued?" all day and should not need Finance to look.
-  await requirePermission("pickupNote.view");
+  const user = await requirePermission("pickupNote.view");
   const { status } = await searchParams;
 
   const notes = await prisma.pickupNote.findMany({
@@ -47,6 +49,8 @@ export default async function PickupNotesPage({
         title="Pickup notes"
         description="A pickup note is the warehouse's authority to hand cargo over. Only Finance can issue one."
       />
+
+      <FinanceNav tabs={financeTabs(user.role)} />
 
       <form className="mb-4 flex gap-2" action="/app/finance/pickup-notes">
         <NativeSelect name="status" defaultValue={status ?? ""} className="sm:w-56">
