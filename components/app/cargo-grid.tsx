@@ -237,10 +237,17 @@ function PhotoViewer({
 export function CargoGrid({
   cells,
   batchId,
+  canPrintLabel = false,
 }: {
   cells: CargoCell[];
   /** Set to allow selecting cargo and printing their stickers together. */
   batchId?: string;
+  /**
+   * The sticker is made once, in Guangzhou, and travels on the box. Desks that
+   * only read it — Dar, Finance, Support — get no print column and no sheet.
+   * See lib/rbac.ts, "label.print".
+   */
+  canPrintLabel?: boolean;
 }) {
   const [filter, setFilter] = useState<string>("ALL");
   const [query, setQuery] = useState("");
@@ -358,7 +365,7 @@ export function CargoGrid({
             ))
           : null}
 
-        {batchId ? (
+        {batchId && canPrintLabel ? (
           <Link
             href={`/app/batches/${batchId}/stickers`}
             className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
@@ -412,9 +419,11 @@ export function CargoGrid({
                   {/* Both actions get a heading of their own. A blank column
                       header over two buttons reads as an accident. Widths are
                       fixed so the pinned offsets below line up with them. */}
-                  <th className="sticky right-[92px] z-20 w-[92px] min-w-[92px] bg-muted px-3 py-2 font-medium">
-                    Print
-                  </th>
+                  {canPrintLabel ? (
+                    <th className="sticky right-[92px] z-20 w-[92px] min-w-[92px] bg-muted px-3 py-2 font-medium">
+                      Print
+                    </th>
+                  ) : null}
                   <th className="sticky right-0 z-20 w-[92px] min-w-[92px] bg-muted px-3 py-2 font-medium">
                     Open
                   </th>
@@ -472,26 +481,28 @@ export function CargoGrid({
                     {/* One click, one sticker. The label is normally printed
                         the moment the cargo is recorded; this is here for the
                         reprint, which is the only reason to come looking. */}
-                    <td
-                      className={cn(
-                        "sticky right-[92px] z-10 w-[92px] min-w-[92px] px-3 py-1.5",
-                        // Matches the row so the pinned column does not look
-                        // like it is floating over the content it belongs to.
-                        cell.verification === "EXCEPTION"
-                          ? "bg-[hsl(var(--card))]"
-                          : "bg-card"
-                      )}
-                    >
-                      <Link
-                        href={`/app/cargo/${cell.trackingNumber}/label`}
-                        title={`Print sticker for ${cell.trackingNumber}`}
-                        aria-label={`Print sticker for ${cell.trackingNumber}`}
-                        className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    {canPrintLabel ? (
+                      <td
+                        className={cn(
+                          "sticky right-[92px] z-10 w-[92px] min-w-[92px] px-3 py-1.5",
+                          // Matches the row so the pinned column does not look
+                          // like it is floating over the content it belongs to.
+                          cell.verification === "EXCEPTION"
+                            ? "bg-[hsl(var(--card))]"
+                            : "bg-card"
+                        )}
                       >
-                        <Printer className="h-3.5 w-3.5" />
-                        Print
-                      </Link>
-                    </td>
+                        <Link
+                          href={`/app/cargo/${cell.trackingNumber}/label`}
+                          title={`Print sticker for ${cell.trackingNumber}`}
+                          aria-label={`Print sticker for ${cell.trackingNumber}`}
+                          className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        >
+                          <Printer className="h-3.5 w-3.5" />
+                          Print
+                        </Link>
+                      </td>
+                    ) : null}
                     {/* An explicit way in. The tracking number is a link too,
                         but a small mono number is a poor target and nothing
                         about it says "there is more here". */}

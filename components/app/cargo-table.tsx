@@ -37,10 +37,13 @@ export function ShipmentsTable({
   rows,
   canCreate,
   showMoney,
+  canPrintLabel,
 }: {
   rows: ShipmentRow[];
   canCreate: boolean;
   showMoney: boolean;
+  /** The sticker belongs to the desk that packs the box. See lib/rbac.ts. */
+  canPrintLabel: boolean;
 }) {
   const { toast } = useToast();
 
@@ -248,15 +251,17 @@ export function ShipmentsTable({
             <QrCode className="mr-2 h-4 w-4" />
             Copy numbers
           </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link
-              href={`/app/cargo/${selected[0]?.trackingNumber}/label`}
-              target="_blank"
-            >
-              <Printer className="mr-2 h-4 w-4" />
-              Print first label
-            </Link>
-          </Button>
+          {canPrintLabel ? (
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href={`/app/cargo/${selected[0]?.trackingNumber}/label`}
+                target="_blank"
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Print first label
+              </Link>
+            </Button>
+          ) : null}
         </>
       )}
       renderExpanded={(row) => (

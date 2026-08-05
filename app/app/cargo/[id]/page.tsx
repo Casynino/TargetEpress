@@ -103,11 +103,17 @@ export default async function ShipmentDetailPage({
 
   if (!shipment) notFound();
 
-  const qr = await shipmentQrDataUrl(shipment.qrToken, 200);
   const openExceptions = shipment.exceptions.filter((exception) =>
     blocksPickup(exception.status)
   );
   const showInternal = can(user.role, "shipment.viewInternal");
+  const canPrintLabel = can(user.role, "label.print");
+  // Rendered only for the desk that owns the label. Not fetched at all for
+  // anyone else — a code never generated cannot be screenshotted off a page
+  // that merely hides it with CSS.
+  const qr = canPrintLabel
+    ? await shipmentQrDataUrl(shipment.qrToken, 200)
+    : null;
   const showMoney = can(user.role, "finance.view");
   const outstanding = shipment.invoice
     ? toNumber(shipment.invoice.total) - toNumber(shipment.invoice.amountPaid)
@@ -143,12 +149,16 @@ export default async function ShipmentDetailPage({
                 </Link>
               </Button>
             ) : null}
-            <Button asChild variant="outline" size="sm" className="rounded-lg">
-              <Link href={`/app/cargo/${shipment.trackingNumber}/label`}>
-                <Printer className="mr-2 h-4 w-4" />
-                Label
-              </Link>
-            </Button>
+            {/* The sticker is made in Guangzhou and travels on the box.
+                Every desk after that reads it; none of them prints another. */}
+            {canPrintLabel ? (
+              <Button asChild variant="outline" size="sm" className="rounded-lg">
+                <Link href={`/app/cargo/${shipment.trackingNumber}/label`}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Label
+                </Link>
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -207,7 +217,7 @@ export default async function ShipmentDetailPage({
             <PackageList
               trackingNumber={shipment.trackingNumber}
               packageType={shipment.packageType}
-              canPrint
+              canPrint={canPrintLabel}
               packages={shipment.packageList.map((pkg) => ({
                 id: pkg.id,
                 sequence: pkg.sequence,
@@ -534,21 +544,38 @@ export default async function ShipmentDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* The code that is printed on the sticker, shown at a size a phone
+              can read. That makes it a second copy of the label, so it belongs
+              to the desk that owns the label. Every other desk reads the paper
+              one off the box — which is the point of putting it there. */}
           <section className="rounded-xl border bg-card p-5 text-center shadow-soft">
-            <Image
-              src={qr}
-              alt={`QR code for ${shipment.trackingNumber}`}
-              width={200}
-              height={200}
-              className="mx-auto rounded-lg border bg-white p-2"
-              unoptimized
-            />
-            <p className="mt-3 font-mono text-sm font-semibold tabular">
-              {shipment.trackingNumber}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              The same code from China to release.
-            </p>
+            {canPrintLabel && qr ? (
+              <>
+                <Image
+                  src={qr}
+                  alt={`QR code for ${shipment.trackingNumber}`}
+                  width={200}
+                  height={200}
+                  className="mx-auto rounded-lg border bg-white p-2"
+                  unoptimized
+                />
+                <p className="mt-3 font-mono text-sm font-semibold tabular">
+                  {shipment.trackingNumber}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  The same code from China to release.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-mono text-lg font-semibold tabular">
+                  {shipment.trackingNumber}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Scan the sticker on the box to open this record.
+                </p>
+              </>
+            )}
           </section>
 
           <section className="rounded-xl border bg-card shadow-soft">

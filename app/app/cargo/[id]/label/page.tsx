@@ -28,7 +28,11 @@ export default async function LabelPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await requirePermission("shipment.view");
+  // Not shipment.view. Every desk may look a box up; only the desk that packs
+  // it may produce its sticker. ROUTE_PERMISSIONS cannot express this — it
+  // matches on prefixes, and /app/cargo already resolves to shipment.view — so
+  // this guard is the whole gate rather than a second line behind middleware.
+  const user = await requirePermission("label.print");
   const { id } = await params;
   const key = decodeURIComponent(id);
 

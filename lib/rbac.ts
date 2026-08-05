@@ -22,6 +22,15 @@ export type Permission =
   | "shipment.purge"
   | "shipment.viewInternal" // internal notes, cost inputs, staff names
   | "shipment.scan" // holds physical cargo and reads its label
+  /// Produce the label sticker, and see the code that is printed on it.
+  ///
+  /// The sticker is made once, in Guangzhou, and travels on the box. Every desk
+  /// after that reads it — Dar scans it, Finance quotes the number off it — and
+  /// none of them has any reason to make another one. A second sticker for the
+  /// same cargo, printed in Dar because a label was scuffed, is two identities
+  /// for one box and exactly how a piece goes missing on paper while sitting on
+  /// the shelf. Reprints are China's to issue.
+  | "label.print"
   // Batches
   | "batch.view"
   | "batch.create"
@@ -87,6 +96,9 @@ const CHINA: Permission[] = [
   "shipment.delete",
   "shipment.depart",
   "shipment.viewInternal",
+  // The desk that packs the box is the desk that labels it, and the only one
+  // that reprints a damaged sticker.
+  "label.print",
   "batch.view",
   "batch.create",
   "batch.manage",

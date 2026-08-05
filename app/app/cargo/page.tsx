@@ -104,6 +104,7 @@ export default async function ShipmentsPage({
         rows={rows}
         canCreate={can(user.role, "shipment.create")}
         showMoney={showMoney}
+        canPrintLabel={can(user.role, "label.print")}
       />
     </>
   );

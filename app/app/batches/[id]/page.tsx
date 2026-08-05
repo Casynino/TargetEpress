@@ -285,6 +285,7 @@ export default async function LoadingTablePage({
                 photos: shipment.photos,
               }))}
               batchId={batch.id}
+              canPrintLabel={can(user.role, "label.print")}
             />
           </div>
         )}
