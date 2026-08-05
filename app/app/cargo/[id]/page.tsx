@@ -439,85 +439,56 @@ export default async function ShipmentDetailPage({
             </section>
           ) : null}
 
-          {/* Money */}
-          {showMoney ? (
+          {/* Money that has actually come in.
+              The invoice number, total and outstanding balance are all on the
+              Actions panel beside this, on the button that takes the next
+              payment — so a card repeating them was four figures the reader had
+              already seen. What is NOT anywhere else is the receipt trail, so
+              that is all this is, and it only appears once there is one. */}
+          {showMoney && (shipment.invoice?.payments.length ?? 0) > 0 ? (
             <section className="rounded-xl border bg-card shadow-soft">
               <h2 className="flex items-center gap-2 border-b px-5 py-4 font-display font-semibold">
                 <ReceiptText className="h-4 w-4" />
-                Invoice &amp; payments
+                Payments received
               </h2>
-
-              {!shipment.invoice ? (
-                <p className="p-5 text-sm text-muted-foreground">
-                  No invoice has been raised for this shipment yet.
-                </p>
-              ) : (
-                <>
-                  <dl className="grid gap-px bg-border sm:grid-cols-4">
-                    {[
-                      { label: "Invoice", value: shipment.invoice.invoiceNumber },
-                      {
-                        label: "Total",
-                        value: formatMoney(
-                          shipment.invoice.total,
-                          shipment.invoice.currency
-                        ),
-                      },
-                      {
-                        label: "Paid",
-                        value: formatMoney(
-                          shipment.invoice.amountPaid,
-                          shipment.invoice.currency
-                        ),
-                      },
-                      {
-                        label: "Outstanding",
-                        value: formatMoney(
-                          outstanding ?? 0,
-                          shipment.invoice.currency
-                        ),
-                      },
-                    ].map((item) => (
-                      <div key={item.label} className="bg-card p-4">
-                        <dt className="text-xs text-muted-foreground">
-                          {item.label}
-                        </dt>
-                        <dd className="mt-1 font-mono text-sm font-medium tabular">
-                          {item.value}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-
-                  {shipment.invoice.payments.length > 0 ? (
-                    <ul className="divide-y border-t">
-                      {shipment.invoice.payments.map((payment) => (
-                        <li
-                          key={payment.id}
-                          className="flex flex-wrap items-center justify-between gap-2 px-5 py-3"
-                        >
-                          <div>
-                            <p className="text-sm font-medium tabular">
-                              {formatMoney(payment.amount, payment.currency)}{" "}
-                              <span className="font-normal text-muted-foreground">
-                                {payment.method.replace("_", " ").toLowerCase()}
-                              </span>
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {payment.receipt?.receiptNumber} ·{" "}
-                              {payment.receivedBy?.name ?? "—"} ·{" "}
-                              {formatDateTime(payment.paidAt)}
-                            </p>
-                          </div>
-                          {payment.reference ? (
-                            <span className="code-chip">{payment.reference}</span>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </>
-              )}
+              <ul className="divide-y">
+                {shipment.invoice!.payments.map((payment) => (
+                  <li
+                    key={payment.id}
+                    className="flex flex-wrap items-center justify-between gap-2 px-5 py-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium tabular">
+                        {formatMoney(payment.amount, payment.currency)}{" "}
+                        <span className="font-normal text-muted-foreground">
+                          {payment.method.replace("_", " ").toLowerCase()}
+                        </span>
+                        {/* What it was worth against the bill, when the
+                            customer paid in a different currency. */}
+                        {payment.creditedAmount !== null &&
+                        payment.currency !== shipment.invoice!.currency ? (
+                          <span className="font-normal text-muted-foreground">
+                            {" "}
+                            —{" "}
+                            {formatMoney(
+                              payment.creditedAmount,
+                              shipment.invoice!.currency
+                            )}
+                          </span>
+                        ) : null}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {payment.receipt?.receiptNumber} ·{" "}
+                        {payment.receivedBy?.name ?? "—"} ·{" "}
+                        {formatDateTime(payment.paidAt)}
+                      </p>
+                    </div>
+                    {payment.reference ? (
+                      <span className="code-chip">{payment.reference}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
             </section>
           ) : null}
 
