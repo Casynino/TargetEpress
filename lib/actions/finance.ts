@@ -19,6 +19,7 @@ import {
   nextReceiptNumber,
 } from "@/lib/ids";
 import { prisma } from "@/lib/prisma";
+import { filesFrom, putDocument } from "@/lib/storage";
 import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -648,6 +649,23 @@ export async function recordPayment(
 
   let issuedNote: string | null = null;
 
+  // Uploaded before the transaction opens. A file crossing the network must
+  // not hold a row lock on an invoice, and a proof that fails to store must
+  // fail the whole thing loudly rather than leaving a payment recorded with
+  // evidence nobody can find.
+  let proofs: { url: string; contentType: string; bytes: number; filename: string }[];
+  try {
+    const files = filesFrom(formData, "proof");
+    proofs = await Promise.all(
+      files.map(async (file) => {
+        const stored = await putDocument(file, "proof");
+        return { ...stored, filename: file.name || "proof" };
+      })
+    );
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
   try {
     const receiptNumber = await prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.findUnique({
@@ -749,6 +767,15 @@ export async function recordPayment(
           // Defaults to now in the schema when the desk leaves it blank.
           ...(input.paidAt ? { paidAt: input.paidAt } : {}),
           receivedById: user.id,
+          proofs: {
+            create: proofs.map((proof) => ({
+              url: proof.url,
+              contentType: proof.contentType,
+              bytes: proof.bytes,
+              filename: proof.filename,
+              uploadedById: user.id,
+            })),
+          },
         },
       });
 
@@ -853,6 +880,7 @@ export async function recordPayment(
             tendered: input.amount,
             credited,
             exchangeRate: rateUsed,
+            proofs: proofs.length,
           },
         },
         tx

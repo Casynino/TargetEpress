@@ -347,7 +347,7 @@ function PaymentPanel(props: Props) {
           className={settled ? "h-4 w-4 text-success" : "h-5 w-5 text-brand"}
         />
         <span className={settled ? "text-sm" : "text-base"}>
-          {settled ? "Settled in full" : "Confirm payment"}
+          {settled ? "Settled in full" : "Record payment"}
         </span>
         {!settled && props.outstanding !== null ? (
           <span className="ml-auto font-mono text-sm tabular-nums text-brand">
@@ -456,14 +456,37 @@ function PaymentPanel(props: Props) {
             </NativeSelect>
           </div>
           <div className="space-y-1.5">
+            <Label htmlFor="proof" className="text-xs">
+              Proof of payment
+            </Label>
+            <Input
+              id="proof"
+              name="proof"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              multiple
+              className="file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
+            />
+            <p className="text-xs text-muted-foreground">
+              The M-Pesa screenshot, bank slip or transfer confirmation. This is
+              what settles an argument months later — a typed number is only a
+              claim that it happened.
+            </p>
+          </div>
+          <div className="space-y-1.5">
             <Label htmlFor="reference" className="text-xs">
-              Reference
+              Reference{" "}
+              <span className="text-muted-foreground">(optional)</span>
             </Label>
             <Input
               id="reference"
               name="reference"
               placeholder="M-Pesa ID, slip or cheque number"
             />
+            <p className="text-xs text-muted-foreground">
+              Worth typing as well as attaching: it is what you search for when
+              matching this against a bank statement.
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="paidAt" className="text-xs">

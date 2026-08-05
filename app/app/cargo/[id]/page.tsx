@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import {
   AlertTriangle,
   Camera,
+  Paperclip,
   Pencil,
   Printer,
   ReceiptText,
@@ -88,6 +89,15 @@ export default async function ShipmentDetailPage({
             include: {
               receipt: true,
               receivedBy: { select: { name: true } },
+              proofs: {
+                orderBy: { createdAt: "asc" },
+                select: {
+                  id: true,
+                  url: true,
+                  filename: true,
+                  contentType: true,
+                },
+              },
             },
           },
         },
@@ -250,13 +260,17 @@ export default async function ShipmentDetailPage({
             <div className="border-t p-5">
               <p className="text-xs text-muted-foreground">Description</p>
               <p className="mt-1 text-sm">{shipment.description}</p>
+              {/* Plain text, no warning box. What is actually in here is
+                  packing-list bookkeeping — a carton reference and a row
+                  number — and dressing it as a secret the customer must never
+                  see made routine detail look like a problem. Nothing on this
+                  page is customer-facing; the tracking site is a separate
+                  allow-list, so the label was telling staff something they
+                  could not act on anyway. */}
               {showInternal && shipment.internalNotes ? (
-                <div className="mt-4 rounded-lg border border-warning/30 bg-warning/5 p-3">
-                  <p className="text-xs font-medium text-warning">
-                    Internal note — never shown to the customer
-                  </p>
-                  <p className="mt-1 text-sm">{shipment.internalNotes}</p>
-                </div>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {shipment.internalNotes}
+                </p>
               ) : null}
             </div>
           </section>
@@ -483,9 +497,28 @@ export default async function ShipmentDetailPage({
                         {formatDateTime(payment.paidAt)}
                       </p>
                     </div>
-                    {payment.reference ? (
-                      <span className="code-chip">{payment.reference}</span>
-                    ) : null}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* The evidence itself, one link per file. A receipt
+                          trail nobody can open is a list of claims. */}
+                      {payment.proofs.map((proof, index) => (
+                        <a
+                          key={proof.id}
+                          href={proof.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="focus-ring inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"
+                        >
+                          <Paperclip className="h-3 w-3" />
+                          {proof.contentType === "application/pdf"
+                            ? "Slip"
+                            : "Screenshot"}
+                          {payment.proofs.length > 1 ? ` ${index + 1}` : ""}
+                        </a>
+                      ))}
+                      {payment.reference ? (
+                        <span className="code-chip">{payment.reference}</span>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>

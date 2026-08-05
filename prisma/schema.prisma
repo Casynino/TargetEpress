@@ -344,6 +344,7 @@ model User {
   sentMessages          CustomerMessage[]
   sentInvoices          Invoice[]               @relation("InvoiceSentBy")
   confirmedInvoices     Invoice[]               @relation("InvoiceConfirmedBy")
+  paymentProofs         PaymentProof[]
   deletedShipments      Shipment[]              @relation("ShipmentDeletedBy")
   receivedPackages      Package[]               @relation("PackageReceivedBy")
   fieldChanges          FieldChange[]
@@ -865,10 +866,38 @@ model Payment {
   createdAt DateTime @default(now())
 
   receipt Receipt?
+  /// The slip, screenshot or bank confirmation the customer produced. This is
+  /// the evidence the money moved; the typed reference is only an index into
+  /// it. Kept as its own table because one payment can arrive with two proofs
+  /// — a screenshot and a bank PDF — and because a nullable column would go
+  /// stale the day somebody needs to add a second.
+  proofs  PaymentProof[]
 
   @@index([invoiceId])
   @@index([paidAt])
   @@index([method])
+}
+
+/// Proof that a payment happened: an M-Pesa screenshot, a bank slip, a
+/// transfer confirmation. Deleted with its payment — evidence of a payment
+/// that no longer exists is not evidence of anything.
+model PaymentProof {
+  id String @id @default(cuid())
+
+  paymentId String
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  url         String
+  contentType String
+  bytes       Int
+  /// The name the file arrived with, so a clerk recognises their own upload.
+  filename    String?
+
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([paymentId])
 }
 
 /// The customer-facing document for a payment. Kept separate from Payment so

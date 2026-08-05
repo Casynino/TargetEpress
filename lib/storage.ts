@@ -81,6 +81,69 @@ export async function putImage(
   return { url: `/uploads/${folder}/${name}`, bytes: file.size, contentType };
 }
 
+/**
+ * A document rather than a photograph: a bank confirmation, a transfer slip,
+ * an M-Pesa screenshot.
+ *
+ * Separate from `putImage` because the rules genuinely differ. Proof of payment
+ * arrives as a PDF as often as a screenshot, and a bank statement scan is
+ * routinely larger than a phone photo — so the allow-list and the cap are
+ * their own, rather than loosened on the photo path where a 12 MB upload would
+ * be a mistake.
+ *
+ * HEIC is refused here even though photos allow it. An iPhone screenshot sent
+ * to a bank or shown to a customer has to open on the other end, and HEIC does
+ * not open on most of what a Tanzanian customer or a bank clerk is using.
+ */
+const DOC_MAX_BYTES = 12 * 1024 * 1024;
+const DOC_ALLOWED = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+]);
+
+export async function putDocument(
+  file: File,
+  folder = "proof"
+): Promise<StoredImage> {
+  if (!file || file.size === 0) {
+    throw new Error("That file appears to be empty. Choose it again.");
+  }
+  if (file.size > DOC_MAX_BYTES) {
+    throw new Error(
+      `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is 12 MB.`
+    );
+  }
+  if (file.type === "image/heic" || /\.heic$/i.test(file.name ?? "")) {
+    throw new Error(
+      "HEIC will not open for most people you would send this to. On iPhone, set Settings → Camera → Formats to Most Compatible, or send a screenshot instead."
+    );
+  }
+  if (file.type && !DOC_ALLOWED.has(file.type)) {
+    throw new Error(
+      "Proof of payment must be a PDF, JPEG, PNG or WebP."
+    );
+  }
+
+  const name = safeName(file.name || "proof.pdf");
+  const contentType = file.type || "application/pdf";
+
+  if (storageDriver() === "blob") {
+    const { put } = await import("@vercel/blob");
+    const result = await put(`${folder}/${name}`, file, {
+      access: "public",
+      contentType,
+    });
+    return { url: result.url, bytes: file.size, contentType };
+  }
+
+  const dir = join(process.cwd(), "public", "uploads", folder);
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, name), Buffer.from(await file.arrayBuffer()));
+  return { url: `/uploads/${folder}/${name}`, bytes: file.size, contentType };
+}
+
 /** Stores several images, stopping at the first failure so nothing is half-done. */
 export async function putImages(files: File[], folder = "cargo") {
   const stored: StoredImage[] = [];

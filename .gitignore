@@ -20,3 +20,8 @@ next-env.d.ts
 
 # vercel
 .vercel
+
+# Locally-stored uploads. The local disk driver is a laptop convenience —
+# production uses Vercel Blob — so customer receipts and cargo photos must
+# never ride into the repository.
+/public/uploads/
