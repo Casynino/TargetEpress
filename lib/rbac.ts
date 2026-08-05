@@ -347,12 +347,17 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/support/sourcing", permission: "sourcing.manage" },
   { prefix: "/app/support", permission: "ticket.manage" },
   { prefix: "/app/finance/exchange-rate", permission: "fx.manage" },
-  // Payouts on investigations. Guarded ahead of /app/finance because
-  // finance.view is also held by Customer Care, which must not reach the till.
-  { prefix: "/app/finance/compensation", permission: "exception.compensate" },
-  // Ahead of /app/finance for the same reason as compensation above: the
-  // pickup-note register is reachable by Support, which holds finance.view but
-  // must not be admitted by it alone.
+  // NOTE: there is deliberately no /app/finance/compensation row. A guard for
+  // it lived here for months over a page that was never built — harmless, in
+  // that an absent route cannot be entered, but this table is the one place
+  // people read to answer "who can reach what", and a promise about a
+  // nonexistent door makes the honest rows harder to trust. Compensation is
+  // decided in the Investigation Hub, where the case is; in Finance it appears
+  // as a ledger line, not a screen.
+  //
+  // Ahead of /app/finance because finance.view is also held by Customer Care:
+  // the pickup-note register is reachable by Support, which holds finance.view
+  // but must not be admitted by it alone.
   { prefix: "/app/finance/pickup-notes", permission: "pickupNote.view" },
   // Reading the rate book is pricing.view; every mutation on that page is
   // separately gated on pricing.manage or fx.manage in its own action.

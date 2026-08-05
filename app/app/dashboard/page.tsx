@@ -42,6 +42,7 @@ import {
 } from "@/lib/constants";
 import { floorSnapshot, type FloorSnapshot } from "@/lib/floor";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
+import { formatUsd } from "@/lib/fx";
 import {
   agingInWarehouse,
   attentionItems,
@@ -909,7 +910,10 @@ async function FinanceDashboard({
           delay={0}
           label="Collected this month"
           numeric={thisMonth}
-          prefix="TZS "
+          prefix="USD "
+          // Dollars, so cents count. This tile read whole shillings before,
+          // where a rounded unit was worth a fraction of a US cent.
+          decimals={2}
           delta={delta(thisMonth, lastMonth)}
           hint="vs last month"
           icon={Banknote}
@@ -920,7 +924,7 @@ async function FinanceDashboard({
         <KpiCard
           delay={1}
           label="Outstanding"
-          value={formatMoney(stats.outstanding)}
+          value={formatUsd(stats.outstanding)}
           hint={`${stats.unpaid + stats.partiallyPaid} unsettled invoice(s)`}
           icon={Wallet}
           tone={stats.outstanding > 0 ? "warning" : "success"}
@@ -958,7 +962,7 @@ async function FinanceDashboard({
               </p>
             </div>
             <p className="font-display text-xl font-bold tabular">
-              {formatMoney(revenue.values.reduce((a, b) => a + b, 0))}
+              {formatUsd(revenue.values.reduce((a, b) => a + b, 0))}
             </p>
           </div>
           <BarChart
@@ -968,7 +972,7 @@ async function FinanceDashboard({
             }))}
             tone={5}
             highlightIndex={revenue.values.length - 1}
-            formatValue={(n) => formatMoney(n)}
+            formatValue={(n) => formatUsd(n)}
           />
         </section>
 
@@ -1101,9 +1105,13 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           delay={0}
           label="Revenue this month"
           numeric={thisMonthRevenue}
-          prefix="TZS "
+          // USD, because that is what the bills are raised in. Payments arrive
+          // in either currency and are summed at the rate frozen onto each
+          // invoice, so this is one currency, not a mixture wearing a label.
+          prefix="USD "
+          decimals={2}
           delta={delta(thisMonthRevenue, lastMonthRevenue)}
-          hint={`${formatMoney(stats.allTimeCollected)} all time`}
+          hint={`${formatUsd(stats.allTimeCollected)} all time`}
           icon={Banknote}
           tone="success"
           trend={revenue.values}
@@ -1112,7 +1120,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
         <KpiCard
           delay={1}
           label="Outstanding"
-          value={formatMoney(stats.outstanding)}
+          value={formatUsd(stats.outstanding)}
           hint="Owed to us"
           icon={Wallet}
           tone={stats.outstanding > 0 ? "warning" : "success"}
@@ -1195,7 +1203,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
             }))}
             tone={5}
             highlightIndex={revenue.values.length - 1}
-            formatValue={(n) => formatMoney(n)}
+            formatValue={(n) => formatUsd(n)}
           />
         </section>
 

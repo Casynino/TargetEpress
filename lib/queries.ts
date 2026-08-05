@@ -112,7 +112,15 @@ export async function corridorPerformance() {
   };
 }
 
-/** Money collected per month, for the CEO's revenue trend. */
+/**
+ * Money collected per month, in USD, for the CEO's revenue trend.
+ *
+ * Sums `creditedAmount`, never `amount`. A customer may hand over shillings or
+ * dollars, and `amount` is whatever they handed over — adding those together
+ * produces a number in no currency at all. `creditedAmount` is the same money
+ * expressed in the invoice's currency at the rate frozen onto that invoice,
+ * which is the only figure that can honestly be summed across payments.
+ */
 export async function monthlyRevenue(now = new Date()) {
   const year = now.getFullYear();
   const from = new Date(Date.UTC(year, 0, 1));
@@ -120,8 +128,8 @@ export async function monthlyRevenue(now = new Date()) {
   const rows = await prisma.$queryRaw<{ month: number; total: Prisma.Decimal }[]>(
     Prisma.sql`
       SELECT
-        EXTRACT(MONTH FROM "paidAt")::int AS month,
-        COALESCE(SUM("amount"), 0)        AS total
+        EXTRACT(MONTH FROM "paidAt")::int                  AS month,
+        COALESCE(SUM(COALESCE("creditedAmount", "amount")), 0) AS total
       FROM "Payment"
       WHERE "paidAt" >= ${from}
       GROUP BY 1
@@ -276,11 +284,13 @@ export async function executiveStats() {
     prisma.shipmentException.count({ where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } } }),
     prisma.user.count({ where: { active: true } }),
     prisma.customer.count(),
+    // USD, both of them: `creditedAmount` is the payment restated in the
+    // invoice's currency. Summing `amount` would add shillings to dollars.
     prisma.payment.aggregate({
       where: { paidAt: { gte: monthStart } },
-      _sum: { amount: true },
+      _sum: { creditedAmount: true },
     }),
-    prisma.payment.aggregate({ _sum: { amount: true } }),
+    prisma.payment.aggregate({ _sum: { creditedAmount: true } }),
     prisma.invoice.aggregate({
       where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
       _sum: { total: true, amountPaid: true },
@@ -296,8 +306,8 @@ export async function executiveStats() {
     openExceptions,
     staff,
     customers,
-    revenueThisMonth: toNumber(revenueThisMonth._sum.amount),
-    allTimeCollected: toNumber(allTimeCollected._sum.amount),
+    revenueThisMonth: toNumber(revenueThisMonth._sum.creditedAmount),
+    allTimeCollected: toNumber(allTimeCollected._sum.creditedAmount),
     outstanding:
       toNumber(outstandingAgg._sum.total) - toNumber(outstandingAgg._sum.amountPaid),
   };

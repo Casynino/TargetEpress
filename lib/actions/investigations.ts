@@ -557,7 +557,6 @@ export async function approveCompensation(
     revalidatePath("/app/exceptions");
     revalidatePath(`/app/exceptions/${input.exceptionId}`);
     revalidatePath(`/app/cargo/${shipmentId}`);
-    revalidatePath("/app/finance/compensation");
     revalidatePath("/app/dashboard");
     return ok();
   } catch (error) {
@@ -793,7 +792,6 @@ export async function recordCompensation(
     revalidatePath("/app/exceptions");
     revalidatePath(`/app/exceptions/${input.exceptionId}`);
     revalidatePath(`/app/cargo/${shipmentId}`);
-    revalidatePath("/app/finance/compensation");
     revalidatePath("/app/finance");
     revalidatePath("/app/dashboard");
     return ok();

@@ -15,6 +15,7 @@ import {
 import { Banknote } from "lucide-react";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
+import { formatUsd } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
@@ -39,19 +40,25 @@ export default async function PaymentsPage() {
         invoice: {
           select: {
             invoiceNumber: true,
+            currency: true,
             shipment: { select: { trackingNumber: true } },
             customer: { select: { name: true } },
           },
         },
       },
     }),
+    // Both totals sum `creditedAmount`, not `amount`. A customer hands over
+    // shillings or dollars as they please; `amount` is whatever was handed
+    // over, so adding it up produces a figure in no currency at all.
+    // `creditedAmount` is that same money restated in the invoice's currency
+    // at the rate frozen onto the invoice — the only version that adds up.
     prisma.payment.aggregate({
       where: { paidAt: { gte: monthStart } },
-      _sum: { amount: true },
+      _sum: { creditedAmount: true },
     }),
     prisma.payment.groupBy({
       by: ["method"],
-      _sum: { amount: true },
+      _sum: { creditedAmount: true },
     }),
   ]);
 
@@ -59,7 +66,7 @@ export default async function PaymentsPage() {
     <>
       <PageHeader
         title="Payments"
-        description="Every shilling received, with the receipt it was issued against."
+        description="Every payment received, with the receipt it was issued against. Totals are in USD — the currency the bills are raised in — however the customer paid."
       />
 
       <FinanceNav tabs={financeTabs(user.role)} />
@@ -67,7 +74,7 @@ export default async function PaymentsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
           label="This month"
-          value={formatMoney(monthAgg._sum.amount)}
+          value={formatUsd(toNumber(monthAgg._sum.creditedAmount))}
           icon={Banknote}
           tone="success"
         />
@@ -75,7 +82,7 @@ export default async function PaymentsPage() {
           <StatCard
             key={row.method}
             label={PAYMENT_METHOD_LABELS[row.method]}
-            value={formatMoney(row._sum.amount)}
+            value={formatUsd(toNumber(row._sum.creditedAmount))}
             hint="All time"
           />
         ))}
@@ -119,7 +126,17 @@ export default async function PaymentsPage() {
                       {payment.invoice.customer.name}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm font-medium tabular">
+                      {/* What was handed over at the counter — the receipt
+                          says this. When that was not the invoice's own
+                          currency, what it actually settled is the figure the
+                          bill moved by, so both are shown. */}
                       {formatMoney(payment.amount, payment.currency)}
+                      {payment.creditedAmount !== null &&
+                      payment.currency !== payment.invoice.currency ? (
+                        <span className="block text-xs font-normal text-muted-foreground">
+                          settled {formatUsd(toNumber(payment.creditedAmount))}
+                        </span>
+                      ) : null}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-sm">
                       {PAYMENT_METHOD_LABELS[payment.method]}

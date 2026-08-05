@@ -81,15 +81,22 @@ export default async function PricingConfigurationPage() {
     // Every change to what the business charges, in one register. The audit log
     // already records all of it; this is the window onto it, so nobody has to
     // hold audit.view to see who moved a price.
+    //
+    // These strings must match what the actions actually write, exactly:
+    // lib/actions/fx.ts:70 and lib/actions/pricing.ts:142, :197, :293, :347.
+    // They are the only link between the two files, and a mismatch is silent —
+    // the panel simply renders one row fewer, so the change nobody can see is
+    // the change nobody knows to question.
     prisma.auditLog.findMany({
       where: {
         action: {
           in: [
-            "fx.publish",
+            "fx.setRate",
             "pricing.publishRule",
             "pricing.withdrawRule",
             "pricing.createProduct",
-            "pricing.setProductActive",
+            "pricing.archiveProduct",
+            "pricing.restoreProduct",
           ],
         },
       },

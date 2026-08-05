@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { GOODS_TYPE_LABELS, ROLE_LABELS, SHIPMENT_STATUS_META } from "@/lib/constants";
 import { formatMoney, formatWeight, toNumber } from "@/lib/format";
+import { formatUsd } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
 import { executiveStats } from "@/lib/queries";
 import { requirePermission } from "@/lib/session";
@@ -103,19 +104,19 @@ export default async function ReportsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Revenue this month"
-            value={formatMoney(stats.revenueThisMonth)}
+            value={formatUsd(stats.revenueThisMonth)}
             icon={Banknote}
             tone="success"
           />
           <StatCard
             label="Collected all time"
-            value={formatMoney(stats.allTimeCollected)}
+            value={formatUsd(stats.allTimeCollected)}
             icon={TrendingUp}
             tone="brand"
           />
           <StatCard
             label="Outstanding"
-            value={formatMoney(stats.outstanding)}
+            value={formatUsd(stats.outstanding)}
             icon={Timer}
             tone={stats.outstanding > 0 ? "warning" : "success"}
           />
