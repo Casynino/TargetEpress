@@ -8,7 +8,7 @@ import {
   ShipmentsDashboard,
   type DispatchRow,
 } from "@/components/app/shipments-dashboard";
-import { ORIGIN_LABELS } from "@/lib/constants";
+import { EXCEPTION_OPEN_STATUSES, ORIGIN_LABELS } from "@/lib/constants";
 import { formatDate, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -94,6 +94,12 @@ export default async function ShipmentsPage() {
           cargoTypeId: true,
           arrivedAt: true,
           deliveredAt: true,
+          // Unfinished cases only. A resolved shortage is history; an open one
+          // is cargo somebody is still looking for.
+          exceptions: {
+            where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } },
+            select: { id: true },
+          },
           // Only selected for desks that may see money. A figure never
           // fetched cannot leak through a serialised prop.
           ...(showMoney
@@ -129,6 +135,7 @@ export default async function ShipmentsPage() {
       ? formatDate(dispatch.expectedArrival)
       : null,
     arrivedLabel: dispatch.arrivalDate ? formatDate(dispatch.arrivalDate) : null,
+    flagged: dispatch.shipments.filter((c) => c.exceptions.length > 0).length,
     money: showMoney ? moneyFor(dispatch.shipments) : null,
   }));
 

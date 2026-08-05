@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Package, Plane, Search, Warehouse } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronRight,
+  Package,
+  Plane,
+  Search,
+  Warehouse,
+} from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -22,6 +29,12 @@ export type DispatchRow = {
   departedLabel: string | null;
   expectedLabel: string | null;
   arrivedLabel: string | null;
+  /**
+   * Consignments on this flight with an unfinished case against them — short,
+   * damaged, or not found. A flight is not "checked in and done" while any of
+   * these are open, and the board should say so without being opened.
+   */
+  flagged: number;
   /**
    * Where this flight stands on money. Absent for desks that may not see it —
    * the warehouse reads this same board.
@@ -181,6 +194,15 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
                       >
                         {STATUS_LABEL[row.status] ?? row.status}
                       </span>
+                      {/* Beside the status, because it speaks over it: a
+                          flight is not finished while cargo on it is still
+                          being looked for, whatever the batch status says. */}
+                      {row.flagged > 0 ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
+                          <AlertTriangle className="h-3 w-3" />
+                          {row.flagged} under investigation
+                        </span>
+                      ) : null}
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {row.route} → Dar es Salaam
@@ -197,7 +219,7 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
                   <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </div>
 
-                <dl className="mt-4 grid grid-cols-2 gap-4 border-t pt-4 sm:grid-cols-5">
+                <dl className="mt-4 grid grid-cols-2 gap-4 border-t pt-4 sm:grid-cols-3 lg:grid-cols-6">
                   {[
                     { label: "Cargo", value: String(row.cargoCount), Icon: Package },
                     { label: "Customers", value: String(row.customerCount) },
@@ -208,10 +230,19 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
                       value: row.arrivedLabel ?? row.expectedLabel ?? "—",
                       Icon: Warehouse,
                     },
+                    {
+                      label: "Under investigation",
+                      value: row.flagged ? String(row.flagged) : "None",
+                      tone: row.flagged ? "text-destructive" : undefined,
+                    },
                   ].map((stat) => (
                     <div key={stat.label}>
                       <dt className="text-xs text-muted-foreground">{stat.label}</dt>
-                      <dd className="mt-0.5 text-sm font-semibold tabular-nums">
+                      <dd
+                        className={`mt-0.5 text-sm font-semibold tabular-nums ${
+                          "tone" in stat && stat.tone ? stat.tone : ""
+                        }`}
+                      >
                         {stat.value}
                       </dd>
                     </div>
