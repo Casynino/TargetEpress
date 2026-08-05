@@ -52,7 +52,8 @@ export function financeTabs(role: Role): FinanceTab[] {
     {
       href: "/app/finance/reports",
       label: "Profit & loss",
-      visible: can(role, "report.view"),
+      // The owner's figure, not the money desk's. See profit.view in rbac.ts.
+      visible: can(role, "profit.view"),
     },
     // The operational report — volumes, speed, what we carry. It lives under
     // /app/admin for historical reasons and is reached from here, because the

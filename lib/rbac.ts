@@ -99,6 +99,16 @@ export type Permission =
    */
   | "expense.approve"
   /**
+   * See what the business EARNED — profit, margin, profit per flight.
+   *
+   * Deliberately not held by Finance. Their job is to take money in, record
+   * what goes out, and know what is in the accounts; whether the business made
+   * money on a flight is the owner's question, and putting it on the same desk
+   * that sets prices and records costs invites the figure to be managed rather
+   * than reported. Revenue and collections are theirs; profit is not.
+   */
+  | "profit.view"
+  /**
    * Write a correcting line into the ledger.
    *
    * The only entry anybody ever types by hand, and the CEO's alone. Everything
@@ -339,6 +349,7 @@ const ALL: Permission[] = Array.from(
     // it, and a correcting line is always visible as one in the register.
     "account.manage",
     "ledger.adjust",
+    "profit.view",
     // Signing off a cost above the threshold. Finance records and pays it;
     // the CEO is the one who says yes to it.
     "expense.approve",
@@ -423,7 +434,7 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // was still saying something untrue about who gets in.
   { prefix: "/app/finance/payments", permission: "payment.record" },
   { prefix: "/app/finance/expenses", permission: "expense.view" },
-  { prefix: "/app/finance/reports", permission: "report.view" },
+  { prefix: "/app/finance/reports", permission: "profit.view" },
   { prefix: "/app/finance/audit", permission: "audit.view" },
   // Reading the rate book is pricing.view; every mutation on that page is
   // separately gated on pricing.manage or fx.manage in its own action.

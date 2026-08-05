@@ -30,7 +30,7 @@ export default async function FinanceReportsPage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  const user = await requirePermission("report.view");
+  const user = await requirePermission("profit.view");
   const { period } = await searchParams;
 
   const window =

@@ -4,9 +4,11 @@ import {
   ArrowLeftRight,
   ArrowUpRight,
   Banknote,
+  CircleHelp,
   FileClock,
   HandCoins,
   PiggyBank,
+  Receipt,
   ReceiptText,
   Warehouse,
 } from "lucide-react";
@@ -65,6 +67,7 @@ export default async function FinanceOverviewPage() {
     collectedThisMonth,
     activeNotes,
     balances,
+    unattributed,
     spendThisMonth,
     unpaidCosts,
   ] = await Promise.all([
@@ -106,6 +109,14 @@ export default async function FinanceOverviewPage() {
       select: { shipment: { select: { invoice: { select: { total: true } } } } },
     }),
     seesCompanyMoney ? accountBalances(prisma) : Promise.resolve([]),
+    // Money taken with no account named. A job for this desk, not a statistic.
+    seesCompanyMoney
+      ? prisma.payment.aggregate({
+          where: { accountId: null },
+          _sum: { creditedAmount: true },
+          _count: true,
+        })
+      : Promise.resolve(null),
     seesCompanyMoney
       ? prisma.expense.aggregate({
           where: { status: "PAID", paidAt: { gte: monthStart } },
@@ -133,6 +144,7 @@ export default async function FinanceOverviewPage() {
     (sum, row) => sum + toNumber(row.inflowUsd) - toNumber(row.outflowUsd),
     0
   );
+  const unattributedUsd = toNumber(unattributed?._sum.creditedAmount ?? 0);
   const spentUsd = toNumber(spendThisMonth?._sum.amountUsd ?? 0);
   const owedOutUsd = toNumber(unpaidCosts?._sum.amountUsd ?? 0);
   const netMonth = collectedMonth - spentUsd;
@@ -168,7 +180,7 @@ export default async function FinanceOverviewPage() {
             <div>
               <p className="font-display text-lg font-bold leading-none tabular-nums">
                 1 USD ={" "}
-                <span className="text-brand">{rate.toLocaleString()}</span> TZS
+                <span className="text-brand">{rate.toLocaleString()}</span> TSh
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Every shilling figure below is converted at this rate
@@ -195,6 +207,72 @@ export default async function FinanceOverviewPage() {
           {rate ? "Change rate" : "Set a rate"}
         </Link>
       </div>
+
+      {/* Cash available, first and biggest.
+          This desk's standing question is "have we got the money", asked in
+          shillings, and it should never be something you scroll or convert to
+          find. The actions beside it are the two things this desk does all day
+          — take money in, and record what went out. */}
+      {seesCompanyMoney ? (
+        <section className="relative mb-6 overflow-hidden rounded-2xl border bg-gradient-to-br from-brand/10 via-card to-card p-6">
+          <div className="relative flex flex-wrap items-start justify-between gap-6">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <PiggyBank className="h-4 w-4 text-brand" />
+                Cash available
+              </p>
+              <p className="mt-2 font-display text-[40px] font-bold leading-none tracking-tight tabular-nums">
+                {rate ? (
+                  <>
+                    <span className="text-xl font-semibold text-muted-foreground">
+                      TSh{" "}
+                    </span>
+                    {Math.round(cashOnHand * rate).toLocaleString("en-US")}
+                  </>
+                ) : (
+                  formatUsd(cashOnHand)
+                )}
+              </p>
+              <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+                Everything the business is holding right now, across the banks,
+                the mobile-money tills and the office tin — worked out live from
+                the ledger, so it cannot drift.
+                {rate ? (
+                  <span className="ml-1 font-mono text-xs">
+                    ({formatUsd(cashOnHand)} on the invoice rate)
+                  </span>
+                ) : null}
+              </p>
+            </div>
+
+            <div className="w-full shrink-0 sm:w-auto">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Quick actions
+              </p>
+              <div className="flex flex-col gap-2">
+                <Button asChild variant="brand" className="justify-start rounded-lg">
+                  <Link href="/app/finance/expenses">
+                    <Receipt className="mr-2 h-4 w-4" />
+                    Record a cost
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="justify-start rounded-lg">
+                  <Link href="/app/finance/accounts">
+                    <ArrowLeftRight className="mr-2 h-4 w-4" />
+                    Move money / count cash
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="justify-start rounded-lg">
+                  <Link href="/app/finance/payments">
+                    <Banknote className="mr-2 h-4 w-4" />
+                    See payments taken
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {/* ── What customers owe us ─────────────────────────────────────────── */}
       <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
@@ -269,13 +347,22 @@ export default async function FinanceOverviewPage() {
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <MoneyTile
-              label="Cash on hand"
-              usd={cashOnHand}
+              label="No account named"
+              usd={unattributedUsd}
               rate={rate}
-              icon={PiggyBank}
-              tone="brand"
-              hint="Across every account — banks, mobile money and the tin"
-              href="/app/finance/accounts"
+              icon={CircleHelp}
+              tone={(unattributed?._count ?? 0) > 0 ? "warn" : "good"}
+              count={
+                (unattributed?._count ?? 0) > 0
+                  ? `${unattributed?._count} payment${unattributed?._count === 1 ? "" : "s"}`
+                  : undefined
+              }
+              hint={
+                (unattributed?._count ?? 0) > 0
+                  ? "Money we have, but nobody said which account it went into"
+                  : "Every payment says where it landed"
+              }
+              href="/app/finance/payments"
             />
             <MoneyTile
               label="Spent this month"
@@ -306,7 +393,11 @@ export default async function FinanceOverviewPage() {
               rate={rate}
               icon={Banknote}
               tone={netMonth >= 0 ? "good" : "bad"}
-              hint="Cash movement only — profit is on Profit & loss"
+              hint={
+                can(user.role, "profit.view")
+                  ? "Cash movement only — profit is on Profit & loss"
+                  : "Money collected less money paid out this month"
+              }
               href="/app/finance/reports"
             />
           </div>
@@ -363,7 +454,7 @@ export default async function FinanceOverviewPage() {
                           grey caption. */}
                       {rate && owing !== null ? (
                         <p className="font-mono text-xs font-semibold tabular-nums">
-                          TZS {Math.round(owing * rate).toLocaleString()}
+                          TSh {Math.round(owing * rate).toLocaleString()}
                         </p>
                       ) : null}
                       {/* Said plainly, because ringing a customer for a figure

@@ -21,9 +21,20 @@ export function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+/**
+ * How a shilling amount is written on screen.
+ *
+ * TZS is the ISO code and stays in the database, on invoices and anywhere a
+ * bank or a customs form will read it. On screen the business writes TSh, so
+ * that is what staff see — one substitution here rather than a decision at
+ * every call site, which is how the two spellings ended up on the same page.
+ */
+const DISPLAY_CURRENCY: Record<string, string> = { TZS: "TSh" };
+
 export function formatMoney(value: Numeric, currency = "TZS") {
   const n = toNumber(value);
-  return `${currency} ${n.toLocaleString("en-US", {
+  const symbol = DISPLAY_CURRENCY[currency] ?? currency;
+  return `${symbol} ${n.toLocaleString("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })}`;

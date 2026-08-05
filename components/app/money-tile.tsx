@@ -25,22 +25,18 @@ const ICON_TONES: Record<Tone, string> = {
 };
 
 /**
- * A money figure, in the currency it is priced in AND the currency it is paid in.
+ * A money figure, in the currency people actually pay in, and the currency the
+ * bill is written in.
  *
- * This business quotes in dollars because the rate book is in dollars, and is
- * paid in shillings because that is what customers have. Both belong on screen:
- * showing one alone means somebody at the counter converts in their head, at
- * whatever rate they remember, while a customer waits.
+ * SHILLINGS LEAD. This is a Tanzanian business: customers hand over shillings,
+ * the desk counts shillings, and the question "have we got the money" is asked
+ * in shillings. The rate book and the invoice are in dollars because that is
+ * how freight is priced, so the dollar figure stays — smaller, underneath, for
+ * matching against the bill the customer was sent.
  *
- * The shilling line is given real weight — its own inset strip, foreground
- * colour, tabular figures at readable size. It began life as small grey text
- * under the dollar figure and was, in the owner's words, not visible. Grey on
- * dark is where a number goes to be ignored, and this is the number the person
- * actually handing money over is thinking in.
- *
- * The dollar figure still leads, because it is what settles the bill. The
- * shilling figure is explicitly marked as a conversion, because it moves when
- * the rate moves and must never be mistaken for the amount owed.
+ * This is deliberately the reverse of where the component started. Leading in
+ * dollars meant everyone reading the page had to convert in their head, at
+ * whatever rate they remembered, to answer a question about their own till.
  */
 export function MoneyTile({
   label,
@@ -88,25 +84,35 @@ export function MoneyTile({
         ) : null}
       </div>
 
+      {/* The headline, in shillings, because that is the money in the room. */}
       <p
         className={cn(
           "mt-3 font-display text-[26px] font-bold leading-none tracking-tight tabular-nums",
           VALUE_TONES[tone]
         )}
       >
-        {formatUsd(usd)}
+        {rate ? (
+          <>
+            <span className="text-[15px] font-semibold text-muted-foreground">
+              TSh{" "}
+            </span>
+            {Math.round(usd * rate).toLocaleString("en-US")}
+          </>
+        ) : (
+          formatUsd(usd)
+        )}
       </p>
 
-      {/* The same money, said in the currency it will be handed over in.
-          Its own strip so it reads as a companion figure rather than a caption,
-          and at full foreground contrast so it survives a dark screen. */}
+      {/* The dollar figure underneath: what the invoice says, for matching
+          against the bill the customer was sent. Present, deliberately
+          secondary. */}
       {rate ? (
         <div className="mt-2.5 flex items-baseline gap-1.5 rounded-lg bg-muted/60 px-2.5 py-1.5">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            TZS
+            on the invoice
           </span>
-          <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
-            {Math.round(usd * rate).toLocaleString("en-US")}
+          <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
+            {formatUsd(usd)}
           </span>
         </div>
       ) : null}

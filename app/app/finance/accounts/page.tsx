@@ -203,9 +203,10 @@ export default async function AccountsPage() {
         {rows.map(({ account, inflow, outflow, net, netUsd, entries, lastMovedAt }) => {
           const Icon = KIND_ICON[account.kind];
           return (
-            <section
+            <Link
               key={account.id}
-              className={`rounded-xl border bg-card p-5 shadow-soft ${
+              href={`/app/finance/accounts/${account.id}`}
+              className={`focus-ring block rounded-xl border bg-card p-5 shadow-soft transition-all hover:border-foreground/20 hover:shadow-lift ${
                 account.active ? "" : "opacity-60"
               }`}
             >
@@ -251,22 +252,13 @@ export default async function AccountsPage() {
               </dl>
 
               <p className="mt-3 text-xs text-muted-foreground">
-                {entries === 0 ? (
-                  "Nothing recorded against this account yet"
-                ) : (
-                  <>
-                    {entries} movement{entries === 1 ? "" : "s"}
-                    {lastMovedAt ? `, last ${formatRelative(lastMovedAt)}` : ""} ·{" "}
-                    <Link
-                      href={`/app/finance/transactions?account=${account.id}`}
-                      className="hover:text-brand"
-                    >
-                      see them
-                    </Link>
-                  </>
-                )}
+                {entries === 0
+                  ? "Nothing recorded against this account yet"
+                  : `${entries} movement${entries === 1 ? "" : "s"}${
+                      lastMovedAt ? `, last ${formatRelative(lastMovedAt)}` : ""
+                    } · open it`}
               </p>
-            </section>
+            </Link>
           );
         })}
 
