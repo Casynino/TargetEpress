@@ -720,7 +720,13 @@ export async function agingInWarehouse(limit = 8) {
       trackingNumber: true,
       arrivedAt: true,
       customer: { select: { name: true, phone: true } },
-      invoice: { select: { total: true, amountPaid: true, currency: true } },
+      // `status` matters here as much as the amount. A DRAFT is the system's
+      // price, not a confirmed bill, and a chase list that presents the two
+      // identically has somebody ringing a customer to ask for a figure
+      // Finance has not signed off on yet.
+      invoice: {
+        select: { total: true, amountPaid: true, currency: true, status: true },
+      },
     },
   });
 }

@@ -1,25 +1,23 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
+  ArrowLeftRight,
   ArrowUpRight,
   Banknote,
   FileClock,
-  Package,
+  HandCoins,
   PiggyBank,
-  QrCode,
   ReceiptText,
-  Wallet,
+  Warehouse,
 } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { MoneyTile } from "@/components/app/money-tile";
 import { PageHeader } from "@/components/app/page-header";
-import { StatCard } from "@/components/app/stat-card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DEFAULT_CURRENCY } from "@/lib/constants";
-// Invoices are denominated in USD; formatMoney defaults to TZS and was
-// putting a shilling label on dollar figures.
-import { formatUsd } from "@/lib/fx";
 import { formatMoney, formatRelative, toNumber } from "@/lib/format";
+import { currentRate, formatUsd } from "@/lib/fx";
 import { accountBalances } from "@/lib/ledger";
 import { agingInWarehouse, financeStats } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
@@ -30,31 +28,82 @@ import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Finance" };
 
+/**
+ * The whole money position, on one screen.
+ *
+ * Two things this page is built around, both learned from what the business
+ * actually does rather than from what the tables happen to contain:
+ *
+ * 1. WE PRICE IN DOLLARS AND GET PAID IN SHILLINGS. Every figure carries both.
+ *    A page in dollars alone makes somebody at the counter convert in their
+ *    head, at whatever rate they remember, while a customer waits.
+ *
+ * 2. MONEY WAITING ON FINANCE IS STILL MONEY. This page used to say
+ *    "Outstanding USD 0.00" while eighty-four consignments worth USD 9,429 sat
+ *    in the Dar warehouse with prices nobody had confirmed. Technically true —
+ *    a draft is not a demand for payment — and completely wrong about the
+ *    business. The queue that only Finance can clear is now the loudest thing
+ *    on the page.
+ */
 export default async function FinanceOverviewPage() {
   const user = await requirePermission("finance.view");
-  // Support holds finance.view, because Support answers questions about a
+  // Support holds finance.view because Support answers questions about a
   // customer's bill. What the COMPANY is worth is a different question, and
-  // every tile below that answers it is gated separately.
+  // every tile answering it is gated on this instead.
   const seesCompanyMoney = can(user.role, "account.view");
 
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
 
-  const [stats, aging, recentPayments, balances, spendThisMonth, unpaidCosts] =
-    await Promise.all([
+  const [
+    stats,
+    aging,
+    recentPayments,
+    rateRow,
+    drafts,
+    collectedThisMonth,
+    activeNotes,
+    balances,
+    spendThisMonth,
+    unpaidCosts,
+  ] = await Promise.all([
     financeStats(),
-    agingInWarehouse(8),
+    agingInWarehouse(6),
     prisma.payment.findMany({
       orderBy: { paidAt: "desc" },
-      take: 8,
+      take: 6,
       include: {
         receipt: true,
-        receivedBy: { select: { name: true } },
+        account: { select: { name: true } },
         invoice: {
-          select: { shipment: { select: { trackingNumber: true } } },
+          select: {
+            currency: true,
+            shipment: { select: { trackingNumber: true } },
+          },
         },
       },
+    }),
+    currentRate(),
+    // The queue that only this desk can clear: cargo priced by the system and
+    // waiting on a human to say yes. Invisible on this page until now.
+    prisma.invoice.aggregate({
+      where: { status: "DRAFT" },
+      _sum: { total: true },
+      _count: true,
+    }),
+    prisma.payment.aggregate({
+      where: { paidAt: { gte: monthStart } },
+      _sum: { creditedAmount: true },
+      _count: true,
+    }),
+    // Cargo that is paid for and cleared to go, still sitting on the shelf.
+    // Distinct from everything else on this row: the money is already in, and
+    // what is left is a customer who has not turned up. It is the one figure
+    // here that shrinks by someone making a phone call.
+    prisma.pickupNote.findMany({
+      where: { status: "ACTIVE" },
+      select: { shipment: { select: { invoice: { select: { total: true } } } } },
     }),
     seesCompanyMoney ? accountBalances(prisma) : Promise.resolve([]),
     seesCompanyMoney
@@ -72,20 +121,27 @@ export default async function FinanceOverviewPage() {
       : Promise.resolve(null),
   ]);
 
-  // Everything the business holds, across accounts of different currencies,
-  // in the one unit they can honestly be added in.
-  const cashOnHandUsd = balances.reduce(
+  const rate = rateRow ? toNumber(rateRow.rate) : null;
+
+  const draftValue = toNumber(drafts._sum.total);
+  const collectedMonth = toNumber(collectedThisMonth._sum.creditedAmount);
+  const clearedNotCollected = activeNotes.reduce(
+    (sum, note) => sum + toNumber(note.shipment.invoice?.total ?? 0),
+    0
+  );
+  const cashOnHand = balances.reduce(
     (sum, row) => sum + toNumber(row.inflowUsd) - toNumber(row.outflowUsd),
     0
   );
   const spentUsd = toNumber(spendThisMonth?._sum.amountUsd ?? 0);
   const owedOutUsd = toNumber(unpaidCosts?._sum.amountUsd ?? 0);
+  const netMonth = collectedMonth - spentUsd;
 
   return (
     <>
       <PageHeader
         title="Finance"
-        description="Money in, money owed, and the cargo waiting on it."
+        description="What is owed, what has been collected, and what the company is holding. Priced in dollars, paid in shillings — every figure says both."
         actions={
           <Button asChild variant="brand" className="rounded-lg">
             {/* Prices are reviewed a flight at a time, on the dispatch —
@@ -100,104 +156,177 @@ export default async function FinanceOverviewPage() {
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
+      {/* The rate every figure below is converted at, stated once, at the top.
+          It is the single number that moves every shilling figure on this
+          page, so it is not left to be discovered on another tab. */}
+      <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border bg-muted/30 px-4 py-3 text-sm">
+        <ArrowLeftRight className="h-4 w-4 shrink-0 text-brand" />
+        {rate ? (
+          <>
+            <span className="font-medium tabular-nums">
+              1 USD = {rate.toLocaleString()} TZS
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {rateRow?.effectiveFrom
+                ? `set ${formatRelative(rateRow.effectiveFrom)}`
+                : null}
+              {" · every shilling figure on this page is converted at this rate, and moves when it moves"}
+            </span>
+          </>
+        ) : (
+          <span className="font-medium text-destructive">
+            No exchange rate is published, so nothing can be quoted in shillings.
+          </span>
+        )}
+        <Link
+          href="/app/finance/pricing"
+          className="ml-auto text-xs font-medium text-brand hover:underline"
+        >
+          {rate ? "Change it" : "Set one"}
+        </Link>
+      </div>
+
+      {/* ── What customers owe us ─────────────────────────────────────────── */}
+      <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
+        Money from customers
+      </h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Collected"
-          value={formatUsd(stats.collected)}
-          hint="All time"
+        {/* First, because it is the only queue on this page that nobody else
+            in the company can clear. */}
+        <MoneyTile
+          label="Waiting on your price"
+          usd={draftValue}
+          rate={rate}
+          icon={FileClock}
+          tone={drafts._count > 0 ? "warn" : "good"}
+          count={
+            drafts._count > 0
+              ? `${drafts._count} consignment${drafts._count === 1 ? "" : "s"}`
+              : undefined
+          }
+          hint={
+            drafts._count > 0
+              ? "Priced by the system, not yet confirmed — cannot be billed or collected"
+              : "Every price is confirmed"
+          }
+          href="/app/shipments"
+        />
+        <MoneyTile
+          label="To collect"
+          usd={stats.outstanding}
+          rate={rate}
+          icon={HandCoins}
+          tone={stats.outstanding > 0 ? "warn" : "good"}
+          count={
+            stats.unpaid + stats.partiallyPaid > 0
+              ? `${stats.unpaid} unpaid · ${stats.partiallyPaid} part-paid`
+              : undefined
+          }
+          hint="Confirmed bills the customer still owes"
+        />
+        <MoneyTile
+          label="Collected this month"
+          usd={collectedMonth}
+          rate={rate}
           icon={Banknote}
-          tone="success"
+          tone="good"
+          count={`${collectedThisMonth._count} payment${collectedThisMonth._count === 1 ? "" : "s"}`}
+          hint={`${formatUsd(stats.collected)} all time`}
           href="/app/finance/payments"
         />
-        <StatCard
-          label="Outstanding"
-          value={formatUsd(stats.outstanding)}
-          hint={`${stats.unpaid} unpaid · ${stats.partiallyPaid} part-paid`}
-          icon={Wallet}
-          tone={stats.outstanding > 0 ? "warning" : "success"}
-          href="/app/finance/invoices?status=UNPAID"
-        />
-        <StatCard
-          label="Awaiting invoice"
-          value={stats.awaitingInvoice}
-          hint="Cargo not yet billed"
-          icon={Package}
-          tone="brand"
-          href="/app/finance/invoices?view=uninvoiced"
-        />
-        <StatCard
-          label="Active pickup notes"
-          value={stats.activeNotes}
-          hint="Cleared, not collected"
-          icon={QrCode}
-          tone="info"
+        <MoneyTile
+          label="Cleared, not collected"
+          usd={clearedNotCollected}
+          rate={rate}
+          icon={Warehouse}
+          tone={activeNotes.length > 0 ? "brand" : "good"}
+          count={
+            activeNotes.length > 0
+              ? `${activeNotes.length} pickup note${activeNotes.length === 1 ? "" : "s"} open`
+              : undefined
+          }
+          hint="Paid for and released — waiting on the customer to collect"
           href="/app/finance/pickup-notes"
         />
       </div>
 
-      {/* The company's own position, which is a different question from a
-          customer's bill. Support reaches this page through finance.view and
-          must not see any of it — so the whole row is gated, not restyled. */}
+      {/* ── The company's own money ───────────────────────────────────────── */}
       {seesCompanyMoney ? (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            label="Cash on hand"
-            value={formatUsd(cashOnHandUsd)}
-            hint="Across every account"
-            icon={PiggyBank}
-            tone="brand"
-            href="/app/finance/accounts"
-          />
-          <StatCard
-            label="Spent this month"
-            value={formatUsd(spentUsd)}
-            hint="Costs actually paid"
-            icon={ArrowUpRight}
-            tone={spentUsd > 0 ? "warning" : "info"}
-            href="/app/finance/expenses"
-          />
-          <StatCard
-            label="Bills to pay"
-            value={formatUsd(owedOutUsd)}
-            hint={`${unpaidCosts?._count ?? 0} cost(s) waiting`}
-            icon={FileClock}
-            tone={owedOutUsd > 0 ? "warning" : "success"}
-            href="/app/finance/expenses"
-          />
-          {/* Deliberately not called profit. Profit counts a cost from the day
-              it was INCURRED; this counts money that actually moved. Both are
-              true and they answer different questions — the real P&L is on the
-              reports page and says so. */}
-          <StatCard
-            label="Money in, money out"
-            value={formatUsd(stats.collected - spentUsd)}
-            hint="Collected all time, less paid out this month"
-            icon={Banknote}
-            tone={stats.collected - spentUsd >= 0 ? "success" : "danger"}
-            href="/app/finance/transactions"
-          />
-        </div>
+        <>
+          <h2 className="mb-3 mt-6 text-sm font-semibold text-muted-foreground">
+            The company&rsquo;s money
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <MoneyTile
+              label="Cash on hand"
+              usd={cashOnHand}
+              rate={rate}
+              icon={PiggyBank}
+              tone="brand"
+              hint="Across every account — banks, mobile money and the tin"
+              href="/app/finance/accounts"
+            />
+            <MoneyTile
+              label="Spent this month"
+              usd={spentUsd}
+              rate={rate}
+              icon={ArrowUpRight}
+              tone={spentUsd > 0 ? "warn" : "default"}
+              hint="Costs that have actually left an account"
+              href="/app/finance/expenses"
+            />
+            <MoneyTile
+              label="Bills to pay"
+              usd={owedOutUsd}
+              rate={rate}
+              icon={FileClock}
+              tone={owedOutUsd > 0 ? "warn" : "good"}
+              count={
+                (unpaidCosts?._count ?? 0) > 0
+                  ? `${unpaidCosts?._count} cost${unpaidCosts?._count === 1 ? "" : "s"} waiting`
+                  : undefined
+              }
+              hint="Recorded, not yet disbursed"
+              href="/app/finance/expenses"
+            />
+            <MoneyTile
+              label="This month, in minus out"
+              usd={netMonth}
+              rate={rate}
+              icon={Banknote}
+              tone={netMonth >= 0 ? "good" : "bad"}
+              hint="Cash movement only — profit is on Profit & loss"
+              href="/app/finance/reports"
+            />
+          </div>
+        </>
       ) : null}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border bg-card shadow-soft">
           <div className="flex items-center justify-between border-b px-5 py-4">
-            <h2 className="font-display font-semibold">Chase list</h2>
+            <div>
+              <h2 className="font-display font-semibold">Longest waiting</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Cargo sitting in Dar, oldest first
+              </p>
+            </div>
             <Button asChild variant="ghost" size="sm">
               <Link href="/app/support/follow-up">Full chase queue</Link>
             </Button>
           </div>
           {aging.length === 0 ? (
             <div className="p-5">
-              <EmptyState title="Nothing to chase" />
+              <EmptyState title="Nothing waiting" />
             </div>
           ) : (
             <ul className="divide-y">
               {aging.map((shipment) => {
-                const outstanding = shipment.invoice
-                  ? toNumber(shipment.invoice.total) -
-                    toNumber(shipment.invoice.amountPaid)
+                const invoice = shipment.invoice;
+                const owing = invoice
+                  ? toNumber(invoice.total) - toNumber(invoice.amountPaid)
                   : null;
+                const draft = invoice?.status === "DRAFT";
                 return (
                   <li
                     key={shipment.id}
@@ -216,13 +345,23 @@ export default async function FinanceOverviewPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium tabular">
-                        {outstanding === null
-                          ? "Not invoiced"
-                          : formatMoney(
-                              outstanding,
-                              shipment.invoice?.currency ?? DEFAULT_CURRENCY
-                            )}
+                        {owing === null ? "Not priced" : formatUsd(owing)}
                       </p>
+                      {/* Said plainly, because ringing a customer for a figure
+                          Finance has not confirmed is how a bill gets argued
+                          about. */}
+                      {draft ? (
+                        <Badge
+                          variant="outline"
+                          className="mt-0.5 border-warning/40 font-normal text-warning"
+                        >
+                          price not confirmed
+                        </Badge>
+                      ) : rate && owing !== null ? (
+                        <p className="font-mono text-xs text-muted-foreground">
+                          ≈ TZS {Math.round(owing * rate).toLocaleString()}
+                        </p>
+                      ) : null}
                       <p className="text-xs text-muted-foreground">
                         {formatRelative(shipment.arrivedAt)}
                       </p>
@@ -236,7 +375,12 @@ export default async function FinanceOverviewPage() {
 
         <section className="rounded-xl border bg-card shadow-soft">
           <div className="flex items-center justify-between border-b px-5 py-4">
-            <h2 className="font-display font-semibold">Recent payments</h2>
+            <div>
+              <h2 className="font-display font-semibold">Recent payments</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                What was handed over, and where it landed
+              </p>
+            </div>
             <Button asChild variant="ghost" size="sm">
               <Link href="/app/finance/payments">All payments</Link>
             </Button>
@@ -252,22 +396,33 @@ export default async function FinanceOverviewPage() {
                   key={payment.id}
                   className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-mono text-sm tabular">
                       {payment.invoice.shipment.trackingNumber}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="truncate text-xs text-muted-foreground">
                       {payment.receipt?.receiptNumber} ·{" "}
-                      {payment.receivedBy?.name ?? "—"}
+                      {payment.account?.name ?? (
+                        <span className="text-warning">no account named</span>
+                      )}
                     </p>
                   </div>
                   <div className="text-right">
+                    {/* What the customer actually handed over — usually
+                        shillings — with what it settled underneath. */}
                     <p className="text-sm font-medium tabular">
                       {formatMoney(payment.amount, payment.currency)}
                     </p>
-                    <p className="text-xs capitalize text-muted-foreground">
-                      {payment.method.replace("_", " ").toLowerCase()}
-                    </p>
+                    {payment.currency !== payment.invoice.currency &&
+                    payment.creditedAmount !== null ? (
+                      <p className="text-xs text-muted-foreground">
+                        settled {formatUsd(toNumber(payment.creditedAmount))}
+                      </p>
+                    ) : (
+                      <p className="text-xs capitalize text-muted-foreground">
+                        {payment.method.replace("_", " ").toLowerCase()}
+                      </p>
+                    )}
                   </div>
                 </li>
               ))}
