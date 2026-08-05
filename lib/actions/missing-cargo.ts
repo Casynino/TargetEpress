@@ -203,7 +203,10 @@ async function announceLoss(
           ? "the customer was at the counter and the cargo was not on the shelf. Pickup stopped and the cargo is locked. "
           : "reported missing from the warehouse floor. The cargo is locked and cannot be released. ") +
         `${user.name}: ${note} (case ${ref})`,
-      href: `/app/exceptions/${exceptionId}`,
+      // The hub, filtered to this one consignment. There is no per-case route —
+      // a case is read expanded inside the queue — so linking to a case id was
+      // a notification that opened a 404.
+      href: `/app/exceptions?tracking=${cargo.trackingNumber}`,
     },
     tx
   );

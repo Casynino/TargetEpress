@@ -5,8 +5,10 @@ import {
   Boxes,
   ClipboardCheck,
   Clock,
+  Hourglass,
   Package,
   PackageCheck,
+  PackageSearch,
   PackagePlus,
   Plane,
   Printer,
@@ -24,6 +26,10 @@ import { ActivityFeed } from "@/components/app/activity-feed";
 import { AlertQueue } from "@/components/app/alert-queue";
 import { KpiCard } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
+import {
+  QuickActions,
+  type QuickActionItem,
+} from "@/components/app/quick-actions";
 import { StatStrip } from "@/components/app/stat-strip";
 import { AreaChart } from "@/components/charts/area-chart";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -32,7 +38,9 @@ import { Progress } from "@/components/ui/progress";
 import {
   EXCEPTION_OPEN_STATUSES,
   ROLE_LABELS,
+  STORAGE_POLICY,
 } from "@/lib/constants";
+import { floorSnapshot, type FloorSnapshot } from "@/lib/floor";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
 import {
   agingInWarehouse,
@@ -104,28 +112,43 @@ async function chinaHeroChips(): Promise<HeroChip[]> {
  * registrations and printed labels under "here is what is happening today",
  * which is somebody else's day in a nice box.
  */
-async function darHeroChips(): Promise<HeroChip[]> {
+async function darHeroChips(floor: FloorSnapshot): Promise<HeroChip[]> {
   const checkedIn = await prisma.shipment.aggregate({
     where: { arrivedAt: { gte: startOfToday() } },
     _count: true,
     _sum: { weightKg: true, packages: true },
   });
 
+  // The standing total on top, today's movement against it underneath.
+  //
+  // These three read "what is in my building" before they read "what happened
+  // today", because the first question is the one a floor supervisor is asked
+  // and the second is only ever zero at eight in the morning. A banner whose
+  // every number is 0 until the first batch lands teaches people to skip it.
+  const shortBoxes = floor.declaredPackages - floor.packages;
+
   return [
     {
+      icon: Boxes,
+      label: "Cargo in the warehouse",
+      value: String(floor.shipments),
+      sub: checkedIn._count
+        ? `${checkedIn._count} checked in today`
+        : "Nothing checked in yet today",
+    },
+    {
       icon: PackageCheck,
-      label: "Cargo checked in",
-      value: String(checkedIn._count),
+      label: "Boxes on the floor",
+      value: floor.packages.toLocaleString(),
+      sub: shortBoxes
+        ? `${shortBoxes} short of the manifest`
+        : `All ${floor.declaredPackages.toLocaleString()} accounted for`,
     },
     {
       icon: Scale,
-      label: "Weight checked in",
-      value: formatWeight(checkedIn._sum.weightKg ?? 0),
-    },
-    {
-      icon: Boxes,
-      label: "Packages checked in",
-      value: String(checkedIn._sum.packages ?? 0),
+      label: "Weight on the floor",
+      value: formatWeight(floor.weightKg),
+      sub: `${formatWeight(toNumber(checkedIn._sum.weightKg ?? 0))} checked in today`,
     },
   ];
 }
@@ -153,6 +176,11 @@ export default async function DashboardPage() {
     user.role === "CHINA_WAREHOUSE" || user.role === "DAR_WAREHOUSE";
   const inChina = user.role === "CHINA_WAREHOUSE";
 
+  // Read once and handed down. The banner and the floor panel below it both
+  // describe the same stock, and two calls a second apart is how they end up
+  // disagreeing by one box on screen.
+  const floor = user.role === "DAR_WAREHOUSE" ? await floorSnapshot() : null;
+
   return (
     <>
       {/* The warehouses get the banner with both clocks and today's numbers;
@@ -163,7 +191,9 @@ export default async function DashboardPage() {
           firstName={firstName}
           warehouseName={inChina ? "China Warehouse" : "Dar es Salaam Warehouse"}
           emphasis={inChina ? "CN" : "TZ"}
-          chips={inChina ? await chinaHeroChips() : await darHeroChips()}
+          chips={
+            inChina ? await chinaHeroChips() : await darHeroChips(floor!)
+          }
           // Where this desk's day starts.
           //
           // China registers cargo, so their day begins at the registration
@@ -221,7 +251,9 @@ export default async function DashboardPage() {
       )}
 
       {user.role === "CHINA_WAREHOUSE" ? <ChinaDashboard role={user.role} /> : null}
-      {user.role === "DAR_WAREHOUSE" ? <DarDashboard role={user.role} /> : null}
+      {user.role === "DAR_WAREHOUSE" ? (
+        <DarDashboard role={user.role} floor={floor!} />
+      ) : null}
       {user.role === "FINANCE" ? <FinanceDashboard role={user.role} /> : null}
       {user.role === "ADMIN" ? <ExecutiveDashboard role={user.role} /> : null}
     </>
@@ -505,7 +537,57 @@ async function darFloorStats() {
   };
 }
 
-async function DarDashboard({ role }: { role: "DAR_WAREHOUSE" | "ADMIN" }) {
+/**
+ * The five things this floor starts a job from.
+ *
+ * Every one of them is pressed many times a shift. Warehouse Inventory,
+ * Delivery History and Reports are deliberately absent — they are read, not
+ * started, and they are one click away in the sidebar. A shortcut row that
+ * lists everything is a second sidebar, which helps nobody.
+ */
+const DAR_QUICK_ACTIONS: QuickActionItem[] = [
+  {
+    href: "/app/search",
+    label: "Find cargo",
+    hint: "By number, name or phone",
+    icon: PackageSearch,
+  },
+  {
+    href: "/app/receive",
+    label: "Receiving dock",
+    hint: "Check a landed batch in",
+    icon: PackagePlus,
+  },
+  {
+    href: "/app/pickup-queue",
+    label: "Pickup queue",
+    hint: "Who may collect today",
+    icon: Truck,
+  },
+  {
+    href: "/app/inventory",
+    label: "What is on the floor",
+    hint: "Everything being held here",
+    icon: Boxes,
+  },
+  {
+    href: "/app/exceptions",
+    label: "Investigation Hub",
+    hint: "Missing and damaged cargo",
+    icon: AlertTriangle,
+  },
+];
+// Scanning is deliberately not in this row. It is already the big button in
+// the banner directly above, and the same action twice on one screen is the
+// clutter the owner asked us to avoid.
+
+async function DarDashboard({
+  role,
+  floor,
+}: {
+  role: "DAR_WAREHOUSE" | "ADMIN";
+  floor: FloorSnapshot;
+}) {
   const [stats, alerts, activity, perf, incoming] = await Promise.all([
     darFloorStats(),
     attentionItems(role),
@@ -538,8 +620,15 @@ async function DarDashboard({ role }: { role: "DAR_WAREHOUSE" | "ADMIN" }) {
 
   return (
     <div className="space-y-6">
+      <QuickActions items={DAR_QUICK_ACTIONS} />
+
       {/* The floor, in the five states cargo can be in between the plane and
-          the customer. No strip repeating them in shorter words above. */}
+          the customer.
+          "Released today" used to hold the fourth slot and is now a line on
+          the pickup card: it is the same shelf, and the number the floor is
+          judged on is what is still standing there, not what has gone. The
+          slot it freed went to aging stock, which nobody else shows this desk
+          and which is the only figure here that costs the customer money. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           delay={0}
@@ -573,25 +662,29 @@ async function DarDashboard({ role }: { role: "DAR_WAREHOUSE" | "ADMIN" }) {
           numeric={stats.readyForPickup}
           hint={
             stats.readyForPickup
-              ? `${stats.readyPackages} package(s) paid for, on the shelf`
-              : "Nothing waiting to be collected"
+              ? `${stats.readyPackages} box(es) paid for · ${stats.releasedToday} handed over today`
+              : `Nothing to collect · ${stats.releasedToday} handed over today`
           }
           icon={Truck}
           tone="success"
           href="/app/pickup-queue"
+          ringPct={
+            floor.shipments ? (floor.cleared / floor.shipments) * 100 : 0
+          }
+          ringLabel="Share of held cargo cleared for collection"
         />
         <KpiCard
           delay={3}
-          label="Released today"
-          numeric={stats.releasedToday}
+          label={`Held over ${STORAGE_POLICY.freeDays} days`}
+          numeric={floor.aging}
           hint={
-            stats.releasedToday
-              ? `${stats.releasedPackages} package(s) handed over`
-              : "No cargo released yet today"
+            floor.longestHeldDays > 0
+              ? `Longest standing ${floor.longestHeldDays} day(s) · storage is charged after ${STORAGE_POLICY.freeDays}`
+              : "Nothing has aged yet"
           }
-          icon={PackageCheck}
-          tone="brand"
-          href="/app/deliveries"
+          icon={Hourglass}
+          tone={floor.aging ? "danger" : "success"}
+          href="/app/inventory"
         />
         <KpiCard
           delay={4}
@@ -683,7 +776,16 @@ async function DarDashboard({ role }: { role: "DAR_WAREHOUSE" | "ADMIN" }) {
         </section>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+      {/* Corridor performance is an average, and an average of nothing is not
+          a number — it is three em-dashes taking up a third of the screen.
+          The panel earns its place once cargo has actually been delivered and
+          stays away until then, leaving the activity feed the full width. */}
+      <div
+        className={
+          perf.sample > 0 ? "grid gap-6 lg:grid-cols-[1fr_1.4fr]" : "grid gap-6"
+        }
+      >
+        {perf.sample > 0 ? (
         <section className="panel p-5">
           <h2 className="font-display font-semibold">Corridor performance</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -732,6 +834,7 @@ async function DarDashboard({ role }: { role: "DAR_WAREHOUSE" | "ADMIN" }) {
             ))}
           </dl>
         </section>
+        ) : null}
 
         <ActivityFeed
           entries={activity.map((entry) => ({

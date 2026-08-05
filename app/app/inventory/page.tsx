@@ -14,6 +14,7 @@ import {
   EXCEPTION_OPEN_STATUSES,
   STORAGE_POLICY,
 } from "@/lib/constants";
+import { ON_THE_FLOOR, weightOnFloor } from "@/lib/floor";
 import { formatDate, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -40,39 +41,13 @@ const DAY_MS = 86_400_000;
  * a value never fetched cannot leak through a serialised prop, an expanded row
  * or a future edit to the table.
  */
-/**
- * Kilos physically on the floor for one shipment.
- *
- * Prefers the per-package weights the desk recorded. When they are absent —
- * which is the common case, since only the shipment total is usually weighed —
- * it pro-rates the declared weight by the fraction of boxes that arrived.
- * Neither is a guess dressed as a fact: a shipment with every box present
- * returns its declared weight unchanged.
- */
-function weightOnFloor(
-  declaredKg: number,
-  packages: { receivedAt: Date | null; weightKg: Prisma.Decimal | null }[]
-) {
-  if (packages.length === 0) return declaredKg;
-  const here = packages.filter((pkg) => pkg.receivedAt);
-  if (here.length === packages.length) return declaredKg;
-  if (here.length === 0) return 0;
-
-  const weighed = packages.every((pkg) => pkg.weightKg !== null);
-  if (weighed) {
-    return here.reduce((sum, pkg) => sum + toNumber(pkg.weightKg), 0);
-  }
-  return (declaredKg * here.length) / packages.length;
-}
-
 export default async function InventoryPage() {
   await requirePermission("inventory.view");
 
   const held = await prisma.shipment.findMany({
-    where: {
-      deletedAt: null,
-      status: { in: ["RECEIVED_AT_DAR", "READY_FOR_PICKUP"] },
-    },
+    // The one definition of "on the floor", shared with the dashboard so the
+    // two screens can never report different stock.
+    where: ON_THE_FLOOR,
     // Longest-held first: the cargo that has been sitting the longest is the
     // cargo somebody needs to chase.
     orderBy: [{ arrivedAt: "asc" }, { createdAt: "asc" }],

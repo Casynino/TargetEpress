@@ -29,6 +29,12 @@ export type Permission =
   | "batch.receive" // mark arrived in Dar
   | "batch.verify" // tick shipments off the manifest
   // Exceptions / investigations
+  /// Read the Investigation Hub and the cases in it. Every department holds
+  /// this, because a case is never one department's business: Dar found the
+  /// problem, China packed the box, Support is on the phone to the customer,
+  /// Finance may owe them money. Looking is separate from doing — what each
+  /// desk may actually *do* to a case is the five permissions below.
+  | "exception.view"
   | "exception.raise"
   | "exception.resolve"
   /// Work a case: move it along the lifecycle, add notes and evidence, assign
@@ -86,6 +92,13 @@ const CHINA: Permission[] = [
   "batch.manage",
   "customer.view",
   "customer.manage",
+  // Reads the Investigation Hub, and nothing more. When Dar reports a box
+  // missing, the question that follows is "was it loaded in Guangzhou?" —
+  // which only this desk can answer, and cannot answer if it cannot see the
+  // case. Absent: raise, investigate, compensate, approve, close. China does
+  // not flag cargo it has already handed to an airline, and does not close a
+  // case against its own packing.
+  "exception.view",
 ];
 
 /**
@@ -119,6 +132,7 @@ const DAR: Permission[] = [
   "batch.view",
   "batch.receive",
   "batch.verify",
+  "exception.view",
   "exception.raise",
   "exception.resolve",
   // Dar works the investigation: reports missing, uploads damage evidence,
@@ -169,6 +183,7 @@ const CUSTOMER_CARE: Permission[] = [
   "sourcing.manage",
   "customer.view",
   "customer.manage",
+  "exception.view",
   "exception.raise",
   // The desk that phones the customer while their cargo is being looked for.
   // It monitors cases and writes the communication notes; it never touches the
@@ -197,6 +212,7 @@ const FINANCE: Permission[] = [
   "fx.manage",
   "customer.view",
   "customer.manage",
+  "exception.view",
   "exception.raise",
   // Records the payout and attaches the evidence for it. Notably absent:
   // exception.approve — Finance pays what the CEO approved, so the amount is
@@ -262,11 +278,12 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/batches/new", permission: "batch.create" },
   { prefix: "/app/receive", permission: "batch.receive" },
   { prefix: "/app/release", permission: "shipment.release" },
-  // The investigation queue and every case detail page under it. Read access
-  // is exception.raise, which Dar, Support, Finance and the CEO all hold — the
-  // four desks the owner named. What each may *do* on a case is gated action by
-  // action on investigate / compensate / approve / close.
-  { prefix: "/app/exceptions", permission: "exception.raise" },
+  // The Investigation Hub and every case detail page under it. Read access is
+  // its own permission, held by all five departments, because a case concerns
+  // all of them at once. What each may *do* to a case is gated action by
+  // action on raise / investigate / compensate / approve / close — so China
+  // and a read-only visitor reach the same page and are offered nothing on it.
+  { prefix: "/app/exceptions", permission: "exception.view" },
   // The Dar warehouse floor. The arrivals board and the verification bench
   // belong to the desk that receives, so they carry the receiving permissions
   // rather than a new one each.

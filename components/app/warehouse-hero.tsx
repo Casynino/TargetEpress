@@ -3,8 +3,19 @@ import { PackagePlus, type LucideIcon } from "lucide-react";
 
 import { DualClock } from "@/components/app/dual-clock";
 
-/** One of the three "today" numbers under the greeting. */
-export type HeroChip = { icon: LucideIcon; label: string; value: string };
+/**
+ * One of the three headline numbers under the greeting.
+ *
+ * `sub` is how a chip carries two facts without becoming two tiles — the
+ * standing total above, today's movement against it below. Three tiles is the
+ * ceiling here; a banner that grows a fourth row stops being a banner.
+ */
+export type HeroChip = {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  sub?: string;
+};
 
 /**
  * The first thing the warehouse sees.
@@ -97,6 +108,11 @@ export function WarehouseHero({
               <dd className="mt-1 font-display text-xl font-bold tabular">
                 {chip.value}
               </dd>
+              {chip.sub ? (
+                <p className="mt-0.5 text-[11px] text-muted-foreground tabular">
+                  {chip.sub}
+                </p>
+              ) : null}
             </div>
           ))}
         </dl>

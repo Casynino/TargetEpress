@@ -31,7 +31,7 @@ import { prisma } from "@/lib/prisma";
 import { ROLE_PERMISSIONS, can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Investigation queue" };
+export const metadata: Metadata = { title: "Investigation Hub" };
 
 /**
  * The one place flagged cargo lands.
@@ -238,8 +238,13 @@ function toRecord(row: ExceptionRow, canSeeMoney: boolean): InvestigationRecord 
       packageType: row.shipment.packageType,
       declaredPackages: row.shipment.packages,
       packages: row.shipment.packageList,
-      settled:
-        row.shipment.invoice?.status === "PAID"
+      // Whether the customer has settled their bill is finance information,
+      // and it travels with the rest of it. Not merely unrendered for other
+      // desks — absent from the payload, so it cannot leak through a prop, an
+      // expanded row or a future edit to the table.
+      settled: !canSeeMoney
+        ? null
+        : row.shipment.invoice?.status === "PAID"
           ? "PAID"
           : row.shipment.invoice?.status === "PARTIALLY_PAID"
             ? "PARTIALLY_PAID"
@@ -254,7 +259,11 @@ export default async function ExceptionsPage({
 }: {
   searchParams: Promise<{ set?: string; group?: string; tracking?: string }>;
 }) {
-  const user = await requirePermission("exception.raise");
+  // Read, not raise. Every department reaches this page — Dar found the
+  // problem, China packed the box, Support is on the phone, Finance may owe
+  // money — and what each may *do* to a case is decided below, case by case,
+  // rather than at the door.
+  const user = await requirePermission("exception.view");
   const params = await searchParams;
 
   const set: QueueSet = isQueueSet(params.set) ? params.set : "open";
@@ -386,7 +395,7 @@ export default async function ExceptionsPage({
   return (
     <>
       <PageHeader
-        title="Investigation queue"
+        title="Investigation Hub"
         description="Every item flagged missing, damaged or wrong on arrival — held here, with the boxes it belongs to, until someone closes it out."
       />
 

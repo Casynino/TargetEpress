@@ -98,9 +98,13 @@ const SECTIONS: NavSection[] = [
         href: "/app/exceptions",
         // Named for what the desk does there rather than for the database word:
         // it is where flagged cargo is chased until it is found or written off.
-        label: "Investigation queue",
+        // One name in every department's sidebar — staff ring each other about
+        // this page, and two names for it is one misunderstanding a day.
+        label: "Investigation Hub",
         icon: "TriangleAlert",
-        permission: "exception.raise",
+        // Read, not raise. China holds only this one and belongs here: it is
+        // the desk that can say whether a missing box was ever loaded.
+        permission: "exception.view",
       },
     ],
   },
@@ -297,7 +301,7 @@ const DAR_SECTIONS: NavSection[] = [
         // it is where flagged cargo is chased until it is found or written off.
         label: "Investigation Hub",
         icon: "TriangleAlert",
-        permission: "exception.raise",
+        permission: "exception.view",
       },
       {
         href: "/app/inventory",
