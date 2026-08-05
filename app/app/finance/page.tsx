@@ -159,30 +159,40 @@ export default async function FinanceOverviewPage() {
       {/* The rate every figure below is converted at, stated once, at the top.
           It is the single number that moves every shilling figure on this
           page, so it is not left to be discovered on another tab. */}
-      <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-        <ArrowLeftRight className="h-4 w-4 shrink-0 text-brand" />
+      <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border bg-card px-4 py-3">
+        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+          <ArrowLeftRight className="h-4 w-4" />
+        </span>
         {rate ? (
           <>
-            <span className="font-medium tabular-nums">
-              1 USD = {rate.toLocaleString()} TZS
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {rateRow?.effectiveFrom
-                ? `set ${formatRelative(rateRow.effectiveFrom)}`
-                : null}
-              {" · every shilling figure on this page is converted at this rate, and moves when it moves"}
-            </span>
+            <div>
+              <p className="font-display text-lg font-bold leading-none tabular-nums">
+                1 USD ={" "}
+                <span className="text-brand">{rate.toLocaleString()}</span> TZS
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Every shilling figure below is converted at this rate
+                {rateRow?.effectiveFrom
+                  ? ` · set ${formatRelative(rateRow.effectiveFrom)}`
+                  : ""}
+              </p>
+            </div>
           </>
         ) : (
-          <span className="font-medium text-destructive">
-            No exchange rate is published, so nothing can be quoted in shillings.
-          </span>
+          <div>
+            <p className="font-medium text-destructive">
+              No exchange rate is published
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Nothing on this page can be quoted in shillings until there is one.
+            </p>
+          </div>
         )}
         <Link
           href="/app/finance/pricing"
-          className="ml-auto text-xs font-medium text-brand hover:underline"
+          className="focus-ring ml-auto rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-accent"
         >
-          {rate ? "Change it" : "Set one"}
+          {rate ? "Change rate" : "Set a rate"}
         </Link>
       </div>
 
@@ -199,6 +209,7 @@ export default async function FinanceOverviewPage() {
           rate={rate}
           icon={FileClock}
           tone={drafts._count > 0 ? "warn" : "good"}
+          emphasis={drafts._count > 0}
           count={
             drafts._count > 0
               ? `${drafts._count} consignment${drafts._count === 1 ? "" : "s"}`
@@ -343,26 +354,30 @@ export default async function FinanceOverviewPage() {
                         {shipment.customer.name} · {shipment.customer.phone}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium tabular">
+                    <div className="shrink-0 text-right">
+                      <p className="font-display text-base font-bold tabular-nums">
                         {owing === null ? "Not priced" : formatUsd(owing)}
                       </p>
+                      {/* The shilling figure is the one actually read down a
+                          phone to a customer, so it is legible rather than a
+                          grey caption. */}
+                      {rate && owing !== null ? (
+                        <p className="font-mono text-xs font-semibold tabular-nums">
+                          TZS {Math.round(owing * rate).toLocaleString()}
+                        </p>
+                      ) : null}
                       {/* Said plainly, because ringing a customer for a figure
                           Finance has not confirmed is how a bill gets argued
                           about. */}
                       {draft ? (
                         <Badge
                           variant="outline"
-                          className="mt-0.5 border-warning/40 font-normal text-warning"
+                          className="mt-1 border-warning/40 font-normal text-warning"
                         >
                           price not confirmed
                         </Badge>
-                      ) : rate && owing !== null ? (
-                        <p className="font-mono text-xs text-muted-foreground">
-                          ≈ TZS {Math.round(owing * rate).toLocaleString()}
-                        </p>
                       ) : null}
-                      <p className="text-xs text-muted-foreground">
+                      <p className="mt-0.5 text-xs text-muted-foreground">
                         {formatRelative(shipment.arrivedAt)}
                       </p>
                     </div>
