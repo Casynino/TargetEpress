@@ -275,7 +275,9 @@ export function ShipmentForm({
               <option value="OTHER">Other</option>
             </NativeSelect>
             <p className="text-xs text-muted-foreground">
-              Recorded with the quantity and shown everywhere it appears.
+              Recorded with the quantity and shown everywhere it appears. Cargo
+              on a per-item rate — a phone, a laptop, a camera — is always saved
+              as pieces, because that count is what the customer is charged for.
             </p>
           </div>
         </div>

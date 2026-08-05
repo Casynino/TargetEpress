@@ -18,6 +18,7 @@ import {
   packageReference,
 } from "@/lib/ids";
 import { assignToLoadingTable } from "@/lib/batching";
+import { quote } from "@/lib/pricing";
 import { prisma, type TxClient } from "@/lib/prisma";
 import { filesFrom, putImages } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -174,6 +175,26 @@ export async function createShipment(
       // lib/batching.
       const assignment = await assignToLoadingTable(tx, origin);
 
+      // Cargo billed per item is counted in items, not cartons.
+      //
+      // One number does two jobs on this record: how many things the warehouse
+      // must physically account for, and — for a product on a per-item rate —
+      // how many units the customer is charged for. When the rate book prices
+      // by the item, the label has to say so, or a manifest reads "8 packages"
+      // while the invoice charges for 8 cameras and nobody can tell which is
+      // meant. Enforced here rather than in the form, because the desk should
+      // not have to know which products carry which kind of rate.
+      const priced = await quote({
+        category: input.cargoCategory,
+        cargoTypeId: input.cargoTypeId,
+        weightKg: input.weightKg,
+        quantity: input.packages,
+      });
+      const packageType =
+        priced.ok && priced.method === "FIXED_PER_ITEM"
+          ? "PIECE"
+          : input.packageType;
+
       const shipment = await tx.shipment.create({
         data: {
           trackingNumber: await nextTrackingNumber(tx),
@@ -184,7 +205,7 @@ export async function createShipment(
           goodsType: input.goodsType,
           description: input.description,
           packages: input.packages,
-          packageType: input.packageType,
+          packageType,
           weightKg: input.weightKg,
           volumeCbm: input.volumeCbm ?? null,
           origin,
