@@ -72,6 +72,25 @@ export type Permission =
   | "pickupNote.issue"
   | "pickupNote.cancel"
   | "fx.manage" // publish the USD→TZS rate
+  /**
+   * See the company's own accounts and what is in them.
+   *
+   * Distinct from finance.view, which is about a customer's bill. This is the
+   * company's cash position, and Support holds finance.view — so every tile
+   * that shows what the business is worth is gated on this instead.
+   */
+  | "account.view"
+  /// Add or archive an account, and set the opening balance it started with.
+  | "account.manage"
+  /// Read the register: every movement in and out, and what it left behind.
+  | "ledger.view"
+  /**
+   * Write a correcting line into the ledger.
+   *
+   * The only entry anybody ever types by hand, and the CEO's alone. Everything
+   * else in the register is written by the action that moved the money.
+   */
+  | "ledger.adjust"
   // Delivery
   | "shipment.release"
   | "delivery.history" // cargo already handed over — the Dar release log
@@ -251,6 +270,13 @@ const FINANCE: Permission[] = [
   // Finance quotes shillings all day, so Finance keeps the rate current. The
   // rate book — what a kilo costs — stays with the CEO.
   "fx.manage",
+  // The company's own money: which accounts exist, what is in them, and every
+  // movement through them. Notably absent: account.manage and ledger.adjust.
+  // Finance reads and reconciles; opening a new account and writing a
+  // correcting line are the CEO's, for the same reason exception.approve is —
+  // the desk that records the money does not also get to restate it.
+  "account.view",
+  "ledger.view",
   "customer.view",
   "customer.manage",
   // The Pricing & Configuration centre. Finance owns what the business
@@ -289,6 +315,11 @@ const ALL: Permission[] = Array.from(
     "exception.close",
     "user.manage",
     "pricing.manage",
+    // Opening an account and correcting the ledger. Held by nobody else:
+    // Finance records what happened, the CEO is the only one who can restate
+    // it, and a correcting line is always visible as one in the register.
+    "account.manage",
+    "ledger.adjust",
     "audit.view",
     "report.view",
   ])
@@ -359,6 +390,16 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // the pickup-note register is reachable by Support, which holds finance.view
   // but must not be admitted by it alone.
   { prefix: "/app/finance/pickup-notes", permission: "pickupNote.view" },
+  // The company's own money, for the same reason again. finance.view is about
+  // a customer's bill; these two are about what the business is worth, and
+  // Support has no business in either.
+  { prefix: "/app/finance/accounts", permission: "account.view" },
+  { prefix: "/app/finance/transactions", permission: "ledger.view" },
+  // The payments register. It has always been guarded on the page itself, but
+  // not here — so Support, who holds finance.view, was admitted by the catch-all
+  // below and stopped one layer later. Defence in depth did its job; the table
+  // was still saying something untrue about who gets in.
+  { prefix: "/app/finance/payments", permission: "payment.record" },
   // Reading the rate book is pricing.view; every mutation on that page is
   // separately gated on pricing.manage or fx.manage in its own action.
   { prefix: "/app/finance/pricing", permission: "pricing.view" },
