@@ -221,12 +221,15 @@ export function ShipmentDetailTabs({
                   <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
                     Counted as
                   </th>
-                  <th className="px-3 py-2 font-medium">Proof</th>
+                  {/* Beside the weight and the count it is worked out from —
+                      and never last, where the table scrolls it off the edge
+                      of the screen and Finance cannot find it. */}
                   {showPrice ? (
                     <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
                       Price
                     </th>
                   ) : null}
+                  <th className="px-3 py-2 font-medium">Proof</th>
                   <th className="hidden px-3 py-2 font-medium md:table-cell">Status</th>
                   <th className="w-20 px-3 py-2" />
                 </tr>
@@ -280,6 +283,27 @@ export function ShipmentDetailTabs({
                     <td className="whitespace-nowrap px-3 py-1.5 text-right font-mono tabular-nums">
                       {line.packagesLabel}
                     </td>
+                    {showPrice ? (
+                      <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
+                        {line.price ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="font-medium">
+                              {line.price.currency} {line.price.amount.toFixed(2)}
+                            </span>
+                            {/* An unconfirmed figure has to look unconfirmed,
+                                or the desk signs off a list it believes was
+                                already agreed. */}
+                            {!line.price.confirmed ? (
+                              <span className="rounded bg-signal/10 px-1.5 py-0.5 text-[10px] font-medium text-signal">
+                                draft
+                              </span>
+                            ) : null}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    ) : null}
                     <td className="whitespace-nowrap px-3 py-1.5">
                       {line.photos.length === 0 ? (
                         <span className="text-xs text-muted-foreground">—</span>
@@ -316,28 +340,6 @@ export function ShipmentDetailTabs({
                         </span>
                       )}
                     </td>
-                    {showPrice ? (
-                      <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
-                        {line.price ? (
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="font-medium">
-                              {line.price.currency}{" "}
-                              {line.price.amount.toFixed(2)}
-                            </span>
-                            {/* An unconfirmed figure has to look unconfirmed,
-                                or the desk signs off a list it believes was
-                                already agreed. */}
-                            {!line.price.confirmed ? (
-                              <span className="rounded bg-signal/10 px-1.5 py-0.5 text-[10px] font-medium text-signal">
-                                draft
-                              </span>
-                            ) : null}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    ) : null}
                     <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground md:table-cell">
                       {line.statusLabel}
                     </td>
