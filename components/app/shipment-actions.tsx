@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  confirmInvoicePrice,
   generateInvoice,
   issuePickupNote,
   recordPayment,
@@ -40,6 +41,8 @@ type Props = {
    * another currency. Null when none was published when it was raised.
    */
   invoiceRate: number | null;
+  /** DRAFT while the system's price is waiting on Finance to sign it off. */
+  invoiceStatus: string | null;
 };
 
 /**
@@ -69,6 +72,9 @@ export function ShipmentActions(props: Props) {
     <section className="rounded-xl border bg-card shadow-soft">
       <h2 className="border-b px-5 py-3.5 text-sm font-semibold">Actions</h2>
       <div className="divide-y">
+        {canInvoice && props.invoiceStatus === "DRAFT" ? (
+          <ConfirmPricePanel {...props} />
+        ) : null}
         {canInvoice ? <GenerateInvoicePanel {...props} /> : null}
         {canPay ? <PaymentPanel {...props} /> : null}
         {can(role, "pickupNote.view") ? <PickupNotePanel {...props} /> : null}
@@ -84,6 +90,49 @@ export function ShipmentActions(props: Props) {
  * The price comes from the published rate book via the shipment's cargo
  * category, so nobody can mistype it and nobody has to look it up.
  */
+/**
+ * Finance signs the system's price off.
+ *
+ * The button says what actually happens — the price is re-worked out at this
+ * moment, not merely approved — because an operator who thinks they are ticking
+ * a box will not understand why the figure moved.
+ */
+function ConfirmPricePanel(props: Props) {
+  const [state, action] = useActionState<
+    ActionResult<{ invoiceNumber: string; total: number }>,
+    FormData
+  >(confirmInvoicePrice, { ok: true });
+
+  return (
+    <div className="border-l-2 border-signal bg-signal/5 p-5">
+      <form action={action} className="space-y-3">
+        <input type="hidden" name="invoiceId" value={props.invoiceId ?? ""} />
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <ReceiptText className="h-4 w-4 text-signal" />
+          Confirm the price
+        </p>
+        <p className="text-xs text-muted-foreground">
+          The system priced this from the rate book when the cargo was checked
+          in. Confirming re-works it out now — picking up storage days accrued
+          since, and today&apos;s exchange rate — and turns it into a real bill
+          that can be sent and paid.
+        </p>
+        <FormError state={state} />
+        <FormSuccess
+          message={
+            state.ok && state.data
+              ? `${state.data.invoiceNumber} confirmed — ${props.currency} ${state.data.total.toFixed(2)}`
+              : null
+          }
+        />
+        <SubmitButton variant="signal" size="sm" pendingLabel="Confirming…">
+          Confirm price
+        </SubmitButton>
+      </form>
+    </div>
+  );
+}
+
 function GenerateInvoicePanel(props: Props) {
   const [state, action] = useActionState<
     ActionResult<{ invoiceNumber: string; total: number }>,

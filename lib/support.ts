@@ -50,6 +50,7 @@ export type FollowUpRow = {
   storageDays: number;
   storageCharge: number;
   invoiceId: string | null;
+  invoiceStatus: string | null;
   invoiceNumber: string | null;
   total: number | null;
   outstanding: number | null;
@@ -96,6 +97,7 @@ export async function followUpQueue() {
       invoice: {
         select: {
           id: true,
+          status: true,
           invoiceNumber: true,
           total: true,
           amountPaid: true,
@@ -128,6 +130,12 @@ export async function followUpQueue() {
     if (!invoice) {
       nextAction = "Raise the invoice";
       urgency = 60;
+    } else if (invoice.status === "DRAFT") {
+      // The system has priced it; nobody has signed the price off. Chasing a
+      // customer for a figure Finance has not looked at is how a bill gets
+      // argued about.
+      nextAction = "Confirm the price";
+      urgency = 65;
     } else if (outstanding !== null && outstanding <= 0) {
       nextAction =
         shipment.status === "READY_FOR_PICKUP"
@@ -163,6 +171,7 @@ export async function followUpQueue() {
       storageDays,
       storageCharge: storageDays * STORAGE_POLICY.perDayUsd,
       invoiceId: invoice?.id ?? null,
+      invoiceStatus: invoice?.status ?? null,
       invoiceNumber: invoice?.invoiceNumber ?? null,
       total,
       outstanding,
@@ -184,9 +193,14 @@ export async function followUpQueue() {
 export function matchesFilter(row: FollowUpRow, filter: FollowUpFilter) {
   switch (filter) {
     case "invoice-needed":
-      return row.invoiceId === null;
+      // A draft is not a bill: this pill is where cargo waits for one.
+      return row.invoiceId === null || row.invoiceStatus === "DRAFT";
     case "not-sent":
-      return row.invoiceId !== null && row.invoiceSentAt === null;
+      return (
+        row.invoiceId !== null &&
+        row.invoiceStatus !== "DRAFT" &&
+        row.invoiceSentAt === null
+      );
     case "awaiting-payment":
       return row.outstanding !== null && row.outstanding > 0;
     case "ready":
@@ -247,7 +261,11 @@ export async function supportOverview() {
       _count: true,
       _sum: { total: true, amountPaid: true },
     }),
-    prisma.invoice.count({ where: { sentAt: null, status: { not: "PAID" } } }),
+    // Drafts excluded: an invoice nobody has confirmed is not an invoice
+    // somebody forgot to send.
+    prisma.invoice.count({
+      where: { sentAt: null, status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
+    }),
     prisma.shipment.count({ where: { status: "READY_FOR_PICKUP" } }),
     prisma.customerMessage.count({ where: { sentAt: { gte: startOfToday } } }),
   ]);

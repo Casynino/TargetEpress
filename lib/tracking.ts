@@ -6,6 +6,7 @@ import { CATEGORY_LABELS } from "@/lib/cargo";
 import {
   SHIPMENT_FLOW,
   SHIPMENT_STATUS_META,
+  STORAGE_POLICY,
   formatPackages,
 } from "@/lib/constants";
 import { normaliseCode, toNumber } from "@/lib/format";
@@ -55,6 +56,17 @@ export type PublicCharge = {
   totalLocal: number | null;
   outstandingLocal: number | null;
   status: "PAID" | "PART_PAID" | "UNPAID";
+  /**
+   * Whether this figure can still move, and why.
+   *
+   * The owner's instruction: a customer must know the amount is not frozen
+   * forever, even after Finance has confirmed it — storage runs daily once the
+   * free window closes, and a shilling figure follows the rate. Saying so is
+   * not a disclaimer, it is the reason to come and collect.
+   *
+   * Null once the bill is settled: nothing moves after that.
+   */
+  mayChange: string | null;
 };
 
 /**
@@ -220,6 +232,7 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
       // Totals only. Nothing about who raised it or how it was worked out.
       invoice: {
         select: {
+          status: true,
           invoiceNumber: true,
           currency: true,
           total: true,
@@ -245,7 +258,14 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
 
   if (shipment) {
     const meta = SHIPMENT_STATUS_META[shipment.status];
-    const invoice = shipment.invoice;
+    // A draft is the system's working figure — nobody in Finance has looked at
+    // it. Showing one here would put an unreviewed number in front of the
+    // customer and then change it, so as far as this page is concerned a draft
+    // is no invoice at all, and the rate-book estimate below stands instead.
+    const invoice =
+      shipment.invoice && shipment.invoice.status !== "DRAFT"
+        ? shipment.invoice
+        : null;
 
     // What the flight is expected to land, when the cargo is on one.
     const expectedArrival = shipment.batchId
@@ -301,6 +321,10 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
             : toLocal(total, rate),
         outstandingLocal: rate === null ? null : toLocal(outstanding, rate),
         status: outstanding <= 0 ? "PAID" : paid > 0 ? "PART_PAID" : "UNPAID",
+        mayChange:
+          outstanding <= 0
+            ? null
+            : `This amount can still change — storage is charged for every day after the first ${STORAGE_POLICY.freeDays}, and the shilling figure follows the exchange rate on the day you pay. Collecting sooner keeps it lower.`,
       };
     }
 

@@ -31,6 +31,8 @@ export function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
     expectedTzs,
     estimatedUsd,
     invoicedUsd,
+    billedUsd,
+    drafts,
     rate,
     customers,
     weightKg,
@@ -80,19 +82,31 @@ export function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
       icon: ReceiptText,
       label: "Invoices generated",
       value: `${invoiced} of ${pieces}`,
+      // "Generated" and "confirmed" are different questions and the desk needs
+      // both: 86 of 87 raised, 84 of those still waiting on a signature.
       sub:
-        invoiced === pieces
-          ? "Every piece billed"
-          : `${pieces - invoiced} still to bill`,
-      tone: invoiced === pieces ? ("success" as const) : ("warning" as const),
+        drafts > 0
+          ? `${drafts} still a draft`
+          : invoiced === pieces
+            ? "Every piece billed and confirmed"
+            : `${pieces - invoiced} still to bill`,
+      tone:
+        drafts > 0
+          ? ("signal" as const)
+          : invoiced === pieces
+            ? ("success" as const)
+            : ("warning" as const),
     },
     {
       icon: Banknote,
       label: "Payments received",
       value: formatUsd(receivedUsd),
+      // Against confirmed bills, not drafts. A dispatch where 84 of 86 figures
+      // are still drafts has barely billed anything, and dividing by the
+      // drafts too would report 0% of a number nobody has been asked for.
       sub:
-        invoicedUsd > 0
-          ? `${Math.round((receivedUsd / invoicedUsd) * 100)}% of what is billed`
+        billedUsd > 0
+          ? `${Math.round((receivedUsd / billedUsd) * 100)}% of what has been billed`
           : "Nothing billed yet",
       tone: "success" as const,
     },
@@ -113,6 +127,7 @@ export function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
     success: "text-success",
     warning: "text-warning",
     danger: "text-destructive",
+    signal: "text-signal",
     muted: "text-muted-foreground",
   };
 

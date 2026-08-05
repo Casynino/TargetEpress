@@ -24,6 +24,7 @@ export type InvoiceRow = {
 };
 
 const STATUS_TONE: Record<string, "destructive" | "warning" | "success" | "outline"> = {
+  DRAFT: "outline",
   UNPAID: "destructive",
   PARTIALLY_PAID: "warning",
   PAID: "success",
@@ -31,6 +32,7 @@ const STATUS_TONE: Record<string, "destructive" | "warning" | "success" | "outli
 };
 
 const STATUS_LABEL: Record<string, string> = {
+  DRAFT: "Draft — needs review",
   UNPAID: "Unpaid",
   PARTIALLY_PAID: "Part paid",
   PAID: "Paid",
@@ -125,7 +127,9 @@ export function InvoicesTable({ rows }: { rows: InvoiceRow[] }) {
           <Badge variant={STATUS_TONE[row.status] ?? "outline"}>
             {STATUS_LABEL[row.status] ?? row.status}
           </Badge>
-          {!row.sentAt && row.status !== "PAID" ? (
+          {/* A draft has not been sent because it is not finished. Flagging it
+              as unsent would fill the queue with work nobody has done yet. */}
+          {!row.sentAt && row.status !== "PAID" && row.status !== "DRAFT" ? (
             <span className="text-[11px] text-warning">never sent</span>
           ) : null}
         </div>

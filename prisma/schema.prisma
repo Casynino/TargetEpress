@@ -168,6 +168,10 @@ enum PhotoKind {
 }
 
 enum InvoiceStatus {
+  /// Priced by the system, not yet reviewed by Finance. A draft is a working
+  /// figure, never a demand for money: it is not chased, not counted as
+  /// revenue, and never shown to a customer.
+  DRAFT
   UNPAID
   PARTIALLY_PAID
   PAID
@@ -339,6 +343,7 @@ model User {
   assignedRequests      SourcingRequest[]       @relation("SourcingAssignedTo")
   sentMessages          CustomerMessage[]
   sentInvoices          Invoice[]               @relation("InvoiceSentBy")
+  confirmedInvoices     Invoice[]               @relation("InvoiceConfirmedBy")
   deletedShipments      Shipment[]              @relation("ShipmentDeletedBy")
   receivedPackages      Package[]               @relation("PackageReceivedBy")
   fieldChanges          FieldChange[]
@@ -491,13 +496,19 @@ model Shipment {
   // --- Quote snapshot -------------------------------------------------------
   // What the engine calculated at registration, kept with its working so an
   // invoice raised weeks later can still be explained to the customer.
-  quotedAmount  Decimal?       @db.Decimal(12, 2)
-  quoteCurrency String         @default("USD")
-  quotedMethod  PricingMethod?
+  quotedAmount Decimal? @db.Decimal(12, 2)
+
+  /// Why the rate book could not price this at check-in. Null once priced.
+  /// Cargo is never refused entry over a missing rate — the box is here
+  /// either way — so the reason is recorded and Finance is told.
+  pricingBlockedReason String?
+  pricingCheckedAt     DateTime?
+  quoteCurrency        String         @default("USD")
+  quotedMethod         PricingMethod?
   /// Per-kg or per-item rate that produced quotedAmount.
-  quotedRate    Decimal?       @db.Decimal(12, 2)
+  quotedRate           Decimal?       @db.Decimal(12, 2)
   /// Weight the quote was billed on (may exceed the scale weight).
-  chargeableKg  Decimal?       @db.Decimal(10, 3)
+  chargeableKg         Decimal?       @db.Decimal(10, 3)
 
   /// Freight charge inputs. Finance may override the computed amount on the
   /// invoice; these stay as the audit trail of how the figure was reached.
@@ -789,6 +800,13 @@ model Invoice {
   issuedBy   User?     @relation(fields: [issuedById], references: [id], onDelete: SetNull)
   issuedAt   DateTime  @default(now())
   dueDate    DateTime?
+
+  /// When Finance signed the price off, moving it out of DRAFT. Null while it
+  /// is still a working figure. Confirming re-derives the price and the storage
+  /// clock rather than flipping a flag — see confirmInvoicePrice.
+  confirmedAt   DateTime?
+  confirmedById String?
+  confirmedBy   User?     @relation("InvoiceConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
 
   /// An invoice a customer has never been shown is not yet a demand for money.
   /// Follow-up queues sort on this: chasing someone who was never sent a bill

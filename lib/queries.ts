@@ -1,8 +1,11 @@
-import { EXCEPTION_OPEN_STATUSES } from "@/lib/constants";
 import "server-only";
 
 import { Prisma } from "@prisma/client";
 
+import {
+  BILLED_INVOICE_STATUSES,
+  EXCEPTION_OPEN_STATUSES,
+} from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -206,13 +209,16 @@ export async function financeStats() {
       prisma.invoice.count({ where: { status: "PARTIALLY_PAID" } }),
       prisma.shipment.count({
         where: {
-          invoice: null,
+          // Cargo whose only invoice is a draft is still waiting on Finance —
+          // auto-drafting must not empty this queue by answering a different
+          // question than the one it asks.
+          OR: [{ invoice: null }, { invoice: { status: "DRAFT" } }],
           status: { in: ["RECEIVED_AT_DAR", "IN_TRANSIT"] },
         },
       }),
       prisma.pickupNote.count({ where: { status: "ACTIVE" } }),
       prisma.invoice.aggregate({
-        where: { status: { not: "VOID" } },
+        where: { status: { in: [...BILLED_INVOICE_STATUSES] } },
         _sum: { amountPaid: true },
       }),
       prisma.invoice.aggregate({

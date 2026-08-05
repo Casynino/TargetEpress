@@ -5,6 +5,7 @@ import type {
   ExceptionStatus,
   ExceptionType,
   GoodsType,
+  InvoiceStatus,
   Origin,
   PaymentMethod,
   ResolutionType,
@@ -171,6 +172,20 @@ export const PACKAGE_TYPE_SHORT: Record<string, string> = {
 export function formatPackagesShort(count: number, type: string) {
   return `${count} ${PACKAGE_TYPE_SHORT[type] ?? PACKAGE_TYPE_SHORT.OTHER}`;
 }
+
+/**
+ * Invoice statuses that represent a real demand for money.
+ *
+ * A DRAFT is the system's working figure: nobody has reviewed it, the customer
+ * has never seen it, and no one owes it. Every revenue total, chase queue and
+ * customer-facing surface asks this question, so they all answer it the same
+ * way — and a status added later is picked up everywhere at once.
+ */
+export const BILLED_INVOICE_STATUSES = [
+  "UNPAID",
+  "PARTIALLY_PAID",
+  "PAID",
+] as const satisfies readonly InvoiceStatus[];
 
 export const STORAGE_POLICY = {
   freeDays: 7,

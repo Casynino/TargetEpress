@@ -636,6 +636,7 @@ export default async function ShipmentDetailPage({
             hasInvoice={Boolean(shipment.invoice)}
             invoiceId={shipment.invoice?.id ?? null}
             invoiceNumber={shipment.invoice?.invoiceNumber ?? null}
+            invoiceStatus={shipment.invoice?.status ?? null}
             invoiceRate={
               shipment.invoice?.exchangeRate
                 ? toNumber(shipment.invoice.exchangeRate)

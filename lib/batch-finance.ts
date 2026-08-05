@@ -35,6 +35,15 @@ export type BatchFinance = {
   invoiced: number;
   /** Cargo with no invoice yet — the rest of `pieces`. */
   uninvoiced: number;
+  /** Drafts nobody in Finance has signed off yet, and what they add up to. */
+  drafts: number;
+  draftsUsd: number;
+  /**
+   * Confirmed bills only — what a customer has actually been asked for.
+   * `invoicedUsd` minus the drafts, and the honest denominator for "how much
+   * of what we billed has come in".
+   */
+  billedUsd: number;
   /** Cargo the rate book cannot price yet, with the reason it gave. */
   unpriceable: { trackingNumber: string; reason: string }[];
 
@@ -91,6 +100,8 @@ export async function batchFinance(batchId: string): Promise<BatchFinance> {
   let invoicedTzs = 0;
   let invoiced = 0;
   let weightKg = 0;
+  let drafts = 0;
+  let draftsUsd = 0;
 
   const needsEstimate: typeof cargo = [];
 
@@ -102,6 +113,8 @@ export async function batchFinance(batchId: string): Promise<BatchFinance> {
       continue;
     }
 
+    // Drafted counts as generated — the spec asks for one per consignment and
+    // an auto-draft is one. What it does NOT count as is billed.
     invoiced += 1;
     const total = toNumber(piece.invoice.total);
     const paid = toNumber(piece.invoice.amountPaid);
@@ -112,7 +125,15 @@ export async function batchFinance(batchId: string): Promise<BatchFinance> {
 
     invoicedUsd += total;
     receivedUsd += paid;
-    outstandingUsd += Math.max(0, total - paid);
+    // Only a confirmed bill is a debt. A draft is the system's own figure and
+    // the customer has never seen it, so it counts towards what this flight is
+    // worth and towards nothing anybody owes.
+    if (piece.invoice.status !== "DRAFT") {
+      outstandingUsd += Math.max(0, total - paid);
+    } else {
+      drafts += 1;
+      draftsUsd += total;
+    }
     // The rate frozen at issue, not today's. An invoice is a promise in
     // shillings and does not move when the rate does.
     invoicedTzs +=
@@ -168,8 +189,11 @@ export async function batchFinance(batchId: string): Promise<BatchFinance> {
     weightKg,
     invoiced,
     uninvoiced: cargo.length - invoiced,
+    drafts,
+    draftsUsd,
     unpriceable,
     invoicedUsd,
+    billedUsd: invoicedUsd - draftsUsd,
     estimatedUsd,
     expectedUsd,
     expectedTzs,

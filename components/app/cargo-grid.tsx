@@ -32,6 +32,12 @@ export type CargoCell = {
   customerName: string;
   description: string;
   weightKg: number;
+  /**
+   * What this consignment is priced at, and whether Finance has signed that
+   * price off. Absent for desks that may not see money — the warehouse opens
+   * this same table.
+   */
+  price?: { amount: number; currency: string; confirmed: boolean } | null;
   packages: number;
   /** Pre-formatted with its unit — a count is never shown bare. */
   packagesLabel: string;
@@ -238,6 +244,7 @@ export function CargoGrid({
   cells,
   batchId,
   canPrintLabel = false,
+  showPrice = false,
 }: {
   cells: CargoCell[];
   /** Set to allow selecting cargo and printing their stickers together. */
@@ -248,6 +255,8 @@ export function CargoGrid({
    * See lib/rbac.ts, "label.print".
    */
   canPrintLabel?: boolean;
+  /** Finance and the CEO only. See lib/rbac, finance.view. */
+  showPrice?: boolean;
 }) {
   const [filter, setFilter] = useState<string>("ALL");
   const [query, setQuery] = useState("");
@@ -412,6 +421,11 @@ export function CargoGrid({
                     Counted as
                   </th>
                   <th className="hidden px-3 py-2 font-medium md:table-cell">Proof</th>
+                  {showPrice ? (
+                    <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
+                      Price
+                    </th>
+                  ) : null}
                   <th className="hidden px-3 py-2 font-medium 2xl:table-cell">
                     Received by
                   </th>
@@ -464,6 +478,27 @@ export function CargoGrid({
                     <td className="hidden whitespace-nowrap px-3 py-1.5 md:table-cell">
                       <PhotoProof photos={cell.photos} tracking={cell.trackingNumber} />
                     </td>
+                    {showPrice ? (
+                      <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
+                        {cell.price ? (
+                          <>
+                            <span className="font-medium">
+                              {cell.price.currency} {cell.price.amount.toFixed(2)}
+                            </span>
+                            {/* An unconfirmed figure has to look unconfirmed,
+                                or a desk signs off a list it believes is
+                                already agreed. */}
+                            {!cell.price.confirmed ? (
+                              <span className="ml-1.5 rounded bg-signal/10 px-1.5 py-0.5 text-[10px] font-medium text-signal">
+                                draft
+                              </span>
+                            ) : null}
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    ) : null}
                     <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground 2xl:table-cell">
                       {cell.receivedBy ?? "—"}
                     </td>

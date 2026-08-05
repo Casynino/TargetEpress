@@ -559,6 +559,14 @@ function ChargePanel({
         </div>
       </div>
 
+      {/* Why collecting sooner is cheaper. Not a disclaimer bolted on the
+          bottom — it is the reason to come today rather than next week. */}
+      {charge.mayChange ? (
+        <p className="mt-4 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-xs text-muted-foreground">
+          {charge.mayChange}
+        </p>
+      ) : null}
+
       <div
         className={`flex items-start gap-3 border-t p-5 text-sm ${
           collectable ? "bg-success/5 text-success" : "bg-muted/30 text-muted-foreground"

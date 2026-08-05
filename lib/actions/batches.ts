@@ -11,6 +11,7 @@ import {
   EXCEPTION_TYPE_LABELS,
   PACKAGE_TYPE_LABELS,
 } from "@/lib/constants";
+import { autoPriceShipments } from "@/lib/auto-price";
 import { recordAudit } from "@/lib/audit";
 import { notifyReceivingOutcome } from "@/lib/exception-audience";
 import { contributorsTo, notify } from "@/lib/notify";
@@ -861,7 +862,7 @@ export async function verifyShipment(
   }
 
   try {
-    await prisma.$transaction(async (tx) => {
+    const landed = await prisma.$transaction(async (tx) => {
       const shipment = await tx.shipment.findUnique({
         where: { id: shipmentId },
         select: {
@@ -1104,7 +1105,15 @@ export async function verifyShipment(
         },
         tx
       );
+
+      // Only cargo that is physically here can be priced. A box reported
+      // missing has nothing to bill for yet.
+      return arrived ? shipment.id : null;
     });
+
+    // Outside the transaction, and never able to fail the check-in. See
+    // lib/auto-price.
+    if (landed) await autoPriceShipments([landed], user.id);
 
     revalidatePath(`/app/receive/${batchId}`);
     revalidatePath("/app/receive");
@@ -1113,6 +1122,7 @@ export async function verifyShipment(
     // standing on the floor have to be told about it too.
     revalidatePath("/app/inventory");
     revalidatePath("/app/dashboard");
+    revalidatePath("/app/finance/invoices");
     return ok();
   } catch (error) {
     return fail(toActionError(error));
@@ -1213,7 +1223,7 @@ export async function verifyBatchAll(
   if (!batchId) return fail("Missing batch.");
 
   try {
-    const accepted = await prisma.$transaction(async (tx) => {
+    const checkedIn = await prisma.$transaction(async (tx) => {
       const batch = await tx.batch.findUnique({
         where: { id: batchId },
         select: { id: true, status: true },
@@ -1235,7 +1245,7 @@ export async function verifyBatchAll(
           packageList: { select: { id: true } },
         },
       });
-      if (pending.length === 0) return 0;
+      if (pending.length === 0) return [] as string[];
 
       const now = new Date();
 
@@ -1279,13 +1289,19 @@ export async function verifyBatchAll(
         });
       }
 
-      return pending.length;
+      return pending.map((shipment) => shipment.id);
     });
+
+    // Priced AFTER the transaction commits, never inside it. See lib/auto-price:
+    // a rate book gap must not be able to stop a physical check-in, and eighty
+    // seven extra queries do not belong inside one lock.
+    await autoPriceShipments(checkedIn, user.id);
 
     revalidatePath(`/app/receive/${batchId}`);
     revalidatePath("/app/receive");
     revalidatePath("/app/dashboard");
     revalidatePath("/app/inventory");
+    revalidatePath("/app/finance/invoices");
 
     // ActionResult carries no message channel, and the page re-reads the batch
     // on revalidate, so the new counts are the feedback.

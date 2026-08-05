@@ -11,6 +11,7 @@ import {
   type TimelineEntry,
 } from "@/components/app/shipment-detail-tabs";
 import { BatchFinanceBand } from "@/components/app/batch-finance-band";
+import { ConfirmPricesBanner } from "@/components/app/confirm-prices-banner";
 import { BatchStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +46,8 @@ export default async function ShipmentPage({
   const user = await requirePermission("batch.view");
   const { id } = await params;
 
+  const showMoney = can(user.role, "finance.view");
+
   const dispatch = await prisma.batch.findUnique({
     where: { id },
     include: {
@@ -54,6 +57,7 @@ export default async function ShipmentPage({
         include: {
           customer: { select: { id: true, name: true, phone: true } },
           cargoType: { select: { name: true } },
+          invoice: { select: { total: true, currency: true, status: true } },
           photos: {
             orderBy: { createdAt: "asc" },
             select: { id: true, url: true, caption: true },
@@ -94,6 +98,16 @@ export default async function ShipmentPage({
       (exception) => EXCEPTION_TYPE_LABELS[exception.type] ?? exception.type
     ),
     photos: item.photos,
+    // Only fetched-and-mapped for desks that may see money; the prop is absent
+    // entirely for the warehouse rather than merely unrendered.
+    price:
+      showMoney && item.invoice
+        ? {
+            amount: toNumber(item.invoice.total),
+            currency: item.invoice.currency,
+            confirmed: item.invoice.status !== "DRAFT",
+          }
+        : null,
   }));
 
   // Only fetched for desks that may see money — the warehouse opens this page
@@ -101,6 +115,7 @@ export default async function ShipmentPage({
   const finance = can(user.role, "finance.view")
     ? await batchFinance(dispatch.id)
     : null;
+  const canConfirm = can(user.role, "invoice.manage");
 
   const weight = cargo.reduce((sum, line) => sum + line.weightKg, 0);
   const packages = cargo.reduce((sum, line) => sum + line.packages, 0);
@@ -185,6 +200,17 @@ export default async function ShipmentPage({
         }
       />
 
+      {/* The job before the numbers: sign the system's prices off. Shown only
+          while there is something to sign, and only to desks that may. */}
+      {finance && canConfirm ? (
+        <ConfirmPricesBanner
+          batchId={dispatch.id}
+          drafts={finance.drafts}
+          totalUsd={finance.draftsUsd}
+          currency="USD"
+        />
+      ) : null}
+
       {/* Money first, for the desks that came here to ask a money question.
           Everyone else goes straight to the cargo. */}
       {finance ? <BatchFinanceBand finance={finance} /> : null}
@@ -236,6 +262,7 @@ export default async function ShipmentPage({
       </section>
 
       <ShipmentDetailTabs
+        showPrice={finance !== null}
         cargo={cargo}
         documents={documents}
         timeline={timeline}

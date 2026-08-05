@@ -185,6 +185,233 @@ export async function generateInvoice(
 }
 
 /**
+ * Finance signs the system's price off.
+ *
+ * This RE-DERIVES rather than flipping a status, and that is the whole point.
+ * A draft raised the day cargo landed carries zero storage days, because
+ * storage is measured from arrival to now. Confirming it three weeks later by
+ * flipping a flag would bill three weeks of storage at zero — the single
+ * largest revenue leak available in this design. Re-pricing at the moment of
+ * confirmation also picks up a weight corrected after arrival, and re-freezes
+ * the exchange rate onto the figure the customer is actually about to be sent.
+ *
+ * What Finance typed onto the draft survives: notes, discount and other
+ * charges are carried through, and only the derived parts move.
+ */
+export async function confirmInvoicePrice(
+  _prev: ActionResult<{ invoiceNumber: string; total: number }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ invoiceNumber: string; total: number }>> {
+  let user: SessionUser;
+  try {
+    user = await authorize("invoice.manage");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const invoiceId = String(formData.get("invoiceId") ?? "");
+  if (!invoiceId) return fail("Missing invoice.");
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.findUnique({
+        where: { id: invoiceId },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          status: true,
+          discount: true,
+          otherCharges: true,
+          notes: true,
+          shipment: {
+            select: {
+              id: true,
+              trackingNumber: true,
+              cargoCategory: true,
+              cargoTypeId: true,
+              weightKg: true,
+              packages: true,
+              arrivedAt: true,
+              deliveredAt: true,
+            },
+          },
+        },
+      });
+      if (!invoice) throw new Error("Invoice not found.");
+      if (invoice.status !== "DRAFT") {
+        throw new Error(
+          `${invoice.invoiceNumber} has already been confirmed.`
+        );
+      }
+
+      const shipment = invoice.shipment;
+      const priced = await quote({
+        category: shipment.cargoCategory,
+        cargoTypeId: shipment.cargoTypeId,
+        weightKg: toNumber(shipment.weightKg),
+        quantity: shipment.packages,
+      });
+      if (!priced.ok) {
+        throw new Error(
+          `${shipment.trackingNumber} still cannot be priced: ${priced.message}`
+        );
+      }
+
+      // Recomputed here, not read off the draft — this is the leak the whole
+      // action exists to close.
+      const storageDays = storageDaysFor(shipment.arrivedAt, shipment.deliveredAt);
+      const storageCharge = storageDays * STORAGE_POLICY.perDayUsd;
+      const discount = toNumber(invoice.discount);
+      const otherCharges = toNumber(invoice.otherCharges);
+      const total = priced.total + storageCharge + otherCharges - discount;
+      if (total < 0) {
+        throw new Error(
+          "The discount on this draft is larger than the rest of the invoice."
+        );
+      }
+
+      const rate = await currentRateValue();
+      const totalLocal = rate === null ? null : toLocal(total, rate);
+
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          freightCost: new Prisma.Decimal(priced.total),
+          storageDays,
+          storageCharge: new Prisma.Decimal(storageCharge),
+          total: new Prisma.Decimal(total),
+          exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
+          localCurrency: LOCAL_CURRENCY,
+          totalLocal: totalLocal === null ? null : new Prisma.Decimal(totalLocal),
+          status: "UNPAID",
+          confirmedAt: new Date(),
+          confirmedById: user.id,
+          // Payable before the cargo is released — which is what
+          // issuePickupNote already enforces, so the terms say what is true.
+          dueDate: new Date(),
+        },
+      });
+
+      // Keep the working on the shipment in step with the confirmed figure.
+      await tx.shipment.update({
+        where: { id: shipment.id },
+        data: {
+          quotedAmount: new Prisma.Decimal(priced.total),
+          quoteCurrency: priced.currency,
+          quotedMethod: priced.method,
+          quotedRate: new Prisma.Decimal(priced.rate),
+          chargeableKg:
+            priced.chargeableWeightKg === null
+              ? null
+              : new Prisma.Decimal(priced.chargeableWeightKg),
+          currency: priced.currency,
+        },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "invoice.confirm",
+          entity: "Invoice",
+          entityId: invoice.id,
+          summary: `Confirmed ${invoice.invoiceNumber} for ${shipment.trackingNumber}: ${priced.currency} ${total.toFixed(2)}`,
+          metadata: {
+            method: priced.method,
+            rate: priced.rate,
+            chargeableKg: priced.chargeableWeightKg,
+            storageDays,
+            discount,
+            otherCharges,
+            exchangeRate: rate,
+            totalLocal,
+          },
+        },
+        tx
+      );
+
+      return { invoiceNumber: invoice.invoiceNumber, total, shipmentId: shipment.id };
+    });
+
+    revalidatePath(`/app/cargo/${result.shipmentId}`);
+    revalidatePath("/app/finance/invoices");
+    revalidatePath("/app/finance");
+    return ok({ invoiceNumber: result.invoiceNumber, total: result.total });
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
+
+/**
+ * Sign off every draft on one dispatch.
+ *
+ * The owner's flow: Finance opens a flight, reads down the list, corrects
+ * anything that looks wrong, and presses one button. Eighty-seven consignments
+ * is eighty-seven presses otherwise, which is how a desk stops checking.
+ *
+ * Each draft is confirmed in its own transaction so one unpriceable line
+ * cannot roll back the eighty-three before it, and each writes its own audit
+ * entry — a bulk action must leave the same trail as doing it by hand, or the
+ * record cannot answer "who agreed this price".
+ *
+ * Skips rather than fails: already confirmed, already paid, or still
+ * unpriceable. The count comes back so the desk is told what was left behind.
+ */
+export async function confirmBatchPrices(
+  _prev: ActionResult<{ confirmed: number; skipped: number; blocked: string[] }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ confirmed: number; skipped: number; blocked: string[] }>> {
+  let user: SessionUser;
+  try {
+    user = await authorize("invoice.manage");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const batchId = String(formData.get("batchId") ?? "");
+  if (!batchId) return fail("Missing dispatch.");
+
+  const drafts = await prisma.invoice.findMany({
+    where: { status: "DRAFT", shipment: { batchId, deletedAt: null } },
+    select: { id: true, shipment: { select: { trackingNumber: true } } },
+  });
+
+  if (drafts.length === 0) {
+    return fail("Every price on this dispatch has already been confirmed.");
+  }
+
+  let confirmed = 0;
+  let skipped = 0;
+  const blocked: string[] = [];
+
+  for (const draft of drafts) {
+    const form = new FormData();
+    form.set("invoiceId", draft.id);
+    // Reuses the single-invoice action rather than duplicating its arithmetic:
+    // the re-derive, the audit entry and the guards are the same code, so
+    // confirming eighty-four at once cannot mean something different from
+    // confirming one.
+    const result = await confirmInvoicePrice(undefined, form);
+    if (result.ok) confirmed += 1;
+    else if (/already been confirmed/.test(result.error)) skipped += 1;
+    else blocked.push(draft.shipment.trackingNumber);
+  }
+
+  await recordAudit({
+    actor: user,
+    action: "invoice.confirmBatch",
+    entity: "Batch",
+    entityId: batchId,
+    summary: `Confirmed ${confirmed} price(s) on one dispatch${blocked.length ? `, ${blocked.length} could not be priced` : ""}`,
+    metadata: { confirmed, skipped, blocked },
+  });
+
+  revalidatePath(`/app/shipments/${batchId}`);
+  revalidatePath("/app/finance/invoices");
+  revalidatePath("/app/finance");
+  return ok({ confirmed, skipped, blocked });
+}
+
+/**
  * Adjusts an invoice before the customer has paid anything.
  *
  * Three guards, all of them there because money is involved:
@@ -400,6 +627,13 @@ export async function recordPayment(
       });
       if (!invoice) throw new Error("Invoice not found.");
       if (invoice.status === "VOID") throw new Error("This invoice is void.");
+      // Without this the confirm step would be decorative: a clerk could take
+      // money against a price nobody in Finance had looked at.
+      if (invoice.status === "DRAFT") {
+        throw new Error(
+          `${invoice.invoiceNumber} is still a draft. Confirm the price before recording a payment against it.`
+        );
+      }
 
       // Money cannot arrive before the bill exists. The form already refuses a
       // future date; this is the other end of the same sanity check, and it is

@@ -38,6 +38,12 @@ export type CargoLine = {
    * Empty for a clean line.
    */
   problems: string[];
+  /**
+   * What this consignment is priced at, and whether Finance has signed that
+   * price off. Absent for desks that may not see money — the warehouse reads
+   * this same table.
+   */
+  price?: { amount: number; currency: string; confirmed: boolean } | null;
   /** Proof photos, carried by the cargo itself all the way to the counter. */
   photos: { id: string; url: string; caption: string | null }[];
   /** Undefined for roles that may not see money. */
@@ -85,10 +91,13 @@ export function ShipmentDetailTabs({
   cargo,
   documents,
   timeline,
+  showPrice = false,
 }: {
   cargo: CargoLine[];
   documents: DocumentEntry[];
   timeline: TimelineEntry[];
+  /** Finance and the CEO only. See lib/rbac, finance.view. */
+  showPrice?: boolean;
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("cargo");
   const [query, setQuery] = useState("");
@@ -213,6 +222,11 @@ export function ShipmentDetailTabs({
                     Counted as
                   </th>
                   <th className="px-3 py-2 font-medium">Proof</th>
+                  {showPrice ? (
+                    <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
+                      Price
+                    </th>
+                  ) : null}
                   <th className="hidden px-3 py-2 font-medium md:table-cell">Status</th>
                   <th className="w-20 px-3 py-2" />
                 </tr>
@@ -302,6 +316,28 @@ export function ShipmentDetailTabs({
                         </span>
                       )}
                     </td>
+                    {showPrice ? (
+                      <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
+                        {line.price ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="font-medium">
+                              {line.price.currency}{" "}
+                              {line.price.amount.toFixed(2)}
+                            </span>
+                            {/* An unconfirmed figure has to look unconfirmed,
+                                or the desk signs off a list it believes was
+                                already agreed. */}
+                            {!line.price.confirmed ? (
+                              <span className="rounded bg-signal/10 px-1.5 py-0.5 text-[10px] font-medium text-signal">
+                                draft
+                              </span>
+                            ) : null}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    ) : null}
                     <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground md:table-cell">
                       {line.statusLabel}
                     </td>
