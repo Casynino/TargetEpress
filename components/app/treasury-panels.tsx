@@ -1,0 +1,377 @@
+"use client";
+
+import { useActionState, useState } from "react";
+import { ArrowLeftRight, Calculator } from "lucide-react";
+
+import {
+  FormError,
+  FormSuccess,
+  SubmitButton,
+} from "@/components/app/form-feedback";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { recordCashCount, recordTransfer } from "@/lib/actions/treasury";
+import type { ActionResult } from "@/lib/actions/types";
+
+export type TreasuryAccount = {
+  id: string;
+  name: string;
+  kind: string;
+  currency: string;
+};
+
+const TODAY = new Date().toISOString().slice(0, 10);
+
+/**
+ * "CRDB Bank (TZS)" already says which currency it is. Appending it again reads
+ * as a bug to anybody looking at the list, even though it is only a label.
+ */
+function accountLabel(account: TreasuryAccount) {
+  return account.name.includes(account.currency)
+    ? account.name
+    : `${account.name} (${account.currency})`;
+}
+
+/**
+ * Banking the cash, funding the tin, moving dollars into shillings.
+ *
+ * Deliberately not called income or expense anywhere: the business is no richer
+ * for banking its own money, and a transfer counted as either would inflate
+ * both sides of the books at once.
+ */
+export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
+  const [state, action] = useActionState<
+    ActionResult<{ transferNumber: string }>,
+    FormData
+  >(recordTransfer, { ok: true });
+
+  const [from, setFrom] = useState(accounts[0]?.id ?? "");
+  const [to, setTo] = useState(accounts[1]?.id ?? "");
+
+  const fromAccount = accounts.find((a) => a.id === from);
+  const toAccount = accounts.find((a) => a.id === to);
+  const converting =
+    fromAccount && toAccount && fromAccount.currency !== toAccount.currency;
+
+  return (
+    <section className="rounded-xl border bg-card shadow-soft">
+      <div className="border-b px-5 py-4">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
+          Move money between accounts
+        </h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Banking the day&rsquo;s cash, topping up the tin, converting dollars.
+          Neither income nor a cost — just money changing shelves.
+        </p>
+      </div>
+
+      <form action={action} className="space-y-3 p-5">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="fromAccountId" className="text-xs">
+              Out of
+            </Label>
+            <NativeSelect
+              id="fromAccountId"
+              name="fromAccountId"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              required
+            >
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {accountLabel(a)}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="toAccountId" className="text-xs">
+              Into
+            </Label>
+            <NativeSelect
+              id="toAccountId"
+              name="toAccountId"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              required
+            >
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {accountLabel(a)}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="amountOut" className="text-xs">
+              Amount leaving{" "}
+              {fromAccount ? (
+                <span className="text-muted-foreground">
+                  ({fromAccount.currency})
+                </span>
+              ) : null}
+            </Label>
+            <Input
+              id="amountOut"
+              name="amountOut"
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputMode="decimal"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="fee" className="text-xs">
+              Bank charge{" "}
+              <span className="text-muted-foreground">(optional)</span>
+            </Label>
+            <Input
+              id="fee"
+              name="fee"
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              placeholder="0"
+            />
+          </div>
+        </div>
+
+        {converting ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="transferRate" className="text-xs">
+                Rate used
+              </Label>
+              <Input
+                id="transferRate"
+                name="exchangeRate"
+                type="number"
+                min="100"
+                step="1"
+                inputMode="decimal"
+                placeholder="e.g. 2700"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="amountIn" className="text-xs">
+                Amount that arrived{" "}
+                {toAccount ? (
+                  <span className="text-muted-foreground">
+                    ({toAccount.currency})
+                  </span>
+                ) : null}
+              </Label>
+              <Input
+                id="amountIn"
+                name="amountIn"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                placeholder="from the statement"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <Label htmlFor="amountIn" className="text-xs">
+              Amount that arrived{" "}
+              <span className="text-muted-foreground">
+                (blank = the amount above, less the charge)
+              </span>
+            </Label>
+            <Input
+              id="amountIn"
+              name="amountIn"
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputMode="decimal"
+            />
+          </div>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="transferReason" className="text-xs">
+              What for <span className="text-muted-foreground">(optional)</span>
+            </Label>
+            <Input
+              id="transferReason"
+              name="reason"
+              placeholder="Banked Friday's takings"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="transferDate" className="text-xs">
+              Date <span className="text-muted-foreground">(blank for today)</span>
+            </Label>
+            <Input
+              id="transferDate"
+              name="occurredAt"
+              type="date"
+              max={TODAY}
+            />
+          </div>
+        </div>
+
+        <FormError state={state} />
+        <FormSuccess
+          message={
+            state.ok && state.data ? `Recorded ${state.data.transferNumber}` : null
+          }
+        />
+        <SubmitButton size="sm" pendingLabel="Moving…">
+          Record the move
+        </SubmitButton>
+      </form>
+    </section>
+  );
+}
+
+/**
+ * Counting the tin.
+ *
+ * The only fact about an account that its movements cannot tell you. A variance
+ * is recorded and left standing — nothing here writes a correcting entry,
+ * because a cash shortfall that balances itself is a cash shortfall nobody
+ * ever looks into.
+ */
+export function CashCountPanel({
+  accounts,
+  expected,
+}: {
+  accounts: TreasuryAccount[];
+  expected: Record<string, number>;
+}) {
+  const [state, action] = useActionState<
+    ActionResult<{ variance: number }>,
+    FormData
+  >(recordCashCount, { ok: true });
+
+  const cash = accounts.filter((a) => a.kind === "CASH");
+  const [accountId, setAccountId] = useState(cash[0]?.id ?? "");
+  const [counted, setCounted] = useState("");
+
+  if (cash.length === 0) return null;
+
+  const account = cash.find((a) => a.id === accountId);
+  const shouldBe = expected[accountId] ?? 0;
+  const typed = Number(counted);
+  const diff =
+    counted.trim().length > 0 && Number.isFinite(typed)
+      ? Math.round((typed - shouldBe) * 100) / 100
+      : null;
+
+  return (
+    <section className="rounded-xl border bg-card shadow-soft">
+      <div className="border-b px-5 py-4">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <Calculator className="h-4 w-4 text-muted-foreground" />
+          Count the cash
+        </h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          What is physically in the tin, against what the ledger says should be.
+        </p>
+      </div>
+
+      <form action={action} className="space-y-3 p-5">
+        {cash.length > 1 ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="countAccount" className="text-xs">
+              Which tin
+            </Label>
+            <NativeSelect
+              id="countAccount"
+              name="accountId"
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+            >
+              {cash.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+        ) : (
+          <input type="hidden" name="accountId" value={accountId} />
+        )}
+
+        <div className="space-y-1.5">
+          <Label htmlFor="countedAmount" className="text-xs">
+            Counted{" "}
+            {account ? (
+              <span className="text-muted-foreground">({account.currency})</span>
+            ) : null}
+          </Label>
+          <Input
+            id="countedAmount"
+            name="countedAmount"
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            value={counted}
+            onChange={(e) => setCounted(e.target.value)}
+            required
+          />
+          <p className="text-xs text-muted-foreground">
+            The ledger says {account?.currency}{" "}
+            {shouldBe.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            {diff === null ? (
+              "."
+            ) : diff === 0 ? (
+              " — that matches."
+            ) : (
+              <>
+                {" "}
+                — that is{" "}
+                <span className={diff < 0 ? "text-destructive" : "text-warning"}>
+                  {diff < 0 ? "short" : "over"} by{" "}
+                  {Math.abs(diff).toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+                .
+              </>
+            )}
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="countNote" className="text-xs">
+            Note <span className="text-muted-foreground">(optional)</span>
+          </Label>
+          <Input
+            id="countNote"
+            name="note"
+            placeholder="Anything that explains a difference"
+          />
+        </div>
+
+        <FormError state={state} />
+        <FormSuccess
+          message={
+            state.ok && state.data
+              ? state.data.variance === 0
+                ? "Counted — it matches the ledger."
+                : `Counted — ${state.data.variance > 0 ? "over" : "short"} by ${Math.abs(state.data.variance).toLocaleString()}. Recorded as it stands; nothing was adjusted.`
+              : null
+          }
+        />
+        <SubmitButton size="sm" variant="outline" pendingLabel="Recording…">
+          Record the count
+        </SubmitButton>
+      </form>
+    </section>
+  );
+}

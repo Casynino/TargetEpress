@@ -12,6 +12,10 @@ import {
 import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { Badge } from "@/components/ui/badge";
+import {
+  CashCountPanel,
+  TransferPanel,
+} from "@/components/app/treasury-panels";
 import { financeTabs } from "@/lib/finance-tabs";
 import { formatMoney, formatRelative, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
@@ -52,7 +56,7 @@ const KIND_LABEL = {
 export default async function AccountsPage() {
   const user = await requirePermission("account.view");
 
-  const [accounts, balances, unattributed] = await Promise.all([
+  const [accounts, balances, unattributed, counts] = await Promise.all([
     prisma.companyAccount.findMany({
       orderBy: [{ active: "desc" }, { sortOrder: "asc" }],
     }),
@@ -63,6 +67,14 @@ export default async function AccountsPage() {
       where: { accountId: null },
       _sum: { creditedAmount: true },
       _count: true,
+    }),
+    prisma.cashCount.findMany({
+      orderBy: { countedAt: "desc" },
+      take: 6,
+      include: {
+        account: { select: { name: true, currency: true } },
+        countedBy: { select: { name: true } },
+      },
     }),
   ]);
 
@@ -88,6 +100,22 @@ export default async function AccountsPage() {
   const totalUsd = rows.reduce((sum, row) => sum + row.netUsd, 0);
   const unattributedUsd = toNumber(unattributed._sum.creditedAmount);
   const needsOpening = accounts.filter((a) => a.active && a.openingSetAt === null);
+
+  // Only live accounts can send, receive or be counted. An archived account is
+  // a historical record, not somewhere money goes.
+  const treasuryAccounts = rows
+    .filter((row) => row.account.active)
+    .map((row) => ({
+      id: row.account.id,
+      name: row.account.name,
+      kind: row.account.kind as string,
+      currency: row.account.currency,
+    }));
+  // What the ledger says is in each tin, so the count form can say "short by"
+  // as the number is typed rather than after it is submitted.
+  const expectedCash = Object.fromEntries(
+    rows.map((row) => [row.account.id, row.net])
+  );
 
   return (
     <>
@@ -283,6 +311,63 @@ export default async function AccountsPage() {
             </Link>
           </section>
         ) : null}
+      </div>
+
+      {/* Below the balances, because these are things you do TO the accounts,
+          and the accounts themselves are what somebody came here to read. */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <TransferPanel accounts={treasuryAccounts} />
+
+        <div className="space-y-6">
+          <CashCountPanel accounts={treasuryAccounts} expected={expectedCash} />
+
+          {counts.length > 0 ? (
+            <section className="rounded-xl border bg-card shadow-soft">
+              <h2 className="border-b px-5 py-4 font-semibold">Recent counts</h2>
+              <ul className="divide-y">
+                {counts.map((count) => {
+                  const diff = toNumber(count.variance);
+                  return (
+                    <li
+                      key={count.id}
+                      className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-3 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <p>
+                          {count.account.name} —{" "}
+                          {formatMoney(count.countedAmount, count.account.currency)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {count.countedBy?.name ?? "—"} ·{" "}
+                          {formatRelative(count.countedAt)}
+                          {count.note ? ` · ${count.note}` : ""}
+                        </p>
+                      </div>
+                      {/* A difference is stated, never absorbed. It stays on
+                          the record until somebody explains it. */}
+                      <span
+                        className={`font-mono text-xs tabular-nums ${
+                          diff === 0
+                            ? "text-success"
+                            : diff < 0
+                              ? "text-destructive"
+                              : "text-warning"
+                        }`}
+                      >
+                        {diff === 0
+                          ? "matched"
+                          : `${diff > 0 ? "over" : "short"} ${formatMoney(
+                              Math.abs(diff),
+                              count.account.currency
+                            )}`}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
+        </div>
       </div>
     </>
   );

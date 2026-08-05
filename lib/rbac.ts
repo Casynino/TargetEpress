@@ -293,6 +293,9 @@ const FINANCE: Permission[] = [
   "ledger.view",
   "expense.view",
   "expense.record",
+  // Finance reads the money trail on its own tab. The log is append-only and
+  // shows who did what — including what Finance itself did, which is the point.
+  "audit.view",
   "customer.view",
   "customer.manage",
   // The Pricing & Configuration centre. Finance owns what the business
@@ -420,6 +423,8 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // was still saying something untrue about who gets in.
   { prefix: "/app/finance/payments", permission: "payment.record" },
   { prefix: "/app/finance/expenses", permission: "expense.view" },
+  { prefix: "/app/finance/reports", permission: "report.view" },
+  { prefix: "/app/finance/audit", permission: "audit.view" },
   // Reading the rate book is pricing.view; every mutation on that page is
   // separately gated on pricing.manage or fx.manage in its own action.
   { prefix: "/app/finance/pricing", permission: "pricing.view" },

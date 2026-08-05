@@ -100,6 +100,15 @@ export async function nextPickupNoteNumber(
   return `PN-${year}-${pad(n)}`;
 }
 
+/** The number on a move between our own accounts: TRF-2026-000123. */
+export async function nextTransferNumber(
+  tx: TxClient,
+  year = new Date().getFullYear()
+) {
+  const n = await nextSequence(tx, `transfer:${year}`);
+  return `TRF-${year}-${pad(n)}`;
+}
+
 /** The number on a cost the business paid: EXP-2026-000123. */
 export async function nextExpenseNumber(
   tx: TxClient,

@@ -1,6 +1,15 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Banknote, Package, QrCode, ReceiptText, Wallet } from "lucide-react";
+import {
+  ArrowUpRight,
+  Banknote,
+  FileClock,
+  Package,
+  PiggyBank,
+  QrCode,
+  ReceiptText,
+  Wallet,
+} from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -11,8 +20,10 @@ import { DEFAULT_CURRENCY } from "@/lib/constants";
 // putting a shilling label on dollar figures.
 import { formatUsd } from "@/lib/fx";
 import { formatMoney, formatRelative, toNumber } from "@/lib/format";
+import { accountBalances } from "@/lib/ledger";
 import { agingInWarehouse, financeStats } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
@@ -21,8 +32,17 @@ export const metadata: Metadata = { title: "Finance" };
 
 export default async function FinanceOverviewPage() {
   const user = await requirePermission("finance.view");
+  // Support holds finance.view, because Support answers questions about a
+  // customer's bill. What the COMPANY is worth is a different question, and
+  // every tile below that answers it is gated separately.
+  const seesCompanyMoney = can(user.role, "account.view");
 
-  const [stats, aging, recentPayments] = await Promise.all([
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const [stats, aging, recentPayments, balances, spendThisMonth, unpaidCosts] =
+    await Promise.all([
     financeStats(),
     agingInWarehouse(8),
     prisma.payment.findMany({
@@ -36,7 +56,30 @@ export default async function FinanceOverviewPage() {
         },
       },
     }),
+    seesCompanyMoney ? accountBalances(prisma) : Promise.resolve([]),
+    seesCompanyMoney
+      ? prisma.expense.aggregate({
+          where: { status: "PAID", paidAt: { gte: monthStart } },
+          _sum: { amountUsd: true },
+        })
+      : Promise.resolve(null),
+    seesCompanyMoney
+      ? prisma.expense.aggregate({
+          where: { status: { in: ["PENDING", "APPROVED"] } },
+          _sum: { amountUsd: true },
+          _count: true,
+        })
+      : Promise.resolve(null),
   ]);
+
+  // Everything the business holds, across accounts of different currencies,
+  // in the one unit they can honestly be added in.
+  const cashOnHandUsd = balances.reduce(
+    (sum, row) => sum + toNumber(row.inflowUsd) - toNumber(row.outflowUsd),
+    0
+  );
+  const spentUsd = toNumber(spendThisMonth?._sum.amountUsd ?? 0);
+  const owedOutUsd = toNumber(unpaidCosts?._sum.amountUsd ?? 0);
 
   return (
     <>
@@ -91,6 +134,50 @@ export default async function FinanceOverviewPage() {
           href="/app/finance/pickup-notes"
         />
       </div>
+
+      {/* The company's own position, which is a different question from a
+          customer's bill. Support reaches this page through finance.view and
+          must not see any of it — so the whole row is gated, not restyled. */}
+      {seesCompanyMoney ? (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Cash on hand"
+            value={formatUsd(cashOnHandUsd)}
+            hint="Across every account"
+            icon={PiggyBank}
+            tone="brand"
+            href="/app/finance/accounts"
+          />
+          <StatCard
+            label="Spent this month"
+            value={formatUsd(spentUsd)}
+            hint="Costs actually paid"
+            icon={ArrowUpRight}
+            tone={spentUsd > 0 ? "warning" : "info"}
+            href="/app/finance/expenses"
+          />
+          <StatCard
+            label="Bills to pay"
+            value={formatUsd(owedOutUsd)}
+            hint={`${unpaidCosts?._count ?? 0} cost(s) waiting`}
+            icon={FileClock}
+            tone={owedOutUsd > 0 ? "warning" : "success"}
+            href="/app/finance/expenses"
+          />
+          {/* Deliberately not called profit. Profit counts a cost from the day
+              it was INCURRED; this counts money that actually moved. Both are
+              true and they answer different questions — the real P&L is on the
+              reports page and says so. */}
+          <StatCard
+            label="Money in, money out"
+            value={formatUsd(stats.collected - spentUsd)}
+            hint="Collected all time, less paid out this month"
+            icon={Banknote}
+            tone={stats.collected - spentUsd >= 0 ? "success" : "danger"}
+            href="/app/finance/transactions"
+          />
+        </div>
+      ) : null}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border bg-card shadow-soft">
