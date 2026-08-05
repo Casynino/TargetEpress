@@ -4,13 +4,11 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import {
   AlertTriangle,
-  Boxes,
   Camera,
   Pencil,
   Printer,
   ReceiptText,
   Truck,
-  User,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
@@ -191,11 +189,56 @@ export default async function ShipmentDetailPage({
                 },
                 {
                   label: "Batch",
-                  value: shipment.batch?.batchNumber ?? "Not assigned",
+                  value: shipment.batch ? (
+                    <Link
+                      href={`/app/batches/${shipment.batch.id}`}
+                      className="font-mono tabular hover:text-brand hover:underline"
+                    >
+                      {shipment.batch.batchNumber}
+                    </Link>
+                  ) : (
+                    "Not assigned"
+                  ),
                 },
                 {
                   label: "Carton",
                   value: shipment.cartonRef ?? "—",
+                },
+                // Who it belongs to and what it flew on, in the same card as
+                // the cargo itself. They were three separate panels down the
+                // right-hand column, which made reading one consignment a
+                // matter of looking in three places.
+                {
+                  label: "Customer",
+                  value: (
+                    <Link
+                      href={`/app/customers/${shipment.customerId}`}
+                      className="hover:text-brand hover:underline"
+                    >
+                      {shipment.customer.name}
+                    </Link>
+                  ),
+                },
+                {
+                  label: "Phone",
+                  value: shipment.customer.phone ?? "Not recorded",
+                },
+                {
+                  label: "Customer code",
+                  value: (
+                    <span className="code-chip">{shipment.customer.code}</span>
+                  ),
+                },
+                {
+                  label: "Flight",
+                  value:
+                    [shipment.batch?.airline, shipment.batch?.flightNumber]
+                      .filter(Boolean)
+                      .join(" ") || "Not recorded",
+                },
+                {
+                  label: "Waybill",
+                  value: shipment.batch?.waybillNumber ?? "—",
                 },
               ].map((item) => (
                 <div key={item.label} className="bg-card p-4">
@@ -622,53 +665,6 @@ export default async function ShipmentDetailPage({
               </p>
             </section>
           ) : null}
-
-          <section className="rounded-xl border bg-card shadow-soft">
-            <h2 className="flex items-center gap-2 border-b px-5 py-3.5 text-sm font-semibold">
-              <User className="h-4 w-4 text-muted-foreground" />
-              Customer
-            </h2>
-            <div className="space-y-2 p-5 text-sm">
-              <p className="font-medium">{shipment.customer.name}</p>
-              <p className="text-muted-foreground">
-                {shipment.customer.phone ?? "No phone recorded"}
-              </p>
-              {shipment.customer.city ? (
-                <p className="text-muted-foreground">{shipment.customer.city}</p>
-              ) : null}
-              <p className="pt-2">
-                <span className="code-chip">{shipment.customer.code}</span>
-              </p>
-            </div>
-          </section>
-
-          {shipment.batch ? (
-            <section className="rounded-xl border bg-card shadow-soft">
-              <h2 className="flex items-center gap-2 border-b px-5 py-3.5 text-sm font-semibold">
-                <Boxes className="h-4 w-4 text-muted-foreground" />
-                Batch
-              </h2>
-              <div className="space-y-2 p-5 text-sm">
-                <Link
-                  href={`/app/batches/${shipment.batch.id}`}
-                  className="font-mono font-medium tabular hover:text-brand"
-                >
-                  {shipment.batch.batchNumber}
-                </Link>
-                {shipment.batch.airline ? (
-                  <p className="text-muted-foreground">
-                    {shipment.batch.airline} {shipment.batch.flightNumber}
-                  </p>
-                ) : null}
-                {shipment.batch.waybillNumber ? (
-                  <p className="text-xs text-muted-foreground">
-                    Waybill {shipment.batch.waybillNumber}
-                  </p>
-                ) : null}
-              </div>
-            </section>
-          ) : null}
-
 
           {showInternal ? (
             <p className="px-1 text-xs text-muted-foreground">
