@@ -662,8 +662,21 @@ export async function attentionItems(
   return items;
 }
 
-export async function recentActivity(limit = 12) {
+/**
+ * The audit log, read back as a feed.
+ *
+ * `actorId` scopes it to one person, and every department dashboard passes it.
+ * A warehouse clerk's own screen is not where you learn that Finance signed in
+ * or that somebody in Guangzhou renamed themselves — that is another desk's
+ * day, on a page headed with your own name.
+ *
+ * Omitting it returns the whole company, and only the CEO's dashboard does
+ * that. The scope is a where-clause rather than a filter applied afterwards,
+ * so another department's row never leaves the database.
+ */
+export async function recentActivity(limit = 12, actorId?: string) {
   return prisma.auditLog.findMany({
+    where: actorId ? { actorId } : {},
     orderBy: { createdAt: "desc" },
     take: limit,
     select: {

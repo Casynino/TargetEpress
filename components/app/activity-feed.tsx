@@ -53,12 +53,20 @@ export function ActivityFeed({
   description,
   href,
   className,
+  showActor = true,
+  emptyMessage = "No activity yet.",
 }: {
   entries: ActivityEntry[];
   title?: string;
   description?: string;
   href?: string;
   className?: string;
+  /**
+   * Off when every row has the same author — a feed of your own work does not
+   * need your name printed against each line.
+   */
+  showActor?: boolean;
+  emptyMessage?: string;
 }) {
   return (
     <section className={cn("panel flex flex-col", className)}>
@@ -81,7 +89,7 @@ export function ActivityFeed({
 
       {entries.length === 0 ? (
         <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-          No activity yet.
+          {emptyMessage}
         </p>
       ) : (
         <ol className="max-h-[360px] overflow-y-auto px-5 py-2">
@@ -101,7 +109,9 @@ export function ActivityFeed({
                 <div className={cn("min-w-0 flex-1", isLast ? "py-2" : "py-2 pb-3")}>
                   <p className="text-sm leading-snug">{entry.summary}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {entry.actorName ?? "System"} · {formatRelative(entry.createdAt)}
+                    {showActor
+                      ? `${entry.actorName ?? "System"} · ${formatRelative(entry.createdAt)}`
+                      : formatRelative(entry.createdAt)}
                   </p>
                 </div>
               </li>

@@ -253,11 +253,15 @@ export default async function DashboardPage() {
       </div>
       )}
 
-      {user.role === "CHINA_WAREHOUSE" ? <ChinaDashboard role={user.role} /> : null}
-      {user.role === "DAR_WAREHOUSE" ? (
-        <DarDashboard role={user.role} floor={floor!} />
+      {user.role === "CHINA_WAREHOUSE" ? (
+        <ChinaDashboard role={user.role} userId={user.id} />
       ) : null}
-      {user.role === "FINANCE" ? <FinanceDashboard role={user.role} /> : null}
+      {user.role === "DAR_WAREHOUSE" ? (
+        <DarDashboard role={user.role} userId={user.id} floor={floor!} />
+      ) : null}
+      {user.role === "FINANCE" ? (
+        <FinanceDashboard role={user.role} userId={user.id} />
+      ) : null}
       {user.role === "ADMIN" ? <ExecutiveDashboard role={user.role} /> : null}
     </>
   );
@@ -267,13 +271,19 @@ export default async function DashboardPage() {
 // China warehouse — the desk that creates everything
 // ---------------------------------------------------------------------------
 
-async function ChinaDashboard({ role }: { role: "CHINA_WAREHOUSE" | "ADMIN" }) {
+async function ChinaDashboard({
+  role,
+  userId,
+}: {
+  role: "CHINA_WAREHOUSE" | "ADMIN";
+  userId: string;
+}) {
   const [stats, volume, utilisation, mix, activity, openBatches] = await Promise.all([
     chinaStats(),
     monthlyVolume(),
     batchUtilisation(),
     cargoMix(30),
-    recentActivity(8),
+    recentActivity(8, userId),
     prisma.batch.findMany({
       where: { status: { in: ["OPEN", "READY_TO_DEPART"] } },
       orderBy: { createdAt: "desc" },
@@ -445,8 +455,10 @@ async function ChinaDashboard({ role }: { role: "CHINA_WAREHOUSE" | "ADMIN" }) {
           createdAt: entry.createdAt,
           actorName: entry.actor?.name ?? entry.actorEmail ?? null,
         }))}
-        title="Recent activity"
-        description="What the team has done, newest first"
+        title="Your activity"
+        description="What you have done, newest first"
+        showActor={false}
+        emptyMessage="Nothing recorded against your account yet."
       />
     </div>
   );
@@ -582,15 +594,17 @@ const DAR_QUICK_ACTIONS: QuickActionItem[] = [
 
 async function DarDashboard({
   role,
+  userId,
   floor,
 }: {
   role: "DAR_WAREHOUSE" | "ADMIN";
+  userId: string;
   floor: FloorSnapshot;
 }) {
   const [stats, alerts, activity, perf, incoming] = await Promise.all([
     darFloorStats(),
     attentionItems(role),
-    recentActivity(8),
+    recentActivity(8, userId),
     corridorPerformance(),
     prisma.batch.findMany({
       where: { status: { in: ["IN_TRANSIT", "ARRIVED"] } },
@@ -843,7 +857,10 @@ async function DarDashboard({
             createdAt: entry.createdAt,
             actorName: entry.actor?.name ?? entry.actorEmail ?? null,
           }))}
-          title="Recent activity"
+          title="Your activity"
+          description="What you have done, newest first"
+          showActor={false}
+          emptyMessage="Nothing recorded against your account yet."
         />
       </div>
     </div>
@@ -854,13 +871,19 @@ async function DarDashboard({
 // Finance — money in, money owed
 // ---------------------------------------------------------------------------
 
-async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
+async function FinanceDashboard({
+  role,
+  userId,
+}: {
+  role: "FINANCE" | "ADMIN";
+  userId: string;
+}) {
   const [stats, aging, alerts, revenue, activity] = await Promise.all([
     financeStats(),
     agingInWarehouse(8),
     attentionItems(role),
     monthlyRevenue(),
-    recentActivity(8),
+    recentActivity(8, userId),
   ]);
 
   const thisMonth = revenue.values[revenue.values.length - 1] ?? 0;
@@ -1021,7 +1044,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
             createdAt: entry.createdAt,
             actorName: entry.actor?.name ?? entry.actorEmail ?? null,
           }))}
-          title="Recent activity"
+          title="Your activity"
+          description="What you have done, newest first"
+          showActor={false}
+          emptyMessage="Nothing recorded against your account yet."
         />
       </div>
     </div>
