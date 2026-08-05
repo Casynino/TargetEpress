@@ -24,9 +24,18 @@ import { prisma } from "@/lib/prisma";
 export type QuoteInput = {
   category: CargoCategory;
   cargoTypeId?: string | null;
-  /** Scale weight of one piece, kg. */
+  /**
+   * Total scale weight of the whole consignment, kg — not the weight of one
+   * box. This is what `Shipment.weightKg` holds and what the desk writes on
+   * the scale ticket, so the engine takes it in the same units the business
+   * records it in.
+   */
   weightKg: number;
-  /** Pieces. Multiplies weight for weight-based, and the unit price for fixed. */
+  /**
+   * How many pieces. Prices FIXED_PER_ITEM cargo and nothing else — it must
+   * never multiply `weightKg`, which is already the total. Doing both is how
+   * a 6 kg consignment in 15 cartons was billed as 90 kg.
+   */
   quantity?: number;
   /** Price as at this moment; lets an old invoice be re-explained. */
   asOf?: Date;
@@ -76,8 +85,10 @@ async function resolveRule(input: QuoteInput) {
   });
 
   // Total weight is what a tier is judged on: three 4 kg boxes is a 12 kg
-  // shipment and earns the over-10 kg rate.
-  const totalWeight = Math.max(0, input.weightKg) * Math.max(1, input.quantity ?? 1);
+  // shipment and earns the over-10 kg rate. `weightKg` is already that total,
+  // so it is used as given — multiplying by the carton count counted every
+  // kilo once per box.
+  const totalWeight = Math.max(0, input.weightKg);
 
   const inTier = (rule: (typeof candidates)[number]) => {
     const min = rule.minWeightKg === null ? null : toNumber(rule.minWeightKg);
@@ -110,7 +121,9 @@ export async function quote(input: QuoteInput): Promise<Quote> {
     : null;
   const route = productRoute ?? routeFor(input.category);
   const quantity = Math.max(1, Math.round(input.quantity ?? 1));
-  const actualWeightKg = Math.max(0, input.weightKg) * quantity;
+  // The consignment total as weighed. See the note on QuoteInput.weightKg:
+  // quantity prices per-item cargo, it does not scale the weight.
+  const actualWeightKg = Math.max(0, input.weightKg);
 
   const rule = await resolveRule(input);
 

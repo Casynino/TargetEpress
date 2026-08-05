@@ -266,7 +266,10 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
         category: shipment.cargoCategory,
         cargoTypeId: shipment.cargoTypeId,
         weightKg: toNumber(shipment.weightKg),
-        quantity: 1,
+        // Pieces, for per-item cargo. The estimate a customer reads here and
+        // the invoice Finance raises have to be the same arithmetic, or we
+        // quote one number and bill another.
+        quantity: shipment.packages,
       });
       if (priced.ok) {
         estimate = {
