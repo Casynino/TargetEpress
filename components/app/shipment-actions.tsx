@@ -58,6 +58,22 @@ type Props = {
    * the same thing here as it does on the invoice page.
    */
   customerWhatsapp: string | null;
+  /**
+   * The company's own accounts, so a payment can say where it landed.
+   *
+   * Empty is a valid state — the picker simply does not render, and the
+   * payment records exactly as it always did.
+   */
+  accounts?: AccountChoice[];
+};
+
+/** One of the company's accounts, as the payment form needs to see it. */
+export type AccountChoice = {
+  id: string;
+  name: string;
+  kind: "BANK" | "MOBILE_MONEY" | "CASH";
+  currency: string;
+  accountNumber: string | null;
 };
 
 /**
@@ -279,12 +295,26 @@ function PaymentPanel(props: Props) {
     if (props.invoiceRate === null) return String(props.outstanding);
     return String(Math.round(props.outstanding * props.invoiceRate));
   });
+  const [method, setMethod] = useState("CASH");
   const [state, action] = useActionState<
     ActionResult<{ receiptNumber: string; pickupNoteNumber: string | null }>,
     FormData
   >(recordPayment, { ok: true });
 
   const settled = props.outstanding !== null && props.outstanding <= 0;
+
+  // Only accounts that could really have received this money.
+  //
+  // Two filters, both physical rather than fussy: an account holds one
+  // currency, so shillings cannot land in the dollar account; and cash goes in
+  // the tin, mobile money into a till, a cheque or transfer into a bank. A
+  // picker that offers impossible answers is a picker people stop reading.
+  const eligibleAccounts = (props.accounts ?? []).filter((account) => {
+    if (account.currency !== currency) return false;
+    if (method === "CASH") return account.kind === "CASH";
+    if (method === "MOBILE_MONEY") return account.kind === "MOBILE_MONEY";
+    return account.kind === "BANK";
+  });
 
   // Shown as the clerk types, so the figure that will land against the bill is
   // visible before it is committed. The server recomputes it from the invoice's
@@ -447,7 +477,12 @@ function PaymentPanel(props: Props) {
             <Label htmlFor="method" className="text-xs">
               Method
             </Label>
-            <NativeSelect id="method" name="method" defaultValue="CASH">
+            <NativeSelect
+              id="method"
+              name="method"
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
+            >
               {enumOptions(PAYMENT_METHOD_LABELS).map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
@@ -455,6 +490,35 @@ function PaymentPanel(props: Props) {
               ))}
             </NativeSelect>
           </div>
+          {/* Where the money landed.
+              Optional, and last among the money fields, because taking the
+              payment is the job and bookkeeping follows it — a clerk who does
+              not know yet leaves it blank and the payment records exactly as it
+              always has. The list is narrowed to accounts that could actually
+              have received this money: a shilling account cannot hold dollars,
+              and cash does not arrive in a bank account. */}
+          {eligibleAccounts.length > 0 ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="accountId" className="text-xs">
+                Landed in{" "}
+                <span className="text-muted-foreground">(optional)</span>
+              </Label>
+              <NativeSelect id="accountId" name="accountId" defaultValue="">
+                <option value="">Not recorded</option>
+                {eligibleAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                    {account.accountNumber ? ` · ${account.accountNumber}` : ""}
+                  </option>
+                ))}
+              </NativeSelect>
+              <p className="text-xs text-muted-foreground">
+                Which of our accounts this went into. Leave it if you are not
+                sure — it shows as unattributed until someone knows, which is
+                better than a guess that looks reconciled.
+              </p>
+            </div>
+          ) : null}
           <div className="space-y-1.5">
             <Label htmlFor="proof" className="text-xs">
               Proof of payment

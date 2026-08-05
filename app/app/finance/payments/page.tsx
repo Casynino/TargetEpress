@@ -37,6 +37,7 @@ export default async function PaymentsPage() {
       include: {
         receipt: true,
         receivedBy: { select: { name: true } },
+        account: { select: { name: true, code: true } },
         invoice: {
           select: {
             invoiceNumber: true,
@@ -104,6 +105,7 @@ export default async function PaymentsPage() {
                   <TableHead className="hidden md:table-cell">Customer</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead className="hidden sm:table-cell">Method</TableHead>
+                  <TableHead className="hidden xl:table-cell">Landed in</TableHead>
                   <TableHead className="hidden lg:table-cell">Received by</TableHead>
                   <TableHead className="hidden lg:table-cell">When</TableHead>
                 </TableRow>
@@ -145,6 +147,18 @@ export default async function PaymentsPage() {
                           {payment.reference}
                         </span>
                       ) : null}
+                    </TableCell>
+                    {/* Which of our accounts took it. Blank is a real answer,
+                        not a missing one — see the Accounts view, where it
+                        adds up under Unattributed rather than disappearing. */}
+                    <TableCell className="hidden xl:table-cell text-sm">
+                      {payment.account ? (
+                        payment.account.name
+                      ) : (
+                        <span className="text-muted-foreground">
+                          Unattributed
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                       {payment.receivedBy?.name ?? "—"}

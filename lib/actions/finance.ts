@@ -12,6 +12,7 @@ import {
 } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { LOCAL_CURRENCY, currentRateValue, toLocal } from "@/lib/fx";
+import { postLedgerEntry } from "@/lib/ledger";
 import { quote } from "@/lib/pricing";
 import {
   nextInvoiceNumber,
@@ -776,6 +777,35 @@ export async function recordPayment(
         );
       }
 
+      // Where the money landed, if the desk said. Optional by design — see
+      // paymentSchema — but if an account IS named it has to be able to hold
+      // this money: shillings do not go into a dollar account, and an account
+      // that quietly accepts the wrong currency is how a balance stops meaning
+      // anything.
+      let account: {
+        id: string;
+        name: string;
+        currency: string;
+        active: boolean;
+      } | null = null;
+      if (input.accountId) {
+        account = await tx.companyAccount.findUnique({
+          where: { id: input.accountId },
+          select: { id: true, name: true, currency: true, active: true },
+        });
+        if (!account) throw new Error("That account no longer exists.");
+        if (!account.active) {
+          throw new Error(
+            `${account.name} has been archived, so no new money can be recorded against it.`
+          );
+        }
+        if (account.currency !== tenderedCurrency) {
+          throw new Error(
+            `${account.name} is a ${account.currency} account, so a payment of ${tenderedCurrency} ${input.amount.toLocaleString()} cannot have landed in it. Pick the account the money actually went to.`
+          );
+        }
+      }
+
       const payment = await tx.payment.create({
         data: {
           invoiceId: invoice.id,
@@ -786,6 +816,7 @@ export async function recordPayment(
           method: input.method,
           reference: input.reference || null,
           note: input.note || null,
+          accountId: account?.id ?? null,
           // Defaults to now in the schema when the desk leaves it blank.
           ...(input.paidAt ? { paidAt: input.paidAt } : {}),
           receivedById: user.id,
@@ -808,6 +839,50 @@ export async function recordPayment(
           issuedById: user.id,
         },
       });
+
+      // The ledger line, in the same transaction as the payment and its
+      // receipt — the pattern already used to guarantee a payment cannot exist
+      // without its document. Here it guarantees money cannot enter an account
+      // without a line saying so.
+      //
+      // Nothing about the clerk's flow changes: no extra click, no extra
+      // screen, and if they named no account there is simply no line to write
+      // yet. This is bookkeeping following the work, not standing in front of
+      // it.
+      if (account) {
+        // The line is written in the ACCOUNT's currency, which is what a bank
+        // statement will say. A USD figure travels beside it so totals can
+        // cross accounts of different currencies — the same discipline as
+        // creditedAmount, and for the same reason.
+        //
+        // `credited` is already the payment restated in the invoice's currency,
+        // so when the bill is in dollars — which every bill in this system is —
+        // it is exactly the figure wanted here.
+        const usdValue =
+          invoice.currency === "USD"
+            ? credited
+            : tenderedCurrency === "USD"
+              ? input.amount
+              : rateUsed ?? invoiceRate
+                ? input.amount / (rateUsed ?? invoiceRate)!
+                : input.amount;
+
+        await postLedgerEntry(tx, {
+          accountId: account.id,
+          currency: account.currency,
+          direction: "IN",
+          kind: "CUSTOMER_PAYMENT",
+          amount: input.amount,
+          amountUsd: usdValue,
+          exchangeRate: rateUsed,
+          occurredAt: input.paidAt ?? payment.paidAt,
+          description: `${receipt.receiptNumber} — ${invoice.invoiceNumber} for ${invoice.shipment.trackingNumber}`,
+          sourceEntity: "Payment",
+          sourceId: payment.id,
+          paymentId: payment.id,
+          recordedById: user.id,
+        });
+      }
 
       // In the invoice's currency, always. `input.amount` is what was handed
       // over, which may be shillings; the bill is settled by `credited`.

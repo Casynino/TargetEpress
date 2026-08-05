@@ -348,6 +348,7 @@ model User {
   deletedShipments      Shipment[]              @relation("ShipmentDeletedBy")
   receivedPackages      Package[]               @relation("PackageReceivedBy")
   fieldChanges          FieldChange[]
+  ledgerEntries         LedgerEntry[]
 
   @@index([role])
   @@index([department, active])
@@ -859,13 +860,25 @@ model Payment {
   reference      String?
   note           String?
 
+  /// Which company account the money landed in.
+  ///
+  /// Optional on purpose. The desk records a payment exactly the way it always
+  /// has, and an unattributed payment is still a recorded payment — money in
+  /// hand that nobody has said where it went is precisely the thing a finance
+  /// system should surface, not refuse. The Accounts view carries an
+  /// "Unattributed" bucket, which is how a skipped field stays visible instead
+  /// of being guessed at.
+  accountId String?
+  account   CompanyAccount? @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
   receivedById String?
   receivedBy   User?    @relation(fields: [receivedById], references: [id], onDelete: SetNull)
   paidAt       DateTime @default(now())
 
   createdAt DateTime @default(now())
 
-  receipt Receipt?
+  receipt     Receipt?
+  ledgerEntry LedgerEntry?
   /// The slip, screenshot or bank confirmation the customer produced. This is
   /// the evidence the money moved; the typed reference is only an index into
   /// it. Kept as its own table because one payment can arrive with two proofs
@@ -876,6 +889,7 @@ model Payment {
   @@index([invoiceId])
   @@index([paidAt])
   @@index([method])
+  @@index([accountId])
 }
 
 /// Proof that a payment happened: an M-Pesa screenshot, a bank slip, a
@@ -1591,4 +1605,146 @@ model PickupRequest {
   updatedAt DateTime @updatedAt
 
   @@index([status, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// THE MONEY SPINE
+//
+// Everything above this line describes cargo and the bills raised against it.
+// Everything below describes where the money physically sits and every
+// movement in or out of it.
+//
+// Deliberately additive. Receiving cargo, pricing it at check-in, confirming
+// that price and recording a payment are unchanged — the ledger is written
+// alongside those actions, inside the transactions they already run in, and
+// none of them gains a step. A clerk's day is identical; the difference is
+// that the money is now traceable to an account afterwards.
+// ---------------------------------------------------------------------------
+
+enum AccountKind {
+  BANK
+  MOBILE_MONEY
+  CASH
+}
+
+/// One of the company's real accounts: a bank account, a mobile-money till, or
+/// the cash tin in the office.
+///
+/// One account holds exactly one currency. Mixing USD and TZS in a single
+/// account makes its balance a number in no unit, which is the defect this
+/// whole section exists to stop repeating.
+///
+/// NOTE: this does not replace PAYMENT_ACCOUNTS in lib/constants.ts, and must
+/// not. That constant is what gets PRINTED on an invoice, and an invoice is a
+/// legal document — the account a customer was told to pay into has to be
+/// reproducible from the code that generated their copy, not from a table
+/// somebody edited afterwards. This model is the internal attribution and
+/// balance ledger. Same six accounts, two masters, on purpose.
+model CompanyAccount {
+  id   String @id @default(cuid())
+  /// Stable machine name — "CRDB_TZS", "MIXX", "CASH_OFFICE". Seeds and
+  /// backfills address accounts by this, never by display name.
+  code String @unique
+  name String
+
+  kind          AccountKind
+  /// ISO code. Immutable in practice: changing it would restate every
+  /// historical balance on the account.
+  currency      String
+  institution   String?
+  accountNumber String?
+  /// The name the account is registered under, for reconciling a bank slip.
+  accountName   String?
+
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  /// Set once, when the account is first put on the system, to record what was
+  /// already in it. Stored as an OPENING_BALANCE ledger entry rather than a
+  /// column, so a balance has exactly one derivation path.
+  openingSetAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments      Payment[]
+  ledgerEntries LedgerEntry[]
+
+  @@index([active, sortOrder])
+}
+
+enum LedgerDirection {
+  IN
+  OUT
+}
+
+enum LedgerKind {
+  OPENING_BALANCE
+  CUSTOMER_PAYMENT
+  EXPENSE
+  COMPENSATION
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT
+}
+
+/// Every movement of money, one row each, append-only.
+///
+/// Written inside the same transaction as the thing that moved the money — the
+/// pattern Receipt already follows with Payment, so a payment cannot exist
+/// without its document. Here it means money cannot move without a ledger line.
+///
+/// A wrong line is never edited or deleted. It is cancelled by a reversing
+/// entry that points back at it, so the register still shows what was believed
+/// at the time and what corrected it. That is the difference between a ledger
+/// and a spreadsheet.
+model LedgerEntry {
+  id          String @id @default(cuid())
+  entryNumber String @unique // GL-2026-000123
+
+  accountId String
+  account   CompanyAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  direction LedgerDirection
+  kind      LedgerKind
+
+  /// Always positive, always in the ACCOUNT's currency. `direction` carries the
+  /// sign, so no reader has to remember which kinds are negative.
+  amount       Decimal  @db.Decimal(14, 2)
+  /// Snapshot of the account's currency at the moment of the movement.
+  currency     String
+  /// The same money in USD, frozen at the rate below, so company-wide totals
+  /// can be summed across accounts of different currencies. Per-account
+  /// balances never touch this. Same discipline as Payment.creditedAmount.
+  amountUsd    Decimal  @db.Decimal(14, 2)
+  exchangeRate Decimal? @db.Decimal(14, 4)
+
+  /// When the money MOVED, not when the row was typed. Every register sorts on
+  /// this, and a payment backdated by the desk must land on the day it happened.
+  occurredAt  DateTime
+  description String
+
+  /// Polymorphic pointer, same shape as AuditLog, so a register row can offer
+  /// "open the document behind this".
+  sourceEntity String
+  sourceId     String?
+
+  /// Typed link to the source, one per kind. Unique, so a double-write is a
+  /// database error rather than a quietly duplicated line in the register.
+  paymentId String?  @unique
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  /// Append-only correction chain.
+  reversesId String?      @unique
+  reverses   LedgerEntry? @relation("Reversal", fields: [reversesId], references: [id])
+  reversedBy LedgerEntry? @relation("Reversal")
+
+  recordedById String?
+  recordedBy   User?    @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([accountId, occurredAt])
+  @@index([occurredAt])
+  @@index([kind])
+  @@index([sourceEntity, sourceId])
 }

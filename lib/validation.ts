@@ -149,6 +149,17 @@ export const paymentSchema = z.object({
   reference: z.string().trim().optional(),
   note: z.string().trim().optional(),
   /**
+   * Which company account the money landed in — the CRDB account, the M-Pesa
+   * till, the cash tin in the office.
+   *
+   * Optional, deliberately. Taking the money is the job; saying where it went
+   * is bookkeeping that follows it, and blocking the counter on a field the
+   * clerk may not know yet would change a workflow that already works. What
+   * nobody attributes shows up as exactly that on the Accounts view, which is
+   * how a skipped field stays visible instead of being quietly invented.
+   */
+  accountId: z.string().trim().optional(),
+  /**
    * When the money actually moved, which is not always when it was typed in.
    * A Friday transfer entered on Monday belongs to Friday — the payments page
    * groups on this, so backdating moves it into the right month.

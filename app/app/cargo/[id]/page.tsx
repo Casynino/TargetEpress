@@ -38,6 +38,7 @@ import {
   roundMoney,
   toNumber,
 } from "@/lib/format";
+import { activeAccounts } from "@/lib/accounts";
 import { composeMessage, whatsappLink } from "@/lib/messages";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
@@ -125,6 +126,10 @@ export default async function ShipmentDetailPage({
     ? await shipmentQrDataUrl(shipment.qrToken, 200)
     : null;
   const showMoney = can(user.role, "finance.view");
+  // Only for the desk that can take money. Nobody else is offered a question
+  // about which company account something landed in, and the list is not
+  // fetched for them either.
+  const accounts = can(user.role, "payment.record") ? await activeAccounts() : [];
   // Rounded to the cent: this figure is both shown to a person and used as the
   // default in a step="0.01" amount input, which refuses a raw float remainder.
   const outstanding = shipment.invoice
@@ -643,6 +648,7 @@ export default async function ShipmentDetailPage({
             defaultFreight={
               toNumber(shipment.unitRate) * toNumber(shipment.weightKg)
             }
+            accounts={accounts}
           />
           {/* The code that is printed on the sticker, shown at a size a phone
               can read. That makes it a second copy of the label, so it belongs

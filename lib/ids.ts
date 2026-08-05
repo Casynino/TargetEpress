@@ -100,6 +100,21 @@ export async function nextPickupNoteNumber(
   return `PN-${year}-${pad(n)}`;
 }
 
+/**
+ * The number on a line in the general ledger: GL-2026-000123.
+ *
+ * Minted inside the caller's transaction like every other document number
+ * here, for the same reason — two payments recorded in the same second must
+ * not be able to claim the same ledger line.
+ */
+export async function nextLedgerNumber(
+  tx: TxClient,
+  year = new Date().getFullYear()
+) {
+  const n = await nextSequence(tx, `ledger:${year}`);
+  return `GL-${year}-${pad(n)}`;
+}
+
 export async function nextTicketNumber(
   tx: TxClient,
   year = new Date().getFullYear()
