@@ -989,7 +989,9 @@ async function FinanceDashboard({
               </p>
             </div>
             <Button asChild variant="ghost" size="sm">
-              <Link href="/app/finance/invoices">All invoices</Link>
+              {/* The same cargo, with the phone numbers and what to say next
+                  attached. There is no invoice list to send anyone to. */}
+              <Link href="/app/support/follow-up">Full chase queue</Link>
             </Button>
           </header>
 

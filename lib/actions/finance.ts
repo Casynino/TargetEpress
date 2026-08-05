@@ -462,6 +462,16 @@ export async function adjustInvoice(
         "That rate looks wrong for USD→TZS. Check the number of digits."
       ),
     notes: z.string().trim().optional(),
+    freightOverride: z
+      .string()
+      .trim()
+      .optional()
+      .transform((v) => (v && v.length > 0 ? Number(v) : null))
+      .refine(
+        (v) => v === null || (Number.isFinite(v) && v >= 0),
+        "That freight amount is not valid."
+      ),
+    freightOverrideReason: z.string().trim().optional(),
   });
 
   const parsed = schema.safeParse(
@@ -478,6 +488,7 @@ export async function adjustInvoice(
           id: true,
           invoiceNumber: true,
           freightCost: true,
+          freightOverride: true,
           storageCharge: true,
           otherCharges: true,
           discount: true,
@@ -501,7 +512,28 @@ export async function adjustInvoice(
         throw new Error("You are not authorised to change the discount on an invoice.");
       }
 
-      const freight = toNumber(invoice.freightCost);
+      // The rate-book figure stays in freightCost, untouched. Overriding it is
+      // a departure that has to be explained, or in three months nobody can say
+      // why this consignment was billed differently from the price list.
+      const rateBookFreight = toNumber(invoice.freightCost);
+      const previousOverride =
+        invoice.freightOverride === null
+          ? null
+          : toNumber(invoice.freightOverride);
+      const overrideChanged = input.freightOverride !== previousOverride;
+
+      if (overrideChanged && input.freightOverride !== null) {
+        if (!can(user.role, "invoice.discount")) {
+          throw new Error(
+            "You are not authorised to change the freight amount on an invoice."
+          );
+        }
+        if (!input.freightOverrideReason) {
+          throw new Error("Say why the freight amount is being changed.");
+        }
+      }
+
+      const freight = input.freightOverride ?? rateBookFreight;
       const storage = toNumber(invoice.storageCharge);
       const total = freight + storage + input.otherCharges - input.discount;
       if (total < 0) {
@@ -533,6 +565,13 @@ export async function adjustInvoice(
         data: {
           discount: new Prisma.Decimal(input.discount),
           otherCharges: new Prisma.Decimal(input.otherCharges),
+          freightOverride:
+            input.freightOverride === null
+              ? null
+              : new Prisma.Decimal(input.freightOverride),
+          freightOverrideReason: input.freightOverride === null
+            ? null
+            : input.freightOverrideReason || null,
           total: new Prisma.Decimal(total),
           exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
           localCurrency: invoice.localCurrency ?? LOCAL_CURRENCY,

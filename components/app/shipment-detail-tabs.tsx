@@ -12,6 +12,7 @@ import {
   Search,
 } from "lucide-react";
 
+import { RowPriceEditor } from "@/components/app/row-price-editor";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
@@ -43,7 +44,20 @@ export type CargoLine = {
    * price off. Absent for desks that may not see money — the warehouse reads
    * this same table.
    */
-  price?: { amount: number; currency: string; confirmed: boolean } | null;
+  price?: {
+    amount: number;
+    currency: string;
+    confirmed: boolean;
+    /** Everything the inline editor needs, so a correction never leaves the list. */
+    edit?: {
+      invoiceId: string;
+      rateBookFreight: number;
+      freightOverride: number | null;
+      storage: number;
+      otherCharges: number;
+      discount: number;
+    } | null;
+  } | null;
   /** Proof photos, carried by the cargo itself all the way to the counter. */
   photos: { id: string; url: string; caption: string | null }[];
   /** Undefined for roles that may not see money. */
@@ -92,12 +106,18 @@ export function ShipmentDetailTabs({
   documents,
   timeline,
   showPrice = false,
+  canEditPrice = false,
+  canOverridePrice = false,
 }: {
   cargo: CargoLine[];
   documents: DocumentEntry[];
   timeline: TimelineEntry[];
   /** Finance and the CEO only. See lib/rbac, finance.view. */
   showPrice?: boolean;
+  /** invoice.edit — may adjust a bill that has had no money against it. */
+  canEditPrice?: boolean;
+  /** invoice.discount — may move the freight figure itself, or discount it. */
+  canOverridePrice?: boolean;
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("cargo");
   const [query, setQuery] = useState("");
@@ -216,7 +236,6 @@ export function ShipmentDetailTabs({
                   <th className="px-3 py-2 font-medium">Tracking</th>
                   <th className="px-3 py-2 font-medium">Customer</th>
                   <th className="px-3 py-2 font-medium">Goods</th>
-                  <th className="hidden px-3 py-2 font-medium lg:table-cell">Type</th>
                   <th className="px-3 py-2 text-right font-medium">Weight</th>
                   <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
                     Counted as
@@ -230,7 +249,6 @@ export function ShipmentDetailTabs({
                     </th>
                   ) : null}
                   <th className="px-3 py-2 font-medium">Proof</th>
-                  <th className="hidden px-3 py-2 font-medium md:table-cell">Status</th>
                   <th className="w-20 px-3 py-2" />
                 </tr>
               </thead>
@@ -274,9 +292,6 @@ export function ShipmentDetailTabs({
                     <td className="max-w-[16rem] truncate px-3 py-1.5 text-muted-foreground">
                       {line.description}
                     </td>
-                    <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground lg:table-cell">
-                      {CATEGORY_LABEL[line.category] ?? line.category}
-                    </td>
                     <td className="whitespace-nowrap px-3 py-1.5 text-right font-mono tabular-nums">
                       {line.weightKg.toFixed(1)}
                     </td>
@@ -287,6 +302,19 @@ export function ShipmentDetailTabs({
                       <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
                         {line.price ? (
                           <span className="inline-flex items-center gap-1.5">
+                            {line.price.edit && canEditPrice ? (
+                              <RowPriceEditor
+                                invoiceId={line.price.edit.invoiceId}
+                                trackingNumber={line.trackingNumber}
+                                currency={line.price.currency}
+                                rateBookFreight={line.price.edit.rateBookFreight}
+                                freightOverride={line.price.edit.freightOverride}
+                                storage={line.price.edit.storage}
+                                otherCharges={line.price.edit.otherCharges}
+                                discount={line.price.edit.discount}
+                                canOverride={canOverridePrice}
+                              />
+                            ) : null}
                             <span className="font-medium">
                               {line.price.currency} {line.price.amount.toFixed(2)}
                             </span>
@@ -339,9 +367,6 @@ export function ShipmentDetailTabs({
                           </a>
                         </span>
                       )}
-                    </td>
-                    <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground md:table-cell">
-                      {line.statusLabel}
                     </td>
                     <td className="px-3 py-1.5 text-right">
                       <Link

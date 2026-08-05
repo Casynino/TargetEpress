@@ -118,12 +118,9 @@ const SECTIONS: NavSection[] = [
         permission: "finance.view",
         exact: true,
       },
-      {
-        href: "/app/finance/invoices",
-        label: "Invoices",
-        icon: "ReceiptText",
-        permission: "invoice.manage",
-      },
+      // No Invoices row. An invoice belongs to the cargo it bills and is
+      // opened from there or from the dispatch — a list of invoice numbers on
+      // their own says nothing about which box it is or where that box is.
       {
         href: "/app/finance/payments",
         label: "Payments",

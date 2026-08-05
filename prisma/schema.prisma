@@ -772,18 +772,27 @@ model Invoice {
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
-  currency      String        @default("USD")
-  freightCost   Decimal       @db.Decimal(12, 2)
+  currency              String        @default("USD")
+  /// What the rate book says this cargo costs. Always the rate-book figure —
+  /// it is never overwritten by hand, so the variance below stays visible.
+  freightCost           Decimal       @db.Decimal(12, 2)
+  /// Finance's own freight figure, when they disagree with the rate book.
+  /// Null means the rate book stands. Kept beside `freightCost` rather than
+  /// replacing it: an override with nothing to compare against is just a typed
+  /// number, and the point of the rate book is that every departure from it is
+  /// visible and explained.
+  freightOverride       Decimal?      @db.Decimal(12, 2)
+  freightOverrideReason String?
   /// Free storage runs out after a grace period; after that each day is
   /// chargeable. Both the count and the money are stored so an invoice can be
   /// re-explained months later, when "today" is a different date.
-  storageDays   Int           @default(0)
-  storageCharge Decimal       @default(0) @db.Decimal(12, 2)
-  otherCharges  Decimal       @default(0) @db.Decimal(12, 2)
-  discount      Decimal       @default(0) @db.Decimal(12, 2)
-  total         Decimal       @db.Decimal(12, 2)
-  amountPaid    Decimal       @default(0) @db.Decimal(12, 2)
-  status        InvoiceStatus @default(UNPAID)
+  storageDays           Int           @default(0)
+  storageCharge         Decimal       @default(0) @db.Decimal(12, 2)
+  otherCharges          Decimal       @default(0) @db.Decimal(12, 2)
+  discount              Decimal       @default(0) @db.Decimal(12, 2)
+  total                 Decimal       @db.Decimal(12, 2)
+  amountPaid            Decimal       @default(0) @db.Decimal(12, 2)
+  status                InvoiceStatus @default(UNPAID)
 
   /// The USD→TZS rate used on this invoice, frozen at creation. Finance may
   /// override it for one invoice; the override is what is stored, and it is

@@ -40,9 +40,11 @@ export default async function FinanceOverviewPage() {
         description="Money in, money owed, and the cargo waiting on it."
         actions={
           <Button asChild variant="brand" className="rounded-lg">
-            <Link href="/app/finance/invoices">
+            {/* Prices are reviewed a flight at a time, on the dispatch —
+                which is where the Confirm all button lives. */}
+            <Link href="/app/shipments">
               <ReceiptText className="mr-2 h-4 w-4" />
-              Invoices
+              Review prices by flight
             </Link>
           </Button>
         }
@@ -88,7 +90,7 @@ export default async function FinanceOverviewPage() {
           <div className="flex items-center justify-between border-b px-5 py-4">
             <h2 className="font-display font-semibold">Chase list</h2>
             <Button asChild variant="ghost" size="sm">
-              <Link href="/app/finance/invoices">All invoices</Link>
+              <Link href="/app/support/follow-up">Full chase queue</Link>
             </Button>
           </div>
           {aging.length === 0 ? (

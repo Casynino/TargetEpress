@@ -57,7 +57,20 @@ export default async function ShipmentPage({
         include: {
           customer: { select: { id: true, name: true, phone: true } },
           cargoType: { select: { name: true } },
-          invoice: { select: { total: true, currency: true, status: true } },
+          invoice: {
+            select: {
+              id: true,
+              total: true,
+              currency: true,
+              status: true,
+              freightCost: true,
+              freightOverride: true,
+              storageCharge: true,
+              otherCharges: true,
+              discount: true,
+              amountPaid: true,
+            },
+          },
           photos: {
             orderBy: { createdAt: "asc" },
             select: { id: true, url: true, caption: true },
@@ -106,6 +119,23 @@ export default async function ShipmentPage({
             amount: toNumber(item.invoice.total),
             currency: item.invoice.currency,
             confirmed: item.invoice.status !== "DRAFT",
+            // Editable only while no money has landed — the same lock
+            // adjustInvoice enforces, so the pencil never appears on a bill
+            // the server would refuse to change.
+            edit:
+              toNumber(item.invoice.amountPaid) > 0
+                ? null
+                : {
+                    invoiceId: item.invoice.id,
+                    rateBookFreight: toNumber(item.invoice.freightCost),
+                    freightOverride:
+                      item.invoice.freightOverride === null
+                        ? null
+                        : toNumber(item.invoice.freightOverride),
+                    storage: toNumber(item.invoice.storageCharge),
+                    otherCharges: toNumber(item.invoice.otherCharges),
+                    discount: toNumber(item.invoice.discount),
+                  },
           }
         : null,
   }));
@@ -263,6 +293,8 @@ export default async function ShipmentPage({
 
       <ShipmentDetailTabs
         showPrice={finance !== null}
+        canEditPrice={can(user.role, "invoice.edit")}
+        canOverridePrice={can(user.role, "invoice.discount")}
         cargo={cargo}
         documents={documents}
         timeline={timeline}
