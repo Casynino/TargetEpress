@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle,
   ChevronRight,
   Package,
   Plane,
@@ -194,15 +193,6 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
                       >
                         {STATUS_LABEL[row.status] ?? row.status}
                       </span>
-                      {/* Beside the status, because it speaks over it: a
-                          flight is not finished while cargo on it is still
-                          being looked for, whatever the batch status says. */}
-                      {row.flagged > 0 ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
-                          <AlertTriangle className="h-3 w-3" />
-                          {row.flagged} under investigation
-                        </span>
-                      ) : null}
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {row.route} → Dar es Salaam
