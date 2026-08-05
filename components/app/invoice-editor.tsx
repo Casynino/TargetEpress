@@ -23,6 +23,7 @@ export function InvoiceEditor({
   invoiceId,
   currency,
   freight,
+  freightOverride,
   storage,
   discount,
   otherCharges,
@@ -34,7 +35,9 @@ export function InvoiceEditor({
 }: {
   invoiceId: string;
   currency: string;
+  /** The rate-book figure. Never overwritten — the override sits beside it. */
   freight: number;
+  freightOverride: number | null;
   storage: number;
   discount: number;
   otherCharges: number;
@@ -49,6 +52,9 @@ export function InvoiceEditor({
   const [open, setOpen] = useState(false);
   const [discountDraft, setDiscountDraft] = useState(String(discount || ""));
   const [otherDraft, setOtherDraft] = useState(String(otherCharges || ""));
+  const [freightDraft, setFreightDraft] = useState(
+    freightOverride === null ? "" : String(freightOverride)
+  );
   const [rateDraft, setRateDraft] = useState(
     exchangeRate === null ? "" : String(exchangeRate)
   );
@@ -84,7 +90,8 @@ export function InvoiceEditor({
         <div>
           <p className="font-semibold">Adjust this invoice</p>
           <p className="text-sm text-muted-foreground">
-            Discount, extra charges, exchange rate and notes — before it is paid.
+            Freight, extra charges, discount, exchange rate and notes — before
+            it is paid.
           </p>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand">
@@ -103,24 +110,52 @@ export function InvoiceEditor({
             </p>
           ) : null}
 
-          <dl className="grid gap-3 rounded-lg border bg-muted/30 p-3 text-sm sm:grid-cols-2">
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">Air freight</dt>
-              <dd className="font-mono tabular-nums">
-                {currency} {freight.toFixed(2)}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">Storage</dt>
-              <dd className="font-mono tabular-nums">
+          <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-muted-foreground">Storage</span>
+              <span className="font-mono tabular-nums">
                 {currency} {storage.toFixed(2)}
-              </dd>
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground sm:col-span-2">
-              Both come from the rate book and the arrival date. To change the
-              freight, change the price list.
+            <p className="text-xs text-muted-foreground">
+              Storage is not typed — it comes from the arrival date and the free
+              window.
             </p>
-          </dl>
+
+            <div className="space-y-1.5 border-t pt-3">
+              <Label htmlFor="freightOverride">Air freight ({currency})</Label>
+              <Input
+                id="freightOverride"
+                name="freightOverride"
+                inputMode="decimal"
+                value={freightDraft}
+                onChange={(event) => setFreightDraft(event.target.value)}
+                placeholder={freight.toFixed(2)}
+                disabled={locked || !canDiscount}
+              />
+              <p className="text-xs text-muted-foreground">
+                The rate book says {currency} {freight.toFixed(2)}. Leave blank
+                to use it. Anything else is recorded as a variance against the
+                price list, with your reason.
+              </p>
+            </div>
+
+            {freightDraft.trim() !== "" &&
+            Number(freightDraft) !== freight ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="freightOverrideReason">
+                  Why is it different?
+                </Label>
+                <Input
+                  id="freightOverrideReason"
+                  name="freightOverrideReason"
+                  placeholder="e.g. re-weighed on the floor scale at 8.9 kg"
+                  required
+                  disabled={locked}
+                />
+              </div>
+            ) : null}
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">

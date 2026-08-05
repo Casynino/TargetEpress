@@ -135,6 +135,11 @@ export default async function InvoicePage({
             invoiceId={invoice.id}
             currency={currency}
             freight={toNumber(invoice.freightCost)}
+            freightOverride={
+              invoice.freightOverride === null
+                ? null
+                : toNumber(invoice.freightOverride)
+            }
             storage={toNumber(invoice.storageCharge)}
             discount={toNumber(invoice.discount)}
             otherCharges={toNumber(invoice.otherCharges)}

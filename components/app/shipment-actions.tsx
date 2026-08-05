@@ -75,7 +75,11 @@ export function ShipmentActions(props: Props) {
         {canInvoice && props.invoiceStatus === "DRAFT" ? (
           <ConfirmPricePanel {...props} />
         ) : null}
-        {canInvoice ? <GenerateInvoicePanel {...props} /> : null}
+        {/* Raising the first invoice, or opening the one that exists. There is
+            no recalculate here: everything about an invoice is changed inside
+            the invoice, and confirming a draft re-prices it anyway. Two ways to
+            re-price from two screens is how they end up disagreeing. */}
+        {canInvoice ? <InvoicePanel {...props} /> : null}
         {canPay ? <PaymentPanel {...props} /> : null}
         {can(role, "pickupNote.view") ? <PickupNotePanel {...props} /> : null}
         {canCancel ? <CancelPanel shipmentId={props.shipmentId} /> : null}
@@ -133,28 +137,56 @@ function ConfirmPricePanel(props: Props) {
   );
 }
 
-function GenerateInvoicePanel(props: Props) {
+/**
+ * The invoice for this cargo: raise the first one, or open the one there is.
+ *
+ * Nothing is re-priced from here. An invoice is edited inside the invoice,
+ * where the whole document is in front of you, and confirming a draft
+ * re-derives it anyway. Two buttons on two screens that both re-price is how
+ * two figures end up disagreeing about the same cargo.
+ */
+function InvoicePanel(props: Props) {
   const [state, action] = useActionState<
     ActionResult<{ invoiceNumber: string; total: number }>,
     FormData
   >(generateInvoice, { ok: true });
 
-  const settled = props.outstanding !== null && props.outstanding <= 0;
+  // Already has one: this is just the door to it.
+  if (props.invoiceNumber) {
+    return (
+      <div className="p-5">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <FileText className="h-4 w-4 text-brand" />
+          Invoice {props.invoiceNumber}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Open it to change the freight, add a charge, apply a discount, move
+          the exchange rate or send it to the customer.
+        </p>
+        <Button asChild size="sm" variant="outline" className="mt-3">
+          <Link href={`/app/finance/invoices/${props.invoiceNumber}`}>
+            Open invoice
+          </Link>
+        </Button>
+      </div>
+    );
+  }
 
+  // None yet. Cargo is normally priced automatically the moment it is checked
+  // in at Dar, so reaching this means the rate book could not price it or the
+  // cargo has not landed — either way, raising one by hand is the way out.
   return (
     <div className="p-5">
       <form action={action} className="space-y-3">
         <input type="hidden" name="shipmentId" value={props.shipmentId} />
         <p className="flex items-center gap-2 text-sm font-medium">
           <FileText className="h-4 w-4 text-signal" />
-          {props.hasInvoice ? "Recalculate invoice" : "Generate invoice"}
+          Generate invoice
         </p>
         <p className="text-xs text-muted-foreground">
-          {props.hasInvoice
-            ? "Re-prices from the current rate book and storage days. Blocked once any money has been received."
-            : "Prices automatically from the cargo category, weight and the published rates. Adds storage if the free days have run out."}
+          Prices from the cargo category, weight and the published rates, and
+          adds storage if the free days have run out.
         </p>
-
         <FormError state={state} />
         <FormSuccess
           message={
@@ -163,25 +195,9 @@ function GenerateInvoicePanel(props: Props) {
               : null
           }
         />
-
-        <div className="flex flex-wrap items-center gap-2">
-          <SubmitButton
-            variant="signal"
-            size="sm"
-            disabled={settled}
-            pendingLabel="Pricing…"
-          >
-            {props.hasInvoice ? "Recalculate" : "Generate invoice"}
-          </SubmitButton>
-
-          {props.invoiceNumber ? (
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/app/finance/invoices/${props.invoiceNumber}`}>
-                Open invoice
-              </Link>
-            </Button>
-          ) : null}
-        </div>
+        <SubmitButton variant="signal" size="sm" pendingLabel="Pricing…">
+          Generate invoice
+        </SubmitButton>
       </form>
     </div>
   );
