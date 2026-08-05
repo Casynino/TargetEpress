@@ -139,10 +139,12 @@ const SECTIONS: NavSection[] = [
         permission: "payment.record",
       },
       {
-        href: "/app/finance/exchange-rate",
-        label: "Exchange rate",
-        icon: "ArrowLeftRight",
-        permission: "fx.manage",
+        href: "/app/finance/pricing",
+        label: "Pricing & configuration",
+        icon: "SlidersHorizontal",
+        // Read to get in; every control that writes is gated separately, so
+        // Support can answer "what will this cost" without moving anything.
+        permission: "pricing.view",
       },
       {
         href: "/app/finance/pickup-notes",
@@ -198,12 +200,9 @@ const SECTIONS: NavSection[] = [
         icon: "ChartNoAxesCombined",
         permission: "report.view",
       },
-      {
-        href: "/app/admin/pricing",
-        label: "Products & pricing",
-        icon: "Tags",
-        permission: "pricing.manage",
-      },
+      // No Products & pricing row here. The rate book moved into the Finance
+      // portal, where the desk that owns it works — and the CEO reaches the
+      // same page from the same place rather than a second copy in Management.
       {
         href: "/app/admin/markets",
         label: "China markets",

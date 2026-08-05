@@ -1,0 +1,330 @@
+import type { Metadata } from "next";
+import {
+  ArrowLeftRight,
+  Boxes,
+  Clock,
+  History,
+  Layers,
+  TriangleAlert,
+  UserCog,
+} from "lucide-react";
+
+import { ExchangeRateForm } from "@/components/app/exchange-rate-form";
+import { PageHeader } from "@/components/app/page-header";
+import {
+  ProductCatalogue,
+  PublishPriceForm,
+  RateBook,
+  type AdminProduct,
+  type AdminRule,
+} from "@/components/app/pricing-admin";
+import { Badge } from "@/components/ui/badge";
+import { CATEGORY_LABELS } from "@/lib/cargo";
+import { formatDateTime, formatRelative, toNumber } from "@/lib/format";
+import { currentRate } from "@/lib/fx";
+import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
+import { requirePermission } from "@/lib/session";
+
+export const metadata: Metadata = { title: "Pricing & configuration" };
+
+/**
+ * Pricing & Configuration — the one place the business decides what it charges.
+ *
+ * Everything the quote engine reads lives here: the USD→TZS rate, the rate book
+ * of per-kilo and per-item prices, and the product catalogue those prices hang
+ * off. Nothing about a price is in code, which is the whole point — a price
+ * change tomorrow is a Finance job, not a deploy.
+ *
+ * Two audiences, one page. `pricing.view` gets in and reads; every control that
+ * writes is separately gated on `pricing.manage` or `fx.manage`, so Support can
+ * answer "what will this cost" from the same numbers Finance bills from without
+ * being able to move any of them. The gates are in the actions too — this page
+ * decides what to render, never what is allowed.
+ */
+export default async function PricingConfigurationPage() {
+  const user = await requirePermission("pricing.view");
+  const canManage = can(user.role, "pricing.manage");
+  const canSetRate = can(user.role, "fx.manage");
+
+  const [products, rules, rate, rateHistory, lastChanges] = await Promise.all([
+    prisma.cargoType.findMany({
+      orderBy: [{ category: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        route: true,
+        active: true,
+        _count: { select: { pricingRules: { where: { active: true } } } },
+      },
+    }),
+    prisma.pricingRule.findMany({
+      orderBy: [{ active: "desc" }, { effectiveFrom: "desc" }],
+      take: 200,
+      include: { cargoType: { select: { name: true } } },
+    }),
+    currentRate(),
+    prisma.exchangeRate.findMany({
+      orderBy: { effectiveFrom: "desc" },
+      take: 8,
+      select: {
+        id: true,
+        rate: true,
+        effectiveFrom: true,
+        notes: true,
+        setBy: { select: { name: true } },
+      },
+    }),
+    // Every change to what the business charges, in one register. The audit log
+    // already records all of it; this is the window onto it, so nobody has to
+    // hold audit.view to see who moved a price.
+    prisma.auditLog.findMany({
+      where: {
+        action: {
+          in: [
+            "fx.publish",
+            "pricing.publishRule",
+            "pricing.withdrawRule",
+            "pricing.createProduct",
+            "pricing.setProductActive",
+          ],
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+      select: {
+        id: true,
+        action: true,
+        summary: true,
+        createdAt: true,
+        actor: { select: { name: true } },
+      },
+    }),
+  ]);
+
+  const productRows: AdminProduct[] = products.map((product) => ({
+    id: product.id,
+    name: product.name,
+    category: product.category,
+    route: product.route,
+    active: product.active,
+    ruleCount: product._count.pricingRules,
+  }));
+
+  const ruleRows: AdminRule[] = rules.map((rule) => ({
+    id: rule.id,
+    category: rule.category,
+    productName: rule.cargoType?.name ?? null,
+    method: rule.method,
+    price: rule.price.toString(),
+    currency: rule.currency,
+    minWeightKg: rule.minWeightKg?.toString() ?? null,
+    maxWeightKg: rule.maxWeightKg?.toString() ?? null,
+    minChargeableKg: rule.minChargeableKg?.toString() ?? null,
+    minCharge: rule.minCharge?.toString() ?? null,
+    notes: rule.notes,
+    effectiveFrom: rule.effectiveFrom.toISOString(),
+    active: rule.active,
+  }));
+
+  const liveRules = ruleRows.filter((r) => r.active);
+  const categoriesWithCatchAll = new Set(
+    liveRules.filter((r) => r.productName === null).map((r) => r.category)
+  );
+  // A product nobody has priced, in a category with no catch-all, is a hole in
+  // the book — cargo registered against it reaches Finance unpriceable.
+  const unpriced = productRows.filter(
+    (p) => p.active && p.ruleCount === 0 && !categoriesWithCatchAll.has(p.category)
+  );
+
+  const lastPriceChange = rules.find((r) => r.active) ?? rules[0] ?? null;
+  const liveRate = rateHistory[0] ?? null;
+  const activeCategories = new Set(liveRules.map((r) => r.category)).size;
+
+  const cards = [
+    {
+      icon: ArrowLeftRight,
+      label: "Exchange rate",
+      value: rate
+        ? `1 USD = ${toNumber(rate.rate).toLocaleString()} TZS`
+        : "Not set",
+      sub: liveRate
+        ? `Set ${formatRelative(liveRate.effectiveFrom)}`
+        : "Every invoice needs one",
+      tone: rate ? "text-brand" : "text-destructive",
+    },
+    {
+      icon: Layers,
+      label: "Active categories",
+      value: String(activeCategories),
+      sub: `of ${Object.keys(CATEGORY_LABELS).length} priced`,
+      tone: "text-foreground",
+    },
+    {
+      icon: Boxes,
+      label: "Products configured",
+      value: String(productRows.filter((p) => p.active).length),
+      sub: unpriced.length
+        ? `${unpriced.length} with no price`
+        : "All priced",
+      tone: unpriced.length ? "text-warning" : "text-success",
+    },
+    {
+      icon: Clock,
+      label: "Last price change",
+      value: lastPriceChange
+        ? formatRelative(lastPriceChange.effectiveFrom)
+        : "Never",
+      sub: lastPriceChange
+        ? formatDateTime(lastPriceChange.effectiveFrom)
+        : "No rule published yet",
+      tone: "text-foreground",
+    },
+    {
+      icon: UserCog,
+      label: "Rate last set by",
+      value: liveRate?.setBy?.name ?? "—",
+      sub: liveRate ? formatDateTime(liveRate.effectiveFrom) : "No rate on record",
+      tone: "text-foreground",
+    },
+  ];
+
+  return (
+    <>
+      <PageHeader
+        title="Pricing & configuration"
+        description="Every figure this business quotes comes from this page. Change it here and the whole system follows — cargo, invoices, tracking and reports."
+      />
+
+      {!canManage ? (
+        <p className="mb-6 rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          You can read the rate book and the exchange rate here. Changing them is
+          Finance&rsquo;s, so nothing on this page is editable for you.
+        </p>
+      ) : null}
+
+      <dl className="mb-6 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 lg:grid-cols-5">
+        {cards.map((card) => (
+          <div key={card.label} className="bg-card p-4">
+            <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <card.icon className={`h-3.5 w-3.5 ${card.tone}`} />
+              {card.label}
+            </dt>
+            <dd className="mt-1 font-display text-lg font-bold tabular-nums">
+              {card.value}
+            </dd>
+            <p className="mt-0.5 text-xs text-muted-foreground">{card.sub}</p>
+          </div>
+        ))}
+      </dl>
+
+      {unpriced.length > 0 ? (
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/5 p-4">
+          <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+          <div className="min-w-0">
+            <p className="font-medium">
+              {unpriced.length} product{unpriced.length === 1 ? "" : "s"} cannot be
+              quoted
+            </p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Cargo registered against these reaches Finance with no price.
+              Publish a price for each, or a catch-all for its category.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {unpriced.map((product) => (
+                <Badge key={product.id} variant="outline" className="border-warning/40">
+                  {product.name}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <div className="space-y-6">
+          <RateBook rules={ruleRows} />
+          <ProductCatalogue products={productRows} />
+        </div>
+
+        <div className="space-y-6">
+          {/* The rate first: it is the one figure that touches every invoice,
+              and the one most likely to be changed on any given morning. */}
+          <section className="rounded-xl border bg-card shadow-soft">
+            <div className="border-b px-5 py-4">
+              <h2 className="font-semibold">Exchange rate</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Applied to every invoice raised from now on. Invoices already
+                issued keep the rate they were raised at.
+              </p>
+            </div>
+            <div className="p-5">
+              {canSetRate ? (
+                <ExchangeRateForm current={rate ? toNumber(rate.rate) : null} />
+              ) : (
+                <p className="font-display text-2xl font-bold tabular-nums">
+                  {rate
+                    ? `1 USD = ${toNumber(rate.rate).toLocaleString()} TZS`
+                    : "Not set"}
+                </p>
+              )}
+            </div>
+
+            {rateHistory.length > 1 ? (
+              <div className="border-t">
+                <p className="px-5 pt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Previous rates
+                </p>
+                <ul className="divide-y px-5 pb-4 pt-2">
+                  {rateHistory.slice(1).map((entry) => (
+                    <li
+                      key={entry.id}
+                      className="flex items-baseline justify-between gap-3 py-1.5 text-sm"
+                    >
+                      <span className="font-mono tabular-nums">
+                        {toNumber(entry.rate).toLocaleString()}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {entry.setBy?.name ?? "—"} ·{" "}
+                        {formatRelative(entry.effectiveFrom)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </section>
+
+          {canManage ? <PublishPriceForm products={productRows} /> : null}
+
+          {/* Nothing disappears. Every change to what the business charges is
+              on the record, and readable here without holding audit.view. */}
+          <section className="rounded-xl border bg-card shadow-soft">
+            <h2 className="flex items-center gap-2 border-b px-5 py-4 font-semibold">
+              <History className="h-4 w-4 text-muted-foreground" />
+              Configuration history
+            </h2>
+            {lastChanges.length === 0 ? (
+              <p className="p-5 text-sm text-muted-foreground">
+                Nothing has been changed yet.
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {lastChanges.map((entry) => (
+                  <li key={entry.id} className="px-5 py-3">
+                    <p className="text-sm">{entry.summary}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {entry.actor?.name ?? "System"} ·{" "}
+                      {formatRelative(entry.createdAt)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      </div>
+    </>
+  );
+}

@@ -36,6 +36,7 @@ import {
   Truck,
   UserCog,
   UserRound,
+  SlidersHorizontal,
   Users,
   Wallet,
   type LucideIcon,
@@ -57,6 +58,7 @@ import type { NavSection } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<string, LucideIcon> = {
+  SlidersHorizontal,
   LayoutDashboard,
   ScanLine,
   Package,

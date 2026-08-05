@@ -87,7 +87,22 @@ export type Permission =
   | "message.send"
   // Administration
   | "user.manage"
-  | "pricing.manage" // the rate book itself — CEO only
+  /**
+   * Read the rate book, the exchange rate and the product catalogue.
+   *
+   * Support answers "what will this cost" all day and needs the same numbers
+   * Finance bills from — but reading a price and setting one are different
+   * authorities, and the owner's split puts only the reading on this desk.
+   */
+  | "pricing.view"
+  /**
+   * Change what the business charges: rates, tiers, products, categories.
+   *
+   * Held by Finance and the CEO. This was CEO-only until the owner moved
+   * pricing into the Finance portal — the point of that page is that a price
+   * change tomorrow needs Finance, not a developer and not the CEO.
+   */
+  | "pricing.manage"
   | "audit.view"
   | "report.view";
 
@@ -197,6 +212,10 @@ const CUSTOMER_CARE: Permission[] = [
   // not sent away to find somebody from Finance. It cannot issue one — that is
   // pickupNote.issue, and it means "the bill is settled and the cargo may go".
   "pickupNote.view",
+  // Reads the rate book to answer "what will this cost". Cannot change it,
+  // and cannot touch the exchange rate — both are pricing.manage / fx.manage,
+  // and neither is here.
+  "pricing.view",
   "invoice.send",
   "message.send",
   "ticket.manage",
@@ -234,6 +253,11 @@ const FINANCE: Permission[] = [
   "fx.manage",
   "customer.view",
   "customer.manage",
+  // The Pricing & Configuration centre. Finance owns what the business
+  // charges — the whole reason that page exists is that a price change does
+  // not need a developer.
+  "pricing.view",
+  "pricing.manage",
   "exception.view",
   "exception.raise",
   // Records the payout and attaches the evidence for it. Notably absent:
@@ -330,6 +354,9 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // pickup-note register is reachable by Support, which holds finance.view but
   // must not be admitted by it alone.
   { prefix: "/app/finance/pickup-notes", permission: "pickupNote.view" },
+  // Reading the rate book is pricing.view; every mutation on that page is
+  // separately gated on pricing.manage or fx.manage in its own action.
+  { prefix: "/app/finance/pricing", permission: "pricing.view" },
   { prefix: "/app/finance", permission: "finance.view" },
   { prefix: "/app/admin/deleted", permission: "shipment.cancel" },
   { prefix: "/app/admin/pricing", permission: "pricing.manage" },
