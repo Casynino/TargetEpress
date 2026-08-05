@@ -415,6 +415,8 @@ export async function recordPayment(
           method: input.method,
           reference: input.reference || null,
           note: input.note || null,
+          // Defaults to now in the schema when the desk leaves it blank.
+          ...(input.paidAt ? { paidAt: input.paidAt } : {}),
           receivedById: user.id,
         },
       });
@@ -575,9 +577,19 @@ export async function issuePickupNote(
       });
       if (!shipment) throw new Error("Shipment not found.");
 
-      if (shipment.pickupNote && shipment.pickupNote.status === "ACTIVE") {
+      // Any existing note, not merely an active one. A shipment carries at most
+      // one note — the row is unique on shipmentId — so after a cancellation
+      // every other gate below would pass and the create would die on a raw
+      // database constraint in front of the clerk. Refusing here says something
+      // a person can act on.
+      if (shipment.pickupNote) {
+        const existing = shipment.pickupNote;
         throw new Error(
-          `A pickup note (${shipment.pickupNote.noteNumber}) is already active for this shipment.`
+          existing.status === "ACTIVE"
+            ? `A pickup note (${existing.noteNumber}) is already active for this shipment.`
+            : existing.status === "USED"
+              ? `Pickup note ${existing.noteNumber} was already used to collect this cargo.`
+              : `Pickup note ${existing.noteNumber} was cancelled. This shipment cannot be issued a second note — reopen the cancelled one or raise it with the CEO.`
         );
       }
       if (shipment.status !== "RECEIVED_AT_DAR") {

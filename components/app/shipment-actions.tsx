@@ -133,6 +133,13 @@ function GenerateInvoicePanel(props: Props) {
   );
 }
 
+/**
+ * Today, for the date input's `max`. A courtesy that stops the picker offering
+ * next week — `paymentSchema` is what actually refuses a future date, because
+ * the action is reachable without this form.
+ */
+const TODAY = new Date().toISOString().slice(0, 10);
+
 function PaymentPanel(props: Props) {
   const [open, setOpen] = useState(false);
   const [state, action] = useActionState<
@@ -191,6 +198,29 @@ function PaymentPanel(props: Props) {
               id="reference"
               name="reference"
               placeholder="M-Pesa ID, slip or cheque number"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="paidAt" className="text-xs">
+              Payment date{" "}
+              <span className="text-muted-foreground">(leave blank for today)</span>
+            </Label>
+            <Input id="paidAt" name="paidAt" type="date" max={TODAY} />
+            <p className="text-xs text-muted-foreground">
+              When the money moved, not when it was typed in. A Friday transfer
+              entered on Monday belongs to Friday, and the payments report
+              follows this date.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="paymentNote" className="text-xs">
+              Notes <span className="text-muted-foreground">(optional)</span>
+            </Label>
+            <Textarea
+              id="paymentNote"
+              name="note"
+              rows={2}
+              placeholder="Anything the next person reading this receipt should know."
             />
           </div>
           <FormError state={state} />

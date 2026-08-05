@@ -116,6 +116,29 @@ export const paymentSchema = z.object({
   method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]),
   reference: z.string().trim().optional(),
   note: z.string().trim().optional(),
+  /**
+   * When the money actually moved, which is not always when it was typed in.
+   * A Friday transfer entered on Monday belongs to Friday — the payments page
+   * groups on this, so backdating moves it into the right month.
+   *
+   * Empty means now. A future date is refused: money that has not arrived
+   * cannot be recorded as received.
+   */
+  paidAt: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? new Date(v) : null))
+    .refine(
+      (d) => d === null || !Number.isNaN(d.getTime()),
+      "That payment date is not valid."
+    )
+    .refine(
+      // A whole day of slack, so a clerk in Dar is never told their own
+      // "today" is in the future because the server is behind them.
+      (d) => d === null || d.getTime() <= Date.now() + 86_400_000,
+      "A payment cannot be dated in the future."
+    ),
 });
 
 export const releaseSchema = z.object({
