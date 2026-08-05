@@ -19,6 +19,12 @@ export function ok<T>(data?: T): ActionResult<T> {
  * have written — the branch is a safety net, not the intended path.
  */
 export function toActionError(error: unknown): string {
+  // A validation error carries no code — it is thrown when the query itself is
+  // malformed, which in practice means a stale generated client. Its message
+  // is a dump of the whole query object and must never reach a counter.
+  if (isPrismaError(error) && !("code" in error)) {
+    return "The server could not save that. Please try again, and tell whoever runs the system if it keeps happening.";
+  }
   if (isPrismaKnownError(error)) {
     switch (error.code) {
       case "P2002":
@@ -40,6 +46,17 @@ export function toActionError(error: unknown): string {
  * @prisma/client at runtime just to name an error class, and a client
  * regenerated at a different version would break the identity check anyway.
  */
+/** Any error thrown by the Prisma client, by class name. */
+function isPrismaError(error: unknown): error is { name: string } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    typeof (error as { name: unknown }).name === "string" &&
+    (error as { name: string }).name.startsWith("PrismaClient")
+  );
+}
+
 function isPrismaKnownError(
   error: unknown
 ): error is { code: string; clientVersion: string } {

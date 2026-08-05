@@ -233,7 +233,6 @@ enum ExceptionStatus {
 /// customer, a TOTAL_LOSS is a compensation case.
 /**
  * How a case ended.
- *
  * A closed case has to answer "what happened and how was it solved?" years
  * later, and a free-text note alone cannot be counted, filtered or audited.
  * The type is the answer to "what happened"; the fields below it are the
@@ -290,59 +289,59 @@ model User {
 
   /// Set by the CEO when the account is made, and never editable afterwards —
   /// it is what payroll and the audit trail refer to.
-  employeeId String? @unique
-  photoUrl    String?
+  employeeId        String?        @unique
+  photoUrl          String?
   /// Free text on purpose: "Mama Grace 0757…" is what people actually write.
   emergencyContact  String?
-  preferredLanguage String  @default("en")
-  status            UserStatus @default(ACTIVE)
+  preferredLanguage String         @default("en")
+  status            UserStatus     @default(ACTIVE)
   /// Warehouse staff only. Null for Finance, Support and the CEO.
-  rank     WarehouseRank?
-  joinedAt DateTime       @default(now())
+  rank              WarehouseRank?
+  joinedAt          DateTime       @default(now())
   /// Touched on every authenticated page load, so "online" means something.
-  lastActiveAt DateTime?
+  lastActiveAt      DateTime?
 
-  logins        LoginEvent[]
-  notifications Notification[]
+  logins          LoginEvent[]
+  notifications   Notification[]
   handledBookings BookingRequest[] @relation("BookingHandledBy")
   handledPickups  PickupRequest[]  @relation("PickupHandledBy")
 
-  createdById String?
-  createdBy   User?   @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  createdUsers User[] @relation("UserCreatedBy")
+  createdById  String?
+  createdBy    User?   @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdUsers User[]  @relation("UserCreatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Operational back-references
-  createdCustomers   Customer[]               @relation("CustomerCreatedBy")
-  createdShipments   Shipment[]               @relation("ShipmentCreatedBy")
-  createdBatches     Batch[]                  @relation("BatchCreatedBy")
-  statusChanges      ShipmentStatusHistory[]
-  uploadedPhotos     ShipmentPhoto[]
-  verifications      BatchVerification[]
-  raisedExceptions   ShipmentException[]      @relation("ExceptionRaisedBy")
-  resolvedExceptions ShipmentException[]      @relation("ExceptionResolvedBy")
-  assignedExceptions ShipmentException[]      @relation("ExceptionAssignedTo")
-  exceptionEvents    ExceptionEvent[]         @relation("ExceptionEventActor")
-  recordedCompensations Compensation[]        @relation("CompensationRecordedBy")
-  issuedInvoices     Invoice[]
-  receivedPayments   Payment[]
-  issuedReceipts     Receipt[]
-  issuedPickupNotes  PickupNote[]
-  releasedDeliveries DeliveryRecord[]
-  auditLogs          AuditLog[]
-  exchangeRates      ExchangeRate[]
-  openedTickets      SupportTicket[]          @relation("TicketOpenedBy")
-  assignedTickets    SupportTicket[]          @relation("TicketAssignedTo")
-  ticketNotes        TicketNote[]
-  openedRequests     SourcingRequest[]        @relation("SourcingOpenedBy")
-  assignedRequests   SourcingRequest[]        @relation("SourcingAssignedTo")
-  sentMessages       CustomerMessage[]
-  sentInvoices       Invoice[]                @relation("InvoiceSentBy")
-  deletedShipments   Shipment[]               @relation("ShipmentDeletedBy")
-  receivedPackages   Package[]                @relation("PackageReceivedBy")
-  fieldChanges       FieldChange[]
+  createdCustomers      Customer[]              @relation("CustomerCreatedBy")
+  createdShipments      Shipment[]              @relation("ShipmentCreatedBy")
+  createdBatches        Batch[]                 @relation("BatchCreatedBy")
+  statusChanges         ShipmentStatusHistory[]
+  uploadedPhotos        ShipmentPhoto[]
+  verifications         BatchVerification[]
+  raisedExceptions      ShipmentException[]     @relation("ExceptionRaisedBy")
+  resolvedExceptions    ShipmentException[]     @relation("ExceptionResolvedBy")
+  assignedExceptions    ShipmentException[]     @relation("ExceptionAssignedTo")
+  exceptionEvents       ExceptionEvent[]        @relation("ExceptionEventActor")
+  recordedCompensations Compensation[]          @relation("CompensationRecordedBy")
+  issuedInvoices        Invoice[]
+  receivedPayments      Payment[]
+  issuedReceipts        Receipt[]
+  issuedPickupNotes     PickupNote[]
+  releasedDeliveries    DeliveryRecord[]
+  auditLogs             AuditLog[]
+  exchangeRates         ExchangeRate[]
+  openedTickets         SupportTicket[]         @relation("TicketOpenedBy")
+  assignedTickets       SupportTicket[]         @relation("TicketAssignedTo")
+  ticketNotes           TicketNote[]
+  openedRequests        SourcingRequest[]       @relation("SourcingOpenedBy")
+  assignedRequests      SourcingRequest[]       @relation("SourcingAssignedTo")
+  sentMessages          CustomerMessage[]
+  sentInvoices          Invoice[]               @relation("InvoiceSentBy")
+  deletedShipments      Shipment[]              @relation("ShipmentDeletedBy")
+  receivedPackages      Package[]               @relation("PackageReceivedBy")
+  fieldChanges          FieldChange[]
 
   @@index([role])
   @@index([department, active])
@@ -482,23 +481,23 @@ model Shipment {
   /// What `packages` counts. Defaults to package, which is what most cargo
   /// arrives as.
   packageType PackageType @default(PACKAGE)
-  weightKg    Decimal   @db.Decimal(10, 3)
-  volumeCbm   Decimal?  @db.Decimal(10, 4)
+  weightKg    Decimal     @db.Decimal(10, 3)
+  volumeCbm   Decimal?    @db.Decimal(10, 4)
 
   /// Departure airport. Derived from cargoCategory — never chosen by hand — and
   /// must match the batch this shipment joins.
-  origin      Origin
+  origin Origin
 
   // --- Quote snapshot -------------------------------------------------------
   // What the engine calculated at registration, kept with its working so an
   // invoice raised weeks later can still be explained to the customer.
-  quotedAmount   Decimal?       @db.Decimal(12, 2)
-  quoteCurrency  String         @default("USD")
-  quotedMethod   PricingMethod?
+  quotedAmount  Decimal?       @db.Decimal(12, 2)
+  quoteCurrency String         @default("USD")
+  quotedMethod  PricingMethod?
   /// Per-kg or per-item rate that produced quotedAmount.
-  quotedRate     Decimal?       @db.Decimal(12, 2)
+  quotedRate    Decimal?       @db.Decimal(12, 2)
   /// Weight the quote was billed on (may exceed the scale weight).
-  chargeableKg   Decimal?       @db.Decimal(10, 3)
+  chargeableKg  Decimal?       @db.Decimal(10, 3)
 
   /// Freight charge inputs. Finance may override the computed amount on the
   /// invoice; these stay as the audit trail of how the figure was reached.
@@ -620,7 +619,7 @@ model BatchVerification {
   note   String?
 
   verifiedById String?
-  verifiedBy   User?   @relation(fields: [verifiedById], references: [id], onDelete: SetNull)
+  verifiedBy   User?    @relation(fields: [verifiedById], references: [id], onDelete: SetNull)
   verifiedAt   DateTime @default(now())
 
   @@unique([batchId, shipmentId])
@@ -649,12 +648,12 @@ model ShipmentException {
   assignedTo   User?   @relation("ExceptionAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
 
   raisedById String?
-  raisedBy   User?   @relation("ExceptionRaisedBy", fields: [raisedById], references: [id], onDelete: SetNull)
+  raisedBy   User?    @relation("ExceptionRaisedBy", fields: [raisedById], references: [id], onDelete: SetNull)
   raisedAt   DateTime @default(now())
 
-  resolvedById   String?
-  resolvedBy     User?     @relation("ExceptionResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
-  resolvedAt     DateTime?
+  resolvedById String?
+  resolvedBy   User?     @relation("ExceptionResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt   DateTime?
 
   /// What happened. Null until the case is closed.
   resolutionType ResolutionType?
@@ -762,18 +761,18 @@ model Invoice {
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
-  currency     String        @default("USD")
-  freightCost  Decimal       @db.Decimal(12, 2)
+  currency      String        @default("USD")
+  freightCost   Decimal       @db.Decimal(12, 2)
   /// Free storage runs out after a grace period; after that each day is
   /// chargeable. Both the count and the money are stored so an invoice can be
   /// re-explained months later, when "today" is a different date.
-  storageDays   Int     @default(0)
-  storageCharge Decimal @default(0) @db.Decimal(12, 2)
-  otherCharges Decimal       @default(0) @db.Decimal(12, 2)
-  discount     Decimal       @default(0) @db.Decimal(12, 2)
-  total        Decimal       @db.Decimal(12, 2)
-  amountPaid   Decimal       @default(0) @db.Decimal(12, 2)
-  status       InvoiceStatus @default(UNPAID)
+  storageDays   Int           @default(0)
+  storageCharge Decimal       @default(0) @db.Decimal(12, 2)
+  otherCharges  Decimal       @default(0) @db.Decimal(12, 2)
+  discount      Decimal       @default(0) @db.Decimal(12, 2)
+  total         Decimal       @db.Decimal(12, 2)
+  amountPaid    Decimal       @default(0) @db.Decimal(12, 2)
+  status        InvoiceStatus @default(UNPAID)
 
   /// The USD→TZS rate used on this invoice, frozen at creation. Finance may
   /// override it for one invoice; the override is what is stored, and it is
@@ -787,8 +786,8 @@ model Invoice {
   notes String?
 
   issuedById String?
-  issuedBy   User?   @relation(fields: [issuedById], references: [id], onDelete: SetNull)
-  issuedAt   DateTime @default(now())
+  issuedBy   User?     @relation(fields: [issuedById], references: [id], onDelete: SetNull)
+  issuedAt   DateTime  @default(now())
   dueDate    DateTime?
 
   /// An invoice a customer has never been shown is not yet a demand for money.
@@ -815,15 +814,25 @@ model Payment {
   invoiceId String
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
-  amount    Decimal       @db.Decimal(12, 2)
-  currency  String        @default("TZS")
-  method    PaymentMethod
+  /// What the customer actually handed over, in `currency`. The receipt says
+  /// this, because it is what happened at the counter.
+  amount         Decimal       @db.Decimal(12, 2)
+  currency       String        @default("TZS")
+  /// The same money expressed in the INVOICE's currency, which is what settles
+  /// the bill. Equal to `amount` when the two agree. Kept as its own column
+  /// rather than re-derived, so a rate published next month can never restate
+  /// what a customer already settled.
+  creditedAmount Decimal?      @db.Decimal(12, 2)
+  /// The USD→TZS rate used to convert, when the two currencies differ.
+  /// Null when the customer paid in the invoice's own currency.
+  exchangeRate   Decimal?      @db.Decimal(12, 4)
+  method         PaymentMethod
   /// Mobile money transaction id, bank slip number, cheque number…
-  reference String?
-  note      String?
+  reference      String?
+  note           String?
 
   receivedById String?
-  receivedBy   User?   @relation(fields: [receivedById], references: [id], onDelete: SetNull)
+  receivedBy   User?    @relation(fields: [receivedById], references: [id], onDelete: SetNull)
   paidAt       DateTime @default(now())
 
   createdAt DateTime @default(now())
@@ -845,7 +854,7 @@ model Receipt {
   payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   issuedById String?
-  issuedBy   User?   @relation(fields: [issuedById], references: [id], onDelete: SetNull)
+  issuedBy   User?    @relation(fields: [issuedById], references: [id], onDelete: SetNull)
   issuedAt   DateTime @default(now())
 
   @@index([issuedAt])
@@ -871,7 +880,7 @@ model PickupNote {
   status PickupNoteStatus @default(ACTIVE)
 
   issuedById String?
-  issuedBy   User?   @relation(fields: [issuedById], references: [id], onDelete: SetNull)
+  issuedBy   User?    @relation(fields: [issuedById], references: [id], onDelete: SetNull)
   issuedAt   DateTime @default(now())
 
   usedAt       DateTime?
@@ -900,7 +909,7 @@ model DeliveryRecord {
   note             String?
 
   releasedById String?
-  releasedBy   User?   @relation(fields: [releasedById], references: [id], onDelete: SetNull)
+  releasedBy   User?    @relation(fields: [releasedById], references: [id], onDelete: SetNull)
   releasedAt   DateTime @default(now())
 
   @@index([releasedAt])
@@ -919,10 +928,10 @@ model AuditLog {
   actorEmail String?
   actorRole  Role?
 
-  action  String // "shipment.create", "pickup_note.issue", …
-  entity  String // "Shipment", "Invoice", …
+  action   String // "shipment.create", "pickup_note.issue", …
+  entity   String // "Shipment", "Invoice", …
   entityId String?
-  summary String
+  summary  String
 
   metadata Json?
 
@@ -988,10 +997,10 @@ model CargoType {
 model PricingRule {
   id String @id @default(cuid())
 
-  category CargoCategory
+  category    CargoCategory
   /// Null means the rule covers the whole category.
   cargoTypeId String?
-  cargoType   CargoType? @relation(fields: [cargoTypeId], references: [id], onDelete: Cascade)
+  cargoType   CargoType?    @relation(fields: [cargoTypeId], references: [id], onDelete: Cascade)
 
   method PricingMethod
 
@@ -1028,8 +1037,8 @@ model PricingRule {
 model ExchangeRate {
   id String @id @default(cuid())
 
-  fromCurrency String @default("USD")
-  toCurrency   String @default("TZS")
+  fromCurrency String  @default("USD")
+  toCurrency   String  @default("TZS")
   /// Units of toCurrency per one unit of fromCurrency, e.g. 2700.
   rate         Decimal @db.Decimal(14, 4)
 
@@ -1061,13 +1070,13 @@ model RateCard {
   goodsType GoodsType? // null = applies to any goods type
   method    ShippingMethod @default(AIR_NORMAL)
 
-  pricePerKg Decimal @db.Decimal(12, 2)
+  pricePerKg        Decimal @db.Decimal(12, 2)
   /// Billed weight is never lower than this — small parcels still cost us a slot.
-  minimumKg  Decimal @default(0) @db.Decimal(10, 3)
+  minimumKg         Decimal @default(0) @db.Decimal(10, 3)
   /// Floor on the total charge, whatever the weight works out to.
-  minimumCharge Decimal @default(0) @db.Decimal(12, 2)
+  minimumCharge     Decimal @default(0) @db.Decimal(12, 2)
   /// kg per CBM used for volumetric weight. 167 is the IATA air standard.
-  volumetricDivisor Int @default(167)
+  volumetricDivisor Int     @default(167)
 
   currency      String  @default("TZS")
   transitDays   Int?
@@ -1080,7 +1089,6 @@ model RateCard {
   @@unique([origin, goodsType, method])
   @@index([active, method])
 }
-
 
 // ---------------------------------------------------------------------------
 // Customer Support
@@ -1280,7 +1288,7 @@ model CustomerMessage {
   body    String
 
   sentById String?
-  sentBy   User?   @relation(fields: [sentById], references: [id], onDelete: SetNull)
+  sentBy   User?    @relation(fields: [sentById], references: [id], onDelete: SetNull)
   sentAt   DateTime @default(now())
 
   @@index([customerId, sentAt])
@@ -1328,7 +1336,6 @@ model ChinaMarket {
   @@index([active, sortOrder])
 }
 
-
 /// One field, changed once, by one person.
 ///
 /// The AuditLog says what happened; this says exactly what moved. "Weight
@@ -1344,16 +1351,15 @@ model FieldChange {
   before   String?
   after    String?
 
-  actorId    String?
-  actor      User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
-  actorName  String?
+  actorId   String?
+  actor     User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorName String?
 
   createdAt DateTime @default(now())
 
   @@index([entity, entityId, createdAt])
   @@index([createdAt])
 }
-
 
 /// One physical thing you can pick up.
 ///
@@ -1373,12 +1379,12 @@ model Package {
   shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
 
   /// 1-based position within the shipment — the "1" in "1 of 5".
-  sequence Int
+  sequence  Int
   /// Human-readable, printed on the sticker: TX-000125-P1.
   reference String @unique
   /// What the QR encodes. Random, never derived from the reference: a guessable
   /// code at a warehouse counter is a way to collect someone else's cargo.
-  qrToken String @unique
+  qrToken   String @unique
 
   /// Per-package weight, when the desk weighed each box separately. Null means
   /// only the shipment total was recorded, which is the common case.
@@ -1401,7 +1407,6 @@ model Package {
   @@index([receivedAt])
 }
 
-
 /// Every sign-in attempt, kept for the admin's view of an account.
 ///
 /// Failures are recorded too. Five failures overnight against one account is
@@ -1413,7 +1418,7 @@ model LoginEvent {
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
   /// Kept separately so a failed attempt against an unknown address is still
   /// on the record.
-  email String
+  email  String
 
   ok        Boolean
   ipAddress String?
@@ -1440,7 +1445,7 @@ model Notification {
   title String
   body  String?
   /// Where "open" goes. Null for announcements that have nowhere to go.
-  href String?
+  href  String?
 
   readAt    DateTime?
   createdAt DateTime  @default(now())
@@ -1448,7 +1453,6 @@ model Notification {
   @@index([userId, readAt])
   @@index([userId, createdAt])
 }
-
 
 /// How far along a request from the public website is.
 enum RequestStatus {
@@ -1466,24 +1470,24 @@ enum RequestStatus {
 /// are physically on the counter in Guangzhou. Keeping the two apart is what
 /// stops the warehouse from having to trust a number a customer typed.
 model BookingRequest {
-  id            String @id @default(cuid())
-  reference     String @unique // BK-000123
+  id        String @id @default(cuid())
+  reference String @unique // BK-000123
 
-  customerName  String
-  phone         String
-  email         String?
-  company       String?
+  customerName String
+  phone        String
+  email        String?
+  company      String?
 
   /// What they say they are sending, in their words.
-  description   String
-  cargoCategory CargoCategory @default(NORMAL_GOODS)
+  description       String
+  cargoCategory     CargoCategory @default(NORMAL_GOODS)
   /// Their estimate. Nobody bills on this.
-  estimatedWeightKg Decimal? @db.Decimal(10, 3)
-  packages      Int?
-  origin        Origin   @default(GUANGZHOU)
-  pickupNeeded  Boolean  @default(false)
-  wantedBy      DateTime?
-  notes         String?
+  estimatedWeightKg Decimal?      @db.Decimal(10, 3)
+  packages          Int?
+  origin            Origin        @default(GUANGZHOU)
+  pickupNeeded      Boolean       @default(false)
+  wantedBy          DateTime?
+  notes             String?
 
   status      RequestStatus @default(PENDING)
   handledById String?
@@ -1512,15 +1516,15 @@ model PickupRequest {
   phone        String
   email        String?
 
-  address     String
-  city        String
+  address           String
+  city              String
   /// Optional pin the customer pasted from Google Maps.
-  mapsUrl     String?
-  description String
-  estimatedWeightKg Decimal? @db.Decimal(10, 3)
-  packages    Int?
-  preferredAt DateTime?
-  notes       String?
+  mapsUrl           String?
+  description       String
+  estimatedWeightKg Decimal?  @db.Decimal(10, 3)
+  packages          Int?
+  preferredAt       DateTime?
+  notes             String?
 
   status      RequestStatus @default(PENDING)
   handledById String?

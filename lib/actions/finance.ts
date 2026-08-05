@@ -24,6 +24,11 @@ import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { firstError, paymentSchema } from "@/lib/validation";
 
+/** Midnight on the given day, for comparing a date-only input against a timestamp. */
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
 /**
  * One-click invoice.
  *
@@ -388,22 +393,68 @@ export async function recordPayment(
           amountPaid: true,
           status: true,
           currency: true,
+          exchangeRate: true,
+          issuedAt: true,
           shipment: { select: { id: true, trackingNumber: true } },
         },
       });
       if (!invoice) throw new Error("Invoice not found.");
       if (invoice.status === "VOID") throw new Error("This invoice is void.");
 
+      // Money cannot arrive before the bill exists. The form already refuses a
+      // future date; this is the other end of the same sanity check, and it is
+      // what catches a mis-scrolled year on a date picker.
+      if (input.paidAt && input.paidAt < startOfDay(invoice.issuedAt)) {
+        throw new Error(
+          `${invoice.invoiceNumber} was only raised on ${invoice.issuedAt.toLocaleDateString("en-GB")}. A payment cannot be dated before that.`
+        );
+      }
+
       const total = toNumber(invoice.total);
       const paid = toNumber(invoice.amountPaid);
       const outstanding = total - paid;
 
       if (outstanding <= 0) throw new Error("This invoice is already settled.");
+
+      // What the customer handed over, and what it is worth against this bill.
+      //
+      // A USD invoice settled in shillings converts at the rate frozen onto
+      // that invoice, never at today's — otherwise the same bill would settle
+      // for a different amount depending on the day it was paid, and the
+      // customer was quoted the frozen one.
+      const tenderedCurrency = input.currency ?? invoice.currency;
+      const invoiceRate =
+        invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
+
+      let credited = input.amount;
+      let rateUsed: number | null = null;
+
+      if (tenderedCurrency !== invoice.currency) {
+        if (invoiceRate === null) {
+          throw new Error(
+            `${invoice.invoiceNumber} carries no exchange rate, so a payment in ${tenderedCurrency} cannot be converted. Publish a rate and regenerate the invoice.`
+          );
+        }
+        rateUsed = invoiceRate;
+        // Both directions, so this keeps working if an invoice is ever raised
+        // in shillings.
+        credited =
+          tenderedCurrency === LOCAL_CURRENCY
+            ? input.amount / invoiceRate
+            : input.amount * invoiceRate;
+        // Round to the cent the invoice is denominated in, or a payment meant
+        // to settle a bill exactly leaves a fraction behind and the pickup
+        // note never unlocks.
+        credited = Math.round(credited * 100) / 100;
+      }
+
       // Overpayment is almost always a typo at the counter. Reject it rather
       // than quietly creating a credit the system has no concept of.
-      if (input.amount > outstanding + 0.001) {
+      if (credited > outstanding + 0.001) {
         throw new Error(
-          `That is more than the ${invoice.currency} ${outstanding.toLocaleString()} still outstanding.`
+          tenderedCurrency === invoice.currency
+            ? `That is more than the ${invoice.currency} ${outstanding.toLocaleString()} still outstanding.`
+            : `${tenderedCurrency} ${input.amount.toLocaleString()} is ${invoice.currency} ${credited.toLocaleString()} at this invoice's rate — more than the ${invoice.currency} ${outstanding.toLocaleString()} still outstanding.`
         );
       }
 
@@ -411,7 +462,9 @@ export async function recordPayment(
         data: {
           invoiceId: invoice.id,
           amount: new Prisma.Decimal(input.amount),
-          currency: invoice.currency,
+          currency: tenderedCurrency,
+          creditedAmount: new Prisma.Decimal(credited),
+          exchangeRate: rateUsed === null ? null : new Prisma.Decimal(rateUsed),
           method: input.method,
           reference: input.reference || null,
           note: input.note || null,
@@ -429,7 +482,9 @@ export async function recordPayment(
         },
       });
 
-      const newPaid = paid + input.amount;
+      // In the invoice's currency, always. `input.amount` is what was handed
+      // over, which may be shillings; the bill is settled by `credited`.
+      const newPaid = paid + credited;
       const settled = newPaid + 0.001 >= total;
 
       await tx.invoice.update({
@@ -509,8 +564,18 @@ export async function recordPayment(
           action: "payment.record",
           entity: "Payment",
           entityId: payment.id,
-          summary: `Received ${invoice.currency} ${input.amount.toLocaleString()} for ${invoice.shipment.trackingNumber} (${receipt.receiptNumber})`,
-          metadata: { method: input.method, reference: input.reference ?? null },
+          summary:
+            tenderedCurrency === invoice.currency
+              ? `Received ${invoice.currency} ${input.amount.toLocaleString()} for ${invoice.shipment.trackingNumber} (${receipt.receiptNumber})`
+              : `Received ${tenderedCurrency} ${input.amount.toLocaleString()} — ${invoice.currency} ${credited.toLocaleString()} at ${rateUsed?.toLocaleString()} — for ${invoice.shipment.trackingNumber} (${receipt.receiptNumber})`,
+          metadata: {
+            method: input.method,
+            reference: input.reference ?? null,
+            tenderedCurrency,
+            tendered: input.amount,
+            credited,
+            exchangeRate: rateUsed,
+          },
         },
         tx
       );

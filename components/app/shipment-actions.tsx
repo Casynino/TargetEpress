@@ -35,6 +35,11 @@ type Props = {
   defaultFreight: number;
   /** Invoice number, when one exists — links straight to the document. */
   invoiceNumber: string | null;
+  /**
+   * The rate frozen onto the invoice, for converting a payment tendered in
+   * another currency. Null when none was published when it was raised.
+   */
+  invoiceRate: number | null;
 };
 
 /**
@@ -142,12 +147,30 @@ const TODAY = new Date().toISOString().slice(0, 10);
 
 function PaymentPanel(props: Props) {
   const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState(String(props.outstanding ?? ""));
+  const [currency, setCurrency] = useState(props.currency);
   const [state, action] = useActionState<
     ActionResult<{ receiptNumber: string; pickupNoteNumber: string | null }>,
     FormData
   >(recordPayment, { ok: true });
 
   const settled = props.outstanding !== null && props.outstanding <= 0;
+
+  // Shown as the clerk types, so the figure that will land against the bill is
+  // visible before it is committed. The server recomputes it from the invoice's
+  // own frozen rate — this is a preview, never the stored value.
+  const typed = Number(amount);
+  const rate = props.invoiceRate;
+  const converted =
+    currency === props.currency
+      ? null
+      : rate === null
+        ? `This invoice carries no exchange rate, so it can only be settled in ${props.currency}.`
+        : Number.isFinite(typed) && typed > 0
+          ? `${currency} ${typed.toLocaleString()} settles ${props.currency} ${(
+              currency === "TZS" ? typed / rate : typed * rate
+            ).toFixed(2)} at this invoice's rate of ${rate.toLocaleString()}.`
+          : null;
 
   return (
     <div className="p-5">
@@ -164,20 +187,47 @@ function PaymentPanel(props: Props) {
       {open && !settled ? (
         <form action={action} className="mt-4 space-y-3">
           <input type="hidden" name="invoiceId" value={props.invoiceId ?? ""} />
-          <div className="space-y-1.5">
-            <Label htmlFor="amount" className="text-xs">
-              Amount ({props.currency})
-            </Label>
-            <Input
-              id="amount"
-              name="amount"
-              type="number"
-              min="1"
-              step="1"
-              defaultValue={props.outstanding ?? ""}
-              required
-            />
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+            <div className="space-y-1.5">
+              <Label htmlFor="amount" className="text-xs">
+                Amount
+              </Label>
+              {/* Cents matter. A bill of 39.15 part-paid with 39 leaves 0.15
+                  outstanding, and a whole-number input made that last balance
+                  impossible to clear — so the cargo could never be released. */}
+              <Input
+                id="amount"
+                name="amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="paymentCurrency" className="text-xs">
+                Paid in
+              </Label>
+              <NativeSelect
+                id="paymentCurrency"
+                name="currency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+              >
+                <option value={props.currency}>{props.currency}</option>
+                {props.currency !== "TZS" ? <option value="TZS">TZS</option> : null}
+                {props.currency !== "USD" ? <option value="USD">USD</option> : null}
+              </NativeSelect>
+            </div>
           </div>
+          {converted ? (
+            <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              {converted}
+            </p>
+          ) : null}
           <div className="space-y-1.5">
             <Label htmlFor="method" className="text-xs">
               Method

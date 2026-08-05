@@ -9,6 +9,18 @@ export function toNumber(value: Numeric): number {
   return Number(value.toString());
 }
 
+/**
+ * Round to the cent a currency is actually denominated in.
+ *
+ * Subtracting two Prisma Decimals through `toNumber` gives IEEE doubles, so a
+ * 39.15 bill part-paid with 39 leaves 0.14999999999999858 outstanding. That is
+ * fine for arithmetic with a tolerance, and wrong the moment it reaches a
+ * person — or a number input with step="0.01", which refuses it outright.
+ */
+export function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 export function formatMoney(value: Numeric, currency = "TZS") {
   const n = toNumber(value);
   return `${currency} ${n.toLocaleString("en-US", {

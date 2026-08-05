@@ -114,6 +114,16 @@ export const paymentSchema = z.object({
   invoiceId: z.string().min(1),
   amount: numeric("Amount", { min: 0.01 }),
   method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]),
+  /**
+   * What the customer actually handed over. A bill in USD is routinely settled
+   * in shillings at the counter, and recording it as USD would put a figure on
+   * the receipt that nobody in the room ever said out loud.
+   *
+   * The conversion back to the invoice's currency happens in the action, at
+   * the rate frozen onto that invoice — never at today's rate, or a bill would
+   * settle for a different amount depending on when it was paid.
+   */
+  currency: z.enum(["USD", "TZS"]).optional(),
   reference: z.string().trim().optional(),
   note: z.string().trim().optional(),
   /**

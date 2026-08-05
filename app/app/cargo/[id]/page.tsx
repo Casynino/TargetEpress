@@ -36,6 +36,7 @@ import {
   formatDateTime,
   formatMoney,
   formatWeight,
+  roundMoney,
   toNumber,
 } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -115,8 +116,12 @@ export default async function ShipmentDetailPage({
     ? await shipmentQrDataUrl(shipment.qrToken, 200)
     : null;
   const showMoney = can(user.role, "finance.view");
+  // Rounded to the cent: this figure is both shown to a person and used as the
+  // default in a step="0.01" amount input, which refuses a raw float remainder.
   const outstanding = shipment.invoice
-    ? toNumber(shipment.invoice.total) - toNumber(shipment.invoice.amountPaid)
+    ? roundMoney(
+        toNumber(shipment.invoice.total) - toNumber(shipment.invoice.amountPaid)
+      )
     : null;
 
   return (
@@ -631,6 +636,11 @@ export default async function ShipmentDetailPage({
             hasInvoice={Boolean(shipment.invoice)}
             invoiceId={shipment.invoice?.id ?? null}
             invoiceNumber={shipment.invoice?.invoiceNumber ?? null}
+            invoiceRate={
+              shipment.invoice?.exchangeRate
+                ? toNumber(shipment.invoice.exchangeRate)
+                : null
+            }
             outstanding={outstanding}
             currency={shipment.currency}
             pickupNoteId={shipment.pickupNote?.id ?? null}
