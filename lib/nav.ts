@@ -140,7 +140,8 @@ const SECTIONS: NavSection[] = [
         href: "/app/finance/pickup-notes",
         label: "Pickup notes",
         icon: "QrCode",
-        permission: "pickupNote.issue",
+        // Read, not issue — Support prints these and needs the door.
+        permission: "pickupNote.view",
       },
     ],
   },

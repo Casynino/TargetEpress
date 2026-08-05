@@ -64,6 +64,11 @@ export type Permission =
   | "invoice.discount"
   | "invoice.send"
   | "payment.record"
+  /// Read a pickup note and print it. Separate from issuing it, because the
+  /// two are different authorities: issuing is the act of saying the bill is
+  /// settled and the cargo may go, and only Finance does that. Printing the
+  /// note Finance already issued is a courtesy anyone at the counter can do.
+  | "pickupNote.view"
   | "pickupNote.issue"
   | "pickupNote.cancel"
   | "fx.manage" // publish the USD→TZS rate
@@ -188,7 +193,10 @@ const CUSTOMER_CARE: Permission[] = [
   "finance.view",
   "invoice.manage",
   "invoice.edit",
-  "invoice.discount",
+  // Reads and prints the note Finance issued, so a customer at the counter is
+  // not sent away to find somebody from Finance. It cannot issue one — that is
+  // pickupNote.issue, and it means "the bill is settled and the cargo may go".
+  "pickupNote.view",
   "invoice.send",
   "message.send",
   "ticket.manage",
@@ -217,6 +225,7 @@ const FINANCE: Permission[] = [
   "invoice.send",
   "message.send",
   "payment.record",
+  "pickupNote.view",
   "pickupNote.issue",
   "pickupNote.cancel",
   // Finance quotes shillings all day, so Finance keeps the rate current. The
@@ -316,6 +325,10 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // Payouts on investigations. Guarded ahead of /app/finance because
   // finance.view is also held by Customer Care, which must not reach the till.
   { prefix: "/app/finance/compensation", permission: "exception.compensate" },
+  // Ahead of /app/finance for the same reason as compensation above: the
+  // pickup-note register is reachable by Support, which holds finance.view but
+  // must not be admitted by it alone.
+  { prefix: "/app/finance/pickup-notes", permission: "pickupNote.view" },
   { prefix: "/app/finance", permission: "finance.view" },
   { prefix: "/app/admin/deleted", permission: "shipment.cancel" },
   { prefix: "/app/admin/pricing", permission: "pricing.manage" },

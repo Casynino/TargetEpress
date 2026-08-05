@@ -276,9 +276,24 @@ export async function adjustInvoice(
         throw new Error("The discount is larger than the rest of the invoice.");
       }
 
-      const rate =
-        input.exchangeRate ??
-        (invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate));
+      // The rate is Finance's, like the discount above it. Support prepares
+      // and sends the bill, but moving the USD→TZS rate on one invoice changes
+      // what the customer owes just as surely as a discount does, and the
+      // owner puts both on the Finance side of the line. Enforced here rather
+      // than only in the form: the action is reachable without it.
+      const currentRate =
+        invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
+      if (
+        input.exchangeRate !== null &&
+        input.exchangeRate !== currentRate &&
+        !can(user.role, "fx.manage")
+      ) {
+        throw new Error(
+          "You are not authorised to change the exchange rate on an invoice."
+        );
+      }
+
+      const rate = input.exchangeRate ?? currentRate;
       const totalLocal = rate === null ? null : toLocal(total, rate);
 
       await tx.invoice.update({

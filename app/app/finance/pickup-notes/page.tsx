@@ -25,7 +25,9 @@ export default async function PickupNotesPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  await requirePermission("pickupNote.issue");
+  // Reading the register is not issuing from it. Support answers "has my
+  // note been issued?" all day and should not need Finance to look.
+  await requirePermission("pickupNote.view");
   const { status } = await searchParams;
 
   const notes = await prisma.pickupNote.findMany({

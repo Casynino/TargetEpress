@@ -20,7 +20,9 @@ export default async function PickupNotePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePermission("pickupNote.issue");
+  // Support prints the note Finance issued. Issuing one is pickupNote.issue
+  // and is checked in the action, not here.
+  await requirePermission("pickupNote.view");
   const { id } = await params;
 
   const note = await prisma.pickupNote.findUnique({

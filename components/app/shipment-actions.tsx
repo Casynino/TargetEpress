@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import type { Role, ShipmentStatus } from "@prisma/client";
-import { Ban, FileText, QrCode, ReceiptText, Wallet } from "lucide-react";
+import { Ban, FileText, Printer, QrCode, ReceiptText, Wallet } from "lucide-react";
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ type Props = {
   invoiceId: string | null;
   outstanding: number | null;
   currency: string;
+  pickupNoteId: string | null;
   pickupNoteNumber: string | null;
   pickupNoteStatus: string | null;
   defaultFreight: number;
@@ -65,7 +66,7 @@ export function ShipmentActions(props: Props) {
       <div className="divide-y">
         {canInvoice ? <GenerateInvoicePanel {...props} /> : null}
         {canPay ? <PaymentPanel {...props} /> : null}
-        {can(role, "pickupNote.issue") ? <PickupNotePanel {...props} /> : null}
+        {can(role, "pickupNote.view") ? <PickupNotePanel {...props} /> : null}
         {canCancel ? <CancelPanel shipmentId={props.shipmentId} /> : null}
       </div>
     </section>
@@ -221,6 +222,8 @@ function PickupNotePanel(props: Props) {
     FormData
   >(issuePickupNote, { ok: true });
 
+  // An issued note is readable by anyone who may read notes at all — that is
+  // the whole point of pickupNote.view. Support prints it at the counter.
   if (props.pickupNoteNumber && props.pickupNoteStatus !== "CANCELLED") {
     return (
       <div className="p-5">
@@ -232,6 +235,31 @@ function PickupNotePanel(props: Props) {
           {props.pickupNoteStatus === "USED"
             ? "Used — cargo collected."
             : "Active — the customer can collect."}
+        </p>
+        {props.pickupNoteId ? (
+          <Button asChild variant="outline" size="sm" className="mt-3">
+            <Link href={`/app/finance/pickup-notes/${props.pickupNoteId}`}>
+              <Printer className="mr-2 h-4 w-4" />
+              Open &amp; print
+            </Link>
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
+
+  // No note yet. Issuing one says the bill is settled and the cargo may go,
+  // which is Finance's call — Support sees nothing here until it exists.
+  if (!can(props.role, "pickupNote.issue")) {
+    return (
+      <div className="p-5">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <QrCode className="h-4 w-4 text-muted-foreground" />
+          No pickup note yet
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Finance issues it once the invoice is settled in full. It will appear
+          here, ready to print.
         </p>
       </div>
     );

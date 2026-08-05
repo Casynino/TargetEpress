@@ -633,6 +633,7 @@ export default async function ShipmentDetailPage({
             invoiceNumber={shipment.invoice?.invoiceNumber ?? null}
             outstanding={outstanding}
             currency={shipment.currency}
+            pickupNoteId={shipment.pickupNote?.id ?? null}
             pickupNoteNumber={shipment.pickupNote?.noteNumber ?? null}
             pickupNoteStatus={shipment.pickupNote?.status ?? null}
             defaultFreight={
