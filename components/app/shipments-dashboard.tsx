@@ -22,7 +22,27 @@ export type DispatchRow = {
   departedLabel: string | null;
   expectedLabel: string | null;
   arrivedLabel: string | null;
+  /**
+   * Where this flight stands on money. Absent for desks that may not see it —
+   * the warehouse reads this same board.
+   *
+   * `expected` includes cargo priced from the rate book but not yet confirmed,
+   * because a flight that landed yesterday has barely any confirmed invoices
+   * and a board showing near-zero against 87 pieces would be read as broken.
+   */
+  money?: {
+    currency: string;
+    expected: number;
+    collected: number;
+    outstanding: number;
+    /** Prices nobody in Finance has signed off yet. */
+    drafts: number;
+  } | null;
 };
+
+/** Money without cents — a board is read at a glance, not reconciled from. */
+const money = (n: number) =>
+  n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 
 const STATUS_TONE: Record<string, string> = {
   IN_TRANSIT: "bg-info/10 text-info border-info/30",
@@ -197,6 +217,55 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
                     </div>
                   ))}
                 </dl>
+
+                {/* How this flight is doing on money, on its own line so the
+                    cargo figures above stay readable. Outstanding is the one
+                    that decides whether anybody has to make a phone call, so
+                    it carries the colour. */}
+                {row.money ? (
+                  <dl className="mt-3 grid grid-cols-2 gap-4 border-t pt-3 sm:grid-cols-4">
+                    {[
+                      {
+                        label: "Expected",
+                        value: `${row.money.currency} ${money(row.money.expected)}`,
+                        tone: "text-foreground",
+                      },
+                      {
+                        label: "Collected",
+                        value: `${row.money.currency} ${money(row.money.collected)}`,
+                        tone: "text-success",
+                      },
+                      {
+                        label: "To collect",
+                        value: `${row.money.currency} ${money(row.money.outstanding)}`,
+                        tone:
+                          row.money.outstanding > 0
+                            ? "text-warning"
+                            : "text-muted-foreground",
+                      },
+                      {
+                        label: "Prices to confirm",
+                        value: row.money.drafts
+                          ? String(row.money.drafts)
+                          : "All confirmed",
+                        tone: row.money.drafts
+                          ? "text-signal"
+                          : "text-muted-foreground",
+                      },
+                    ].map((stat) => (
+                      <div key={stat.label}>
+                        <dt className="text-xs text-muted-foreground">
+                          {stat.label}
+                        </dt>
+                        <dd
+                          className={`mt-0.5 text-sm font-semibold tabular-nums ${stat.tone}`}
+                        >
+                          {stat.value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
               </Link>
             </li>
           ))}

@@ -11,6 +11,7 @@ import {
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { formatDate, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Shipments" };
@@ -22,8 +23,52 @@ export const metadata: Metadata = { title: "Shipments" };
  * "what is in the air and what is waiting on me" before any row is opened.
  * Batches hold what is still in China; everything here has gone.
  */
+/**
+ * What one dispatch is worth and how much has come in.
+ *
+ * The same three rules as the Financial overview on the dispatch itself, so a
+ * flight cannot say one thing on the board and another when you open it:
+ * a DRAFT counts towards what is expected but is never a debt, because nobody
+ * has been asked for it; a VOID counts towards nothing; and outstanding is
+ * only ever billed-and-unpaid.
+ *
+ * Cargo with no invoice at all is simply absent from these figures rather than
+ * estimated. The board is a glance across many flights and an estimate here
+ * would need the rate book queried once per consignment on every row.
+ */
+function moneyFor(
+  cargo: {
+    invoice: {
+      total: unknown;
+      amountPaid: unknown;
+      status: string;
+    } | null;
+  }[]
+) {
+  let expected = 0;
+  let collected = 0;
+  let outstanding = 0;
+  let drafts = 0;
+
+  for (const piece of cargo) {
+    const invoice = piece.invoice;
+    if (!invoice || invoice.status === "VOID") continue;
+
+    const total = toNumber(invoice.total as never);
+    const paid = toNumber(invoice.amountPaid as never);
+
+    expected += total;
+    collected += paid;
+    if (invoice.status === "DRAFT") drafts += 1;
+    else outstanding += Math.max(0, total - paid);
+  }
+
+  return { currency: "USD", expected, collected, outstanding, drafts };
+}
+
 export default async function ShipmentsPage() {
-  await requirePermission("batch.view");
+  const user = await requirePermission("batch.view");
+  const showMoney = can(user.role, "finance.view");
 
   const dispatches = await prisma.batch.findMany({
     where: { permanent: false },
@@ -41,7 +86,28 @@ export default async function ShipmentsPage() {
       expectedArrival: true,
       arrivalDate: true,
       shipments: {
-        select: { weightKg: true, packages: true, customerId: true },
+        select: {
+          weightKg: true,
+          packages: true,
+          customerId: true,
+          cargoCategory: true,
+          cargoTypeId: true,
+          arrivedAt: true,
+          deliveredAt: true,
+          // Only selected for desks that may see money. A figure never
+          // fetched cannot leak through a serialised prop.
+          ...(showMoney
+            ? {
+                invoice: {
+                  select: {
+                    total: true,
+                    amountPaid: true,
+                    status: true,
+                  },
+                },
+              }
+            : {}),
+        },
       },
     },
   });
@@ -63,6 +129,7 @@ export default async function ShipmentsPage() {
       ? formatDate(dispatch.expectedArrival)
       : null,
     arrivedLabel: dispatch.arrivalDate ? formatDate(dispatch.arrivalDate) : null,
+    money: showMoney ? moneyFor(dispatch.shipments) : null,
   }));
 
   const active = rows.filter(
