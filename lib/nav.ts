@@ -122,36 +122,25 @@ const SECTIONS: NavSection[] = [
   {
     title: "Finance",
     items: [
+      // ONE row. Finance is a department, not a list of pages, and it has nine
+      // screens now — payments, accounts, the register, expenses, profit,
+      // pricing, pickup notes, audit. Nine sidebar rows would bury the rest of
+      // the app under one department, and half of them would be dead links for
+      // Support, who reaches this section too.
+      //
+      // Deliberately not `exact`, so the row stays lit on every screen inside
+      // Finance. Which of them you are on is the tab row's job — it is right
+      // above the numbers, where somebody moving between them is already
+      // looking.
+      //
+      // No Invoices row here either. An invoice belongs to the cargo it bills
+      // and is opened from there or from the dispatch — a list of invoice
+      // numbers on its own says nothing about which box it is or where.
       {
         href: "/app/finance",
-        label: "Overview",
+        label: "Finance",
         icon: "Wallet",
         permission: "finance.view",
-        exact: true,
-      },
-      // No Invoices row. An invoice belongs to the cargo it bills and is
-      // opened from there or from the dispatch — a list of invoice numbers on
-      // their own says nothing about which box it is or where that box is.
-      {
-        href: "/app/finance/payments",
-        label: "Payments",
-        icon: "Banknote",
-        permission: "payment.record",
-      },
-      {
-        href: "/app/finance/pricing",
-        label: "Pricing & configuration",
-        icon: "SlidersHorizontal",
-        // Read to get in; every control that writes is gated separately, so
-        // Support can answer "what will this cost" without moving anything.
-        permission: "pricing.view",
-      },
-      {
-        href: "/app/finance/pickup-notes",
-        label: "Pickup notes",
-        icon: "QrCode",
-        // Read, not issue — Support prints these and needs the door.
-        permission: "pickupNote.view",
       },
     ],
   },
