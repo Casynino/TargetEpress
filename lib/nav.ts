@@ -75,11 +75,22 @@ const SECTIONS: NavSection[] = [
         permission: "customer.view",
       },
       {
+        href: "/app/search",
+        label: "Search Cargo",
+        icon: "Package",
+        // How every desk that is not holding the box finds one: a customer
+        // reads out a tracking number, or a name, or a phone number. Finance
+        // and Support live on this — they never have the cargo in their hands.
+        permission: "shipment.view",
+      },
+      {
         href: "/app/scan",
         label: "Scan QR",
         icon: "ScanLine",
-        // The China desk prints labels; it never scans them. Offering the link
-        // there implies a workflow that does not exist.
+        // The warehouse floors only. China prints labels and never scans them;
+        // Finance and Support are never standing in front of a box. Offering
+        // the link to a desk that cannot use it implies a workflow that does
+        // not exist.
         permission: "shipment.scan",
       },
       {

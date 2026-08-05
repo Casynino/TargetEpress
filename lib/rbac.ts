@@ -214,9 +214,10 @@ const CUSTOMER_CARE: Permission[] = [
 const FINANCE: Permission[] = [
   "shipment.view",
   "shipment.viewInternal",
-  // Finance sits in the Dar office; a customer arriving with a label in hand is
-  // a real scan case, and the scan shows them what is owed.
-  "shipment.scan",
+  // No shipment.scan. Scanning is a warehouse action — somebody standing in
+  // front of a box, reading the sticker on it. Finance never has the cargo in
+  // their hands; they work from the tracking number a customer reads out, and
+  // Search Cargo answers that with the same record.
   "batch.view",
   "finance.view",
   "invoice.manage",

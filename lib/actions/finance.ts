@@ -128,6 +128,12 @@ export async function generateInvoice(
         storageCharge: new Prisma.Decimal(storageCharge),
         otherCharges: new Prisma.Decimal(0),
         discount: new Prisma.Decimal(0),
+        // This action exists to re-price from the rate book, so any earlier
+        // correction is deliberately dropped — but it is CLEARED rather than
+        // ignored. A stored override the total does not honour is a row that
+        // contradicts itself, and the invoice document reads one of the two.
+        freightOverride: null,
+        freightOverrideReason: null,
         total: new Prisma.Decimal(total),
         exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
         localCurrency: LOCAL_CURRENCY,
@@ -223,6 +229,7 @@ export async function confirmInvoicePrice(
           status: true,
           discount: true,
           otherCharges: true,
+          freightOverride: true,
           notes: true,
           shipment: {
             select: {
@@ -264,7 +271,22 @@ export async function confirmInvoicePrice(
       const storageCharge = storageDays * STORAGE_POLICY.perDayUsd;
       const discount = toNumber(invoice.discount);
       const otherCharges = toNumber(invoice.otherCharges);
-      const total = priced.total + storageCharge + otherCharges - discount;
+
+      // A freight correction Finance already made SURVIVES confirmation.
+      //
+      // What confirming re-derives is what time changed — storage days accrued
+      // since the draft, and today's exchange rate. A figure a person decided,
+      // wrote a reason against and saw saved is not something time changed, and
+      // re-deriving it silently un-does their work: correct a line, press
+      // "Confirm all", and the correction is gone with nothing to show it ever
+      // happened. The rate-book figure still goes to freightCost, so the
+      // variance stays visible.
+      const override =
+        invoice.freightOverride === null
+          ? null
+          : toNumber(invoice.freightOverride);
+      const billedFreight = override ?? priced.total;
+      const total = billedFreight + storageCharge + otherCharges - discount;
       if (total < 0) {
         throw new Error(
           "The discount on this draft is larger than the rest of the invoice."

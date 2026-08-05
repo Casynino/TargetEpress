@@ -66,6 +66,13 @@ export default async function InvoicePage({
 
   const shipment = invoice.shipment;
   const currency = invoice.currency;
+  // The freight the customer is actually being charged. adjustInvoice computes
+  // the total from this same coalesce, so the document has to print it or the
+  // lines will not sum.
+  const billedFreight =
+    invoice.freightOverride === null
+      ? toNumber(invoice.freightCost)
+      : toNumber(invoice.freightOverride);
   const outstanding = toNumber(invoice.total) - toNumber(invoice.amountPaid);
 
   // The rate this invoice was raised at, not today's. A customer quoted a
@@ -270,7 +277,12 @@ export default async function InvoicePage({
                 </p>
               </td>
               <td className="py-2.5 text-right font-mono tabular">
-                {money(toNumber(invoice.freightCost), currency)}
+                {/* What was actually billed — the correction when Finance made
+                    one, the rate book otherwise. The same coalesce the total
+                    was computed from, and the same one the PDF prints. Reading
+                    freightCost alone made the line items on this page fail to
+                    add up to the total sitting under them. */}
+                {money(billedFreight, currency)}
               </td>
             </tr>
 
