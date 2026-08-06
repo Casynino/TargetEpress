@@ -29,7 +29,7 @@ import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Ledger" };
+export const metadata: Metadata = { title: "The Ledger" };
 
 const KIND_LABEL: Record<string, string> = {
   OPENING_BALANCE: "Opening balance",
@@ -278,7 +278,7 @@ export default async function LedgerPage({
   return (
     <>
       <PageHeader
-        title="Ledger"
+        title="The Ledger"
         description="Every movement of money — freight collected, costs paid, transfers between accounts — with its account, who recorded it, and a running balance."
         actions={
           canRecord ? (
@@ -407,7 +407,9 @@ export default async function LedgerPage({
                   purpose = entry.transfer.reason;
                 }
 
-                // Every code that could be quoted back at you, in one run.
+                // Every code that could be quoted back at you. Kept as a
+                // list, not one joined string: these are full of hyphens, and
+                // a browser will happily break a line inside TX-000104.
                 const refs = [
                   entry.payment?.receipt?.receiptNumber ??
                     entry.expense?.expenseNumber ??
@@ -415,9 +417,7 @@ export default async function LedgerPage({
                     entry.entryNumber,
                   entry.payment?.invoice.shipment.trackingNumber,
                   entry.payment?.reference,
-                ]
-                  .filter(Boolean)
-                  .join(" · ");
+                ].filter((v): v is string => Boolean(v));
 
                 /**
                  * One classification per line, and only one.
@@ -447,7 +447,11 @@ export default async function LedgerPage({
                       {formatDate(entry.occurredAt)}
                     </TableCell>
 
-                    <TableCell className="max-w-[30rem] py-2.5">
+                    {/* A floor as well as a ceiling. The table scrolls sideways on a
+                        phone anyway, so squeezing this column there buys nothing
+                        and costs the codes, which is what somebody standing at the
+                        counter with a label in their hand is reading. */}
+                    <TableCell className="min-w-[17rem] max-w-[30rem] py-2.5">
                       {/* Stretched over the whole row: a ledger line is one
                           thing, so anywhere on it opens it. Still a single
                           real link, so it is keyboard-reachable and can be
@@ -458,15 +462,22 @@ export default async function LedgerPage({
                       >
                         {title}
                       </Link>
-                      <span className="mt-0.5 flex items-baseline gap-1.5 text-[11px] text-muted-foreground">
-                        {purpose ? (
-                          <span className="min-w-0 truncate">{purpose} ·</span>
-                        ) : null}
-                        {/* Never shortened. A half-printed tracking number is
-                            no use to somebody matching this against a label. */}
-                        <span className="shrink-0 font-mono text-muted-foreground/70">
-                          {refs}
-                        </span>
+                      {/* Wraps rather than truncates. Squeezed onto one line a
+                          long cargo description and a run of codes compete for
+                          it, and whichever loses vanishes outright — which is
+                          how "what was this for" disappeared on exactly the
+                          narrow screens it matters most on. Two lines when it
+                          needs them, one when it does not. */}
+                      <span className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                        {purpose ? <>{purpose} </> : null}
+                        {refs.map((ref, i) => (
+                          <span key={ref}>
+                            {i > 0 || purpose ? "· " : null}
+                            <span className="whitespace-nowrap font-mono text-muted-foreground/70">
+                              {ref}
+                            </span>{" "}
+                          </span>
+                        ))}
                       </span>
                     </TableCell>
 

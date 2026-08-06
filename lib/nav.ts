@@ -159,7 +159,7 @@ const SECTIONS: NavSection[] = [
       // numbers on its own says nothing about which box it is or where.
       {
         href: "/app/finance",
-        label: "Ledger",
+        label: "The Ledger",
         icon: "Wallet",
         permission: "finance.view",
       },
