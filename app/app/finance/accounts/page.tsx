@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
-  Banknote,
+  ArrowDownLeft,
+  ArrowUpRight,
   Building2,
   CircleHelp,
   Smartphone,
@@ -12,13 +13,10 @@ import {
 import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { Badge } from "@/components/ui/badge";
-import {
-  CashCountPanel,
-  TransferPanel,
-} from "@/components/app/treasury-panels";
+import { TreasuryActions } from "@/components/app/treasury-panels";
 import { financeTabs } from "@/lib/finance-tabs";
 import { formatMoney, formatRelative, toNumber } from "@/lib/format";
-import { formatUsd } from "@/lib/fx";
+import { currentRate, formatUsd } from "@/lib/fx";
 import { accountBalances } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -29,6 +27,19 @@ const KIND_ICON = {
   BANK: Building2,
   MOBILE_MONEY: Smartphone,
   CASH: Wallet,
+} as const;
+
+/** Kind, carried as colour rather than another line of text. */
+const KIND_SPINE = {
+  BANK: "bg-gradient-to-r from-brand to-info",
+  MOBILE_MONEY: "bg-gradient-to-r from-signal to-warning",
+  CASH: "bg-gradient-to-r from-success to-brand",
+} as const;
+
+const KIND_CHIP = {
+  BANK: "bg-brand/10 text-brand",
+  MOBILE_MONEY: "bg-signal/10 text-signal",
+  CASH: "bg-success/10 text-success",
 } as const;
 
 const KIND_LABEL = {
@@ -56,7 +67,7 @@ const KIND_LABEL = {
 export default async function AccountsPage() {
   const user = await requirePermission("account.view");
 
-  const [accounts, balances, unattributed, counts] = await Promise.all([
+  const [accounts, balances, unattributed, rateRow, counts] = await Promise.all([
     prisma.companyAccount.findMany({
       orderBy: [{ active: "desc" }, { sortOrder: "asc" }],
     }),
@@ -68,6 +79,7 @@ export default async function AccountsPage() {
       _sum: { creditedAmount: true },
       _count: true,
     }),
+    currentRate(),
     prisma.cashCount.findMany({
       orderBy: { countedAt: "desc" },
       take: 6,
@@ -97,6 +109,7 @@ export default async function AccountsPage() {
     };
   });
 
+  const rate = rateRow ? toNumber(rateRow.rate) : null;
   const totalUsd = rows.reduce((sum, row) => sum + row.netUsd, 0);
   const unattributedUsd = toNumber(unattributed._sum.creditedAmount);
   const needsOpening = accounts.filter((a) => a.active && a.openingSetAt === null);
@@ -126,6 +139,8 @@ export default async function AccountsPage() {
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
+      <TreasuryActions accounts={treasuryAccounts} expected={expectedCash} />
+
       {/* Said first, and plainly. Every total below is understated by whatever
           was already in these accounts before this system existed, and that is
           not a rounding error — it is most of the money. */}
@@ -148,219 +163,232 @@ export default async function AccountsPage() {
         </div>
       ) : null}
 
-      <dl className="mb-6 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-card p-4">
-          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Banknote className="h-3.5 w-3.5 text-brand" />
-            Recorded across all accounts
-          </dt>
-          <dd className="mt-1 font-display text-lg font-bold tabular-nums">
-            {formatUsd(totalUsd)}
-          </dd>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Six accounts, one currency each, summed in USD
+      {/* The position, in shillings, as one band rather than four flat cells.
+          It was a hairline strip of dollar figures on a page whose every other
+          number had moved to shillings. */}
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-6 rounded-2xl border bg-card p-6">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Across every account
+          </p>
+          <p className="mt-2 font-display text-[36px] font-bold leading-none tracking-tight tabular-nums">
+            {rate ? (
+              <>
+                <span className="text-lg font-semibold text-muted-foreground">
+                  TSh{" "}
+                </span>
+                {Math.round(totalUsd * rate).toLocaleString("en-US")}
+              </>
+            ) : (
+              formatUsd(totalUsd)
+            )}
+          </p>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {formatUsd(totalUsd)} on the invoice rate · six accounts, one
+            currency each
           </p>
         </div>
-        <div className="bg-card p-4">
-          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <CircleHelp
-              className={`h-3.5 w-3.5 ${unattributed._count ? "text-warning" : "text-muted-foreground"}`}
-            />
-            Unattributed
-          </dt>
-          <dd className="mt-1 font-display text-lg font-bold tabular-nums">
-            {formatUsd(unattributedUsd)}
-          </dd>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {unattributed._count === 0
-              ? "Every payment says where it landed"
-              : `${unattributed._count} payment${unattributed._count === 1 ? "" : "s"} with no account named`}
-          </p>
-        </div>
-        <div className="bg-card p-4">
-          <dt className="text-xs text-muted-foreground">Accounts in use</dt>
-          <dd className="mt-1 font-display text-lg font-bold tabular-nums">
-            {accounts.filter((a) => a.active).length}
-          </dd>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {rows.filter((r) => r.entries > 0).length} with movement so far
-          </p>
-        </div>
-        <div className="bg-card p-4">
-          <dt className="text-xs text-muted-foreground">Movements recorded</dt>
-          <dd className="mt-1 font-display text-lg font-bold tabular-nums">
-            {rows.reduce((sum, row) => sum + row.entries, 0)}
-          </dd>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            <Link href="/app/finance/transactions" className="hover:text-brand">
-              Open the register
-            </Link>
-          </p>
-        </div>
-      </dl>
 
+        <dl className="flex flex-wrap gap-x-8 gap-y-3">
+          <div>
+            <dt className="text-xs text-muted-foreground">Accounts in use</dt>
+            <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
+              {accounts.filter((a) => a.active).length}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">With movement</dt>
+            <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
+              {rows.filter((r) => r.entries > 0).length}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Movements</dt>
+            <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
+              <Link
+                href="/app/finance/transactions"
+                className="hover:text-brand"
+              >
+                {rows.reduce((sum, row) => sum + row.entries, 0)}
+              </Link>
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      {/* Money the business holds that has not reached an account. Stated as a
+          job above the accounts rather than as a seventh card among them: it
+          is not an account, and shaped like one it sat alone in a row of three
+          looking like a layout fault. */}
+      {unattributed._count > 0 ? (
+        <Link
+          href="/app/finance/payments"
+          className="focus-ring mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-warning/40 bg-warning/5 px-5 py-3.5 transition-colors hover:bg-warning/10"
+        >
+          <CircleHelp className="h-4 w-4 shrink-0 text-warning" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium">
+              {unattributed._count} payment
+              {unattributed._count === 1 ? "" : "s"} not in any account
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              Money we hold with no address yet — open it and say where it went
+            </span>
+          </span>
+          <span className="text-right">
+            <span className="block font-display text-lg font-bold tabular-nums">
+              {rate
+                ? `TSh ${Math.round(unattributedUsd * rate).toLocaleString("en-US")}`
+                : formatUsd(unattributedUsd)}
+            </span>
+            {rate ? (
+              <span className="block font-mono text-[11px] text-muted-foreground">
+                {formatUsd(unattributedUsd)}
+              </span>
+            ) : null}
+          </span>
+          <span className="shrink-0 text-xs font-medium text-brand">
+            Fix it →
+          </span>
+        </Link>
+      ) : null}
+
+      {/* The accounts themselves.
+          Each was a flat grey box repeating "no opening balance set · USD 0.00"
+          — the same sentence the banner above already says, six times over,
+          under two boxed In/Out cells that were empty on five of them.
+          Now: the institution reads first, the balance is the object, and an
+          account with nothing in it says so once and quietly. Kind is carried
+          by a coloured spine rather than another line of text. */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {rows.map(({ account, inflow, outflow, net, netUsd, entries, lastMovedAt }) => {
           const Icon = KIND_ICON[account.kind];
+          const live = entries > 0;
           return (
             <Link
               key={account.id}
               href={`/app/finance/accounts/${account.id}`}
-              className={`focus-ring block rounded-xl border bg-card p-5 shadow-soft transition-all hover:border-foreground/20 hover:shadow-lift ${
+              className={`focus-ring group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all hover:border-foreground/20 hover:shadow-lift ${
                 account.active ? "" : "opacity-60"
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="flex items-center gap-2 font-medium">
-                    <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{account.name}</span>
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {KIND_LABEL[account.kind]}
-                    {account.accountNumber ? ` · ${account.accountNumber}` : ""}
-                  </p>
+              {/* A coloured spine says what kind of account this is without
+                  spending a line of text on the word. */}
+              <span
+                aria-hidden
+                className={`absolute inset-x-0 top-0 h-1 ${KIND_SPINE[account.kind]}`}
+              />
+
+              <div className="flex items-start justify-between gap-3 p-5 pb-0">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span
+                    className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${KIND_CHIP[account.kind]}`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold leading-tight">
+                      {account.kind === "BANK"
+                        ? (account.institution ?? account.name)
+                        : account.name}
+                    </p>
+                    <p className="truncate font-mono text-[11px] text-muted-foreground">
+                      {account.accountNumber ?? KIND_LABEL[account.kind]}
+                    </p>
+                  </div>
                 </div>
-                <Badge variant="outline" className="shrink-0">
-                  {account.currency}
+                <Badge variant="outline" className="shrink-0 font-mono text-[10px]">
+                  {account.currency === "TZS" ? "TSh" : account.currency}
                 </Badge>
               </div>
 
-              <p className="mt-4 font-display text-2xl font-bold tabular-nums">
-                {formatMoney(net, account.currency)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {account.openingSetAt === null
-                  ? "recorded here — no opening balance set"
-                  : "balance"}
-                {account.currency === "USD" ? "" : ` · ${formatUsd(netUsd)}`}
-              </p>
+              <div className="p-5 pt-4">
+                <p className="font-display text-[28px] font-bold leading-none tracking-tight tabular-nums">
+                  {formatMoney(net, account.currency)}
+                </p>
+                {account.currency === "USD" || !live ? null : (
+                  <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+                    {formatUsd(netUsd)}
+                  </p>
+                )}
+              </div>
 
-              <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border text-center">
-                <div className="bg-card px-2 py-2">
-                  <dt className="text-[11px] text-muted-foreground">In</dt>
-                  <dd className="font-mono text-sm tabular-nums text-success">
-                    {formatMoney(inflow, account.currency)}
-                  </dd>
-                </div>
-                <div className="bg-card px-2 py-2">
-                  <dt className="text-[11px] text-muted-foreground">Out</dt>
-                  <dd className="font-mono text-sm tabular-nums">
-                    {outflow === 0 ? "—" : formatMoney(outflow, account.currency)}
-                  </dd>
-                </div>
-              </dl>
-
-              <p className="mt-3 text-xs text-muted-foreground">
-                {entries === 0
-                  ? "Nothing recorded against this account yet"
-                  : `${entries} movement${entries === 1 ? "" : "s"}${
-                      lastMovedAt ? `, last ${formatRelative(lastMovedAt)}` : ""
-                    } · open it`}
-              </p>
+              <div className="mt-auto border-t px-5 py-3">
+                {live ? (
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                    <span className="inline-flex items-center gap-1.5 font-mono text-xs tabular-nums text-success">
+                      <ArrowDownLeft className="h-3.5 w-3.5" />
+                      {formatMoney(inflow, account.currency)}
+                    </span>
+                    {outflow > 0 ? (
+                      <span className="inline-flex items-center gap-1.5 font-mono text-xs tabular-nums">
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                        {formatMoney(outflow, account.currency)}
+                      </span>
+                    ) : null}
+                    <span className="ml-auto text-[11px] text-muted-foreground">
+                      {entries} movement{entries === 1 ? "" : "s"}
+                      {lastMovedAt ? ` · ${formatRelative(lastMovedAt)}` : ""}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">
+                    No movement yet
+                  </p>
+                )}
+              </div>
             </Link>
           );
         })}
-
-        {/* Not an account, and deliberately shaped like one anyway. Money the
-            business holds that nobody has filed is real money, and it belongs
-            beside the accounts rather than in a footnote nobody reads. */}
-        {unattributed._count > 0 ? (
-          <section className="rounded-xl border border-dashed bg-card p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="flex items-center gap-2 font-medium">
-                  <CircleHelp className="h-4 w-4 shrink-0 text-warning" />
-                  Unattributed
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Received, but no account named
-                </p>
-              </div>
-              <Badge variant="outline" className="shrink-0">
-                mixed
-              </Badge>
-            </div>
-
-            <p className="mt-4 font-display text-2xl font-bold tabular-nums">
-              {formatUsd(unattributedUsd)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              across {unattributed._count} payment
-              {unattributed._count === 1 ? "" : "s"}
-            </p>
-
-            <p className="mt-4 text-xs text-muted-foreground">
-              This is money the business has. It simply has no address yet —
-              open the payment and say which account it went into, and it moves
-              out of here on its own.
-            </p>
-            <Link
-              href="/app/finance/payments"
-              className="mt-2 inline-block text-xs font-medium text-brand hover:underline"
-            >
-              Find them on the payments register
-            </Link>
-          </section>
-        ) : null}
       </div>
 
-      {/* Below the balances, because these are things you do TO the accounts,
-          and the accounts themselves are what somebody came here to read. */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <TransferPanel accounts={treasuryAccounts} />
 
-        <div className="space-y-6">
-          <CashCountPanel accounts={treasuryAccounts} expected={expectedCash} />
-
-          {counts.length > 0 ? (
-            <section className="rounded-xl border bg-card shadow-soft">
-              <h2 className="border-b px-5 py-4 font-semibold">Recent counts</h2>
-              <ul className="divide-y">
-                {counts.map((count) => {
-                  const diff = toNumber(count.variance);
-                  return (
-                    <li
-                      key={count.id}
-                      className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-3 text-sm"
-                    >
-                      <div className="min-w-0">
-                        <p>
-                          {count.account.name} —{" "}
-                          {formatMoney(count.countedAmount, count.account.currency)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {count.countedBy?.name ?? "—"} ·{" "}
-                          {formatRelative(count.countedAt)}
-                          {count.note ? ` · ${count.note}` : ""}
-                        </p>
-                      </div>
-                      {/* A difference is stated, never absorbed. It stays on
-                          the record until somebody explains it. */}
-                      <span
-                        className={`font-mono text-xs tabular-nums ${
-                          diff === 0
-                            ? "text-success"
-                            : diff < 0
-                              ? "text-destructive"
-                              : "text-warning"
-                        }`}
-                      >
-                        {diff === 0
-                          ? "matched"
-                          : `${diff > 0 ? "over" : "short"} ${formatMoney(
-                              Math.abs(diff),
-                              count.account.currency
-                            )}`}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ) : null}
-        </div>
-      </div>
+      {counts.length > 0 ? (
+        <section className="mt-6 overflow-hidden rounded-xl border bg-card">
+          <h2 className="border-b px-5 py-3.5 font-semibold">Recent cash counts</h2>
+          <ul className="divide-y">
+            {counts.map((count) => {
+              const diff = toNumber(count.variance);
+              return (
+                <li
+                  key={count.id}
+                  className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-3 text-sm"
+                >
+                  <div className="min-w-0">
+                    <p>
+                      {count.account.name} —{" "}
+                      {formatMoney(count.countedAmount, count.account.currency)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {count.countedBy?.name ?? "—"} ·{" "}
+                      {formatRelative(count.countedAt)}
+                      {count.note ? ` · ${count.note}` : ""}
+                    </p>
+                  </div>
+                  {/* A difference is stated, never absorbed. It stays on the
+                      record until somebody explains it. */}
+                  <span
+                    className={`font-mono text-xs tabular-nums ${
+                      diff === 0
+                        ? "text-success"
+                        : diff < 0
+                          ? "text-destructive"
+                          : "text-warning"
+                    }`}
+                  >
+                    {diff === 0
+                      ? "matched"
+                      : `${diff > 0 ? "over" : "short"} ${formatMoney(
+                          Math.abs(diff),
+                          count.account.currency
+                        )}`}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
     </>
   );
 }

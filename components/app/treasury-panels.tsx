@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ArrowLeftRight, Calculator } from "lucide-react";
+import { ArrowLeftRight, Calculator, X } from "lucide-react";
 
 import {
   FormError,
   FormSuccess,
   SubmitButton,
 } from "@/components/app/form-feedback";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -113,7 +114,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
               Amount leaving{" "}
               {fromAccount ? (
                 <span className="text-muted-foreground">
-                  ({fromAccount.currency})
+                  ({fromAccount.currency === "TZS" ? "TSh" : fromAccount.currency})
                 </span>
               ) : null}
             </Label>
@@ -310,7 +311,9 @@ export function CashCountPanel({
           <Label htmlFor="countedAmount" className="text-xs">
             Counted{" "}
             {account ? (
-              <span className="text-muted-foreground">({account.currency})</span>
+              <span className="text-muted-foreground">
+                ({account.currency === "TZS" ? "TSh" : account.currency})
+              </span>
             ) : null}
           </Label>
           <Input
@@ -325,7 +328,7 @@ export function CashCountPanel({
             required
           />
           <p className="text-xs text-muted-foreground">
-            The ledger says {account?.currency}{" "}
+            The ledger says {account?.currency === "TZS" ? "TSh" : account?.currency}{" "}
             {shouldBe.toLocaleString(undefined, { maximumFractionDigits: 2 })}
             {diff === null ? (
               "."
@@ -373,5 +376,76 @@ export function CashCountPanel({
         </SubmitButton>
       </form>
     </section>
+  );
+}
+
+/**
+ * The two treasury jobs, as a toolbar rather than two permanent forms.
+ *
+ * They were bolted to the bottom of the accounts page — two full form panels
+ * always open, below the balances, whether or not anybody was moving money
+ * that day. They read as furniture rather than as tools, which is exactly what
+ * the owner said about them.
+ *
+ * A page about what the accounts hold should show what the accounts hold. The
+ * forms appear when asked for, one at a time, because nobody banks cash and
+ * counts the tin in the same motion.
+ */
+export function TreasuryActions({
+  accounts,
+  expected,
+}: {
+  accounts: TreasuryAccount[];
+  expected: Record<string, number>;
+}) {
+  const [open, setOpen] = useState<"transfer" | "count" | null>(null);
+  const hasCash = accounts.some((a) => a.kind === "CASH");
+
+  return (
+    <div className="mb-6">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={open === "transfer" ? "brand" : "outline"}
+          size="sm"
+          className="rounded-lg"
+          onClick={() => setOpen(open === "transfer" ? null : "transfer")}
+        >
+          <ArrowLeftRight className="mr-2 h-4 w-4" />
+          Move money between accounts
+        </Button>
+        {hasCash ? (
+          <Button
+            variant={open === "count" ? "brand" : "outline"}
+            size="sm"
+            className="rounded-lg"
+            onClick={() => setOpen(open === "count" ? null : "count")}
+          >
+            <Calculator className="mr-2 h-4 w-4" />
+            Count the cash tin
+          </Button>
+        ) : null}
+        {open ? (
+          <button
+            type="button"
+            onClick={() => setOpen(null)}
+            className="focus-ring ml-auto inline-flex items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+            Close
+          </button>
+        ) : null}
+      </div>
+
+      {open === "transfer" ? (
+        <div className="mt-4">
+          <TransferPanel accounts={accounts} />
+        </div>
+      ) : null}
+      {open === "count" ? (
+        <div className="mt-4 max-w-xl">
+          <CashCountPanel accounts={accounts} expected={expected} />
+        </div>
+      ) : null}
+    </div>
   );
 }
