@@ -4,7 +4,7 @@ import {
   ArrowDownLeft,
   ArrowLeftRight,
   ArrowUpRight,
-  Banknote,
+  Calculator,
   CircleHelp,
   FileClock,
   HandCoins,
@@ -262,124 +262,121 @@ export default async function FinanceOverviewPage() {
       {/* ── One band: what we hold, what moved, and the three things this desk
              does. Everything a manager opens this page to know, above the
              fold and without a card grid to scan. */}
-      <section className="mb-6 overflow-hidden rounded-2xl border bg-card">
-        <div className="grid lg:grid-cols-[1.35fr_1fr]">
-          <div className="border-b p-6 lg:border-b-0 lg:border-r">
-            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-              <PiggyBank className="h-4 w-4 text-brand" />
-              {seesCompanyMoney ? "Cash available" : "Collected all time"}
-            </p>
-            <p className="mt-2 font-display text-[40px] font-bold leading-none tracking-tight tabular-nums">
-              {rate ? (
-                <>
-                  <span className="text-xl font-semibold text-muted-foreground">
-                    TSh{" "}
-                  </span>
-                  {Math.round(
-                    (seesCompanyMoney ? cashOnHand : stats.collected) * rate
-                  ).toLocaleString("en-US")}
-                </>
-              ) : (
-                formatUsd(seesCompanyMoney ? cashOnHand : stats.collected)
-              )}
-            </p>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              {seesCompanyMoney
-                ? "Across every bank, till and the office tin — derived from the ledger"
-                : "Every payment received"}{" "}
-              · {formatUsd(seesCompanyMoney ? cashOnHand : stats.collected)} on
-              the invoice
-            </p>
+      {/* One band, full width.
+             It was split with a "what you do here" column of three stacked
+             buttons, two of which only navigated to tabs sitting directly
+             above them — a second, heavier copy of the tab row. What is left
+             are the three things somebody actually DOES from this desk, named
+             as actions, as a toolbar under the figures rather than a column
+             competing with them. */}
+      <section className="mb-6 rounded-2xl border bg-card p-6">
+        <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <PiggyBank className="h-4 w-4 text-brand" />
+          {seesCompanyMoney ? "Cash available" : "Collected all time"}
+        </p>
+        <p className="mt-2 font-display text-[40px] font-bold leading-none tracking-tight tabular-nums">
+          {rate ? (
+            <>
+              <span className="text-xl font-semibold text-muted-foreground">
+                TSh{" "}
+              </span>
+              {Math.round(
+                (seesCompanyMoney ? cashOnHand : stats.collected) * rate
+              ).toLocaleString("en-US")}
+            </>
+          ) : (
+            formatUsd(seesCompanyMoney ? cashOnHand : stats.collected)
+          )}
+        </p>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          {seesCompanyMoney
+            ? "Across every bank, till and the office tin — derived from the ledger"
+            : "Every payment received"}{" "}
+          · {formatUsd(seesCompanyMoney ? cashOnHand : stats.collected)} on the
+          invoice
+        </p>
 
-            {/* This month, as a movement rather than two more cards. */}
-            <dl className="mt-5 flex flex-wrap gap-x-8 gap-y-3 border-t pt-4">
+        <dl className="mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t pt-4">
+          <div>
+            <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <ArrowDownLeft className="h-3.5 w-3.5 text-success" />
+              In this month
+            </dt>
+            <dd className="mt-0.5 font-display text-lg font-bold tabular-nums text-success">
+              {tsh(collectedMonth)}
+            </dd>
+          </div>
+          {seesCompanyMoney ? (
+            <>
               <div>
                 <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <ArrowDownLeft className="h-3.5 w-3.5 text-success" />
-                  In this month
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  Out this month
                 </dt>
-                <dd className="mt-0.5 font-display text-lg font-bold tabular-nums text-success">
-                  {tsh(collectedMonth)}
+                <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
+                  {tsh(spentUsd)}
                 </dd>
               </div>
-              {seesCompanyMoney ? (
+              <div>
+                <dt className="text-xs text-muted-foreground">Net</dt>
+                <dd
+                  className={`mt-0.5 font-display text-lg font-bold tabular-nums ${
+                    netMonth >= 0 ? "" : "text-destructive"
+                  }`}
+                >
+                  {tsh(netMonth)}
+                </dd>
+              </div>
+            </>
+          ) : null}
+          <div className="ml-auto">
+            <dt className="text-xs text-muted-foreground">Rate today</dt>
+            <dd className="mt-0.5 font-mono text-sm tabular-nums">
+              {rate ? (
                 <>
-                  <div>
-                    <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                      Out this month
-                    </dt>
-                    <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
-                      {tsh(spentUsd)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Net</dt>
-                    <dd
-                      className={`mt-0.5 font-display text-lg font-bold tabular-nums ${
-                        netMonth >= 0 ? "" : "text-destructive"
-                      }`}
-                    >
-                      {tsh(netMonth)}
-                    </dd>
-                  </div>
+                  1 USD ={" "}
+                  <span className="font-semibold text-brand">
+                    {rate.toLocaleString()}
+                  </span>{" "}
+                  TSh
                 </>
-              ) : null}
-              <div className="ml-auto">
-                <dt className="text-xs text-muted-foreground">Rate today</dt>
-                <dd className="mt-0.5 font-mono text-sm tabular-nums">
-                  {rate ? (
-                    <>
-                      1 USD ={" "}
-                      <span className="font-semibold text-brand">
-                        {rate.toLocaleString()}
-                      </span>{" "}
-                      TSh
-                    </>
-                  ) : (
-                    <span className="text-destructive">not set</span>
-                  )}
-                  <Link
-                    href="/app/finance/pricing"
-                    className="ml-2 text-xs font-medium text-brand hover:underline"
-                  >
-                    change
-                  </Link>
-                </dd>
-              </div>
-            </dl>
+              ) : (
+                <span className="text-destructive">not set</span>
+              )}
+              <Link
+                href="/app/finance/pricing"
+                className="ml-2 text-xs font-medium text-brand hover:underline"
+              >
+                change
+              </Link>
+            </dd>
           </div>
+        </dl>
 
-          <div className="bg-muted/20 p-6">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-              What you do here
-            </p>
-            <div className="mt-3 flex flex-col gap-2">
-              {seesCompanyMoney ? (
-                <Button asChild variant="brand" className="justify-start rounded-lg">
-                  <Link href="/app/finance/expenses">
-                    <Receipt className="mr-2 h-4 w-4" />
-                    Record a cost
-                  </Link>
-                </Button>
-              ) : null}
-              <Button asChild variant="outline" className="justify-start rounded-lg">
-                <Link href="/app/finance/payments">
-                  <Banknote className="mr-2 h-4 w-4" />
-                  Payments taken
-                </Link>
-              </Button>
-              {seesCompanyMoney ? (
-                <Button asChild variant="outline" className="justify-start rounded-lg">
-                  <Link href="/app/finance/accounts">
-                    <ArrowLeftRight className="mr-2 h-4 w-4" />
-                    Move money · count cash
-                  </Link>
-                </Button>
-              ) : null}
-            </div>
+        {/* Verbs, and only things that are actually done rather than merely
+            looked at. Anything that is just a page lives in the tab row. */}
+        {seesCompanyMoney ? (
+          <div className="mt-5 flex flex-wrap gap-2 border-t pt-4">
+            <Button asChild variant="brand" size="sm" className="rounded-lg">
+              <Link href="/app/finance/expenses">
+                <Receipt className="mr-2 h-4 w-4" />
+                Record a cost
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="rounded-lg">
+              <Link href="/app/finance/accounts">
+                <ArrowLeftRight className="mr-2 h-4 w-4" />
+                Move money between accounts
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="rounded-lg">
+              <Link href="/app/finance/accounts">
+                <Calculator className="mr-2 h-4 w-4" />
+                Count the cash tin
+              </Link>
+            </Button>
           </div>
-        </div>
+        ) : null}
       </section>
 
       {/* ── The work. A list, not a card grid: each row is one job with the
