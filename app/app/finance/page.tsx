@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
+  ArrowDownLeft,
   ArrowLeftRight,
   ArrowUpRight,
   Banknote,
@@ -175,15 +176,71 @@ export default async function FinanceOverviewPage() {
     { label: "Delivered", value: countFor("DELIVERED") },
   ];
 
+  // What actually needs somebody to do something, in the order it matters.
+  //
+  // This replaced eight equal cards. Three of them were showing the same
+  // TSh 462,915 as each other and three more were showing zero, so the page
+  // gave a queue of 84 unpriced consignments exactly as much weight as a nil
+  // balance. A number nobody has to act on is reference; a number somebody has
+  // to act on is work, and work goes first and looks different.
+  const jobs = [
+    {
+      when: drafts._count > 0,
+      label: `${drafts._count} price${drafts._count === 1 ? "" : "s"} to confirm`,
+      detail: "Priced by the system — cannot be billed until you sign them off",
+      usd: draftValue,
+      href: "/app/shipments",
+      cta: "Review by flight",
+      urgent: true,
+    },
+    {
+      when: (unattributed?._count ?? 0) > 0,
+      label: `${unattributed?._count} payment${unattributed?._count === 1 ? "" : "s"} with no account`,
+      detail: "Money we hold that nobody has said where it landed",
+      usd: unattributedUsd,
+      href: "/app/finance/payments",
+      cta: "Say where it landed",
+      urgent: true,
+    },
+    {
+      when: stats.unpaid + stats.partiallyPaid > 0,
+      label: `${stats.unpaid + stats.partiallyPaid} bill${stats.unpaid + stats.partiallyPaid === 1 ? "" : "s"} unpaid`,
+      detail: "Confirmed and sent — the customer still owes it",
+      usd: stats.outstanding,
+      href: "/app/support/follow-up",
+      cta: "Chase",
+      urgent: false,
+    },
+    {
+      when: activeNotes.length > 0,
+      label: `${activeNotes.length} cleared, not collected`,
+      detail: "Paid for and released — waiting on the customer to turn up",
+      usd: clearedNotCollected,
+      href: "/app/finance/pickup-notes",
+      cta: "See notes",
+      urgent: false,
+    },
+    {
+      when: seesCompanyMoney && (unpaidCosts?._count ?? 0) > 0,
+      label: `${unpaidCosts?._count} cost${unpaidCosts?._count === 1 ? "" : "s"} to pay`,
+      detail: "Recorded, not yet disbursed",
+      usd: owedOutUsd,
+      href: "/app/finance/expenses",
+      cta: "Settle",
+      urgent: false,
+    },
+  ].filter((job) => job.when);
+
+  const tsh = (usd: number) =>
+    rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : formatUsd(usd);
+
   return (
     <>
       <PageHeader
-        title="Finance"
-        description="What is owed, what has been collected, and what the company is holding. Priced in dollars, paid in shillings — every figure says both."
+        title="General ledger"
+        description="What the business is holding, what is owed to it, and what has moved. Shown in shillings; the dollar figure is what the invoice says."
         actions={
           <Button asChild variant="brand" className="rounded-lg">
-            {/* Prices are reviewed a flight at a time, on the dispatch —
-                which is where the Confirm all button lives. */}
             <Link href="/app/shipments">
               <ReceiptText className="mr-2 h-4 w-4" />
               Review prices by flight
@@ -194,245 +251,181 @@ export default async function FinanceOverviewPage() {
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
-      {/* The rate every figure below is converted at, stated once, at the top.
-          It is the single number that moves every shilling figure on this
-          page, so it is not left to be discovered on another tab. */}
-      <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border bg-card px-4 py-3">
-        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-          <ArrowLeftRight className="h-4 w-4" />
-        </span>
-        {rate ? (
-          <>
-            <div>
-              <p className="font-display text-lg font-bold leading-none tabular-nums">
-                1 USD ={" "}
-                <span className="text-brand">{rate.toLocaleString()}</span> TSh
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Every shilling figure below is converted at this rate
-                {rateRow?.effectiveFrom
-                  ? ` · set ${formatRelative(rateRow.effectiveFrom)}`
-                  : ""}
-              </p>
-            </div>
-          </>
-        ) : (
-          <div>
-            <p className="font-medium text-destructive">
-              No exchange rate is published
+      {/* ── One band: what we hold, what moved, and the three things this desk
+             does. Everything a manager opens this page to know, above the
+             fold and without a card grid to scan. */}
+      <section className="mb-6 overflow-hidden rounded-2xl border bg-card">
+        <div className="grid lg:grid-cols-[1.35fr_1fr]">
+          <div className="border-b p-6 lg:border-b-0 lg:border-r">
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <PiggyBank className="h-4 w-4 text-brand" />
+              {seesCompanyMoney ? "Cash available" : "Collected all time"}
             </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Nothing on this page can be quoted in shillings until there is one.
-            </p>
-          </div>
-        )}
-        <Link
-          href="/app/finance/pricing"
-          className="focus-ring ml-auto rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-accent"
-        >
-          {rate ? "Change rate" : "Set a rate"}
-        </Link>
-      </div>
-
-      {/* Cash available, first and biggest.
-          This desk's standing question is "have we got the money", asked in
-          shillings, and it should never be something you scroll or convert to
-          find. The actions beside it are the two things this desk does all day
-          — take money in, and record what went out. */}
-      {seesCompanyMoney ? (
-        <section className="relative mb-6 overflow-hidden rounded-2xl border bg-gradient-to-br from-brand/10 via-card to-card p-6">
-          <div className="relative flex flex-wrap items-start justify-between gap-6">
-            <div className="min-w-0">
-              <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                <PiggyBank className="h-4 w-4 text-brand" />
-                Cash available
-              </p>
-              <p className="mt-2 font-display text-[40px] font-bold leading-none tracking-tight tabular-nums">
-                {rate ? (
-                  <>
-                    <span className="text-xl font-semibold text-muted-foreground">
-                      TSh{" "}
-                    </span>
-                    {Math.round(cashOnHand * rate).toLocaleString("en-US")}
-                  </>
-                ) : (
-                  formatUsd(cashOnHand)
-                )}
-              </p>
-              <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                Everything the business is holding right now, across the banks,
-                the mobile-money tills and the office tin — worked out live from
-                the ledger, so it cannot drift.
-                {rate ? (
-                  <span className="ml-1 font-mono text-xs">
-                    ({formatUsd(cashOnHand)} on the invoice rate)
+            <p className="mt-2 font-display text-[40px] font-bold leading-none tracking-tight tabular-nums">
+              {rate ? (
+                <>
+                  <span className="text-xl font-semibold text-muted-foreground">
+                    TSh{" "}
                   </span>
-                ) : null}
-              </p>
-            </div>
+                  {Math.round(
+                    (seesCompanyMoney ? cashOnHand : stats.collected) * rate
+                  ).toLocaleString("en-US")}
+                </>
+              ) : (
+                formatUsd(seesCompanyMoney ? cashOnHand : stats.collected)
+              )}
+            </p>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {seesCompanyMoney
+                ? "Across every bank, till and the office tin — derived from the ledger"
+                : "Every payment received"}{" "}
+              · {formatUsd(seesCompanyMoney ? cashOnHand : stats.collected)} on
+              the invoice
+            </p>
 
-            <div className="w-full shrink-0 sm:w-auto">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Quick actions
-              </p>
-              <div className="flex flex-col gap-2">
+            {/* This month, as a movement rather than two more cards. */}
+            <dl className="mt-5 flex flex-wrap gap-x-8 gap-y-3 border-t pt-4">
+              <div>
+                <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <ArrowDownLeft className="h-3.5 w-3.5 text-success" />
+                  In this month
+                </dt>
+                <dd className="mt-0.5 font-display text-lg font-bold tabular-nums text-success">
+                  {tsh(collectedMonth)}
+                </dd>
+              </div>
+              {seesCompanyMoney ? (
+                <>
+                  <div>
+                    <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                      Out this month
+                    </dt>
+                    <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
+                      {tsh(spentUsd)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Net</dt>
+                    <dd
+                      className={`mt-0.5 font-display text-lg font-bold tabular-nums ${
+                        netMonth >= 0 ? "" : "text-destructive"
+                      }`}
+                    >
+                      {tsh(netMonth)}
+                    </dd>
+                  </div>
+                </>
+              ) : null}
+              <div className="ml-auto">
+                <dt className="text-xs text-muted-foreground">Rate today</dt>
+                <dd className="mt-0.5 font-mono text-sm tabular-nums">
+                  {rate ? (
+                    <>
+                      1 USD ={" "}
+                      <span className="font-semibold text-brand">
+                        {rate.toLocaleString()}
+                      </span>{" "}
+                      TSh
+                    </>
+                  ) : (
+                    <span className="text-destructive">not set</span>
+                  )}
+                  <Link
+                    href="/app/finance/pricing"
+                    className="ml-2 text-xs font-medium text-brand hover:underline"
+                  >
+                    change
+                  </Link>
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="bg-muted/20 p-6">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              What you do here
+            </p>
+            <div className="mt-3 flex flex-col gap-2">
+              {seesCompanyMoney ? (
                 <Button asChild variant="brand" className="justify-start rounded-lg">
                   <Link href="/app/finance/expenses">
                     <Receipt className="mr-2 h-4 w-4" />
                     Record a cost
                   </Link>
                 </Button>
+              ) : null}
+              <Button asChild variant="outline" className="justify-start rounded-lg">
+                <Link href="/app/finance/payments">
+                  <Banknote className="mr-2 h-4 w-4" />
+                  Payments taken
+                </Link>
+              </Button>
+              {seesCompanyMoney ? (
                 <Button asChild variant="outline" className="justify-start rounded-lg">
                   <Link href="/app/finance/accounts">
                     <ArrowLeftRight className="mr-2 h-4 w-4" />
-                    Move money / count cash
+                    Move money · count cash
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="justify-start rounded-lg">
-                  <Link href="/app/finance/payments">
-                    <Banknote className="mr-2 h-4 w-4" />
-                    See payments taken
-                  </Link>
-                </Button>
-              </div>
+              ) : null}
             </div>
           </div>
-        </section>
-      ) : null}
+        </div>
+      </section>
 
-      {/* ── What customers owe us ─────────────────────────────────────────── */}
-      <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
-        Money from customers
-      </h2>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* First, because it is the only queue on this page that nobody else
-            in the company can clear. */}
-        <MoneyTile
-          label="Waiting on your price"
-          usd={draftValue}
-          rate={rate}
-          icon={FileClock}
-          tone={drafts._count > 0 ? "warn" : "good"}
-          emphasis={drafts._count > 0}
-          count={
-            drafts._count > 0
-              ? `${drafts._count} consignment${drafts._count === 1 ? "" : "s"}`
-              : undefined
-          }
-          hint={
-            drafts._count > 0
-              ? "Priced by the system, not yet confirmed — cannot be billed or collected"
-              : "Every price is confirmed"
-          }
-          href="/app/shipments"
-        />
-        <MoneyTile
-          label="To collect"
-          usd={stats.outstanding}
-          rate={rate}
-          icon={HandCoins}
-          tone={stats.outstanding > 0 ? "warn" : "good"}
-          count={
-            stats.unpaid + stats.partiallyPaid > 0
-              ? `${stats.unpaid} unpaid · ${stats.partiallyPaid} part-paid`
-              : undefined
-          }
-          hint="Confirmed bills the customer still owes"
-        />
-        <MoneyTile
-          label="Collected this month"
-          usd={collectedMonth}
-          rate={rate}
-          icon={Banknote}
-          tone="good"
-          count={`${collectedThisMonth._count} payment${collectedThisMonth._count === 1 ? "" : "s"}`}
-          hint={`${formatUsd(stats.collected)} all time`}
-          href="/app/finance/payments"
-        />
-        <MoneyTile
-          label="Cleared, not collected"
-          usd={clearedNotCollected}
-          rate={rate}
-          icon={Warehouse}
-          tone={activeNotes.length > 0 ? "brand" : "good"}
-          count={
-            activeNotes.length > 0
-              ? `${activeNotes.length} pickup note${activeNotes.length === 1 ? "" : "s"} open`
-              : undefined
-          }
-          hint="Paid for and released — waiting on the customer to collect"
-          href="/app/finance/pickup-notes"
-        />
-      </div>
-
-      {/* ── The company's own money ───────────────────────────────────────── */}
-      {seesCompanyMoney ? (
-        <>
-          <h2 className="mb-3 mt-6 text-sm font-semibold text-muted-foreground">
-            The company&rsquo;s money
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <MoneyTile
-              label="No account named"
-              usd={unattributedUsd}
-              rate={rate}
-              icon={CircleHelp}
-              tone={(unattributed?._count ?? 0) > 0 ? "warn" : "good"}
-              count={
-                (unattributed?._count ?? 0) > 0
-                  ? `${unattributed?._count} payment${unattributed?._count === 1 ? "" : "s"}`
-                  : undefined
-              }
-              hint={
-                (unattributed?._count ?? 0) > 0
-                  ? "Money we have, but nobody said which account it went into"
-                  : "Every payment says where it landed"
-              }
-              href="/app/finance/payments"
-            />
-            <MoneyTile
-              label="Spent this month"
-              usd={spentUsd}
-              rate={rate}
-              icon={ArrowUpRight}
-              tone={spentUsd > 0 ? "warn" : "default"}
-              hint="Costs that have actually left an account"
-              href="/app/finance/expenses"
-            />
-            <MoneyTile
-              label="Bills to pay"
-              usd={owedOutUsd}
-              rate={rate}
-              icon={FileClock}
-              tone={owedOutUsd > 0 ? "warn" : "good"}
-              count={
-                (unpaidCosts?._count ?? 0) > 0
-                  ? `${unpaidCosts?._count} cost${unpaidCosts?._count === 1 ? "" : "s"} waiting`
-                  : undefined
-              }
-              hint="Recorded, not yet disbursed"
-              href="/app/finance/expenses"
-            />
-            <MoneyTile
-              label="This month, in minus out"
-              usd={netMonth}
-              rate={rate}
-              icon={Banknote}
-              tone={netMonth >= 0 ? "good" : "bad"}
-              hint={
-                can(user.role, "profit.view")
-                  ? "Cash movement only — profit is on Profit & loss"
-                  : "Money collected less money paid out this month"
-              }
-              href="/app/finance/reports"
-            />
-          </div>
-        </>
-      ) : null}
+      {/* ── The work. A list, not a card grid: each row is one job with the
+             money attached and the door to go do it. */}
+      <section className="mb-6 overflow-hidden rounded-xl border bg-card">
+        <h2 className="border-b px-5 py-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Needs you
+        </h2>
+        {jobs.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-muted-foreground">
+            Nothing is waiting. Every price is confirmed, every payment says
+            where it landed, and nothing is owed either way.
+          </p>
+        ) : (
+          <ul className="divide-y">
+            {jobs.map((job) => (
+              <li key={job.label}>
+                <Link
+                  href={job.href}
+                  className="focus-ring flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-accent/50"
+                >
+                  <span
+                    aria-hidden
+                    className={`h-2 w-2 shrink-0 rounded-full ${
+                      job.urgent ? "bg-warning" : "bg-muted-foreground/40"
+                    }`}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium">{job.label}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {job.detail}
+                    </span>
+                  </span>
+                  <span className="text-right">
+                    <span className="block font-display text-lg font-bold tabular-nums">
+                      {tsh(job.usd)}
+                    </span>
+                    <span className="block font-mono text-[11px] text-muted-foreground">
+                      {formatUsd(job.usd)}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs font-medium text-brand">
+                    {job.cta} →
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {/* One line, because it is context for the money rather than a report of
           its own. Every figure above hangs off cargo that is somewhere. */}
-      <section className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border bg-card px-5 py-4">
+      <section className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border bg-card px-5 py-4">
         <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
           Where the cargo is
         </p>
@@ -491,15 +484,14 @@ export default async function FinanceOverviewPage() {
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
+                      {/* Shillings lead here too: this is the figure read down
+                          a phone to a customer. */}
                       <p className="font-display text-base font-bold tabular-nums">
-                        {owing === null ? "Not priced" : formatUsd(owing)}
+                        {owing === null ? "Not priced" : tsh(owing)}
                       </p>
-                      {/* The shilling figure is the one actually read down a
-                          phone to a customer, so it is legible rather than a
-                          grey caption. */}
-                      {rate && owing !== null ? (
-                        <p className="font-mono text-xs font-semibold tabular-nums">
-                          TSh {Math.round(owing * rate).toLocaleString()}
+                      {owing !== null && rate ? (
+                        <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                          {formatUsd(owing)}
                         </p>
                       ) : null}
                       {/* Said plainly, because ringing a customer for a figure
