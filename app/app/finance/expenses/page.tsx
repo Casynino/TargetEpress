@@ -11,6 +11,7 @@ import { ExpenseRowActions } from "@/components/app/expense-row-actions";
 import { Badge } from "@/components/ui/badge";
 import { activeAccounts } from "@/lib/accounts";
 import {
+  COMMON_EXPENSES,
   EXPENSE_APPROVAL_THRESHOLD_USD,
   EXPENSE_CATEGORY_LABELS as CATEGORY_LABELS,
   EXPENSE_STATUS_LABELS as STATUS_LABEL,
@@ -60,6 +61,7 @@ export default async function ExpensesPage() {
     outstanding,
     byCategory,
     rateRow,
+    usedMost,
   ] = await Promise.all([
       prisma.expense.findMany({
         orderBy: [{ incurredAt: "desc" }, { createdAt: "desc" }],
@@ -98,9 +100,35 @@ export default async function ExpensesPage() {
         take: 4,
       }),
       currentRate(),
+      // The shortcuts become the business's own: what has actually been
+      // recorded most often leads, and the seeded common costs fill in behind
+      // so the row is never empty on a quiet week.
+      prisma.expense.groupBy({
+        by: ["description", "category"],
+        where: { status: { not: "VOID" } },
+        _count: true,
+        orderBy: { _count: { description: "desc" } },
+        take: 8,
+      }),
     ]);
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
+
+  const seen = new Set<string>();
+  const quick = [
+    ...usedMost.map((row) => ({
+      label: row.description,
+      category: row.category as string,
+    })),
+    ...COMMON_EXPENSES,
+  ]
+    .filter((item) => {
+      const key = item.label.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 12);
 
   const awaitingApprovalUsd = expenses
     .filter(
@@ -131,7 +159,8 @@ export default async function ExpensesPage() {
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {expenses.length === 0 ? null : (
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MoneyTile
           label="Paid this month"
           usd={toNumber(paidThisMonth._sum.amountUsd)}
@@ -176,7 +205,8 @@ export default async function ExpensesPage() {
           tone="brand"
           hint={byCategory[0] ? "Largest category paid" : "Nothing paid yet"}
         />
-      </div>
+        </div>
+      )}
 
       {canRecord ? (
         <div className="mb-6">
@@ -190,6 +220,7 @@ export default async function ExpensesPage() {
               id: d.id,
               label: d.batchNumber,
             }))}
+            quick={quick}
             thresholdUsd={EXPENSE_APPROVAL_THRESHOLD_USD}
             rate={rate}
           />

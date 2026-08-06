@@ -68,3 +68,35 @@ export const EXPENSE_STATUS_LABELS: Record<string, string> = {
   PAID: "Paid",
   VOID: "Cancelled",
 };
+
+/**
+ * The costs this business actually incurs, week in week out.
+ *
+ * Recording a cost was four fields every time, including retyping "Fuel" and
+ * choosing its category from eighteen. These are the ones an air-cargo
+ * operation between Guangzhou and Dar pays over and over, so they are one tap:
+ * the description and the category are filled together, which is also what
+ * stops the same cost being filed under three different categories by three
+ * different people.
+ *
+ * Seeds, not a fixed list. The form shows what has actually been recorded most
+ * often ahead of these, so the shortcuts become the business's own within a
+ * few weeks. Anything not here is still typed freely — this removes keystrokes,
+ * it does not constrain what can be recorded.
+ */
+export const COMMON_EXPENSES: { label: string; category: string }[] = [
+  { label: "Fuel", category: "LOCAL_TRANSPORT" },
+  { label: "Customs duty", category: "CUSTOMS_DUTY" },
+  { label: "Clearing agent", category: "CLEARING_AGENT" },
+  { label: "Delivery to customer", category: "LOCAL_TRANSPORT" },
+  { label: "Airline freight charge", category: "AIR_FREIGHT" },
+  { label: "Warehouse rent", category: "WAREHOUSE_RENT" },
+  { label: "Salaries", category: "SALARIES" },
+  { label: "Electricity", category: "UTILITIES" },
+  { label: "Water", category: "UTILITIES" },
+  { label: "Airtime & internet", category: "COMMUNICATION" },
+  { label: "Bank charges", category: "BANK_CHARGES" },
+  { label: "Packaging materials", category: "OFFICE_SUPPLIES" },
+  { label: "Office supplies", category: "OFFICE_SUPPLIES" },
+  { label: "Vehicle repair", category: "REPAIRS" },
+];
