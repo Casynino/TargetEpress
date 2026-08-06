@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import { Archive, Plus, RotateCcw, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
@@ -302,6 +303,24 @@ export function PublishPriceForm({ products }: { products: AdminProduct[] }) {
   const [method, setMethod] = useState("WEIGHT_BASED");
   const [productId, setProductId] = useState("");
   const [open, setOpen] = useState(false);
+
+  // Arriving from "this product cannot be quoted".
+  //
+  // The warning named the problem and then left somebody to find this form,
+  // pick the right category and hunt the product out of thirty-one. It now
+  // links straight here with the product chosen, so the only thing left to
+  // supply is the figure — which is the only thing the warning was ever
+  // actually asking for.
+  const params = useSearchParams();
+  const wanted = params.get("price");
+  useEffect(() => {
+    if (!wanted) return;
+    const product = products.find((p) => p.id === wanted);
+    if (!product) return;
+    setCategory(product.category);
+    setProductId(product.id);
+    setOpen(true);
+  }, [wanted, products]);
 
   // Controlled on purpose: publishing a tier usually means publishing its
   // neighbour straight after, and a form that empties itself makes that tedious.

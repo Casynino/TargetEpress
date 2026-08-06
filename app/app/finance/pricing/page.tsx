@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import {
   ArrowLeftRight,
@@ -242,11 +243,18 @@ export default async function PricingConfigurationPage() {
               Cargo registered against these reaches Finance with no price.
               Publish a price for each, or a catch-all for its category.
             </p>
+            {/* Each one is the fix, not a label of the problem: it opens the
+                publish form with that product already chosen. */}
             <div className="mt-2 flex flex-wrap gap-1.5">
               {unpriced.map((product) => (
-                <Badge key={product.id} variant="outline" className="border-warning/40">
-                  {product.name}
-                </Badge>
+                <Link
+                  key={product.id}
+                  href={`/app/finance/pricing?price=${product.id}`}
+                  scroll={false}
+                  className="focus-ring rounded-full border border-warning/40 px-3 py-1 text-xs font-medium transition-colors hover:bg-warning/10"
+                >
+                  Set a price for {product.name} →
+                </Link>
               ))}
             </div>
           </div>
