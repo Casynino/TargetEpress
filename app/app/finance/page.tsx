@@ -18,7 +18,7 @@ import { MoneyTile } from "@/components/app/money-tile";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatMoney, formatRelative, toNumber } from "@/lib/format";
+import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { accountBalances } from "@/lib/ledger";
 import { agingInWarehouse, financeStats } from "@/lib/queries";
@@ -66,6 +66,7 @@ export default async function FinanceOverviewPage() {
     drafts,
     collectedThisMonth,
     activeNotes,
+    position,
     balances,
     unattributed,
     spendThisMonth,
@@ -108,6 +109,15 @@ export default async function FinanceOverviewPage() {
       where: { status: "ACTIVE" },
       select: { shipment: { select: { invoice: { select: { total: true } } } } },
     }),
+    // Where the cargo physically is. On this page because every money figure
+    // above is attached to a box sitting somewhere, and a manager reading
+    // "TSh 25m waiting on your price" wants to know it is 84 consignments on
+    // the Dar floor rather than something still in the air.
+    prisma.shipment.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+      _sum: { weightKg: true },
+    }),
     seesCompanyMoney ? accountBalances(prisma) : Promise.resolve([]),
     // Money taken with no account named. A job for this desk, not a statistic.
     seesCompanyMoney
@@ -148,6 +158,22 @@ export default async function FinanceOverviewPage() {
   const spentUsd = toNumber(spendThisMonth?._sum.amountUsd ?? 0);
   const owedOutUsd = toNumber(unpaidCosts?._sum.amountUsd ?? 0);
   const netMonth = collectedMonth - spentUsd;
+
+  const countFor = (...statuses: string[]) =>
+    position
+      .filter((row) => statuses.includes(row.status))
+      .reduce((n, row) => n + row._count._all, 0);
+  const heldWeightKg = position
+    .filter((row) => ["RECEIVED_AT_DAR", "READY_FOR_PICKUP"].includes(row.status))
+    .reduce((n, row) => n + toNumber(row._sum.weightKg), 0);
+
+  const wherever = [
+    { label: "Waiting in China", value: countFor("READY_TO_DEPART") },
+    { label: "In the air", value: countFor("IN_TRANSIT") },
+    { label: "On the Dar floor", value: countFor("RECEIVED_AT_DAR") },
+    { label: "Ready to collect", value: countFor("READY_FOR_PICKUP") },
+    { label: "Delivered", value: countFor("DELIVERED") },
+  ];
 
   return (
     <>
@@ -403,6 +429,25 @@ export default async function FinanceOverviewPage() {
           </div>
         </>
       ) : null}
+
+      {/* One line, because it is context for the money rather than a report of
+          its own. Every figure above hangs off cargo that is somewhere. */}
+      <section className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border bg-card px-5 py-4">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Where the cargo is
+        </p>
+        {wherever.map((item) => (
+          <div key={item.label} className="flex items-baseline gap-2">
+            <span className="font-display text-lg font-bold tabular-nums">
+              {item.value}
+            </span>
+            <span className="text-xs text-muted-foreground">{item.label}</span>
+          </div>
+        ))}
+        <p className="ml-auto text-xs text-muted-foreground">
+          {formatWeight(heldWeightKg)} held in Dar
+        </p>
+      </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border bg-card shadow-soft">

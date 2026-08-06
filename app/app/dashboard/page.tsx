@@ -1115,7 +1115,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           icon={Banknote}
           tone="success"
           trend={revenue.values}
-          href="/app/admin/reports"
+          href="/app/finance"
         />
         <KpiCard
           delay={1}

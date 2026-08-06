@@ -55,15 +55,11 @@ export function financeTabs(role: Role): FinanceTab[] {
       // The owner's figure, not the money desk's. See profit.view in rbac.ts.
       visible: can(role, "profit.view"),
     },
-    // The operational report — volumes, speed, what we carry. It lives under
-    // /app/admin for historical reasons and is reached from here, because the
-    // question "how did the business do" is asked in one place or it is asked
-    // nowhere.
-    {
-      href: "/app/admin/reports",
-      label: "Reports",
-      visible: can(role, "report.view"),
-    },
+    // NOTE: no Reports tab. It showed revenue, collected and outstanding —
+    // the same figures as the Overview — over a cargo-position panel and a
+    // cargo-mix panel that the CEO dashboard already renders. Three copies of
+    // one answer is worse than one, so the position moved onto the Overview
+    // and the page itself now redirects there.
     {
       href: "/app/finance/pricing",
       label: "Pricing & configuration",

@@ -162,8 +162,6 @@ const SECTIONS: NavSection[] = [
         label: "General ledger",
         icon: "Wallet",
         permission: "finance.view",
-        // Reports is a tab in this workspace but lives under /app/admin.
-        alsoMatches: ["/app/admin/reports"],
       },
     ],
   },
