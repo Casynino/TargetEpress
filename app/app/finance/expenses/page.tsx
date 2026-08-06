@@ -44,14 +44,49 @@ const STATUS_TONE: Record<string, string> = {
  * LEFT, which is what the ledger and a bank statement agree on. Only the second
  * writes a ledger line, because only the second is a movement of money.
  */
-export default async function ExpensesPage() {
+const PERIODS = [
+  { key: "today", label: "Today" },
+  { key: "week", label: "This week" },
+  { key: "month", label: "This month" },
+  { key: "year", label: "This year" },
+  { key: "all", label: "All time" },
+] as const;
+
+/** Start of the chosen window. Null means all time. */
+function windowStart(period: string): Date | null {
+  const now = new Date();
+  if (period === "today") {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+  if (period === "week") {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Monday, because a Tanzanian working week is not read Sunday-first.
+    const day = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - day);
+    return d;
+  }
+  if (period === "year") return new Date(now.getFullYear(), 0, 1);
+  if (period === "all") return null;
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+export default async function ExpensesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
   const user = await requirePermission("expense.view");
   const canRecord = can(user.role, "expense.record");
   const canApprove = can(user.role, "expense.approve");
 
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
+  const { period: rawPeriod } = await searchParams;
+  const period = PERIODS.some((p) => p.key === rawPeriod)
+    ? (rawPeriod as string)
+    : "month";
+  const periodLabel =
+    PERIODS.find((p) => p.key === period)?.label ?? "This month";
+  const from = windowStart(period);
+  const inWindow = from ? { gte: from } : undefined;
 
   const [
     expenses,
@@ -64,6 +99,7 @@ export default async function ExpensesPage() {
     usedMost,
   ] = await Promise.all([
       prisma.expense.findMany({
+        where: inWindow ? { incurredAt: inWindow } : {},
         orderBy: [{ incurredAt: "desc" }, { createdAt: "desc" }],
         take: 100,
         include: {
@@ -84,8 +120,9 @@ export default async function ExpensesPage() {
         select: { id: true, batchNumber: true },
       }),
       prisma.expense.aggregate({
-        where: { status: "PAID", paidAt: { gte: monthStart } },
+        where: { status: "PAID", ...(inWindow ? { paidAt: inWindow } : {}) },
         _sum: { amountUsd: true },
+        _count: true,
       }),
       prisma.expense.aggregate({
         where: { status: { in: ["PENDING", "APPROVED"] } },
@@ -94,7 +131,7 @@ export default async function ExpensesPage() {
       }),
       prisma.expense.groupBy({
         by: ["category"],
-        where: { status: "PAID" },
+        where: { status: "PAID", ...(inWindow ? { paidAt: inWindow } : {}) },
         _sum: { amountUsd: true },
         orderBy: { _sum: { amountUsd: "desc" } },
         take: 4,
@@ -159,54 +196,109 @@ export default async function ExpensesPage() {
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
-      {expenses.length === 0 ? null : (
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MoneyTile
-          label="Paid this month"
-          usd={toNumber(paidThisMonth._sum.amountUsd)}
-          rate={rate}
-          icon={ArrowUpRight}
-          hint="Money that has actually left an account"
-        />
-        <MoneyTile
-          label="Not yet paid"
-          usd={toNumber(outstanding._sum.amountUsd)}
-          rate={rate}
-          icon={Clock}
-          tone={outstanding._count > 0 ? "warn" : "good"}
-          count={
-            outstanding._count > 0
-              ? `${outstanding._count} cost${outstanding._count === 1 ? "" : "s"} waiting`
-              : undefined
-          }
-          hint="Recorded, not yet disbursed"
-        />
-        <MoneyTile
-          label="Waiting on the CEO"
-          usd={awaitingApprovalUsd}
-          rate={rate}
-          icon={ShieldCheck}
-          tone={awaitingApproval > 0 ? "warn" : "good"}
-          count={
-            awaitingApproval > 0
-              ? `${awaitingApproval} over the limit`
-              : undefined
-          }
-          hint="Cannot be paid until it is approved"
-        />
-        <MoneyTile
-          label={
-            byCategory[0]
-              ? CATEGORY_LABELS[byCategory[0].category]
-              : "Biggest cost so far"
-          }
-          usd={byCategory[0] ? toNumber(byCategory[0]._sum.amountUsd) : 0}
-          rate={rate}
-          tone="brand"
-          hint={byCategory[0] ? "Largest category paid" : "Nothing paid yet"}
-        />
+      {/* Period first: "how much did we spend" is meaningless without saying
+             over what. URL state, so a month can be linked to and reloaded. */}
+      <div className="mb-4 flex flex-wrap items-center gap-1.5">
+        {PERIODS.map((p) => (
+          <Link
+            key={p.key}
+            href={
+              p.key === "month"
+                ? "/app/finance/expenses"
+                : `/app/finance/expenses?period=${p.key}`
+            }
+            aria-current={period === p.key ? "true" : undefined}
+            className={`focus-ring rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              period === p.key
+                ? "border-brand bg-brand text-brand-foreground"
+                : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
+            }`}
+          >
+            {p.label}
+          </Link>
+        ))}
+      </div>
+
+      {/* The total, always. A page that shows nothing when nothing has been
+             recorded cannot answer "how much have we spent" — which is the
+             question it exists for, and zero is a real answer to it. */}
+      <div className="mb-6 rounded-2xl border bg-card p-6">
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <ArrowUpRight className="h-4 w-4 text-warning" />
+              Spent · {periodLabel.toLowerCase()}
+            </p>
+            <p className="mt-2 font-display text-[36px] font-bold leading-none tracking-tight tabular-nums">
+              {rate ? (
+                <>
+                  <span className="text-lg font-semibold text-muted-foreground">
+                    TSh{" "}
+                  </span>
+                  {Math.round(
+                    toNumber(paidThisMonth._sum.amountUsd) * rate
+                  ).toLocaleString("en-US")}
+                </>
+              ) : (
+                formatUsd(toNumber(paidThisMonth._sum.amountUsd))
+              )}
+            </p>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {formatUsd(toNumber(paidThisMonth._sum.amountUsd))} on the invoice
+              rate · {paidThisMonth._count} cost
+              {paidThisMonth._count === 1 ? "" : "s"} actually paid
+            </p>
+          </div>
+
+          <dl className="flex flex-wrap gap-x-8 gap-y-3">
+            <div>
+              <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                Not yet paid
+              </dt>
+              <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
+                {rate
+                  ? `TSh ${Math.round(toNumber(outstanding._sum.amountUsd) * rate).toLocaleString("en-US")}`
+                  : formatUsd(toNumber(outstanding._sum.amountUsd))}
+              </dd>
+              <p className="text-[11px] text-muted-foreground">
+                {outstanding._count} waiting
+              </p>
+            </div>
+            <div>
+              <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Needs the CEO
+              </dt>
+              <dd
+                className={`mt-0.5 font-display text-lg font-bold tabular-nums ${
+                  awaitingApproval > 0 ? "text-warning" : ""
+                }`}
+              >
+                {awaitingApproval}
+              </dd>
+              <p className="text-[11px] text-muted-foreground">
+                over the limit
+              </p>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Biggest category</dt>
+              <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
+                {byCategory[0]
+                  ? rate
+                    ? `TSh ${Math.round(toNumber(byCategory[0]._sum.amountUsd) * rate).toLocaleString("en-US")}`
+                    : formatUsd(toNumber(byCategory[0]._sum.amountUsd))
+                  : "—"}
+              </dd>
+              <p className="text-[11px] text-muted-foreground">
+                {byCategory[0]
+                  ? CATEGORY_LABELS[byCategory[0].category]
+                  : "nothing paid yet"}
+              </p>
+            </div>
+          </dl>
         </div>
-      )}
+      </div>
 
       {canRecord ? (
         <div className="mb-6">
@@ -231,8 +323,16 @@ export default async function ExpensesPage() {
         <div>
           {expenses.length === 0 ? (
             <EmptyState
-              title="Nothing recorded yet"
-              description="Every cost recorded here becomes part of the profit figure — and one tied to a dispatch becomes part of that flight's."
+              title={
+                period === "all"
+                  ? "No costs recorded yet"
+                  : `Nothing recorded ${periodLabel.toLowerCase()}`
+              }
+              description={
+                period === "all"
+                  ? "Every cost recorded here becomes part of the profit figure — and one tied to a dispatch becomes part of that flight's."
+                  : "Try a wider period, or record the first one."
+              }
             />
           ) : (
             <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
