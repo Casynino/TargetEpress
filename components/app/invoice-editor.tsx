@@ -7,6 +7,7 @@ import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Textarea } from "@/components/ui/textarea";
 import { adjustInvoice } from "@/lib/actions/finance";
 
@@ -124,12 +125,11 @@ export function InvoiceEditor({
 
             <div className="space-y-1.5 border-t pt-3">
               <Label htmlFor="freightOverride">Air freight ({currency})</Label>
-              <Input
+              <MoneyInput
                 id="freightOverride"
                 name="freightOverride"
-                inputMode="decimal"
                 value={freightDraft}
-                onChange={(event) => setFreightDraft(event.target.value)}
+                onValueChange={setFreightDraft}
                 placeholder={freight.toFixed(2)}
                 disabled={locked || !canDiscount}
               />
@@ -160,12 +160,11 @@ export function InvoiceEditor({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="otherCharges">Additional charge ({currency})</Label>
-              <Input
+              <MoneyInput
                 id="otherCharges"
                 name="otherCharges"
-                inputMode="decimal"
                 value={otherDraft}
-                onChange={(event) => setOtherDraft(event.target.value)}
+                onValueChange={setOtherDraft}
                 placeholder="0.00"
               />
               <p className="text-xs text-muted-foreground">
@@ -175,12 +174,11 @@ export function InvoiceEditor({
 
             <div className="space-y-1.5">
               <Label htmlFor="discount">Discount ({currency})</Label>
-              <Input
+              <MoneyInput
                 id="discount"
                 name="discount"
-                inputMode="decimal"
                 value={discountDraft}
-                onChange={(event) => setDiscountDraft(event.target.value)}
+                onValueChange={setDiscountDraft}
                 placeholder="0.00"
                 disabled={!canDiscount}
               />

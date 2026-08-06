@@ -6,6 +6,7 @@ import { BadgeCheck } from "lucide-react";
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoneyInput } from "@/components/ui/money-input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -87,11 +88,9 @@ export function RecordCompensationForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
           <Label htmlFor="compensation-amount">Amount</Label>
-          <Input
+          <MoneyInput
             id="compensation-amount"
             name="amount"
-            inputMode="decimal"
-                className="money-input"
             placeholder="250000"
             defaultValue={defaults?.amount ?? ""}
             required

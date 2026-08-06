@@ -178,23 +178,17 @@
    *
    * Bigger, monospaced and tabular, because a figure being typed is checked by
    * eye before it is committed — and at 14px in the body face, 1000 and 10000
-   * are one glance apart. The browser's spin arrows are removed: nobody nudges
-   * a shilling amount one at a time, and they steal the width where the digits
-   * go.
+   * are one glance apart.
+   *
+   * Tabular specifically: in a proportional face a 1 is narrower than an 8, so
+   * two figures of the same magnitude are different lengths and cannot be
+   * compared by shape. These line up.
+   *
+   * Applied by MoneyInput, which is a text box rather than a number one — the
+   * grouping commas it shows are characters a number input refuses to hold.
    */
   .money-input {
     @apply font-mono font-semibold tabular tracking-tight;
-  }
-
-  .money-input::-webkit-outer-spin-button,
-  .money-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  .money-input[type="number"] {
-    -moz-appearance: textfield;
-    appearance: textfield;
   }
 
   .code-chip {

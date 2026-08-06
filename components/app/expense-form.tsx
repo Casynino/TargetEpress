@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoneyInput } from "@/components/ui/money-input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { recordExpense } from "@/lib/actions/expenses";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
@@ -168,15 +169,11 @@ export function ExpenseForm({
               Amount
             </Label>
             <div className="flex gap-2">
-              <Input
+              <MoneyInput
                 id="expenseAmount"
                 ref={amountRef}
                 name="amount"
-                type="number"
-                min="0.01"
-                step="0.01"
-                inputMode="decimal"
-                className="money-input h-11 min-w-0 text-base"
+                className="min-w-0"
                 required
               />
               <NativeSelect

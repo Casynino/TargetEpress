@@ -6,6 +6,7 @@ import { Check, X } from "lucide-react";
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoneyInput } from "@/components/ui/money-input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { setOpeningBalance } from "@/lib/actions/treasury";
 import type { ActionResult } from "@/lib/actions/types";
@@ -77,14 +78,10 @@ export function OpeningBalanceForm({
         <Label htmlFor="openingAmount" className="text-[11px]">
           What was in it {symbol ? `(${symbol})` : ""}
         </Label>
-        <Input
+        <MoneyInput
           id="openingAmount"
           name="amount"
-          type="number"
-          min="0"
-          step="0.01"
-          inputMode="decimal"
-          className="money-input h-10 w-44 text-base"
+          className="h-10 w-44"
           required
         />
       </div>

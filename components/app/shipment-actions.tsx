@@ -18,6 +18,7 @@ import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feed
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoneyInput } from "@/components/ui/money-input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -397,16 +398,11 @@ function PaymentPanel(props: Props) {
               {/* Cents matter. A bill of 39.15 part-paid with 39 leaves 0.15
                   outstanding, and a whole-number input made that last balance
                   impossible to clear — so the cargo could never be released. */}
-              <Input
+              <MoneyInput
                 id="amount"
                 name="amount"
-                type="number"
-                min="0.01"
-                step="0.01"
-                inputMode="decimal"
-                className="money-input h-11 text-base"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onValueChange={setAmount}
                 required
               />
             </div>
@@ -434,16 +430,11 @@ function PaymentPanel(props: Props) {
                   ({props.currency} → TZS)
                 </span>
               </Label>
-              <Input
+              <MoneyInput
                 id="paymentRate"
                 name="exchangeRate"
-                type="number"
-                min="100"
-                step="1"
-                inputMode="decimal"
-                className="money-input h-11 text-base"
                 value={rate}
-                onChange={(e) => setRate(e.target.value)}
+                onValueChange={setRate}
                 placeholder={
                   props.invoiceRate === null
                     ? "e.g. 2700"

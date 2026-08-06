@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoneyInput } from "@/components/ui/money-input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { recordCashCount, recordTransfer } from "@/lib/actions/treasury";
 import type { ActionResult } from "@/lib/actions/types";
@@ -118,32 +119,14 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
                 </span>
               ) : null}
             </Label>
-            <Input
-              id="amountOut"
-              name="amountOut"
-              type="number"
-              min="0.01"
-              step="0.01"
-              inputMode="decimal"
-                className="money-input h-11 text-base"
-              required
-            />
+            <MoneyInput id="amountOut" name="amountOut" required />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="fee" className="text-xs">
               Bank charge{" "}
               <span className="text-muted-foreground">(optional)</span>
             </Label>
-            <Input
-              id="fee"
-              name="fee"
-              type="number"
-              min="0"
-              step="0.01"
-              inputMode="decimal"
-                className="money-input h-11 text-base"
-              placeholder="0"
-            />
+            <MoneyInput id="fee" name="fee" placeholder="0" />
           </div>
         </div>
 
@@ -153,14 +136,9 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
               <Label htmlFor="transferRate" className="text-xs">
                 Rate used
               </Label>
-              <Input
+              <MoneyInput
                 id="transferRate"
                 name="exchangeRate"
-                type="number"
-                min="100"
-                step="1"
-                inputMode="decimal"
-                className="money-input h-11 text-base"
                 placeholder="e.g. 2700"
               />
             </div>
@@ -173,14 +151,9 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
                   </span>
                 ) : null}
               </Label>
-              <Input
+              <MoneyInput
                 id="amountIn"
                 name="amountIn"
-                type="number"
-                min="0.01"
-                step="0.01"
-                inputMode="decimal"
-                className="money-input h-11 text-base"
                 placeholder="from the statement"
               />
             </div>
@@ -193,15 +166,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
                 (blank = the amount above, less the charge)
               </span>
             </Label>
-            <Input
-              id="amountIn"
-              name="amountIn"
-              type="number"
-              min="0.01"
-              step="0.01"
-              inputMode="decimal"
-                className="money-input h-11 text-base"
-            />
+            <MoneyInput id="amountIn" name="amountIn" />
           </div>
         )}
 
@@ -321,15 +286,11 @@ export function CashCountPanel({
               </span>
             ) : null}
           </Label>
-          <Input
+          <MoneyInput
             id="countedAmount"
             name="countedAmount"
-            type="number"
-            min="0"
-            step="0.01"
-            inputMode="decimal"
             value={counted}
-            onChange={(e) => setCounted(e.target.value)}
+            onValueChange={setCounted}
             required
           />
           <p className="text-xs text-muted-foreground">

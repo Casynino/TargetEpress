@@ -6,6 +6,7 @@ import { Pencil, X } from "lucide-react";
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoneyInput } from "@/components/ui/money-input";
 import { adjustInvoice } from "@/lib/actions/finance";
 import type { ActionResult } from "@/lib/actions/types";
 
@@ -93,15 +94,11 @@ export function RowPriceEditor({
           <Label htmlFor={`freight-${invoiceId}`} className="text-[11px]">
             Freight ({currency})
           </Label>
-          <Input
+          <MoneyInput
             id={`freight-${invoiceId}`}
             name="freightOverride"
-            type="number"
-            min="0"
-            step="0.01"
-            inputMode="decimal"
             value={freight}
-            onChange={(e) => setFreight(e.target.value)}
+            onValueChange={setFreight}
             placeholder={rateBookFreight.toFixed(2)}
             disabled={!canOverride}
             className="h-8 text-sm"
@@ -132,14 +129,11 @@ export function RowPriceEditor({
             <Label htmlFor={`extra-${invoiceId}`} className="text-[11px]">
               Extra charge
             </Label>
-            <Input
+            <MoneyInput
               id={`extra-${invoiceId}`}
               name="otherCharges"
-              type="number"
-              min="0"
-              step="0.01"
               value={extra}
-              onChange={(e) => setExtra(e.target.value)}
+              onValueChange={setExtra}
               placeholder="0.00"
               className="h-8 text-sm"
             />
@@ -148,14 +142,11 @@ export function RowPriceEditor({
             <Label htmlFor={`off-${invoiceId}`} className="text-[11px]">
               Discount
             </Label>
-            <Input
+            <MoneyInput
               id={`off-${invoiceId}`}
               name="discount"
-              type="number"
-              min="0"
-              step="0.01"
               value={off}
-              onChange={(e) => setOff(e.target.value)}
+              onValueChange={setOff}
               placeholder="0.00"
               disabled={!canOverride}
               className="h-8 text-sm"
