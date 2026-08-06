@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
+import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -359,6 +360,106 @@ export async function withdrawRule(
     revalidatePath("/calculator");
     revalidatePath("/rates");
     return ok({ id: ruleId });
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
+
+/**
+ * Change what something costs, without losing what it used to cost.
+ *
+ * From the desk's point of view this is "edit the price": type a new figure,
+ * save, done. Underneath it is a withdrawal and a fresh publication in one
+ * transaction, because a rate book that can be edited in place cannot answer
+ * "what were we charging in March" — and that is the question that comes up
+ * when a customer disputes an old invoice.
+ *
+ * Invoices already raised are untouched either way: each freezes its own figure
+ * and its own exchange rate at the moment it was issued. This only changes what
+ * the NEXT quote will say.
+ */
+export async function revisePrice(
+  _prev: ActionResult<{ id: string }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ id: string }>> {
+  let user: SessionUser;
+  try {
+    user = await actor();
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const ruleId = String(formData.get("ruleId") ?? "");
+  const rawPrice = String(formData.get("price") ?? "").trim();
+  const price = Number(rawPrice);
+  if (!ruleId) return fail("Missing price.");
+  if (!Number.isFinite(price) || price <= 0) {
+    return fail("Enter a price greater than zero.");
+  }
+  if (price > 100_000) {
+    return fail("That price looks wrong. Check the number of digits.");
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const current = await tx.pricingRule.findUnique({
+        where: { id: ruleId },
+        include: { cargoType: { select: { name: true } } },
+      });
+      if (!current) throw new Error("That price no longer exists.");
+      if (!current.active) {
+        throw new Error(
+          "That price has already been withdrawn. Publish a new one instead."
+        );
+      }
+      if (toNumber(current.price) === price) {
+        throw new Error("That is the price it is already set to.");
+      }
+
+      await tx.pricingRule.update({
+        where: { id: ruleId },
+        data: { active: false },
+      });
+
+      const rule = await tx.pricingRule.create({
+        data: {
+          category: current.category,
+          cargoTypeId: current.cargoTypeId,
+          method: current.method,
+          price: new Prisma.Decimal(price),
+          currency: current.currency,
+          minWeightKg: current.minWeightKg,
+          maxWeightKg: current.maxWeightKg,
+          minChargeableKg: current.minChargeableKg,
+          minCharge: current.minCharge,
+          notes: current.notes,
+        },
+        select: { id: true },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "pricing.revisePrice",
+          entity: "PricingRule",
+          entityId: rule.id,
+          summary: `Changed ${current.cargoType?.name ?? current.category} from USD ${toNumber(current.price)} to USD ${price} ${current.method === "WEIGHT_BASED" ? "per kg" : "per item"}`,
+          metadata: {
+            from: toNumber(current.price),
+            to: price,
+            supersededRuleId: current.id,
+          },
+        },
+        tx
+      );
+
+      return { id: rule.id };
+    });
+
+    revalidatePath("/app/finance/pricing");
+    revalidatePath("/app/admin/pricing");
+    revalidatePath("/calculator");
+    return ok(result);
   } catch (error) {
     return fail(toActionError(error));
   }

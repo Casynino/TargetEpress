@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   createProduct,
   publishRule,
+  revisePrice,
   setProductActive,
   withdrawRule,
 } from "@/lib/actions/pricing";
@@ -74,8 +75,32 @@ function priceLabel(rule: AdminRule) {
 export function RateBook({ rules }: { rules: AdminRule[] }) {
   const [category, setCategory] = useState<string>("ALL");
   const [showWithdrawn, setShowWithdrawn] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  /** Change a live price. A withdrawal and a fresh publication underneath. */
+  const save = (rule: AdminRule) => {
+    const next = Number(draft);
+    if (!Number.isFinite(next) || next <= 0) {
+      setError("Enter a price greater than zero.");
+      return;
+    }
+    if (next === Number(rule.price)) {
+      setEditing(null);
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const body = new FormData();
+      body.set("ruleId", rule.id);
+      body.set("price", String(next));
+      const result = await revisePrice(undefined, body);
+      if (!result.ok) setError(result.error);
+      else setEditing(null);
+    });
+  };
 
   const visible = useMemo(
     () =>
@@ -163,8 +188,64 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
                   ) : null}
                 </td>
                 <td className="p-3 whitespace-nowrap">{tierLabel(rule)}</td>
+                {/* The price is the thing people come here to change, so it is
+                    editable where it is read. Saving withdraws this rule and
+                    publishes a new one underneath, so the rate book can still
+                    answer "what were we charging in March". */}
                 <td className="p-3 whitespace-nowrap font-mono font-medium tabular-nums">
-                  {priceLabel(rule)}
+                  {editing === rule.id ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">
+                        {rule.currency}
+                      </span>
+                      <input
+                        autoFocus
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") save(rule);
+                          if (e.key === "Escape") setEditing(null);
+                        }}
+                        className="focus-ring h-8 w-24 rounded-md border bg-background px-2 text-sm tabular-nums"
+                        aria-label="New price"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="brand"
+                        disabled={pending}
+                        onClick={() => save(rule)}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setEditing(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </span>
+                  ) : rule.active ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditing(rule.id);
+                        setDraft(rule.price);
+                      }}
+                      className="focus-ring rounded-md px-1 underline decoration-dotted underline-offset-4 hover:text-brand"
+                      title="Change this price"
+                    >
+                      {priceLabel(rule)}
+                    </button>
+                  ) : (
+                    priceLabel(rule)
+                  )}
                 </td>
                 <td className="hidden p-3 text-xs text-muted-foreground lg:table-cell">
                   {rule.minChargeableKg ? `min ${Number(rule.minChargeableKg)} kg` : null}
