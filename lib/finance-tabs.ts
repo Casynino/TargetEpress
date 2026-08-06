@@ -25,27 +25,16 @@ export function financeTabs(role: Role): FinanceTab[] {
       visible: can(role, "finance.view"),
     },
     {
-      href: "/app/finance/payments",
-      // "Payments" and "Transactions" sat side by side meaning almost the
-      // same thing to a reader. These two labels say which is which before
-      // anybody has to open either.
-      label: "Payments in",
-      visible: can(role, "payment.record"),
-    },
-    {
       href: "/app/finance/accounts",
       label: "Accounts",
       visible: can(role, "account.view"),
     },
     {
       href: "/app/finance/transactions",
-      label: "Money in & out",
+      // One register. Payments-in and Expenses were two more readings of the
+      // same movements, each with its own totals to reconcile by eye.
+      label: "General ledger",
       visible: can(role, "ledger.view"),
-    },
-    {
-      href: "/app/finance/expenses",
-      label: "Expenses",
-      visible: can(role, "expense.view"),
     },
     // NOTE: no Pickup notes tab. It sits in the sidebar beside Search Cargo,
     // because a pickup note is an operational document rather than a financial

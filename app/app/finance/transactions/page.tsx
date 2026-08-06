@@ -1,11 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Prisma } from "@prisma/client";
-import { ArrowDownLeft, ArrowUpRight, CircleHelp, Scale } from "lucide-react";
+import { Paperclip } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
+import { LedgerFilters } from "@/components/app/ledger-filters";
+import { RecordCostButton } from "@/components/app/record-cost-button";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -15,18 +17,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { activeAccounts } from "@/lib/accounts";
+import {
+  COMMON_EXPENSES,
+  EXPENSE_APPROVAL_THRESHOLD_USD,
+  EXPENSE_CATEGORY_LABELS,
+} from "@/lib/expenses";
 import { financeTabs } from "@/lib/finance-tabs";
-import { MoneyTile } from "@/components/app/money-tile";
-import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
+import { formatDate, formatMoney, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Money in & out" };
+export const metadata: Metadata = { title: "General ledger" };
 
 const KIND_LABEL: Record<string, string> = {
   OPENING_BALANCE: "Opening balance",
-  CUSTOMER_PAYMENT: "Customer payment",
+  CUSTOMER_PAYMENT: "Freight payment",
   EXPENSE: "Expense",
   COMPENSATION: "Compensation",
   TRANSFER_IN: "Transfer in",
@@ -36,16 +44,6 @@ const KIND_LABEL: Record<string, string> = {
 
 const PAGE_SIZE = 60;
 
-const PERIODS = [
-  { key: "today", label: "Today" },
-  { key: "week", label: "This week" },
-  { key: "month", label: "This month" },
-  { key: "year", label: "This year" },
-  { key: "all", label: "All time" },
-] as const;
-
-/** Start of the chosen window. Null means all time, which is the default here:
- *  a register is read backwards from now, not clipped to a month. */
 function windowStart(period: string | undefined): Date | null {
   const now = new Date();
   if (period === "today") {
@@ -62,31 +60,40 @@ function windowStart(period: string | undefined): Date | null {
 }
 
 /**
- * The register: every movement of money, newest first.
+ * The general ledger: one register for every movement of money.
  *
- * One row per movement, each traceable back to the document that caused it —
- * a receipt, an expense, a transfer. Nothing on this page is typed by anybody;
- * every line was written by the action that moved the money, inside the same
- * transaction, which is what makes the register worth reading at all.
+ * This replaces three pages. Payments-in listed the money coming in, Expenses
+ * listed the money going out, and Money-in-and-out listed both again — three
+ * readings of one fact, each with its own totals that somebody then had to
+ * reconcile in their head. Income here comes from one place, freight, and it
+ * goes out on running the business. A single register says that, once.
  *
- * Filters are URL state rather than component state, so a filtered view can be
- * linked to, sent to somebody, and reloaded.
+ * Debit and credit are separate columns because that is how a ledger is read:
+ * the eye runs down one column for what left and the other for what came in.
+ * The running balance is why the register is worth keeping — it can be read
+ * straight down against a bank statement.
+ *
+ * Recording a cost lives here too. The place you watch money leave is the place
+ * you write down money leaving.
  */
-export default async function TransactionsPage({
+export default async function LedgerPage({
   searchParams,
 }: {
   searchParams: Promise<{
+    q?: string;
     account?: string;
     direction?: string;
     kind?: string;
+    category?: string;
+    person?: string;
     period?: string;
     page?: string;
   }>;
 }) {
   const user = await requirePermission("ledger.view");
   const params = await searchParams;
-
   const page = Math.max(1, Number(params.page) || 1);
+  const canRecord = can(user.role, "expense.record");
 
   const where: Prisma.LedgerEntryWhereInput = {};
   if (params.account) where.accountId = params.account;
@@ -96,57 +103,99 @@ export default async function TransactionsPage({
   if (params.kind && params.kind in KIND_LABEL) {
     where.kind = params.kind as Prisma.LedgerEntryWhereInput["kind"];
   }
+  if (params.person) where.recordedById = params.person;
+  if (params.category) {
+    where.expense = { category: params.category as never };
+  }
   const from = windowStart(params.period);
   if (from) where.occurredAt = { gte: from };
 
-  const [accounts, entries, total, totals, unbanked, rateRow] = await Promise.all([
-    prisma.companyAccount.findMany({
-      orderBy: [{ sortOrder: "asc" }],
-      select: { id: true, name: true, currency: true },
-    }),
-    prisma.ledgerEntry.findMany({
-      where,
-      // The day the money moved, not the day the row was typed. A backdated
-      // payment belongs where it happened, or the register cannot be read
-      // against a bank statement.
-      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-      include: {
-        account: { select: { name: true, currency: true } },
-        recordedBy: { select: { name: true } },
+  // One box for everything somebody half-remembers: the receipt number, the
+  // customer, the reference off an M-Pesa message, the account, who took it.
+  const q = params.q?.trim();
+  if (q) {
+    where.OR = [
+      { description: { contains: q, mode: "insensitive" } },
+      { account: { name: { contains: q, mode: "insensitive" } } },
+      { recordedBy: { name: { contains: q, mode: "insensitive" } } },
+      { payment: { reference: { contains: q, mode: "insensitive" } } },
+      {
         payment: {
-          select: {
-            receipt: { select: { receiptNumber: true } },
-            invoice: {
-              select: { shipment: { select: { trackingNumber: true } } },
+          receipt: { receiptNumber: { contains: q, mode: "insensitive" } },
+        },
+      },
+      {
+        payment: {
+          invoice: { customer: { name: { contains: q, mode: "insensitive" } } },
+        },
+      },
+      { expense: { expenseNumber: { contains: q, mode: "insensitive" } } },
+      { expense: { vendor: { contains: q, mode: "insensitive" } } },
+    ];
+  }
+
+  const [accounts, people, entries, total, totals, rateRow, unpaid] =
+    await Promise.all([
+      activeAccounts(),
+      prisma.user.findMany({
+        where: { ledgerEntries: { some: {} } },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.ledgerEntry.findMany({
+        where,
+        orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+        include: {
+          account: { select: { id: true, name: true, currency: true } },
+          recordedBy: { select: { name: true } },
+          payment: {
+            select: {
+              reference: true,
+              receipt: { select: { receiptNumber: true } },
+              proofs: { select: { url: true }, take: 1 },
+              invoice: {
+                select: {
+                  customer: { select: { name: true } },
+                  shipment: { select: { trackingNumber: true } },
+                },
+              },
+            },
+          },
+          expense: {
+            select: {
+              expenseNumber: true,
+              vendor: true,
+              category: true,
+              receipts: { select: { url: true }, take: 1 },
+            },
+          },
+          transfer: {
+            select: {
+              transferNumber: true,
+              toAccount: { select: { name: true } },
             },
           },
         },
-      },
-    }),
-    prisma.ledgerEntry.count({ where }),
-    // Summed in USD, because the rows on screen may be in different
-    // currencies and a mixed sum is the bug this whole area exists to avoid.
-    prisma.ledgerEntry.groupBy({
-      by: ["direction"],
-      where,
-      _sum: { amountUsd: true },
-    }),
-    // Money the business took that never entered an account, so it is on the
-    // Payments page and deliberately NOT here. Stating it is what stops the
-    // two registers looking like one of them is wrong.
-    prisma.payment.aggregate({
-      where: { accountId: null },
-      _sum: { creditedAmount: true },
-      _count: true,
-    }),
-    currentRate(),
-  ]);
+      }),
+      prisma.ledgerEntry.count({ where }),
+      prisma.ledgerEntry.groupBy({
+        by: ["direction"],
+        where,
+        _sum: { amountUsd: true },
+      }),
+      currentRate(),
+      // Costs recorded but not yet disbursed have no ledger line, because no
+      // money has moved. They still have to be visible somewhere.
+      prisma.expense.aggregate({
+        where: { status: { in: ["PENDING", "APPROVED"] } },
+        _sum: { amountUsd: true },
+        _count: true,
+      }),
+    ]);
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
-  const unbankedUsd = toNumber(unbanked._sum.creditedAmount);
-
   const inUsd = toNumber(
     totals.find((t) => t.direction === "IN")?._sum.amountUsd ?? 0
   );
@@ -154,61 +203,54 @@ export default async function TransactionsPage({
     totals.find((t) => t.direction === "OUT")?._sum.amountUsd ?? 0
   );
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const single = accounts.find((a) => a.id === params.account) ?? null;
 
-  const filtered = Boolean(
-    params.account || params.direction || params.kind || from
-  );
-
-  // A running balance only means something down ONE account. Across six
-  // accounts in two currencies a cumulative column would be adding shillings
-  // to dollars and calling it a balance — the exact fault this whole area was
-  // built to stop. So it appears when, and only when, an account is chosen.
+  // The running balance.
+  //
+  // Down one account it is that account's own currency. Across all of them it
+  // has to be one unit or it is nonsense, so it accumulates in USD and is shown
+  // in shillings — the same conversion every other figure here uses.
   const oldest = entries[entries.length - 1];
-  let openingForPage: number | null = null;
-  if (params.account && oldest) {
+  let opening = 0;
+  if (oldest) {
     const before = await prisma.ledgerEntry.groupBy({
       by: ["direction"],
       where: {
-        accountId: params.account,
+        ...(params.account ? { accountId: params.account } : {}),
         OR: [
           { occurredAt: { lt: oldest.occurredAt } },
-          {
-            occurredAt: oldest.occurredAt,
-            createdAt: { lt: oldest.createdAt },
-          },
+          { occurredAt: oldest.occurredAt, createdAt: { lt: oldest.createdAt } },
         ],
       },
-      _sum: { amount: true },
+      _sum: { amount: true, amountUsd: true },
     });
-    const pick = (dir: "IN" | "OUT") =>
-      toNumber(before.find((r) => r.direction === dir)?._sum.amount ?? 0);
-    openingForPage = pick("IN") - pick("OUT");
+    const pick = (dir: "IN" | "OUT") => {
+      const row = before.find((r) => r.direction === dir);
+      return toNumber((single ? row?._sum.amount : row?._sum.amountUsd) ?? 0);
+    };
+    opening = pick("IN") - pick("OUT");
   }
 
-  // Walk the page oldest-first to accumulate, then read it back newest-first
-  // the way the table renders.
   const runningById = new Map<string, number>();
-  if (openingForPage !== null) {
-    let running = openingForPage;
-    for (let i = entries.length - 1; i >= 0; i -= 1) {
-      const entry = entries[i];
-      running +=
-        (entry.direction === "IN" ? 1 : -1) * toNumber(entry.amount);
-      runningById.set(entry.id, running);
-    }
+  let running = opening;
+  for (let i = entries.length - 1; i >= 0; i -= 1) {
+    const entry = entries[i];
+    const value = single ? toNumber(entry.amount) : toNumber(entry.amountUsd);
+    running += (entry.direction === "IN" ? 1 : -1) * value;
+    runningById.set(entry.id, running);
   }
-  const linkWith = (patch: Record<string, string | undefined>) => {
+
+  const tsh = (usd: number) =>
+    rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : formatUsd(usd);
+  const showBalance = (value: number) =>
+    single ? formatMoney(value, single.currency) : tsh(value);
+
+  const pageLink = (nextPage: number) => {
     const next = new URLSearchParams();
-    const merged = {
-      account: params.account,
-      direction: params.direction,
-      kind: params.kind,
-      period: params.period,
-      ...patch,
-    };
-    for (const [key, value] of Object.entries(merged)) {
-      if (value) next.set(key, value);
+    for (const [key, value] of Object.entries(params)) {
+      if (value && key !== "page") next.set(key, String(value));
     }
+    if (nextPage > 1) next.set("page", String(nextPage));
     const qs = next.toString();
     return qs ? `/app/finance/transactions?${qs}` : "/app/finance/transactions";
   };
@@ -216,225 +258,209 @@ export default async function TransactionsPage({
   return (
     <>
       <PageHeader
-        title="Money in &amp; out"
-        description="Every time money entered or left one of the company's own accounts — customer payments, costs, transfers between accounts. Written by the action that moved it, never typed."
+        title="General ledger"
+        description="Every movement of money — freight collected, costs paid, transfers between accounts — with its account, who recorded it, and a running balance."
+        actions={
+          canRecord ? (
+            <RecordCostButton
+              accounts={accounts.map((a) => ({
+                id: a.id,
+                name: a.name,
+                currency: a.currency,
+                accountNumber: a.accountNumber,
+              }))}
+              quick={COMMON_EXPENSES}
+              thresholdUsd={EXPENSE_APPROVAL_THRESHOLD_USD}
+              rate={rate}
+            />
+          ) : null
+        }
       />
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MoneyTile
-          label="Money in"
-          usd={inUsd}
-          rate={rate}
-          icon={ArrowDownLeft}
-          tone="good"
-        />
-        <MoneyTile
-          label="Money out"
-          usd={outUsd}
-          rate={rate}
-          icon={ArrowUpRight}
-          tone={outUsd > 0 ? "warn" : "default"}
-        />
-        <MoneyTile
-          label="Net"
-          usd={inUsd - outUsd}
-          rate={rate}
-          icon={Scale}
-          tone={inUsd - outUsd >= 0 ? "default" : "bad"}
-          count={`${total} movement${total === 1 ? "" : "s"}`}
-          hint={filtered ? "matching these filters" : undefined}
-        />
-        {/* Not a movement, and that is the point: it is the money that has NOT
-            reached an account, which is exactly why this page and Payments
-            show different totals. */}
-        <MoneyTile
-          label="Taken, not in an account"
-          usd={unbankedUsd}
-          rate={rate}
-          icon={CircleHelp}
-          tone={unbanked._count > 0 ? "warn" : "good"}
-          count={
-            unbanked._count > 0
-              ? `${unbanked._count} payment${unbanked._count === 1 ? "" : "s"}`
-              : undefined
-          }
-          hint={
-            unbanked._count > 0
-              ? "On Payments, with no account named — so it has no line here"
-              : "Every payment reached an account"
-          }
-          href="/app/finance/payments"
-        />
-      </div>
+      <LedgerFilters
+        accounts={accounts.map((a) => ({ id: a.id, name: a.name }))}
+        people={people}
+        kinds={Object.entries(KIND_LABEL).map(([value, label]) => ({
+          value,
+          label,
+        }))}
+        categories={Object.entries(EXPENSE_CATEGORY_LABELS).map(
+          ([value, label]) => ({ value, label })
+        )}
+      />
 
-      {/* Filters as links, not a form: every view here is a URL somebody can
-          send to somebody else. */}
-      <div className="mb-4 flex flex-wrap items-center gap-1.5 text-sm">
-        <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          Account
-        </span>
-        <FilterChip href={linkWith({ account: undefined })} active={!params.account}>
-          All
-        </FilterChip>
-        {accounts.map((account) => (
-          <FilterChip
-            key={account.id}
-            href={linkWith({ account: account.id })}
-            active={params.account === account.id}
-          >
-            {account.name}
-          </FilterChip>
-        ))}
-        <span className="mx-2 hidden h-4 w-px bg-border sm:block" />
-        <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          Direction
-        </span>
-        <FilterChip
-          href={linkWith({ direction: undefined })}
-          active={!params.direction}
-        >
-          Both
-        </FilterChip>
-        <FilterChip href={linkWith({ direction: "IN" })} active={params.direction === "IN"}>
-          In
-        </FilterChip>
-        <FilterChip
-          href={linkWith({ direction: "OUT" })}
-          active={params.direction === "OUT"}
-        >
-          Out
-        </FilterChip>
-      </div>
-
-      <div className="mb-4 flex flex-wrap items-center gap-1.5 text-sm">
-        <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          When
-        </span>
-        {PERIODS.map((p) => (
-          <FilterChip
-            key={p.key}
-            href={linkWith({ period: p.key === "all" ? undefined : p.key })}
-            active={
-              p.key === "all" ? !params.period : params.period === p.key
-            }
-          >
-            {p.label}
-          </FilterChip>
-        ))}
-        <span className="mx-2 hidden h-4 w-px bg-border sm:block" />
-        {/* The kind filter was supported by the query and had no control at
-            all — a filter nobody could reach is a filter that does not exist. */}
-        <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          Type
-        </span>
-        <FilterChip href={linkWith({ kind: undefined })} active={!params.kind}>
-          Any
-        </FilterChip>
-        {Object.entries(KIND_LABEL).map(([key, label]) => (
-          <FilterChip
-            key={key}
-            href={linkWith({ kind: key })}
-            active={params.kind === key}
-          >
-            {label}
-          </FilterChip>
-        ))}
-      </div>
-
-      {openingForPage === null && entries.length > 0 ? (
-        <p className="mb-3 text-xs text-muted-foreground">
-          Pick one account above to see a running balance. Across accounts in
-          different currencies a cumulative column would be adding shillings to
-          dollars.
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-sm">
+        <p className="text-muted-foreground">
+          {total} movement{total === 1 ? "" : "s"}
+          {unpaid._count > 0 ? (
+            <>
+              {" · "}
+              <Link
+                href="/app/finance/transactions?kind=EXPENSE"
+                className="text-warning hover:underline"
+              >
+                {tsh(toNumber(unpaid._sum.amountUsd))} recorded but not yet paid
+              </Link>
+              , so not in the register
+            </>
+          ) : null}
         </p>
-      ) : null}
+        <p className="flex flex-wrap gap-x-5 font-mono tabular-nums">
+          <span>
+            <span className="text-muted-foreground">In </span>
+            <span className="font-semibold text-success">{tsh(inUsd)}</span>
+          </span>
+          <span>
+            <span className="text-muted-foreground">Out </span>
+            <span className="font-semibold text-destructive">{tsh(outUsd)}</span>
+          </span>
+          <span>
+            <span className="text-muted-foreground">Net </span>
+            <span className="font-semibold">{tsh(inUsd - outUsd)}</span>
+          </span>
+        </p>
+      </div>
 
       {entries.length === 0 ? (
         <EmptyState
-          title={filtered ? "Nothing matches that" : "No movements yet"}
+          title={q ? `Nothing matches “${q}”` : "No movements yet"}
           description={
-            filtered
-              ? "No money has moved through that account, or in that direction, yet."
-              : "Every payment, expense and transfer writes a line here as it happens."
+            q
+              ? "Try a shorter search, or clear the filters."
+              : "Every payment, cost and transfer writes a line here as it happens."
           }
         />
       ) : (
-        <div className="rounded-xl border bg-card shadow-soft">
+        <div className="overflow-x-auto rounded-xl border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Entry</TableHead>
-                <TableHead>When</TableHead>
+                <TableHead>Date</TableHead>
                 <TableHead>Description</TableHead>
+                <TableHead className="hidden lg:table-cell">Category</TableHead>
                 <TableHead className="hidden md:table-cell">Account</TableHead>
-                <TableHead className="hidden lg:table-cell">Type</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                {openingForPage !== null ? (
-                  <TableHead className="text-right">Balance after</TableHead>
-                ) : null}
+                <TableHead className="hidden xl:table-cell">By</TableHead>
+                <TableHead className="text-right">Debit</TableHead>
+                <TableHead className="text-right">Credit</TableHead>
+                <TableHead className="text-right">Balance</TableHead>
+                <TableHead className="hidden sm:table-cell text-right">
+                  Proof
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {entries.map((entry) => {
-                const tracking =
-                  entry.payment?.invoice.shipment.trackingNumber ?? null;
                 const inbound = entry.direction === "IN";
+                const amount = formatMoney(toNumber(entry.amount), entry.currency);
+                const proof =
+                  entry.payment?.proofs[0]?.url ??
+                  entry.expense?.receipts[0]?.url ??
+                  null;
+
+                const title =
+                  entry.payment?.invoice.customer.name ??
+                  entry.expense?.vendor ??
+                  entry.transfer?.toAccount.name ??
+                  entry.description;
+                const reference =
+                  entry.payment?.receipt?.receiptNumber ??
+                  entry.expense?.expenseNumber ??
+                  entry.transfer?.transferNumber ??
+                  entry.entryNumber;
+                const category = entry.expense
+                  ? (EXPENSE_CATEGORY_LABELS[entry.expense.category] ??
+                    entry.expense.category)
+                  : entry.kind === "CUSTOMER_PAYMENT"
+                    ? "Freight income"
+                    : (KIND_LABEL[entry.kind] ?? entry.kind);
+
                 return (
                   <TableRow key={entry.id}>
-                    <TableCell className="font-mono text-xs tabular text-muted-foreground">
-                      {entry.entryNumber}
+                    <TableCell className="whitespace-nowrap py-2.5 text-xs text-muted-foreground">
+                      {formatDate(entry.occurredAt)}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {formatDateTime(entry.occurredAt)}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {/* Straight back to the document behind the money. A
-                          register line nobody can open is a claim, not a record. */}
-                      {tracking ? (
+
+                    <TableCell className="max-w-[22rem] py-2.5">
+                      <span className="flex flex-wrap items-center gap-2">
                         <Link
-                          href={`/app/cargo/${tracking}`}
-                          className="hover:text-brand"
+                          href={`/app/finance/transactions/${entry.id}`}
+                          className="truncate text-sm font-medium hover:text-brand"
                         >
-                          {entry.description}
+                          {title}
                         </Link>
-                      ) : (
-                        entry.description
-                      )}
-                      {entry.recordedBy ? (
-                        <span className="block text-xs text-muted-foreground">
-                          {entry.recordedBy.name}
-                        </span>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-sm">
-                      {entry.account.name}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      <Badge variant="outline" className="font-normal">
-                        {KIND_LABEL[entry.kind] ?? entry.kind}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm tabular">
-                      <span className={inbound ? "text-success" : ""}>
-                        {inbound ? "+" : "−"}
-                        {formatMoney(entry.amount, entry.currency)}
+                        <Badge
+                          variant="outline"
+                          className={`shrink-0 font-normal ${
+                            inbound
+                              ? "border-success/40 text-success"
+                              : "border-warning/40 text-warning"
+                          }`}
+                        >
+                          {KIND_LABEL[entry.kind] ?? entry.kind}
+                        </Badge>
                       </span>
-                      {entry.currency === "USD" ? null : (
-                        <span className="block text-xs font-normal text-muted-foreground">
-                          {formatUsd(toNumber(entry.amountUsd))}
-                        </span>
+                      <span className="mt-0.5 block truncate font-mono text-[11px] text-muted-foreground">
+                        {reference}
+                        {entry.payment?.invoice.shipment.trackingNumber
+                          ? ` · ${entry.payment.invoice.shipment.trackingNumber}`
+                          : ""}
+                        {entry.payment?.reference
+                          ? ` · ${entry.payment.reference}`
+                          : ""}
+                      </span>
+                    </TableCell>
+
+                    <TableCell className="hidden lg:table-cell py-2.5 text-xs">
+                      {category}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell py-2.5 text-xs">
+                      <Link
+                        href={`/app/finance/accounts/${entry.account.id}`}
+                        className="hover:text-brand"
+                      >
+                        {entry.account.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="hidden xl:table-cell py-2.5 text-xs text-muted-foreground">
+                      {entry.recordedBy?.name ?? "—"}
+                    </TableCell>
+
+                    {/* Two columns, because that is how a ledger is read. */}
+                    <TableCell className="whitespace-nowrap py-2.5 text-right font-mono text-sm tabular">
+                      {inbound ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <span className="text-destructive">{amount}</span>
                       )}
                     </TableCell>
-                    {openingForPage !== null ? (
-                      <TableCell className="whitespace-nowrap text-right font-mono text-sm font-semibold tabular">
-                        {formatMoney(
-                          runningById.get(entry.id) ?? 0,
-                          entry.currency
-                        )}
-                      </TableCell>
-                    ) : null}
+                    <TableCell className="whitespace-nowrap py-2.5 text-right font-mono text-sm tabular">
+                      {inbound ? (
+                        <span className="text-success">{amount}</span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap py-2.5 text-right font-mono text-sm font-semibold tabular">
+                      {showBalance(runningById.get(entry.id) ?? 0)}
+                    </TableCell>
+
+                    <TableCell className="hidden sm:table-cell py-2.5 text-right text-xs">
+                      {proof ? (
+                        <a
+                          href={proof}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 font-medium text-brand hover:underline"
+                        >
+                          <Paperclip className="h-3 w-3" />
+                          View
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -451,7 +477,7 @@ export default async function TransactionsPage({
           <div className="flex gap-2">
             {page > 1 ? (
               <Link
-                href={linkWith({ page: String(page - 1) })}
+                href={pageLink(page - 1)}
                 className="focus-ring rounded-lg border px-3 py-1.5 hover:bg-accent"
               >
                 Previous
@@ -459,7 +485,7 @@ export default async function TransactionsPage({
             ) : null}
             {page < pages ? (
               <Link
-                href={linkWith({ page: String(page + 1) })}
+                href={pageLink(page + 1)}
                 className="focus-ring rounded-lg border px-3 py-1.5 hover:bg-accent"
               >
                 Next
@@ -469,29 +495,5 @@ export default async function TransactionsPage({
         </div>
       ) : null}
     </>
-  );
-}
-
-function FilterChip({
-  href,
-  active,
-  children,
-}: {
-  href: string;
-  active: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "true" : undefined}
-      className={`focus-ring rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-        active
-          ? "border-brand bg-brand text-brand-foreground"
-          : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
-      }`}
-    >
-      {children}
-    </Link>
   );
 }

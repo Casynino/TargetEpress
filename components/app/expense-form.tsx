@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { recordExpense } from "@/lib/actions/expenses";
+import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import type { ActionResult } from "@/lib/actions/types";
 
 export type ExpenseAccount = {
@@ -49,21 +50,25 @@ export function ExpenseForm({
   quick,
   thresholdUsd,
   rate,
+  alwaysOpen = false,
 }: {
-  categories: { value: string; label: string }[];
+  /** Empty means "use the shared list" — the ledger has no reason to pass it. */
+  categories?: { value: string; label: string }[];
   accounts: ExpenseAccount[];
-  dispatches: ExpenseDispatch[];
+  dispatches?: ExpenseDispatch[];
   /** Most-recorded first, then the seeded common costs. */
   quick: QuickExpense[];
   thresholdUsd: number;
   rate: number | null;
+  /** Rendered inside something that already decided it is open. */
+  alwaysOpen?: boolean;
 }) {
   const [state, action] = useActionState<
     ActionResult<{ expenseNumber: string }>,
     FormData
   >(recordExpense, { ok: true });
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(alwaysOpen);
   const [more, setMore] = useState(false);
   const [currency, setCurrency] = useState("TZS");
   const [description, setDescription] = useState("");
@@ -83,6 +88,14 @@ export function ExpenseForm({
     amountRef.current?.focus();
   };
 
+  const categoryOptions =
+    categories && categories.length > 0
+      ? categories
+      : Object.entries(EXPENSE_CATEGORY_LABELS).map(([value, label]) => ({
+          value,
+          label,
+        }));
+
   if (!open) {
     return (
       <Button variant="brand" className="rounded-lg" onClick={() => setOpen(true)}>
@@ -96,14 +109,16 @@ export function ExpenseForm({
     <section className="overflow-hidden rounded-xl border bg-card shadow-soft">
       <div className="flex items-center justify-between gap-3 border-b px-5 py-3">
         <h2 className="font-semibold">Record a cost</h2>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="focus-ring rounded-md p-1 text-muted-foreground hover:text-foreground"
-          aria-label="Close"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        {alwaysOpen ? null : (
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="focus-ring rounded-md p-1 text-muted-foreground hover:text-foreground"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* The usual suspects, one tap each. */}
@@ -205,7 +220,7 @@ export function ExpenseForm({
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
-              {categories.map((c) => (
+              {categoryOptions.map((c) => (
                 <option key={c.value} value={c.value}>
                   {c.label}
                 </option>
@@ -251,19 +266,21 @@ export function ExpenseForm({
                 </Label>
                 <Input id="vendor" name="vendor" placeholder="Who received it" />
               </div>
-              <div className="space-y-1.5 lg:col-span-4">
-                <Label htmlFor="expenseBatch" className="text-xs">
-                  Against a dispatch
-                </Label>
-                <NativeSelect id="expenseBatch" name="batchId" defaultValue="">
-                  <option value="">Not one flight</option>
-                  {dispatches.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.label}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </div>
+              {dispatches && dispatches.length > 0 ? (
+                <div className="space-y-1.5 lg:col-span-4">
+                  <Label htmlFor="expenseBatch" className="text-xs">
+                    Against a dispatch
+                  </Label>
+                  <NativeSelect id="expenseBatch" name="batchId" defaultValue="">
+                    <option value="">Not one flight</option>
+                    {dispatches.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </div>
+              ) : null}
               <div className="space-y-1.5 lg:col-span-4">
                 <Label htmlFor="incurredAt" className="text-xs">
                   Date
