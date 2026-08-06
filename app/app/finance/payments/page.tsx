@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
+import { AttributePayment } from "@/components/app/attribute-payment";
 import { MoneyTile } from "@/components/app/money-tile";
 import {
   Table,
@@ -16,6 +17,7 @@ import { Banknote, CircleHelp, HandCoins, Wallet } from "lucide-react";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
+import { activeAccounts } from "@/lib/accounts";
 import { prisma } from "@/lib/prisma";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
@@ -38,6 +40,7 @@ export default async function PaymentsPage() {
     unattributed,
     byTendered,
     rateRow,
+    accounts,
   ] = await Promise.all([
     prisma.payment.findMany({
       orderBy: { paidAt: "desc" },
@@ -87,6 +90,7 @@ export default async function PaymentsPage() {
       _count: true,
     }),
     currentRate(),
+    activeAccounts(),
   ]);
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
@@ -195,7 +199,7 @@ export default async function PaymentsPage() {
                   <TableHead className="hidden md:table-cell">Customer</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead className="hidden sm:table-cell">Method</TableHead>
-                  <TableHead className="hidden xl:table-cell">Landed in</TableHead>
+                  <TableHead className="hidden md:table-cell">Landed in</TableHead>
                   <TableHead className="hidden lg:table-cell">Received by</TableHead>
                   <TableHead className="hidden lg:table-cell">When</TableHead>
                 </TableRow>
@@ -241,13 +245,15 @@ export default async function PaymentsPage() {
                     {/* Which of our accounts took it. Blank is a real answer,
                         not a missing one — see the Accounts view, where it
                         adds up under Unattributed rather than disappearing. */}
-                    <TableCell className="hidden xl:table-cell text-sm">
+                    <TableCell className="hidden md:table-cell text-sm">
                       {payment.account ? (
                         payment.account.name
                       ) : (
-                        <span className="text-muted-foreground">
-                          Unattributed
-                        </span>
+                        <AttributePayment
+                          paymentId={payment.id}
+                          currency={payment.currency}
+                          accounts={accounts}
+                        />
                       )}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">

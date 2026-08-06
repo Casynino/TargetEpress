@@ -1208,3 +1208,122 @@ export async function cancelPickupNote(
     return fail(toActionError(error));
   }
 }
+
+/**
+ * Say which account a payment already taken actually landed in.
+ *
+ * Recording a payment does not require naming an account — deliberately, so the
+ * counter is never blocked on a fact the clerk may not have yet. The cost of
+ * that choice is money sitting in the books with no address: real money the
+ * business holds, in no account, and therefore with no ledger line either.
+ *
+ * This is how that gets closed. It is the only place a ledger entry is written
+ * after the fact, and it writes exactly the entry recordPayment would have
+ * written had the account been named at the counter — same amount, same rate,
+ * same date the money actually moved.
+ *
+ * Only for payments that have NO account yet. Moving money that has already
+ * been booked from one account to another is a different act with a different
+ * shape: the ledger is append-only, so that would be a reversal and a
+ * re-posting, not an edit, and it should be asked for explicitly.
+ */
+export async function attributePayment(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  let user: SessionUser;
+  try {
+    user = await authorize("payment.record");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const paymentId = String(formData.get("paymentId") ?? "");
+  const accountId = String(formData.get("accountId") ?? "");
+  if (!paymentId) return fail("Missing payment.");
+  if (!accountId) return fail("Choose the account the money went into.");
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findUnique({
+        where: { id: paymentId },
+        include: {
+          receipt: { select: { receiptNumber: true } },
+          invoice: {
+            select: {
+              invoiceNumber: true,
+              currency: true,
+              shipment: { select: { trackingNumber: true } },
+            },
+          },
+        },
+      });
+      if (!payment) throw new Error("That payment no longer exists.");
+      if (payment.accountId) {
+        throw new Error(
+          "This payment is already attributed to an account. Correcting a booked payment means reversing it in the ledger, not editing it."
+        );
+      }
+
+      const account = await tx.companyAccount.findUnique({
+        where: { id: accountId },
+        select: { id: true, name: true, currency: true, active: true },
+      });
+      if (!account) throw new Error("That account no longer exists.");
+      if (!account.active) throw new Error(`${account.name} has been archived.`);
+      if (account.currency !== payment.currency) {
+        throw new Error(
+          `${account.name} is a ${account.currency} account, so a payment of ${payment.currency} ${toNumber(payment.amount).toLocaleString()} cannot have landed in it.`
+        );
+      }
+
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: { accountId: account.id },
+      });
+
+      // The line that was never written, written now — at the rate and on the
+      // date the money actually moved, not today's.
+      const usdValue =
+        payment.invoice.currency === "USD"
+          ? toNumber(payment.creditedAmount ?? payment.amount)
+          : toNumber(payment.amount);
+
+      await postLedgerEntry(tx, {
+        accountId: account.id,
+        currency: account.currency,
+        direction: "IN",
+        kind: "CUSTOMER_PAYMENT",
+        amount: toNumber(payment.amount),
+        amountUsd: usdValue,
+        exchangeRate:
+          payment.exchangeRate === null ? null : toNumber(payment.exchangeRate),
+        occurredAt: payment.paidAt,
+        description: `${payment.receipt?.receiptNumber ?? "Payment"} — ${payment.invoice.invoiceNumber} for ${payment.invoice.shipment.trackingNumber}`,
+        sourceEntity: "Payment",
+        sourceId: payment.id,
+        paymentId: payment.id,
+        recordedById: user.id,
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "payment.attribute",
+          entity: "Payment",
+          entityId: payment.id,
+          summary: `Attributed ${payment.receipt?.receiptNumber ?? "a payment"} of ${payment.currency} ${toNumber(payment.amount).toLocaleString()} to ${account.name}`,
+        },
+        tx
+      );
+    });
+
+    revalidatePath("/app/finance/payments");
+    revalidatePath("/app/finance/accounts");
+    revalidatePath("/app/finance/transactions");
+    revalidatePath("/app/finance");
+    return ok();
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
