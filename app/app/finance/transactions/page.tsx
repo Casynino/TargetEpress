@@ -467,8 +467,11 @@ export default async function LedgerPage({
                           it, and whichever loses vanishes outright — which is
                           how "what was this for" disappeared on exactly the
                           narrow screens it matters most on. Two lines when it
-                          needs them, one when it does not. */}
-                      <span className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                          needs them, one when it does not. Three is the
+                          ceiling — enough for a long cargo description and
+                          every code beneath it, without one wordy consignment
+                          making a row five lines tall. */}
+                      <span className="mt-0.5 line-clamp-3 text-[11px] leading-relaxed text-muted-foreground">
                         {purpose ? <>{purpose} </> : null}
                         {refs.map((ref, i) => (
                           <span key={ref}>

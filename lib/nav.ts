@@ -159,7 +159,10 @@ const SECTIONS: NavSection[] = [
       // numbers on its own says nothing about which box it is or where.
       {
         href: "/app/finance",
-        label: "The Ledger",
+        // The sidebar names it by the accounting term, which is the clearer
+        // signpost from outside the finance workspace. Inside it, the page
+        // and its tab keep the shorter title.
+        label: "General ledger",
         icon: "Wallet",
         permission: "finance.view",
       },
