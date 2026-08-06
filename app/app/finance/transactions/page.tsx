@@ -36,6 +36,31 @@ const KIND_LABEL: Record<string, string> = {
 
 const PAGE_SIZE = 60;
 
+const PERIODS = [
+  { key: "today", label: "Today" },
+  { key: "week", label: "This week" },
+  { key: "month", label: "This month" },
+  { key: "year", label: "This year" },
+  { key: "all", label: "All time" },
+] as const;
+
+/** Start of the chosen window. Null means all time, which is the default here:
+ *  a register is read backwards from now, not clipped to a month. */
+function windowStart(period: string | undefined): Date | null {
+  const now = new Date();
+  if (period === "today") {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+  if (period === "week") {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d;
+  }
+  if (period === "month") return new Date(now.getFullYear(), now.getMonth(), 1);
+  if (period === "year") return new Date(now.getFullYear(), 0, 1);
+  return null;
+}
+
 /**
  * The register: every movement of money, newest first.
  *
@@ -54,6 +79,7 @@ export default async function TransactionsPage({
     account?: string;
     direction?: string;
     kind?: string;
+    period?: string;
     page?: string;
   }>;
 }) {
@@ -70,6 +96,8 @@ export default async function TransactionsPage({
   if (params.kind && params.kind in KIND_LABEL) {
     where.kind = params.kind as Prisma.LedgerEntryWhereInput["kind"];
   }
+  const from = windowStart(params.period);
+  if (from) where.occurredAt = { gte: from };
 
   const [accounts, entries, total, totals, unbanked, rateRow] = await Promise.all([
     prisma.companyAccount.findMany({
@@ -127,13 +155,55 @@ export default async function TransactionsPage({
   );
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const filtered = Boolean(params.account || params.direction || params.kind);
+  const filtered = Boolean(
+    params.account || params.direction || params.kind || from
+  );
+
+  // A running balance only means something down ONE account. Across six
+  // accounts in two currencies a cumulative column would be adding shillings
+  // to dollars and calling it a balance — the exact fault this whole area was
+  // built to stop. So it appears when, and only when, an account is chosen.
+  const oldest = entries[entries.length - 1];
+  let openingForPage: number | null = null;
+  if (params.account && oldest) {
+    const before = await prisma.ledgerEntry.groupBy({
+      by: ["direction"],
+      where: {
+        accountId: params.account,
+        OR: [
+          { occurredAt: { lt: oldest.occurredAt } },
+          {
+            occurredAt: oldest.occurredAt,
+            createdAt: { lt: oldest.createdAt },
+          },
+        ],
+      },
+      _sum: { amount: true },
+    });
+    const pick = (dir: "IN" | "OUT") =>
+      toNumber(before.find((r) => r.direction === dir)?._sum.amount ?? 0);
+    openingForPage = pick("IN") - pick("OUT");
+  }
+
+  // Walk the page oldest-first to accumulate, then read it back newest-first
+  // the way the table renders.
+  const runningById = new Map<string, number>();
+  if (openingForPage !== null) {
+    let running = openingForPage;
+    for (let i = entries.length - 1; i >= 0; i -= 1) {
+      const entry = entries[i];
+      running +=
+        (entry.direction === "IN" ? 1 : -1) * toNumber(entry.amount);
+      runningById.set(entry.id, running);
+    }
+  }
   const linkWith = (patch: Record<string, string | undefined>) => {
     const next = new URLSearchParams();
     const merged = {
       account: params.account,
       direction: params.direction,
       kind: params.kind,
+      period: params.period,
       ...patch,
     };
     for (const [key, value] of Object.entries(merged)) {
@@ -238,6 +308,49 @@ export default async function TransactionsPage({
         </FilterChip>
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center gap-1.5 text-sm">
+        <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          When
+        </span>
+        {PERIODS.map((p) => (
+          <FilterChip
+            key={p.key}
+            href={linkWith({ period: p.key === "all" ? undefined : p.key })}
+            active={
+              p.key === "all" ? !params.period : params.period === p.key
+            }
+          >
+            {p.label}
+          </FilterChip>
+        ))}
+        <span className="mx-2 hidden h-4 w-px bg-border sm:block" />
+        {/* The kind filter was supported by the query and had no control at
+            all — a filter nobody could reach is a filter that does not exist. */}
+        <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Type
+        </span>
+        <FilterChip href={linkWith({ kind: undefined })} active={!params.kind}>
+          Any
+        </FilterChip>
+        {Object.entries(KIND_LABEL).map(([key, label]) => (
+          <FilterChip
+            key={key}
+            href={linkWith({ kind: key })}
+            active={params.kind === key}
+          >
+            {label}
+          </FilterChip>
+        ))}
+      </div>
+
+      {openingForPage === null && entries.length > 0 ? (
+        <p className="mb-3 text-xs text-muted-foreground">
+          Pick one account above to see a running balance. Across accounts in
+          different currencies a cumulative column would be adding shillings to
+          dollars.
+        </p>
+      ) : null}
+
       {entries.length === 0 ? (
         <EmptyState
           title={filtered ? "Nothing matches that" : "No movements yet"}
@@ -258,6 +371,9 @@ export default async function TransactionsPage({
                 <TableHead className="hidden md:table-cell">Account</TableHead>
                 <TableHead className="hidden lg:table-cell">Type</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
+                {openingForPage !== null ? (
+                  <TableHead className="text-right">Balance after</TableHead>
+                ) : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -311,6 +427,14 @@ export default async function TransactionsPage({
                         </span>
                       )}
                     </TableCell>
+                    {openingForPage !== null ? (
+                      <TableCell className="whitespace-nowrap text-right font-mono text-sm font-semibold tabular">
+                        {formatMoney(
+                          runningById.get(entry.id) ?? 0,
+                          entry.currency
+                        )}
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 );
               })}

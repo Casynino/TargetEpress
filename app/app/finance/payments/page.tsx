@@ -208,7 +208,12 @@ export default async function PaymentsPage() {
                 {payments.map((payment) => (
                   <TableRow key={payment.id}>
                     <TableCell className="font-mono text-xs tabular">
-                      {payment.receipt?.receiptNumber ?? "—"}
+                      <Link
+                        href={`/app/finance/payments/${payment.id}`}
+                        className="hover:text-brand"
+                      >
+                        {payment.receipt?.receiptNumber ?? "Open"}
+                      </Link>
                     </TableCell>
                     <TableCell>
                       <Link
