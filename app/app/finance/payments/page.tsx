@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { StatCard } from "@/components/app/stat-card";
+import { MoneyTile } from "@/components/app/money-tile";
 import {
   Table,
   TableBody,
@@ -12,10 +12,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Banknote } from "lucide-react";
+import { Banknote, CircleHelp, HandCoins, Wallet } from "lucide-react";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
-import { formatUsd } from "@/lib/fx";
+import { currentRate, formatUsd } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
@@ -30,7 +30,15 @@ export default async function PaymentsPage() {
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
 
-  const [payments, monthAgg, byMethod] = await Promise.all([
+  const [
+    payments,
+    monthAgg,
+    allTime,
+    byMethod,
+    unattributed,
+    byTendered,
+    rateRow,
+  ] = await Promise.all([
     prisma.payment.findMany({
       orderBy: { paidAt: "desc" },
       take: 100,
@@ -56,38 +64,120 @@ export default async function PaymentsPage() {
     prisma.payment.aggregate({
       where: { paidAt: { gte: monthStart } },
       _sum: { creditedAmount: true },
+      _count: true,
     }),
+    prisma.payment.aggregate({ _sum: { creditedAmount: true }, _count: true }),
     prisma.payment.groupBy({
       by: ["method"],
       _sum: { creditedAmount: true },
+      _count: true,
     }),
+    // Money in hand that nobody has said where it went — a job, not a statistic.
+    prisma.payment.aggregate({
+      where: { accountId: null },
+      _sum: { creditedAmount: true },
+      _count: true,
+    }),
+    // How customers actually tendered — shillings or dollars. Distinct from
+    // every other figure here, which is the money restated in the invoice's
+    // currency, and the one that says whether this is a shilling business.
+    prisma.payment.groupBy({
+      by: ["currency"],
+      _sum: { creditedAmount: true },
+      _count: true,
+    }),
+    currentRate(),
   ]);
+
+  const rate = rateRow ? toNumber(rateRow.rate) : null;
+  const methodTotal = byMethod.reduce((n, r) => n + r._count, 0);
+  const inShillings = byTendered.find((r) => r.currency === "TZS");
+  const tenderedTotal = byTendered.reduce((n, r) => n + r._count, 0);
 
   return (
     <>
       <PageHeader
         title="Payments"
-        description="Every payment received, with the receipt it was issued against. Totals are in USD — the currency the bills are raised in — however the customer paid."
+        description="Every payment received, with the receipt it was issued against and the account it landed in."
       />
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard
-          label="This month"
-          value={formatUsd(toNumber(monthAgg._sum.creditedAmount))}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MoneyTile
+          label="Collected this month"
+          usd={toNumber(monthAgg._sum.creditedAmount)}
+          rate={rate}
           icon={Banknote}
-          tone="success"
+          tone="good"
+          count={`${monthAgg._count} payment${monthAgg._count === 1 ? "" : "s"}`}
         />
-        {byMethod.map((row) => (
-          <StatCard
-            key={row.method}
-            label={PAYMENT_METHOD_LABELS[row.method]}
-            value={formatUsd(toNumber(row._sum.creditedAmount))}
-            hint="All time"
-          />
-        ))}
+        <MoneyTile
+          label="Collected all time"
+          usd={toNumber(allTime._sum.creditedAmount)}
+          rate={rate}
+          icon={HandCoins}
+          count={`${allTime._count} payment${allTime._count === 1 ? "" : "s"}`}
+        />
+        <MoneyTile
+          label="No account named"
+          usd={toNumber(unattributed._sum.creditedAmount)}
+          rate={rate}
+          icon={CircleHelp}
+          tone={unattributed._count > 0 ? "warn" : "good"}
+          count={
+            unattributed._count > 0
+              ? `${unattributed._count} payment${unattributed._count === 1 ? "" : "s"}`
+              : undefined
+          }
+          hint={
+            unattributed._count > 0
+              ? "Open the payment and say where it landed"
+              : "Every payment says where it landed"
+          }
+        />
+        {/* Never a copy of a total above it: this is the share of money
+            handed over in shillings, which is the thing worth knowing here. */}
+        <MoneyTile
+          label="Handed over in shillings"
+          usd={toNumber(inShillings?._sum.creditedAmount ?? 0)}
+          rate={rate}
+          icon={Wallet}
+          tone="brand"
+          count={
+            tenderedTotal > 0
+              ? `${inShillings?._count ?? 0} of ${tenderedTotal} payment${tenderedTotal === 1 ? "" : "s"}`
+              : undefined
+          }
+          hint={
+            byMethod[0]
+              ? `Mostly by ${PAYMENT_METHOD_LABELS[byMethod[0].method].toLowerCase()}`
+              : "The rest came in dollars"
+          }
+        />
       </div>
+
+      {/* The rest of the split, one line rather than a card each — with three
+          methods in use a card apiece left a ragged half-empty row. */}
+      {byMethod.length > 1 ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-muted-foreground">Also paid by</span>
+          {byMethod.slice(1).map((row) => (
+            <span
+              key={row.method}
+              className="rounded-full border bg-card px-2.5 py-1 font-medium"
+            >
+              {PAYMENT_METHOD_LABELS[row.method]}
+              <span className="ml-1.5 font-mono text-muted-foreground">
+                {formatMoney(
+                  rate ? toNumber(row._sum.creditedAmount) * rate : toNumber(row._sum.creditedAmount),
+                  rate ? "TZS" : "USD"
+                )}
+              </span>
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       <div className="mt-6">
         {payments.length === 0 ? (
