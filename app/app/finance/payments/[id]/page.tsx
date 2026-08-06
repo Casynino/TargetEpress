@@ -123,12 +123,14 @@ export default async function PaymentDetailPage({
 
   return (
     <>
+      {/* Back to the register, not to the old payments list: the Ledger is
+          where this line was opened from and the only money page in the nav. */}
       <Link
-        href="/app/finance/payments"
+        href="/app/finance/transactions"
         className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        All payments
+        Ledger
       </Link>
 
       <PageHeader

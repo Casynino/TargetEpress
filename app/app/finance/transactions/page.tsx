@@ -8,7 +8,6 @@ import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { LedgerFilters } from "@/components/app/ledger-filters";
 import { RecordCostButton } from "@/components/app/record-cost-button";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -110,27 +109,41 @@ export default async function LedgerPage({
   const from = windowStart(params.period);
   if (from) where.occurredAt = { gte: from };
 
-  // One box for everything somebody half-remembers: the receipt number, the
-  // customer, the reference off an M-Pesa message, the account, who took it.
+  // One box for anything somebody half-remembers.
+  //
+  // Nobody looking for a payment remembers which field the thing they remember
+  // lives in. They remember the customer, or the tracking number off the label,
+  // or the M-Pesa code on the message, or roughly what the cargo was. Every one
+  // of those reaches the same line, so there is nothing to know before typing.
   const q = params.q?.trim();
   if (q) {
+    const like = { contains: q, mode: "insensitive" as const };
     where.OR = [
-      { description: { contains: q, mode: "insensitive" } },
-      { account: { name: { contains: q, mode: "insensitive" } } },
-      { recordedBy: { name: { contains: q, mode: "insensitive" } } },
-      { payment: { reference: { contains: q, mode: "insensitive" } } },
-      {
-        payment: {
-          receipt: { receiptNumber: { contains: q, mode: "insensitive" } },
-        },
-      },
-      {
-        payment: {
-          invoice: { customer: { name: { contains: q, mode: "insensitive" } } },
-        },
-      },
-      { expense: { expenseNumber: { contains: q, mode: "insensitive" } } },
-      { expense: { vendor: { contains: q, mode: "insensitive" } } },
+      // The line itself
+      { description: like },
+      { entryNumber: like },
+      { account: { name: like } },
+      { recordedBy: { name: like } },
+      // Freight coming in — receipt, reference, customer, cargo
+      { payment: { reference: like } },
+      { payment: { note: like } },
+      { payment: { receipt: { receiptNumber: like } } },
+      { payment: { receivedBy: { name: like } } },
+      { payment: { invoice: { invoiceNumber: like } } },
+      { payment: { invoice: { customer: { name: like } } } },
+      { payment: { invoice: { customer: { phone: like } } } },
+      { payment: { invoice: { shipment: { trackingNumber: like } } } },
+      { payment: { invoice: { shipment: { description: like } } } },
+      // Costs going out
+      { expense: { expenseNumber: like } },
+      { expense: { description: like } },
+      { expense: { vendor: like } },
+      { expense: { batch: { batchNumber: like } } },
+      // Money moved between our own accounts
+      { transfer: { transferNumber: like } },
+      { transfer: { reason: like } },
+      { transfer: { fromAccount: { name: like } } },
+      { transfer: { toAccount: { name: like } } },
     ];
   }
 
@@ -158,7 +171,11 @@ export default async function LedgerPage({
               invoice: {
                 select: {
                   customer: { select: { name: true } },
-                  shipment: { select: { trackingNumber: true } },
+                  // What the customer actually shipped. This is the answer to
+                  // "what was this payment for", and it was not being asked for.
+                  shipment: {
+                    select: { trackingNumber: true, description: true },
+                  },
                 },
               },
             },
@@ -166,6 +183,7 @@ export default async function LedgerPage({
           expense: {
             select: {
               expenseNumber: true,
+              description: true,
               vendor: true,
               category: true,
               receipts: { select: { url: true }, take: 1 },
@@ -174,6 +192,8 @@ export default async function LedgerPage({
           transfer: {
             select: {
               transferNumber: true,
+              reason: true,
+              fromAccount: { select: { name: true } },
               toAccount: { select: { name: true } },
             },
           },
@@ -341,7 +361,7 @@ export default async function LedgerPage({
                 <TableHead>Description</TableHead>
                 <TableHead className="hidden lg:table-cell">Category</TableHead>
                 <TableHead className="hidden md:table-cell">Account</TableHead>
-                <TableHead className="hidden xl:table-cell">By</TableHead>
+                <TableHead className="hidden lg:table-cell">By</TableHead>
                 <TableHead className="text-right">Debit</TableHead>
                 <TableHead className="text-right">Credit</TableHead>
                 <TableHead className="text-right">Balance</TableHead>
@@ -360,22 +380,63 @@ export default async function LedgerPage({
                   entry.expense?.receipts[0]?.url ??
                   null;
 
-                const title =
-                  entry.payment?.invoice.customer.name ??
-                  entry.expense?.vendor ??
-                  entry.transfer?.toAccount.name ??
-                  entry.description;
-                const reference =
+                /**
+                 * Who the line is about, and — separately — what it was for.
+                 *
+                 * Two different questions, and the register was only answering
+                 * the first. A cost paid to "Shell" said nothing about being
+                 * fuel; a payment gave the customer's name and never said which
+                 * cargo it cleared, which is the one thing anybody looking at a
+                 * freight payment actually needs.
+                 */
+                let title = entry.description;
+                let purpose: string | null = null;
+
+                if (entry.payment) {
+                  title = entry.payment.invoice.customer.name;
+                  purpose = entry.payment.invoice.shipment.description;
+                } else if (entry.expense) {
+                  title = entry.expense.description;
+                  purpose = entry.expense.vendor
+                    ? `paid to ${entry.expense.vendor}`
+                    : null;
+                } else if (entry.transfer) {
+                  title = inbound
+                    ? `In from ${entry.transfer.fromAccount.name}`
+                    : `Out to ${entry.transfer.toAccount.name}`;
+                  purpose = entry.transfer.reason;
+                }
+
+                // Every code that could be quoted back at you, in one run.
+                const refs = [
                   entry.payment?.receipt?.receiptNumber ??
-                  entry.expense?.expenseNumber ??
-                  entry.transfer?.transferNumber ??
-                  entry.entryNumber;
+                    entry.expense?.expenseNumber ??
+                    entry.transfer?.transferNumber ??
+                    entry.entryNumber,
+                  entry.payment?.invoice.shipment.trackingNumber,
+                  entry.payment?.reference,
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+
+                /**
+                 * One classification per line, and only one.
+                 *
+                 * This column and a badge beside the description were both
+                 * naming the same fact — "Freight payment" next to "Freight
+                 * income" — which reads as two things until you work out it is
+                 * one. The badge is gone; whether money came in or went out is
+                 * already unmistakable from which of the two amount columns
+                 * the figure is sitting in.
+                 */
                 const category = entry.expense
                   ? (EXPENSE_CATEGORY_LABELS[entry.expense.category] ??
                     entry.expense.category)
                   : entry.kind === "CUSTOMER_PAYMENT"
                     ? "Freight income"
-                    : (KIND_LABEL[entry.kind] ?? entry.kind);
+                    : entry.transfer
+                      ? "Between accounts"
+                      : (KIND_LABEL[entry.kind] ?? entry.kind);
 
                 return (
                   <TableRow
@@ -386,41 +447,30 @@ export default async function LedgerPage({
                       {formatDate(entry.occurredAt)}
                     </TableCell>
 
-                    <TableCell className="max-w-[22rem] py-2.5">
-                      <span className="flex flex-wrap items-center gap-2">
-                        {/* Stretched over the whole row: a ledger line is one
-                            thing, so anywhere on it opens it. Still a single
-                            real link, so it is keyboard-reachable and can be
-                            opened in a new tab. */}
-                        <Link
-                          href={`/app/finance/transactions/${entry.id}`}
-                          className="truncate text-sm font-medium after:absolute after:inset-0 after:content-[''] group-hover:text-brand"
-                        >
-                          {title}
-                        </Link>
-                        <Badge
-                          variant="outline"
-                          className={`shrink-0 font-normal ${
-                            inbound
-                              ? "border-success/40 text-success"
-                              : "border-warning/40 text-warning"
-                          }`}
-                        >
-                          {KIND_LABEL[entry.kind] ?? entry.kind}
-                        </Badge>
-                      </span>
-                      <span className="mt-0.5 block truncate font-mono text-[11px] text-muted-foreground">
-                        {reference}
-                        {entry.payment?.invoice.shipment.trackingNumber
-                          ? ` · ${entry.payment.invoice.shipment.trackingNumber}`
-                          : ""}
-                        {entry.payment?.reference
-                          ? ` · ${entry.payment.reference}`
-                          : ""}
+                    <TableCell className="max-w-[30rem] py-2.5">
+                      {/* Stretched over the whole row: a ledger line is one
+                          thing, so anywhere on it opens it. Still a single
+                          real link, so it is keyboard-reachable and can be
+                          opened in a new tab. */}
+                      <Link
+                        href={`/app/finance/transactions/${entry.id}`}
+                        className="block truncate text-sm font-medium after:absolute after:inset-0 after:content-[''] group-hover:text-brand"
+                      >
+                        {title}
+                      </Link>
+                      <span className="mt-0.5 flex items-baseline gap-1.5 text-[11px] text-muted-foreground">
+                        {purpose ? (
+                          <span className="min-w-0 truncate">{purpose} ·</span>
+                        ) : null}
+                        {/* Never shortened. A half-printed tracking number is
+                            no use to somebody matching this against a label. */}
+                        <span className="shrink-0 font-mono text-muted-foreground/70">
+                          {refs}
+                        </span>
                       </span>
                     </TableCell>
 
-                    <TableCell className="hidden lg:table-cell py-2.5 text-xs">
+                    <TableCell className="hidden whitespace-nowrap py-2.5 text-xs lg:table-cell">
                       {category}
                     </TableCell>
                     <TableCell className="hidden md:table-cell py-2.5 text-xs">
@@ -431,7 +481,7 @@ export default async function LedgerPage({
                         {entry.account.name}
                       </Link>
                     </TableCell>
-                    <TableCell className="hidden xl:table-cell py-2.5 text-xs text-muted-foreground">
+                    <TableCell className="hidden lg:table-cell py-2.5 text-xs text-muted-foreground">
                       {entry.recordedBy?.name ?? "—"}
                     </TableCell>
 

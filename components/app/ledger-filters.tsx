@@ -84,7 +84,7 @@ export function LedgerFilters({
         <Input
           value={term}
           onChange={(e) => setTerm(e.target.value)}
-          placeholder="Search a receipt, customer, reference, account or person…"
+          placeholder="Customer, tracking number, receipt, M-Pesa code, cargo, vendor, account, person…"
           className="pl-9"
           aria-label="Search the ledger"
         />
