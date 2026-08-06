@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Prisma } from "@prisma/client";
-import { Paperclip } from "lucide-react";
+import { ChevronRight, Paperclip } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -30,7 +30,7 @@ import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
-export const metadata: Metadata = { title: "General ledger" };
+export const metadata: Metadata = { title: "Ledger" };
 
 const KIND_LABEL: Record<string, string> = {
   OPENING_BALANCE: "Opening balance",
@@ -258,7 +258,7 @@ export default async function LedgerPage({
   return (
     <>
       <PageHeader
-        title="General ledger"
+        title="Ledger"
         description="Every movement of money — freight collected, costs paid, transfers between accounts — with its account, who recorded it, and a running balance."
         actions={
           canRecord ? (
@@ -348,6 +348,7 @@ export default async function LedgerPage({
                 <TableHead className="hidden sm:table-cell text-right">
                   Proof
                 </TableHead>
+                <TableHead className="w-8" aria-label="Open" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -377,16 +378,23 @@ export default async function LedgerPage({
                     : (KIND_LABEL[entry.kind] ?? entry.kind);
 
                 return (
-                  <TableRow key={entry.id}>
+                  <TableRow
+                    key={entry.id}
+                    className="group relative cursor-pointer transition-colors hover:bg-accent/40"
+                  >
                     <TableCell className="whitespace-nowrap py-2.5 text-xs text-muted-foreground">
                       {formatDate(entry.occurredAt)}
                     </TableCell>
 
                     <TableCell className="max-w-[22rem] py-2.5">
                       <span className="flex flex-wrap items-center gap-2">
+                        {/* Stretched over the whole row: a ledger line is one
+                            thing, so anywhere on it opens it. Still a single
+                            real link, so it is keyboard-reachable and can be
+                            opened in a new tab. */}
                         <Link
                           href={`/app/finance/transactions/${entry.id}`}
-                          className="truncate text-sm font-medium hover:text-brand"
+                          className="truncate text-sm font-medium after:absolute after:inset-0 after:content-[''] group-hover:text-brand"
                         >
                           {title}
                         </Link>
@@ -418,7 +426,7 @@ export default async function LedgerPage({
                     <TableCell className="hidden md:table-cell py-2.5 text-xs">
                       <Link
                         href={`/app/finance/accounts/${entry.account.id}`}
-                        className="hover:text-brand"
+                        className="relative z-10 hover:text-brand"
                       >
                         {entry.account.name}
                       </Link>
@@ -452,7 +460,7 @@ export default async function LedgerPage({
                           href={proof}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 font-medium text-brand hover:underline"
+                          className="relative z-10 inline-flex items-center gap-1 font-medium text-brand hover:underline"
                         >
                           <Paperclip className="h-3 w-3" />
                           View
@@ -460,6 +468,10 @@ export default async function LedgerPage({
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
+                    </TableCell>
+
+                    <TableCell className="w-8 py-2.5 pr-3 text-right">
+                      <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-brand" />
                     </TableCell>
                   </TableRow>
                 );

@@ -33,7 +33,7 @@ export function financeTabs(role: Role): FinanceTab[] {
       href: "/app/finance/transactions",
       // One register. Payments-in and Expenses were two more readings of the
       // same movements, each with its own totals to reconcile by eye.
-      label: "General ledger",
+      label: "Ledger",
       visible: can(role, "ledger.view"),
     },
     // NOTE: no Pickup notes tab. It sits in the sidebar beside Search Cargo,
