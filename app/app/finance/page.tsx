@@ -14,11 +14,17 @@ import {
   Warehouse,
 } from "lucide-react";
 
-import { EmptyState } from "@/components/app/empty-state";
 import { MoneyTile } from "@/components/app/money-tile";
 import { PageHeader } from "@/components/app/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { accountBalances } from "@/lib/ledger";
@@ -231,6 +237,8 @@ export default async function FinanceOverviewPage() {
     },
   ].filter((job) => job.when);
 
+  const agingDrafts = aging.filter((s) => s.invoice?.status === "DRAFT").length;
+
   const tsh = (usd: number) =>
     rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : formatUsd(usd);
 
@@ -442,134 +450,176 @@ export default async function FinanceOverviewPage() {
         </p>
       </section>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border bg-card shadow-soft">
-          <div className="flex items-center justify-between border-b px-5 py-4">
-            <div>
-              <h2 className="font-display font-semibold">Longest waiting</h2>
+      {/* ── Two registers, as tables.
+             They were lists of tall rows with the amount, the dollar figure, a
+             badge and a timestamp all stacked ragged down the right edge — four
+             things in a column, six rows deep, and the same amber badge on
+             every single one because every price is unconfirmed. Nothing could
+             be compared down a column because nothing shared a column.
+             One line per row now, aligned, and the badge that was true of
+             everything is said once in the subtitle. */}
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <section className="overflow-hidden rounded-xl border bg-card">
+          <div className="flex items-center justify-between gap-3 border-b px-5 py-3.5">
+            <div className="min-w-0">
+              <h2 className="font-semibold">Longest waiting</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Cargo sitting in Dar, oldest first
+                On the Dar floor, oldest first
+                {agingDrafts === aging.length && aging.length > 0
+                  ? " · none of these prices are confirmed yet"
+                  : agingDrafts > 0
+                    ? ` · ${agingDrafts} price${agingDrafts === 1 ? "" : "s"} not confirmed`
+                    : ""}
               </p>
             </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/app/support/follow-up">Full chase queue</Link>
-            </Button>
+            <Link
+              href="/app/support/follow-up"
+              className="shrink-0 text-xs font-medium text-brand hover:underline"
+            >
+              Full chase queue →
+            </Link>
           </div>
+
           {aging.length === 0 ? (
-            <div className="p-5">
-              <EmptyState title="Nothing waiting" />
-            </div>
+            <p className="px-5 py-6 text-sm text-muted-foreground">
+              Nothing is waiting on the floor.
+            </p>
           ) : (
-            <ul className="divide-y">
-              {aging.map((shipment) => {
-                const invoice = shipment.invoice;
-                const owing = invoice
-                  ? toNumber(invoice.total) - toNumber(invoice.amountPaid)
-                  : null;
-                const draft = invoice?.status === "DRAFT";
-                return (
-                  <li
-                    key={shipment.id}
-                    className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
-                  >
-                    <div className="min-w-0">
-                      <Link
-                        href={`/app/cargo/${shipment.trackingNumber}`}
-                        className="font-mono text-sm tabular hover:text-brand"
-                      >
-                        {shipment.trackingNumber}
-                      </Link>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {shipment.customer.name} · {shipment.customer.phone}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      {/* Shillings lead here too: this is the figure read down
-                          a phone to a customer. */}
-                      <p className="font-display text-base font-bold tabular-nums">
-                        {owing === null ? "Not priced" : tsh(owing)}
-                      </p>
-                      {owing !== null && rate ? (
-                        <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                          {formatUsd(owing)}
-                        </p>
-                      ) : null}
-                      {/* Said plainly, because ringing a customer for a figure
-                          Finance has not confirmed is how a bill gets argued
-                          about. */}
-                      {draft ? (
-                        <Badge
-                          variant="outline"
-                          className="mt-1 border-warning/40 font-normal text-warning"
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cargo</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead className="hidden sm:table-cell">Waiting</TableHead>
+                  <TableHead className="text-right">Worth</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {aging.map((shipment) => {
+                  const invoice = shipment.invoice;
+                  const owing = invoice
+                    ? toNumber(invoice.total) - toNumber(invoice.amountPaid)
+                    : null;
+                  const draft = invoice?.status === "DRAFT";
+                  return (
+                    <TableRow key={shipment.id}>
+                      <TableCell className="py-2.5">
+                        <Link
+                          href={`/app/cargo/${shipment.trackingNumber}`}
+                          className="font-mono text-xs tabular hover:text-brand"
                         >
-                          price not confirmed
-                        </Badge>
-                      ) : null}
-                      <p className="mt-0.5 text-xs text-muted-foreground">
+                          {shipment.trackingNumber}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="max-w-[11rem] py-2.5">
+                        <span className="block truncate text-sm">
+                          {shipment.customer.name}
+                        </span>
+                        <span className="block truncate font-mono text-[11px] text-muted-foreground">
+                          {shipment.customer.phone}
+                        </span>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell py-2.5 text-xs text-muted-foreground">
                         {formatRelative(shipment.arrivedAt)}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                      </TableCell>
+                      <TableCell className="py-2.5 text-right">
+                        <span className="whitespace-nowrap font-mono text-sm font-semibold tabular-nums">
+                          {/* An unconfirmed price is marked once, here, rather
+                              than with a badge on every row. */}
+                          {draft ? (
+                            <span
+                              aria-label="price not confirmed"
+                              title="Price not confirmed"
+                              className="mr-1.5 text-warning"
+                            >
+                              •
+                            </span>
+                          ) : null}
+                          {owing === null ? "—" : tsh(owing)}
+                        </span>
+                        {owing !== null && rate ? (
+                          <span className="block font-mono text-[11px] tabular-nums text-muted-foreground">
+                            {formatUsd(owing)}
+                          </span>
+                        ) : null}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           )}
         </section>
 
-        <section className="rounded-xl border bg-card shadow-soft">
-          <div className="flex items-center justify-between border-b px-5 py-4">
-            <div>
-              <h2 className="font-display font-semibold">Recent payments</h2>
+        <section className="overflow-hidden rounded-xl border bg-card">
+          <div className="flex items-center justify-between gap-3 border-b px-5 py-3.5">
+            <div className="min-w-0">
+              <h2 className="font-semibold">Recent payments</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 What was handed over, and where it landed
               </p>
             </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/app/finance/payments">All payments</Link>
-            </Button>
+            <Link
+              href="/app/finance/payments"
+              className="shrink-0 text-xs font-medium text-brand hover:underline"
+            >
+              All payments →
+            </Link>
           </div>
+
           {recentPayments.length === 0 ? (
-            <div className="p-5">
-              <EmptyState title="No payments recorded yet" />
-            </div>
+            <p className="px-5 py-6 text-sm text-muted-foreground">
+              No payments recorded yet.
+            </p>
           ) : (
-            <ul className="divide-y">
-              {recentPayments.map((payment) => (
-                <li
-                  key={payment.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="font-mono text-sm tabular">
-                      {payment.invoice.shipment.trackingNumber}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {payment.receipt?.receiptNumber} ·{" "}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Receipt</TableHead>
+                  <TableHead>Cargo</TableHead>
+                  <TableHead>Landed in</TableHead>
+                  <TableHead className="text-right">Taken</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentPayments.map((payment) => (
+                  <TableRow key={payment.id}>
+                    <TableCell className="py-2.5 font-mono text-[11px] tabular text-muted-foreground">
+                      {payment.receipt?.receiptNumber ?? "—"}
+                    </TableCell>
+                    <TableCell className="py-2.5">
+                      <Link
+                        href={`/app/cargo/${payment.invoice.shipment.trackingNumber}`}
+                        className="font-mono text-xs tabular hover:text-brand"
+                      >
+                        {payment.invoice.shipment.trackingNumber}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="py-2.5 text-xs">
                       {payment.account?.name ?? (
                         <span className="text-warning">no account named</span>
                       )}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    {/* What the customer actually handed over — usually
-                        shillings — with what it settled underneath. */}
-                    <p className="text-sm font-medium tabular">
-                      {formatMoney(payment.amount, payment.currency)}
-                    </p>
-                    {payment.currency !== payment.invoice.currency &&
-                    payment.creditedAmount !== null ? (
-                      <p className="text-xs text-muted-foreground">
-                        settled {formatUsd(toNumber(payment.creditedAmount))}
-                      </p>
-                    ) : (
-                      <p className="text-xs capitalize text-muted-foreground">
-                        {payment.method.replace("_", " ").toLowerCase()}
-                      </p>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    </TableCell>
+                    <TableCell className="py-2.5 text-right">
+                      {/* What was actually handed over — the receipt says this. */}
+                      <span className="whitespace-nowrap font-mono text-sm font-semibold tabular-nums">
+                        {formatMoney(payment.amount, payment.currency)}
+                      </span>
+                      {payment.currency !== payment.invoice.currency &&
+                      payment.creditedAmount !== null ? (
+                        <span className="block font-mono text-[11px] tabular-nums text-muted-foreground">
+                          settled {formatUsd(toNumber(payment.creditedAmount))}
+                        </span>
+                      ) : (
+                        <span className="block text-[11px] capitalize text-muted-foreground">
+                          {payment.method.replace("_", " ").toLowerCase()}
+                        </span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </section>
       </div>

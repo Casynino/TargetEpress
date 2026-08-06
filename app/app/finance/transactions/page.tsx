@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Prisma } from "@prisma/client";
-import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CircleHelp, Scale } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -16,12 +16,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { financeTabs } from "@/lib/finance-tabs";
+import { MoneyTile } from "@/components/app/money-tile";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
-import { formatUsd } from "@/lib/fx";
+import { currentRate, formatUsd } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Transactions" };
+export const metadata: Metadata = { title: "Money in & out" };
 
 const KIND_LABEL: Record<string, string> = {
   OPENING_BALANCE: "Opening balance",
@@ -70,7 +71,7 @@ export default async function TransactionsPage({
     where.kind = params.kind as Prisma.LedgerEntryWhereInput["kind"];
   }
 
-  const [accounts, entries, total, totals] = await Promise.all([
+  const [accounts, entries, total, totals, unbanked, rateRow] = await Promise.all([
     prisma.companyAccount.findMany({
       orderBy: [{ sortOrder: "asc" }],
       select: { id: true, name: true, currency: true },
@@ -104,7 +105,19 @@ export default async function TransactionsPage({
       where,
       _sum: { amountUsd: true },
     }),
+    // Money the business took that never entered an account, so it is on the
+    // Payments page and deliberately NOT here. Stating it is what stops the
+    // two registers looking like one of them is wrong.
+    prisma.payment.aggregate({
+      where: { accountId: null },
+      _sum: { creditedAmount: true },
+      _count: true,
+    }),
+    currentRate(),
   ]);
+
+  const rate = rateRow ? toNumber(rateRow.rate) : null;
+  const unbankedUsd = toNumber(unbanked._sum.creditedAmount);
 
   const inUsd = toNumber(
     totals.find((t) => t.direction === "IN")?._sum.amountUsd ?? 0
@@ -133,48 +146,67 @@ export default async function TransactionsPage({
   return (
     <>
       <PageHeader
-        title="Transactions"
-        description="Every movement of money, in and out, newest first. Each line was written by the action that moved it — nothing here is entered by hand."
+        title="Money in &amp; out"
+        description="Every time money entered or left one of the company's own accounts — customer payments, costs, transfers between accounts. Written by the action that moved it, never typed."
       />
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
-      <dl className="mb-6 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3">
-        <div className="bg-card p-4">
-          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <ArrowDownLeft className="h-3.5 w-3.5 text-success" />
-            In
-          </dt>
-          <dd className="mt-1 font-display text-lg font-bold tabular-nums text-success">
-            {formatUsd(inUsd)}
-          </dd>
-        </div>
-        <div className="bg-card p-4">
-          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <ArrowUpRight className="h-3.5 w-3.5 text-destructive" />
-            Out
-          </dt>
-          <dd className="mt-1 font-display text-lg font-bold tabular-nums">
-            {outUsd === 0 ? "—" : formatUsd(outUsd)}
-          </dd>
-        </div>
-        <div className="bg-card p-4">
-          <dt className="text-xs text-muted-foreground">Net</dt>
-          <dd className="mt-1 font-display text-lg font-bold tabular-nums">
-            {formatUsd(inUsd - outUsd)}
-          </dd>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {filtered ? `across ${total} matching` : `across ${total}`} movement
-            {total === 1 ? "" : "s"}
-          </p>
-        </div>
-      </dl>
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MoneyTile
+          label="Money in"
+          usd={inUsd}
+          rate={rate}
+          icon={ArrowDownLeft}
+          tone="good"
+        />
+        <MoneyTile
+          label="Money out"
+          usd={outUsd}
+          rate={rate}
+          icon={ArrowUpRight}
+          tone={outUsd > 0 ? "warn" : "default"}
+        />
+        <MoneyTile
+          label="Net"
+          usd={inUsd - outUsd}
+          rate={rate}
+          icon={Scale}
+          tone={inUsd - outUsd >= 0 ? "default" : "bad"}
+          count={`${total} movement${total === 1 ? "" : "s"}`}
+          hint={filtered ? "matching these filters" : undefined}
+        />
+        {/* Not a movement, and that is the point: it is the money that has NOT
+            reached an account, which is exactly why this page and Payments
+            show different totals. */}
+        <MoneyTile
+          label="Taken, not in an account"
+          usd={unbankedUsd}
+          rate={rate}
+          icon={CircleHelp}
+          tone={unbanked._count > 0 ? "warn" : "good"}
+          count={
+            unbanked._count > 0
+              ? `${unbanked._count} payment${unbanked._count === 1 ? "" : "s"}`
+              : undefined
+          }
+          hint={
+            unbanked._count > 0
+              ? "On Payments, with no account named — so it has no line here"
+              : "Every payment reached an account"
+          }
+          href="/app/finance/payments"
+        />
+      </div>
 
       {/* Filters as links, not a form: every view here is a URL somebody can
           send to somebody else. */}
       <div className="mb-4 flex flex-wrap items-center gap-1.5 text-sm">
+        <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Account
+        </span>
         <FilterChip href={linkWith({ account: undefined })} active={!params.account}>
-          All accounts
+          All
         </FilterChip>
         {accounts.map((account) => (
           <FilterChip
@@ -185,21 +217,24 @@ export default async function TransactionsPage({
             {account.name}
           </FilterChip>
         ))}
-        <span className="mx-1 hidden h-4 w-px bg-border sm:block" />
+        <span className="mx-2 hidden h-4 w-px bg-border sm:block" />
+        <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Direction
+        </span>
         <FilterChip
           href={linkWith({ direction: undefined })}
           active={!params.direction}
         >
-          In &amp; out
+          Both
         </FilterChip>
         <FilterChip href={linkWith({ direction: "IN" })} active={params.direction === "IN"}>
-          In only
+          In
         </FilterChip>
         <FilterChip
           href={linkWith({ direction: "OUT" })}
           active={params.direction === "OUT"}
         >
-          Out only
+          Out
         </FilterChip>
       </div>
 

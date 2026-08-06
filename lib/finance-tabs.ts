@@ -26,7 +26,10 @@ export function financeTabs(role: Role): FinanceTab[] {
     },
     {
       href: "/app/finance/payments",
-      label: "Payments",
+      // "Payments" and "Transactions" sat side by side meaning almost the
+      // same thing to a reader. These two labels say which is which before
+      // anybody has to open either.
+      label: "Payments in",
       visible: can(role, "payment.record"),
     },
     {
@@ -36,7 +39,7 @@ export function financeTabs(role: Role): FinanceTab[] {
     },
     {
       href: "/app/finance/transactions",
-      label: "Transactions",
+      label: "Money in & out",
       visible: can(role, "ledger.view"),
     },
     {

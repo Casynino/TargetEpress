@@ -21,7 +21,7 @@ import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Payments" };
+export const metadata: Metadata = { title: "Payments from customers" };
 
 export default async function PaymentsPage() {
   const user = await requirePermission("payment.record");
@@ -97,8 +97,8 @@ export default async function PaymentsPage() {
   return (
     <>
       <PageHeader
-        title="Payments"
-        description="Every payment received, with the receipt it was issued against and the account it landed in."
+        title="Payments from customers"
+        description="Money in from customers only, with the receipt issued for it. Costs, transfers and anything leaving an account are on Money in &amp; out."
       />
 
       <FinanceNav tabs={financeTabs(user.role)} />
