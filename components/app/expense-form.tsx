@@ -149,7 +149,7 @@ export function ExpenseForm({
 
       <form action={action} className="p-5">
         <div className="grid gap-4 lg:grid-cols-12">
-          <div className="space-y-1.5 lg:col-span-5">
+          <div className="space-y-1.5 lg:col-span-4">
             <Label htmlFor="description" className="text-xs">
               What was it for
             </Label>
@@ -163,7 +163,7 @@ export function ExpenseForm({
             />
           </div>
 
-          <div className="space-y-1.5 lg:col-span-3">
+          <div className="space-y-1.5 lg:col-span-4">
             <Label htmlFor="expenseAmount" className="text-xs">
               Amount
             </Label>
@@ -176,7 +176,7 @@ export function ExpenseForm({
                 min="0.01"
                 step="0.01"
                 inputMode="decimal"
-                className="min-w-0"
+                className="money-input h-11 min-w-0 text-base"
                 required
               />
               <NativeSelect

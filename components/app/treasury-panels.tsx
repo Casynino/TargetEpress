@@ -125,6 +125,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
               min="0.01"
               step="0.01"
               inputMode="decimal"
+                className="money-input h-11 text-base"
               required
             />
           </div>
@@ -140,6 +141,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
               min="0"
               step="0.01"
               inputMode="decimal"
+                className="money-input h-11 text-base"
               placeholder="0"
             />
           </div>
@@ -158,6 +160,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
                 min="100"
                 step="1"
                 inputMode="decimal"
+                className="money-input h-11 text-base"
                 placeholder="e.g. 2700"
               />
             </div>
@@ -177,6 +180,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
                 min="0.01"
                 step="0.01"
                 inputMode="decimal"
+                className="money-input h-11 text-base"
                 placeholder="from the statement"
               />
             </div>
@@ -196,6 +200,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
               min="0.01"
               step="0.01"
               inputMode="decimal"
+                className="money-input h-11 text-base"
             />
           </div>
         )}

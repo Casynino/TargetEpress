@@ -173,6 +173,30 @@
 }
 
 @layer components {
+  /**
+   * A box somebody types money into.
+   *
+   * Bigger, monospaced and tabular, because a figure being typed is checked by
+   * eye before it is committed — and at 14px in the body face, 1000 and 10000
+   * are one glance apart. The browser's spin arrows are removed: nobody nudges
+   * a shilling amount one at a time, and they steal the width where the digits
+   * go.
+   */
+  .money-input {
+    @apply font-mono font-semibold tabular tracking-tight;
+  }
+
+  .money-input::-webkit-outer-spin-button,
+  .money-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .money-input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
   .code-chip {
     @apply inline-flex items-center rounded-md border bg-muted/60 px-2 py-0.5 font-mono text-xs tracking-tight tabular;
   }

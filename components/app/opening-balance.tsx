@@ -84,7 +84,7 @@ export function OpeningBalanceForm({
           min="0"
           step="0.01"
           inputMode="decimal"
-          className="h-9 w-40"
+          className="money-input h-10 w-44 text-base"
           required
         />
       </div>

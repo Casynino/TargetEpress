@@ -91,6 +91,7 @@ export function RecordCompensationForm({
             id="compensation-amount"
             name="amount"
             inputMode="decimal"
+                className="money-input"
             placeholder="250000"
             defaultValue={defaults?.amount ?? ""}
             required

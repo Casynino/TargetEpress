@@ -404,6 +404,7 @@ function PaymentPanel(props: Props) {
                 min="0.01"
                 step="0.01"
                 inputMode="decimal"
+                className="money-input h-11 text-base"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
@@ -440,6 +441,7 @@ function PaymentPanel(props: Props) {
                 min="100"
                 step="1"
                 inputMode="decimal"
+                className="money-input h-11 text-base"
                 value={rate}
                 onChange={(e) => setRate(e.target.value)}
                 placeholder={
