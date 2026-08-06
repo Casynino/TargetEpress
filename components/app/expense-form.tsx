@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Receipt } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
 
 import {
   FormError,
   FormSuccess,
   SubmitButton,
 } from "@/components/app/form-feedback";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -28,59 +29,131 @@ const TODAY = new Date().toISOString().slice(0, 10);
 /**
  * Recording what the business spent.
  *
- * One form, and where possible one action: pick the account it came out of and
- * the cost is recorded AND paid, because that is how it happens — somebody pays
- * the clearing agent and then writes it down. Leaving the account blank records
- * the cost and leaves it waiting, which is the right answer for a bill that has
- * arrived but not been settled.
+ * Closed until asked for. It was a permanent eight-field column down the side
+ * of the page with a paragraph of explanation under half the fields — visible
+ * whether or not anybody wanted it, and the loudest thing on a screen whose job
+ * is to show what has already been spent.
+ *
+ * Four fields do the work: what, how much, out of which account, and what kind
+ * of cost. Everything else — who was paid, which flight, what date, the receipt
+ * — is real but occasional, so it sits behind one line the clerk opens when
+ * they need it. Naming the account records AND pays it in one step, because
+ * that is how it happens: somebody pays the clearing agent and then writes it
+ * down.
  */
 export function ExpenseForm({
   categories,
   accounts,
   dispatches,
   thresholdUsd,
+  rate,
 }: {
   categories: { value: string; label: string }[];
   accounts: ExpenseAccount[];
   dispatches: ExpenseDispatch[];
   thresholdUsd: number;
+  /** USD→TSh, for saying the approval limit in the currency being typed. */
+  rate: number | null;
 }) {
   const [state, action] = useActionState<
     ActionResult<{ expenseNumber: string }>,
     FormData
   >(recordExpense, { ok: true });
 
+  const [open, setOpen] = useState(false);
+  const [more, setMore] = useState(false);
   const [currency, setCurrency] = useState("TZS");
+
   const eligible = accounts.filter((a) => a.currency === currency);
+  const limit =
+    currency === "TZS" && rate
+      ? `TSh ${Math.round(thresholdUsd * rate).toLocaleString()}`
+      : `USD ${thresholdUsd.toLocaleString()}`;
+
+  if (!open) {
+    return (
+      <Button
+        variant="brand"
+        className="rounded-lg"
+        onClick={() => setOpen(true)}
+      >
+        <Plus className="mr-2 h-4 w-4" />
+        Record a cost
+      </Button>
+    );
+  }
 
   return (
     <section className="rounded-xl border bg-card shadow-soft">
-      <div className="border-b px-5 py-4">
-        <h2 className="flex items-center gap-2 font-semibold">
-          <Receipt className="h-4 w-4 text-muted-foreground" />
-          Record a cost
-        </h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Name the account it came out of and it is paid in one step. Leave it
-          blank and the cost waits until somebody settles it.
-        </p>
+      <div className="flex items-center justify-between gap-3 border-b px-5 py-3">
+        <h2 className="font-semibold">Record a cost</h2>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="focus-ring rounded-md p-1 text-muted-foreground hover:text-foreground"
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
-      <form action={action} className="space-y-3 p-5">
-        <div className="space-y-1.5">
-          <Label htmlFor="description" className="text-xs">
-            What was it for
-          </Label>
-          <Input
-            id="description"
-            name="description"
-            placeholder="Customs clearance on GZ-SHIP-2026-001"
-            required
-          />
-        </div>
+      <form action={action} className="p-5">
+        <div className="grid gap-4 lg:grid-cols-12">
+          <div className="space-y-1.5 lg:col-span-5">
+            <Label htmlFor="description" className="text-xs">
+              What was it for
+            </Label>
+            <Input
+              id="description"
+              name="description"
+              placeholder="Customs clearance, GZ-SHIP-2026-001"
+              required
+            />
+          </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 lg:col-span-3">
+            <Label htmlFor="expenseAmount" className="text-xs">
+              Amount
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="expenseAmount"
+                name="amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                className="min-w-0"
+                required
+              />
+              <NativeSelect
+                name="currency"
+                aria-label="Currency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="w-[5.5rem] shrink-0"
+              >
+                <option value="TZS">TSh</option>
+                <option value="USD">USD</option>
+              </NativeSelect>
+            </div>
+          </div>
+
+          <div className="space-y-1.5 lg:col-span-4">
+            <Label htmlFor="expenseAccount" className="text-xs">
+              Paid from
+            </Label>
+            <NativeSelect id="expenseAccount" name="accountId" defaultValue="">
+              <option value="">Not paid yet</option>
+              {eligible.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+
+          <div className="space-y-1.5 lg:col-span-5">
             <Label htmlFor="category" className="text-xs">
               Category
             </Label>
@@ -92,110 +165,69 @@ export function ExpenseForm({
               ))}
             </NativeSelect>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="vendor" className="text-xs">
-              Paid to <span className="text-muted-foreground">(optional)</span>
-            </Label>
-            <Input id="vendor" name="vendor" placeholder="Who received it" />
-          </div>
-        </div>
 
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-          <div className="space-y-1.5">
-            <Label htmlFor="expenseAmount" className="text-xs">
-              Amount
-            </Label>
-            <Input
-              id="expenseAmount"
-              name="amount"
-              type="number"
-              min="0.01"
-              step="0.01"
-              inputMode="decimal"
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="expenseCurrency" className="text-xs">
-              Currency
-            </Label>
-            <NativeSelect
-              id="expenseCurrency"
-              name="currency"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
+          {/* Real, but not every time. One line rather than four fields and
+              four paragraphs sitting there whether or not they are wanted. */}
+          <div className="lg:col-span-7">
+            <button
+              type="button"
+              onClick={() => setMore((v) => !v)}
+              className="focus-ring mt-6 inline-flex items-center gap-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground"
             >
-              <option value="TZS">TZS</option>
-              <option value="USD">USD</option>
-            </NativeSelect>
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform ${more ? "rotate-180" : ""}`}
+              />
+              {more ? "Fewer details" : "Who, which flight, date, receipt"}
+            </button>
           </div>
-        </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="expenseAccount" className="text-xs">
-            Paid from{" "}
-            <span className="text-muted-foreground">
-              (leave blank if not paid yet)
-            </span>
-          </Label>
-          <NativeSelect id="expenseAccount" name="accountId" defaultValue="">
-            <option value="">Not paid yet</option>
-            {eligible.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-                {account.accountNumber ? ` · ${account.accountNumber}` : ""}
-              </option>
-            ))}
-          </NativeSelect>
-          <p className="text-xs text-muted-foreground">
-            Anything over USD {thresholdUsd.toLocaleString()} waits for the
-            CEO&rsquo;s approval before it can leave an account, however this is
-            filled in.
-          </p>
-        </div>
-
-        {dispatches.length > 0 ? (
-          <div className="space-y-1.5">
-            <Label htmlFor="expenseBatch" className="text-xs">
-              Against a dispatch{" "}
-              <span className="text-muted-foreground">(optional)</span>
-            </Label>
-            <NativeSelect id="expenseBatch" name="batchId" defaultValue="">
-              <option value="">Not tied to one flight</option>
-              {dispatches.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.label}
-                </option>
-              ))}
-            </NativeSelect>
-            <p className="text-xs text-muted-foreground">
-              Tie a cost to the flight it belongs to and that flight gets a
-              profit figure, not just a revenue one.
-            </p>
-          </div>
-        ) : null}
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="incurredAt" className="text-xs">
-              Date{" "}
-              <span className="text-muted-foreground">(blank for today)</span>
-            </Label>
-            <Input id="incurredAt" name="incurredAt" type="date" max={TODAY} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="receipt" className="text-xs">
-              Receipt <span className="text-muted-foreground">(optional)</span>
-            </Label>
-            <Input
-              id="receipt"
-              name="receipt"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              multiple
-              className="file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
-            />
-          </div>
+          {more ? (
+            <>
+              <div className="space-y-1.5 lg:col-span-3">
+                <Label htmlFor="vendor" className="text-xs">
+                  Paid to
+                </Label>
+                <Input id="vendor" name="vendor" placeholder="Who received it" />
+              </div>
+              <div className="space-y-1.5 lg:col-span-3">
+                <Label htmlFor="expenseBatch" className="text-xs">
+                  Against a dispatch
+                </Label>
+                <NativeSelect id="expenseBatch" name="batchId" defaultValue="">
+                  <option value="">Not one flight</option>
+                  {dispatches.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.label}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
+              <div className="space-y-1.5 lg:col-span-3">
+                <Label htmlFor="incurredAt" className="text-xs">
+                  Date
+                </Label>
+                <Input
+                  id="incurredAt"
+                  name="incurredAt"
+                  type="date"
+                  max={TODAY}
+                />
+              </div>
+              <div className="space-y-1.5 lg:col-span-3">
+                <Label htmlFor="receipt" className="text-xs">
+                  Receipt
+                </Label>
+                <Input
+                  id="receipt"
+                  name="receipt"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  multiple
+                  className="file:mr-2 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
+                />
+              </div>
+            </>
+          ) : null}
         </div>
 
         <FormError state={state} />
@@ -204,9 +236,17 @@ export function ExpenseForm({
             state.ok && state.data ? `Recorded ${state.data.expenseNumber}` : null
           }
         />
-        <SubmitButton size="sm" pendingLabel="Recording…">
-          Record cost
-        </SubmitButton>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-4">
+          <SubmitButton variant="brand" size="sm" pendingLabel="Recording…">
+            Record cost
+          </SubmitButton>
+          {/* The one rule worth stating, in the currency being typed. */}
+          <p className="text-xs text-muted-foreground">
+            Over {limit} waits for the CEO&rsquo;s approval before it can leave
+            an account.
+          </p>
+        </div>
       </form>
     </section>
   );

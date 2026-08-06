@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowUpRight, Clock, Paperclip, ShieldCheck } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { MoneyTile } from "@/components/app/money-tile";
 import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { ExpenseForm } from "@/components/app/expense-form";
@@ -16,7 +17,7 @@ import {
 } from "@/lib/expenses";
 import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
-import { formatUsd } from "@/lib/fx";
+import { currentRate, formatUsd } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -51,8 +52,15 @@ export default async function ExpensesPage() {
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
 
-  const [expenses, accounts, dispatches, paidThisMonth, outstanding, byCategory] =
-    await Promise.all([
+  const [
+    expenses,
+    accounts,
+    dispatches,
+    paidThisMonth,
+    outstanding,
+    byCategory,
+    rateRow,
+  ] = await Promise.all([
       prisma.expense.findMany({
         orderBy: [{ incurredAt: "desc" }, { createdAt: "desc" }],
         take: 100,
@@ -89,8 +97,18 @@ export default async function ExpensesPage() {
         orderBy: { _sum: { amountUsd: "desc" } },
         take: 4,
       }),
+      currentRate(),
     ]);
 
+  const rate = rateRow ? toNumber(rateRow.rate) : null;
+
+  const awaitingApprovalUsd = expenses
+    .filter(
+      (e) =>
+        e.status === "PENDING" &&
+        toNumber(e.amountUsd) > EXPENSE_APPROVAL_THRESHOLD_USD
+    )
+    .reduce((sum, e) => sum + toNumber(e.amountUsd), 0);
   const awaitingApproval = expenses.filter(
     (e) =>
       e.status === "PENDING" &&
@@ -113,58 +131,72 @@ export default async function ExpensesPage() {
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
-      <dl className="mb-6 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-card p-4">
-          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <ArrowUpRight className="h-3.5 w-3.5 text-destructive" />
-            Paid this month
-          </dt>
-          <dd className="mt-1 font-display text-lg font-bold tabular-nums">
-            {formatUsd(toNumber(paidThisMonth._sum.amountUsd))}
-          </dd>
-        </div>
-        <div className="bg-card p-4">
-          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="h-3.5 w-3.5 text-warning" />
-            Not yet paid
-          </dt>
-          <dd className="mt-1 font-display text-lg font-bold tabular-nums">
-            {formatUsd(toNumber(outstanding._sum.amountUsd))}
-          </dd>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {outstanding._count} cost{outstanding._count === 1 ? "" : "s"} waiting
-          </p>
-        </div>
-        <div className="bg-card p-4">
-          <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <ShieldCheck
-              className={`h-3.5 w-3.5 ${awaitingApproval ? "text-warning" : "text-muted-foreground"}`}
-            />
-            Needs approval
-          </dt>
-          <dd className="mt-1 font-display text-lg font-bold tabular-nums">
-            {awaitingApproval}
-          </dd>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            over USD {EXPENSE_APPROVAL_THRESHOLD_USD.toLocaleString()}
-          </p>
-        </div>
-        <div className="bg-card p-4">
-          <dt className="text-xs text-muted-foreground">Biggest cost so far</dt>
-          <dd className="mt-1 font-display text-lg font-bold tabular-nums">
-            {byCategory[0]
-              ? formatUsd(toNumber(byCategory[0]._sum.amountUsd))
-              : formatUsd(0)}
-          </dd>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {byCategory[0]
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MoneyTile
+          label="Paid this month"
+          usd={toNumber(paidThisMonth._sum.amountUsd)}
+          rate={rate}
+          icon={ArrowUpRight}
+          hint="Money that has actually left an account"
+        />
+        <MoneyTile
+          label="Not yet paid"
+          usd={toNumber(outstanding._sum.amountUsd)}
+          rate={rate}
+          icon={Clock}
+          tone={outstanding._count > 0 ? "warn" : "good"}
+          count={
+            outstanding._count > 0
+              ? `${outstanding._count} cost${outstanding._count === 1 ? "" : "s"} waiting`
+              : undefined
+          }
+          hint="Recorded, not yet disbursed"
+        />
+        <MoneyTile
+          label="Waiting on the CEO"
+          usd={awaitingApprovalUsd}
+          rate={rate}
+          icon={ShieldCheck}
+          tone={awaitingApproval > 0 ? "warn" : "good"}
+          count={
+            awaitingApproval > 0
+              ? `${awaitingApproval} over the limit`
+              : undefined
+          }
+          hint="Cannot be paid until it is approved"
+        />
+        <MoneyTile
+          label={
+            byCategory[0]
               ? CATEGORY_LABELS[byCategory[0].category]
-              : "Nothing paid yet"}
-          </p>
-        </div>
-      </dl>
+              : "Biggest cost so far"
+          }
+          usd={byCategory[0] ? toNumber(byCategory[0]._sum.amountUsd) : 0}
+          rate={rate}
+          tone="brand"
+          hint={byCategory[0] ? "Largest category paid" : "Nothing paid yet"}
+        />
+      </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_400px]">
+      {canRecord ? (
+        <div className="mb-6">
+          <ExpenseForm
+            categories={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
+              value,
+              label,
+            }))}
+            accounts={accountOptions}
+            dispatches={dispatches.map((d) => ({
+              id: d.id,
+              label: d.batchNumber,
+            }))}
+            thresholdUsd={EXPENSE_APPROVAL_THRESHOLD_USD}
+            rate={rate}
+          />
+        </div>
+      ) : null}
+
+      <div>
         <div>
           {expenses.length === 0 ? (
             <EmptyState
@@ -280,20 +312,6 @@ export default async function ExpensesPage() {
           )}
         </div>
 
-        {canRecord ? (
-          <ExpenseForm
-            categories={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
-              value,
-              label,
-            }))}
-            accounts={accountOptions}
-            dispatches={dispatches.map((d) => ({
-              id: d.id,
-              label: d.batchNumber,
-            }))}
-            thresholdUsd={EXPENSE_APPROVAL_THRESHOLD_USD}
-          />
-        ) : null}
       </div>
     </>
   );
