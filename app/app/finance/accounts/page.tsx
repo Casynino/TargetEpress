@@ -1,15 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  Building2,
-  CircleHelp,
-  Smartphone,
-  TriangleAlert,
-  Wallet,
-} from "lucide-react";
+import { CircleHelp, TriangleAlert } from "lucide-react";
 
+import { AccountCard } from "@/components/app/account-card";
 import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { Badge } from "@/components/ui/badge";
@@ -20,33 +13,6 @@ import { currentRate, formatUsd } from "@/lib/fx";
 import { accountBalances } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
-
-export const metadata: Metadata = { title: "Accounts" };
-
-const KIND_ICON = {
-  BANK: Building2,
-  MOBILE_MONEY: Smartphone,
-  CASH: Wallet,
-} as const;
-
-/** Kind, carried as colour rather than another line of text. */
-const KIND_SPINE = {
-  BANK: "bg-gradient-to-r from-brand to-info",
-  MOBILE_MONEY: "bg-gradient-to-r from-signal to-warning",
-  CASH: "bg-gradient-to-r from-success to-brand",
-} as const;
-
-const KIND_CHIP = {
-  BANK: "bg-brand/10 text-brand",
-  MOBILE_MONEY: "bg-signal/10 text-signal",
-  CASH: "bg-success/10 text-success",
-} as const;
-
-const KIND_LABEL = {
-  BANK: "Bank",
-  MOBILE_MONEY: "Mobile money",
-  CASH: "Cash",
-} as const;
 
 /**
  * The company's own money: which accounts exist and what has moved through them.
@@ -114,10 +80,13 @@ export default async function AccountsPage() {
   // compactly. Six equal cards where four said "TSh 0 · no movement yet" gave
   // two-thirds of the page to nothing and made the account holding TSh 357,615
   // look no more important than one holding nothing at all.
-  const funded = rows
-    .filter((row) => row.entries > 0)
-    .sort((a, c) => c.netUsd - a.netUsd);
-  const idle = rows.filter((row) => row.entries === 0);
+  // Every account, always — an empty M-Pesa till is a different fact from no
+  // M-Pesa till, and this page has to be able to say both. Funded first so the
+  // money leads the eye; nothing is dropped to achieve that.
+  const ordered = [...rows].sort((a, c) => {
+    const fundedFirst = (c.entries > 0 ? 1 : 0) - (a.entries > 0 ? 1 : 0);
+    return fundedFirst !== 0 ? fundedFirst : c.netUsd - a.netUsd;
+  });
   const totalUsd = rows.reduce((sum, row) => sum + row.netUsd, 0);
   const unattributedUsd = toNumber(unattributed._sum.creditedAmount);
   const needsOpening = accounts.filter((a) => a.active && a.openingSetAt === null);
@@ -254,113 +223,30 @@ export default async function AccountsPage() {
         </Link>
       ) : null}
 
-      {/* The accounts themselves.
-          Each was a flat grey box repeating "no opening balance set · USD 0.00"
-          — the same sentence the banner above already says, six times over,
-          under two boxed In/Out cells that were empty on five of them.
-          Now: the institution reads first, the balance is the object, and an
-          account with nothing in it says so once and quietly. Kind is carried
-          by a coloured spine rather than another line of text. */}
+      {/* Every account, funded first. Each is drawn as the thing it represents
+          — a card — with the institution and its mark at the top, the balance
+          as the object of the surface, and the account number set the way it
+          is read aloud and checked against a statement. */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {funded.map(({ account, inflow, outflow, net, netUsd, entries, lastMovedAt }) => {
-          const Icon = KIND_ICON[account.kind];
-          const live = entries > 0;
-          return (
-            <Link
-              key={account.id}
-              href={`/app/finance/accounts/${account.id}`}
-              className={`focus-ring group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all hover:border-foreground/20 hover:shadow-lift ${
-                account.active ? "" : "opacity-60"
-              }`}
-            >
-              {/* A coloured spine says what kind of account this is without
-                  spending a line of text on the word. */}
-              <span
-                aria-hidden
-                className={`absolute inset-x-0 top-0 h-1 ${KIND_SPINE[account.kind]}`}
-              />
-
-              <div className="flex items-start justify-between gap-3 p-5 pb-0">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span
-                    className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${KIND_CHIP[account.kind]}`}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold leading-tight">
-                      {account.kind === "BANK"
-                        ? (account.institution ?? account.name)
-                        : account.name}
-                    </p>
-                    <p className="truncate font-mono text-[11px] text-muted-foreground">
-                      {account.accountNumber ?? KIND_LABEL[account.kind]}
-                    </p>
-                  </div>
-                </div>
-                <Badge variant="outline" className="shrink-0 font-mono text-[10px]">
-                  {account.currency === "TZS" ? "TSh" : account.currency}
-                </Badge>
-              </div>
-
-              <div className="p-5 pt-4">
-                <p className="font-display text-[28px] font-bold leading-none tracking-tight tabular-nums">
-                  {formatMoney(net, account.currency)}
-                </p>
-                {account.currency === "USD" || !live ? null : (
-                  <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-                    {formatUsd(netUsd)}
-                  </p>
-                )}
-              </div>
-
-              <div className="mt-auto border-t px-5 py-3">
-                {live ? (
-                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                    <span className="inline-flex items-center gap-1.5 font-mono text-xs tabular-nums text-success">
-                      <ArrowDownLeft className="h-3.5 w-3.5" />
-                      {formatMoney(inflow, account.currency)}
-                    </span>
-                    {outflow > 0 ? (
-                      <span className="inline-flex items-center gap-1.5 font-mono text-xs tabular-nums">
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                        {formatMoney(outflow, account.currency)}
-                      </span>
-                    ) : null}
-                    <span className="ml-auto text-[11px] text-muted-foreground">
-                      {entries} movement{entries === 1 ? "" : "s"}
-                      {lastMovedAt ? ` · ${formatRelative(lastMovedAt)}` : ""}
-                    </span>
-                  </div>
-                ) : null}
-              </div>
-            </Link>
-          );
-        })}
+        {ordered.map((row) => (
+          <AccountCard
+            key={row.account.id}
+            id={row.account.id}
+            name={row.account.name}
+            institution={row.account.institution}
+            accountNumber={row.account.accountNumber}
+            kind={row.account.kind}
+            currency={row.account.currency}
+            active={row.account.active}
+            net={row.net}
+            netUsd={row.netUsd}
+            inflow={row.inflow}
+            outflow={row.outflow}
+            entries={row.entries}
+            lastMovedAt={row.lastMovedAt}
+          />
+        ))}
       </div>
-
-
-      {idle.length > 0 ? (
-        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-dashed px-5 py-3.5">
-          <span className="text-xs text-muted-foreground">
-            Nothing recorded yet
-          </span>
-          {idle.map(({ account }) => (
-            <Link
-              key={account.id}
-              href={`/app/finance/accounts/${account.id}`}
-              className="focus-ring rounded-full border bg-card px-3 py-1 text-xs font-medium transition-colors hover:bg-accent"
-            >
-              {account.kind === "BANK"
-                ? (account.institution ?? account.name)
-                : account.name}
-              <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">
-                {account.currency === "TZS" ? "TSh" : account.currency}
-              </span>
-            </Link>
-          ))}
-        </div>
-      ) : null}
 
       {counts.length > 0 ? (
         <section className="mt-6 overflow-hidden rounded-xl border bg-card">
