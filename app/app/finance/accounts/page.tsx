@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { CircleHelp, TriangleAlert } from "lucide-react";
 
 import { AccountCard } from "@/components/app/account-card";
+import { OpeningBalanceForm } from "@/components/app/opening-balance";
 import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import { formatMoney, formatRelative, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { accountBalances } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
 /**
@@ -32,6 +34,7 @@ import { requirePermission } from "@/lib/session";
  */
 export default async function AccountsPage() {
   const user = await requirePermission("account.view");
+  const canManageAccounts = can(user.role, "account.manage");
 
   const [accounts, balances, unattributed, rateRow, counts] = await Promise.all([
     prisma.companyAccount.findMany({
@@ -118,19 +121,36 @@ export default async function AccountsPage() {
 
       <TreasuryActions accounts={treasuryAccounts} expected={expectedCash} />
 
+      {/* The warning carries its own fix. A caveat nobody can act on teaches
+          people to scroll past caveats. */}
       {needsOpening.length > 0 ? (
-        <p className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-warning/30 bg-warning/5 px-4 py-2.5 text-xs">
-          <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-warning" />
-          <span className="font-medium">
-            These are movements recorded here, not balances.
-          </span>
-          <span className="text-muted-foreground">
-            {needsOpening.length === accounts.filter((a) => a.active).length
-              ? "No account has an opening balance yet"
-              : `${needsOpening.length} account${needsOpening.length === 1 ? "" : "s"} without one`}
-            , so whatever was already in the account is not counted.
-          </span>
-        </p>
+        <div className="mb-4 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-warning" />
+            <span className="font-medium">
+              These are movements recorded here, not balances.
+            </span>
+            <span className="text-muted-foreground">
+              {needsOpening.length === accounts.filter((a) => a.active).length
+                ? "No account has an opening balance yet"
+                : `${needsOpening.length} account${needsOpening.length === 1 ? "" : "s"} without one`}
+              , so whatever was already in the account is not counted.
+            </span>
+          </p>
+          {canManageAccounts ? (
+            <OpeningBalanceForm
+              accounts={needsOpening.map((a) => ({
+                id: a.id,
+                name: a.name,
+                currency: a.currency,
+              }))}
+            />
+          ) : (
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              Setting them is the CEO&rsquo;s — it moves every total on this page.
+            </p>
+          )}
+        </div>
       ) : null}
 
       {/* The position, in shillings, as one band rather than four flat cells.

@@ -300,6 +300,12 @@ const FINANCE: Permission[] = [
   // correcting line are the CEO's, for the same reason exception.approve is —
   // the desk that records the money does not also get to restate it.
   "account.view",
+  // Opening balances and archiving an account. This desk reconciles the
+  // accounts, counts the tin and moves money between them — the opening figure
+  // comes off a bank statement they are holding, so making them ask the CEO to
+  // type it is ceremony, not control. The genuinely dangerous act, restating a
+  // figure already booked, stays with the CEO as ledger.adjust.
+  "account.manage",
   "ledger.view",
   "expense.view",
   "expense.record",

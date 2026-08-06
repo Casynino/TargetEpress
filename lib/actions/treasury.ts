@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
+import { currentRateValue } from "@/lib/fx";
 import { nextTransferNumber } from "@/lib/ids";
 import { postLedgerEntry } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
@@ -321,6 +322,145 @@ export async function recordCashCount(
 
     revalidatePath("/app/finance/accounts");
     return ok({ variance });
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
+
+const openingSchema = z.object({
+  accountId: z.string().min(1),
+  amount: z
+    .string()
+    .trim()
+    .transform((v) => Number(v))
+    .refine(
+      (v) => Number.isFinite(v) && v >= 0,
+      "Enter what was in the account, or zero."
+    ),
+  asOf: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? new Date(v) : null))
+    .refine(
+      (d) => d === null || !Number.isNaN(d.getTime()),
+      "That date is not valid."
+    )
+    .refine(
+      (d) => d === null || d.getTime() <= Date.now() + 86_400_000,
+      "An opening balance cannot be dated in the future."
+    ),
+  note: z.string().trim().optional(),
+});
+
+/**
+ * What was already in the account before this system existed.
+ *
+ * Every balance on the Accounts page has carried a caveat since the ledger was
+ * built: it counts only what this system has seen, and there is money in CRDB
+ * that predates it. The warning was honest and completely inert — it named the
+ * gap and offered no way to close it. This closes it.
+ *
+ * Recorded as an OPENING_BALANCE ledger entry rather than a column, so a
+ * balance keeps exactly one derivation path: sum the movements. The opening
+ * figure is simply the first movement, dated when the business says the account
+ * started counting.
+ *
+ * Once per account. A second one would silently double the balance, and the
+ * honest way to correct a wrong opening figure is a visible adjustment, not a
+ * quiet overwrite.
+ */
+export async function setOpeningBalance(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  let user: SessionUser;
+  try {
+    // The CEO's, not the money desk's: this figure moves every total on the
+    // page and is not a day-to-day act.
+    user = await authorize("account.manage");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const parsed = openingSchema.safeParse(
+    Object.fromEntries(formData) as Record<string, string>
+  );
+  if (!parsed.success) return fail(firstError(parsed.error));
+  const input = parsed.data;
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const account = await tx.companyAccount.findUnique({
+        where: { id: input.accountId },
+        select: {
+          id: true,
+          name: true,
+          currency: true,
+          active: true,
+          openingSetAt: true,
+        },
+      });
+      if (!account) throw new Error("That account no longer exists.");
+      if (!account.active) throw new Error(`${account.name} has been archived.`);
+      if (account.openingSetAt) {
+        throw new Error(
+          `${account.name} already has an opening balance. Correct it with an adjustment so the change is visible, rather than by overwriting it.`
+        );
+      }
+
+      const occurredAt = input.asOf ?? new Date();
+
+      // Valued in USD like every other line, so company-wide totals can cross
+      // currencies. A shilling opening balance with no published rate is still
+      // recorded — the shilling figure is the true one and must not be lost
+      // because a rate happens to be missing today.
+      const rate = account.currency === "USD" ? null : await currentRateValue();
+      const amountUsd =
+        account.currency === "USD"
+          ? input.amount
+          : rate
+            ? Math.round((input.amount / rate) * 100) / 100
+            : 0;
+
+      await tx.companyAccount.update({
+        where: { id: account.id },
+        data: { openingSetAt: occurredAt },
+      });
+
+      await postLedgerEntry(tx, {
+        accountId: account.id,
+        currency: account.currency,
+        direction: "IN",
+        kind: "OPENING_BALANCE",
+        amount: input.amount,
+        amountUsd,
+        exchangeRate: rate,
+        occurredAt,
+        description:
+          input.note?.trim() ||
+          `Opening balance for ${account.name} — what was in the account when it was put on the system`,
+        sourceEntity: "CompanyAccount",
+        sourceId: account.id,
+        recordedById: user.id,
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "account.setOpeningBalance",
+          entity: "CompanyAccount",
+          entityId: account.id,
+          summary: `Set opening balance for ${account.name}: ${account.currency} ${input.amount.toLocaleString()}`,
+        },
+        tx
+      );
+    });
+
+    revalidatePath("/app/finance/accounts");
+    revalidatePath("/app/finance/transactions");
+    revalidatePath("/app/finance");
+    return ok();
   } catch (error) {
     return fail(toActionError(error));
   }

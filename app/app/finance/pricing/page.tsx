@@ -241,7 +241,8 @@ export default async function PricingConfigurationPage() {
             </p>
             <p className="mt-0.5 text-sm text-muted-foreground">
               Cargo registered against these reaches Finance with no price.
-              Publish a price for each, or a catch-all for its category.
+              Give it a price, or archive it if the business does not carry it —
+              either clears this.
             </p>
             {/* Each one is the fix, not a label of the problem: it opens the
                 publish form with that product already chosen. */}
