@@ -110,6 +110,14 @@ export default async function AccountsPage() {
   });
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
+  // Accounts holding money, biggest first; the empty ones are listed after,
+  // compactly. Six equal cards where four said "TSh 0 · no movement yet" gave
+  // two-thirds of the page to nothing and made the account holding TSh 357,615
+  // look no more important than one holding nothing at all.
+  const funded = rows
+    .filter((row) => row.entries > 0)
+    .sort((a, c) => c.netUsd - a.netUsd);
+  const idle = rows.filter((row) => row.entries === 0);
   const totalUsd = rows.reduce((sum, row) => sum + row.netUsd, 0);
   const unattributedUsd = toNumber(unattributed._sum.creditedAmount);
   const needsOpening = accounts.filter((a) => a.active && a.openingSetAt === null);
@@ -141,26 +149,19 @@ export default async function AccountsPage() {
 
       <TreasuryActions accounts={treasuryAccounts} expected={expectedCash} />
 
-      {/* Said first, and plainly. Every total below is understated by whatever
-          was already in these accounts before this system existed, and that is
-          not a rounding error — it is most of the money. */}
       {needsOpening.length > 0 ? (
-        <div className="mb-6 flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/5 p-4">
-          <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
-          <div className="min-w-0">
-            <p className="font-medium">
-              These are movements recorded here, not balances
-            </p>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {needsOpening.length === accounts.filter((a) => a.active).length
-                ? "No account has an opening balance yet"
-                : `${needsOpening.length} account${needsOpening.length === 1 ? " has" : "s have"} no opening balance yet`}
-              , so each figure below counts only what this system has seen. Whatever
-              was already in the account is missing from it. Set the opening balances
-              and every total becomes the real one.
-            </p>
-          </div>
-        </div>
+        <p className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-warning/30 bg-warning/5 px-4 py-2.5 text-xs">
+          <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-warning" />
+          <span className="font-medium">
+            These are movements recorded here, not balances.
+          </span>
+          <span className="text-muted-foreground">
+            {needsOpening.length === accounts.filter((a) => a.active).length
+              ? "No account has an opening balance yet"
+              : `${needsOpening.length} account${needsOpening.length === 1 ? "" : "s"} without one`}
+            , so whatever was already in the account is not counted.
+          </span>
+        </p>
       ) : null}
 
       {/* The position, in shillings, as one band rather than four flat cells.
@@ -261,7 +262,7 @@ export default async function AccountsPage() {
           account with nothing in it says so once and quietly. Kind is carried
           by a coloured spine rather than another line of text. */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {rows.map(({ account, inflow, outflow, net, netUsd, entries, lastMovedAt }) => {
+        {funded.map(({ account, inflow, outflow, net, netUsd, entries, lastMovedAt }) => {
           const Icon = KIND_ICON[account.kind];
           const live = entries > 0;
           return (
@@ -331,17 +332,35 @@ export default async function AccountsPage() {
                       {lastMovedAt ? ` · ${formatRelative(lastMovedAt)}` : ""}
                     </span>
                   </div>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground">
-                    No movement yet
-                  </p>
-                )}
+                ) : null}
               </div>
             </Link>
           );
         })}
       </div>
 
+
+      {idle.length > 0 ? (
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-dashed px-5 py-3.5">
+          <span className="text-xs text-muted-foreground">
+            Nothing recorded yet
+          </span>
+          {idle.map(({ account }) => (
+            <Link
+              key={account.id}
+              href={`/app/finance/accounts/${account.id}`}
+              className="focus-ring rounded-full border bg-card px-3 py-1 text-xs font-medium transition-colors hover:bg-accent"
+            >
+              {account.kind === "BANK"
+                ? (account.institution ?? account.name)
+                : account.name}
+              <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">
+                {account.currency === "TZS" ? "TSh" : account.currency}
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : null}
 
       {counts.length > 0 ? (
         <section className="mt-6 overflow-hidden rounded-xl border bg-card">
