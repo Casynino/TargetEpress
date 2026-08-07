@@ -374,11 +374,30 @@ const REDUNDANT_ROWS: Partial<Record<Role, string[]>> = {
   CUSTOMER_CARE: ["/app/dashboard"],
 };
 
+/**
+ * Which block of the menu this desk lives in, when it is not the first one.
+ *
+ * The shared menu is ordered for the desks that move cargo: Work, then
+ * Finance, then the Support desk. Read by Customer Care that put their own
+ * home seventh, under the General ledger, below five rows about batches and
+ * boxes — so the one page they open every morning was the furthest thing from
+ * the top. Every other role's home is its first row and theirs should be too.
+ *
+ * A reorder rather than a menu of their own: the rows they share with everyone
+ * else are the same rows, and a second copy of them is a second place to
+ * forget to change.
+ */
+const SECTION_ORDER: Partial<Record<Role, string[]>> = {
+  CUSTOMER_CARE: ["Support desk", "Work", "Finance"],
+};
+
 /** Drops every item and every empty section the role cannot reach. */
 export function navForRole(role: Role): NavSection[] {
   const sections = ROLE_SECTIONS[role] ?? SECTIONS;
   const hidden = REDUNDANT_ROWS[role] ?? [];
-  return sections
+  const order = SECTION_ORDER[role];
+
+  const visible = sections
     .map((section) => ({
       ...section,
       items: section.items.filter(
@@ -388,4 +407,16 @@ export function navForRole(role: Role): NavSection[] {
       ),
     }))
     .filter((section) => section.items.length > 0);
+
+  if (!order) return visible;
+
+  // Anything the list does not name keeps its position after the ones it does,
+  // so adding a section later cannot silently vanish from one role's menu.
+  return [...visible].sort((a, b) => {
+    const rank = (title: string) => {
+      const i = order.indexOf(title);
+      return i === -1 ? order.length : i;
+    };
+    return rank(a.title) - rank(b.title);
+  });
 }
