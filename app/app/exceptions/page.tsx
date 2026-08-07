@@ -227,6 +227,13 @@ function toRecord(row: ExceptionRow, canSeeMoney: boolean): InvestigationRecord 
           // Free text can quote a figure, so it travels with the figure.
           note: canSeeMoney ? row.compensation.note : null,
           recordedByName: row.compensation.recordedBy?.name ?? null,
+          raw: canSeeMoney
+            ? {
+                amount: row.compensation.amount.toFixed(2),
+                currency: row.compensation.currency,
+                method: row.compensation.method,
+              }
+            : null,
         }
       : null,
     shipment: {
@@ -294,6 +301,10 @@ export default async function ExceptionsPage({
     investigate: can(user.role, "exception.investigate"),
     approve: can(user.role, "exception.approve"),
     close: can(user.role, "exception.close"),
+    // Finance holds exception.compensate and had no control anywhere on this
+    // page: the case would say "Finance has not recorded a payout yet" to the
+    // one desk that could, and offer it nothing to press.
+    compensate: can(user.role, "exception.compensate"),
   };
   const canSeeMoney = can(user.role, "finance.view");
 

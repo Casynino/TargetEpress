@@ -13,6 +13,11 @@ import {
   type InvestigationAllowances,
 } from "@/components/app/investigation-actions";
 import { InvestigationTimeline } from "@/components/app/investigation-timeline";
+import { CargoFoundForm } from "@/components/app/cargo-found-form";
+import {
+  ApproveCompensationForm,
+  RecordCompensationForm,
+} from "@/components/app/compensation-form";
 import { ResolveInvestigationForm } from "@/components/app/resolve-investigation-form";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -432,7 +437,7 @@ function CaseRecord({
             </div>
           </Panel>
 
-          <CompensationPanel exception={exception} />
+          <CompensationPanel exception={exception} allow={allow} />
         </div>
 
         {/* ---- What was done about it ---------------------------------- */}
@@ -462,6 +467,18 @@ function CaseRecord({
             assignees={assignees}
             assignedToId={exception.assignedToId}
           />
+
+          {/* The commonest ending for a missing box: it turns up. Offered
+              before the general resolve form because it is one press against
+              five fields, and a case closed this way puts the cargo back into
+              the pickup flow rather than merely marking the paperwork done. */}
+          {!(EXCEPTION_TERMINAL_STATUSES as readonly string[]).includes(
+            exception.status
+          ) && allow.investigate ? (
+            <Panel title="Has it turned up?">
+              <CargoFoundForm exceptionId={exception.id} canMarkFound />
+            </Panel>
+          ) : null}
 
           {/* Closing the case. Offered only to someone who may close, and only
               while it is still open — a resolved case shows its outcome above
@@ -587,20 +604,56 @@ function PhotoStrip({
  * and never sees the figure. That is not a styling choice: `amount` is null on
  * the wire for anybody without `finance.view`.
  */
-function CompensationPanel({ exception }: { exception: InvestigationRecord }) {
+function CompensationPanel({
+  exception,
+  allow,
+}: {
+  exception: InvestigationRecord;
+  allow: InvestigationAllowances;
+}) {
   const comp = exception.compensation;
+  const finished = (EXCEPTION_TERMINAL_STATUSES as readonly string[]).includes(
+    exception.status
+  );
+  const approved = exception.status === "COMPENSATION_APPROVED";
+
+  // The CEO decides there will be a payout; Finance records what actually went
+  // out. Two different desks, so two different controls, and neither is shown
+  // to somebody who cannot press it.
+  const showApprove = allow.approve && !approved && !finished && !comp;
+  const showRecord = allow.compensate && !finished && (approved || Boolean(comp));
 
   if (!comp) {
-    if (exception.status !== "COMPENSATION_APPROVED") return null;
+    if (!approved) {
+      return showApprove ? (
+        <Panel title="Compensation">
+          <p className="mb-2 text-xs text-muted-foreground">
+            Approving records the decision only. Finance records what actually
+            goes out.
+          </p>
+          <ApproveCompensationForm exceptionId={exception.id} />
+        </Panel>
+      ) : null;
+    }
     return (
-      <p className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/5 p-2 text-xs text-warning">
-        <Coins className="h-3.5 w-3.5 shrink-0" />
-        Compensation approved — Finance has not recorded a payout yet.
-      </p>
+      <Panel title="Compensation">
+        <p className="mb-3 flex items-center gap-2 rounded-md border border-warning/40 bg-warning/5 p-2 text-xs text-warning">
+          <Coins className="h-3.5 w-3.5 shrink-0" />
+          Compensation approved — no payout recorded yet.
+        </p>
+        {showRecord ? (
+          <RecordCompensationForm exceptionId={exception.id} />
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Finance records the payout.
+          </p>
+        )}
+      </Panel>
     );
   }
 
   return (
+    <Panel title="Compensation">
     <div className="rounded-md border bg-card p-2.5 text-xs">
       <p className="flex flex-wrap items-center gap-2">
         <Coins className="h-3.5 w-3.5 text-muted-foreground" />
@@ -624,6 +677,31 @@ function CompensationPanel({ exception }: { exception: InvestigationRecord }) {
         </p>
       ) : null}
     </div>
+
+    {/* Amending, not adding: recordCompensation updates the settlement in
+        place, which is how a payout approved today gets its paid date filled
+        in next week. The figures are pre-filled so nobody retypes them. */}
+    {showRecord ? (
+      <div className="mt-3 border-t pt-3">
+        <RecordCompensationForm
+          exceptionId={exception.id}
+          defaults={
+            comp.raw
+              ? {
+                  amount: comp.raw.amount,
+                  currency: comp.raw.currency,
+                  paidAt: comp.paidAt
+                    ? new Date(comp.paidAt).toISOString().slice(0, 10)
+                    : null,
+                  method: comp.raw.method,
+                  note: comp.note,
+                }
+              : null
+          }
+        />
+      </div>
+    ) : null}
+    </Panel>
   );
 }
 

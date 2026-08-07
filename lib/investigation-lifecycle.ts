@@ -312,6 +312,15 @@ export type InvestigationCompensation = {
   methodLabel: string | null;
   note: string | null;
   recordedByName: string | null;
+  /**
+   * The same figures unformatted, for re-opening the record-a-payout form on a
+   * settlement that already exists — filling in the paid date later is the same
+   * form again, and it must not make somebody retype the amount.
+   *
+   * Behind the identical finance.view gate as `amount`: a warehouse phone
+   * learns that a payout exists and never what it was worth.
+   */
+  raw: { amount: string; currency: string; method: string | null } | null;
 };
 
 export type InvestigationRecord = ExceptionCardData & {

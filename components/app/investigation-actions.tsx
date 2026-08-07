@@ -29,6 +29,8 @@ export type InvestigationAllowances = {
   approve: boolean;
   /** exception.close — declare the case finished. */
   close: boolean;
+  /** exception.compensate — Finance's hand on the till. */
+  compensate: boolean;
 };
 
 
