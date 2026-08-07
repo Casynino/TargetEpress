@@ -7,7 +7,6 @@ import {
   MessageSquare,
   PackageSearch,
   PhoneCall,
-  ReceiptText,
   ShoppingBag,
   Users,
 } from "lucide-react";
@@ -15,11 +14,11 @@ import {
 import { KpiCard } from "@/components/app/kpi-card";
 import { ActionPills } from "@/components/app/action-pills";
 import { SectionLabel } from "@/components/app/section-label";
-import { StatCard } from "@/components/app/stat-card";
+import { WorkList, type WorkItem } from "@/components/app/work-list";
 import { QuickAction, SupportSearch } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
-import { formatDateTime } from "@/lib/format";
-import { formatUsd } from "@/lib/fx";
+import { formatDateTime, toNumber } from "@/lib/format";
+import { currentRate, formatUsd } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import { followUpQueue, supportOverview } from "@/lib/support";
@@ -43,7 +42,8 @@ const PRIORITY_TONE: Record<string, string> = {
 export default async function SupportHome() {
   await requirePermission("ticket.manage");
 
-  const [overview, queue, tickets, requests] = await Promise.all([
+  const [overview, queue, tickets, requests, rateRow, callBacks] =
+    await Promise.all([
     supportOverview(),
     followUpQueue(),
     prisma.supportTicket.findMany({
@@ -75,9 +75,94 @@ export default async function SupportHome() {
         contactName: true,
       },
     }),
+    currentRate(),
+    // Investigations parked on the customer's answer. This desk is the one
+    // that rings them, and nothing on the page has ever said so.
+    prisma.shipmentException.count({ where: { status: "WAITING_CUSTOMER" } }),
   ]);
 
   const topOfQueue = queue.slice(0, 6);
+  const rate = rateRow ? toNumber(rateRow.rate) : null;
+
+  /**
+   * What this desk is holding up.
+   *
+   * Derived from the follow-up queue that is already loaded rather than from
+   * six more counts — the queue knows each consignment's next action, so the
+   * rows here are that same judgement added up.
+   *
+   * Only work this desk can actually finish. Cargo whose price Finance has not
+   * signed off is deliberately absent: Customer Care cannot confirm a price,
+   * and a row that cannot be cleared is a dead end. It is named under the list
+   * instead, so nobody wonders why the call queue is full of them.
+   */
+  const unbilled = queue.filter((row) => row.invoiceStatus === null);
+  const unconfirmed = queue.filter((row) => row.invoiceStatus === "DRAFT");
+  const unsent = queue.filter(
+    (row) =>
+      row.invoiceStatus !== null &&
+      row.invoiceStatus !== "DRAFT" &&
+      row.invoiceSentAt === null
+  );
+  const chasing = queue.filter(
+    (row) => row.invoiceSentAt !== null && (row.outstanding ?? 0) > 0
+  );
+  const sum = (rows: typeof queue) =>
+    rows.reduce((total, row) => total + (row.outstanding ?? row.total ?? 0), 0);
+
+  const jobs: WorkItem[] = [
+    {
+      when: overview.urgentTickets > 0,
+      label: `${overview.urgentTickets} ticket${overview.urgentTickets === 1 ? "" : "s"} marked urgent`,
+      detail: "A customer is waiting on an answer somebody flagged as important.",
+      href: "/app/support/tickets?priority=high",
+      cta: "Answer",
+      urgent: true,
+    },
+    {
+      when: unbilled.length > 0,
+      label: `${unbilled.length} landed, never billed`,
+      detail:
+        "In the warehouse with no invoice at all, so the customer has not been asked for anything and storage is running.",
+      aside: `oldest ${Math.max(...unbilled.map((r) => r.daysInWarehouse), 0)} days waiting`,
+      href: "/app/support/follow-up?filter=not-invoiced",
+      cta: "Raise the invoice",
+      urgent: true,
+    },
+    {
+      when: unsent.length > 0,
+      label: `${unsent.length} invoice${unsent.length === 1 ? "" : "s"} never sent`,
+      detail:
+        "Priced and confirmed, and the customer has still not been told what they owe.",
+      usd: sum(unsent),
+      href: "/app/support/follow-up?filter=not-sent",
+      cta: "Send it",
+      urgent: true,
+    },
+    {
+      when: chasing.length > 0,
+      label: `${chasing.length} customer${chasing.length === 1 ? "" : "s"} to chase`,
+      detail: "Billed, sent, and the money has not arrived.",
+      usd: sum(chasing),
+      href: "/app/support/follow-up?filter=awaiting-payment",
+      cta: "Chase",
+    },
+    {
+      when: overview.openRequests > 0,
+      label: `${overview.openRequests} sourcing request${overview.openRequests === 1 ? "" : "s"} open`,
+      detail: "Somebody asked us to find them something in China.",
+      href: "/app/support/sourcing",
+      cta: "Work them",
+    },
+    {
+      when: callBacks > 0,
+      label: `${callBacks} investigation${callBacks === 1 ? "" : "s"} waiting on the customer`,
+      detail:
+        "A case is parked until somebody rings them back. That call is this desk's.",
+      href: "/app/exceptions",
+      cta: "Ring them",
+    },
+  ].filter((job) => job.when) as WorkItem[];
 
   return (
     <>
@@ -128,46 +213,74 @@ export default async function SupportHome() {
         />
       </div>
 
-      <SectionLabel action={{ href: "/app/support/tickets", label: "All tickets" }}>
-        The desk &middot; today
-      </SectionLabel>
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          label="Open tickets"
-          numeric={overview.openTickets}
-          hint={
-            overview.urgentTickets > 0
-              ? `${overview.urgentTickets} high or urgent`
-              : "Nothing urgent"
-          }
-          icon={MessageSquare}
-          tone={overview.urgentTickets > 0 ? "warning" : "brand"}
-          href="/app/support/tickets"
-        />
-        <KpiCard
-          label="Sourcing requests"
-          numeric={overview.openRequests}
-          hint={`${overview.requestsToday} opened today`}
-          icon={ShoppingBag}
-          tone="info"
-          href="/app/support/sourcing"
-        />
-        <KpiCard
-          label="Invoices not yet sent"
-          numeric={overview.unsentInvoices}
-          hint="Customer has not been told what they owe"
-          icon={ReceiptText}
-          tone={overview.unsentInvoices > 0 ? "warning" : "success"}
-          href="/app/support/follow-up?filter=not-sent"
-        />
-        <KpiCard
-          label="Outstanding"
-          value={formatUsd(overview.outstanding)}
-          hint={`Across ${overview.unpaidCount} unpaid invoice${overview.unpaidCount === 1 ? "" : "s"}`}
-          icon={PhoneCall}
-          tone={overview.outstanding > 0 ? "danger" : "success"}
-          href="/app/support/follow-up?filter=awaiting-payment"
-        />
+      {/* The work first, exactly as the money desk has it. */}
+      <SectionLabel count={jobs.length}>Needs your attention</SectionLabel>
+      <WorkList
+        items={jobs}
+        rate={rate}
+        empty="Nothing is waiting on you. Every landed consignment is billed, every invoice has been sent, and no customer is owed a call."
+      />
+
+      {/* Cargo this desk cannot move, said once, under the list rather than
+          in it. The call queue below is full of "Confirm the price" and
+          without this line it reads as work nobody is doing. */}
+      {unconfirmed.length > 0 ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {unconfirmed.length} more{" "}
+          {unconfirmed.length === 1 ? "consignment is" : "consignments are"}{" "}
+          waiting on Finance to confirm a price. You cannot bill{" "}
+          {unconfirmed.length === 1 ? "it" : "them"} until they do —{" "}
+          <Link
+            href="/app/support/follow-up"
+            className="font-medium text-brand hover:underline"
+          >
+            see which
+          </Link>
+          .
+        </p>
+      ) : null}
+
+      {/* Reference, not work. These four are the shape of the desk's day and
+          nobody acts on them — which is precisely why they sit BELOW the list
+          rather than above it, and why not one of them repeats a figure from
+          it. */}
+      <div className="mb-8 mt-7">
+        <SectionLabel action={{ href: "/app/customers", label: "All customers" }}>
+          The desk &middot; today
+        </SectionLabel>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            label="Customers"
+            numeric={overview.customers}
+            hint="On the books"
+            icon={Users}
+            tone="brand"
+            href="/app/customers"
+          />
+          <KpiCard
+            label="Active shipments"
+            numeric={overview.activeShipments}
+            hint="Registered, flying or waiting in Dar"
+            icon={Boxes}
+            tone="info"
+            href="/app/shipments"
+          />
+          <KpiCard
+            label="Ready for pickup"
+            numeric={overview.readyForPickup}
+            hint="Paid and waiting to be collected"
+            icon={Headset}
+            tone="success"
+            href="/app/support/follow-up?filter=ready"
+          />
+          <KpiCard
+            label="Contacted today"
+            numeric={overview.contactedToday}
+            hint="Calls and messages this desk recorded"
+            icon={MessageSquare}
+            tone="brand"
+          />
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
@@ -304,44 +417,6 @@ export default async function SupportHome() {
                 href="/app/support/markets"
                 label="China markets directory"
                 hint="Recommend the right market for their goods"
-              />
-            </div>
-          </div>
-
-          {/* Customer overview */}
-          <div>
-            <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Customer overview
-            </h2>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-              <StatCard
-                label="Customers"
-                value={overview.customers}
-                icon={Users}
-                href="/app/customers"
-              />
-              <StatCard
-                label="Active shipments"
-                value={overview.activeShipments}
-                hint="Registered, flying or waiting in Dar"
-                icon={Boxes}
-                tone="info"
-                href="/app/cargo"
-              />
-              <StatCard
-                label="Ready for pickup"
-                value={overview.readyForPickup}
-                hint="Paid and waiting to be collected"
-                icon={Headset}
-                tone="success"
-                href="/app/support/follow-up?filter=ready"
-              />
-              <StatCard
-                label="Contacted today"
-                value={overview.contactedToday}
-                hint="Messages recorded by the desk"
-                icon={MessageSquare}
-                tone="brand"
               />
             </div>
           </div>

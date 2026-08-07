@@ -33,6 +33,7 @@ import { KpiCard } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
 import { SectionLabel } from "@/components/app/section-label";
 import { StatStrip } from "@/components/app/stat-strip";
+import { WorkList, type WorkItem } from "@/components/app/work-list";
 import { AreaChart } from "@/components/charts/area-chart";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Button } from "@/components/ui/button";
@@ -1086,12 +1087,12 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       label: `${stats.activeNotes} cleared, not collected`,
       detail:
         "Paid for and released. The cargo is still on our floor waiting for the customer to turn up.",
-      usd: 0,
+      aside: "already paid for",
       href: "/app/finance/pickup-notes",
       cta: "See notes",
       urgent: false,
     },
-  ].filter((job) => job.when);
+  ].filter((job) => job.when) as WorkItem[];
 
   /**
    * The handful of things this desk starts many times a day.
@@ -1120,63 +1121,11 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
             YOUR ATTENTION" — one heading printed twice, which reads as two
             things until you work out it is one. */}
         <SectionLabel count={jobs.length}>Needs your attention</SectionLabel>
-      <section className="panel overflow-hidden">
-        {jobs.length === 0 ? (
-          <p className="px-5 py-9 text-center text-sm text-muted-foreground">
-            Nothing is waiting on you. Every price is confirmed, every payment
-            sits in an account, and every bill has been settled.
-          </p>
-        ) : (
-          <ul className="divide-y">
-            {jobs.map((job) => (
-              <li key={job.label}>
-                <Link
-                  href={job.href}
-                  className="focus-ring group flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3.5 transition-colors hover:bg-muted/40"
-                >
-                  <span
-                    className={`h-10 w-1 shrink-0 rounded-full ${
-                      job.urgent ? "bg-warning" : "bg-border"
-                    }`}
-                    aria-hidden
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold">
-                      {job.label}
-                    </span>
-                    <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
-                      {job.detail}
-                    </span>
-                  </span>
-                  {/* A queue with no figure beside it cannot be ranked. The
-                      one job that is not about an amount says so instead of
-                      printing a nought. */}
-                  <span className="text-right">
-                    {job.usd > 0 ? (
-                      <>
-                        <span className="block font-display text-lg font-bold leading-none tabular">
-                          {tsh(job.usd)}
-                        </span>
-                        <span className="mt-1 block font-mono text-[11px] text-muted-foreground">
-                          {formatUsd(job.usd)}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="block text-xs text-muted-foreground">
-                        already paid for
-                      </span>
-                    )}
-                  </span>
-                  <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-brand">
-                    {job.cta}
-                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <WorkList
+        items={jobs}
+        rate={rate}
+        empty="Nothing is waiting on you. Every price is confirmed, every payment sits in an account, and every bill has been settled."
+      />
       </div>
 
       {/* ---- The position those decisions are made against ---- */}
