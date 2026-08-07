@@ -15,6 +15,20 @@ const VALUE_TONES: Record<Tone, string> = {
   brand: "text-brand",
 };
 
+/**
+ * A wash of the tone's own colour across the card.
+ *
+ * Faint on purpose — it tints the card rather than colouring it, so a row of
+ * four still reads as one row and the figures keep their contrast against it.
+ */
+const WASHES: Record<Tone, string> = {
+  default: "from-muted-foreground/[0.07]",
+  good: "from-success/[0.12]",
+  warn: "from-warning/[0.14]",
+  bad: "from-destructive/[0.12]",
+  brand: "from-brand/[0.12]",
+};
+
 /** Icon chips, matching KpiCard so the two read as one family. */
 const ICON_TONES: Record<Tone, string> = {
   default: "bg-muted text-muted-foreground",
@@ -65,12 +79,19 @@ export function MoneyTile({
   const body = (
     <div
       className={cn(
-        "flex h-full flex-col rounded-xl border bg-card p-4 transition-all",
+        "relative flex h-full flex-col overflow-hidden rounded-xl border bg-card p-4 transition-all",
         emphasis && "ring-1 ring-warning/30",
         href && "hover:border-foreground/20 hover:shadow-lift"
       )}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-0 bg-gradient-to-br to-transparent",
+          WASHES[tone]
+        )}
+      />
+      <div className="relative flex items-start justify-between gap-2">
         <p className="text-[13px] font-medium text-muted-foreground">{label}</p>
         {Icon ? (
           <span
@@ -87,7 +108,7 @@ export function MoneyTile({
       {/* The headline, in shillings, because that is the money in the room. */}
       <p
         className={cn(
-          "mt-3 font-display text-[26px] font-bold leading-none tracking-tight tabular-nums",
+          "relative mt-3 font-display text-[30px] font-bold leading-none tracking-tight tabular-nums",
           VALUE_TONES[tone]
         )}
       >
@@ -107,7 +128,7 @@ export function MoneyTile({
           against the bill the customer was sent. Present, deliberately
           secondary. */}
       {rate ? (
-        <div className="mt-2.5 flex items-baseline gap-1.5 rounded-lg bg-muted/60 px-2.5 py-1.5">
+        <div className="relative mt-2.5 flex items-baseline gap-1.5 rounded-lg bg-background/70 px-2.5 py-1.5">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
             on the invoice
           </span>
@@ -117,7 +138,7 @@ export function MoneyTile({
         </div>
       ) : null}
 
-      <div className="mt-auto pt-2.5">
+      <div className="relative mt-auto pt-2.5">
         {count ? <p className="text-xs font-semibold">{count}</p> : null}
         {hint ? (
           <p className="mt-0.5 text-xs leading-snug text-muted-foreground">

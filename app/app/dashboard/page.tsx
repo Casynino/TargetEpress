@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   Clock,
   Hourglass,
+  Landmark,
   Package,
   PackageCheck,
   PackageSearch,
@@ -170,6 +171,39 @@ async function darHeroChips(floor: FloorSnapshot): Promise<HeroChip[]> {
   ];
 }
 
+/**
+ * The small uppercase rule above each block.
+ *
+ * A dashboard is several unrelated answers stacked vertically, and without a
+ * label at the top of each one the reader has to infer where a section starts
+ * from the shape of its contents. Optional link on the right, for the section
+ * that has a fuller version elsewhere.
+ */
+function SectionLabel({
+  children,
+  action,
+}: {
+  children: React.ReactNode;
+  action?: { href: string; label: string };
+}) {
+  return (
+    <div className="mb-3 flex items-baseline justify-between gap-3">
+      <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {children}
+      </h2>
+      {action ? (
+        <Link
+          href={action.href}
+          className="focus-ring inline-flex items-center gap-1 rounded text-xs font-semibold text-brand hover:underline"
+        >
+          {action.label}
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
 export default async function DashboardPage() {
   const user = await requireUser();
 
@@ -226,41 +260,68 @@ export default async function DashboardPage() {
           hourOfDay={localHour(inChina ? "CN" : "TZ")}
         />
       ) : (
-      <div className="relative mb-6 overflow-hidden rounded-xl border bg-card">
+      /* The desk's own colours, not a stock gradient: the red comes off the
+         Target mark and the blue is what the app uses for anything you can
+         act on. The hairline grid over the top keeps it reading as freight
+         software rather than a marketing banner. */
+      <div className="relative mb-6 overflow-hidden rounded-2xl">
         <div
           aria-hidden
-          className="grid-backdrop pointer-events-none absolute inset-0 opacity-[0.35]"
+          className="absolute inset-0 bg-gradient-to-br from-signal via-brand to-info"
         />
-        <div className="relative flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          aria-hidden
+          className="grid-backdrop pointer-events-none absolute inset-0 opacity-20"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/5"
+        />
+        <div className="relative flex flex-col gap-5 p-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="font-display text-2xl font-bold tracking-tight">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
+                <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
+                {today}
+              </span>
+              <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+                {ROLE_LABELS[user.role]}
+              </span>
+            </div>
+            <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight text-white">
               Habari, {firstName}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {ROLE_LABELS[user.role]} · {today}
+            <p className="mt-2 text-sm text-white/80">
+              {user.role === "FINANCE"
+                ? "Here is the money, and what is waiting on you."
+                : "Here is what is happening at Target Express today."}
             </p>
           </div>
-          {/* Quick actions, offered only where the role actually does them. */}
+          {/* Quick actions, offered only where the role actually does them.
+              Styled against the gradient rather than the page, or a solid
+              button sits on it like a sticker. */}
           <div className="flex flex-wrap gap-2">
             {can(user.role, "shipment.create") ? (
-              <Button asChild variant="signal" className="rounded-lg">
-                <Link href="/app/cargo/new">
-                  <PackagePlus className="mr-2 h-4 w-4" />
-                  Receive cargo
-                </Link>
-              </Button>
+              <Link
+                href="/app/cargo/new"
+                className="focus-ring inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand shadow-lift transition-colors hover:bg-white/90"
+              >
+                <PackagePlus className="mr-2 h-4 w-4" />
+                Receive cargo
+              </Link>
             ) : null}
             {can(user.role, "shipment.scan") ? (
-              <Button
-                asChild
-                variant={can(user.role, "shipment.create") ? "outline" : "signal"}
-                className="rounded-lg"
+              <Link
+                href="/app/scan"
+                className={
+                  can(user.role, "shipment.create")
+                    ? "focus-ring inline-flex items-center rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+                    : "focus-ring inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand shadow-lift transition-colors hover:bg-white/90"
+                }
               >
-                <Link href="/app/scan">
-                  <ScanLine className="mr-2 h-4 w-4" />
-                  Scan QR
-                </Link>
-              </Button>
+                <ScanLine className="mr-2 h-4 w-4" />
+                Scan QR
+              </Link>
             ) : null}
           </div>
         </div>
@@ -1040,9 +1101,46 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     },
   ].filter((job) => job.when);
 
+  /**
+   * The handful of things this desk starts many times a day.
+   *
+   * Pills rather than cards: a toolbar under the numbers, not a second
+   * sidebar competing with them. The first two are the jobs — signing off
+   * prices and writing down a cost — and the rest are places to look.
+   */
+  const shortcuts = [
+    { href: "/app/shipments", label: "Confirm prices", icon: ClipboardCheck, weight: "primary" },
+    { href: "/app/finance/transactions", label: "Record a cost", icon: Banknote, weight: "secondary" },
+    { href: "/app/finance/payments", label: "Payments", icon: Wallet, weight: "quiet" },
+    { href: "/app/finance/accounts", label: "Accounts", icon: Landmark, weight: "quiet" },
+    { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: QrCode, weight: "quiet" },
+    { href: "/app/support/follow-up", label: "Chase queue", icon: Clock, weight: "quiet" },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
+      <nav aria-label="Quick actions" className="flex flex-wrap gap-2">
+        {shortcuts.map((item) => (
+          <Link
+            key={item.label}
+            href={item.href}
+            className={`focus-ring inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+              item.weight === "primary"
+                ? "bg-brand text-brand-foreground hover:bg-brand/90"
+                : item.weight === "secondary"
+                  ? "bg-signal text-signal-foreground hover:bg-signal/90"
+                  : "border bg-card text-foreground hover:border-brand/40 hover:bg-accent/40"
+            }`}
+          >
+            <item.icon className="h-4 w-4" />
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+
       {/* ---- The work, before the score ---- */}
+      <div>
+        <SectionLabel>Needs your attention</SectionLabel>
       <section className="panel overflow-hidden">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5">
           <div>
@@ -1118,9 +1216,14 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           </ul>
         )}
       </section>
+      </div>
 
       {/* ---- The position those decisions are made against ---- */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div>
+        <SectionLabel action={{ href: "/app/finance", label: "Full position" }}>
+          The money · right now
+        </SectionLabel>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MoneyTile
           label="Cash available"
           usd={cashUsd}
@@ -1174,10 +1277,15 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           hint="Fuel, customs, the clearing agent, rent — what has actually left an account since the 1st."
           href="/app/finance/transactions?direction=OUT&period=month"
         />
+        </div>
       </div>
 
       {/* ---- What it has been doing, and where it is sitting ---- */}
-      <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+      <div>
+        <SectionLabel action={{ href: "/app/finance/transactions", label: "The Ledger" }}>
+          Collections &amp; cash
+        </SectionLabel>
+        <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         <section className="panel p-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -1246,10 +1354,13 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
             ))}
           </ul>
         </section>
+        </div>
       </div>
 
       {/* ---- The cargo those figures are made of ---- */}
-      <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+      <div>
+        <SectionLabel>Cargo behind the money</SectionLabel>
+        <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         <section className="panel overflow-hidden">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5">
             <div>
@@ -1355,6 +1466,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           description="Cargo that needs a call today"
           emptyMessage="No cargo is in trouble."
         />
+        </div>
       </div>
     </div>
   );
