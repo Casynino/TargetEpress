@@ -362,14 +362,29 @@ const ROLE_SECTIONS: Partial<Record<Role, NavSection[]>> = {
   DAR_WAREHOUSE: DAR_SECTIONS,
 };
 
+/**
+ * Rows that are a second door into a room this role already has one for.
+ *
+ * Customer Care has "Support home", which is their dashboard — the search box,
+ * the call list, the queues. A "Dashboard" row above it pointed at a route
+ * that renders nothing for them, so the menu offered an empty room and the
+ * real one, in that order.
+ */
+const REDUNDANT_ROWS: Partial<Record<Role, string[]>> = {
+  CUSTOMER_CARE: ["/app/dashboard"],
+};
+
 /** Drops every item and every empty section the role cannot reach. */
 export function navForRole(role: Role): NavSection[] {
   const sections = ROLE_SECTIONS[role] ?? SECTIONS;
+  const hidden = REDUNDANT_ROWS[role] ?? [];
   return sections
     .map((section) => ({
       ...section,
       items: section.items.filter(
-        (item) => !item.permission || can(role, item.permission)
+        (item) =>
+          !hidden.includes(item.href) &&
+          (!item.permission || can(role, item.permission))
       ),
     }))
     .filter((section) => section.items.length > 0);

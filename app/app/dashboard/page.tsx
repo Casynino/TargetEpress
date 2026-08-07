@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   AlertTriangle,
   ArrowRight,
@@ -171,6 +172,22 @@ async function darHeroChips(floor: FloorSnapshot): Promise<HeroChip[]> {
 
 export default async function DashboardPage() {
   const user = await requireUser();
+
+  /**
+   * Customer Care's home is the support desk, not this page.
+   *
+   * This route renders one dashboard per role and never had a branch for
+   * CUSTOMER_CARE, so that desk landed on a greeting banner and a blank screen
+   * below it. The answer is not a sixth dashboard: /app/support already IS
+   * their dashboard — the search box, the call list, the ticket and sourcing
+   * queues — and building a second one here would be two screens answering one
+   * question.
+   *
+   * The sidebar drops its "Dashboard" row for this role to match, so there is
+   * one door rather than two. This redirect stays for anyone who bookmarked
+   * the old one.
+   */
+  if (user.role === "CUSTOMER_CARE") redirect("/app/support");
 
   // Read the name from the record, not the session. The session token carries
   // whatever the name was at sign-in, so someone who renames themselves would
