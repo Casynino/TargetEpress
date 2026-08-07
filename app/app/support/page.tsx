@@ -5,6 +5,7 @@ import {
   Boxes,
   Headset,
   MessageSquare,
+  PackageSearch,
   PhoneCall,
   ReceiptText,
   ShoppingBag,
@@ -12,7 +13,8 @@ import {
 } from "lucide-react";
 
 import { KpiCard } from "@/components/app/kpi-card";
-import { PageHeader } from "@/components/app/page-header";
+import { ActionPills } from "@/components/app/action-pills";
+import { SectionLabel } from "@/components/app/section-label";
 import { StatCard } from "@/components/app/stat-card";
 import { QuickAction, SupportSearch } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
@@ -79,24 +81,56 @@ export default async function SupportHome() {
 
   return (
     <>
-      <PageHeader
-        title="Support desk"
-        description="Everything a customer might ask, answerable from this screen."
-      />
-
-      <div className="mb-6 rounded-xl border bg-card p-4 shadow-soft">
-        <p className="mb-2 text-sm font-medium">Find a shipment</p>
-        <SupportSearch action="/app/support/search" />
-        <p className="mt-2 text-xs text-muted-foreground">
-          Works with a tracking number, a customer&rsquo;s name, the number they
-          are calling from, a batch number or an invoice number.
-        </p>
+      {/* The same band every other department opens onto. The search box lives
+          inside it rather than under it: on this desk the phone is already
+          ringing when the page loads, and the first thing wanted is the box on
+          the other end of the call. */}
+      <div className="relative mb-6 overflow-hidden rounded-2xl">
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-br from-signal via-brand to-info"
+        />
+        <div
+          aria-hidden
+          className="grid-backdrop pointer-events-none absolute inset-0 opacity-20"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/5"
+        />
+        <div className="relative p-6">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
+            Support desk
+          </span>
+          <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight text-white">
+            Find a shipment
+          </h1>
+          <p className="mt-2 text-sm text-white/80">
+            A tracking number, a customer&rsquo;s name, the number they are
+            calling from, a batch or an invoice — any of them will do.
+          </p>
+          <div className="mt-4 max-w-2xl">
+            <SupportSearch action="/app/support/search" />
+          </div>
+        </div>
       </div>
 
-      {/* Today */}
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        Today
-      </h2>
+      <div className="mb-7">
+        <ActionPills
+          items={[
+            { href: "/app/support/tickets", label: "Tickets", icon: MessageSquare, weight: "primary" },
+            { href: "/app/support/follow-up", label: "Chase queue", icon: PhoneCall, weight: "secondary" },
+            { href: "/app/support/sourcing", label: "Sourcing", icon: ShoppingBag },
+            { href: "/app/customers", label: "Customers", icon: Users },
+            { href: "/app/search", label: "Search cargo", icon: PackageSearch },
+          ]}
+        />
+      </div>
+
+      <SectionLabel action={{ href: "/app/support/tickets", label: "All tickets" }}>
+        The desk &middot; today
+      </SectionLabel>
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Open tickets"
@@ -242,7 +276,7 @@ export default async function SupportHome() {
         <div className="space-y-6">
           {/* Quick actions */}
           <div>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Quick actions
             </h2>
             <div className="grid gap-3">
@@ -276,7 +310,7 @@ export default async function SupportHome() {
 
           {/* Customer overview */}
           <div>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Customer overview
             </h2>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">

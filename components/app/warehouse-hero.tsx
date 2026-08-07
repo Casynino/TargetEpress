@@ -56,32 +56,37 @@ export function WarehouseHero({
     hourOfDay < 12 ? "Good morning" : hourOfDay < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <section className="relative mb-6 overflow-hidden rounded-2xl border bg-card">
-      {/* Depth without a photograph: a soft brand wash, a faint grid, and a
-          blurred highlight. Nothing moves — this page is read a hundred times a
-          day and animation on it becomes wallpaper by lunchtime. */}
+    <section className="relative mb-6 overflow-hidden rounded-2xl">
+      {/* The same band the money desk gets, so every department opens onto the
+          same thing. Target's own colours: the red off the mark running into
+          the blue the app uses for anything you can act on. Nothing moves —
+          this page is read a hundred times a day and animation on it becomes
+          wallpaper by lunchtime. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/12 via-transparent to-signal/10"
+        className="absolute inset-0 bg-gradient-to-br from-signal via-brand to-info"
       />
       <div
         aria-hidden
-        className="grid-backdrop pointer-events-none absolute inset-0 opacity-30"
+        className="grid-backdrop pointer-events-none absolute inset-0 opacity-20"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand/20 blur-3xl"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/5"
       />
 
       <div className="relative p-6">
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="min-w-0">
-            <h1 className="font-display text-3xl font-bold tracking-tight">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
+              {warehouseName}
+            </span>
+            <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight text-white">
               {greeting}, {firstName}
             </h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Welcome back to the {warehouseName}. Here is what is happening
-              today.
+            <p className="mt-2 text-sm text-white/80">
+              Here is what is happening on the floor today.
             </p>
           </div>
 
@@ -89,7 +94,7 @@ export function WarehouseHero({
             <DualClock emphasis={emphasis} />
             <Link
               href={action.href}
-              className="inline-flex items-center gap-2 rounded-xl bg-signal px-4 py-2.5 text-sm font-semibold text-signal-foreground shadow-soft transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
+              className="focus-ring inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand shadow-lift transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
             >
               <PackagePlus className="h-4 w-4" />
               {action.label}
@@ -101,15 +106,15 @@ export function WarehouseHero({
           {chips.map((chip) => {
             const body = (
               <>
-                <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <dt className="flex items-center gap-1.5 text-[11px] text-white/75">
                   <chip.icon className="h-3.5 w-3.5" />
                   {chip.label}
                 </dt>
-                <dd className="mt-1 font-display text-xl font-bold tabular">
+                <dd className="mt-1 font-display text-xl font-bold tabular text-white">
                   {chip.value}
                 </dd>
                 {chip.sub ? (
-                  <p className="mt-0.5 text-[11px] text-muted-foreground tabular">
+                  <p className="mt-0.5 text-[11px] tabular text-white/70">
                     {chip.sub}
                   </p>
                 ) : null}
@@ -123,14 +128,14 @@ export function WarehouseHero({
               <Link
                 key={chip.label}
                 href={chip.href}
-                className="focus-ring rounded-xl border bg-background/60 p-3 backdrop-blur transition-colors hover:border-brand/40 hover:bg-background/80"
+                className="focus-ring rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm transition-colors hover:border-white/40 hover:bg-white/20"
               >
                 {body}
               </Link>
             ) : (
               <div
                 key={chip.label}
-                className="rounded-xl border bg-background/60 p-3 backdrop-blur"
+                className="rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm"
               >
                 {body}
               </div>

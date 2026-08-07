@@ -26,13 +26,11 @@ import {
 } from "lucide-react";
 
 import { ActivityFeed } from "@/components/app/activity-feed";
+import { ActionPills, type ActionPill } from "@/components/app/action-pills";
 import { AlertQueue } from "@/components/app/alert-queue";
 import { KpiCard } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
-import {
-  QuickActions,
-  type QuickActionItem,
-} from "@/components/app/quick-actions";
+import { SectionLabel } from "@/components/app/section-label";
 import { StatStrip } from "@/components/app/stat-strip";
 import { AreaChart } from "@/components/charts/area-chart";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -169,39 +167,6 @@ async function darHeroChips(floor: FloorSnapshot): Promise<HeroChip[]> {
       sub: `${formatWeight(toNumber(checkedIn._sum.weightKg ?? 0))} checked in today`,
     },
   ];
-}
-
-/**
- * The small uppercase rule above each block.
- *
- * A dashboard is several unrelated answers stacked vertically, and without a
- * label at the top of each one the reader has to infer where a section starts
- * from the shape of its contents. Optional link on the right, for the section
- * that has a fuller version elsewhere.
- */
-function SectionLabel({
-  children,
-  action,
-}: {
-  children: React.ReactNode;
-  action?: { href: string; label: string };
-}) {
-  return (
-    <div className="mb-3 flex items-baseline justify-between gap-3">
-      <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        {children}
-      </h2>
-      {action ? (
-        <Link
-          href={action.href}
-          className="focus-ring inline-flex items-center gap-1 rounded text-xs font-semibold text-brand hover:underline"
-        >
-          {action.label}
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
-      ) : null}
-    </div>
-  );
 }
 
 export default async function DashboardPage() {
@@ -374,7 +339,17 @@ async function ChinaDashboard({
   ]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
+      <ActionPills
+        items={[
+          { href: "/app/cargo/new", label: "Register cargo", icon: PackagePlus, weight: "primary" },
+          { href: "/app/batches", label: "Load a batch", icon: Plane, weight: "secondary" },
+          { href: "/app/shipments", label: "Shipments", icon: Package },
+          { href: "/app/search", label: "Find cargo", icon: PackageSearch },
+          { href: "/app/customers", label: "Customers", icon: Users },
+        ]}
+      />
+
       <StatStrip
         chips={[
           { label: "Staged", value: String(stats.readyToDepart), icon: Package, tone: "warning" },
@@ -383,7 +358,11 @@ async function ChinaDashboard({
         ]}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div>
+        <SectionLabel action={{ href: "/app/shipments", label: "All shipments" }}>
+          The desk &middot; right now
+        </SectionLabel>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           delay={0}
           label="In China warehouse"
@@ -412,9 +391,12 @@ async function ChinaDashboard({
           tone="success"
           href="/app/batches?status=IN_TRANSIT"
         />
+        </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+      <div>
+        <SectionLabel>Volume &amp; mix</SectionLabel>
+        <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         <section className="panel p-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -447,9 +429,14 @@ async function ChinaDashboard({
           totalWeightKg={mix.totalWeightKg}
           periodLabel={`Received in the last ${mix.days} days`}
         />
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div>
+        <SectionLabel action={{ href: "/app/batches", label: "All batches" }}>
+          Batches on the floor
+        </SectionLabel>
+        <div className="grid gap-6 lg:grid-cols-2">
         <section className="panel p-5">
           <h2 className="font-display font-semibold">Batches on the floor</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -520,6 +507,7 @@ async function ChinaDashboard({
             />
           </div>
         </section>
+        </div>
       </div>
 
       <ActivityFeed
@@ -635,37 +623,16 @@ async function darFloorStats() {
  * started, and they are one click away in the sidebar. A shortcut row that
  * lists everything is a second sidebar, which helps nobody.
  */
-const DAR_QUICK_ACTIONS: QuickActionItem[] = [
-  {
-    href: "/app/search",
-    label: "Find cargo",
-    hint: "Number, name or phone",
-    icon: PackageSearch,
-  },
-  {
-    href: "/app/receive",
-    label: "Receiving dock",
-    hint: "Check a landed batch in",
-    icon: PackagePlus,
-  },
-  {
-    href: "/app/pickup-queue",
-    label: "Pickup queue",
-    hint: "Who may collect today",
-    icon: Truck,
-  },
-  {
-    href: "/app/exceptions",
-    label: "Investigation Hub",
-    hint: "Missing and damaged",
-    icon: AlertTriangle,
-  },
+const DAR_QUICK_ACTIONS: ActionPill[] = [
+  { href: "/app/receive", label: "Receiving dock", icon: PackagePlus, weight: "primary" },
+  { href: "/app/pickup-queue", label: "Pickup queue", icon: Truck, weight: "secondary" },
+  { href: "/app/search", label: "Find cargo", icon: PackageSearch },
+  { href: "/app/inventory", label: "Inventory", icon: Boxes },
+  { href: "/app/exceptions", label: "Investigation Hub", icon: AlertTriangle },
 ];
-// Two things are deliberately not in this row. Scanning, because it is already
-// the big button in the banner directly above, and the same action twice on one
-// screen is the clutter the owner asked us to avoid. And the inventory list,
-// because the three banner tiles that count the floor are themselves links to
-// it — the number and the way through to it are the same control.
+// Scanning is deliberately not in this row: it is already the big button in the
+// banner directly above, and the same action twice on one screen is the clutter
+// the owner asked us to avoid.
 
 async function DarDashboard({
   role,
@@ -707,8 +674,8 @@ async function DarDashboard({
   ].filter(Boolean);
 
   return (
-    <div className="space-y-6">
-      <QuickActions items={DAR_QUICK_ACTIONS} />
+    <div className="space-y-7">
+      <ActionPills items={DAR_QUICK_ACTIONS} />
 
       {/* The floor, in the five states cargo can be in between the plane and
           the customer.
@@ -717,7 +684,11 @@ async function DarDashboard({
           judged on is what is still standing there, not what has gone. The
           slot it freed went to aging stock, which nobody else shows this desk
           and which is the only figure here that costs the customer money. */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div>
+        <SectionLabel action={{ href: "/app/inventory", label: "The floor" }}>
+          The floor &middot; right now
+        </SectionLabel>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           delay={0}
           label="Incoming shipments"
@@ -787,9 +758,12 @@ async function DarDashboard({
           tone={stats.openExceptions ? "danger" : "success"}
           href="/app/exceptions"
         />
+        </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
+      <div>
+        <SectionLabel>Needs your attention</SectionLabel>
+        <div className="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
         <AlertQueue
           items={alerts}
           description="Cargo on the Dar floor needing action"
@@ -862,6 +836,7 @@ async function DarDashboard({
             )}
           </ul>
         </section>
+        </div>
       </div>
 
       {/* Corridor performance is an average, and an average of nothing is not
@@ -1108,58 +1083,27 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
    * sidebar competing with them. The first two are the jobs — signing off
    * prices and writing down a cost — and the rest are places to look.
    */
-  const shortcuts = [
+  const shortcuts: ActionPill[] = [
     { href: "/app/shipments", label: "Confirm prices", icon: ClipboardCheck, weight: "primary" },
     { href: "/app/finance/transactions", label: "Record a cost", icon: Banknote, weight: "secondary" },
-    { href: "/app/finance/payments", label: "Payments", icon: Wallet, weight: "quiet" },
-    { href: "/app/finance/accounts", label: "Accounts", icon: Landmark, weight: "quiet" },
-    { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: QrCode, weight: "quiet" },
-    { href: "/app/support/follow-up", label: "Chase queue", icon: Clock, weight: "quiet" },
+    { href: "/app/finance/payments", label: "Payments", icon: Wallet },
+    { href: "/app/finance/accounts", label: "Accounts", icon: Landmark },
+    { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: QrCode },
+    { href: "/app/support/follow-up", label: "Chase queue", icon: Clock },
   ];
 
   return (
     <div className="space-y-7">
-      <nav aria-label="Quick actions" className="flex flex-wrap gap-2">
-        {shortcuts.map((item) => (
-          <Link
-            key={item.label}
-            href={item.href}
-            className={`focus-ring inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-              item.weight === "primary"
-                ? "bg-brand text-brand-foreground hover:bg-brand/90"
-                : item.weight === "secondary"
-                  ? "bg-signal text-signal-foreground hover:bg-signal/90"
-                  : "border bg-card text-foreground hover:border-brand/40 hover:bg-accent/40"
-            }`}
-          >
-            <item.icon className="h-4 w-4" />
-            {item.label}
-          </Link>
-        ))}
-      </nav>
+      <ActionPills items={shortcuts} />
 
       {/* ---- The work, before the score ---- */}
       <div>
-        <SectionLabel>Needs your attention</SectionLabel>
+        {/* The rule above IS this panel's heading. It carried its own <h2>
+            reading "What needs you" directly under an eyebrow reading "NEEDS
+            YOUR ATTENTION" — one heading printed twice, which reads as two
+            things until you work out it is one. */}
+        <SectionLabel count={jobs.length}>Needs your attention</SectionLabel>
       <section className="panel overflow-hidden">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5">
-          <div>
-            <h2 className="font-display font-semibold">What needs you</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Every decision this desk is holding up, with the money behind it
-            </p>
-          </div>
-          {jobs.length > 0 ? (
-            <span className="rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning">
-              {jobs.length} waiting
-            </span>
-          ) : (
-            <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
-              all clear
-            </span>
-          )}
-        </header>
-
         {jobs.length === 0 ? (
           <p className="px-5 py-9 text-center text-sm text-muted-foreground">
             Nothing is waiting on you. Every price is confirmed, every payment
@@ -1495,7 +1439,18 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
       : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
+      <ActionPills
+        items={[
+          { href: "/app/finance/transactions", label: "The Ledger", icon: Landmark, weight: "primary" },
+          { href: "/app/finance/reports", label: "Profit & loss", icon: TrendingDown, weight: "secondary" },
+          { href: "/app/shipments", label: "Shipments", icon: Package },
+          { href: "/app/batches", label: "Batches", icon: Plane },
+          { href: "/app/customers", label: "Customers", icon: Users },
+          { href: "/app/users", label: "People", icon: Users },
+        ]}
+      />
+
       <StatStrip
         chips={[
           { label: "Active", value: String(stats.active), icon: Package, tone: "brand" },
@@ -1512,7 +1467,11 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
         ]}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div>
+        <SectionLabel action={{ href: "/app/finance", label: "Full position" }}>
+          Business health &middot; right now
+        </SectionLabel>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           delay={0}
           label="Revenue this month"
@@ -1564,9 +1523,12 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
                 : "warning"
           }
         />
+        </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+      <div>
+        <SectionLabel>Volume &amp; what needs you</SectionLabel>
+        <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         <section className="panel p-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -1596,9 +1558,14 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           description="Across every department"
           emptyMessage="Nothing needs your decision. The floor is clear."
         />
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div>
+        <SectionLabel action={{ href: "/app/finance/transactions", label: "The Ledger" }}>
+          Collections &amp; receivables
+        </SectionLabel>
+        <div className="grid gap-6 lg:grid-cols-3">
         <section className="panel p-5 lg:col-span-2">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -1649,6 +1616,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
             )}
           </ul>
         </section>
+        </div>
       </div>
 
       <ActivityFeed
