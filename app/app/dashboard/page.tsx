@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   AlertTriangle,
+  ArrowRight,
   Banknote,
   Boxes,
   ClipboardCheck,
@@ -16,6 +17,7 @@ import {
   Scale,
   ScanLine,
   Timer,
+  TrendingDown,
   Truck,
   Users,
   Wallet,
@@ -36,13 +38,24 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   EXCEPTION_OPEN_STATUSES,
   ROLE_LABELS,
   STORAGE_POLICY,
 } from "@/lib/constants";
 import { floorSnapshot, type FloorSnapshot } from "@/lib/floor";
+import { MoneyTile } from "@/components/app/money-tile";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
-import { formatUsd } from "@/lib/fx";
+import { currentRate, formatUsd } from "@/lib/fx";
+import { activeAccounts } from "@/lib/accounts";
+import { accountBalances } from "@/lib/ledger";
 import {
   agingInWarehouse,
   attentionItems,
@@ -261,7 +274,7 @@ export default async function DashboardPage() {
         <DarDashboard role={user.role} userId={user.id} floor={floor!} />
       ) : null}
       {user.role === "FINANCE" ? (
-        <FinanceDashboard role={user.role} userId={user.id} />
+        <FinanceDashboard role={user.role} />
       ) : null}
       {user.role === "ADMIN" ? <ExecutiveDashboard role={user.role} /> : null}
     </>
@@ -872,129 +885,382 @@ async function DarDashboard({
 // Finance — money in, money owed
 // ---------------------------------------------------------------------------
 
-async function FinanceDashboard({
-  role,
-  userId,
-}: {
-  role: "FINANCE" | "ADMIN";
-  userId: string;
-}) {
-  const [stats, aging, alerts, revenue, activity] = await Promise.all([
+/**
+ * Finance — what to do today, and what the money is doing.
+ *
+ * Rebuilt around one fact the old version hid. Every figure on it was a
+ * dollar figure, and the two headline tiles read "Outstanding USD 0.00" and
+ * "Collection rate 100%" — a business with nothing to chase and a perfect
+ * record. Both were true and both were useless: they only ever counted bills
+ * that had been RAISED, and 84 consignments worth TSh 25m were sitting in the
+ * warehouse priced but unconfirmed, so they had never become bills at all. The
+ * one number that mattered was the one number missing.
+ *
+ * So the page now opens with the work rather than the score. Everything on it
+ * is either something to act on — with the money at stake and the link that
+ * fixes it — or the position that decision is made against. Nothing is here
+ * merely because it could be counted.
+ *
+ * Shillings lead throughout. Freight is priced in dollars and paid in
+ * shillings, and this desk counts shillings.
+ */
+async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [
+    stats,
+    aging,
+    alerts,
+    revenue,
+    rateRow,
+    accounts,
+    balances,
+    drafts,
+    unattributed,
+    owedOut,
+    spent,
+  ] = await Promise.all([
     financeStats(),
-    agingInWarehouse(8),
+    agingInWarehouse(6),
     attentionItems(role),
     monthlyRevenue(),
-    recentActivity(8, userId),
+    currentRate(),
+    activeAccounts(),
+    accountBalances(prisma),
+    // The queue the old dashboard had no tile for.
+    prisma.invoice.aggregate({
+      where: { status: "DRAFT" },
+      _count: true,
+      _sum: { total: true },
+    }),
+    // Money we hold that nobody has said where it landed. It is in no account
+    // and therefore in no balance, so it can only be seen by asking.
+    prisma.payment.aggregate({
+      where: { accountId: null },
+      _count: true,
+      _sum: { creditedAmount: true },
+    }),
+    prisma.expense.aggregate({
+      where: { status: { in: ["PENDING", "APPROVED"] } },
+      _count: true,
+      _sum: { amountUsd: true },
+    }),
+    prisma.ledgerEntry.aggregate({
+      where: { direction: "OUT", occurredAt: { gte: monthStart } },
+      _count: true,
+      _sum: { amountUsd: true },
+    }),
   ]);
 
-  const thisMonth = revenue.values[revenue.values.length - 1] ?? 0;
-  const lastMonth = revenue.values[revenue.values.length - 2] ?? 0;
-  const collectionRate =
-    stats.collected + stats.outstanding > 0
-      ? (stats.collected / (stats.collected + stats.outstanding)) * 100
-      : 0;
+  const rate = rateRow ? toNumber(rateRow.rate) : null;
+  const tsh = (usd: number) =>
+    rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : formatUsd(usd);
+
+  const draftValue = toNumber(drafts._sum.total);
+  const unattributedUsd = toNumber(unattributed._sum.creditedAmount);
+  const owedOutUsd = toNumber(owedOut._sum.amountUsd);
+  const spentUsd = toNumber(spent._sum.amountUsd);
+  const unsettled = stats.unpaid + stats.partiallyPaid;
+  const collectedThisMonth = revenue.values[revenue.values.length - 1] ?? 0;
+  const collectedThisYear = revenue.values.reduce((a, b) => a + b, 0);
+
+  // Cash available: every account's own balance, added up through the dollar
+  // so shillings and dollars can share a total. Derived from the ledger, never
+  // stored — the same figure the Accounts page shows.
+  const byAccount = new Map(balances.map((b) => [b.accountId, b]));
+  const accountRows = accounts
+    .map((account) => {
+      const row = byAccount.get(account.id);
+      return {
+        ...account,
+        native: row ? toNumber(row.inflow) - toNumber(row.outflow) : 0,
+        usd: row ? toNumber(row.inflowUsd) - toNumber(row.outflowUsd) : 0,
+      };
+    })
+    .sort((a, b) => b.usd - a.usd);
+  const cashUsd = accountRows.reduce((sum, a) => sum + a.usd, 0);
+  const holding = accountRows.filter((a) => a.native !== 0).length;
+
+  /**
+   * The work, richest first.
+   *
+   * Each row carries the money at stake and the page that clears it. A queue
+   * with no amount beside it cannot be prioritised, and a warning with no link
+   * teaches people to scroll past warnings.
+   */
+  const jobs = [
+    {
+      when: drafts._count > 0,
+      label: `${drafts._count} price${drafts._count === 1 ? "" : "s"} to confirm`,
+      detail:
+        "Priced automatically at check-in. Nothing can be invoiced, and no cargo released, until you sign them off.",
+      usd: draftValue,
+      href: "/app/shipments",
+      cta: "Review by flight",
+      urgent: true,
+    },
+    {
+      when: unattributed._count > 0,
+      label: `${unattributed._count} payment${unattributed._count === 1 ? "" : "s"} with no account`,
+      detail:
+        "Taken from the customer, but nobody said where it landed — so it sits in no account and no balance.",
+      usd: unattributedUsd,
+      href: "/app/finance/payments",
+      cta: "Say where it landed",
+      urgent: true,
+    },
+    {
+      when: unsettled > 0,
+      label: `${unsettled} bill${unsettled === 1 ? "" : "s"} unpaid`,
+      detail: "Confirmed and sent to the customer. The money has not arrived.",
+      usd: stats.outstanding,
+      href: "/app/support/follow-up",
+      cta: "Chase",
+      urgent: false,
+    },
+    {
+      when: owedOut._count > 0,
+      label: `${owedOut._count} cost${owedOut._count === 1 ? "" : "s"} to pay out`,
+      detail: "Recorded against the business, not yet disbursed from an account.",
+      usd: owedOutUsd,
+      href: "/app/finance/transactions?kind=EXPENSE",
+      cta: "Settle",
+      urgent: false,
+    },
+    {
+      when: stats.activeNotes > 0,
+      label: `${stats.activeNotes} cleared, not collected`,
+      detail:
+        "Paid for and released. The cargo is still on our floor waiting for the customer to turn up.",
+      usd: 0,
+      href: "/app/finance/pickup-notes",
+      cta: "See notes",
+      urgent: false,
+    },
+  ].filter((job) => job.when);
 
   return (
     <div className="space-y-6">
-      <StatStrip
-        chips={[
-          { label: "Unpaid", value: String(stats.unpaid), icon: Wallet, tone: "danger" },
-          { label: "Part-paid", value: String(stats.partiallyPaid), icon: Wallet, tone: "warning" },
-          { label: "To invoice", value: String(stats.awaitingInvoice), icon: Package, tone: "brand" },
-          { label: "Active notes", value: String(stats.activeNotes), icon: QrCode, tone: "success" },
-        ]}
-      />
+      {/* ---- The work, before the score ---- */}
+      <section className="panel overflow-hidden">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5">
+          <div>
+            <h2 className="font-display font-semibold">What needs you</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Every decision this desk is holding up, with the money behind it
+            </p>
+          </div>
+          {jobs.length > 0 ? (
+            <span className="rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning">
+              {jobs.length} waiting
+            </span>
+          ) : (
+            <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
+              all clear
+            </span>
+          )}
+        </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          delay={0}
-          label="Collected this month"
-          numeric={thisMonth}
-          prefix="USD "
-          // Dollars, so cents count. This tile read whole shillings before,
-          // where a rounded unit was worth a fraction of a US cent.
-          decimals={2}
-          delta={delta(thisMonth, lastMonth)}
-          hint="vs last month"
-          icon={Banknote}
-          tone="success"
-          trend={revenue.values}
-          href="/app/finance/payments"
-        />
-        <KpiCard
-          delay={1}
-          label="Outstanding"
-          value={formatUsd(stats.outstanding)}
-          hint={`${stats.unpaid + stats.partiallyPaid} unsettled invoice(s)`}
+        {jobs.length === 0 ? (
+          <p className="px-5 py-9 text-center text-sm text-muted-foreground">
+            Nothing is waiting on you. Every price is confirmed, every payment
+            sits in an account, and every bill has been settled.
+          </p>
+        ) : (
+          <ul className="divide-y">
+            {jobs.map((job) => (
+              <li key={job.label}>
+                <Link
+                  href={job.href}
+                  className="focus-ring group flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3.5 transition-colors hover:bg-muted/40"
+                >
+                  <span
+                    className={`h-10 w-1 shrink-0 rounded-full ${
+                      job.urgent ? "bg-warning" : "bg-border"
+                    }`}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">
+                      {job.label}
+                    </span>
+                    <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+                      {job.detail}
+                    </span>
+                  </span>
+                  {/* A queue with no figure beside it cannot be ranked. The
+                      one job that is not about an amount says so instead of
+                      printing a nought. */}
+                  <span className="text-right">
+                    {job.usd > 0 ? (
+                      <>
+                        <span className="block font-display text-lg font-bold leading-none tabular">
+                          {tsh(job.usd)}
+                        </span>
+                        <span className="mt-1 block font-mono text-[11px] text-muted-foreground">
+                          {formatUsd(job.usd)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="block text-xs text-muted-foreground">
+                        already paid for
+                      </span>
+                    )}
+                  </span>
+                  <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-brand">
+                    {job.cta}
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* ---- The position those decisions are made against ---- */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MoneyTile
+          label="Cash available"
+          usd={cashUsd}
+          rate={rate}
           icon={Wallet}
-          tone={stats.outstanding > 0 ? "warning" : "success"}
-          href="/app/finance/invoices?status=UNPAID"
+          tone="good"
+          count={`${holding} of ${accountRows.length} accounts holding`}
+          hint="Every till and bank account, added up. Comes from the ledger, so it moves the moment money does."
+          href="/app/finance/accounts"
         />
-        <KpiCard
-          delay={2}
-          label="Collection rate"
-          numeric={collectionRate}
-          suffix="%"
-          ringPct={collectionRate}
-          ringLabel="Collection rate"
-          hint="Of everything invoiced"
-          icon={Timer}
-          tone="brand"
+        <MoneyTile
+          label="Waiting to be billed"
+          usd={draftValue}
+          rate={rate}
+          icon={Hourglass}
+          tone="warn"
+          emphasis={drafts._count > 0}
+          count={`${drafts._count} consignment${drafts._count === 1 ? "" : "s"}`}
+          hint="Sitting in the warehouse with a price nobody has confirmed. This is the biggest number on the page for a reason."
+          href="/app/shipments"
         />
-        <KpiCard
-          delay={3}
-          label="Awaiting invoice"
-          numeric={stats.awaitingInvoice}
-          hint="Cargo not yet billed"
-          icon={Package}
-          tone="info"
-          href="/app/finance/invoices?view=uninvoiced"
+        <MoneyTile
+          label="Owed by customers"
+          usd={stats.outstanding}
+          rate={rate}
+          icon={Clock}
+          tone={stats.outstanding > 0 ? "warn" : "default"}
+          count={
+            unsettled === 0
+              ? "nothing outstanding"
+              : `${unsettled} bill${unsettled === 1 ? "" : "s"}`
+          }
+          hint={
+            unsettled === 0
+              ? "Every bill that has actually been raised is settled. Not the same as everything being billed."
+              : "Confirmed, sent, and still unpaid."
+          }
+          href="/app/support/follow-up"
+        />
+        <MoneyTile
+          label="Spent this month"
+          usd={spentUsd}
+          rate={rate}
+          icon={TrendingDown}
+          tone={spentUsd > 0 ? "bad" : "default"}
+          count={
+            spent._count === 0
+              ? "no costs recorded yet"
+              : `${spent._count} payment${spent._count === 1 ? "" : "s"} out`
+          }
+          hint="Fuel, customs, the clearing agent, rent — what has actually left an account since the 1st."
+          href="/app/finance/transactions?direction=OUT&period=month"
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+      {/* ---- What it has been doing, and where it is sitting ---- */}
+      <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         <section className="panel p-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="font-display font-semibold">Collections by month</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Money actually received, this year
+                Money actually received — not billed — this year
               </p>
             </div>
-            <p className="font-display text-xl font-bold tabular">
-              {formatUsd(revenue.values.reduce((a, b) => a + b, 0))}
-            </p>
+            <div className="text-right">
+              <p className="font-display text-xl font-bold leading-none tabular">
+                {tsh(collectedThisMonth)}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                this month · {tsh(collectedThisYear)} this year
+              </p>
+            </div>
           </div>
+          {/* Drawn in shillings. The bars are read against the shilling
+              figures beside them, and mixing the two units on one panel makes
+              the shape mean nothing. */}
           <BarChart
             data={revenue.labels.map((label, i) => ({
               label,
-              value: revenue.values[i] ?? 0,
+              value: Math.round((revenue.values[i] ?? 0) * (rate ?? 1)),
             }))}
             tone={5}
             highlightIndex={revenue.values.length - 1}
-            formatValue={(n) => formatUsd(n)}
+            formatValue={(n) =>
+              rate ? `TSh ${n.toLocaleString("en-US")}` : formatUsd(n)
+            }
           />
         </section>
 
-        <AlertQueue
-          items={alerts}
-          description="Money and cargo needing a call today"
-          emptyMessage="Nothing outstanding. Every invoice is settled."
-        />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-        <section className="panel">
-          <header className="flex items-center justify-between border-b px-5 py-4">
+        <section className="panel overflow-hidden">
+          <header className="flex items-center justify-between gap-3 border-b px-5 py-3.5">
             <div>
-              <h2 className="font-display font-semibold">Chase list</h2>
+              <h2 className="font-display font-semibold">Where the cash sits</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Longest-waiting unpaid cargo in the warehouse
+                Each account in its own currency
               </p>
             </div>
             <Button asChild variant="ghost" size="sm">
-              {/* The same cargo, with the phone numbers and what to say next
-                  attached. There is no invoice list to send anyone to. */}
+              <Link href="/app/finance/accounts">All accounts</Link>
+            </Button>
+          </header>
+          <ul className="divide-y">
+            {accountRows.map((account) => (
+              <li
+                key={account.id}
+                className="flex items-center justify-between gap-3 px-5 py-2.5"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{account.name}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    {account.kind.replace(/_/g, " ").toLowerCase()}
+                  </p>
+                </div>
+                <p
+                  className={`shrink-0 font-mono text-sm font-semibold tabular ${
+                    account.native === 0 ? "text-muted-foreground" : ""
+                  }`}
+                >
+                  {formatMoney(account.native, account.currency)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+
+      {/* ---- The cargo those figures are made of ---- */}
+      <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+        <section className="panel overflow-hidden">
+          <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5">
+            <div>
+              <h2 className="font-display font-semibold">
+                Longest in the warehouse
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Oldest arrivals still unpaid — storage is accruing on every one
+              </p>
+            </div>
+            <Button asChild variant="ghost" size="sm">
               <Link href="/app/support/follow-up">Full chase queue</Link>
             </Button>
           </header>
@@ -1004,56 +1270,90 @@ async function FinanceDashboard({
               Nothing to chase.
             </p>
           ) : (
-            <ul className="divide-y">
-              {aging.map((shipment) => {
-                const outstanding = shipment.invoice
-                  ? toNumber(shipment.invoice.total) -
-                    toNumber(shipment.invoice.amountPaid)
-                  : null;
-                return (
-                  <li key={shipment.id}>
-                    <Link
-                      href={`/app/cargo/${shipment.trackingNumber}`}
-                      className="focus-ring flex flex-wrap items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-muted/40"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-mono text-sm font-medium tabular">
-                          {shipment.trackingNumber}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {shipment.customer.name} · {shipment.customer.phone}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold tabular">
-                          {outstanding === null
-                            ? "Not invoiced"
-                            : formatMoney(outstanding, shipment.invoice?.currency)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          waiting {formatRelative(shipment.arrivedAt)}
-                        </p>
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cargo</TableHead>
+                    <TableHead className="hidden sm:table-cell">
+                      Customer
+                    </TableHead>
+                    <TableHead className="text-right">Value</TableHead>
+                    <TableHead className="text-right">Waiting</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {aging.map((shipment) => {
+                    const invoice = shipment.invoice;
+                    const outstanding = invoice
+                      ? toNumber(invoice.total) - toNumber(invoice.amountPaid)
+                      : null;
+                    // A draft is the system's price, not a bill. Presenting
+                    // the two identically has somebody ringing a customer for
+                    // a figure this desk has not signed off.
+                    const draft = invoice?.status === "DRAFT";
+                    return (
+                      <TableRow key={shipment.id} className="group">
+                        <TableCell className="py-2.5">
+                          <Link
+                            href={`/app/cargo/${shipment.trackingNumber}`}
+                            className="font-mono text-sm font-medium tabular group-hover:text-brand"
+                          >
+                            {shipment.trackingNumber}
+                          </Link>
+                          <span className="block truncate text-[11px] text-muted-foreground sm:hidden">
+                            {shipment.customer.name}
+                          </span>
+                        </TableCell>
+                        <TableCell className="hidden py-2.5 sm:table-cell">
+                          <span className="block truncate text-sm">
+                            {shipment.customer.name}
+                          </span>
+                          <span className="block font-mono text-[11px] text-muted-foreground">
+                            {shipment.customer.phone}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-2.5 text-right">
+                          {outstanding === null ? (
+                            <span className="text-xs text-muted-foreground">
+                              not priced
+                            </span>
+                          ) : (
+                            <>
+                              <span className="block text-sm font-semibold tabular">
+                                {tsh(outstanding)}
+                              </span>
+                              <span
+                                className={`block text-[11px] ${
+                                  draft ? "text-warning" : "text-muted-foreground"
+                                }`}
+                              >
+                                {draft
+                                  ? "price not confirmed"
+                                  : formatMoney(outstanding, invoice?.currency)}
+                              </span>
+                            </>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap py-2.5 text-right text-xs text-muted-foreground">
+                          {formatRelative(shipment.arrivedAt)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </section>
 
-        <ActivityFeed
-          entries={activity.map((entry) => ({
-            id: entry.id,
-            action: entry.action,
-            summary: entry.summary,
-            createdAt: entry.createdAt,
-            actorName: entry.actor?.name ?? entry.actorEmail ?? null,
-          }))}
-          title="Your activity"
-          description="What you have done, newest first"
-          showActor={false}
-          emptyMessage="Nothing recorded against your account yet."
+        {/* Cargo problems rather than money problems — a mismatch or a missing
+            box becomes a billing argument later, so this desk wants to know
+            now. Kept separate from the work list above, which is money only. */}
+        <AlertQueue
+          items={alerts}
+          description="Cargo that needs a call today"
+          emptyMessage="No cargo is in trouble."
         />
       </div>
     </div>
