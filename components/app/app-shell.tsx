@@ -201,14 +201,41 @@ function NavList({
 
   return (
     <nav className={className}>
-      {sections.map((section) => (
+      {sections.map((section) => {
+        const GroupIcon = section.group ? ICONS[section.group.icon] ?? Package : null;
+        // A named group holds the row lit inside it, so the heading tells you
+        // where you are even when its children are scrolled past.
+        const inGroup = section.items.some((item) => item.href === activeHref);
+
+        return (
         <div
           key={section.title}
-          // Spacing is the whole separator. Groups this short do not need to be
-          // named — "OVERVIEW" above two links told nobody anything.
-          className="mb-6 last:mb-0"
+          // Spacing is the separator for an ungrouped run. Groups this short do
+          // not need to be named — "OVERVIEW" above two links told nobody
+          // anything — so the heading is opt-in, for menus long enough that a
+          // flat column becomes a wall.
+          className={cn(section.group ? "mb-4 last:mb-0" : "mb-6 last:mb-0")}
         >
-          <ul className="space-y-0.5">
+          {section.group && GroupIcon ? (
+            <p
+              className={cn(
+                "flex items-center gap-2 px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors",
+                inGroup ? "text-foreground" : "text-muted-foreground/70"
+              )}
+            >
+              <GroupIcon className="h-3.5 w-3.5 shrink-0" />
+              {section.group.label}
+            </p>
+          ) : null}
+          <ul
+            className={cn(
+              "space-y-0.5",
+              // Indented against a hairline: the children read as belonging to
+              // the heading rather than as more top-level rows that happen to
+              // sit under it.
+              section.group && "ml-[1.4rem] border-l border-border/60 pl-2"
+            )}
+          >
             {section.items.map((item) => {
               const Icon = ICONS[item.icon] ?? Package;
               const active = item.href === activeHref;
@@ -232,7 +259,8 @@ function NavList({
             })}
           </ul>
         </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }

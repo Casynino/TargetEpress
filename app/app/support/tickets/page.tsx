@@ -50,17 +50,26 @@ const CATEGORY_LABEL: Record<string, string> = {
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; priority?: string }>;
 }) {
   await requirePermission("ticket.manage");
-  const { view } = await searchParams;
+  const { view, priority } = await searchParams;
 
   const filter =
     STATUS_FILTERS.find((option) => option.key === view) ?? STATUS_FILTERS[0];
 
+  // Narrowing by priority, because the support desk's work list counts the
+  // urgent ones and has to be able to hand over exactly those. Without this
+  // the parameter was accepted, ignored, and the clerk landed on every open
+  // ticket wondering which the link had meant.
+  const urgentOnly = priority === "high";
+
   const [tickets, counts, customers] = await Promise.all([
     prisma.supportTicket.findMany({
-      where: { status: { in: [...filter.statuses] } },
+      where: {
+        status: { in: [...filter.statuses] },
+        ...(urgentOnly ? { priority: { in: ["HIGH", "URGENT"] as const } } : {}),
+      },
       orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
       take: 150,
       select: {

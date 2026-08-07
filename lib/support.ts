@@ -23,6 +23,7 @@ import { prisma } from "@/lib/prisma";
 export type FollowUpFilter =
   | "all"
   | "invoice-needed"
+  | "not-invoiced"
   | "not-sent"
   | "awaiting-payment"
   | "ready"
@@ -30,7 +31,11 @@ export type FollowUpFilter =
 
 export const FOLLOW_UP_FILTERS: { key: FollowUpFilter; label: string; hint: string }[] = [
   { key: "all", label: "Everything landed", hint: "All cargo in Dar not yet collected" },
-  { key: "invoice-needed", label: "Needs an invoice", hint: "Arrived, never billed" },
+  { key: "invoice-needed", label: "Needs an invoice", hint: "Arrived, never billed or still a draft" },
+  // Narrower than invoice-needed on purpose. That pill includes cargo sitting
+  // on a draft, which Customer Care cannot bill because it is Finance who
+  // signs the price off. This one is the work that desk can actually finish.
+  { key: "not-invoiced", label: "No invoice at all", hint: "Landed with nothing raised against it" },
   { key: "not-sent", label: "Invoice not sent", hint: "Billed, customer never told" },
   { key: "awaiting-payment", label: "Awaiting payment", hint: "Sent, still unpaid" },
   { key: "ready", label: "Ready for pickup", hint: "Paid, waiting to be collected" },
@@ -195,6 +200,8 @@ export function matchesFilter(row: FollowUpRow, filter: FollowUpFilter) {
     case "invoice-needed":
       // A draft is not a bill: this pill is where cargo waits for one.
       return row.invoiceId === null || row.invoiceStatus === "DRAFT";
+    case "not-invoiced":
+      return row.invoiceId === null;
     case "not-sent":
       return (
         row.invoiceId !== null &&

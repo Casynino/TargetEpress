@@ -22,9 +22,18 @@ export type NavItem = {
 };
 
 export type NavSection = {
-  /** Used as a React key and to reason about the file. Never rendered — the
-   *  groups are told apart by spacing, which is enough for six links. */
+  /** Used as a React key and to reason about the file. */
   title: string;
+  /**
+   * Render the section as a named group: an icon and a heading, with its rows
+   * indented beneath.
+   *
+   * Off by default, and it should stay off for short menus — "OVERVIEW" above
+   * two links tells nobody anything, and spacing separates them perfectly
+   * well. It earns its place once a desk has fourteen rows, where a flat list
+   * is a wall and the eye has nothing to aim at.
+   */
+  group?: { label: string; icon: string };
   items: NavItem[];
 };
 
@@ -358,8 +367,70 @@ const DAR_SECTIONS: NavSection[] = [
  * Menus that are a department's own shape rather than a subset of the shared
  * one. Everyone absent from this table gets SECTIONS, filtered.
  */
+/**
+ * The support desk's menu, grouped.
+ *
+ * Their fourteen rows were a flat column ordered for the desks that move
+ * cargo, so the page they open every morning sat seventh. Grouped, the shape
+ * of the job is visible before a single label is read: three rows they use
+ * constantly at the top, then the work in the four kinds it comes in, then
+ * the ledger.
+ *
+ * Every row here already existed and every permission is unchanged — this is
+ * the same menu re-shelved, not a new set of doors.
+ */
+const SUPPORT_SECTIONS: NavSection[] = [
+  {
+    title: "Top",
+    items: [
+      { href: "/app/support", label: "Support Home", icon: "Headset", exact: true },
+      { href: "/app/search", label: "Search Cargo", icon: "Package" },
+      { href: "/app/customers", label: "Customers", icon: "Users" },
+    ],
+  },
+  {
+    title: "Cargo",
+    group: { label: "Cargo & Shipments", icon: "Boxes" },
+    items: [
+      { href: "/app/shipments", label: "Shipments", icon: "PlaneTakeoff" },
+      { href: "/app/batches", label: "Batches", icon: "Boxes" },
+    ],
+  },
+  {
+    title: "Billing",
+    group: { label: "Billing", icon: "ReceiptText" },
+    items: [
+      { href: "/app/finance/pickup-notes", label: "Pickup Notes", icon: "QrCode" },
+      { href: "/app/support/follow-up", label: "Payment Follow-up", icon: "PhoneCall" },
+    ],
+  },
+  {
+    title: "Support",
+    group: { label: "Customer Support", icon: "MessageSquare" },
+    items: [
+      { href: "/app/support/tickets", label: "Tickets", icon: "MessageSquare" },
+      { href: "/app/exceptions", label: "Investigation Hub", icon: "TriangleAlert" },
+    ],
+  },
+  {
+    title: "China",
+    group: { label: "China Services", icon: "Store" },
+    items: [
+      { href: "/app/support/sourcing", label: "Sourcing Requests", icon: "ShoppingBag" },
+      { href: "/app/support/markets", label: "China Markets", icon: "Store" },
+    ],
+  },
+  {
+    title: "Ledger",
+    items: [
+      { href: "/app/finance", label: "General Ledger", icon: "Wallet" },
+    ],
+  },
+];
+
 const ROLE_SECTIONS: Partial<Record<Role, NavSection[]>> = {
   DAR_WAREHOUSE: DAR_SECTIONS,
+  CUSTOMER_CARE: SUPPORT_SECTIONS,
 };
 
 /**
