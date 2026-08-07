@@ -15,6 +15,8 @@ import { KpiCard } from "@/components/app/kpi-card";
 import { ActionPills } from "@/components/app/action-pills";
 import { SectionLabel } from "@/components/app/section-label";
 import { WorkList, type WorkItem } from "@/components/app/work-list";
+import { BarChart } from "@/components/charts/bar-chart";
+import { Donut } from "@/components/charts/donut";
 import { QuickAction, SupportSearch } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime, toNumber } from "@/lib/format";
@@ -24,6 +26,22 @@ import { requirePermission } from "@/lib/session";
 import { followUpQueue, supportOverview } from "@/lib/support";
 
 export const metadata: Metadata = { title: "Support desk" };
+
+/**
+ * Written out in full, never interpolated.
+ *
+ * Tailwind generates classes by scanning source text, so `bg-chart-${n}` is
+ * a class that never exists — the swatch renders with no colour at all and
+ * the legend silently stops matching the chart.
+ */
+const SWATCH: Record<1 | 2 | 3 | 4 | 5 | 6, string> = {
+  1: "bg-chart-1",
+  2: "bg-chart-2",
+  3: "bg-chart-3",
+  4: "bg-chart-4",
+  5: "bg-chart-5",
+  6: "bg-chart-6",
+};
 
 const PRIORITY_TONE: Record<string, string> = {
   URGENT: "border-destructive/40 text-destructive",
@@ -96,19 +114,66 @@ export default async function SupportHome() {
    * and a row that cannot be cleared is a dead end. It is named under the list
    * instead, so nobody wonders why the call queue is full of them.
    */
-  const unbilled = queue.filter((row) => row.invoiceStatus === null);
-  const unconfirmed = queue.filter((row) => row.invoiceStatus === "DRAFT");
-  const unsent = queue.filter(
-    (row) =>
-      row.invoiceStatus !== null &&
-      row.invoiceStatus !== "DRAFT" &&
-      row.invoiceSentAt === null
-  );
-  const chasing = queue.filter(
-    (row) => row.invoiceSentAt !== null && (row.outstanding ?? 0) > 0
-  );
+  /**
+   * One classification, used by the list and the picture alike.
+   *
+   * Same order of precedence followUpQueue uses to pick each row's next
+   * action, so a consignment lands in exactly one group and the donut adds up
+   * to the queue. Two functions deciding this separately is how a chart ends
+   * up disagreeing with the list beside it.
+   */
+  type Blocker = "unbilled" | "unconfirmed" | "unsent" | "chasing" | "settled";
+  const blockerOf = (row: (typeof queue)[number]): Blocker =>
+    row.invoiceStatus === null
+      ? "unbilled"
+      : row.invoiceStatus === "DRAFT"
+        ? "unconfirmed"
+        : (row.outstanding ?? 0) <= 0
+          ? "settled"
+          : row.invoiceSentAt === null
+            ? "unsent"
+            : "chasing";
+
+  const group = (blocker: Blocker) => queue.filter((row) => blockerOf(row) === blocker);
+  const unbilled = group("unbilled");
+  const unconfirmed = group("unconfirmed");
+  const unsent = group("unsent");
+  const chasing = group("chasing");
+  const settled = group("settled");
+
   const sum = (rows: typeof queue) =>
     rows.reduce((total, row) => total + (row.outstanding ?? row.total ?? 0), 0);
+
+  /** What the pile is made of, biggest blocker first. */
+  const split = [
+    { label: "Waiting on Finance", rows: unconfirmed, tone: 4 as const, href: "/app/support/follow-up" },
+    { label: "Never billed", rows: unbilled, tone: 3 as const, href: "/app/support/follow-up?filter=not-invoiced" },
+    { label: "Never sent", rows: unsent, tone: 6 as const, href: "/app/support/follow-up?filter=not-sent" },
+    { label: "Awaiting payment", rows: chasing, tone: 1 as const, href: "/app/support/follow-up?filter=awaiting-payment" },
+    { label: "Paid, not collected", rows: settled, tone: 5 as const, href: "/app/support/follow-up?filter=ready" },
+  ].filter((slice) => slice.rows.length > 0);
+
+  /**
+   * How long the queue has been standing.
+   *
+   * Storage accrues per day and a customer's patience does not, so the shape
+   * of this tail is the difference between a busy desk and a bad month. Fixed
+   * buckets rather than a line: nobody asks "how many were 9 days old", they
+   * ask "how much of this is over a fortnight".
+   */
+  const AGE_BUCKETS = [
+    { label: "0–3d", min: 0, max: 3 },
+    { label: "4–7d", min: 4, max: 7 },
+    { label: "8–14d", min: 8, max: 14 },
+    { label: "15d+", min: 15, max: Infinity },
+  ];
+  const ageing = AGE_BUCKETS.map((bucket) => ({
+    label: bucket.label,
+    value: queue.filter(
+      (row) => row.daysInWarehouse >= bucket.min && row.daysInWarehouse <= bucket.max
+    ).length,
+  }));
+  const stale = queue.filter((row) => row.daysInWarehouse >= 15).length;
 
   const jobs: WorkItem[] = [
     {
@@ -239,6 +304,91 @@ export default async function SupportHome() {
           .
         </p>
       ) : null}
+
+      {/* ---- The same queue, as a shape ---------------------------------
+          Numbers tell you there are 92; a picture tells you 84 of them are
+          behind one desk. Both charts are drawn from the classification the
+          list above uses, so they cannot disagree with it. */}
+      <div className="mb-8 mt-7">
+        <SectionLabel action={{ href: "/app/support/follow-up", label: "Full queue" }}>
+          Where the queue is stuck
+        </SectionLabel>
+        <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr]">
+          <section className="panel p-5">
+            <div className="flex flex-wrap items-center gap-6">
+              <Donut
+                slices={split.map((slice) => ({
+                  label: slice.label,
+                  value: slice.rows.length,
+                  tone: slice.tone,
+                }))}
+                label={String(queue.length)}
+                caption="consignments in the warehouse"
+              />
+              <ul className="min-w-[13rem] flex-1 space-y-1">
+                {split.map((slice) => {
+                  const money = sum(slice.rows);
+                  return (
+                    <li key={slice.label}>
+                      <Link
+                        href={slice.href}
+                        className="focus-ring group flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent/40"
+                      >
+                        <span
+                          className={`h-2.5 w-2.5 shrink-0 rounded-sm ${SWATCH[slice.tone]}`}
+                          aria-hidden
+                        />
+                        <span className="min-w-0 flex-1 truncate text-xs group-hover:text-brand">
+                          {slice.label}
+                        </span>
+                        <span className="shrink-0 text-right">
+                          <span className="block text-sm font-semibold tabular">
+                            {slice.rows.length}
+                          </span>
+                          {money > 0 ? (
+                            <span className="block font-mono text-[10px] text-muted-foreground">
+                              {rate
+                                ? `TSh ${Math.round(money * rate).toLocaleString("en-US")}`
+                                : formatUsd(money)}
+                            </span>
+                          ) : null}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </section>
+
+          <section className="panel p-5">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display font-semibold">How long they have waited</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Days on the floor since the plane landed
+                </p>
+              </div>
+              {stale > 0 ? (
+                <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+                  {stale} over a fortnight
+                </span>
+              ) : (
+                <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
+                  nothing stale
+                </span>
+              )}
+            </div>
+            <BarChart
+              data={ageing}
+              tone={4}
+              height={168}
+              highlightIndex={ageing.length - 1}
+              formatValue={(n) => `${n} consignment${n === 1 ? "" : "s"}`}
+            />
+          </section>
+        </div>
+      </div>
 
       {/* Reference, not work. These four are the shape of the desk's day and
           nobody acts on them — which is precisely why they sit BELOW the list
