@@ -43,7 +43,7 @@ export default async function SubmissionsPage({
   // A verifier asking for the pending list wants the one with the buttons.
   // Same rows, same order — this page is the read-only copy, and offering it to
   // the desk that can act is a dead end dressed as a queue.
-  if (canVerify && active === "PENDING") redirect("/app/finance/verify");
+  if (canVerify && active === "PENDING") redirect("/app/collections/verify");
   const rows = await submissionQueue(
     active === "ALL" ? null : (active as "PENDING" | "VERIFIED" | "REJECTED")
   );

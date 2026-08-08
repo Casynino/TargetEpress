@@ -441,6 +441,7 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/exceptions", permission: "exception.view" },
   // Chasing customers is not accounting. This workspace is deliberately
   // outside /app/finance so the desk that holds it cannot reach the books.
+  { prefix: "/app/collections/verify", permission: "payment.verify" },
   { prefix: "/app/collections", permission: "collections.view" },
   { prefix: "/app/admin/settings", permission: "settings.manage" },
   // The Dar warehouse floor. The arrivals board and the verification bench

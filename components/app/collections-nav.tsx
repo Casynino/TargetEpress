@@ -42,7 +42,7 @@ const TABS: Tab[] = [
   // Only the desk that can do the job sees the job: Support does not hold
   // payment.verify, and a tab that answers "that area is not yours" is worse
   // than no tab at all.
-  { href: "/app/finance/verify", label: "Verify payments", verifierOnly: true },
+  { href: "/app/collections/verify", label: "Verify payments", verifierOnly: true },
   { href: "/app/collections/submissions?status=PENDING", label: "With Finance", match: "/app/collections/submissions", collectorOnly: true },
   { href: "/app/collections/submissions?status=VERIFIED", label: "Verified", match: "/app/collections/submissions", query: "VERIFIED" },
   { href: "/app/finance/pickup-notes", label: "Pickup notes" },

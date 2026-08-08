@@ -81,7 +81,7 @@ export default async function CollectionsHome() {
           label: `${stats.pendingCount} waiting on you to verify`,
           detail:
             "Customer Support collected these at the counter and handed them up. Nothing is settled and no cargo is released until you agree with them.",
-          href: "/app/finance/verify",
+          href: "/app/collections/verify",
           cta: "Verify",
           aside: "customers waiting",
           urgent: true,
@@ -156,7 +156,7 @@ export default async function CollectionsHome() {
             tone={stats.pendingCount > 0 ? "warning" : "brand"}
             href={
               canVerify
-                ? "/app/finance/verify"
+                ? "/app/collections/verify"
                 : "/app/collections/submissions?status=PENDING"
             }
           />
@@ -203,7 +203,7 @@ export default async function CollectionsHome() {
             <Link
               href={
                 canVerify
-                  ? "/app/finance/verify"
+                  ? "/app/collections/verify"
                   : "/app/collections/submissions?status=PENDING"
               }
               className="focus-ring rounded text-xs font-semibold text-brand hover:underline"
