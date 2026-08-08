@@ -297,3 +297,159 @@ export async function floorComposition() {
 
   return { flagged, cleared, held, total: rows.length };
 }
+
+// ---------------------------------------------------------------------------
+// The China side of the same three questions
+// ---------------------------------------------------------------------------
+
+/**
+ * Cargo standing in Guangzhou: registered, not yet flown.
+ *
+ * Dar's ON_THE_FLOOR has a matching job here, and for the same reason — the
+ * moment two panels each decide for themselves what "in the warehouse" means,
+ * they start disagreeing by a box.
+ */
+export const IN_CHINA = {
+  deletedAt: null,
+  status: "READY_TO_DEPART",
+} as const satisfies Prisma.ShipmentWhereInput;
+
+/**
+ * What the Guangzhou floor is made of, in slices that add up.
+ *
+ * Mutually exclusive, in the order the desk cares about: cargo nobody has put
+ * on a batch is the one thing that will miss a flight, so it leads; then loaded
+ * and waiting for the aircraft; then sealed and ready to go.
+ */
+export async function chinaComposition() {
+  const rows = await prisma.shipment.findMany({
+    where: IN_CHINA,
+    select: { batch: { select: { status: true } } },
+  });
+
+  let unassigned = 0;
+  let loading = 0;
+  let sealed = 0;
+
+  for (const row of rows) {
+    if (!row.batch) unassigned += 1;
+    else if (row.batch.status === "OPEN" || row.batch.status === "FULL") loading += 1;
+    else sealed += 1;
+  }
+
+  return { unassigned, loading, sealed, total: rows.length };
+}
+
+/** How long each consignment has waited in Guangzhou since it was registered. */
+export async function chinaAgeing(now = new Date()) {
+  const rows = await prisma.shipment.findMany({
+    where: IN_CHINA,
+    select: { registeredAt: true, packages: true },
+  });
+
+  const buckets: FloorAgeBucket[] = [
+    { key: "fresh", label: "Registered today or yesterday", count: 0, packages: 0 },
+    { key: "week", label: "2–7 days", count: 0, packages: 0 },
+    { key: "over", label: "8–14 days", count: 0, packages: 0 },
+    { key: "stuck", label: "Over 14 days", count: 0, packages: 0 },
+  ];
+
+  for (const row of rows) {
+    const days = Math.max(
+      0,
+      Math.floor((now.getTime() - row.registeredAt.getTime()) / 86_400_000)
+    );
+    const bucket =
+      days <= 1 ? buckets[0] : days <= 7 ? buckets[1] : days <= 14 ? buckets[2] : buckets[3];
+    bucket.count += 1;
+    bucket.packages += row.packages ?? 0;
+  }
+
+  return buckets;
+}
+
+/**
+ * Registered against dispatched, day by day.
+ *
+ * China's throughput. Cargo booked in is only half the story — a desk that
+ * registers thirty a day and flies none is filling a warehouse, and the count
+ * standing there cannot tell you which is happening.
+ *
+ * Out is counted from the batch's departure, because that is the moment cargo
+ * actually leaves the building.
+ */
+export async function chinaFlowByDay(days = 14, now = new Date()) {
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  start.setDate(start.getDate() - (days - 1));
+
+  const [registered, flown] = await Promise.all([
+    prisma.shipment.findMany({
+      where: { deletedAt: null, registeredAt: { gte: start } },
+      select: { registeredAt: true },
+    }),
+    prisma.shipment.findMany({
+      where: {
+        deletedAt: null,
+        batch: { departureDate: { gte: start } },
+      },
+      select: { batch: { select: { departureDate: true } } },
+    }),
+  ]);
+
+  const labels: string[] = [];
+  const inCounts = Array.from({ length: days }, () => 0);
+  const outCounts = Array.from({ length: days }, () => 0);
+
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    labels.push(d.toLocaleDateString("en-GB", { day: "numeric" }));
+  }
+
+  const indexOf = (date: Date) =>
+    Math.floor(
+      (new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() -
+        start.getTime()) /
+        86_400_000
+    );
+
+  for (const row of registered) {
+    const i = indexOf(row.registeredAt);
+    if (i >= 0 && i < days) inCounts[i] += 1;
+  }
+  for (const row of flown) {
+    if (!row.batch?.departureDate) continue;
+    const i = indexOf(row.batch.departureDate);
+    if (i >= 0 && i < days) outCounts[i] += 1;
+  }
+
+  return { labels, inCounts, outCounts, currentIndex: days - 1 };
+}
+
+/**
+ * What is wrong on the Guangzhou floor right now.
+ *
+ * Registering cargo is this desk's whole job, so the failures are all failures
+ * of that: a consignment with no photograph cannot be argued about later, one
+ * on no batch will miss the flight, and a batch left open stops being a batch
+ * and becomes a shelf.
+ */
+export async function chinaProblems(now = new Date()) {
+  const staleDays = 3;
+  const cutoff = new Date(now.getTime() - staleDays * 86_400_000);
+
+  const [noPhotos, unassigned, staleBatches, waiting] = await Promise.all([
+    prisma.shipment.count({
+      where: { ...IN_CHINA, photos: { none: {} } },
+    }),
+    prisma.shipment.count({ where: { ...IN_CHINA, batchId: null } }),
+    prisma.batch.count({
+      where: { status: "OPEN", createdAt: { lt: cutoff } },
+    }),
+    prisma.shipment.count({
+      where: { ...IN_CHINA, registeredAt: { lt: cutoff } },
+    }),
+  ]);
+
+  return { noPhotos, unassigned, staleBatches, waiting, staleDays };
+}

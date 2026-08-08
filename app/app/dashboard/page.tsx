@@ -58,6 +58,10 @@ import {
   STORAGE_POLICY,
 } from "@/lib/constants";
 import {
+  chinaAgeing,
+  chinaComposition,
+  chinaFlowByDay,
+  chinaProblems,
   floorAgeing,
   floorComposition,
   floorFlowByDay,
@@ -377,7 +381,18 @@ async function ChinaDashboard({
   role: "CHINA_WAREHOUSE" | "ADMIN";
   userId: string;
 }) {
-  const [stats, volume, utilisation, mix, activity, openBatches] = await Promise.all([
+  const [
+    stats,
+    volume,
+    utilisation,
+    mix,
+    activity,
+    openBatches,
+    composition,
+    ageing,
+    throughput,
+    problems,
+  ] = await Promise.all([
     chinaStats(),
     monthlyVolume(),
     batchUtilisation(),
@@ -395,7 +410,72 @@ async function ChinaDashboard({
         shipments: { select: { weightKg: true, packages: true } },
       },
     }),
+    chinaComposition(),
+    chinaAgeing(),
+    chinaFlowByDay(14),
+    chinaProblems(),
   ]);
+
+  /**
+   * What is wrong on this floor, in the words of the desk that registers cargo.
+   *
+   * The same panel Dar and the money desk use, with China's own failures in it:
+   * registering is this desk's whole job, so every row is a way that job is
+   * incomplete.
+   */
+  const attention: AttnItem[] = [
+    {
+      when: problems.noPhotos > 0,
+      id: "no-photos",
+      group: "Registration",
+      severity: "critical" as const,
+      label: `${problems.noPhotos} consignment${problems.noPhotos === 1 ? "" : "s"} with no photograph`,
+      detail:
+        "Nothing to show the customer if it arrives damaged, and nothing to argue with when they say it did.",
+      href: "/app/shipments",
+    },
+    {
+      when: problems.unassigned > 0,
+      id: "unassigned",
+      group: "Loading",
+      severity: "critical" as const,
+      label: `${problems.unassigned} on no batch`,
+      detail:
+        "Registered and sitting loose. Cargo on no batch does not get on an aircraft.",
+      href: "/app/batches",
+    },
+    {
+      when: problems.staleBatches > 0,
+      id: "stale-batches",
+      group: "Loading",
+      severity: "warning" as const,
+      label: `${problems.staleBatches} batch${problems.staleBatches === 1 ? "" : "es"} open more than ${problems.staleDays} days`,
+      detail:
+        "A batch left open stops being a batch and becomes a shelf. Seal it or fly it.",
+      href: "/app/batches",
+    },
+    {
+      when: problems.waiting > 0,
+      id: "waiting",
+      group: "Waiting",
+      severity: "info" as const,
+      label: `${problems.waiting} waiting more than ${problems.staleDays} days`,
+      detail:
+        "Booked in and still in Guangzhou. Every day here is a day the customer is counting.",
+      href: "/app/shipments",
+      value: `${stats.stagedWeightKg.toFixed(0)} kg`,
+    },
+  ].filter((job) => job.when) as AttnItem[];
+
+  const chinaFormat = (n: number) =>
+    `${n.toLocaleString("en-US")} consignment${n === 1 ? "" : "s"}`;
+
+  // One array for the ring and its key, so the two cannot be relabelled apart.
+  const chinaSlices = [
+    { label: "On no batch", value: composition.unassigned, tone: 3 as const },
+    { label: "Loading", value: composition.loading, tone: 4 as const },
+    { label: "Sealed, ready to fly", value: composition.sealed, tone: 5 as const },
+  ];
 
   return (
     <div className="space-y-7">
@@ -411,12 +491,13 @@ async function ChinaDashboard({
 
       <FloorChips chips={chips} />
 
-      <StatStrip
-        chips={[
-          { label: "Staged", value: String(stats.readyToDepart), icon: Package, tone: "warning" },
-          { label: "In the air", value: String(stats.inTransitShipments), icon: Plane, tone: "success" },
-          { label: "Weight staged", value: formatWeight(stats.stagedWeightKg), icon: Warehouse },
-        ]}
+      {/* No StatStrip here. FloorChips above already carries this desk's
+          standing numbers, and the same figures twice a centimetre apart is the
+          duplication every other dashboard in this app has had removed. */}
+      <AttentionCenter
+        items={attention}
+        reviewAll={{ href: "/app/shipments", label: "All cargo" }}
+        empty="Nothing is waiting on this desk. Every consignment is photographed, on a batch, and moving."
       />
 
       <div>
@@ -452,6 +533,80 @@ async function ChinaDashboard({
           tone="success"
           href="/app/batches?status=IN_TRANSIT"
         />
+        </div>
+      </div>
+
+      {/* The same three questions the Dar floor asks, in Guangzhou's terms. */}
+      <div>
+        <SectionLabel action={{ href: "/app/shipments", label: "All cargo" }}>
+          The desk, in shape
+        </SectionLabel>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <section className="panel p-4">
+            <h3 className="text-sm font-semibold">What is in Guangzhou</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              By what is holding each consignment
+            </p>
+            <div className="mt-3 flex justify-center">
+              <Donut
+                size={118}
+                stroke={18}
+                label={String(composition.total)}
+                caption="consignments"
+                slices={chinaSlices}
+              />
+            </div>
+            <DonutLegend className="mt-3" slices={chinaSlices} />
+          </section>
+
+          <section className="panel p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">In and out</h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Registered against flown, a fortnight
+                </p>
+              </div>
+              <p className="shrink-0 text-right text-[11px] text-muted-foreground">
+                <span className="font-mono font-semibold text-success">
+                  {throughput.inCounts.reduce((x, y) => x + y, 0)}
+                </span>
+                {" / "}
+                <span className="font-mono font-semibold text-signal">
+                  {throughput.outCounts.reduce((x, y) => x + y, 0)}
+                </span>
+              </p>
+            </div>
+            <FlowBars
+              className="mt-3"
+              labels={throughput.labels}
+              valuesIn={throughput.inCounts}
+              valuesOut={throughput.outCounts}
+              currentIndex={throughput.currentIndex}
+              format={chinaFormat}
+              legendIn="Registered"
+              legendOut="Flown"
+            />
+          </section>
+
+          <section className="panel p-4">
+            <h3 className="text-sm font-semibold">How long it has waited</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              From the day it was registered in Guangzhou
+            </p>
+            <AgeingBar
+              className="mt-3"
+              segments={ageing.map((bucket) => ({
+                key: bucket.key,
+                label: bucket.label,
+                count: bucket.count,
+                value: bucket.packages,
+              }))}
+              format={(n) => `${n} box${n === 1 ? "" : "es"}`}
+              unit="consignment"
+              empty="Nothing is waiting in Guangzhou."
+            />
+          </section>
         </div>
       </div>
 
