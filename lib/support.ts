@@ -22,22 +22,26 @@ import { prisma } from "@/lib/prisma";
 
 export type FollowUpFilter =
   | "all"
-  | "invoice-needed"
-  | "not-invoiced"
-  | "not-sent"
   | "awaiting-payment"
   | "ready"
   | "storage";
 
+/**
+ * Paid, or not paid.
+ *
+ * There used to be three more pills here — "Needs an invoice", "No invoice at
+ * all", "Invoice not sent" — from when raising and sending a bill were separate
+ * jobs somebody had to remember. Every invoice is generated automatically now,
+ * so two of those read 0 forever and the third counted a step nobody performs.
+ * Pills that are always empty teach people to stop reading the row.
+ *
+ * What is left is the only question this desk actually asks about a consignment
+ * sitting in Dar: has the customer paid, is it ready to hand over, and is it
+ * costing them storage.
+ */
 export const FOLLOW_UP_FILTERS: { key: FollowUpFilter; label: string; hint: string }[] = [
   { key: "all", label: "Everything landed", hint: "All cargo in Dar not yet collected" },
-  { key: "invoice-needed", label: "Needs an invoice", hint: "Arrived, never billed or still a draft" },
-  // Narrower than invoice-needed on purpose. That pill includes cargo sitting
-  // on a draft, which Customer Care cannot bill because it is Finance who
-  // signs the price off. This one is the work that desk can actually finish.
-  { key: "not-invoiced", label: "No invoice at all", hint: "Landed with nothing raised against it" },
-  { key: "not-sent", label: "Invoice not sent", hint: "Billed, customer never told" },
-  { key: "awaiting-payment", label: "Awaiting payment", hint: "Sent, still unpaid" },
+  { key: "awaiting-payment", label: "Awaiting payment", hint: "Billed, still unpaid" },
   { key: "ready", label: "Ready for pickup", hint: "Paid, waiting to be collected" },
   { key: "storage", label: "Overdue storage", hint: "Past the free storage window" },
 ];
@@ -116,6 +120,8 @@ export async function followUpQueue() {
           exchangeRate: true,
           localCurrency: true,
           sentAt: true,
+          confirmedAt: true,
+          issuedAt: true,
         },
       },
       messages: {
@@ -154,16 +160,17 @@ export async function followUpQueue() {
           ? "Paid — tell them to collect"
           : "Paid — awaiting pickup note";
       urgency = 30;
-    } else if (!invoice.sentAt) {
-      nextAction = "Send the invoice";
-      urgency = 70;
     } else {
-      const daysSinceSent = daysBetween(invoice.sentAt);
+      // Counted from when the bill became real, not from when somebody pressed
+      // send. Invoices are generated automatically, so "sent" is a step nobody
+      // performs — 81 rows read "Send the invoice" for a job that does not
+      // exist, which is worse than no instruction at all.
+      const daysBilled = daysBetween(invoice.confirmedAt ?? invoice.issuedAt);
       nextAction =
-        daysSinceSent >= 3
-          ? `Chase payment — sent ${daysSinceSent} days ago`
+        daysBilled >= 3
+          ? `Chase payment — billed ${daysBilled} days ago`
           : "Awaiting payment";
-      urgency = 50 + Math.min(daysSinceSent * 3, 30);
+      urgency = 50 + Math.min(daysBilled * 3, 30);
     }
 
     // Storage is money leaking away from a customer who has stopped paying
@@ -206,17 +213,6 @@ export async function followUpQueue() {
 
 export function matchesFilter(row: FollowUpRow, filter: FollowUpFilter) {
   switch (filter) {
-    case "invoice-needed":
-      // A draft is not a bill: this pill is where cargo waits for one.
-      return row.invoiceId === null || row.invoiceStatus === "DRAFT";
-    case "not-invoiced":
-      return row.invoiceId === null;
-    case "not-sent":
-      return (
-        row.invoiceId !== null &&
-        row.invoiceStatus !== "DRAFT" &&
-        row.invoiceSentAt === null
-      );
     case "awaiting-payment":
       return row.outstanding !== null && row.outstanding > 0;
     case "ready":

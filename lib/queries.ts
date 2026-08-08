@@ -156,13 +156,15 @@ export async function monthlyRevenue(now = new Date()) {
  * a bill sent on Tuesday and a bill sent in March are not the same problem and
  * only one of them is a bad debt forming.
  *
- * Aged from sentAt, not issuedAt: the clock starts when the customer was
- * actually told what they owe. An invoice raised and never sent is not late,
- * it is un-sent, which is a different failure and has its own tile.
+ * Aged from confirmedAt, falling back to issuedAt — the moment the bill became
+ * real. It deliberately does NOT age from sentAt: every invoice is generated
+ * automatically now, so "sent" is a step in a workflow that no longer exists,
+ * and clocking from it would have aged 4 bills out of 84 and quietly ignored
+ * 99% of the money owed.
  *
- * Drafts are excluded on purpose — a price Finance has not confirmed is not a
- * debt, and counting it would inflate the one figure on this page that people
- * make decisions from.
+ * Drafts are still excluded — a price Finance has not confirmed is not a debt,
+ * and counting it would inflate the one figure on this page that people make
+ * decisions from.
  */
 export type AgeingBucket = {
   key: string;
@@ -177,15 +179,17 @@ export type AgeingBucket = {
 
 export async function receivablesAgeing(now = new Date()) {
   const rows = await prisma.invoice.findMany({
-    where: {
-      status: { in: ["UNPAID", "PARTIALLY_PAID"] },
-      sentAt: { not: null },
+    where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
+    select: {
+      total: true,
+      amountPaid: true,
+      confirmedAt: true,
+      issuedAt: true,
     },
-    select: { total: true, amountPaid: true, sentAt: true },
   });
 
   const buckets: AgeingBucket[] = [
-    { key: "current", label: "This week", from: 0, to: 8, count: 0, usd: 0 },
+    { key: "current", label: "Billed this week", from: 0, to: 8, count: 0, usd: 0 },
     { key: "week2", label: "8–14 days", from: 8, to: 15, count: 0, usd: 0 },
     { key: "month", label: "15–30 days", from: 15, to: 31, count: 0, usd: 0 },
     { key: "overdue", label: "Over 30 days", from: 31, to: null, count: 0, usd: 0 },
@@ -197,9 +201,10 @@ export async function receivablesAgeing(now = new Date()) {
     // A rounding tail is not a debt. Anything under a cent is settled.
     if (outstanding <= 0.005) continue;
 
+    const since = row.confirmedAt ?? row.issuedAt;
     const days = Math.max(
       0,
-      Math.floor((now.getTime() - row.sentAt!.getTime()) / 86_400_000)
+      Math.floor((now.getTime() - since.getTime()) / 86_400_000)
     );
     if (days > oldestDays) oldestDays = days;
 

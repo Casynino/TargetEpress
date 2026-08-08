@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, FileText, MessageCircle } from "lucide-react";
+import { Banknote, Download, FileText, MessageCircle } from "lucide-react";
 
 import { CollectionsNav } from "@/components/app/collections-nav";
 import { PageHeader } from "@/components/app/page-header";
-import { SendInvoiceButton } from "@/components/app/send-invoice-button";
 import { can } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
 import { currentRate, formatUsd } from "@/lib/fx";
@@ -43,7 +42,6 @@ export default async function FollowUpPage({
   searchParams: Promise<{ filter?: string }>;
 }) {
   const user = await requirePermission("collections.view");
-  const canSend = can(user.role, "invoice.send");
   const canRecord = can(user.role, "payment.record");
   const canCollect = !canRecord && can(user.role, "payment.submit");
   const { filter } = await searchParams;
@@ -263,29 +261,34 @@ export default async function FollowUpPage({
                   ) : null}
                 </td>
                 <td className="p-3">
-                  {/* The next action, as something you can press. Every row
-                      said "Send the invoice" or "Chase payment" and then
-                      offered no way to do either. */}
-                  <div className="flex flex-wrap items-center justify-end gap-1.5">
-                    {canSend &&
-                    row.invoiceId &&
-                    row.invoiceStatus !== "DRAFT" &&
-                    !row.invoiceSentAt ? (
-                      <SendInvoiceButton
-                        customerId={row.customerId}
-                        shipmentId={row.shipmentId}
-                        invoiceId={row.invoiceId}
-                        whatsapp={
-                          row.customerPhone
-                            ? whatsappLink(
-                                row.customerPhone,
-                                invoiceMessage(row)
-                              )
-                            : null
+                  {/* One icon per thing you can do, all the same size.
+                      "Send invoice" and "Remind" both opened WhatsApp with the
+                      identical message — one action wearing two buttons, and
+                      the row was wide enough to make you read both before
+                      picking. Sending is not a step any more either: invoices
+                      are generated, so the only message this desk sends is a
+                      reminder, and there is one button for it. */}
+                  <div className="flex items-center justify-end gap-1.5">
+                    {row.customerPhone ? (
+                      <a
+                        href={whatsappLink(
+                          row.customerPhone,
+                          row.invoiceId
+                            ? invoiceMessage(row)
+                            : `Habari ${row.customerName.split(" ")[0]}, kuhusu mzigo wako ${row.trackingNumber}.`
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={
+                          row.invoiceId
+                            ? `Remind ${row.customerName} on WhatsApp — the bill, the accounts and the amount`
+                            : `Message ${row.customerName} on WhatsApp`
                         }
-                        body={invoiceMessage(row)}
-                        alreadySent={false}
-                      />
+                        aria-label={`WhatsApp ${row.customerName}`}
+                        className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-success/40 text-success transition-colors hover:bg-success/10"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                      </a>
                     ) : null}
 
                     {(canRecord || canCollect) &&
@@ -299,9 +302,15 @@ export default async function FollowUpPage({
                             ? `/app/cargo/${row.trackingNumber}`
                             : `/app/collections/record/${row.invoiceId}`
                         }
-                        className="focus-ring inline-flex items-center gap-1 rounded-full border border-brand/40 px-3 py-1.5 text-[11px] font-semibold text-brand transition-colors hover:bg-brand/10"
+                        title={
+                          canRecord
+                            ? "Record a payment against this cargo"
+                            : "Collect the customer's proof and hand it to Finance"
+                        }
+                        aria-label={`Record a payment for ${row.trackingNumber}`}
+                        className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-brand/40 text-brand transition-colors hover:bg-brand/10"
                       >
-                        Record payment
+                        <Banknote className="h-3.5 w-3.5" />
                       </Link>
                     ) : null}
 
@@ -311,6 +320,7 @@ export default async function FollowUpPage({
                       <>
                         <a
                           href={`/app/finance/invoices/${row.invoiceNumber}/pdf`}
+                          title={`Download ${row.invoiceNumber} as a PDF`}
                           aria-label={`Download ${row.invoiceNumber}`}
                           className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors hover:border-brand/40 hover:text-brand"
                         >
@@ -318,50 +328,13 @@ export default async function FollowUpPage({
                         </a>
                         <Link
                           href={`/app/finance/invoices/${row.invoiceId}`}
+                          title={`Open ${row.invoiceNumber}`}
                           aria-label={`Open ${row.invoiceNumber}`}
                           className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors hover:border-brand/40 hover:text-brand"
                         >
                           <FileText className="h-3.5 w-3.5" />
                         </Link>
                       </>
-                    ) : null}
-
-                    {/* The reminder itself, ready to send, with the accounts
-                        in it. Offered on every row with a number and a bill —
-                        not only the ones that have never been sent. */}
-                    {row.customerPhone && row.invoiceId ? (
-                      <a
-                        href={whatsappLink(row.customerPhone, invoiceMessage(row))}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-success/40 px-3 py-1.5 text-[11px] font-semibold text-success transition-colors hover:bg-success/10"
-                      >
-                        <MessageCircle className="h-3 w-3" />
-                        Remind
-                      </a>
-                    ) : null}
-
-                    {/* Only where a reminder is impossible.
-                        Two WhatsApp buttons on one row is a choice nobody
-                        should have to make: this one opens a bare "Habari X,
-                        kuhusu mzigo wako TX-000042", which tells the customer
-                        nothing and asks them for nothing. It earns its place
-                        on rows with no bill yet — where there is no amount to
-                        quote and the clerk is simply starting a conversation —
-                        and nowhere else. */}
-                    {row.customerPhone && !row.invoiceId ? (
-                      <a
-                        href={whatsappLink(
-                          row.customerPhone,
-                          `Habari ${row.customerName.split(" ")[0]}, kuhusu mzigo wako ${row.trackingNumber}.`
-                        )}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`WhatsApp ${row.customerName}`}
-                        className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors hover:border-success/40 hover:text-success"
-                      >
-                        <MessageCircle className="h-3.5 w-3.5" />
-                      </a>
                     ) : null}
                   </div>
                 </td>

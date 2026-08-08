@@ -996,7 +996,6 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     accounts,
     balances,
     drafts,
-    neverSent,
     unattributed,
     owedOut,
     spent,
@@ -1017,18 +1016,6 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       where: { status: "DRAFT" },
       _count: true,
       _sum: { total: true },
-    }),
-    // Confirmed bills the customer was never actually told about. They sit
-    // inside "owed by customers" and inflate it, but they are not late and
-    // cannot be chased — nobody has asked for the money yet. Ageing them
-    // beside genuine debt would be a lie about how bad the debt is.
-    prisma.invoice.aggregate({
-      where: {
-        status: { in: ["UNPAID", "PARTIALLY_PAID"] },
-        sentAt: null,
-      },
-      _count: true,
-      _sum: { total: true, amountPaid: true },
     }),
     // Money we hold that nobody has said where it landed. It is in no account
     // and therefore in no balance, so it can only be seen by asking.
@@ -1061,9 +1048,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
   const collectedThisMonth = revenue.values[revenue.values.length - 1] ?? 0;
   const collectedThisYear = revenue.values.reduce((a, b) => a + b, 0);
   const netThisMonth = flow.net[flow.net.length - 1] ?? 0;
-  const neverSentCount = neverSent._count;
-  const neverSentUsd =
-    toNumber(neverSent._sum.total ?? 0) - toNumber(neverSent._sum.amountPaid ?? 0);
+
 
   // Cash available: every account's own balance, added up through the dollar
   // so shillings and dollars can share a total. Derived from the ledger, never
@@ -1317,29 +1302,6 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
               rate={rate}
             />
 
-            {/* The finding this panel exists to surface. Money on a bill nobody
-                sent is not late and cannot be chased — it has simply never been
-                asked for, which is a different job with a different fix, and it
-                was hiding inside the "owed by customers" total. */}
-            {neverSentCount > 0 ? (
-              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-warning">
-                    {neverSentCount} bill{neverSentCount === 1 ? "" : "s"} never
-                    sent · {tsh(neverSentUsd)}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Confirmed and sitting here. Not late — never asked for, so
-                    it is not in the ages above.
-                  </p>
-                </div>
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/app/collections/follow-up?filter=not-sent">
-                    Send them
-                  </Link>
-                </Button>
-              </div>
-            ) : null}
           </section>
         </div>
 

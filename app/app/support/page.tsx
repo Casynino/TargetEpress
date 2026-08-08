@@ -144,22 +144,22 @@ export default async function SupportHome() {
    * to the queue. Two functions deciding this separately is how a chart ends
    * up disagreeing with the list beside it.
    */
-  type Blocker = "unbilled" | "unconfirmed" | "unsent" | "chasing" | "settled";
+  /**
+   * Paid, or not paid.
+   *
+   * This used to sort the queue into five states — never billed, waiting on
+   * Finance to confirm a price, billed but never sent, chasing, settled — from
+   * when raising and sending an invoice were separate jobs somebody had to
+   * remember. Every invoice is generated automatically now, so three of those
+   * described work that no longer exists and two of them were permanently
+   * empty. The desk's real question about cargo sitting in Dar is whether the
+   * money has arrived.
+   */
+  type Blocker = "chasing" | "settled";
   const blockerOf = (row: (typeof queue)[number]): Blocker =>
-    row.invoiceStatus === null
-      ? "unbilled"
-      : row.invoiceStatus === "DRAFT"
-        ? "unconfirmed"
-        : (row.outstanding ?? 0) <= 0
-          ? "settled"
-          : row.invoiceSentAt === null
-            ? "unsent"
-            : "chasing";
+    (row.outstanding ?? 0) <= 0 ? "settled" : "chasing";
 
   const group = (blocker: Blocker) => queue.filter((row) => blockerOf(row) === blocker);
-  const unbilled = group("unbilled");
-  const unconfirmed = group("unconfirmed");
-  const unsent = group("unsent");
   const chasing = group("chasing");
   const settled = group("settled");
 
@@ -168,9 +168,6 @@ export default async function SupportHome() {
 
   /** What the pile is made of, biggest blocker first. */
   const split = [
-    { label: "Waiting on Finance", rows: unconfirmed, tone: 4 as const, href: "/app/collections/follow-up" },
-    { label: "Never billed", rows: unbilled, tone: 3 as const, href: "/app/collections/follow-up?filter=not-invoiced" },
-    { label: "Never sent", rows: unsent, tone: 6 as const, href: "/app/collections/follow-up?filter=not-sent" },
     { label: "Awaiting payment", rows: chasing, tone: 1 as const, href: "/app/collections/follow-up?filter=awaiting-payment" },
     { label: "Paid, not collected", rows: settled, tone: 5 as const, href: "/app/collections/follow-up?filter=ready" },
   ].filter((slice) => slice.rows.length > 0);
@@ -207,29 +204,9 @@ export default async function SupportHome() {
       urgent: true,
     },
     {
-      when: unbilled.length > 0,
-      label: `${unbilled.length} landed, never billed`,
-      detail:
-        "In the warehouse with no invoice at all, so the customer has not been asked for anything and storage is running.",
-      aside: `oldest ${Math.max(...unbilled.map((r) => r.daysInWarehouse), 0)} days waiting`,
-      href: "/app/collections/follow-up?filter=not-invoiced",
-      cta: "Raise the invoice",
-      urgent: true,
-    },
-    {
-      when: unsent.length > 0,
-      label: `${unsent.length} invoice${unsent.length === 1 ? "" : "s"} never sent`,
-      detail:
-        "Priced and confirmed, and the customer has still not been told what they owe.",
-      usd: sum(unsent),
-      href: "/app/collections/follow-up?filter=not-sent",
-      cta: "Send it",
-      urgent: true,
-    },
-    {
       when: chasing.length > 0,
       label: `${chasing.length} customer${chasing.length === 1 ? "" : "s"} to chase`,
-      detail: "Billed, sent, and the money has not arrived.",
+      detail: "Billed, and the money has not arrived.",
       usd: sum(chasing),
       href: "/app/collections/follow-up?filter=awaiting-payment",
       cta: "Chase",
@@ -349,24 +326,6 @@ export default async function SupportHome() {
         empty="Nothing is waiting on you. Every landed consignment is billed, every invoice has been sent, and no customer is owed a call."
       />
 
-      {/* Cargo this desk cannot move, said once, under the list rather than
-          in it. The call queue below is full of "Confirm the price" and
-          without this line it reads as work nobody is doing. */}
-      {unconfirmed.length > 0 ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {unconfirmed.length} more{" "}
-          {unconfirmed.length === 1 ? "consignment is" : "consignments are"}{" "}
-          waiting on Finance to confirm a price. You cannot bill{" "}
-          {unconfirmed.length === 1 ? "it" : "them"} until they do —{" "}
-          <Link
-            href="/app/collections/follow-up"
-            className="font-medium text-brand hover:underline"
-          >
-            see which
-          </Link>
-          .
-        </p>
-      ) : null}
 
       {/* Reference, not work — the shape of the desk's day, which nobody
           acts on. Directly under the list because that is the order the
@@ -620,9 +579,9 @@ export default async function SupportHome() {
                 hint="Customer wants something found in China"
               />
               <QuickAction
-                href="/app/collections/follow-up?filter=invoice-needed"
-                label="Raise an invoice"
-                hint="Cargo that has landed but was never billed"
+                href="/app/collections/follow-up?filter=awaiting-payment"
+                label="Chase a payment"
+                hint="Cargo that has been billed and is still unpaid"
               />
               <QuickAction
                 href="/app/customers"
