@@ -19,6 +19,12 @@ export type AttnItem = {
   href: string;
   /** Right-hand figure: an amount, a count, an age. Optional. */
   value?: string;
+  /**
+   * A second, quieter line under it. Shillings lead in this app and the dollar
+   * figure is the reference — this is where the reference goes, so the money
+   * desk does not lose it moving to this panel.
+   */
+  valueSub?: string;
 };
 
 const SEVERITY: Record<AttnSeverity, { icon: typeof AlertTriangle; text: string; bar: string }> = {
@@ -156,8 +162,15 @@ export function AttentionCenter({
                       </span>
                     </span>
                     {item.value ? (
-                      <span className="shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
-                        {item.value}
+                      <span className="shrink-0 text-right leading-tight">
+                        <span className="block font-mono text-[11px] font-semibold tabular-nums">
+                          {item.value}
+                        </span>
+                        {item.valueSub ? (
+                          <span className="block font-mono text-[10px] tabular-nums text-muted-foreground">
+                            {item.valueSub}
+                          </span>
+                        ) : null}
                       </span>
                     ) : null}
                     <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

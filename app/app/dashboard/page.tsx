@@ -37,7 +37,6 @@ import { KpiCard } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
 import { SectionLabel } from "@/components/app/section-label";
 import { StatStrip } from "@/components/app/stat-strip";
-import { WorkList, type WorkItem } from "@/components/app/work-list";
 import { AreaChart } from "@/components/charts/area-chart";
 import { AgeingBar } from "@/components/charts/ageing-bar";
 import { Donut, DonutLegend } from "@/components/charts/donut";
@@ -1289,6 +1288,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
    */
   const jobs = [
     {
+      group: "Pricing",
       when: drafts._count > 0,
       label: `${drafts._count} price${drafts._count === 1 ? "" : "s"} to confirm`,
       detail:
@@ -1299,6 +1299,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       urgent: true,
     },
     {
+      group: "Payments",
       when: unattributed._count > 0,
       label: `${unattributed._count} payment${unattributed._count === 1 ? "" : "s"} with no account`,
       detail:
@@ -1309,6 +1310,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       urgent: true,
     },
     {
+      group: "Collections",
       when: unsettled > 0,
       label: `${unsettled} bill${unsettled === 1 ? "" : "s"} unpaid`,
       detail: "Confirmed and sent to the customer. The money has not arrived.",
@@ -1318,6 +1320,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       urgent: false,
     },
     {
+      group: "Costs",
       when: owedOut._count > 0,
       label: `${owedOut._count} cost${owedOut._count === 1 ? "" : "s"} to pay out`,
       detail: "Recorded against the business, not yet disbursed from an account.",
@@ -1327,6 +1330,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       urgent: false,
     },
     {
+      group: "Pickup",
       when: stats.activeNotes > 0,
       label: `${stats.activeNotes} cleared, not collected`,
       detail:
@@ -1336,7 +1340,38 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       cta: "See notes",
       urgent: false,
     },
-  ].filter((job) => job.when) as WorkItem[];
+  ].filter((job) => job.when);
+
+  /**
+   * The money jobs and the cargo problems, in one panel.
+   *
+   * They were two — a work band and a separate "cargo that needs a call today"
+   * list — under two headings that both meant "look here". A mismatch or a
+   * missing box IS a money problem to this desk; it becomes a billing argument
+   * a fortnight later, which is the reason that second list was put on the page
+   * in the first place. So it is a pill, not a panel.
+   */
+  const financeAttention: AttnItem[] = [
+    ...jobs.map((job) => ({
+      id: job.href + job.label,
+      group: job.group,
+      severity: (job.urgent ? "critical" : "info") as AttnItem["severity"],
+      label: job.label,
+      detail: job.detail,
+      href: job.href,
+      value: job.usd !== undefined ? tsh(job.usd) : job.aside,
+      valueSub: job.usd !== undefined ? formatUsd(job.usd) : undefined,
+    })),
+    ...alerts.map((alert) => ({
+      id: alert.id,
+      group: "Cargo",
+      severity: alert.severity,
+      label: alert.title,
+      detail: alert.detail,
+      href: alert.href ?? "/app/exceptions",
+      value: alert.meta,
+    })),
+  ];
 
   /**
    * The handful of things this desk starts many times a day.
@@ -1374,12 +1409,11 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
             reading "What needs you" directly under an eyebrow reading "NEEDS
             YOUR ATTENTION" — one heading printed twice, which reads as two
             things until you work out it is one. */}
-        <SectionLabel count={jobs.length}>Needs your attention</SectionLabel>
-      <WorkList
-        items={jobs}
-        rate={rate}
-        empty="Nothing is waiting on you. Every price is confirmed, every payment sits in an account, and every bill has been settled."
-      />
+      <AttentionCenter
+          items={financeAttention}
+          reviewAll={{ href: "/app/collections/follow-up", label: "The call list" }}
+          empty="Nothing is waiting on you. Every price is confirmed, every payment sits in an account, and every bill has been settled."
+        />
       </div>
 
       {/* ---- The position those decisions are made against ---- */}
@@ -1658,14 +1692,6 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           )}
         </section>
 
-        {/* Cargo problems rather than money problems — a mismatch or a missing
-            box becomes a billing argument later, so this desk wants to know
-            now. Kept separate from the work list above, which is money only. */}
-        <AlertQueue
-          items={alerts}
-          description="Cargo that needs a call today"
-          emptyMessage="No cargo is in trouble."
-        />
         </div>
       </div>
     </div>

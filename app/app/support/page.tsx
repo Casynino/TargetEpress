@@ -14,8 +14,8 @@ import {
 
 import { KpiCard } from "@/components/app/kpi-card";
 import { ActionPills } from "@/components/app/action-pills";
+import { AttentionCenter, type AttnItem } from "@/components/app/attention-center";
 import { SectionLabel } from "@/components/app/section-label";
-import { WorkList, type WorkItem } from "@/components/app/work-list";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Donut } from "@/components/charts/donut";
 import { CargoSearch } from "@/components/app/cargo-search";
@@ -194,8 +194,9 @@ export default async function SupportHome() {
   }));
   const stale = queue.filter((row) => row.daysInWarehouse >= 15).length;
 
-  const jobs: WorkItem[] = [
+  const jobs = [
     {
+      group: "Tickets",
       when: overview.urgentTickets > 0,
       label: `${overview.urgentTickets} ticket${overview.urgentTickets === 1 ? "" : "s"} marked urgent`,
       detail: "A customer is waiting on an answer somebody flagged as important.",
@@ -204,6 +205,7 @@ export default async function SupportHome() {
       urgent: true,
     },
     {
+      group: "Collections",
       when: chasing.length > 0,
       label: `${chasing.length} customer${chasing.length === 1 ? "" : "s"} to chase`,
       detail: "Billed, and the money has not arrived.",
@@ -212,6 +214,7 @@ export default async function SupportHome() {
       cta: "Chase",
     },
     {
+      group: "Collections",
       // Ahead of the softer queues: a rejected claim means a customer was told
       // their payment went through and it did not.
       when: submissionCount("REJECTED") > 0,
@@ -224,6 +227,7 @@ export default async function SupportHome() {
       urgent: true,
     },
     {
+      group: "Collections",
       when: submissionCount("PENDING") > 0,
       label: `${submissionCount("PENDING")} with Finance`,
       detail:
@@ -233,6 +237,7 @@ export default async function SupportHome() {
       aside: "waiting on Finance",
     },
     {
+      group: "Sourcing",
       when: overview.openRequests > 0,
       label: `${overview.openRequests} sourcing request${overview.openRequests === 1 ? "" : "s"} open`,
       detail: "Somebody asked us to find them something in China.",
@@ -240,6 +245,7 @@ export default async function SupportHome() {
       cta: "Work them",
     },
     {
+      group: "Cases",
       when: callBacks > 0,
       label: `${callBacks} investigation${callBacks === 1 ? "" : "s"} waiting on the customer`,
       detail:
@@ -247,7 +253,27 @@ export default async function SupportHome() {
       href: "/app/exceptions",
       cta: "Ring them",
     },
-  ].filter((job) => job.when) as WorkItem[];
+  ].filter((job) => job.when);
+
+  /**
+   * The same panel the warehouse floor and the money desk use.
+   *
+   * One heading, fixed height, pills that filter — rather than a band that grows
+   * a row every time this desk acquires another kind of thing to chase.
+   */
+  const attention: AttnItem[] = jobs.map((job) => ({
+    id: job.href,
+    group: job.group,
+    severity: (job.urgent ? "critical" : "info") as AttnItem["severity"],
+    label: job.label,
+    detail: job.detail,
+    href: job.href,
+    value:
+      job.usd !== undefined && rate
+        ? `TSh ${Math.round(job.usd * rate).toLocaleString("en-US")}`
+        : job.aside,
+    valueSub: job.usd !== undefined ? formatUsd(job.usd) : undefined,
+  }));
 
   return (
     <>
@@ -318,12 +344,11 @@ export default async function SupportHome() {
         />
       </div>
 
-      {/* The work first, exactly as the money desk has it. */}
-      <SectionLabel count={jobs.length}>Needs your attention</SectionLabel>
-      <WorkList
-        items={jobs}
-        rate={rate}
-        empty="Nothing is waiting on you. Every landed consignment is billed, every invoice has been sent, and no customer is owed a call."
+      {/* The work first, exactly as the money desk and the floor have it. */}
+      <AttentionCenter
+        items={attention}
+        reviewAll={{ href: "/app/collections/follow-up", label: "The call list" }}
+        empty="Nothing is waiting on you. Every landed consignment is billed and no customer is owed a call."
       />
 
 
