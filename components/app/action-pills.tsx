@@ -6,11 +6,45 @@ export type ActionPill = {
   label: string;
   icon: LucideIcon;
   /**
-   * "primary" and "secondary" are the two things this desk *does*; everything
-   * else is a place it looks. At most two coloured pills per row — colour that
-   * appears on six of six pills has stopped pointing at anything.
+   * "primary" and "secondary" are the two things this desk *does* — solid,
+   * unmissable. Everything else is a place it looks and gets a soft tint of
+   * its own colour instead.
    */
   weight?: "primary" | "secondary" | "quiet";
+  /**
+   * Which colour it carries.
+   *
+   * Colour here is a landmark, not decoration: after a week nobody reads this
+   * row, they reach for the red one. That only works while each pill keeps its
+   * own colour and keeps it everywhere — so the tone belongs to the
+   * destination, not to the position in the row.
+   *
+   * The two solid pills still lead. The rest are tinted rather than filled, so
+   * six colours can sit together without any of them shouting.
+   */
+  tone?: "brand" | "signal" | "success" | "warning" | "info" | "violet";
+};
+
+/**
+ * Written out in full, never interpolated — Tailwind generates classes by
+ * scanning source text, so `bg-${tone}` is a class that never exists.
+ */
+const SOLID: Record<NonNullable<ActionPill["tone"]>, string> = {
+  brand: "bg-brand text-brand-foreground hover:bg-brand/90",
+  signal: "bg-signal text-signal-foreground hover:bg-signal/90",
+  success: "bg-success text-success-foreground hover:bg-success/90",
+  warning: "bg-warning text-warning-foreground hover:bg-warning/90",
+  info: "bg-info text-info-foreground hover:bg-info/90",
+  violet: "bg-chart-6 text-white hover:bg-chart-6/90",
+};
+
+const TINT: Record<NonNullable<ActionPill["tone"]>, string> = {
+  brand: "border-brand/30 bg-brand/10 text-brand hover:bg-brand/15",
+  signal: "border-signal/30 bg-signal/10 text-signal hover:bg-signal/15",
+  success: "border-success/30 bg-success/10 text-success hover:bg-success/15",
+  warning: "border-warning/30 bg-warning/10 text-warning hover:bg-warning/15",
+  info: "border-info/30 bg-info/10 text-info hover:bg-info/15",
+  violet: "border-chart-6/30 bg-chart-6/10 text-chart-6 hover:bg-chart-6/15",
 };
 
 /**
@@ -40,12 +74,12 @@ export function ActionPills({
         <Link
           key={item.label}
           href={item.href}
-          className={`focus-ring inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+          className={`focus-ring inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
             item.weight === "primary"
-              ? "bg-brand text-brand-foreground hover:bg-brand/90"
+              ? `border-transparent ${SOLID[item.tone ?? "brand"]}`
               : item.weight === "secondary"
-                ? "bg-signal text-signal-foreground hover:bg-signal/90"
-                : "border bg-card text-foreground hover:border-brand/40 hover:bg-accent/40"
+                ? `border-transparent ${SOLID[item.tone ?? "signal"]}`
+                : TINT[item.tone ?? "brand"]
           }`}
         >
           <item.icon className="h-4 w-4" />

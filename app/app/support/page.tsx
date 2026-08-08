@@ -6,9 +6,8 @@ import {
   Boxes,
   Headset,
   MessageSquare,
-  PackageSearch,
   PlaneTakeoff,
-  ShoppingBag,
+  QrCode,
   TriangleAlert,
   Users,
 } from "lucide-react";
@@ -324,16 +323,19 @@ export default async function SupportHome() {
             // Shipments first: whatever the call is about, it starts with a
             // consignment. Collections second, because the next thing asked is
             // what it costs and whether it has been paid.
-            { href: "/app/shipments", label: "Shipments", icon: PlaneTakeoff, weight: "primary" },
-            { href: "/app/collections", label: "Collections", icon: Banknote, weight: "secondary" },
+            // Whatever the call is about it starts with a consignment, and the
+            // next thing asked is what it costs and whether it has been paid.
+            { href: "/app/shipments", label: "Shipments", icon: PlaneTakeoff, weight: "primary", tone: "brand" },
+            { href: "/app/collections", label: "Collections", icon: Banknote, weight: "secondary", tone: "signal" },
             // Investigations rather than Tickets: a case where cargo is
-            // missing or short is the thing this desk is rung about and has to
-            // reach in a hurry. Tickets keeps its sidebar row — it is worked
-            // through, not jumped to mid-call.
-            { href: "/app/exceptions", label: "Investigations", icon: TriangleAlert },
-            { href: "/app/support/sourcing", label: "Sourcing", icon: ShoppingBag },
-            { href: "/app/customers", label: "Customers", icon: Users },
-            { href: "/app/search", label: "Search cargo", icon: PackageSearch },
+            // missing or short is what this desk is rung about and has to
+            // reach mid-call. Tickets keeps its sidebar row.
+            { href: "/app/exceptions", label: "Investigations", icon: TriangleAlert, tone: "warning" },
+            // Sourcing came out: it has a sidebar row and is a slow job worked
+            // through a queue, not something reached with a customer waiting.
+            { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: QrCode, tone: "success" },
+            { href: "/app/customers", label: "Customers", icon: Users, tone: "info" },
+            { href: "/app/batches", label: "Batches", icon: Boxes, tone: "violet" },
           ]}
         />
       </div>
