@@ -297,29 +297,41 @@ const SECTIONS: NavSection[] = [
  * Every item still declares its permission and is still filtered below, so this
  * is a different arrangement of the same gates, never a way around them.
  */
+/**
+ * The Dar floor's menu, grouped the way the desk is organised.
+ *
+ * Same shape as the money desk and the support desk: Home on its own, the work
+ * in the kinds it comes in, and the record at the bottom outside any heading.
+ *
+ * The two ways in — Scan and Search — lead the Shipments group rather than
+ * sitting under "handover". They are not a stage of the work; they are how
+ * every job on this floor starts. A box arrives and somebody reads its label; a
+ * customer rings and somebody looks the number up.
+ *
+ * Every row already existed and every permission is unchanged. This is the same
+ * menu re-shelved, not a new set of doors.
+ */
 const DAR_SECTIONS: NavSection[] = [
   {
-    // Dashboard, then the two ways in.
-    //
-    // Scan and search are not a stage of the work — they are how every job on
-    // this floor starts: a box arrives and somebody reads its label, a customer
-    // asks and somebody looks the number up. Filed under "handover" they sat
-    // behind the one task that happens least. Dashboard keeps the top spot
-    // because that is where every app puts it and nobody should have to learn
-    // otherwise.
-    //
-    // They are not a stage of the work — they are how every job on this floor
-    // starts. A box arrives and somebody reads its label; a customer asks and
-    // somebody looks the number up. Filed under "handover" they sat behind the
-    // one task that happens least, which is the wrong way round for the two
-    // links this desk touches most.
-    title: "Find it",
+    title: "Top",
     items: [
       {
         href: "/app/dashboard",
         label: "Home",
         icon: "LayoutDashboard",
         exact: true,
+      },
+    ],
+  },
+  {
+    title: "Shipments",
+    group: { label: "Shipments", icon: "Boxes" },
+    items: [
+      {
+        href: "/app/search",
+        label: "Search",
+        icon: "Package",
+        permission: "shipment.view",
       },
       {
         href: "/app/scan",
@@ -334,30 +346,17 @@ const DAR_SECTIONS: NavSection[] = [
         permission: "shipment.release",
       },
       {
-        href: "/app/search",
-        label: "Search",
-        icon: "Package",
-        permission: "shipment.view",
-      },
-    ],
-  },
-  {
-    title: "Floor",
-    items: [
-      {
         href: "/app/receive",
         label: "Receiving Dock",
         icon: "PackagePlus",
         permission: "batch.receive",
       },
-      {
-        href: "/app/exceptions",
-        // Named for what the desk does there rather than the database word:
-        // it is where flagged cargo is chased until it is found or written off.
-        label: "Issues & Claims",
-        icon: "TriangleAlert",
-        permission: "exception.view",
-      },
+    ],
+  },
+  {
+    title: "Warehouse",
+    group: { label: "Warehouse", icon: "Warehouse" },
+    items: [
       {
         href: "/app/inventory",
         label: "Warehouse Inventory",
@@ -369,6 +368,20 @@ const DAR_SECTIONS: NavSection[] = [
         label: "Delivery History",
         icon: "History",
         permission: "delivery.history",
+      },
+    ],
+  },
+  {
+    title: "Support",
+    group: { label: "Support", icon: "MessageSquare" },
+    items: [
+      {
+        href: "/app/exceptions",
+        // Named for what the desk does there rather than the database word:
+        // it is where flagged cargo is chased until it is found or written off.
+        label: "Issues & Claims",
+        icon: "TriangleAlert",
+        permission: "exception.view",
       },
     ],
   },
@@ -386,7 +399,6 @@ const DAR_SECTIONS: NavSection[] = [
       },
     ],
   },
-
 ];
 
 /**

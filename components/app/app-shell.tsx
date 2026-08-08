@@ -39,6 +39,7 @@ import {
   SlidersHorizontal,
   Users,
   Wallet,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 
@@ -89,6 +90,7 @@ const ICONS: Record<string, LucideIcon> = {
   Tags,
   Trash2,
   TriangleAlert,
+  Warehouse,
 };
 
 type ShellUser = {
