@@ -408,7 +408,6 @@ const SUPPORT_SECTIONS: NavSection[] = [
     group: { label: "Billing", icon: "ReceiptText" },
     items: [
       { href: "/app/collections", label: "Collections", icon: "Banknote" },
-      { href: "/app/support/follow-up", label: "Payment Follow-up", icon: "PhoneCall" },
       { href: "/app/finance/pickup-notes", label: "Pickup Notes", icon: "QrCode" },
       // Read-only for this desk: they quote from the rate book and answer
       // "what will this cost", they do not set it. pricing.manage is Finance's.

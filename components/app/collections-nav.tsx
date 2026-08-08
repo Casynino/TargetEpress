@@ -14,7 +14,10 @@ import { cn } from "@/lib/utils";
  */
 const TABS = [
   { href: "/app/collections", label: "Dashboard", exact: true },
-  { href: "/app/collections/pending", label: "Awaiting payment" },
+  // The follow-up queue IS the call list: it knows each consignment's next
+  // action, carries the storage clock and can send the invoice. A second,
+  // thinner "awaiting payment" page beside it was two lists of one thing.
+  { href: "/app/support/follow-up", label: "The call list" },
   { href: "/app/collections/submissions?status=PENDING", label: "With Finance", match: "/app/collections/submissions" },
   { href: "/app/collections/submissions?status=VERIFIED", label: "Verified", match: "/app/collections/submissions", query: "VERIFIED" },
   { href: "/app/finance/pickup-notes", label: "Pickup notes" },

@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 
+import { CollectionsNav } from "@/components/app/collections-nav";
 import { PageHeader } from "@/components/app/page-header";
+import { SendInvoiceButton } from "@/components/app/send-invoice-button";
+import { can } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
 import { formatUsd } from "@/lib/fx";
 import { whatsappLink } from "@/lib/messages";
@@ -28,10 +31,33 @@ export default async function FollowUpPage({
 }: {
   searchParams: Promise<{ filter?: string }>;
 }) {
-  await requirePermission("ticket.manage");
+  const user = await requirePermission("ticket.manage");
+  const canSend = can(user.role, "invoice.send");
+  const canRecord = can(user.role, "payment.record");
+  const canCollect = !canRecord && can(user.role, "payment.submit");
   const { filter } = await searchParams;
 
   const rows = await followUpQueue();
+
+  /**
+   * What the customer reads. Built here rather than in the button so the
+   * figures come off the same row the clerk is looking at, and so nobody has
+   * to compose the same sentence eighty times a day.
+   */
+  const invoiceMessage = (row: (typeof rows)[number]) =>
+    [
+      `Habari ${row.customerName.split(" ")[0]},`,
+      `mzigo wako ${row.trackingNumber} (${row.description}) umefika Dar es Salaam.`,
+      row.outstanding !== null && row.outstandingLocal !== null
+        ? `Malipo: ${row.localCurrency} ${row.outstandingLocal.toLocaleString()}.`
+        : row.outstanding !== null
+          ? `Malipo: USD ${row.outstanding.toFixed(2)}.`
+          : "",
+      row.invoiceNumber ? `Ankara: ${row.invoiceNumber}.` : "",
+      "Target Express Air Cargo.",
+    ]
+      .filter(Boolean)
+      .join(" ");
   const active = (FOLLOW_UP_FILTERS.find((f) => f.key === filter)?.key ??
     "all") as FollowUpFilter;
   const visible = rows.filter((row) => matchesFilter(row, active));
@@ -48,6 +74,8 @@ export default async function FollowUpPage({
         title="Payment follow-up"
         description="Cargo sitting in Dar es Salaam, ordered by what needs a phone call most."
       />
+
+      <CollectionsNav />
 
       <div className="mb-4 flex flex-wrap gap-2">
         {FOLLOW_UP_FILTERS.map((option) => {
@@ -194,23 +222,64 @@ export default async function FollowUpPage({
                     <div className="text-[11px]">{row.lastContactKind.toLowerCase()}</div>
                   ) : null}
                 </td>
-                <td className="p-3 text-right">
-                  {row.customerPhone ? (
-                    <a
-                      href={whatsappLink(
-                        row.customerPhone,
-                        `Habari ${row.customerName.split(" ")[0]}, kuhusu mzigo wako ${row.trackingNumber}.`
-                      )}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
-                    >
-                      <MessageCircle className="h-3.5 w-3.5" />
-                      WhatsApp
-                    </a>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
+                <td className="p-3">
+                  {/* The next action, as something you can press. Every row
+                      said "Send the invoice" or "Chase payment" and then
+                      offered no way to do either. */}
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    {canSend &&
+                    row.invoiceId &&
+                    row.invoiceStatus !== "DRAFT" &&
+                    !row.invoiceSentAt ? (
+                      <SendInvoiceButton
+                        customerId={row.customerId}
+                        shipmentId={row.shipmentId}
+                        invoiceId={row.invoiceId}
+                        whatsapp={
+                          row.customerPhone
+                            ? whatsappLink(
+                                row.customerPhone,
+                                invoiceMessage(row)
+                              )
+                            : null
+                        }
+                        body={invoiceMessage(row)}
+                        alreadySent={false}
+                      />
+                    ) : null}
+
+                    {(canRecord || canCollect) &&
+                    row.invoiceId &&
+                    row.invoiceStatus !== "DRAFT" &&
+                    row.outstanding !== null &&
+                    row.outstanding > 0 ? (
+                      <Link
+                        href={
+                          canRecord
+                            ? `/app/cargo/${row.trackingNumber}`
+                            : `/app/collections/record/${row.invoiceId}`
+                        }
+                        className="focus-ring inline-flex items-center gap-1 rounded-full border border-brand/40 px-3 py-1.5 text-[11px] font-semibold text-brand transition-colors hover:bg-brand/10"
+                      >
+                        Record payment
+                      </Link>
+                    ) : null}
+
+                    {row.customerPhone ? (
+                      <a
+                        href={whatsappLink(
+                          row.customerPhone,
+                          `Habari ${row.customerName.split(" ")[0]}, kuhusu mzigo wako ${row.trackingNumber}.`
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`WhatsApp ${row.customerName}`}
+                        className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors hover:border-success/40 hover:text-success"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                      </a>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             ))}
