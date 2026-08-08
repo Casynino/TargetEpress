@@ -305,10 +305,56 @@ export default async function SupportHome() {
         </p>
       ) : null}
 
+      {/* Reference, not work — the shape of the desk's day, which nobody
+          acts on. Directly under the list because that is the order the
+          question comes in: what needs me, then how big is the desk today.
+          Not one of the four repeats a figure from the list above; that is
+          the rule that lets them sit this close to it. */}
+      <div className="mb-8 mt-7">
+        <SectionLabel action={{ href: "/app/customers", label: "All customers" }}>
+          The desk &middot; today
+        </SectionLabel>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            label="Customers"
+            numeric={overview.customers}
+            hint="On the books"
+            icon={Users}
+            tone="brand"
+            href="/app/customers"
+          />
+          <KpiCard
+            label="Active shipments"
+            numeric={overview.activeShipments}
+            hint="Registered, flying or waiting in Dar"
+            icon={Boxes}
+            tone="info"
+            href="/app/shipments"
+          />
+          <KpiCard
+            label="Ready for pickup"
+            numeric={overview.readyForPickup}
+            hint="Paid and waiting to be collected"
+            icon={Headset}
+            tone="success"
+            href="/app/support/follow-up?filter=ready"
+          />
+          <KpiCard
+            label="Contacted today"
+            numeric={overview.contactedToday}
+            hint="Calls and messages this desk recorded"
+            icon={MessageSquare}
+            tone="brand"
+          />
+        </div>
+      </div>
+
       {/* ---- The same queue, as a shape ---------------------------------
           Numbers tell you there are 92; a picture tells you 84 of them are
-          behind one desk. Both charts are drawn from the classification the
-          list above uses, so they cannot disagree with it. */}
+          behind one desk. Both charts are drawn from the same classification
+          the work list uses, so they cannot disagree with it — which is also
+          why they sit below the tiles rather than between them and the list:
+          the picture explains the queue, and the queue is read first. */}
       <div className="mb-8 mt-7">
         <SectionLabel action={{ href: "/app/support/follow-up", label: "Full queue" }}>
           Where the queue is stuck
@@ -387,49 +433,6 @@ export default async function SupportHome() {
               formatValue={(n) => `${n} consignment${n === 1 ? "" : "s"}`}
             />
           </section>
-        </div>
-      </div>
-
-      {/* Reference, not work. These four are the shape of the desk's day and
-          nobody acts on them — which is precisely why they sit BELOW the list
-          rather than above it, and why not one of them repeats a figure from
-          it. */}
-      <div className="mb-8 mt-7">
-        <SectionLabel action={{ href: "/app/customers", label: "All customers" }}>
-          The desk &middot; today
-        </SectionLabel>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard
-            label="Customers"
-            numeric={overview.customers}
-            hint="On the books"
-            icon={Users}
-            tone="brand"
-            href="/app/customers"
-          />
-          <KpiCard
-            label="Active shipments"
-            numeric={overview.activeShipments}
-            hint="Registered, flying or waiting in Dar"
-            icon={Boxes}
-            tone="info"
-            href="/app/shipments"
-          />
-          <KpiCard
-            label="Ready for pickup"
-            numeric={overview.readyForPickup}
-            hint="Paid and waiting to be collected"
-            icon={Headset}
-            tone="success"
-            href="/app/support/follow-up?filter=ready"
-          />
-          <KpiCard
-            label="Contacted today"
-            numeric={overview.contactedToday}
-            hint="Calls and messages this desk recorded"
-            icon={MessageSquare}
-            tone="brand"
-          />
         </div>
       </div>
 
