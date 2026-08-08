@@ -261,7 +261,12 @@ export default async function FollowUpPage({
                   ) : null}
                 </td>
                 <td className="p-3">
-                  {/* One icon per thing you can do, all the same size.
+                  {/* One icon per thing you can do, all the same size, each
+                      carrying its own colour so the hand can find it without
+                      reading: green message, blue money, violet download, amber
+                      bill. Deliberately not `info` for any of them — it is 205°
+                      against brand's 213° and the two read as one colour at
+                      14px.
                       "Send invoice" and "Remind" both opened WhatsApp with the
                       identical message — one action wearing two buttons, and
                       the row was wide enough to make you read both before
@@ -322,7 +327,7 @@ export default async function FollowUpPage({
                           href={`/app/finance/invoices/${row.invoiceNumber}/pdf`}
                           title={`Download ${row.invoiceNumber} as a PDF`}
                           aria-label={`Download ${row.invoiceNumber}`}
-                          className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors hover:border-brand/40 hover:text-brand"
+                          className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-chart-6/40 text-chart-6 transition-colors hover:bg-chart-6/10"
                         >
                           <Download className="h-3.5 w-3.5" />
                         </a>
@@ -330,7 +335,7 @@ export default async function FollowUpPage({
                           href={`/app/finance/invoices/${row.invoiceId}`}
                           title={`Open ${row.invoiceNumber}`}
                           aria-label={`Open ${row.invoiceNumber}`}
-                          className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors hover:border-brand/40 hover:text-brand"
+                          className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-warning/40 text-warning transition-colors hover:bg-warning/10"
                         >
                           <FileText className="h-3.5 w-3.5" />
                         </Link>
