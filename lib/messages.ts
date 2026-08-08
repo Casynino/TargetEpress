@@ -128,7 +128,7 @@ function moneyMessage(context: MessageContext, opening: string) {
     ``,
     opening,
     ``,
-    bold("Maelezo ya Mzigo"),
+    `📋 ${bold("Maelezo ya Mzigo")}`,
     ...(tracking ? [`• ${bold("Tracking No.:")} ${tracking}`] : []),
     ...(context.invoiceNumber
       ? [`• ${bold("Invoice No.:")} ${context.invoiceNumber}`]
@@ -139,25 +139,25 @@ function moneyMessage(context: MessageContext, opening: string) {
       : []),
     ...(context.exchangeRate
       ? [
-          `• ${bold("Rate iliyotumika:")} USD 1 = TZS ${context.exchangeRate.toLocaleString("en-US")}`,
+          `• ${bold("Rate:")} USD 1 = TZS ${context.exchangeRate.toLocaleString("en-US")}`,
         ]
       : []),
-    `• ${bold("Kiasi cha kulipa:")} ${bold(money(context))}`,
+    `• ${bold("Kiasi:")} ${bold(money(context))}`,
     ``,
     `📄 ${bold("Angalia invoice yako kamili:")}`,
     `🔗 ${TRACK_URL}${tracking ? `?q=${encodeURIComponent(tracking)}` : ""}`,
     ``,
-    bold("Njia za Malipo"),
+    `💳 ${bold("Njia za Malipo")}`,
     ``,
     ...paymentBlock(bold),
-    `Baada ya kufanya malipo, tafadhali tuma uthibitisho wa malipo ili timu yetu iweze kuuhakiki. Malipo yakishathibitishwa, utapokea ${bold("Pickup Note")} ya kuchukua mzigo wako.`,
+    `Baada ya kufanya malipo, tafadhali tuma ${bold("uthibitisho wa malipo")} ili timu yetu iweze kuuhakiki. Malipo yakishathibitishwa, utapokea ${bold("Pickup Note")} ya kuchukua mzigo wako.`,
     ``,
-    `⚠️ Tafadhali chukua mzigo wako mapema ili kuepuka gharama za storage.`,
+    `⚠️ ${bold("Tafadhali chukua mzigo wako mapema ili kuepuka gharama za storage.")}`,
     ``,
     ...officeBlock(bold),
     `Asante kwa kutumia ${bold(COMPANY.name)}.`,
     ``,
-    `📞 ${COMPANY.phone}`,
+    `📞 ${bold(COMPANY.phone)}`,
   ]
     .join("\n")
     .replace(/\n{3,}/g, "\n\n");
@@ -286,13 +286,29 @@ function paymentBlock(bold: (text: string) => string) {
   ]);
 }
 
-/** Where to find us, from configuration — never typed into a template. */
+/**
+ * Where to find us, laid out so somebody could actually go there.
+ *
+ * One line per address put the street, the landmark and the city in a single
+ * run that WhatsApp wrapped wherever it ran out of room — usually mid-street.
+ * An address is scanned in the shape it is written on an envelope, so it is
+ * written that way.
+ *
+ * The breaks come from configuration rather than from splitting the one-line
+ * version on commas: guessing where an address divides gets it wrong for the
+ * next office added.
+ */
 function officeBlock(bold: (text: string) => string) {
   const dar = COMPANY.offices[0];
+  const china = COMPANY.chinaOffice;
   return [
-    bold("Ofisi zetu:"),
-    `Dar es Salaam: ${dar.address}`,
-    `Guangzhou: ${COMPANY.chinaOffice.addressEn}`,
+    `📍 ${bold("OFISI ZETU")}`,
+    ``,
+    `${dar.flag} ${bold(`${dar.city.toUpperCase()} — ${dar.country}`)}`,
+    ...dar.lines,
+    ``,
+    `${china.flag} ${bold(`${china.city.toUpperCase()} — ${china.country}`)}`,
+    ...china.lines,
     ``,
   ];
 }

@@ -70,6 +70,22 @@ export const COMPANY = {
       name: "Dar es Salaam office",
       address:
         "Kariakoo, Agrey & Ndanda Street Opposite na Mkombozi Bank Dar es Salaam, Tanzania",
+      /**
+       * The same address broken where a person would break it.
+       *
+       * One long string is right for a footer and wrong for a WhatsApp
+       * message, where it wraps mid-street-name and a customer trying to find
+       * the place reads a paragraph instead of an address. Splitting the
+       * single string on commas at render time would be guesswork; these are
+       * the breaks the owner wrote.
+       */
+      lines: [
+        "Kariakoo, Agrey & Ndanda Street,",
+        "Opposite Mkombozi Bank,",
+        "Dar es Salaam, Tanzania.",
+      ],
+      country: "TANZANIA",
+      flag: "🇹🇿",
       note: "Collection point.",
       phones: ["+255 688 887 784", "+255 628 430 911"],
     },
@@ -83,6 +99,13 @@ export const COMPANY = {
     addressEn:
       "ECAT Cultural Park, Huanzhou 3rd Road, Jinshazhou, Baiyun District, Guangzhou",
     rooms: "Building B, Rooms 121 & 218",
+    lines: [
+      "ECAT Cultural Park,",
+      "Huanzhou 3rd Road, Jinshazhou,",
+      "Baiyun District, Guangzhou, China.",
+    ],
+    country: "CHINA",
+    flag: "🇨🇳",
     phones: ["+86 191 2866 4885", "+86 131 6834 2573", "+86 136 9970 9572"],
   },
 

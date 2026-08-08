@@ -356,6 +356,7 @@ model User {
   recordedExpenses      Expense[]               @relation("ExpenseRecordedBy")
   approvedExpenses      Expense[]               @relation("ExpenseApprovedBy")
   expenseReceipts       ExpenseReceipt[]
+  companySettings       CompanySetting[]
 
   @@index([role])
   @@index([department, active])
@@ -2033,4 +2034,24 @@ model PaymentSubmission {
 
   @@index([status, submittedAt])
   @@index([invoiceId])
+}
+
+/// Company details an owner can change without a deploy.
+///
+/// One row per group, JSON inside, because these are read together and edited
+/// together — a table of loose key/value pairs would need five queries to draw
+/// one letterhead.
+///
+/// DELIBERATELY A FALLBACK, NOT A REPLACEMENT. lib/constants.ts still holds the
+/// real values and is what every surface reads when this table is empty, so an
+/// empty database renders exactly what the code always did. That matters: a
+/// missing row must never blank the payment accounts on an invoice.
+model CompanySetting {
+  /// "payment", "addresses", "contact".
+  key   String @id
+  value Json
+
+  updatedById String?
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedAt   DateTime @updatedAt
 }
