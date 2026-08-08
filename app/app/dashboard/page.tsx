@@ -822,6 +822,90 @@ async function DarDashboard({
         />
       </div>
 
+      {/* The floor, in the five states cargo can be in between the plane and
+          the customer.
+          "Released today" used to hold the fourth slot and is now a line on
+          the pickup card: it is the same shelf, and the number the floor is
+          judged on is what is still standing there, not what has gone. The
+          slot it freed went to aging stock, which nobody else shows this desk
+          and which is the only figure here that costs the customer money. */}
+      <div>
+        <SectionLabel action={{ href: "/app/inventory", label: "The floor" }}>
+          The floor &middot; right now
+        </SectionLabel>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <KpiCard
+          delay={0}
+          label="Incoming shipments"
+          numeric={stats.incoming}
+          hint={
+            stats.batchesInAir
+              ? `${stats.batchesInAir} batch(es) · ${formatWeight(stats.incomingWeightKg)} in the air`
+              : "Nothing in the air from China"
+          }
+          icon={Plane}
+          tone="info"
+          href="/app/receive"
+        />
+        <KpiCard
+          delay={1}
+          label="Awaiting verification"
+          numeric={stats.awaitingVerification}
+          hint={
+            stats.batchesOnFloor
+              ? `${stats.batchesOnFloor} batch(es) landed, not checked in`
+              : "Every landed batch is checked in"
+          }
+          icon={ClipboardCheck}
+          tone={stats.awaitingVerification ? "warning" : "success"}
+          href="/app/receive"
+        />
+        <KpiCard
+          delay={2}
+          label="Ready for pickup"
+          numeric={stats.readyForPickup}
+          hint={
+            stats.readyForPickup
+              ? `${stats.readyPackages} box(es) paid for · ${stats.releasedToday} handed over today`
+              : `Nothing to collect · ${stats.releasedToday} handed over today`
+          }
+          icon={Truck}
+          tone="success"
+          href="/app/pickup-queue"
+          ringPct={
+            floor.shipments ? (floor.cleared / floor.shipments) * 100 : 0
+          }
+          ringLabel="Share of held cargo cleared for collection"
+        />
+        <KpiCard
+          delay={3}
+          label={`Held over ${STORAGE_POLICY.freeDays} days`}
+          numeric={floor.aging}
+          hint={
+            floor.longestHeldDays > 0
+              ? `Longest standing ${floor.longestHeldDays} day(s) · storage is charged after ${STORAGE_POLICY.freeDays}`
+              : "Nothing has aged yet"
+          }
+          icon={Hourglass}
+          tone={floor.aging ? "danger" : "success"}
+          href="/app/inventory"
+        />
+        <KpiCard
+          delay={4}
+          label="Missing or damaged"
+          numeric={stats.openExceptions}
+          hint={
+            exceptionParts.length
+              ? exceptionParts.join(" · ")
+              : "Nothing flagged on the floor"
+          }
+          icon={AlertTriangle}
+          tone={stats.openExceptions ? "danger" : "success"}
+          href="/app/exceptions"
+        />
+        </div>
+      </div>
+
       <div>
         <SectionLabel action={{ href: "/app/inventory", label: "The floor" }}>
           The floor, in shape
@@ -923,96 +1007,15 @@ async function DarDashboard({
         </div>
       </div>
 
-      {/* The floor, in the five states cargo can be in between the plane and
-          the customer.
-          "Released today" used to hold the fourth slot and is now a line on
-          the pickup card: it is the same shelf, and the number the floor is
-          judged on is what is still standing there, not what has gone. The
-          slot it freed went to aging stock, which nobody else shows this desk
-          and which is the only figure here that costs the customer money. */}
+      {/* The cases themselves, by name and tracking number. Not a second
+          "Needs your attention" — that band counts them; this is which ones,
+          and the two would be the same heading over the same facts twice. */}
       <div>
-        <SectionLabel action={{ href: "/app/inventory", label: "The floor" }}>
-          The floor &middot; right now
-        </SectionLabel>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <KpiCard
-          delay={0}
-          label="Incoming shipments"
-          numeric={stats.incoming}
-          hint={
-            stats.batchesInAir
-              ? `${stats.batchesInAir} batch(es) · ${formatWeight(stats.incomingWeightKg)} in the air`
-              : "Nothing in the air from China"
-          }
-          icon={Plane}
-          tone="info"
-          href="/app/receive"
-        />
-        <KpiCard
-          delay={1}
-          label="Awaiting verification"
-          numeric={stats.awaitingVerification}
-          hint={
-            stats.batchesOnFloor
-              ? `${stats.batchesOnFloor} batch(es) landed, not checked in`
-              : "Every landed batch is checked in"
-          }
-          icon={ClipboardCheck}
-          tone={stats.awaitingVerification ? "warning" : "success"}
-          href="/app/receive"
-        />
-        <KpiCard
-          delay={2}
-          label="Ready for pickup"
-          numeric={stats.readyForPickup}
-          hint={
-            stats.readyForPickup
-              ? `${stats.readyPackages} box(es) paid for · ${stats.releasedToday} handed over today`
-              : `Nothing to collect · ${stats.releasedToday} handed over today`
-          }
-          icon={Truck}
-          tone="success"
-          href="/app/pickup-queue"
-          ringPct={
-            floor.shipments ? (floor.cleared / floor.shipments) * 100 : 0
-          }
-          ringLabel="Share of held cargo cleared for collection"
-        />
-        <KpiCard
-          delay={3}
-          label={`Held over ${STORAGE_POLICY.freeDays} days`}
-          numeric={floor.aging}
-          hint={
-            floor.longestHeldDays > 0
-              ? `Longest standing ${floor.longestHeldDays} day(s) · storage is charged after ${STORAGE_POLICY.freeDays}`
-              : "Nothing has aged yet"
-          }
-          icon={Hourglass}
-          tone={floor.aging ? "danger" : "success"}
-          href="/app/inventory"
-        />
-        <KpiCard
-          delay={4}
-          label="Missing or damaged"
-          numeric={stats.openExceptions}
-          hint={
-            exceptionParts.length
-              ? exceptionParts.join(" · ")
-              : "Nothing flagged on the floor"
-          }
-          icon={AlertTriangle}
-          tone={stats.openExceptions ? "danger" : "success"}
-          href="/app/exceptions"
-        />
-        </div>
-      </div>
-
-      <div>
-        <SectionLabel>Needs your attention</SectionLabel>
+        <SectionLabel>Flagged cargo &amp; inbound</SectionLabel>
         <div className="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
         <AlertQueue
           items={alerts}
-          description="Cargo on the Dar floor needing action"
+          description="The consignments behind the count above"
           emptyMessage="Floor is clear. Every batch checked in."
         />
 
