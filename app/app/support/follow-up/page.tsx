@@ -300,7 +300,15 @@ export default async function FollowUpPage({
                       </a>
                     ) : null}
 
-                    {row.customerPhone ? (
+                    {/* Only where a reminder is impossible.
+                        Two WhatsApp buttons on one row is a choice nobody
+                        should have to make: this one opens a bare "Habari X,
+                        kuhusu mzigo wako TX-000042", which tells the customer
+                        nothing and asks them for nothing. It earns its place
+                        on rows with no bill yet — where there is no amount to
+                        quote and the clerk is simply starting a conversation —
+                        and nowhere else. */}
+                    {row.customerPhone && !row.invoiceId ? (
                       <a
                         href={whatsappLink(
                           row.customerPhone,
