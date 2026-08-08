@@ -22,6 +22,7 @@ import {
   Timer,
   TrendingDown,
   Truck,
+  UserCog,
   Users,
   Wallet,
   Warehouse,
@@ -29,6 +30,7 @@ import {
 
 import { ActivityFeed } from "@/components/app/activity-feed";
 import { ActionPills, type ActionPill } from "@/components/app/action-pills";
+import { CargoSearch } from "@/components/app/cargo-search";
 import { AlertQueue } from "@/components/app/alert-queue";
 import { KpiCard } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
@@ -280,6 +282,14 @@ export default async function DashboardPage() {
                 ? "Here is the money, and what is waiting on you."
                 : "Here is what is happening at Target Express today."}
             </p>
+            {/* The same box the support desk opens on. Every desk that is not
+                holding the box finds one this way — a customer reads out a
+                number and it has to go somewhere without hunting for a page
+                first. Posts to /app/search rather than the support desk's own
+                search, which is gated on ticket.manage. */}
+            <div className="mt-4 max-w-2xl">
+              <CargoSearch action="/app/search" />
+            </div>
           </div>
           {/* Quick actions, offered only where the role actually does them.
               Styled against the gradient rather than the page, or a solid
@@ -1121,7 +1131,6 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     // record to read, and it is not even in the Finance tab row; this is a
     // job with people waiting on it.
     { href: "/app/finance/verify", label: "Verify payments", icon: ShieldCheck, tone: "info" },
-    { href: "/app/finance/accounts", label: "Accounts", icon: Landmark, tone: "violet" },
     { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: QrCode, tone: "success" },
     { href: "/app/collections/follow-up", label: "Payment follow-up", icon: Clock, tone: "warning" },
   ];
@@ -1427,12 +1436,15 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     <div className="space-y-7">
       <ActionPills
         items={[
-          { href: "/app/finance/transactions", label: "The Ledger", icon: Landmark, weight: "primary" },
-          { href: "/app/finance/reports", label: "Profit & loss", icon: TrendingDown, weight: "secondary" },
-          { href: "/app/shipments", label: "Shipments", icon: Package },
-          { href: "/app/batches", label: "Batches", icon: Plane },
-          { href: "/app/customers", label: "Customers", icon: Users },
-          { href: "/app/users", label: "People", icon: Users },
+          { href: "/app/finance/transactions", label: "The Ledger", icon: Landmark, weight: "primary", tone: "signal" },
+          { href: "/app/finance/reports", label: "Profit & loss", icon: TrendingDown, weight: "secondary", tone: "success" },
+          { href: "/app/shipments", label: "Shipments", icon: Package, tone: "brand" },
+          { href: "/app/batches", label: "Batches", icon: Plane, tone: "violet" },
+          { href: "/app/customers", label: "Customers", icon: Users, tone: "info" },
+          // Was /app/users, which is not a route -- a 404 on the owner's own
+          // dashboard. The page is /app/admin/users, and the sidebar calls it
+          // Staff, so this does too.
+          { href: "/app/admin/users", label: "Staff", icon: UserCog, tone: "warning" },
         ]}
       />
 

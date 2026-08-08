@@ -18,7 +18,8 @@ import { SectionLabel } from "@/components/app/section-label";
 import { WorkList, type WorkItem } from "@/components/app/work-list";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Donut } from "@/components/charts/donut";
-import { QuickAction, SupportSearch } from "@/components/app/support-forms";
+import { CargoSearch } from "@/components/app/cargo-search";
+import { QuickAction } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
@@ -312,7 +313,7 @@ export default async function SupportHome() {
             number they are calling from, a batch or an invoice.
           </p>
           <div className="mt-4 max-w-2xl">
-            <SupportSearch action="/app/support/search" />
+            <CargoSearch action="/app/support/search" />
           </div>
         </div>
       </div>

@@ -529,31 +529,6 @@ export function SourcingWorkflow({
 
 /* ------------------------------------------------------------ search box */
 
-export function SupportSearch({
-  action,
-  defaultValue,
-  placeholder,
-}: {
-  action: string;
-  defaultValue?: string;
-  placeholder?: string;
-}) {
-  return (
-    <form action={action} className="flex gap-2">
-      <Input
-        name="q"
-        defaultValue={defaultValue}
-        placeholder={
-          placeholder ?? "Tracking number, customer name, phone, batch or invoice"
-        }
-        className="flex-1"
-        autoComplete="off"
-      />
-      <Button type="submit">Search</Button>
-    </form>
-  );
-}
-
 export function QuickAction({
   href,
   label,

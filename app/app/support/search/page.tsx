@@ -4,7 +4,7 @@ import { SearchX } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
-import { SupportSearch } from "@/components/app/support-forms";
+import { CargoSearch } from "@/components/app/cargo-search";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatWeight, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
@@ -40,7 +40,7 @@ export default async function SupportSearchPage({
       />
 
       <div className="mb-6 rounded-xl border bg-card p-4 shadow-soft">
-        <SupportSearch action="/app/support/search" defaultValue={q} />
+        <CargoSearch action="/app/support/search" defaultValue={q} />
       </div>
 
       {q ? (
