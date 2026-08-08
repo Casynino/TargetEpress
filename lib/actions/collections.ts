@@ -8,6 +8,7 @@ import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { nextSubmissionNumber } from "@/lib/ids";
 import { prisma } from "@/lib/prisma";
+import { filesFrom, putDocument } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
 import { toNumber } from "@/lib/format";
 import { fail, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -84,6 +85,36 @@ export async function submitPaymentForVerification(
   const input = parsed.data;
   const ip = await callerIp();
 
+  /**
+   * The customer's evidence. The whole point of the record.
+   *
+   * Uploaded before the transaction opens, exactly as recordPayment does it: a
+   * file crossing the network must not hold a row lock on an invoice, and a
+   * proof that fails to store has to fail the submission loudly rather than
+   * leaving Finance a claim with evidence nobody can find.
+   */
+  let proofs: { url: string; contentType: string; bytes: number; filename: string }[];
+  try {
+    const files = filesFrom(formData, "proof");
+    proofs = await Promise.all(
+      files.map(async (file) => {
+        const stored = await putDocument(file, "proof");
+        return { ...stored, filename: file.name || "proof" };
+      })
+    );
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  // A submission with nothing attached is a typed assertion that money arrived.
+  // Finance would be agreeing to it on somebody's word, which is the one thing
+  // this whole workflow exists to stop.
+  if (proofs.length === 0) {
+    return fail(
+      "Attach what the customer sent — the screenshot, the slip, the bank confirmation. Finance cannot verify a reference on its own."
+    );
+  }
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.findUnique({
@@ -134,6 +165,15 @@ export async function submitPaymentForVerification(
           reference: input.reference,
           note: input.note || null,
           submittedById: user.id,
+          proofs: {
+            create: proofs.map((proof) => ({
+              url: proof.url,
+              contentType: proof.contentType,
+              bytes: proof.bytes,
+              filename: proof.filename,
+              uploadedById: user.id,
+            })),
+          },
         },
         select: { id: true, submissionNumber: true },
       });
@@ -151,6 +191,7 @@ export async function submitPaymentForVerification(
             invoiceNumber: invoice.invoiceNumber,
             trackingNumber: invoice.shipment.trackingNumber,
             reference: input.reference,
+            proofs: proofs.length,
           },
         },
         tx
