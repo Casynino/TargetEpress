@@ -90,6 +90,60 @@ function money(context: MessageContext) {
 }
 
 /** Composes the message body for a kind. Editable before it is sent. */
+/**
+ * The two messages that ask a customer for money, in one shape.
+ *
+ * An invoice being issued and a payment being chased are the same conversation
+ * at two moments: here is the cargo, here is the amount, here is where to send
+ * it. Only the opening line differs, so only the opening line is passed in —
+ * two hand-written versions of this drift apart within a month, and the one
+ * that drifts is the one a customer reads.
+ *
+ * Swahili only. The bilingual version doubled the length of a WhatsApp
+ * message, and a customer scrolling past an English copy of what they just
+ * read stops reading.
+ *
+ * Laid out for WhatsApp: asterisks are its bold, a blank line is its
+ * paragraph. Two accounts, not all five — this is a nudge attached to an
+ * invoice, and the full list belongs on the follow-up queue's reminder, which
+ * is the message sent when somebody has stopped paying attention.
+ */
+function moneyMessage(context: MessageContext, opening: string) {
+  const name = firstName(context.customerName);
+  const tracking = context.trackingNumber ?? "";
+  const mobile = PAYMENT_ACCOUNTS.mobileMoney[0];
+  const bank = PAYMENT_ACCOUNTS.banks[0];
+
+  return [
+    `📦 *${COMPANY.name.toUpperCase()}*`,
+    ``,
+    `*Habari ${name},*`,
+    ``,
+    opening,
+    ``,
+    ...(tracking ? [`• *Tracking No.:* ${tracking}`] : []),
+    ...(context.invoiceNumber
+      ? [`• *Invoice No.:* ${context.invoiceNumber}`]
+      : []),
+    `• *Kiasi:* *${money(context)}*`,
+    ``,
+    `📄 *Angalia maelezo ya malipo hapa:*`,
+    `🔗 ${TRACK_URL}${tracking ? `?q=${encodeURIComponent(tracking)}` : ""}`,
+    ``,
+    `*Njia za malipo:*`,
+    `• *${label(mobile.provider)}:* ${mobile.number}`,
+    `• *${label(bank.bank)}:* ${bank.accounts[0].number}`,
+    ``,
+    `Ikiwa bado hujafanya malipo, tafadhali ukipata nafasi unaweza kukamilisha malipo yako. Baada ya kuthibitishwa, tutakutumia *Pickup Note* ya kuchukua mzigo wako.`,
+    ``,
+    `Asante kwa kutumia *${COMPANY.name}.*`,
+    ``,
+    `📞 ${COMPANY.phone}`,
+  ]
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 export function composeMessage(
   kind: MessageKind,
   context: MessageContext
@@ -129,25 +183,15 @@ export function composeMessage(
       );
 
     case "INVOICE_ISSUED":
-      return (
-        `Habari ${name}, ankara yako ${context.invoiceNumber ?? ""} ya mzigo ${tracking} ` +
-        `ni ${money(context)}.\n` +
-        `Lipa kupitia: ${PAYMENT_ACCOUNTS.mobileMoney[0].provider} ${PAYMENT_ACCOUNTS.mobileMoney[0].number} ` +
-        `au ${PAYMENT_ACCOUNTS.banks[0].bank} ${PAYMENT_ACCOUNTS.banks[0].accounts[0].number}.\n` +
-        `Mzigo hutolewa baada ya malipo kukamilika.\n\n` +
-        `Hello ${name}, invoice ${context.invoiceNumber ?? ""} for shipment ${tracking} ` +
-        `is ${money(context)}. Cargo is released once payment is confirmed.` +
-        sign
+      return moneyMessage(
+        context,
+        "Tunapenda kukukumbusha kuhusu malipo ya mzigo wako:"
       );
 
     case "PAYMENT_REMINDER":
-      return (
-        `Habari ${name}, tunakukumbusha kuhusu malipo ya ${money(context)} ` +
-        `kwa ankara ${context.invoiceNumber ?? ""} (mzigo ${tracking}). ` +
-        `Mzigo wako uko tayari na unatusubiri.\n\n` +
-        `Hello ${name}, a reminder that ${money(context)} is outstanding on invoice ` +
-        `${context.invoiceNumber ?? ""}. Your cargo is with us and waiting.` +
-        sign
+      return moneyMessage(
+        context,
+        "Tunakukumbusha kuwa malipo ya mzigo wako bado hayajakamilika:"
       );
 
     case "READY_FOR_PICKUP":
