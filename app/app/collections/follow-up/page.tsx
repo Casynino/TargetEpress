@@ -166,7 +166,6 @@ export default async function FollowUpPage({
               <th className="hidden p-3 font-medium lg:table-cell">In warehouse</th>
               <th className="p-3 font-medium">Owed</th>
               <th className="p-3 font-medium">Next action</th>
-              <th className="hidden p-3 font-medium xl:table-cell">Last contact</th>
               <th className="p-3 text-right font-medium">Reach them</th>
             </tr>
           </thead>
@@ -248,17 +247,6 @@ export default async function FollowUpPage({
                       </Link>
                     </div>
                   )}
-                </td>
-                <td className="hidden p-3 text-xs text-muted-foreground xl:table-cell">
-                  {row.lastContactAt
-                    ? new Date(row.lastContactAt).toLocaleDateString("en-GB", {
-                        day: "2-digit",
-                        month: "short",
-                      })
-                    : "never"}
-                  {row.lastContactKind ? (
-                    <div className="text-[11px]">{row.lastContactKind.toLowerCase()}</div>
-                  ) : null}
                 </td>
                 <td className="p-3">
                   {/* One icon per thing you can do, all the same size, each
@@ -347,7 +335,7 @@ export default async function FollowUpPage({
             ))}
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-10 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="p-10 text-center text-sm text-muted-foreground">
                   Nothing in this queue. Nothing to chase.
                 </td>
               </tr>
