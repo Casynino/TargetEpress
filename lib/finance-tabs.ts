@@ -30,6 +30,13 @@ export function financeTabs(role: Role): FinanceTab[] {
       visible: can(role, "account.view"),
     },
     {
+      href: "/app/finance/verify",
+      // Ahead of the register on purpose: a customer is waiting on each of
+      // these, and money nobody has agreed to is not in the books yet.
+      label: "Verify payments",
+      visible: can(role, "payment.verify"),
+    },
+    {
       href: "/app/finance/transactions",
       // One register. Payments-in and Expenses were two more readings of the
       // same movements, each with its own totals to reconcile by eye.

@@ -389,6 +389,15 @@ const SUPPORT_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: "Collections",
+    group: { label: "Collections", icon: "Banknote" },
+    items: [
+      { href: "/app/collections", label: "Collections", icon: "Banknote", exact: true },
+      { href: "/app/collections/pending", label: "Awaiting Payment", icon: "PhoneCall" },
+      { href: "/app/collections/submissions", label: "Submitted", icon: "ReceiptText" },
+    ],
+  },
+  {
     title: "Cargo",
     group: { label: "Cargo & Shipments", icon: "Boxes" },
     items: [
@@ -452,9 +461,7 @@ const REDUNDANT_ROWS: Partial<Record<Role, string[]>> = {
  * else are the same rows, and a second copy of them is a second place to
  * forget to change.
  */
-const SECTION_ORDER: Partial<Record<Role, string[]>> = {
-  CUSTOMER_CARE: ["Support desk", "Work", "Finance"],
-};
+const SECTION_ORDER: Partial<Record<Role, string[]>> = {};
 
 /** Drops every item and every empty section the role cannot reach. */
 export function navForRole(role: Role): NavSection[] {

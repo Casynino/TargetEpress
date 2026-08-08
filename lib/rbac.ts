@@ -56,6 +56,8 @@ export type Permission =
   | "accounting.view"
   /** Hand a customer's payment proof to Finance. Moves no money. */
   | "payment.submit"
+  /** The collections workspace: chasing customers and handing proof to Finance. */
+  | "collections.view"
   /** Agree that a submitted payment is real, and record it. Finance only. */
   | "payment.verify"
   | "exception.view"
@@ -280,6 +282,7 @@ const CUSTOMER_CARE: Permission[] = [
   // says it did. And no accounting.view — they chase invoices, they do not
   // keep the books.
   "payment.submit",
+  "collections.view",
   "message.send",
   "ticket.manage",
   "sourcing.manage",
@@ -299,6 +302,7 @@ const FINANCE: Permission[] = [
   // Finance both submits (they take payments at the counter) and verifies.
   "payment.submit",
   "payment.verify",
+  "collections.view",
   "shipment.view",
   "shipment.viewInternal",
   // No shipment.scan. Scanning is a warehouse action — somebody standing in
@@ -425,6 +429,9 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // action on raise / investigate / compensate / approve / close — so China
   // and a read-only visitor reach the same page and are offered nothing on it.
   { prefix: "/app/exceptions", permission: "exception.view" },
+  // Chasing customers is not accounting. This workspace is deliberately
+  // outside /app/finance so the desk that holds it cannot reach the books.
+  { prefix: "/app/collections", permission: "collections.view" },
   // The Dar warehouse floor. The arrivals board and the verification bench
   // belong to the desk that receives, so they carry the receiving permissions
   // rather than a new one each.
@@ -469,6 +476,7 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/finance/audit", permission: "audit.view" },
   // Reading the rate book is pricing.view; every mutation on that page is
   // separately gated on pricing.manage or fx.manage in its own action.
+  { prefix: "/app/finance/verify", permission: "payment.verify" },
   { prefix: "/app/finance/pricing", permission: "pricing.view" },
   // An invoice is the customer's bill, not the company's books. Customer
   // Support prices it, sends it and chases it, so it keeps the invoice-level

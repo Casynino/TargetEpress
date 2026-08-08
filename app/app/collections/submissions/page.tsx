@@ -1,0 +1,180 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+import { FileText, Paperclip } from "lucide-react";
+
+import { CollectionsNav } from "@/components/app/collections-nav";
+import { EmptyState } from "@/components/app/empty-state";
+import { PageHeader } from "@/components/app/page-header";
+import { Badge } from "@/components/ui/badge";
+import { submissionQueue } from "@/lib/collections";
+import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
+import { requirePermission } from "@/lib/session";
+
+export const metadata: Metadata = { title: "Submissions" };
+
+const FILTERS = [
+  { key: "PENDING", label: "With Finance" },
+  { key: "VERIFIED", label: "Verified" },
+  { key: "REJECTED", label: "Sent back" },
+  { key: "ALL", label: "Everything" },
+] as const;
+
+/**
+ * The desk's own collection history.
+ *
+ * Not an accounting ledger — a record of what this desk handed up and what came
+ * of it. Every row carries the evidence that went with it, so an argument four
+ * months from now is settled by opening the screenshot rather than by
+ * remembering.
+ */
+export default async function SubmissionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  await requirePermission("collections.view");
+  const { status } = await searchParams;
+
+  const active = FILTERS.find((f) => f.key === status)?.key ?? "PENDING";
+  const rows = await submissionQueue(
+    active === "ALL" ? null : (active as "PENDING" | "VERIFIED" | "REJECTED")
+  );
+
+  return (
+    <>
+      <PageHeader
+        title="Collection history"
+        description="What this desk has handed to Finance, and what they decided. The customer's evidence stays attached to every one."
+      />
+
+      <CollectionsNav status={active} />
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {FILTERS.map((filter) => (
+          <Link
+            key={filter.key}
+            href={`/app/collections/submissions?status=${filter.key}`}
+            className={`focus-ring rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+              active === filter.key
+                ? "border-brand bg-brand text-brand-foreground"
+                : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
+            }`}
+          >
+            {filter.label}
+          </Link>
+        ))}
+      </div>
+
+      {rows.length === 0 ? (
+        <EmptyState
+          title="Nothing here"
+          description="No submission matches that filter."
+        />
+      ) : (
+        <ul className="space-y-3">
+          {rows.map((row) => (
+            <li
+              key={row.id}
+              id={row.submissionNumber}
+              className="panel overflow-hidden scroll-mt-6"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b px-5 py-3.5">
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                    {row.invoice.customer.name}
+                    <Badge
+                      variant="outline"
+                      className={
+                        row.status === "VERIFIED"
+                          ? "border-success/40 font-normal text-success"
+                          : row.status === "REJECTED"
+                            ? "border-destructive/40 font-normal text-destructive"
+                            : "border-warning/40 font-normal text-warning"
+                      }
+                    >
+                      {row.status === "PENDING"
+                        ? "pending Finance verification"
+                        : row.status.toLowerCase()}
+                    </Badge>
+                  </p>
+                  <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
+                    {row.submissionNumber} · {row.invoice.invoiceNumber} ·{" "}
+                    {row.invoice.shipment.trackingNumber}
+                    {row.reference ? ` · ${row.reference}` : ""}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-display text-lg font-bold leading-none tabular">
+                    {formatMoney(toNumber(row.amount), row.currency)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {row.submittedBy?.name ?? "—"} ·{" "}
+                    {formatDateTime(row.submittedAt)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 px-5 py-3.5 sm:grid-cols-[1fr_auto]">
+                <div className="space-y-1.5 text-xs">
+                  {row.status === "VERIFIED" ? (
+                    <p className="text-success">
+                      Verified by {row.reviewedBy?.name ?? "Finance"}
+                      {row.reviewedAt ? ` on ${formatDateTime(row.reviewedAt)}` : ""}
+                      {row.payment?.receipt
+                        ? ` — receipt ${row.payment.receipt.receiptNumber}`
+                        : ""}
+                      .
+                    </p>
+                  ) : null}
+                  {row.status === "REJECTED" ? (
+                    <p className="text-destructive">
+                      Sent back by {row.reviewedBy?.name ?? "Finance"}:{" "}
+                      {row.rejectionReason ?? "no reason recorded"}
+                    </p>
+                  ) : null}
+                  {row.status === "PENDING" ? (
+                    <p className="text-muted-foreground">
+                      Waiting on Finance. Nothing is settled and no pickup note
+                      exists until they agree.
+                    </p>
+                  ) : null}
+                  {row.note ? (
+                    <p className="text-muted-foreground">{row.note}</p>
+                  ) : null}
+                </div>
+
+                {/* The evidence, always reachable. This is the point of the
+                    record — a typed reference proves nothing on its own. */}
+                <ul className="flex flex-wrap gap-2">
+                  {row.proofs.length === 0 ? (
+                    <li className="text-xs text-muted-foreground">
+                      no evidence attached
+                    </li>
+                  ) : (
+                    row.proofs.map((proof) => (
+                      <li key={proof.id}>
+                        <a
+                          href={proof.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="focus-ring inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:border-brand/40 hover:text-brand"
+                        >
+                          {proof.contentType.startsWith("image/") ? (
+                            <Paperclip className="h-3 w-3" />
+                          ) : (
+                            <FileText className="h-3 w-3" />
+                          )}
+                          {proof.filename ?? "Proof"}
+                        </a>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
