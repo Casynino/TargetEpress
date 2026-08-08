@@ -58,6 +58,12 @@ export type Permission =
   | "payment.submit"
   /** The collections workspace: chasing customers and handing proof to Finance. */
   | "collections.view"
+  /**
+   * Change what every customer is told: the collection accounts, the office
+   * addresses, the phone numbers. The CEO's alone — these appear on invoices,
+   * PDFs, WhatsApp messages and the public site simultaneously.
+   */
+  | "settings.manage"
   /** Agree that a submitted payment is real, and record it. Finance only. */
   | "payment.verify"
   | "exception.view"
@@ -367,6 +373,10 @@ const ALL: Permission[] = Array.from(
     "shipment.cancel",
     // Erasing a record for good. Nobody else has it, at any rank.
     "shipment.purge",
+    // What every customer is told: the collection accounts, the office
+    // addresses, the phones. One mistyped Lipa number sends every customer's
+    // money nowhere, so this stays with the owner and nobody else.
+    "settings.manage",
     // Approving a payout or a replacement, and declaring a case finished.
     // Held by nobody else — including the Dar floor, which the owner's CANNOT
     // list bars from closing compensation cases. Rather than try to tell a
@@ -432,6 +442,7 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // Chasing customers is not accounting. This workspace is deliberately
   // outside /app/finance so the desk that holds it cannot reach the books.
   { prefix: "/app/collections", permission: "collections.view" },
+  { prefix: "/app/admin/settings", permission: "settings.manage" },
   // The Dar warehouse floor. The arrivals board and the verification bench
   // belong to the desk that receives, so they carry the receiving permissions
   // rather than a new one each.

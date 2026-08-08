@@ -810,11 +810,23 @@ model Invoice {
   /// The USD→TZS rate used on this invoice, frozen at creation. Finance may
   /// override it for one invoice; the override is what is stored, and it is
   /// what any later reprint shows.
-  exchangeRate  Decimal? @db.Decimal(14, 4)
-  localCurrency String   @default("TZS")
+  exchangeRate Decimal? @db.Decimal(14, 4)
+
+  /// The collection accounts as they stood when this invoice was raised.
+  ///
+  /// An invoice is a legal document: the account a customer paid into must be
+  /// reproducible from the invoice, not from a settings table somebody edited
+  /// afterwards. Now that an owner can change a Lipa number without a deploy,
+  /// re-rendering last year's PDF would otherwise print this year's accounts
+  /// and quietly contradict the copy the customer is holding.
+  ///
+  /// Null on invoices raised before snapshots existed — those fall back to the
+  /// code constants, which is what they were printed with.
+  paymentSnapshot Json?
+  localCurrency   String   @default("TZS")
   /// total × exchangeRate, stored so the shilling figure the customer was given
   /// can never drift from what they were told.
-  totalLocal    Decimal? @db.Decimal(16, 2)
+  totalLocal      Decimal? @db.Decimal(16, 2)
 
   notes String?
 

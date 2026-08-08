@@ -16,6 +16,7 @@ import { AIRPORT_LABELS, CATEGORY_LABELS, METHOD_LABELS } from "@/lib/cargo";
 import {
   COMPANY,
   PAYMENT_ACCOUNTS,
+  PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
   STORAGE_POLICY,
 } from "@/lib/constants";
@@ -91,26 +92,54 @@ export default async function InvoicePage({
   // share one identity all the way to release.
   const qr = await shipmentQrDataUrl(shipment.qrToken, 220);
 
+  /**
+   * The invoice, as a message.
+   *
+   * Not the payment reminder — that one is a conversation about money and
+   * belongs on the follow-up queue. This is somebody handing over the bill:
+   * what it is, what it covers, what it comes to, and where to send it.
+   * Bolded for WhatsApp, blank lines between blocks, and each account on two
+   * lines because on this message the labels do the work the reminder does
+   * with three.
+   *
+   * The accounts come from PAYMENT_METHODS with their full labels, so this
+   * cannot drift from the reminder, the PDF or the public tracking page.
+   */
   const whatsappText = [
-    `Target Express Air Cargo — Invoice ${invoice.invoiceNumber}`,
-    `Shipment: ${shipment.trackingNumber}`,
-    `Cargo: ${CATEGORY_LABELS[shipment.cargoCategory]}${shipment.cargoType ? ` (${shipment.cargoType.name})` : ""}`,
-    `Weight: ${formatWeight(shipment.weightKg)} · ${formatPackages(shipment.packages, shipment.packageType)}`,
-    `Total: ${money(toNumber(invoice.total), currency)}` +
-      (totalLocal === null ? "" : ` (${formatLocal(totalLocal, localCurrency)})`),
+    `*${COMPANY.name.toUpperCase()}*`,
+    ``,
+    `*Invoice:* ${invoice.invoiceNumber}`,
+    `*Customer:* ${invoice.customer.name}`,
+    `*Shipment:* ${shipment.trackingNumber}`,
+    ``,
+    `*Cargo:* ${CATEGORY_LABELS[shipment.cargoCategory]}${shipment.cargoType ? ` (${shipment.cargoType.name})` : ""}`,
+    `*Weight:* ${formatWeight(shipment.weightKg)} · ${formatPackages(shipment.packages, shipment.packageType)}`,
+    ``,
+    `*Total:* ${money(toNumber(invoice.total), currency)}` +
+      (totalLocal === null ? "" : ` / ${formatLocal(totalLocal, localCurrency)}`),
     outstanding > 0
-      ? `Outstanding: ${money(outstanding, currency)}` +
-        (outstandingLocal === null ? "" : ` (${formatLocal(outstandingLocal, localCurrency)})`)
-      : "Paid in full — thank you.",
-    "",
-    "Payment options:",
-    ...PAYMENT_ACCOUNTS.mobileMoney.map(
-      (m) => `${m.provider}: ${m.number} (${m.accountName})`
-    ),
-    ...PAYMENT_ACCOUNTS.banks.flatMap((b) =>
-      b.accounts.map((a) => `${b.bank} ${a.currency}: ${a.number} (${b.accountName})`)
-    ),
-  ].join("\n");
+      ? `*Outstanding:* ${money(outstanding, currency)}` +
+        (outstandingLocal === null
+          ? ""
+          : ` / ${formatLocal(outstandingLocal, localCurrency)}`)
+      : `*Paid in full* — asante.`,
+    ``,
+    // Only worth printing while there is something to pay.
+    ...(outstanding > 0
+      ? [
+          `*Payment Options*`,
+          ``,
+          ...PAYMENT_METHODS.flatMap((account) => [
+            `*${account.label}*`,
+            `${account.number} — ${account.accountName}`,
+            ``,
+          ]),
+        ]
+      : []),
+  ]
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
 
   return (
     <div className="mx-auto max-w-3xl">

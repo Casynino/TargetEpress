@@ -216,6 +216,14 @@ const SECTIONS: NavSection[] = [
   {
     title: "Management",
     items: [
+      {
+        href: "/app/admin/settings",
+        label: "Company settings",
+        icon: "SlidersHorizontal",
+        // The accounts customers pay into and the offices they collect from.
+        // The owner's alone — see settings.manage.
+        permission: "settings.manage",
+      },
       // No Reports row here. It is a tab inside the General ledger, beside
       // Profit & loss — the two answer the same question from different ends
       // (what the business did, and what it earned doing it), and splitting

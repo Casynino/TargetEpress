@@ -19,6 +19,7 @@ import {
   nextPickupNoteNumber,
   nextReceiptNumber,
 } from "@/lib/ids";
+import { companySettings } from "@/lib/company-settings";
 import { prisma } from "@/lib/prisma";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { can } from "@/lib/rbac";
@@ -142,6 +143,16 @@ export async function generateInvoice(
         notes: storageDays
           ? `Includes ${storageDays} chargeable storage day(s) at ${STORAGE_POLICY.currency} ${STORAGE_POLICY.perDayUsd}/day.`
           : null,
+        /**
+         * The accounts as they stand at this moment, kept with the invoice.
+         *
+         * An invoice is a legal document: the account a customer paid into has
+         * to be reproducible from the invoice itself. Now that an owner can
+         * change a Lipa number from the settings page, re-rendering last
+         * year's PDF would otherwise print this year's accounts and quietly
+         * contradict the copy the customer is holding.
+         */
+        paymentSnapshot: (await companySettings()).accounts as Prisma.InputJsonValue,
       };
 
       const invoice = shipment.invoice

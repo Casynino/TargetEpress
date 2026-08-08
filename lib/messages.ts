@@ -116,6 +116,17 @@ function money(context: MessageContext) {
  *
  * Simple Swahili, at the owner's instruction: "Invoice", not "Ankara".
  */
+/**
+ * How both money messages open.
+ *
+ * One sentence, one place. The invoice going out and the reminder chasing it
+ * are the same news to the person receiving them — the cargo is here, safe,
+ * and waiting on payment — and two copies of that sentence drift apart the
+ * first time one is reworded.
+ */
+const ARRIVED_AND_HELD =
+  "Tunafurahi kukujulisha kuwa mzigo wako umefika salama kwenye *warehouse yetu ya Dar es Salaam* na uko tayari kuchukuliwa baada ya malipo kuthibitishwa.";
+
 function moneyMessage(context: MessageContext, opening: string) {
   const name = firstName(context.customerName);
   const tracking = context.trackingNumber ?? "";
@@ -202,10 +213,10 @@ export function composeMessage(
       );
 
     case "INVOICE_ISSUED":
-      return moneyMessage(
-        context,
-        "Tunapenda kukukumbusha kuhusu malipo ya mzigo wako:"
-      );
+      // The cargo has landed and is being held for payment. Both money
+      // messages open on that, because it is the fact the customer cares
+      // about — "we are reminding you" reads as a complaint about them.
+      return moneyMessage(context, ARRIVED_AND_HELD);
 
     case "PAYMENT_REMINDER":
       return moneyMessage(
@@ -344,7 +355,7 @@ export function paymentReminderSwahili(input: {
       amountLocal: input.amountLocal,
       localCurrency: input.localCurrency,
     },
-    "Tunapenda kukukumbusha kuhusu malipo ya mzigo wako."
+    ARRIVED_AND_HELD
   );
 }
 

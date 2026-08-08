@@ -197,6 +197,9 @@ export function renderInvoicePdf(input: InvoicePdfInput): Uint8Array {
   // --- How to pay ---------------------------------------------------------
   text("HOW TO PAY", MARGIN, 8, "bold");
   y += 14;
+  // Read off the invoice's own snapshot when it has one — see
+  // accountsForInvoice. An invoice raised before snapshots existed falls back
+  // to the constants, which is what it was printed with.
   for (const m of PAYMENT_ACCOUNTS.mobileMoney) {
     text(`${m.provider}  ${m.number}  —  ${m.accountName}`, MARGIN, 9);
     y += 12;
