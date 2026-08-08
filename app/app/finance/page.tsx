@@ -213,7 +213,7 @@ export default async function FinanceOverviewPage() {
       label: `${stats.unpaid + stats.partiallyPaid} bill${stats.unpaid + stats.partiallyPaid === 1 ? "" : "s"} unpaid`,
       detail: "Confirmed and sent — the customer still owes it",
       usd: stats.outstanding,
-      href: "/app/support/follow-up",
+      href: "/app/collections/follow-up",
       cta: "Chase",
       urgent: false,
     },
@@ -470,7 +470,7 @@ export default async function FinanceOverviewPage() {
               </p>
             </div>
             <Link
-              href="/app/support/follow-up"
+              href="/app/collections/follow-up"
               className="shrink-0 text-xs font-medium text-brand hover:underline"
             >
               Full chase queue →

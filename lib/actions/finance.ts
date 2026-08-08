@@ -649,7 +649,7 @@ export async function adjustInvoice(
 
     revalidatePath("/app/finance/invoices");
     revalidatePath(`/app/finance/invoices/${result.invoiceId}`);
-    revalidatePath("/app/support/follow-up");
+    revalidatePath("/app/collections/follow-up");
     return ok({ total: result.total });
   } catch (error) {
     return fail(toActionError(error));

@@ -640,13 +640,17 @@ async function darFloorStats() {
  * Delivery History and Reports are deliberately absent — they are read, not
  * started, and they are one click away in the sidebar. A shortcut row that
  * lists everything is a second sidebar, which helps nobody.
+ *
+ * Each destination keeps the colour it has everywhere else in the app — the
+ * Investigation Hub is amber on this floor, on the finance desk and on the
+ * support desk. Colour is only a landmark while it means the same thing twice.
  */
 const DAR_QUICK_ACTIONS: ActionPill[] = [
-  { href: "/app/receive", label: "Receiving dock", icon: PackagePlus, weight: "primary" },
-  { href: "/app/pickup-queue", label: "Pickup queue", icon: Truck, weight: "secondary" },
-  { href: "/app/search", label: "Find cargo", icon: PackageSearch },
-  { href: "/app/inventory", label: "Inventory", icon: Boxes },
-  { href: "/app/exceptions", label: "Investigation Hub", icon: AlertTriangle },
+  { href: "/app/receive", label: "Receiving dock", icon: PackagePlus, weight: "primary", tone: "brand" },
+  { href: "/app/pickup-queue", label: "Pickup queue", icon: Truck, weight: "secondary", tone: "signal" },
+  { href: "/app/search", label: "Find cargo", icon: PackageSearch, tone: "info" },
+  { href: "/app/inventory", label: "Inventory", icon: Boxes, tone: "violet" },
+  { href: "/app/exceptions", label: "Investigation Hub", icon: AlertTriangle, tone: "warning" },
 ];
 // Scanning is deliberately not in this row: it is already the big button in the
 // banner directly above, and the same action twice on one screen is the clutter
@@ -1069,7 +1073,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       label: `${unsettled} bill${unsettled === 1 ? "" : "s"} unpaid`,
       detail: "Confirmed and sent to the customer. The money has not arrived.",
       usd: stats.outstanding,
-      href: "/app/support/follow-up",
+      href: "/app/collections/follow-up",
       cta: "Chase",
       urgent: false,
     },
@@ -1099,15 +1103,21 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
    *
    * Pills rather than cards: a toolbar under the numbers, not a second
    * sidebar competing with them. The first two are the jobs — signing off
-   * prices and writing down a cost — and the rest are places to look.
+   * prices and writing down a cost — and the rest are places to look. That
+   * split is why the first two are solid and the other four are tinted: six
+   * filled colours side by side and nothing leads.
+   *
+   * Colours are per destination, not per position, and they match the other
+   * desks: pickup notes green wherever it appears, anything that means "chase
+   * this" amber. A pill that changes colour between screens is not a landmark.
    */
   const shortcuts: ActionPill[] = [
-    { href: "/app/shipments", label: "Confirm prices", icon: ClipboardCheck, weight: "primary" },
-    { href: "/app/finance/transactions", label: "Record a cost", icon: Banknote, weight: "secondary" },
-    { href: "/app/finance/payments", label: "Payments", icon: Wallet },
-    { href: "/app/finance/accounts", label: "Accounts", icon: Landmark },
-    { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: QrCode },
-    { href: "/app/support/follow-up", label: "Chase queue", icon: Clock },
+    { href: "/app/shipments", label: "Confirm prices", icon: ClipboardCheck, weight: "primary", tone: "brand" },
+    { href: "/app/finance/transactions", label: "Record a cost", icon: Banknote, weight: "secondary", tone: "signal" },
+    { href: "/app/finance/payments", label: "Payments", icon: Wallet, tone: "info" },
+    { href: "/app/finance/accounts", label: "Accounts", icon: Landmark, tone: "violet" },
+    { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: QrCode, tone: "success" },
+    { href: "/app/collections/follow-up", label: "Chase queue", icon: Clock, tone: "warning" },
   ];
 
   return (
@@ -1171,7 +1181,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
               ? "Every bill that has actually been raised is settled. Not the same as everything being billed."
               : "Confirmed, sent, and still unpaid."
           }
-          href="/app/support/follow-up"
+          href="/app/collections/follow-up"
         />
         <MoneyTile
           label="Spent this month"
@@ -1282,7 +1292,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
               </p>
             </div>
             <Button asChild variant="ghost" size="sm">
-              <Link href="/app/support/follow-up">Full chase queue</Link>
+              <Link href="/app/collections/follow-up">Full chase queue</Link>
             </Button>
           </header>
 

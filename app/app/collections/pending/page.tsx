@@ -10,5 +10,5 @@ import { redirect } from "next/navigation";
  * collapsing, so this one hands over rather than competing.
  */
 export default function AwaitingPaymentRedirect() {
-  redirect("/app/support/follow-up");
+  redirect("/app/collections/follow-up");
 }

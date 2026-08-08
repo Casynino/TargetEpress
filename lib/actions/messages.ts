@@ -103,7 +103,7 @@ export async function logCustomerMessage(
 
     revalidatePath(`/app/customers/${input.customerId}`);
     revalidatePath("/app/support");
-    revalidatePath("/app/support/follow-up");
+    revalidatePath("/app/collections/follow-up");
     if (input.invoiceId) revalidatePath(`/app/finance/invoices/${input.invoiceId}`);
     return ok({ id: created.id });
   } catch (error) {

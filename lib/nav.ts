@@ -152,20 +152,29 @@ const SECTIONS: NavSection[] = [
   {
     title: "Finance",
     items: [
-      // ONE row. Finance is a department, not a list of pages, and it has nine
-      // screens now — payments, accounts, the register, expenses, profit,
-      // pricing, pickup notes, audit. Nine sidebar rows would bury the rest of
-      // the app under one department, and half of them would be dead links for
-      // Support, who reaches this section too.
+      // Two rows, and only two. Chasing the money and recording it are
+      // different jobs done at different times of day, and each is a workspace
+      // with its own tabs — so each gets a door, and neither gets a door per
+      // screen inside it.
       //
+      // Collections was reachable only from the support desk's sidebar, which
+      // meant Finance — who chase more of these than Support do — had the
+      // permission (collections.view) and no way in. Their links to the chase
+      // list all landed on "That area is not yours".
+      {
+        href: "/app/collections",
+        label: "Collections",
+        icon: "Banknote",
+        permission: "collections.view",
+      },
       // Deliberately not `exact`, so the row stays lit on every screen inside
       // Finance. Which of them you are on is the tab row's job — it is right
       // above the numbers, where somebody moving between them is already
       // looking.
       //
-      // No Invoices row here either. An invoice belongs to the cargo it bills
-      // and is opened from there or from the dispatch — a list of invoice
-      // numbers on its own says nothing about which box it is or where.
+      // No Invoices row here. An invoice belongs to the cargo it bills and is
+      // opened from there or from the dispatch — a list of invoice numbers on
+      // its own says nothing about which box it is or where.
       {
         href: "/app/finance",
         // The sidebar names it by the accounting term, which is the clearer
@@ -200,7 +209,7 @@ const SECTIONS: NavSection[] = [
         permission: "sourcing.manage",
       },
       {
-        href: "/app/support/follow-up",
+        href: "/app/collections/follow-up",
         label: "Payment follow-up",
         icon: "PhoneCall",
         permission: "ticket.manage",

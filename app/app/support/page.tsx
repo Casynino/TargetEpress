@@ -167,11 +167,11 @@ export default async function SupportHome() {
 
   /** What the pile is made of, biggest blocker first. */
   const split = [
-    { label: "Waiting on Finance", rows: unconfirmed, tone: 4 as const, href: "/app/support/follow-up" },
-    { label: "Never billed", rows: unbilled, tone: 3 as const, href: "/app/support/follow-up?filter=not-invoiced" },
-    { label: "Never sent", rows: unsent, tone: 6 as const, href: "/app/support/follow-up?filter=not-sent" },
-    { label: "Awaiting payment", rows: chasing, tone: 1 as const, href: "/app/support/follow-up?filter=awaiting-payment" },
-    { label: "Paid, not collected", rows: settled, tone: 5 as const, href: "/app/support/follow-up?filter=ready" },
+    { label: "Waiting on Finance", rows: unconfirmed, tone: 4 as const, href: "/app/collections/follow-up" },
+    { label: "Never billed", rows: unbilled, tone: 3 as const, href: "/app/collections/follow-up?filter=not-invoiced" },
+    { label: "Never sent", rows: unsent, tone: 6 as const, href: "/app/collections/follow-up?filter=not-sent" },
+    { label: "Awaiting payment", rows: chasing, tone: 1 as const, href: "/app/collections/follow-up?filter=awaiting-payment" },
+    { label: "Paid, not collected", rows: settled, tone: 5 as const, href: "/app/collections/follow-up?filter=ready" },
   ].filter((slice) => slice.rows.length > 0);
 
   /**
@@ -211,7 +211,7 @@ export default async function SupportHome() {
       detail:
         "In the warehouse with no invoice at all, so the customer has not been asked for anything and storage is running.",
       aside: `oldest ${Math.max(...unbilled.map((r) => r.daysInWarehouse), 0)} days waiting`,
-      href: "/app/support/follow-up?filter=not-invoiced",
+      href: "/app/collections/follow-up?filter=not-invoiced",
       cta: "Raise the invoice",
       urgent: true,
     },
@@ -221,7 +221,7 @@ export default async function SupportHome() {
       detail:
         "Priced and confirmed, and the customer has still not been told what they owe.",
       usd: sum(unsent),
-      href: "/app/support/follow-up?filter=not-sent",
+      href: "/app/collections/follow-up?filter=not-sent",
       cta: "Send it",
       urgent: true,
     },
@@ -230,7 +230,7 @@ export default async function SupportHome() {
       label: `${chasing.length} customer${chasing.length === 1 ? "" : "s"} to chase`,
       detail: "Billed, sent, and the money has not arrived.",
       usd: sum(chasing),
-      href: "/app/support/follow-up?filter=awaiting-payment",
+      href: "/app/collections/follow-up?filter=awaiting-payment",
       cta: "Chase",
     },
     {
@@ -358,7 +358,7 @@ export default async function SupportHome() {
           waiting on Finance to confirm a price. You cannot bill{" "}
           {unconfirmed.length === 1 ? "it" : "them"} until they do —{" "}
           <Link
-            href="/app/support/follow-up"
+            href="/app/collections/follow-up"
             className="font-medium text-brand hover:underline"
           >
             see which
@@ -399,7 +399,7 @@ export default async function SupportHome() {
             hint="Paid and waiting to be collected"
             icon={Headset}
             tone="success"
-            href="/app/support/follow-up?filter=ready"
+            href="/app/collections/follow-up?filter=ready"
           />
           <KpiCard
             label="Contacted today"
@@ -418,7 +418,7 @@ export default async function SupportHome() {
           why they sit below the tiles rather than between them and the list:
           the picture explains the queue, and the queue is read first. */}
       <div className="mb-8 mt-7">
-        <SectionLabel action={{ href: "/app/support/follow-up", label: "Full queue" }}>
+        <SectionLabel action={{ href: "/app/collections/follow-up", label: "Full queue" }}>
           Where the queue is stuck
         </SectionLabel>
         <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr]">
@@ -510,7 +510,7 @@ export default async function SupportHome() {
                 </p>
               </div>
               <Link
-                href="/app/support/follow-up"
+                href="/app/collections/follow-up"
                 className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-brand hover:underline"
               >
                 Full queue
@@ -521,7 +521,7 @@ export default async function SupportHome() {
               {topOfQueue.map((row) => (
                 <li key={row.shipmentId}>
                   <Link
-                    href={`/app/support/follow-up?filter=all#${row.trackingNumber}`}
+                    href={`/app/collections/follow-up?filter=all#${row.trackingNumber}`}
                     className="flex flex-wrap items-center justify-between gap-3 p-4 transition-colors hover:bg-accent/40"
                   >
                     <div className="min-w-0">
@@ -619,7 +619,7 @@ export default async function SupportHome() {
                 hint="Customer wants something found in China"
               />
               <QuickAction
-                href="/app/support/follow-up?filter=invoice-needed"
+                href="/app/collections/follow-up?filter=invoice-needed"
                 label="Raise an invoice"
                 hint="Cargo that has landed but was never billed"
               />

@@ -458,6 +458,11 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // own throughput, not the company's numbers.
   { prefix: "/app/reports", permission: "warehouse.reports" },
   { prefix: "/app/support/sourcing", permission: "sourcing.manage" },
+  // The chase list moved to /app/collections/follow-up. This is the old URL,
+  // kept as a redirect — it has to be reachable by everyone who can reach
+  // where it now points, or the redirect is a wall for exactly the desks the
+  // move was for. Longest prefix wins, so this beats the /app/support rule.
+  { prefix: "/app/support/follow-up", permission: "collections.view" },
   { prefix: "/app/support", permission: "ticket.manage" },
   { prefix: "/app/finance/exchange-rate", permission: "fx.manage" },
   // NOTE: there is deliberately no /app/finance/compensation row. A guard for
