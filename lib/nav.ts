@@ -460,9 +460,125 @@ const SUPPORT_SECTIONS: NavSection[] = [
   },
 ];
 
+/**
+ * Finance's menu, grouped the way the desk is organised.
+ *
+ * They were on the shared menu, which is ordered for the desks that move
+ * cargo: Shipments and Batches came first and the two screens Finance actually
+ * lives in — Collections and the ledger — sat eighth and ninth. Grouped, the
+ * money is at the top where the job starts, and the cargo rows are still there
+ * for the half of the day spent answering "which box is this".
+ *
+ * Home and the audit log stand outside the groups on purpose. Home is where
+ * you start and the log is where you go to settle an argument; neither belongs
+ * under a heading, and a group of one is heavier than the row inside it.
+ *
+ * Every row already existed and every permission is declared and unchanged —
+ * this is the same menu re-shelved, not a new set of doors. The permissions are
+ * spelled out rather than assumed: this menu renders only for Finance today,
+ * and if that role ever narrows the sidebar should narrow with it rather than
+ * offering a door that refuses.
+ */
+const FINANCE_SECTIONS: NavSection[] = [
+  {
+    title: "Top",
+    items: [
+      { href: "/app/dashboard", label: "Home", icon: "LayoutDashboard", exact: true },
+    ],
+  },
+  {
+    title: "Finance",
+    // The order the day runs in: chase what is owed, record what came in, then
+    // release the cargo it paid for.
+    group: { label: "Finance", icon: "ReceiptText" },
+    items: [
+      {
+        href: "/app/collections",
+        label: "Collections",
+        icon: "Banknote",
+        permission: "collections.view",
+      },
+      {
+        href: "/app/finance",
+        label: "General ledger",
+        icon: "Wallet",
+        permission: "accounting.view",
+      },
+      {
+        href: "/app/finance/pickup-notes",
+        label: "Pickup notes",
+        icon: "QrCode",
+        permission: "pickupNote.view",
+      },
+    ],
+  },
+  {
+    title: "Shipments",
+    group: { label: "Shipments", icon: "Boxes" },
+    items: [
+      {
+        href: "/app/shipments",
+        label: "Shipments",
+        icon: "PlaneTakeoff",
+        permission: "batch.view",
+      },
+      {
+        href: "/app/batches",
+        label: "Batches",
+        icon: "Boxes",
+        permission: "batch.view",
+      },
+    ],
+  },
+  {
+    title: "Customers",
+    // Search before Customers: a customer on the phone reads out a tracking
+    // number far more often than Finance goes looking for the person.
+    group: { label: "Customers", icon: "Users" },
+    items: [
+      {
+        href: "/app/search",
+        label: "Search",
+        icon: "Package",
+        permission: "shipment.view",
+      },
+      {
+        href: "/app/customers",
+        label: "Customers",
+        icon: "Users",
+        permission: "customer.view",
+      },
+    ],
+  },
+  {
+    title: "Support",
+    group: { label: "Support & Issues", icon: "MessageSquare" },
+    items: [
+      {
+        href: "/app/exceptions",
+        label: "Issues & Claims",
+        icon: "TriangleAlert",
+        permission: "exception.view",
+      },
+    ],
+  },
+  {
+    title: "Audit",
+    items: [
+      {
+        href: "/app/admin/audit",
+        label: "Audit log",
+        icon: "History",
+        permission: "audit.view",
+      },
+    ],
+  },
+];
+
 const ROLE_SECTIONS: Partial<Record<Role, NavSection[]>> = {
   DAR_WAREHOUSE: DAR_SECTIONS,
   CUSTOMER_CARE: SUPPORT_SECTIONS,
+  FINANCE: FINANCE_SECTIONS,
 };
 
 /**
