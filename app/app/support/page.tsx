@@ -9,6 +9,7 @@ import {
   PackageSearch,
   PhoneCall,
   ShoppingBag,
+  TriangleAlert,
   Users,
 } from "lucide-react";
 
@@ -322,7 +323,11 @@ export default async function SupportHome() {
           items={[
             { href: "/app/collections", label: "Collections", icon: Banknote, weight: "primary" },
             { href: "/app/support/follow-up", label: "Chase queue", icon: PhoneCall, weight: "secondary" },
-            { href: "/app/support/tickets", label: "Tickets", icon: MessageSquare },
+            // Investigations rather than Tickets: a case where cargo is
+            // missing or short is the thing this desk is rung about and has to
+            // reach in a hurry. Tickets keeps its sidebar row — it is worked
+            // through, not jumped to mid-call.
+            { href: "/app/exceptions", label: "Investigations", icon: TriangleAlert },
             { href: "/app/support/sourcing", label: "Sourcing", icon: ShoppingBag },
             { href: "/app/customers", label: "Customers", icon: Users },
             { href: "/app/search", label: "Search cargo", icon: PackageSearch },
