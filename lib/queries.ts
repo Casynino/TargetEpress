@@ -148,6 +148,141 @@ export async function monthlyRevenue(now = new Date()) {
   };
 }
 
+/**
+ * How old the money owed to us is.
+ *
+ * "84 bills unpaid, TSh 25.4m" is a number nobody can act on. The first
+ * question a finance desk asks about it is how much is genuinely late, because
+ * a bill sent on Tuesday and a bill sent in March are not the same problem and
+ * only one of them is a bad debt forming.
+ *
+ * Aged from sentAt, not issuedAt: the clock starts when the customer was
+ * actually told what they owe. An invoice raised and never sent is not late,
+ * it is un-sent, which is a different failure and has its own tile.
+ *
+ * Drafts are excluded on purpose — a price Finance has not confirmed is not a
+ * debt, and counting it would inflate the one figure on this page that people
+ * make decisions from.
+ */
+export type AgeingBucket = {
+  key: string;
+  label: string;
+  /** Days since the customer was told, inclusive lower bound. */
+  from: number;
+  /** Exclusive upper bound; null means open-ended. */
+  to: number | null;
+  count: number;
+  usd: number;
+};
+
+export async function receivablesAgeing(now = new Date()) {
+  const rows = await prisma.invoice.findMany({
+    where: {
+      status: { in: ["UNPAID", "PARTIALLY_PAID"] },
+      sentAt: { not: null },
+    },
+    select: { total: true, amountPaid: true, sentAt: true },
+  });
+
+  const buckets: AgeingBucket[] = [
+    { key: "current", label: "This week", from: 0, to: 8, count: 0, usd: 0 },
+    { key: "week2", label: "8–14 days", from: 8, to: 15, count: 0, usd: 0 },
+    { key: "month", label: "15–30 days", from: 15, to: 31, count: 0, usd: 0 },
+    { key: "overdue", label: "Over 30 days", from: 31, to: null, count: 0, usd: 0 },
+  ];
+
+  let oldestDays = 0;
+  for (const row of rows) {
+    const outstanding = toNumber(row.total) - toNumber(row.amountPaid);
+    // A rounding tail is not a debt. Anything under a cent is settled.
+    if (outstanding <= 0.005) continue;
+
+    const days = Math.max(
+      0,
+      Math.floor((now.getTime() - row.sentAt!.getTime()) / 86_400_000)
+    );
+    if (days > oldestDays) oldestDays = days;
+
+    const bucket =
+      buckets.find((b) => days >= b.from && (b.to === null || days < b.to)) ??
+      buckets[buckets.length - 1];
+    bucket.count += 1;
+    bucket.usd += outstanding;
+  }
+
+  const totalUsd = buckets.reduce((sum, b) => sum + b.usd, 0);
+  const lateUsd = buckets
+    .filter((b) => b.key !== "current")
+    .reduce((sum, b) => sum + b.usd, 0);
+
+  return {
+    buckets,
+    totalUsd,
+    lateUsd,
+    /** The share of what is owed that is already past a week. */
+    latePct: totalUsd > 0 ? (lateUsd / totalUsd) * 100 : 0,
+    oldestDays,
+    count: buckets.reduce((sum, b) => sum + b.count, 0),
+  };
+}
+
+/**
+ * Money in against money out, month by month.
+ *
+ * Collections alone answered "are we billing", never "are we keeping any of
+ * it". A month where TSh 30m came in and TSh 29m went out looks identical to a
+ * quiet one on a chart with a single series, and those are the two months a
+ * business most needs to tell apart.
+ *
+ * In is what actually arrived (payments), not what was billed. Out is expenses
+ * by the date they were incurred, voided ones excluded — the same basis the
+ * ledger uses, so this chart and the register cannot disagree.
+ */
+export async function cashFlowByMonth(now = new Date()) {
+  const year = now.getFullYear();
+  const from = new Date(Date.UTC(year, 0, 1));
+
+  const [inRows, outRows] = await Promise.all([
+    prisma.$queryRaw<{ month: number; total: Prisma.Decimal }[]>(
+      Prisma.sql`
+        SELECT
+          EXTRACT(MONTH FROM "paidAt")::int                      AS month,
+          COALESCE(SUM(COALESCE("creditedAmount", "amount")), 0) AS total
+        FROM "Payment"
+        WHERE "paidAt" >= ${from}
+        GROUP BY 1
+        ORDER BY 1
+      `
+    ),
+    prisma.$queryRaw<{ month: number; total: Prisma.Decimal }[]>(
+      Prisma.sql`
+        SELECT
+          EXTRACT(MONTH FROM "incurredAt")::int AS month,
+          COALESCE(SUM("amountUsd"), 0)         AS total
+        FROM "Expense"
+        WHERE "incurredAt" >= ${from}
+          AND "status" <> 'VOID'
+        GROUP BY 1
+        ORDER BY 1
+      `
+    ),
+  ]);
+
+  const moneyIn = Array.from({ length: 12 }, () => 0);
+  const moneyOut = Array.from({ length: 12 }, () => 0);
+  for (const row of inRows) moneyIn[row.month - 1] = toNumber(row.total);
+  for (const row of outRows) moneyOut[row.month - 1] = toNumber(row.total);
+
+  const upto = now.getMonth() + 1;
+  return {
+    labels: MONTHS.slice(0, upto),
+    moneyIn: moneyIn.slice(0, upto),
+    moneyOut: moneyOut.slice(0, upto),
+    net: moneyIn.slice(0, upto).map((v, i) => v - moneyOut[i]),
+    currentIndex: now.getMonth(),
+  };
+}
+
 /** Batch weight utilisation — how full the batches we flew actually were. */
 export async function batchUtilisation(take = 8) {
   const batches = await prisma.batch.findMany({

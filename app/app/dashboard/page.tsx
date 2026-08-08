@@ -38,7 +38,9 @@ import { SectionLabel } from "@/components/app/section-label";
 import { StatStrip } from "@/components/app/stat-strip";
 import { WorkList, type WorkItem } from "@/components/app/work-list";
 import { AreaChart } from "@/components/charts/area-chart";
+import { AgeingBar } from "@/components/charts/ageing-bar";
 import { BarChart } from "@/components/charts/bar-chart";
+import { FlowBars } from "@/components/charts/flow-bars";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -70,6 +72,8 @@ import {
   executiveStats,
   financeStats,
   monthlyRevenue,
+  receivablesAgeing,
+  cashFlowByMonth,
   monthlyVolume,
   recentActivity,
 } from "@/lib/queries";
@@ -984,18 +988,25 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
   const [
     stats,
     aging,
+    ageing,
+    flow,
     alerts,
     revenue,
     rateRow,
     accounts,
     balances,
     drafts,
+    neverSent,
     unattributed,
     owedOut,
     spent,
   ] = await Promise.all([
     financeStats(),
     agingInWarehouse(6),
+    // The two questions a single "collections by month" bar could never
+    // answer: how old is what we are owed, and are we keeping any of it.
+    receivablesAgeing(),
+    cashFlowByMonth(),
     attentionItems(role),
     monthlyRevenue(),
     currentRate(),
@@ -1006,6 +1017,18 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       where: { status: "DRAFT" },
       _count: true,
       _sum: { total: true },
+    }),
+    // Confirmed bills the customer was never actually told about. They sit
+    // inside "owed by customers" and inflate it, but they are not late and
+    // cannot be chased — nobody has asked for the money yet. Ageing them
+    // beside genuine debt would be a lie about how bad the debt is.
+    prisma.invoice.aggregate({
+      where: {
+        status: { in: ["UNPAID", "PARTIALLY_PAID"] },
+        sentAt: null,
+      },
+      _count: true,
+      _sum: { total: true, amountPaid: true },
     }),
     // Money we hold that nobody has said where it landed. It is in no account
     // and therefore in no balance, so it can only be seen by asking.
@@ -1037,6 +1060,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
   const unsettled = stats.unpaid + stats.partiallyPaid;
   const collectedThisMonth = revenue.values[revenue.values.length - 1] ?? 0;
   const collectedThisYear = revenue.values.reduce((a, b) => a + b, 0);
+  const netThisMonth = flow.net[flow.net.length - 1] ?? 0;
+  const neverSentCount = neverSent._count;
+  const neverSentUsd =
+    toNumber(neverSent._sum.total ?? 0) - toNumber(neverSent._sum.amountPaid ?? 0);
 
   // Cash available: every account's own balance, added up through the dollar
   // so shillings and dollars can share a total. Derived from the ledger, never
@@ -1225,38 +1252,96 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           Collections &amp; cash
         </SectionLabel>
         <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-        <section className="panel p-5">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-display font-semibold">Collections by month</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Money actually received — not billed — this year
-              </p>
+        <div className="space-y-6">
+          {/* Money in and out, one baseline, one scale. */}
+          <section className="panel p-5">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display font-semibold">Money in and out</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  What arrived against what it cost, this year
+                </p>
+              </div>
+              <div className="text-right">
+                <p
+                  className={`font-display text-xl font-bold leading-none tabular ${
+                    netThisMonth < 0 ? "text-signal" : "text-success"
+                  }`}
+                >
+                  {netThisMonth < 0 ? "−" : "+"}
+                  {tsh(Math.abs(netThisMonth))}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  kept this month · {tsh(collectedThisMonth)} in
+                </p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="font-display text-xl font-bold leading-none tabular">
-                {tsh(collectedThisMonth)}
-              </p>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                this month · {tsh(collectedThisYear)} this year
-              </p>
+            <FlowBars
+              labels={flow.labels}
+              moneyIn={flow.moneyIn}
+              moneyOut={flow.moneyOut}
+              currentIndex={flow.currentIndex}
+              rate={rate}
+            />
+          </section>
+
+          {/* How old the debt is — the question "TSh 25m owed" never answers. */}
+          <section className="panel p-5">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display font-semibold">
+                  What we are owed, by age
+                </h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Counted from the day the customer was told, not the day the
+                  bill was raised
+                </p>
+              </div>
+              {ageing.oldestDays > 0 ? (
+                <p className="text-right text-[11px] text-muted-foreground">
+                  oldest
+                  <span className="ml-1 font-mono font-semibold text-foreground">
+                    {ageing.oldestDays}d
+                  </span>
+                </p>
+              ) : null}
             </div>
-          </div>
-          {/* Drawn in shillings. The bars are read against the shilling
-              figures beside them, and mixing the two units on one panel makes
-              the shape mean nothing. */}
-          <BarChart
-            data={revenue.labels.map((label, i) => ({
-              label,
-              value: Math.round((revenue.values[i] ?? 0) * (rate ?? 1)),
-            }))}
-            tone={5}
-            highlightIndex={revenue.values.length - 1}
-            formatValue={(n) =>
-              rate ? `TSh ${n.toLocaleString("en-US")}` : formatUsd(n)
-            }
-          />
-        </section>
+
+            <AgeingBar
+              segments={ageing.buckets.map((b) => ({
+                key: b.key,
+                label: b.label,
+                count: b.count,
+                usd: b.usd,
+              }))}
+              rate={rate}
+            />
+
+            {/* The finding this panel exists to surface. Money on a bill nobody
+                sent is not late and cannot be chased — it has simply never been
+                asked for, which is a different job with a different fix, and it
+                was hiding inside the "owed by customers" total. */}
+            {neverSentCount > 0 ? (
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-warning">
+                    {neverSentCount} bill{neverSentCount === 1 ? "" : "s"} never
+                    sent · {tsh(neverSentUsd)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Confirmed and sitting here. Not late — never asked for, so
+                    it is not in the ages above.
+                  </p>
+                </div>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/app/collections/follow-up?filter=not-sent">
+                    Send them
+                  </Link>
+                </Button>
+              </div>
+            ) : null}
+          </section>
+        </div>
 
         <section className="panel overflow-hidden">
           <header className="flex items-center justify-between gap-3 border-b px-5 py-3.5">
