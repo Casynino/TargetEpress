@@ -642,7 +642,7 @@ async function darFloorStats() {
  * lists everything is a second sidebar, which helps nobody.
  *
  * Each destination keeps the colour it has everywhere else in the app — the
- * Investigation Hub is amber on this floor, on the finance desk and on the
+ * Issues & Claims is amber on this floor, on the finance desk and on the
  * support desk. Colour is only a landmark while it means the same thing twice.
  */
 const DAR_QUICK_ACTIONS: ActionPill[] = [
@@ -650,7 +650,7 @@ const DAR_QUICK_ACTIONS: ActionPill[] = [
   { href: "/app/pickup-queue", label: "Pickup queue", icon: Truck, weight: "secondary", tone: "signal" },
   { href: "/app/search", label: "Find cargo", icon: PackageSearch, tone: "info" },
   { href: "/app/inventory", label: "Inventory", icon: Boxes, tone: "violet" },
-  { href: "/app/exceptions", label: "Investigation Hub", icon: AlertTriangle, tone: "warning" },
+  { href: "/app/exceptions", label: "Issues & Claims", icon: AlertTriangle, tone: "warning" },
 ];
 // Scanning is deliberately not in this row: it is already the big button in the
 // banner directly above, and the same action twice on one screen is the clutter

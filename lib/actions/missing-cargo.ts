@@ -287,7 +287,7 @@ export async function reportUnableToLocate(
       if (!pickupNote) throw new Error("Pickup note not found.");
       if (pickupNote.status === "USED") {
         throw new Error(
-          `${pickupNote.noteNumber} has already been used — this cargo was collected. If it left with the wrong person, raise that on the investigation queue.`
+          `${pickupNote.noteNumber} has already been used — this cargo was collected. If it left with the wrong person, raise that in Issues & Claims.`
         );
       }
       if (pickupNote.status === "CANCELLED") {

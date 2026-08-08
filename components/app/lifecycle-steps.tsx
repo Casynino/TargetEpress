@@ -34,7 +34,7 @@ const TONES: Record<LifecycleStep["tone"], string> = {
 /**
  * Where this case can go, and who can take it there.
  *
- * The Investigation Hub showed a case and offered nothing to do with it, and
+ * The Issues & Claims showed a case and offered nothing to do with it, and
  * for most desks that was correct — a missing box is worked by the warehouse
  * and the payout is the CEO's call, so Finance genuinely has no move until
  * compensation is approved. What it never did was SAY so. A page that shows a

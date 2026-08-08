@@ -187,6 +187,6 @@ export function pickupLockMessage(lock: PickupLock, trackingNumber: string) {
   return (
     `${trackingNumber} is under investigation — ${EXCEPTION_TYPE_LABELS[lock.type]}, ` +
     `currently "${EXCEPTION_STATUS_LABELS[lock.status]}" (case ${caseReference(lock.id)}). ` +
-    `Do not hand this cargo over. The case has to be closed on the investigation queue first.`
+    `Do not hand this cargo over. The case has to be closed in Issues & Claims first.`
   );
 }

@@ -71,7 +71,7 @@ function LossReport({
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button asChild size="sm" variant="outline" className="rounded-lg">
-            <Link href="/app/exceptions">Open the investigation queue</Link>
+            <Link href="/app/exceptions">Open Issues & Claims</Link>
           </Button>
           {onReported ? (
             <Button size="sm" variant="ghost" onClick={onReported}>

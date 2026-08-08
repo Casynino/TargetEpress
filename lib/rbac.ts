@@ -38,7 +38,7 @@ export type Permission =
   | "batch.receive" // mark arrived in Dar
   | "batch.verify" // tick shipments off the manifest
   // Exceptions / investigations
-  /// Read the Investigation Hub and the cases in it. Every department holds
+  /// Read the Issues & Claims and the cases in it. Every department holds
   /// this, because a case is never one department's business: Dar found the
   /// problem, China packed the box, Support is on the phone to the customer,
   /// Finance may owe them money. Looking is separate from doing — what each
@@ -190,7 +190,7 @@ const CHINA: Permission[] = [
   "batch.manage",
   "customer.view",
   "customer.manage",
-  // Reads the Investigation Hub, and nothing more. When Dar reports a box
+  // Reads the Issues & Claims, and nothing more. When Dar reports a box
   // missing, the question that follows is "was it loaded in Guangzhou?" —
   // which only this desk can answer, and cannot answer if it cannot see the
   // case. Absent: raise, investigate, compensate, approve, close. China does
@@ -433,7 +433,7 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/batches/new", permission: "batch.create" },
   { prefix: "/app/receive", permission: "batch.receive" },
   { prefix: "/app/release", permission: "shipment.release" },
-  // The Investigation Hub and every case detail page under it. Read access is
+  // The Issues & Claims and every case detail page under it. Read access is
   // its own permission, held by all five departments, because a case concerns
   // all of them at once. What each may *do* to a case is gated action by
   // action on raise / investigate / compensate / approve / close — so China
@@ -470,7 +470,7 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // that an absent route cannot be entered, but this table is the one place
   // people read to answer "who can reach what", and a promise about a
   // nonexistent door makes the honest rows harder to trust. Compensation is
-  // decided in the Investigation Hub, where the case is; in Finance it appears
+  // decided in the Issues & Claims, where the case is; in Finance it appears
   // as a ledger line, not a screen.
   //
   // Ahead of /app/finance because finance.view is also held by Customer Care:

@@ -54,7 +54,7 @@ const SECTIONS: NavSection[] = [
   {
     title: "Work",
     items: [
-      { href: "/app/dashboard", label: "Dashboard", icon: "LayoutDashboard", exact: true },
+      { href: "/app/dashboard", label: "Home", icon: "LayoutDashboard", exact: true },
       // The standalone cargo list is deliberately absent. A mixed list of every
       // piece of cargo in the business tells you nothing about which shipment
       // it is on or where it is; cargo is reached from inside a shipment or a
@@ -141,7 +141,7 @@ const SECTIONS: NavSection[] = [
         // it is where flagged cargo is chased until it is found or written off.
         // One name in every department's sidebar — staff ring each other about
         // this page, and two names for it is one misunderstanding a day.
-        label: "Investigation Hub",
+        label: "Issues & Claims",
         icon: "TriangleAlert",
         // Read, not raise. China holds only this one and belongs here: it is
         // the desk that can say whether a missing box was ever loaded.
@@ -308,7 +308,7 @@ const DAR_SECTIONS: NavSection[] = [
     items: [
       {
         href: "/app/dashboard",
-        label: "Dashboard",
+        label: "Home",
         icon: "LayoutDashboard",
         exact: true,
       },
@@ -345,7 +345,7 @@ const DAR_SECTIONS: NavSection[] = [
         href: "/app/exceptions",
         // Named for what the desk does there rather than the database word:
         // it is where flagged cargo is chased until it is found or written off.
-        label: "Investigation Hub",
+        label: "Issues & Claims",
         icon: "TriangleAlert",
         permission: "exception.view",
       },
@@ -427,7 +427,7 @@ const SUPPORT_SECTIONS: NavSection[] = [
     group: { label: "Billing", icon: "ReceiptText" },
     items: [
       { href: "/app/collections", label: "Collections", icon: "Banknote" },
-      { href: "/app/finance/pickup-notes", label: "Pickup Notes", icon: "QrCode" },
+      { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode" },
       // Read-only for this desk: they quote from the rate book and answer
       // "what will this cost", they do not set it. pricing.manage is Finance's.
       { href: "/app/finance/pricing", label: "Price Configuration", icon: "Tags" },
@@ -438,15 +438,15 @@ const SUPPORT_SECTIONS: NavSection[] = [
     group: { label: "Customer Support", icon: "MessageSquare" },
     items: [
       { href: "/app/support/tickets", label: "Tickets", icon: "MessageSquare" },
-      { href: "/app/exceptions", label: "Investigation Hub", icon: "TriangleAlert" },
+      { href: "/app/exceptions", label: "Issues & Claims", icon: "TriangleAlert" },
     ],
   },
   {
     title: "China",
     group: { label: "China Services", icon: "Store" },
     items: [
-      { href: "/app/support/sourcing", label: "Sourcing Requests", icon: "ShoppingBag" },
-      { href: "/app/support/markets", label: "China Markets", icon: "Store" },
+      { href: "/app/support/sourcing", label: "Sourcing requests", icon: "ShoppingBag" },
+      { href: "/app/support/markets", label: "China markets", icon: "Store" },
     ],
   },
 ];

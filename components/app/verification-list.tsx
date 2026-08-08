@@ -378,7 +378,7 @@ function VerificationRow({
           {investigate ? (
             <Link
               href={`/app/exceptions?tracking=${shipment.trackingNumber}`}
-              title="Open in the investigation queue"
+              title="Open in Issues & Claims"
               className="focus-ring inline-flex items-center gap-1 text-xs font-medium text-destructive hover:underline"
             >
               <Search className="h-3 w-3" />

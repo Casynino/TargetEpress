@@ -31,7 +31,7 @@ import { prisma } from "@/lib/prisma";
 import { ROLE_PERMISSIONS, can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Investigation Hub" };
+export const metadata: Metadata = { title: "Issues & Claims" };
 
 /**
  * The one place flagged cargo lands.
@@ -406,7 +406,7 @@ export default async function ExceptionsPage({
   return (
     <>
       <PageHeader
-        title="Investigation Hub"
+        title="Issues & Claims"
         description="Every item flagged missing, damaged or wrong on arrival — held here, with the boxes it belongs to, until someone closes it out."
       />
 

@@ -330,7 +330,7 @@ export default async function SupportHome() {
             // Investigations rather than Tickets: a case where cargo is
             // missing or short is what this desk is rung about and has to
             // reach mid-call. Tickets keeps its sidebar row.
-            { href: "/app/exceptions", label: "Investigations", icon: TriangleAlert, tone: "warning" },
+            { href: "/app/exceptions", label: "Issues & Claims", icon: TriangleAlert, tone: "warning" },
             // Sourcing came out: it has a sidebar row and is a slow job worked
             // through a queue, not something reached with a customer waiting.
             { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: QrCode, tone: "success" },
