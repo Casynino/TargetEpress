@@ -59,7 +59,19 @@ const SERVICES = [
     icon: Receipt,
     title: "Malipo na risiti",
     titleEn: "Clear invoicing",
-    body: "Bei kwa kilo. Lipa kwa cash, M-Pesa, Tigo Pesa, Airtel Money, benki au cheque — upate risiti.",
+    // Deliberately does NOT list the methods.
+    //
+    // This line used to promise "M-Pesa, Tigo Pesa, Airtel Money" — and the
+    // business collects on neither Tigo nor Airtel. Neither appears anywhere
+    // else in this system. A customer who read that and sent to an Airtel
+    // wallet sent money nowhere, and nobody would have found out until they
+    // rang to ask where their cargo was.
+    //
+    // The accounts belong on the invoice and in the reminder, where they are
+    // read from PAYMENT_METHODS with their full names and Lipa numbers. A
+    // marketing blurb that enumerates them from memory is a second source of
+    // truth about where money goes, which is exactly what it must not be.
+    body: "Bei kwa kilo. Malipo kwa simu au benki — namba kamili zipo kwenye invoice yako, na unapata risiti.",
   },
   {
     icon: QrCode,

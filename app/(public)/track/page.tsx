@@ -21,7 +21,7 @@ import { TrackForm } from "@/components/site/track-form";
 import { IMAGES, img } from "@/lib/imagery";
 import { TrackingTimeline } from "@/components/site/tracking-timeline";
 import { Button } from "@/components/ui/button";
-import { COMPANY } from "@/lib/constants";
+import { COMPANY, PAYMENT_METHODS } from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/lib/format";
 import {
   trackByCode,
@@ -436,6 +436,7 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
         collectable={result.collectable}
         note={result.collectionNote}
         held={result.investigation?.blocksCollection ?? false}
+        trackingNumber={result.trackingNumber}
       />
 
       <div className="p-6">
@@ -481,10 +482,13 @@ function ChargePanel({
   collectable,
   note,
   held,
+  trackingNumber,
 }: {
   charge: PublicCharge | null;
   collectable: boolean;
   note: string;
+  /** Quoted back to the customer as the payment reference. */
+  trackingNumber: string;
   /** An investigation is holding the cargo — do not promise the next step. */
   held: boolean;
 }) {
@@ -531,6 +535,39 @@ function ChargePanel({
           <p className="mt-1 font-mono text-xs text-muted-foreground">
             Invoice {charge.invoiceNumber}
           </p>
+
+          {/* How the figure was reached.
+              The reminder tells a customer to come here and "see your full
+              invoice"; a total on its own does not keep that promise. Read
+              off the invoice, never recomputed — a second opinion about what
+              somebody owes is the first thing to disagree with the bill. */}
+          {charge.lines.length > 0 ? (
+            <dl className="mt-4 space-y-1.5 border-t pt-3 text-sm">
+              {charge.lines.map((line) => (
+                <div key={line.label} className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground">{line.label}</dt>
+                  <dd className="font-mono tabular-nums">
+                    {charge.currency} {line.amount.toFixed(2)}
+                  </dd>
+                </div>
+              ))}
+              <div className="flex justify-between gap-4 border-t pt-1.5 font-medium">
+                <dt>Jumla</dt>
+                <dd className="font-mono tabular-nums">
+                  {charge.currency} {charge.total.toFixed(2)}
+                </dd>
+              </div>
+              {charge.exchangeRate ? (
+                <div className="flex justify-between gap-4 text-xs text-muted-foreground">
+                  <dt>Rate iliyotumika</dt>
+                  <dd className="font-mono tabular-nums">
+                    USD 1 = {charge.localCurrency ?? "TZS"}{" "}
+                    {charge.exchangeRate.toLocaleString("en-US")}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
         </div>
 
         <div className="min-w-[12rem]">
@@ -565,6 +602,51 @@ function ChargePanel({
         <p className="mt-4 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-xs text-muted-foreground">
           {charge.mayChange}
         </p>
+      ) : null}
+
+      {/* Where to send it.
+          The reminder tells a customer to come here and see their invoice,
+          and until now this was the one customer-reachable surface that could
+          not answer "where do I pay?" — the accounts existed only on a staff
+          page and inside a WhatsApp message. Read from PAYMENT_METHODS, so
+          these can never drift from the reminder that sent them here.
+          Hidden once the bill is settled: nobody needs an account number for
+          money they have already sent. */}
+      {!settled ? (
+        <div className="mt-4 rounded-lg border bg-muted/20 p-4">
+          <p className="text-sm font-semibold">Njia za malipo</p>
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            {PAYMENT_METHODS.map((method) => (
+              <li key={method.number} className="rounded-lg border bg-card p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {method.label}
+                </p>
+                <p className="mt-0.5 font-mono text-base font-semibold tabular">
+                  {method.number}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {method.accountName}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Tafadhali tumia{" "}
+            <span className="font-mono font-medium text-foreground">
+              {trackingNumber}
+            </span>{" "}
+            kama kumbukumbu ya malipo. Baada ya kulipa, tuma uthibitisho kwa{" "}
+            <a
+              href={`https://wa.me/${COMPANY.whatsapp}`}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-brand hover:underline"
+            >
+              WhatsApp {COMPANY.phone}
+            </a>
+            .
+          </p>
+        </div>
       ) : null}
 
       <div

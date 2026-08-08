@@ -57,6 +57,16 @@ export type PublicCharge = {
   outstandingLocal: number | null;
   status: "PAID" | "PART_PAID" | "UNPAID";
   /**
+   * The rate this invoice was raised at, so a customer can see how the
+   * shilling figure was reached rather than being asked to trust it.
+   *
+   * The invoice's own, never today's — a bill quoted at 2,700 must still read
+   * 2,700 next month or the customer believes the price changed.
+   */
+  exchangeRate: number | null;
+  /** Freight, storage and anything added or taken off, as the invoice holds them. */
+  lines: { label: string; amount: number }[];
+  /**
    * Whether this figure can still move, and why.
    *
    * The owner's instruction: a customer must know the amount is not frozen
@@ -229,7 +239,14 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
         take: 6,
         select: { id: true, url: true },
       },
-      // Totals only. Nothing about who raised it or how it was worked out.
+      /**
+       * The bill, and how it was reached.
+       *
+       * The components are here now because the customer is sent a link that
+       * says "see your full invoice" — and a page showing only a total cannot
+       * answer the question that link promises to answer. Still nothing about
+       * who raised it, who priced it or what anything cost us.
+       */
       invoice: {
         select: {
           status: true,
@@ -240,6 +257,12 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
           exchangeRate: true,
           localCurrency: true,
           totalLocal: true,
+          freightCost: true,
+          freightOverride: true,
+          storageDays: true,
+          storageCharge: true,
+          otherCharges: true,
+          discount: true,
         },
       },
       packageList: {
@@ -321,6 +344,38 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
             : toLocal(total, rate),
         outstandingLocal: rate === null ? null : toLocal(outstanding, rate),
         status: outstanding <= 0 ? "PAID" : paid > 0 ? "PART_PAID" : "UNPAID",
+        exchangeRate: rate,
+        /**
+         * Read off the invoice, never recomputed.
+         *
+         * The figures the pricing engine produced are already stored on the
+         * row; multiplying a weight by a rate here would be a second opinion
+         * about what a customer owes, and the two would disagree the first
+         * time Finance adjusted a freight charge by hand.
+         */
+        lines: [
+          {
+            // Finance's own figure when they set one, the rate book's when
+            // they did not — the same precedence the invoice total was built
+            // from, so the parts add up to the whole.
+            label: "Usafirishaji (freight)",
+            amount: toNumber(invoice.freightOverride ?? invoice.freightCost),
+          },
+          ...(toNumber(invoice.storageCharge) > 0
+            ? [
+                {
+                  label: `Storage (siku ${invoice.storageDays})`,
+                  amount: toNumber(invoice.storageCharge),
+                },
+              ]
+            : []),
+          ...(toNumber(invoice.otherCharges) > 0
+            ? [{ label: "Gharama nyingine", amount: toNumber(invoice.otherCharges) }]
+            : []),
+          ...(toNumber(invoice.discount) > 0
+            ? [{ label: "Punguzo", amount: -toNumber(invoice.discount) }]
+            : []),
+        ],
         mayChange:
           outstanding <= 0
             ? null
