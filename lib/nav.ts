@@ -245,7 +245,16 @@ const SECTIONS: NavSection[] = [
         href: "/app/admin/markets",
         label: "China markets",
         icon: "Store",
-        permission: "pricing.manage",
+        // settings.manage, not pricing.manage. The directory is company
+        // content — what we tell customers about Yiwu and Huaqiangbei — and it
+        // only ever carried the pricing permission because that was the
+        // nearest one to hand. Finance holds pricing.manage because Finance
+        // owns the rate book, so the accident put the CEO's marketing copy in
+        // the finance sidebar with Edit and Delete buttons on it.
+        //
+        // Support still reads the same directory at /app/support/markets under
+        // sourcing.manage; only editing narrows.
+        permission: "settings.manage",
       },
       {
         href: "/app/admin/users",

@@ -8,7 +8,7 @@ import { requirePermission } from "@/lib/session";
 export const metadata: Metadata = { title: "China markets" };
 
 export default async function MarketsAdminPage() {
-  await requirePermission("pricing.manage");
+  await requirePermission("settings.manage");
 
   const markets = await prisma.chinaMarket.findMany({
     orderBy: [{ active: "desc" }, { sortOrder: "asc" }, { name: "asc" }],

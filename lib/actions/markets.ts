@@ -72,7 +72,7 @@ export async function saveMarket(
 ): Promise<ActionResult<{ id: string }>> {
   let user: SessionUser;
   try {
-    user = await authorize("pricing.manage");
+    user = await authorize("settings.manage");
   } catch (error) {
     return fail(toActionError(error));
   }
@@ -148,7 +148,7 @@ export async function setMarketActive(
 ): Promise<ActionResult<{ active: boolean }>> {
   let user: SessionUser;
   try {
-    user = await authorize("pricing.manage");
+    user = await authorize("settings.manage");
   } catch (error) {
     return fail(toActionError(error));
   }
