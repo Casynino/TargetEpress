@@ -7,7 +7,7 @@ import {
   Headset,
   MessageSquare,
   PackageSearch,
-  PhoneCall,
+  PlaneTakeoff,
   ShoppingBag,
   TriangleAlert,
   Users,
@@ -321,8 +321,11 @@ export default async function SupportHome() {
       <div className="mb-7">
         <ActionPills
           items={[
-            { href: "/app/collections", label: "Collections", icon: Banknote, weight: "primary" },
-            { href: "/app/support/follow-up", label: "Chase queue", icon: PhoneCall, weight: "secondary" },
+            // Shipments first: whatever the call is about, it starts with a
+            // consignment. Collections second, because the next thing asked is
+            // what it costs and whether it has been paid.
+            { href: "/app/shipments", label: "Shipments", icon: PlaneTakeoff, weight: "primary" },
+            { href: "/app/collections", label: "Collections", icon: Banknote, weight: "secondary" },
             // Investigations rather than Tickets: a case where cargo is
             // missing or short is the thing this desk is rung about and has to
             // reach in a hurry. Tickets keeps its sidebar row — it is worked
