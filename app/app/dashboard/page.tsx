@@ -264,7 +264,11 @@ export default async function DashboardPage() {
           className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/5"
         />
         <div className="relative flex flex-col gap-5 p-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
+          {/* flex-1 so this column takes the width it is given. Without it the
+              column shrinks to its own text and max-w-2xl on the search below
+              never applies — a max is not a width, so the box came out the
+              length of the greeting above it. */}
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
                 <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
