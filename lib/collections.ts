@@ -28,11 +28,9 @@ export async function collectionsOverview() {
       prisma.invoice.count({
         where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] }, sentAt: { not: null } },
       }),
-      prisma.paymentSubmission.aggregate({
-        where: { status: "PENDING" },
-        _count: true,
-        _sum: { amount: true },
-      }),
+      // Count only. Submissions are stored in the currency the customer sent,
+      // so a SUM across them would add shillings to dollars.
+      prisma.paymentSubmission.count({ where: { status: "PENDING" } }),
       prisma.paymentSubmission.count({
         where: { status: "VERIFIED", reviewedAt: { gte: startOfToday } },
       }),
@@ -52,8 +50,7 @@ export async function collectionsOverview() {
     outstandingUsd: toNumber(owing._sum.total) - toNumber(owing._sum.amountPaid),
     owingCount: owing._count,
     awaitingPayment: awaiting,
-    pendingCount: pending._count,
-    pendingAmount: toNumber(pending._sum.amount),
+    pendingCount: pending,
     verifiedToday,
     todaysValue: toNumber(todaysValue._sum.amount),
     rejected,

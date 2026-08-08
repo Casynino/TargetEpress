@@ -118,15 +118,15 @@ export default async function CollectionsHome() {
             hint="Confirmed and raised. Drafts are not here — this desk cannot chase a price Finance has not signed off."
             href="/app/collections/pending"
           />
-          <MoneyTile
+          {/* A count, not a total. Customers pay in shillings and dollars and
+              these rows are stored in whatever arrived, so adding them
+              together produces a figure in no currency at all. */}
+          <KpiCard
             label="Waiting on Finance"
-            usd={stats.pendingAmount}
-            rate={null}
+            numeric={stats.pendingCount}
+            hint="What customers say they have sent, handed up and not yet checked"
             icon={Clock}
-            tone="brand"
-            emphasis={stats.pendingCount > 0}
-            count={`${stats.pendingCount} submission${stats.pendingCount === 1 ? "" : "s"}`}
-            hint="What customers say they have sent, handed up and not yet checked."
+            tone={stats.pendingCount > 0 ? "warning" : "brand"}
             href="/app/collections/submissions?status=PENDING"
           />
           <KpiCard

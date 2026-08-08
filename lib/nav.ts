@@ -390,11 +390,17 @@ const SUPPORT_SECTIONS: NavSection[] = [
   },
   {
     title: "Collections",
-    group: { label: "Collections", icon: "Banknote" },
     items: [
-      { href: "/app/collections", label: "Collections", icon: "Banknote", exact: true },
-      { href: "/app/collections/pending", label: "Awaiting Payment", icon: "PhoneCall" },
-      { href: "/app/collections/submissions", label: "Submitted", icon: "ReceiptText" },
+      // ONE row, for the same reason Finance is one row. Collections is a
+      // department, not a list of pages: the call list, what is with Finance,
+      // what was verified, the history. Those are the tabs at the top of the
+      // page, right above the figures somebody moving between them is already
+      // reading — and repeating them down the side is the same navigation
+      // twice, which is what the sidebar exists to avoid.
+      //
+      // Deliberately not `exact`, so the row stays lit on every screen inside
+      // the workspace.
+      { href: "/app/collections", label: "Collections", icon: "Banknote" },
     ],
   },
   {
