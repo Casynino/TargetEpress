@@ -39,6 +39,7 @@ import { StatStrip } from "@/components/app/stat-strip";
 import { WorkList, type WorkItem } from "@/components/app/work-list";
 import { AreaChart } from "@/components/charts/area-chart";
 import { AgeingBar } from "@/components/charts/ageing-bar";
+import { Donut } from "@/components/charts/donut";
 import { BarChart } from "@/components/charts/bar-chart";
 import { FlowBars } from "@/components/charts/flow-bars";
 import { Button } from "@/components/ui/button";
@@ -56,7 +57,13 @@ import {
   ROLE_LABELS,
   STORAGE_POLICY,
 } from "@/lib/constants";
-import { floorSnapshot, type FloorSnapshot } from "@/lib/floor";
+import {
+  floorAgeing,
+  floorComposition,
+  floorFlowByDay,
+  floorSnapshot,
+  type FloorSnapshot,
+} from "@/lib/floor";
 import { MoneyTile } from "@/components/app/money-tile";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
@@ -703,7 +710,8 @@ async function DarDashboard({
   userId: string;
   floor: FloorSnapshot;
 }) {
-  const [stats, alerts, activity, perf, incoming] = await Promise.all([
+  const [stats, alerts, activity, perf, incoming, composition, ageing, throughput] =
+    await Promise.all([
     darFloorStats(),
     attentionItems(role),
     recentActivity(8, userId),
@@ -723,6 +731,9 @@ async function DarDashboard({
         _count: { select: { shipments: true, verifications: true } },
       },
     }),
+    floorComposition(),
+    floorAgeing(),
+    floorFlowByDay(14),
   ]);
 
   const exceptionParts = [
@@ -733,11 +744,184 @@ async function DarDashboard({
       : null,
   ].filter(Boolean);
 
+  /**
+   * What is waiting on this floor, in the order it costs something.
+   *
+   * The same band the money desk opens on, in the warehouse's own terms. Every
+   * row is a real count with the page that fixes it attached — a warning with
+   * nowhere to go is why people stop reading a dashboard.
+   */
+  const shortBoxes = floor.declaredPackages - floor.packages;
+  const notFullyChecked = incoming.filter(
+    (b) => b.status === "ARRIVED" && b._count.verifications < b._count.shipments
+  ).length;
+
+  const floorJobs: WorkItem[] = [
+    {
+      when: stats.openExceptions > 0,
+      label: `${stats.openExceptions} open ${stats.openExceptions === 1 ? "case" : "cases"}`,
+      detail:
+        "Cargo reported missing, damaged or wrong on arrival. It cannot be handed over until the case is closed.",
+      aside: exceptionParts.join(" · ") || "under investigation",
+      href: "/app/exceptions",
+      cta: "Work them",
+      urgent: true,
+    },
+    {
+      when: shortBoxes > 0,
+      label: `${shortBoxes} box${shortBoxes === 1 ? "" : "es"} short of the manifest`,
+      detail:
+        "Checked in with fewer cartons than the Guangzhou paperwork claims. Every one is either mis-scanned or genuinely missing.",
+      href: "/app/receive",
+      cta: "Check them in",
+      urgent: true,
+    },
+    {
+      when: notFullyChecked > 0,
+      label: `${notFullyChecked} landed batch${notFullyChecked === 1 ? "" : "es"} not finished`,
+      detail:
+        "The plane is down and the manifest is not fully ticked off. Nothing on it can be billed or collected yet.",
+      href: "/app/receive",
+      cta: "Finish it",
+      urgent: true,
+    },
+    {
+      when: floor.aging > 0,
+      label: `${floor.aging} past the free storage window`,
+      detail: `Standing more than ${STORAGE_POLICY.freeDays} days. Storage is being charged and the customer usually does not know.`,
+      aside: `longest ${floor.longestHeldDays} day${floor.longestHeldDays === 1 ? "" : "s"}`,
+      href: "/app/inventory",
+      cta: "See them",
+    },
+    {
+      when: stats.readyForPickup > 0,
+      label: `${stats.readyForPickup} paid, not collected`,
+      detail:
+        "Cleared by Finance and still on our shelves. The customer can take these away today.",
+      aside: `${stats.readyPackages} box(es)`,
+      href: "/app/pickup-queue",
+      cta: "Hand over",
+    },
+  ].filter((job) => job.when) as WorkItem[];
+
+  const floorFormat = (n: number) =>
+    `${n.toLocaleString("en-US")} consignment${n === 1 ? "" : "s"}`;
+
   return (
     <div className="space-y-7">
       <ActionPills items={DAR_QUICK_ACTIONS} />
 
       <FloorChips chips={chips} />
+
+      <div>
+        <SectionLabel count={floorJobs.length}>Needs your attention</SectionLabel>
+        <WorkList
+          items={floorJobs}
+          rate={null}
+          empty="Nothing is waiting on this floor. Every batch is checked in, nothing is short, and no case is open."
+        />
+      </div>
+
+      <div>
+        <SectionLabel action={{ href: "/app/inventory", label: "The floor" }}>
+          The floor, in shape
+        </SectionLabel>
+
+        <div className="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
+          {/* What the pile is made of. Slices are mutually exclusive and sum to
+              the count beside them — see floorComposition; the snapshot's own
+              unpaid/cleared/flagged overlap and cannot be drawn as a whole. */}
+          <section className="panel p-5">
+            <h2 className="font-display font-semibold">What is on the floor</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Every consignment standing in the building, by what is holding it
+            </p>
+            <div className="mt-4 flex justify-center">
+              <Donut
+                label={String(composition.total)}
+                caption="consignments"
+                slices={[
+                  { label: "Under investigation", value: composition.flagged, tone: 3 },
+                  { label: "Waiting on payment", value: composition.held, tone: 4 },
+                  { label: "Cleared, ready to hand over", value: composition.cleared, tone: 5 },
+                ]}
+              />
+            </div>
+          </section>
+
+          <div className="space-y-6">
+            {/* Boxes arriving against boxes leaving. A floor with 86 standing
+                might be busy or seized up, and only the two rates together say
+                which. */}
+            <section className="panel p-5">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-display font-semibold">In and out</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Checked in against handed over, the last fortnight
+                  </p>
+                </div>
+                <p className="text-right text-[11px] text-muted-foreground">
+                  <span className="font-mono font-semibold text-success">
+                    {throughput.inCounts.reduce((a, b) => a + b, 0)}
+                  </span>{" "}
+                  in ·{" "}
+                  <span className="font-mono font-semibold text-signal">
+                    {throughput.outCounts.reduce((a, b) => a + b, 0)}
+                  </span>{" "}
+                  out
+                </p>
+              </div>
+              <FlowBars
+                labels={throughput.labels}
+                valuesIn={throughput.inCounts}
+                valuesOut={throughput.outCounts}
+                currentIndex={throughput.currentIndex}
+                format={floorFormat}
+                legendIn="Checked in"
+                legendOut="Handed over"
+              />
+            </section>
+
+            {/* How long it has been standing. The storage clock is money
+                leaking from a customer who has stopped paying attention. */}
+            <section className="panel p-5">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-display font-semibold">
+                    How long it has been standing
+                  </h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Counted from the day it was checked in against a manifest
+                  </p>
+                </div>
+                {floor.longestHeldDays > 0 ? (
+                  <p className="text-right text-[11px] text-muted-foreground">
+                    longest
+                    <span className="ml-1 font-mono font-semibold text-foreground">
+                      {floor.longestHeldDays}d
+                    </span>
+                  </p>
+                ) : null}
+              </div>
+              <AgeingBar
+                // Proportioned by boxes, counted in consignments: the bar is
+                // the shelf space each age band is eating, the count beside it
+                // is how many customers that represents.
+                segments={ageing.map((b) => ({
+                  key: b.key,
+                  label: b.label,
+                  count: b.count,
+                  value: b.packages,
+                }))}
+                format={(n) => `${n} box${n === 1 ? "" : "es"}`}
+                unit="consignment"
+                empty="Nothing is standing on the floor."
+              />
+            </section>
+          </div>
+        </div>
+      </div>
 
       {/* The floor, in the five states cargo can be in between the plane and
           the customer.
@@ -1284,10 +1468,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
             </div>
             <FlowBars
               labels={flow.labels}
-              moneyIn={flow.moneyIn}
-              moneyOut={flow.moneyOut}
+              valuesIn={flow.moneyIn}
+              valuesOut={flow.moneyOut}
               currentIndex={flow.currentIndex}
-              rate={rate}
+              format={tsh}
             />
           </section>
 
@@ -1318,9 +1502,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                 key: b.key,
                 label: b.label,
                 count: b.count,
-                usd: b.usd,
+                value: b.usd,
               }))}
-              rate={rate}
+              format={tsh}
+              empty="Nothing is owed. Every bill raised has been settled."
             />
 
           </section>

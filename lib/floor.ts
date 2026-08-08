@@ -151,3 +151,149 @@ export async function floorSnapshot(): Promise<FloorSnapshot> {
     flagged,
   };
 }
+
+/**
+ * How long each consignment has been standing on the Dar floor.
+ *
+ * The floor's version of an ageing report. "86 consignments in the warehouse"
+ * is a number; how many have been there past the free storage window is the
+ * thing that decides what gets chased today, and it was only ever available as
+ * a single count.
+ *
+ * Aged from arrivedAt — stamped once, in verifyShipment, when the box was
+ * actually ticked off a manifest. Cargo that has not been checked in is not on
+ * the floor and is not counted.
+ */
+export type FloorAgeBucket = {
+  key: string;
+  label: string;
+  count: number;
+  packages: number;
+};
+
+export async function floorAgeing(now = new Date()) {
+  const rows = await prisma.shipment.findMany({
+    // ON_THE_FLOOR is the one definition of "standing in the building" — a
+    // second copy here is how two panels on one page end up disagreeing.
+    where: { ...ON_THE_FLOOR, arrivedAt: { not: null } },
+    select: { arrivedAt: true, packages: true },
+  });
+
+  const buckets: FloorAgeBucket[] = [
+    { key: "fresh", label: "Landed today or yesterday", count: 0, packages: 0 },
+    { key: "week", label: "2–7 days", count: 0, packages: 0 },
+    { key: "over", label: `8–${STORAGE_POLICY.freeDays * 2} days`, count: 0, packages: 0 },
+    { key: "stuck", label: `Over ${STORAGE_POLICY.freeDays * 2} days`, count: 0, packages: 0 },
+  ];
+
+  for (const row of rows) {
+    const days = Math.max(
+      0,
+      Math.floor((now.getTime() - row.arrivedAt!.getTime()) / 86_400_000)
+    );
+    const bucket =
+      days <= 1
+        ? buckets[0]
+        : days <= 7
+          ? buckets[1]
+          : days <= STORAGE_POLICY.freeDays * 2
+            ? buckets[2]
+            : buckets[3];
+    bucket.count += 1;
+    bucket.packages += row.packages ?? 0;
+  }
+
+  return buckets;
+}
+
+/**
+ * What came in and what went out, day by day, for the last two weeks.
+ *
+ * The floor's throughput. A warehouse with 86 consignments standing might be
+ * busy or might be seized up, and the count alone cannot tell you which — only
+ * the rate boxes arrive against the rate they leave can.
+ *
+ * In is arrivedAt (checked in against a manifest), out is deliveredAt (handed
+ * to the customer). Both are stamped once, at the moment the thing happened.
+ */
+export async function floorFlowByDay(days = 14, now = new Date()) {
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  start.setDate(start.getDate() - (days - 1));
+
+  const [arrived, released] = await Promise.all([
+    prisma.shipment.findMany({
+      where: { deletedAt: null, arrivedAt: { gte: start } },
+      select: { arrivedAt: true },
+    }),
+    prisma.shipment.findMany({
+      where: { deletedAt: null, deliveredAt: { gte: start } },
+      select: { deliveredAt: true },
+    }),
+  ]);
+
+  const labels: string[] = [];
+  const inCounts = Array.from({ length: days }, () => 0);
+  const outCounts = Array.from({ length: days }, () => 0);
+
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    labels.push(d.toLocaleDateString("en-GB", { day: "numeric" }));
+  }
+
+  const indexOf = (date: Date) =>
+    Math.floor(
+      (new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() -
+        start.getTime()) /
+        86_400_000
+    );
+
+  for (const row of arrived) {
+    const i = indexOf(row.arrivedAt!);
+    if (i >= 0 && i < days) inCounts[i] += 1;
+  }
+  for (const row of released) {
+    const i = indexOf(row.deliveredAt!);
+    if (i >= 0 && i < days) outCounts[i] += 1;
+  }
+
+  return { labels, inCounts, outCounts, currentIndex: days - 1 };
+}
+
+/**
+ * What the floor is made of, in slices that add up.
+ *
+ * The snapshot's `unpaid`, `cleared` and `flagged` overlap — a consignment held
+ * for payment can also be under investigation — so they cannot be drawn as a
+ * whole split into parts. A chart whose slices do not sum to the total it sits
+ * beside is read as a bug, and rightly.
+ *
+ * These are mutually exclusive, in the order the floor cares about: a case
+ * being investigated is not going anywhere whatever its bill says, so it takes
+ * precedence; then cleared and collectable; then everything still waiting on
+ * Finance.
+ */
+export async function floorComposition() {
+  const rows = await prisma.shipment.findMany({
+    where: ON_THE_FLOOR,
+    select: {
+      pickupNote: { select: { status: true } },
+      exceptions: {
+        where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } },
+        select: { id: true },
+      },
+    },
+  });
+
+  let flagged = 0;
+  let cleared = 0;
+  let held = 0;
+
+  for (const row of rows) {
+    if (row.exceptions.length > 0) flagged += 1;
+    else if (row.pickupNote?.status === "ACTIVE") cleared += 1;
+    else held += 1;
+  }
+
+  return { flagged, cleared, held, total: rows.length };
+}

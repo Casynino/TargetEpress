@@ -3,8 +3,10 @@ import { cn } from "@/lib/utils";
 export type AgeingSegment = {
   key: string;
   label: string;
+  /** How many things are in this bucket. */
   count: number;
-  usd: number;
+  /** What the bar is proportioned by — money owed, boxes, kilos. */
+  value: number;
 };
 
 /**
@@ -54,41 +56,39 @@ const TEXT = [
  */
 export function AgeingBar({
   segments,
-  rate,
+  format,
+  empty,
+  unit = "bill",
   className,
 }: {
   segments: AgeingSegment[];
-  /** USD → TSh. Shillings lead everywhere in this app; USD is the reference. */
-  rate: number | null;
+  /** How a bucket's value reads. Money on the finance desk, boxes on the floor. */
+  format: (value: number) => string;
+  /** What to say when there is nothing to age. */
+  empty: string;
+  /** Singular noun for the count beside each row. */
+  unit?: string;
   className?: string;
 }) {
-  const total = segments.reduce((sum, s) => sum + s.usd, 0);
+  const total = segments.reduce((sum, s) => sum + s.value, 0);
 
   if (total <= 0) {
     return (
-      <p className={cn("text-sm text-muted-foreground", className)}>
-        Nothing is owed on a bill that has been sent. Every customer who has
-        been asked has paid.
-      </p>
+      <p className={cn("text-sm text-muted-foreground", className)}>{empty}</p>
     );
   }
-
-  const tsh = (usd: number) =>
-    rate === null
-      ? null
-      : `TSh ${Math.round(usd * rate).toLocaleString("en-US")}`;
 
   return (
     <div className={className}>
       {/* The proportion, before any number. */}
       <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
         {segments.map((segment, i) =>
-          segment.usd > 0 ? (
+          segment.value > 0 ? (
             <div
               key={segment.key}
               className={FILL[i] ?? FILL[FILL.length - 1]}
-              style={{ width: `${(segment.usd / total) * 100}%` }}
-              title={`${segment.label}: ${segment.count} bill${segment.count === 1 ? "" : "s"}`}
+              style={{ width: `${(segment.value / total) * 100}%` }}
+              title={`${segment.label}: ${segment.count} ${unit}${segment.count === 1 ? "" : "s"}`}
             />
           ) : null
         )}
@@ -96,7 +96,7 @@ export function AgeingBar({
 
       <ul className="mt-4 space-y-2.5">
         {segments.map((segment, i) => {
-          const share = (segment.usd / total) * 100;
+          const share = (segment.value / total) * 100;
           const empty = segment.count === 0;
           return (
             <li
@@ -115,7 +115,8 @@ export function AgeingBar({
               />
               <span className="min-w-0 flex-1 truncate">{segment.label}</span>
               <span className="shrink-0 text-xs text-muted-foreground">
-                {segment.count} bill{segment.count === 1 ? "" : "s"}
+                {segment.count} {unit}
+                {segment.count === 1 ? "" : "s"}
               </span>
               <span
                 className={cn(
@@ -123,7 +124,7 @@ export function AgeingBar({
                   empty ? "" : TEXT[i] ?? TEXT[TEXT.length - 1]
                 )}
               >
-                {tsh(segment.usd) ?? `USD ${segment.usd.toFixed(2)}`}
+                {format(segment.value)}
               </span>
               <span className="w-10 shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
                 {share >= 0.5 ? `${Math.round(share)}%` : "—"}
