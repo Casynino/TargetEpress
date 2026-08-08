@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ChevronDown, ChevronRight, Clock, Info } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Info } from "lucide-react";
 
+import { SectionLabel } from "@/components/app/section-label";
 import { cn } from "@/lib/utils";
 
 export type AttnSeverity = "critical" | "warning" | "info";
@@ -28,8 +29,15 @@ const SEVERITY: Record<AttnSeverity, { icon: typeof AlertTriangle; text: string;
 
 const RANK: Record<AttnSeverity, number> = { critical: 0, warning: 1, info: 2 };
 
-/** Four rows fit; the fifth is the reason the panel scrolls rather than grows. */
-const VISIBLE_ROWS = 4;
+/**
+ * Three rows fit; the fourth is the reason the panel scrolls rather than grows.
+ *
+ * Kept deliberately low. This band sits above everything the desk came to the
+ * page for, so every extra row it shows by default is a row of the actual work
+ * pushed below the fold. Three is enough to see the shape of the queue and
+ * short enough that the panel is never the page.
+ */
+const VISIBLE_ROWS = 3;
 
 /**
  * Everything waiting on this desk, in one panel that never grows.
@@ -74,35 +82,32 @@ export function AttentionCenter({
   const hidden = Math.max(0, shown.length - VISIBLE_ROWS);
 
   return (
-    <section className="panel overflow-hidden">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5">
-        <div className="flex items-center gap-2.5">
-          <h2 className="font-display font-semibold">Needs your attention</h2>
-          {items.length > 0 ? (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand/15 px-1.5 text-[11px] font-semibold tabular-nums text-brand">
-              {items.length}
-            </span>
-          ) : null}
-        </div>
-        {reviewAll && items.length > 0 ? (
-          <Link
-            href={reviewAll.href}
-            className="focus-ring rounded text-xs font-semibold text-brand hover:underline"
-          >
-            {reviewAll.label ?? "Review all"}
-          </Link>
-        ) : null}
-      </header>
+    <div>
+      {/* The name lives in the rule above the panel, never inside it as well —
+          "NEEDS YOUR ATTENTION" over a card headed the same thing is one
+          heading printed twice, and it costs a whole row of height. See
+          SectionLabel. */}
+      <SectionLabel
+        count={items.length}
+        action={
+          reviewAll && items.length > 0
+            ? { href: reviewAll.href, label: reviewAll.label ?? "Review all" }
+            : undefined
+        }
+      >
+        Needs your attention
+      </SectionLabel>
 
+      <section className="panel overflow-hidden">
       {items.length === 0 ? (
-        <p className="px-5 py-10 text-center text-sm text-muted-foreground">{empty}</p>
+        <p className="px-4 py-8 text-center text-sm text-muted-foreground">{empty}</p>
       ) : (
         <>
           {/* Pills only earn their place once there is more than one kind of
               problem — a single "All" pill is a label pretending to be a
               control. */}
           {groups.length > 1 ? (
-            <div className="flex flex-wrap gap-1.5 border-b px-5 py-3">
+            <div className="flex flex-wrap gap-1.5 border-b px-4 py-2">
               {[["All", items.length] as [string, number], ...groups].map(
                 ([group, count]) => (
                   <button
@@ -111,7 +116,7 @@ export function AttentionCenter({
                     onClick={() => setActive(group)}
                     aria-pressed={active === group}
                     className={cn(
-                      "focus-ring inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                      "focus-ring inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors",
                       active === group
                         ? "border-brand bg-brand text-brand-foreground"
                         : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -127,7 +132,7 @@ export function AttentionCenter({
 
           {/* Fixed height, internal scroll. The panel is the same size whether
               this desk has three problems or thirty. */}
-          <ul className="max-h-[17.5rem] divide-y overflow-y-auto">
+          <ul className="max-h-[10.5rem] divide-y overflow-y-auto">
             {shown.map((item) => {
               const meta = SEVERITY[item.severity];
               const Icon = meta.icon;
@@ -135,33 +140,33 @@ export function AttentionCenter({
                 <li key={item.id}>
                   <Link
                     href={item.href}
-                    className="focus-ring flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40"
+                    className="focus-ring flex items-center gap-2.5 px-4 py-2 transition-colors hover:bg-muted/40"
                   >
                     <span
                       aria-hidden
-                      className={cn("h-8 w-0.5 shrink-0 rounded-full", meta.bar)}
+                      className={cn("h-7 w-0.5 shrink-0 rounded-full", meta.bar)}
                     />
-                    <Icon className={cn("h-4 w-4 shrink-0", meta.text)} />
+                    <Icon className={cn("h-3.5 w-3.5 shrink-0", meta.text)} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">
+                      <span className="block truncate text-[13px] font-semibold leading-tight">
                         {item.label}
                       </span>
-                      <span className="block truncate text-xs text-muted-foreground">
+                      <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">
                         {item.detail}
                       </span>
                     </span>
                     {item.value ? (
-                      <span className="shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground">
+                      <span className="shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
                         {item.value}
                       </span>
                     ) : null}
-                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   </Link>
                 </li>
               );
             })}
             {shown.length === 0 ? (
-              <li className="px-5 py-8 text-center text-sm text-muted-foreground">
+              <li className="px-4 py-6 text-center text-sm text-muted-foreground">
                 Nothing under {active}.
               </li>
             ) : null}
@@ -170,13 +175,14 @@ export function AttentionCenter({
           {/* Said out loud, because a scroll area with no edge showing looks
               like the whole list. */}
           {hidden > 0 ? (
-            <p className="flex items-center justify-center gap-1.5 border-t px-5 py-2 text-[11px] text-muted-foreground">
+            <p className="flex items-center justify-center gap-1.5 border-t px-4 py-1.5 text-[11px] text-muted-foreground">
               <ChevronDown className="h-3 w-3" />
               scroll for {hidden} more
             </p>
           ) : null}
         </>
       )}
-    </section>
+      </section>
+    </div>
   );
 }
