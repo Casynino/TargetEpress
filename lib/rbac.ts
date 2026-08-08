@@ -314,7 +314,7 @@ const FINANCE: Permission[] = [
   // No shipment.scan. Scanning is a warehouse action — somebody standing in
   // front of a box, reading the sticker on it. Finance never has the cargo in
   // their hands; they work from the tracking number a customer reads out, and
-  // Search Cargo answers that with the same record.
+  // Search answers that with the same record.
   "batch.view",
   "finance.view",
   "invoice.manage",

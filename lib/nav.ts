@@ -94,7 +94,7 @@ const SECTIONS: NavSection[] = [
       },
       {
         href: "/app/search",
-        label: "Search Cargo",
+        label: "Search",
         icon: "Package",
         // How every desk that is not holding the box finds one: a customer
         // reads out a tracking number, or a name, or a phone number. Finance
@@ -105,7 +105,7 @@ const SECTIONS: NavSection[] = [
         href: "/app/finance/pickup-notes",
         label: "Pickup notes",
         icon: "QrCode",
-        // Beside Search Cargo rather than inside Finance, because a pickup note
+        // Beside Search rather than inside Finance, because a pickup note
         // is an operational document, not a financial one. Finance issues it,
         // but the people reaching for it all day are at the counter with a
         // customer in front of them — and the counter is what this section is.
@@ -317,7 +317,7 @@ const DAR_SECTIONS: NavSection[] = [
       },
       {
         href: "/app/search",
-        label: "Search Cargo",
+        label: "Search",
         icon: "Package",
         permission: "shipment.view",
       },
@@ -394,7 +394,7 @@ const SUPPORT_SECTIONS: NavSection[] = [
       // "Home", not "Support Home" — this sidebar renders only for the support
       // desk, so the qualifier restated where the person already is.
       { href: "/app/support", label: "Home", icon: "Headset", exact: true },
-      { href: "/app/search", label: "Search Cargo", icon: "Package" },
+      { href: "/app/search", label: "Search", icon: "Package" },
       { href: "/app/customers", label: "Customers", icon: "Users" },
     ],
   },

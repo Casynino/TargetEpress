@@ -172,9 +172,9 @@ export default async function DeliveryHistoryPage() {
       {totalCount > rows.length ? (
         <p className="mt-4 text-xs text-muted-foreground">
           Showing the {rows.length.toLocaleString()} most recent handovers of{" "}
-          {totalCount.toLocaleString()}. Older cargo is on its own page — search
-          for it under{" "}
-          <span className="font-medium text-foreground">Search Cargo</span>.
+          {totalCount.toLocaleString()}. Older cargo is on its own page — find it
+          under{" "}
+          <span className="font-medium text-foreground">Search</span>.
         </p>
       ) : null}
     </>

@@ -43,7 +43,7 @@ export function financeTabs(role: Role): FinanceTab[] {
       label: "The Ledger",
       visible: can(role, "ledger.view"),
     },
-    // NOTE: no Pickup notes tab. It sits in the sidebar beside Search Cargo,
+    // NOTE: no Pickup notes tab. It sits in the sidebar beside Search,
     // because a pickup note is an operational document rather than a financial
     // one — Finance issues it, but the people reaching for it all day are at
     // the counter with a customer in front of them. Two doors into one room is
