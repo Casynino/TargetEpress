@@ -80,7 +80,11 @@ import {
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { CargoMix } from "@/components/app/cargo-mix";
-import { WarehouseHero, type HeroChip } from "@/components/app/warehouse-hero";
+import {
+  FloorChips,
+  WarehouseHero,
+  type HeroChip,
+} from "@/components/app/warehouse-hero";
 import { todaySummary } from "@/lib/warehouse-home";
 import { requireUser } from "@/lib/session";
 
@@ -222,6 +226,15 @@ export default async function DashboardPage() {
   // disagreeing by one box on screen.
   const floor = user.role === "DAR_WAREHOUSE" ? await floorSnapshot() : null;
 
+  // The floor's standing numbers. Computed here because the banner used to
+  // carry them and the data is fetched at this level; rendered below the quick
+  // actions, where a figure nobody acts on belongs.
+  const floorChips: HeroChip[] = warehouse
+    ? inChina
+      ? await chinaHeroChips()
+      : await darHeroChips(floor!)
+    : [];
+
   return (
     <>
       {/* The warehouses get the banner with both clocks and today's numbers;
@@ -232,9 +245,6 @@ export default async function DashboardPage() {
           firstName={firstName}
           warehouseName={inChina ? "China Warehouse" : "Dar es Salaam Warehouse"}
           emphasis={inChina ? "CN" : "TZ"}
-          chips={
-            inChina ? await chinaHeroChips() : await darHeroChips(floor!)
-          }
           // Where this desk's day starts.
           //
           // China registers cargo, so their day begins at the registration
@@ -247,6 +257,9 @@ export default async function DashboardPage() {
               ? { href: "/app/cargo/new", label: "Receive cargo" }
               : { href: "/app/scan", label: "Scan a label" }
           }
+          // The same box the money and support desks open on. The floor is
+          // asked "where is my cargo" all day too.
+          search={{ action: "/app/search" }}
           hourOfDay={localHour(inChina ? "CN" : "TZ")}
         />
       ) : (
@@ -331,10 +344,10 @@ export default async function DashboardPage() {
       )}
 
       {user.role === "CHINA_WAREHOUSE" ? (
-        <ChinaDashboard role={user.role} userId={user.id} />
+        <ChinaDashboard role={user.role} userId={user.id} chips={floorChips} />
       ) : null}
       {user.role === "DAR_WAREHOUSE" ? (
-        <DarDashboard role={user.role} userId={user.id} floor={floor!} />
+        <DarDashboard role={user.role} userId={user.id} floor={floor!} chips={floorChips} />
       ) : null}
       {user.role === "FINANCE" ? (
         <FinanceDashboard role={user.role} />
@@ -351,7 +364,9 @@ export default async function DashboardPage() {
 async function ChinaDashboard({
   role,
   userId,
+  chips,
 }: {
+  chips: HeroChip[];
   role: "CHINA_WAREHOUSE" | "ADMIN";
   userId: string;
 }) {
@@ -386,6 +401,8 @@ async function ChinaDashboard({
           { href: "/app/customers", label: "Customers", icon: Users },
         ]}
       />
+
+      <FloorChips chips={chips} />
 
       <StatStrip
         chips={[
@@ -679,7 +696,9 @@ async function DarDashboard({
   role,
   userId,
   floor,
+  chips,
 }: {
+  chips: HeroChip[];
   role: "DAR_WAREHOUSE" | "ADMIN";
   userId: string;
   floor: FloorSnapshot;
@@ -717,6 +736,8 @@ async function DarDashboard({
   return (
     <div className="space-y-7">
       <ActionPills items={DAR_QUICK_ACTIONS} />
+
+      <FloorChips chips={chips} />
 
       {/* The floor, in the five states cargo can be in between the plane and
           the customer.

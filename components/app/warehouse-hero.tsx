@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PackagePlus, type LucideIcon } from "lucide-react";
 
+import { CargoSearch } from "@/components/app/cargo-search";
 import { DualClock } from "@/components/app/dual-clock";
 
 /**
@@ -38,17 +39,24 @@ export function WarehouseHero({
   firstName,
   warehouseName,
   emphasis,
-  chips,
   action,
+  search,
   hourOfDay,
 }: {
   firstName: string;
   warehouseName: string;
   emphasis: "CN" | "TZ";
-  /** Today's numbers for *this* warehouse. */
-  chips: HeroChip[];
   /** The one thing this desk starts its day with. */
   action: { href: string; label: string };
+  /**
+   * Where the search box posts. Omit and no box is drawn.
+   *
+   * The floor is asked "where is my cargo" all day, same as every other desk,
+   * and the answer starts by typing a number somewhere. It sits in the banner
+   * rather than below the fold because a person on the phone should not have
+   * to find a page first.
+   */
+  search?: { action: string };
   /** Local hour at the warehouse, computed on the server for that zone. */
   hourOfDay: number;
 }) {
@@ -77,7 +85,10 @@ export function WarehouseHero({
 
       <div className="relative p-6">
         <div className="flex flex-wrap items-start justify-between gap-6">
-          <div className="min-w-0">
+          {/* flex-1 so the column takes the width it is given — max-w-2xl on
+              the search is a maximum, and a column sized to its own text never
+              reaches it. */}
+          <div className="min-w-0 flex-1">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
               {warehouseName}
@@ -88,6 +99,11 @@ export function WarehouseHero({
             <p className="mt-2 text-sm text-white/80">
               Here is what is happening on the floor today.
             </p>
+            {search ? (
+              <div className="mt-4 max-w-2xl">
+                <CargoSearch action={search.action} />
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-5">
@@ -102,47 +118,64 @@ export function WarehouseHero({
           </div>
         </div>
 
-        <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {chips.map((chip) => {
-            const body = (
-              <>
-                <dt className="flex items-center gap-1.5 text-[11px] text-white/75">
-                  <chip.icon className="h-3.5 w-3.5" />
-                  {chip.label}
-                </dt>
-                <dd className="mt-1 font-display text-xl font-bold tabular text-white">
-                  {chip.value}
-                </dd>
-                {chip.sub ? (
-                  <p className="mt-0.5 text-[11px] tabular text-white/70">
-                    {chip.sub}
-                  </p>
-                ) : null}
-              </>
-            );
-
-            // A number somebody wants to act on is the way through to the list
-            // behind it. Chips with nothing to open stay plain rather than
-            // pretending to be pressable.
-            return chip.href ? (
-              <Link
-                key={chip.label}
-                href={chip.href}
-                className="focus-ring rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm transition-colors hover:border-white/40 hover:bg-white/20"
-              >
-                {body}
-              </Link>
-            ) : (
-              <div
-                key={chip.label}
-                className="rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm"
-              >
-                {body}
-              </div>
-            );
-          })}
-        </dl>
       </div>
     </section>
+  );
+}
+
+/**
+ * The floor's standing numbers, under the quick actions rather than in the
+ * banner.
+ *
+ * They were three glass tiles on the gradient, which put the least urgent
+ * figures on the page in the most prominent place — the weight on the floor
+ * does not change what anybody does next, and it was sitting above the buttons
+ * that do. The banner is now the greeting and the search box; these keep their
+ * meaning and lose the top billing.
+ *
+ * Styled for the page, not the gradient: on the dark background white-on-white
+ * would simply be gone.
+ */
+export function FloorChips({ chips }: { chips: HeroChip[] }) {
+  if (chips.length === 0) return null;
+
+  return (
+    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {chips.map((chip) => {
+        const body = (
+          <>
+            <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <chip.icon className="h-3.5 w-3.5" />
+              {chip.label}
+            </dt>
+            <dd className="mt-1 font-display text-xl font-bold tabular">
+              {chip.value}
+            </dd>
+            {chip.sub ? (
+              <p className="mt-0.5 text-[11px] tabular text-muted-foreground">
+                {chip.sub}
+              </p>
+            ) : null}
+          </>
+        );
+
+        // A number somebody wants to act on is the way through to the list
+        // behind it. Chips with nothing to open stay plain rather than
+        // pretending to be pressable.
+        return chip.href ? (
+          <Link
+            key={chip.label}
+            href={chip.href}
+            className="focus-ring rounded-xl border bg-card p-3 transition-colors hover:border-brand/40"
+          >
+            {body}
+          </Link>
+        ) : (
+          <div key={chip.label} className="rounded-xl border bg-card p-3">
+            {body}
+          </div>
+        );
+      })}
+    </dl>
   );
 }
