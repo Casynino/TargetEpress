@@ -15,6 +15,7 @@ import {
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { DeleteCargoForm } from "@/components/app/cargo-delete";
+import { PendingSubmissionNotice } from "@/components/app/pending-submission-notice";
 import { ShipmentActions } from "@/components/app/shipment-actions";
 import { PackageList } from "@/components/app/package-list";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +86,18 @@ export default async function ShipmentDetailPage({
       },
       invoice: {
         include: {
+          // What Customer Support has handed up and Finance has not agreed to
+          // yet. Fetched here because this page offers a Record payment form
+          // with the full balance pre-filled, and money already in the
+          // verification queue is exactly the money somebody would pay twice.
+          submissions: {
+            where: { status: "PENDING" },
+            orderBy: { submittedAt: "desc" },
+            include: {
+              submittedBy: { select: { name: true } },
+              proofs: { select: { id: true } },
+            },
+          },
           payments: {
             orderBy: { paidAt: "desc" },
             include: {
@@ -126,6 +139,25 @@ export default async function ShipmentDetailPage({
     ? await shipmentQrDataUrl(shipment.qrToken, 200)
     : null;
   const showMoney = can(user.role, "finance.view");
+  const canVerifyPayments = can(user.role, "payment.verify");
+  /**
+   * Every desk that can see money sees this, because each has a different thing
+   * to do with it: Finance verifies it, Support tells the customer where it has
+   * got to, and the CEO can see why cargo that reads unpaid is not being
+   * chased. The warehouses never see money and are not shown it.
+   */
+  const pendingSubmissions = showMoney
+    ? (shipment.invoice?.submissions ?? []).map((s) => ({
+        submissionNumber: s.submissionNumber,
+        amount: toNumber(s.amount),
+        currency: s.currency,
+        method: s.method,
+        reference: s.reference,
+        submittedAt: s.submittedAt,
+        submittedByName: s.submittedBy?.name ?? null,
+        proofCount: s.proofs.length,
+      }))
+    : [];
   // Only for the desk that can take money. Nobody else is offered a question
   // about which company account something landed in, and the list is not
   // fetched for them either.
@@ -602,6 +634,15 @@ export default async function ShipmentDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Above the actions, not below them. The action directly beneath
+              this is a Record payment form with the outstanding balance already
+              filled in — so the fact that somebody has already paid has to be
+              read before the form is, or it never gets read at all. */}
+          <PendingSubmissionNotice
+            submissions={pendingSubmissions}
+            canVerify={canVerifyPayments}
+          />
+
           {/* Actions first. This column is what somebody does with the cargo;
               who the customer is and which flight it came on are reference,
               and reference does not go above the work. */}

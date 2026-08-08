@@ -12,19 +12,45 @@ import { cn } from "@/lib/utils";
  * one job. Every tab is a real route so a queue can be linked to, bookmarked
  * and reloaded, and the back button behaves.
  */
-const TABS = [
+type Tab = {
+  href: string;
+  label: string;
+  exact?: boolean;
+  match?: string;
+  query?: string;
+  /** Shown only to the desk that can act on it — see `canVerify`. */
+  verifierOnly?: boolean;
+};
+
+const TABS: Tab[] = [
   { href: "/app/collections", label: "Dashboard", exact: true },
   // The follow-up queue IS the call list: it knows each consignment's next
   // action, carries the storage clock and can send the invoice. A second,
   // thinner "awaiting payment" page beside it was two lists of one thing.
   { href: "/app/collections/follow-up", label: "The call list" },
+  // The pending submissions appear twice on purpose, because they are not the
+  // same thing to the two desks that share this workspace. "With Finance" is
+  // Support watching what they handed up and can do nothing about; "Verify
+  // payments" is Finance working it. One is a status, the other is a job.
+  //
+  // Only the desk that can do the job sees the job: Support does not hold
+  // payment.verify, and a tab that answers "that area is not yours" is worse
+  // than no tab at all.
+  { href: "/app/finance/verify", label: "Verify payments", verifierOnly: true },
   { href: "/app/collections/submissions?status=PENDING", label: "With Finance", match: "/app/collections/submissions" },
   { href: "/app/collections/submissions?status=VERIFIED", label: "Verified", match: "/app/collections/submissions", query: "VERIFIED" },
   { href: "/app/finance/pickup-notes", label: "Pickup notes" },
   { href: "/app/customers", label: "Customer accounts" },
 ];
 
-export function CollectionsNav({ status }: { status?: string }) {
+export function CollectionsNav({
+  status,
+  canVerify = false,
+}: {
+  status?: string;
+  /** payment.verify — Finance and the CEO. Support collects and hands up. */
+  canVerify?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -32,7 +58,7 @@ export function CollectionsNav({ status }: { status?: string }) {
       aria-label="Collections workspace"
       className="mb-6 flex gap-2 overflow-x-auto pb-1"
     >
-      {TABS.map((tab) => {
+      {TABS.filter((tab) => canVerify || !tab.verifierOnly).map((tab) => {
         const base = tab.match ?? tab.href;
         // Two tabs share one route and are told apart by the filter on it, so
         // the query has to take part in deciding which is lit.

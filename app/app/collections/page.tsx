@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { collectionsOverview, submissionQueue } from "@/lib/collections";
 import { formatMoney, formatRelative, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Collections" };
@@ -36,7 +37,14 @@ export const metadata: Metadata = { title: "Collections" };
  * then the position, then the trail.
  */
 export default async function CollectionsHome() {
-  await requirePermission("collections.view");
+  const user = await requirePermission("collections.view");
+  /**
+   * Two desks share this workspace and the pending queue means opposite things
+   * to them. Support hands a proof up and can do nothing further; Finance is
+   * the reason it is sitting there. So the same rows are a status to one and a
+   * job to the other, and the page says which.
+   */
+  const canVerify = can(user.role, "payment.verify");
 
   const [stats, pending, recent, rateRow] = await Promise.all([
     collectionsOverview(),
@@ -53,7 +61,7 @@ export default async function CollectionsHome() {
       detail:
         "The customer has been told what they owe and the money has not arrived. This is the call list.",
       usd: stats.outstandingUsd,
-      href: "/app/collections/pending",
+      href: "/app/collections/follow-up",
       cta: "Chase",
       urgent: true,
     },
@@ -67,15 +75,26 @@ export default async function CollectionsHome() {
       aside: "needs a call",
       urgent: true,
     },
-    {
-      when: stats.pendingCount > 0,
-      label: `${stats.pendingCount} with Finance`,
-      detail:
-        "Handed up and waiting to be checked. Nothing for this desk to do but watch.",
-      href: "/app/collections/submissions?status=PENDING",
-      cta: "Track",
-      aside: "waiting on Finance",
-    },
+    canVerify
+      ? {
+          when: stats.pendingCount > 0,
+          label: `${stats.pendingCount} waiting on you to verify`,
+          detail:
+            "Customer Support collected these at the counter and handed them up. Nothing is settled and no cargo is released until you agree with them.",
+          href: "/app/finance/verify",
+          cta: "Verify",
+          aside: "customers waiting",
+          urgent: true,
+        }
+      : {
+          when: stats.pendingCount > 0,
+          label: `${stats.pendingCount} with Finance`,
+          detail:
+            "Handed up and waiting to be checked. Nothing for this desk to do but watch.",
+          href: "/app/collections/submissions?status=PENDING",
+          cta: "Track",
+          aside: "waiting on Finance",
+        },
     {
       when: stats.notesReady > 0,
       label: `${stats.notesReady} pickup note${stats.notesReady === 1 ? "" : "s"} ready`,
@@ -91,10 +110,14 @@ export default async function CollectionsHome() {
     <>
       <PageHeader
         title="Collections"
-        description="Chasing what customers owe, collecting their proof, and handing it to Finance. No money is held or approved on this desk."
+        description={
+          canVerify
+            ? "What customers owe, what Customer Support has collected from them, and what is waiting on you to verify."
+            : "Chasing what customers owe, collecting their proof, and handing it to Finance. No money is held or approved on this desk."
+        }
       />
 
-      <CollectionsNav />
+      <CollectionsNav canVerify={canVerify} />
 
       <SectionLabel count={jobs.length}>Needs your attention</SectionLabel>
       <WorkList
@@ -104,7 +127,7 @@ export default async function CollectionsHome() {
       />
 
       <div className="mt-7">
-        <SectionLabel action={{ href: "/app/collections/pending", label: "The call list" }}>
+        <SectionLabel action={{ href: "/app/collections/follow-up", label: "The call list" }}>
           What customers owe
         </SectionLabel>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -116,18 +139,26 @@ export default async function CollectionsHome() {
             tone={stats.outstandingUsd > 0 ? "warn" : "good"}
             count={`${stats.owingCount} unsettled bill${stats.owingCount === 1 ? "" : "s"}`}
             hint="Confirmed and raised. Drafts are not here — this desk cannot chase a price Finance has not signed off."
-            href="/app/collections/pending"
+            href="/app/collections/follow-up"
           />
           {/* A count, not a total. Customers pay in shillings and dollars and
               these rows are stored in whatever arrived, so adding them
               together produces a figure in no currency at all. */}
           <KpiCard
-            label="Waiting on Finance"
+            label={canVerify ? "Waiting on you" : "Waiting on Finance"}
             numeric={stats.pendingCount}
-            hint="What customers say they have sent, handed up and not yet checked"
+            hint={
+              canVerify
+                ? "Collected by Customer Support and handed up — not yet checked by you"
+                : "What customers say they have sent, handed up and not yet checked"
+            }
             icon={Clock}
             tone={stats.pendingCount > 0 ? "warning" : "brand"}
-            href="/app/collections/submissions?status=PENDING"
+            href={
+              canVerify
+                ? "/app/finance/verify"
+                : "/app/collections/submissions?status=PENDING"
+            }
           />
           <KpiCard
             label="Verified today"
@@ -162,28 +193,40 @@ export default async function CollectionsHome() {
         <section className="panel overflow-hidden">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5">
             <div>
-              <h2 className="font-display font-semibold">With Finance now</h2>
+              <h2 className="font-display font-semibold">
+                {canVerify ? "Collected by Support, waiting on you" : "With Finance now"}
+              </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Oldest first — a claim sitting here is a customer waiting
               </p>
             </div>
             <Link
-              href="/app/collections/submissions?status=PENDING"
+              href={
+                canVerify
+                  ? "/app/finance/verify"
+                  : "/app/collections/submissions?status=PENDING"
+              }
               className="focus-ring rounded text-xs font-semibold text-brand hover:underline"
             >
-              All of them →
+              {canVerify ? "Verify them all →" : "All of them →"}
             </Link>
           </header>
           {pending.length === 0 ? (
             <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-              Nothing is with Finance.
+              {canVerify
+                ? "Customer Support has not handed anything up that is still waiting."
+                : "Nothing is with Finance."}
             </p>
           ) : (
             <ul className="divide-y">
               {pending.map((row) => (
                 <li key={row.id}>
                   <Link
-                    href={`/app/collections/submissions?status=PENDING#${row.submissionNumber}`}
+                    href={
+                      canVerify
+                        ? `/app/finance/verify#${row.submissionNumber}`
+                        : `/app/collections/submissions?status=PENDING#${row.submissionNumber}`
+                    }
                     className="focus-ring flex flex-wrap items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-muted/40"
                   >
                     <div className="min-w-0">

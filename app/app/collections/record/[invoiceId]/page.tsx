@@ -9,6 +9,7 @@ import { RecordCollectionForm } from "@/components/app/record-collection-form";
 import { formatMoney, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Record a payment" };
@@ -25,7 +26,7 @@ export default async function RecordCollectionPage({
 }: {
   params: Promise<{ invoiceId: string }>;
 }) {
-  await requirePermission("payment.submit");
+  const user = await requirePermission("payment.submit");
   const { invoiceId } = await params;
 
   const [invoice, rateRow] = await Promise.all([
@@ -58,7 +59,7 @@ export default async function RecordCollectionPage({
   return (
     <>
       <Link
-        href="/app/collections/pending"
+        href="/app/collections/follow-up"
         className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -70,7 +71,7 @@ export default async function RecordCollectionPage({
         description="What the customer says they sent, with their proof. Finance checks it before anything is settled."
       />
 
-      <CollectionsNav />
+      <CollectionsNav canVerify={can(user.role, "payment.verify")} />
 
       <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
         <section className="panel p-6">

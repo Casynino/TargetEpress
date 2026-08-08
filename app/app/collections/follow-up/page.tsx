@@ -100,7 +100,7 @@ export default async function FollowUpPage({
         description="Cargo sitting in Dar es Salaam, ordered by what needs a phone call most."
       />
 
-      <CollectionsNav />
+      <CollectionsNav canVerify={can(user.role, "payment.verify")} />
 
       <div className="mb-4 flex flex-wrap gap-2">
         {FOLLOW_UP_FILTERS.map((option) => {

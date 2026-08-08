@@ -30,6 +30,15 @@ export function financeTabs(role: Role): FinanceTab[] {
       visible: can(role, "account.view"),
     },
     {
+      href: "/app/collections",
+      // Beside Verify payments because they are one pipeline read end to end:
+      // what customers owe, what has been collected against it, and what is
+      // waiting to be agreed. Support reaches the same workspace from their own
+      // sidebar — this is Finance's door to it, not a second copy.
+      label: "Collections",
+      visible: can(role, "collections.view"),
+    },
+    {
       href: "/app/finance/verify",
       // Ahead of the register on purpose: a customer is waiting on each of
       // these, and money nobody has agreed to is not in the books yet.

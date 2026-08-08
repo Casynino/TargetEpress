@@ -77,7 +77,11 @@ export default async function VerifyPaymentsPage() {
               Math.abs(claimed - outstanding) > 0.5;
 
             return (
-              <li key={row.id} className="panel overflow-hidden">
+              <li
+                key={row.id}
+                id={row.submissionNumber}
+                className="panel scroll-mt-24 overflow-hidden"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b px-5 py-3.5">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold">

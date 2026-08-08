@@ -492,17 +492,23 @@ const FINANCE_SECTIONS: NavSection[] = [
     // release the cargo it paid for.
     group: { label: "Finance", icon: "ReceiptText" },
     items: [
-      {
-        href: "/app/collections",
-        label: "Collections",
-        icon: "Banknote",
-        permission: "collections.view",
-      },
+      // The ledger leads: it is the department, and Collections is one part of
+      // the money passing through it.
       {
         href: "/app/finance",
         label: "General ledger",
         icon: "Wallet",
         permission: "accounting.view",
+      },
+      // Collections is both a row here and a tab inside the General ledger, at
+      // the owner's request. That is the one place this navigation keeps two
+      // doors into one room: it is opened many times a day, and burying it a
+      // click inside the ledger costs more than the duplication does.
+      {
+        href: "/app/collections",
+        label: "Collections",
+        icon: "Banknote",
+        permission: "collections.view",
       },
       {
         href: "/app/finance/pickup-notes",

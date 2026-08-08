@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { submissionQueue } from "@/lib/collections";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Submissions" };
@@ -32,7 +33,7 @@ export default async function SubmissionsPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  await requirePermission("collections.view");
+  const user = await requirePermission("collections.view");
   const { status } = await searchParams;
 
   const active = FILTERS.find((f) => f.key === status)?.key ?? "PENDING";
@@ -47,7 +48,7 @@ export default async function SubmissionsPage({
         description="What this desk has handed to Finance, and what they decided. The customer's evidence stays attached to every one."
       />
 
-      <CollectionsNav status={active} />
+      <CollectionsNav status={active} canVerify={can(user.role, "payment.verify")} />
 
       <div className="mb-4 flex flex-wrap gap-2">
         {FILTERS.map((filter) => (

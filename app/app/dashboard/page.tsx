@@ -17,6 +17,7 @@ import {
   Printer,
   QrCode,
   Scale,
+  ShieldCheck,
   ScanLine,
   Timer,
   TrendingDown,
@@ -1114,7 +1115,12 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
   const shortcuts: ActionPill[] = [
     { href: "/app/shipments", label: "Confirm prices", icon: ClipboardCheck, weight: "primary", tone: "brand" },
     { href: "/app/finance/transactions", label: "Record a cost", icon: Banknote, weight: "secondary", tone: "signal" },
-    { href: "/app/finance/payments", label: "Payments", icon: Wallet, tone: "info" },
+    // Verify payments, not Payments. What Finance starts here is the queue
+    // Customer Support hands up — proofs collected at the counter that are
+    // worth nothing until this desk agrees with them. The payments list is a
+    // record to read, and it is not even in the Finance tab row; this is a
+    // job with people waiting on it.
+    { href: "/app/finance/verify", label: "Verify payments", icon: ShieldCheck, tone: "info" },
     { href: "/app/finance/accounts", label: "Accounts", icon: Landmark, tone: "violet" },
     { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: QrCode, tone: "success" },
     { href: "/app/collections/follow-up", label: "Chase queue", icon: Clock, tone: "warning" },
