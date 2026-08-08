@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
  * What is physically standing in the Dar warehouse right now.
  *
  * This lives on its own because two pages ask the question and they must never
- * answer it differently: the Warehouse Inventory page lists the cargo, the
+ * answer it differently: the Available Cargo page lists the cargo, the
  * dashboard counts it. A floor supervisor who reads "412 boxes" on one screen
  * and "419 boxes" on the other stops trusting both.
  *

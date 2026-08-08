@@ -19,12 +19,12 @@ import { formatDate, formatWeight, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Warehouse inventory" };
+export const metadata: Metadata = { title: "Available cargo" };
 
 const DAY_MS = 86_400_000;
 
 /**
- * Warehouse Inventory — what is physically standing in the Dar warehouse now.
+ * Available Cargo — what is physically standing in the Dar warehouse now.
  *
  * "Now" is exactly two statuses: RECEIVED_AT_DAR (checked in off the manifest)
  * and READY_FOR_PICKUP (checked in and paid for). Anything DELIVERED has left
@@ -147,7 +147,7 @@ export default async function InventoryPage() {
   return (
     <>
       <PageHeader
-        title="Warehouse inventory"
+        title="Available cargo"
         description="Every piece of cargo standing in the Dar warehouse right now — checked in, not yet handed over."
       />
 

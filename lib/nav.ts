@@ -359,13 +359,13 @@ const DAR_SECTIONS: NavSection[] = [
     items: [
       {
         href: "/app/inventory",
-        label: "Warehouse Inventory",
+        label: "Available Cargo",
         icon: "Boxes",
         permission: "inventory.view",
       },
       {
         href: "/app/deliveries",
-        label: "Delivery History",
+        label: "Collected Cargo",
         icon: "History",
         permission: "delivery.history",
       },

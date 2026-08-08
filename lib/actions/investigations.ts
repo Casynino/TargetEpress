@@ -121,7 +121,7 @@ const cargoFoundSchema = z.object({
 /**
  * The box turned up.
  *
- * Returns the cargo to Warehouse Inventory, takes the case out of the queue,
+ * Returns the cargo to Available Cargo, takes the case out of the queue,
  * restores the operational status the case interrupted, and tells Customer
  * Support so somebody can ring the customer. If the freight was already paid
  * for, the cargo goes straight back to Ready for Pickup.
@@ -299,7 +299,7 @@ export async function markCargoFound(
         data: {
           status: target,
           // The box is in the building. If the case was raised at check-in the
-          // shipment never got an arrival stamp, and Warehouse Inventory sorts
+          // shipment never got an arrival stamp, and Available Cargo sorts
           // on it — cargo with no arrival date sorts as if it landed today.
           arrivedAt: shipment.arrivedAt ?? now,
           readyForPickup:

@@ -834,8 +834,8 @@ async function darFloorStats() {
 /**
  * The five things this floor starts a job from.
  *
- * Every one of them is pressed many times a shift. Warehouse Inventory,
- * Delivery History and Reports are deliberately absent — they are read, not
+ * Every one of them is pressed many times a shift. Available Cargo,
+ * Collected Cargo and Reports are deliberately absent — they are read, not
  * started, and they are one click away in the sidebar. A shortcut row that
  * lists everything is a second sidebar, which helps nobody.
  *

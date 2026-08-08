@@ -506,7 +506,7 @@ export default async function WarehouseReportsPage({
           <div className="mt-3 flex flex-wrap gap-3 border-t pt-3 text-xs">
             <Link href="/app/deliveries" className="text-brand hover:underline">
               <Package className="mr-1 inline h-3 w-3" />
-              Delivery history
+              Collected cargo
             </Link>
             <Link href="/app/receive" className="text-brand hover:underline">
               <ScanLine className="mr-1 inline h-3 w-3" />

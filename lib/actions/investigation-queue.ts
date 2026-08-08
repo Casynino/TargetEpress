@@ -69,7 +69,7 @@ async function watchers(
  * Move a case one step along the lifecycle.
  *
  * Two of the steps this queue offers are not status changes and are not written
- * here. Finding a box puts it back in Warehouse Inventory and can return the
+ * here. Finding a box puts it back in Available Cargo and can return the
  * cargo to Ready for Pickup; approving a payout opens a Finance workflow. Both
  * already have their own actions, so this one hands over to them rather than
  * writing a thinner second version of the same physical event.

@@ -13,7 +13,7 @@ import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Delivery history" };
+export const metadata: Metadata = { title: "Collected cargo" };
 
 /** How far back the table reaches in one page load. */
 const WINDOW = 300;
@@ -118,7 +118,7 @@ export default async function DeliveryHistoryPage() {
   return (
     <>
       <PageHeader
-        title="Delivery history"
+        title="Collected cargo"
         description="Every handover this warehouse has made — what left, who took it, and who released it."
       />
 

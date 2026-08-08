@@ -49,7 +49,7 @@ export const EXCEPTION_STATUS_TONES: Record<ExceptionStatus, StatusTone> = {
  * Which server action actually performs the move.
  *
  * Two of these steps are not simple status changes and have their own actions:
- * finding a box puts it back in Warehouse Inventory and may return the cargo to
+ * finding a box puts it back in Available Cargo and may return the cargo to
  * Ready for Pickup, and approving a payout starts a Finance workflow. Those
  * live in `lib/actions/investigations.ts` and this queue delegates to them
  * rather than reimplementing the halves it can see — one physical event must

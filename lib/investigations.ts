@@ -65,7 +65,7 @@ export const REPORTED_CARGO_ABSENT: Record<ExceptionType, boolean> = {
  *  - Everything else returns to RECEIVED_AT_DAR. Somebody is standing in the
  *    Dar warehouse holding the cargo — that is what "found" means — so
  *    restoring IN_TRANSIT or READY_TO_DEPART would put a box that is on the
- *    floor back "in the air": invisible to Warehouse Inventory, invisible at
+ *    floor back "in the air": invisible to Available Cargo, invisible at
  *    the counter, and a lie on the customer's tracking page. DELIVERED and
  *    CANCELLED never reach here; the action refuses them outright, because
  *    cargo that was handed over or voided is not a warehouse problem.
