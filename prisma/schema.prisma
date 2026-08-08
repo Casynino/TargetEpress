@@ -331,6 +331,8 @@ model User {
   recordedCompensations Compensation[]          @relation("CompensationRecordedBy")
   issuedInvoices        Invoice[]
   receivedPayments      Payment[]
+  submittedPayments     PaymentSubmission[]     @relation("SubmittedPayments")
+  reviewedPayments      PaymentSubmission[]     @relation("ReviewedPayments")
   issuedReceipts        Receipt[]
   issuedPickupNotes     PickupNote[]
   releasedDeliveries    DeliveryRecord[]
@@ -836,8 +838,9 @@ model Invoice {
 
   updatedAt DateTime @updatedAt
 
-  payments Payment[]
-  messages CustomerMessage[]
+  payments    Payment[]
+  submissions PaymentSubmission[]
+  messages    CustomerMessage[]
 
   @@index([status])
   @@index([customerId])
@@ -887,12 +890,15 @@ model Payment {
 
   receipt     Receipt?
   ledgerEntry LedgerEntry?
+  /// The Support submission that produced this, when one did. Null for a
+  /// payment Finance recorded at the counter themselves.
+  submission  PaymentSubmission?
   /// The slip, screenshot or bank confirmation the customer produced. This is
   /// the evidence the money moved; the typed reference is only an index into
   /// it. Kept as its own table because one payment can arrive with two proofs
   /// — a screenshot and a bank PDF — and because a nullable column would go
   /// stale the day somebody needs to add a second.
-  proofs  PaymentProof[]
+  proofs      PaymentProof[]
 
   @@index([invoiceId])
   @@index([paidAt])
@@ -906,8 +912,15 @@ model Payment {
 model PaymentProof {
   id String @id @default(cuid())
 
-  paymentId String
-  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  /// Null while the proof belongs to a submission Finance has not verified yet.
+  /// On verification the row is re-pointed at the Payment that was created, so
+  /// the evidence a customer sent follows the money rather than being uploaded
+  /// twice.
+  paymentId String?
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  submissionId String?
+  submission   PaymentSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
   url         String
   contentType String
@@ -920,6 +933,7 @@ model PaymentProof {
   createdAt    DateTime @default(now())
 
   @@index([paymentId])
+  @@index([submissionId])
 }
 
 /// The customer-facing document for a payment. Kept separate from Payment so
@@ -1743,10 +1757,10 @@ model LedgerEntry {
 
   /// Typed link to the source, one per kind. Unique, so a double-write is a
   /// database error rather than a quietly duplicated line in the register.
-  paymentId String?  @unique
-  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-  expenseId String?  @unique
-  expense   Expense? @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+  paymentId  String?          @unique
+  payment    Payment?         @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  expenseId  String?          @unique
+  expense    Expense?         @relation(fields: [expenseId], references: [id], onDelete: Restrict)
   /// A transfer writes two legs, so this is not unique — the pair below is.
   transferId String?
   transfer   AccountTransfer? @relation(fields: [transferId], references: [id], onDelete: Restrict)
@@ -1935,13 +1949,13 @@ model CashCount {
   accountId String
   account   CompanyAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
 
-  countedAt DateTime
+  countedAt      DateTime
   /// What was physically there.
-  countedAmount Decimal @db.Decimal(12, 2)
+  countedAmount  Decimal  @db.Decimal(12, 2)
   /// What the ledger said at that instant, snapshotted so the count can be
   /// re-explained months later without re-deriving history.
-  expectedAmount Decimal @db.Decimal(12, 2)
-  variance       Decimal @db.Decimal(12, 2)
+  expectedAmount Decimal  @db.Decimal(12, 2)
+  variance       Decimal  @db.Decimal(12, 2)
   note           String?
 
   countedById String?
@@ -1949,4 +1963,74 @@ model CashCount {
   createdAt   DateTime @default(now())
 
   @@index([accountId, countedAt])
+}
+
+/// Where a collection sits between the customer paying and Finance believing it.
+enum SubmissionStatus {
+  /// Customer Support has sent it up. Nothing has moved.
+  PENDING
+  /// Finance agreed. A real Payment now exists and carries the money.
+  VERIFIED
+  /// Finance did not agree. The reason is on the row and the customer is rung.
+  REJECTED
+}
+
+/// A payment the customer says they have made, waiting for Finance to agree.
+///
+/// Deliberately NOT a Payment with a flag on it. Recording a payment writes a
+/// receipt, posts a ledger entry, moves the invoice's amountPaid and status and
+/// can mint a pickup note, all in one transaction — and a dozen aggregates read
+/// those. A pending flag on Payment would mean every one of them had to learn to
+/// exclude unverified rows, and the first one that forgot would put money the
+/// business does not have into a balance.
+///
+/// So a submission is its own thing and moves nothing. Verifying it calls the
+/// SAME recordPayment path Finance has always used, which is why the workflow
+/// the owner asked us never to touch stays untouched: this is a step in front of
+/// it, not a replacement for it.
+///
+/// Customer Support never handles funds. They collect the customer's evidence
+/// and hand it over; Finance decides whether it is true.
+model PaymentSubmission {
+  id String @id @default(cuid())
+
+  submissionNumber String @unique // SUB-2026-000123
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  /// What the customer says they sent, in the currency they sent it in.
+  amount    Decimal       @db.Decimal(12, 2)
+  currency  String        @default("TZS")
+  method    PaymentMethod
+  /// The M-Pesa code, bank slip number or cheque number off the customer's
+  /// message. The one thing Support genuinely has to type.
+  reference String?
+  note      String?
+
+  status SubmissionStatus @default(PENDING)
+
+  submittedById String?
+  submittedBy   User?    @relation("SubmittedPayments", fields: [submittedById], references: [id], onDelete: SetNull)
+  submittedAt   DateTime @default(now())
+
+  reviewedById    String?
+  reviewedBy      User?     @relation("ReviewedPayments", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt      DateTime?
+  /// Why Finance said no. Required on rejection — "rejected" with no reason is
+  /// a message nobody can act on and a customer nobody can answer.
+  rejectionReason String?
+
+  /// The Payment that verifying this created. The audit trail from a customer's
+  /// screenshot to a line in the ledger runs through here.
+  paymentId String?  @unique
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  /// The screenshot or slip the customer sent. The whole point of the record.
+  proofs PaymentProof[]
+
+  createdAt DateTime @default(now())
+
+  @@index([status, submittedAt])
+  @@index([invoiceId])
 }

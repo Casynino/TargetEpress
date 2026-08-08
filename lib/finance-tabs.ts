@@ -22,7 +22,7 @@ export function financeTabs(role: Role): FinanceTab[] {
     {
       href: "/app/finance",
       label: "Overview",
-      visible: can(role, "finance.view"),
+      visible: can(role, "accounting.view"),
     },
     {
       href: "/app/finance/accounts",

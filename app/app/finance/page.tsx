@@ -55,7 +55,7 @@ export const metadata: Metadata = { title: "Finance" };
  *    on the page.
  */
 export default async function FinanceOverviewPage() {
-  const user = await requirePermission("finance.view");
+  const user = await requirePermission("accounting.view");
   // Support holds finance.view because Support answers questions about a
   // customer's bill. What the COMPANY is worth is a different question, and
   // every tile answering it is gated on this instead.

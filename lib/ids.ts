@@ -92,6 +92,14 @@ export async function nextReceiptNumber(
   return `RCT-${year}-${pad(n)}`;
 }
 
+export async function nextSubmissionNumber(
+  tx: TxClient,
+  year = new Date().getFullYear()
+) {
+  const n = await nextSequence(tx, `submission:${year}`);
+  return `SUB-${year}-${pad(n)}`;
+}
+
 export async function nextPickupNoteNumber(
   tx: TxClient,
   year = new Date().getFullYear()

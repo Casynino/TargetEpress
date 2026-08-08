@@ -173,7 +173,7 @@ const SECTIONS: NavSection[] = [
         // and its tab keep the shorter title.
         label: "General ledger",
         icon: "Wallet",
-        permission: "finance.view",
+        permission: "accounting.view",
       },
     ],
   },
@@ -418,12 +418,6 @@ const SUPPORT_SECTIONS: NavSection[] = [
     items: [
       { href: "/app/support/sourcing", label: "Sourcing Requests", icon: "ShoppingBag" },
       { href: "/app/support/markets", label: "China Markets", icon: "Store" },
-    ],
-  },
-  {
-    title: "Ledger",
-    items: [
-      { href: "/app/finance", label: "General Ledger", icon: "Wallet" },
     ],
   },
 ];

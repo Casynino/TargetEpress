@@ -43,6 +43,21 @@ export type Permission =
   /// problem, China packed the box, Support is on the phone to the customer,
   /// Finance may owe them money. Looking is separate from doing — what each
   /// desk may actually *do* to a case is the five permissions below.
+  /**
+   * The COMPANY's money: the ledger, the accounts, the expenses, the register.
+   *
+   * Split out of finance.view, which was doing two jobs. Fifteen of its
+   * seventeen check sites ask "may this person see what this consignment
+   * costs" — which Customer Support must, since they price and chase it. Two
+   * ask "may this person see the business's books", which Support must not.
+   * One name for both meant the desk that rings customers could open the
+   * general ledger.
+   */
+  | "accounting.view"
+  /** Hand a customer's payment proof to Finance. Moves no money. */
+  | "payment.submit"
+  /** Agree that a submitted payment is real, and record it. Finance only. */
+  | "payment.verify"
   | "exception.view"
   | "exception.raise"
   | "exception.resolve"
@@ -260,6 +275,11 @@ const CUSTOMER_CARE: Permission[] = [
   // and neither is here.
   "pricing.view",
   "invoice.send",
+  // Collects the customer's evidence and hands it up. Deliberately NOT
+  // payment.record: this desk never says money arrived, only that a customer
+  // says it did. And no accounting.view — they chase invoices, they do not
+  // keep the books.
+  "payment.submit",
   "message.send",
   "ticket.manage",
   "sourcing.manage",
@@ -274,6 +294,11 @@ const CUSTOMER_CARE: Permission[] = [
 ];
 
 const FINANCE: Permission[] = [
+  // The books are this desk's. Customer Support does not get this one.
+  "accounting.view",
+  // Finance both submits (they take payments at the counter) and verifies.
+  "payment.submit",
+  "payment.verify",
   "shipment.view",
   "shipment.viewInternal",
   // No shipment.scan. Scanning is a warehouse action — somebody standing in
@@ -445,7 +470,14 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // Reading the rate book is pricing.view; every mutation on that page is
   // separately gated on pricing.manage or fx.manage in its own action.
   { prefix: "/app/finance/pricing", permission: "pricing.view" },
-  { prefix: "/app/finance", permission: "finance.view" },
+  // An invoice is the customer's bill, not the company's books. Customer
+  // Support prices it, sends it and chases it, so it keeps the invoice-level
+  // permission rather than falling through to the accounting one below.
+  { prefix: "/app/finance/invoices", permission: "finance.view" },
+  // The bare prefix is the ledger workspace itself — the business's books.
+  // Everything above this line that a non-accounting desk needs has its own
+  // rule; longest prefix wins, so those still resolve.
+  { prefix: "/app/finance", permission: "accounting.view" },
   { prefix: "/app/admin/deleted", permission: "shipment.cancel" },
   { prefix: "/app/admin/pricing", permission: "pricing.manage" },
   { prefix: "/app/admin/markets", permission: "pricing.manage" },
