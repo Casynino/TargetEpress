@@ -184,6 +184,77 @@ export function suggestedKind(input: {
 }
 
 /** A wa.me link that opens WhatsApp with the message already typed. */
+/**
+ * The payment reminder a customer actually reads, in Swahili.
+ *
+ * Written to be acted on rather than acknowledged: greeting, which cargo,
+ * what it costs, where to send it, and one reason to do it today. Everything
+ * a customer needs to pay is in the message, so nobody has to ring back to
+ * ask for an account number.
+ *
+ * Swahili only. The bilingual templates elsewhere double the length of a
+ * WhatsApp message, and a customer who has to scroll past an English copy of
+ * what they just read is a customer who stops reading.
+ *
+ * Short on purpose. Every line earns its place — the accounts are the longest
+ * part and they are the part that gets the money in.
+ *
+ * "Lipa kwa mara moja" is deliberate: part-payments leave cargo on our floor
+ * accruing storage and take three phone calls to settle instead of none.
+ */
+export function paymentReminderSwahili(input: {
+  customerName: string;
+  trackingNumber: string;
+  description: string;
+  invoiceNumber: string | null;
+  /** Already formatted, in the currency the customer will pay in. */
+  amount: string;
+}) {
+  const first = input.customerName.trim().split(/\s+/)[0] || "mteja";
+
+  /**
+   * Each line carries its own account name.
+   *
+   * A single "Jina la akaunti" under the whole list was wrong and dangerous:
+   * CRDB is TARGET(GZ) EXPRESS AIR CARGO and the others are not, so a customer
+   * paying into Tanzania Commercial Bank would have checked the name against
+   * the wrong one. A mistyped account name is a payment that bounces or, worse,
+   * reaches somebody else. This is the one place in the message where extra
+   * words buy something.
+   */
+  const mobile = PAYMENT_ACCOUNTS.mobileMoney.map(
+    (account) =>
+      `${account.provider}: ${account.number} - ${account.accountName}`
+  );
+  const banks = PAYMENT_ACCOUNTS.banks.flatMap((bank) =>
+    bank.accounts.map(
+      (account) =>
+        `${bank.bank} (${account.currency}): ${account.number} - ${bank.accountName}`
+    )
+  );
+
+  return [
+    `Habari ${first},`,
+    ``,
+    `Mzigo wako ${input.trackingNumber} (${input.description}) umefika Dar es Salaam.`,
+    input.invoiceNumber ? `Ankara: ${input.invoiceNumber}` : "",
+    `Kiasi cha kulipa: ${input.amount}`,
+    ``,
+    `Njia za malipo:`,
+    ...mobile,
+    ...banks,
+    ``,
+    `Tafadhali lipa kwa mara moja ili kuepuka gharama za hifadhi. Mzigo hutolewa baada ya malipo kuthibitishwa.`,
+    ``,
+    `Asante,`,
+    COMPANY.name,
+    COMPANY.phone,
+  ]
+    .filter((line) => line !== "" || true)
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 export function whatsappLink(phone: string | null, body: string) {
   const digits = (phone ?? "").replace(/[^\d]/g, "");
   const target = digits.startsWith("0")

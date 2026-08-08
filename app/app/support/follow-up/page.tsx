@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { MessageCircle } from "lucide-react";
+import { Download, FileText, MessageCircle } from "lucide-react";
 
 import { CollectionsNav } from "@/components/app/collections-nav";
 import { PageHeader } from "@/components/app/page-header";
@@ -8,7 +8,7 @@ import { SendInvoiceButton } from "@/components/app/send-invoice-button";
 import { can } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
 import { formatUsd } from "@/lib/fx";
-import { whatsappLink } from "@/lib/messages";
+import { paymentReminderSwahili, whatsappLink } from "@/lib/messages";
 import { requirePermission } from "@/lib/session";
 import {
   FOLLOW_UP_FILTERS,
@@ -40,24 +40,23 @@ export default async function FollowUpPage({
   const rows = await followUpQueue();
 
   /**
-   * What the customer reads. Built here rather than in the button so the
-   * figures come off the same row the clerk is looking at, and so nobody has
-   * to compose the same sentence eighty times a day.
+   * What the customer reads. Built here so the figures come off the same row
+   * the clerk is looking at, and so nobody composes the same message eighty
+   * times a day.
    */
   const invoiceMessage = (row: (typeof rows)[number]) =>
-    [
-      `Habari ${row.customerName.split(" ")[0]},`,
-      `mzigo wako ${row.trackingNumber} (${row.description}) umefika Dar es Salaam.`,
-      row.outstanding !== null && row.outstandingLocal !== null
-        ? `Malipo: ${row.localCurrency} ${row.outstandingLocal.toLocaleString()}.`
-        : row.outstanding !== null
-          ? `Malipo: USD ${row.outstanding.toFixed(2)}.`
-          : "",
-      row.invoiceNumber ? `Ankara: ${row.invoiceNumber}.` : "",
-      "Target Express Air Cargo.",
-    ]
-      .filter(Boolean)
-      .join(" ");
+    paymentReminderSwahili({
+      customerName: row.customerName,
+      trackingNumber: row.trackingNumber,
+      description: row.description,
+      invoiceNumber: row.invoiceNumber,
+      // Shillings when we know the rate — that is what the customer is
+      // sending. The dollar figure is the invoice's, not theirs.
+      amount:
+        row.outstandingLocal !== null
+          ? `${row.localCurrency} ${row.outstandingLocal.toLocaleString()}`
+          : `USD ${(row.outstanding ?? 0).toFixed(2)}`,
+    });
   const active = (FOLLOW_UP_FILTERS.find((f) => f.key === filter)?.key ??
     "all") as FollowUpFilter;
   const visible = rows.filter((row) => matchesFilter(row, active));
@@ -263,6 +262,42 @@ export default async function FollowUpPage({
                       >
                         Record payment
                       </Link>
+                    ) : null}
+
+                    {/* The bill itself: hand it over, or open it to change
+                        something before the customer is asked to pay. */}
+                    {row.invoiceNumber ? (
+                      <>
+                        <a
+                          href={`/app/finance/invoices/${row.invoiceNumber}/pdf`}
+                          aria-label={`Download ${row.invoiceNumber}`}
+                          className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors hover:border-brand/40 hover:text-brand"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                        <Link
+                          href={`/app/finance/invoices/${row.invoiceId}`}
+                          aria-label={`Open ${row.invoiceNumber}`}
+                          className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors hover:border-brand/40 hover:text-brand"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                        </Link>
+                      </>
+                    ) : null}
+
+                    {/* The reminder itself, ready to send, with the accounts
+                        in it. Offered on every row with a number and a bill —
+                        not only the ones that have never been sent. */}
+                    {row.customerPhone && row.invoiceId ? (
+                      <a
+                        href={whatsappLink(row.customerPhone, invoiceMessage(row))}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-success/40 px-3 py-1.5 text-[11px] font-semibold text-success transition-colors hover:bg-success/10"
+                      >
+                        <MessageCircle className="h-3 w-3" />
+                        Remind
+                      </a>
                     ) : null}
 
                     {row.customerPhone ? (
