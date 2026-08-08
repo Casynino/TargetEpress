@@ -1387,7 +1387,8 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
 // ---------------------------------------------------------------------------
 
 async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
-  const [stats, volume, revenue, perf, alerts, activity, aging] = await Promise.all([
+  const [stats, volume, revenue, perf, alerts, activity, aging, execRateRow] =
+    await Promise.all([
     executiveStats(),
     monthlyVolume(),
     monthlyRevenue(),
@@ -1395,7 +1396,9 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     attentionItems(role),
     recentActivity(10),
     agingInWarehouse(5),
+    currentRate(),
   ]);
+  const execRate = execRateRow ? toNumber(execRateRow.rate) : null;
 
   const thisMonthRevenue = revenue.values[revenue.values.length - 1] ?? 0;
   const lastMonthRevenue = revenue.values[revenue.values.length - 2] ?? 0;
@@ -1454,13 +1457,15 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           trend={revenue.values}
           href="/app/finance"
         />
-        <KpiCard
-          delay={1}
+        {/* Shillings lead. Freight is priced in dollars and paid in
+            shillings, and the owner reads this the way the till does. */}
+        <MoneyTile
           label="Outstanding"
-          value={formatUsd(stats.outstanding)}
-          hint="Owed to us"
+          usd={stats.outstanding}
+          rate={execRate}
+          hint="Owed to us by customers"
           icon={Wallet}
-          tone={stats.outstanding > 0 ? "warning" : "success"}
+          tone={stats.outstanding > 0 ? "warn" : "good"}
           href="/app/finance/invoices?status=UNPAID"
         />
         <KpiCard

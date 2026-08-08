@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
-import { formatUsd } from "@/lib/fx";
+import { currentRate, formatUsd } from "@/lib/fx";
 import {
   CHANNEL_LABELS,
   MESSAGE_KIND_LABELS,
@@ -51,6 +51,8 @@ export default async function CustomerProfilePage({
    * the CEO record it directly; Customer Support hands the proof up. Both
    * arrive from the same button on the same row.
    */
+  const rateRow = await currentRate();
+  const profileRate = rateRow ? toNumber(rateRow.rate) : null;
   const mayRecord = can(user.role, "payment.record");
   const mayCollect = can(user.role, "payment.submit");
   const canMessage = can(user.role, "message.send");
@@ -128,10 +130,20 @@ export default async function CustomerProfilePage({
             ? [
                 {
                   label: "Outstanding",
-                  value: formatUsd(stats.outstanding),
+                  // Shillings first: this is the figure quoted down the phone.
+                  value: profileRate
+                    ? `TZS ${Math.round(stats.outstanding * profileRate).toLocaleString("en-US")}`
+                    : formatUsd(stats.outstanding),
+                  hint: profileRate ? formatUsd(stats.outstanding) : undefined,
                   tone: stats.outstanding > 0 ? "text-destructive" : "text-success",
                 },
-                { label: "Paid to date", value: formatUsd(stats.lifetimeValue) },
+                {
+                  label: "Paid to date",
+                  value: profileRate
+                    ? `TZS ${Math.round(stats.lifetimeValue * profileRate).toLocaleString("en-US")}`
+                    : formatUsd(stats.lifetimeValue),
+                  hint: profileRate ? formatUsd(stats.lifetimeValue) : undefined,
+                },
               ]
             : []),
         ].map((item) => (
@@ -144,6 +156,13 @@ export default async function CustomerProfilePage({
             >
               {item.value}
             </dd>
+            {/* The invoice's own figure, underneath. Present so a clerk can
+                match what they are saying against the bill that was sent. */}
+            {"hint" in item && item.hint ? (
+              <p className="font-mono text-[11px] text-muted-foreground">
+                {item.hint as string}
+              </p>
+            ) : null}
           </div>
         ))}
       </dl>

@@ -7,7 +7,8 @@ import { PageHeader } from "@/components/app/page-header";
 import { SendInvoiceButton } from "@/components/app/send-invoice-button";
 import { can } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
-import { formatUsd } from "@/lib/fx";
+import { currentRate, formatUsd } from "@/lib/fx";
+import { toNumber } from "@/lib/format";
 import { paymentReminderSwahili, whatsappLink } from "@/lib/messages";
 import { requirePermission } from "@/lib/session";
 import {
@@ -38,6 +39,20 @@ export default async function FollowUpPage({
   const { filter } = await searchParams;
 
   const rows = await followUpQueue();
+
+  /**
+   * Shillings for the band totals.
+   *
+   * Each ROW converts at its own invoice's frozen rate — that is the figure
+   * the customer was quoted. A total across many invoices has no single frozen
+   * rate to use, so it converts at today's published one and is a live
+   * estimate rather than a sum of quoted figures. The dollar figure beneath it
+   * is the exact one.
+   */
+  const rateRow = await currentRate();
+  const liveRate = rateRow ? toNumber(rateRow.rate) : null;
+  const tsh = (usd: number) =>
+    liveRate ? `TZS ${Math.round(usd * liveRate).toLocaleString("en-US")}` : formatUsd(usd);
 
   /**
    * What the customer reads. Built here so the figures come off the same row
@@ -110,15 +125,25 @@ export default async function FollowUpPage({
           <p className="text-xs text-muted-foreground">Shipments shown</p>
           <p className="font-display text-xl font-bold tabular-nums">{visible.length}</p>
         </div>
+        {/* Shillings lead, here as everywhere. Freight is priced in dollars
+            and paid in shillings: the customer on the phone is quoting
+            shillings and so is the clerk. The invoice figure stays underneath,
+            smaller, for matching against the bill that was sent. */}
         <div>
           <p className="text-xs text-muted-foreground">Money outstanding</p>
           <p className="font-display text-xl font-bold tabular-nums">
-            {formatUsd(totalOutstanding)}
+            {tsh(totalOutstanding)}
+          </p>
+          <p className="font-mono text-[11px] text-muted-foreground">
+            {formatUsd(totalOutstanding)} on the invoices
           </p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Storage charges accrued</p>
           <p className="font-display text-xl font-bold tabular-nums">
+            {tsh(storageAtRisk)}
+          </p>
+          <p className="font-mono text-[11px] text-muted-foreground">
             {formatUsd(storageAtRisk)}
           </p>
         </div>
@@ -180,10 +205,15 @@ export default async function FollowUpPage({
                     <span className="text-success">paid</span>
                   ) : (
                     <>
-                      {formatUsd(row.outstanding)}
+                      {/* What the customer will actually send, first. */}
+                      <div className="font-semibold">
+                        {row.outstandingLocal !== null
+                          ? `${row.localCurrency ?? "TZS"} ${row.outstandingLocal.toLocaleString()}`
+                          : formatUsd(row.outstanding)}
+                      </div>
                       {row.outstandingLocal !== null ? (
                         <div className="text-xs text-muted-foreground">
-                          {row.localCurrency} {row.outstandingLocal.toLocaleString()}
+                          {formatUsd(row.outstanding)}
                         </div>
                       ) : null}
                     </>
