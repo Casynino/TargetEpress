@@ -39,7 +39,7 @@ import { SectionLabel } from "@/components/app/section-label";
 import { StatStrip } from "@/components/app/stat-strip";
 import { AreaChart } from "@/components/charts/area-chart";
 import { AgeingBar } from "@/components/charts/ageing-bar";
-import { Donut, DonutLegend } from "@/components/charts/donut";
+import { Donut, DonutLegend, SWATCHES } from "@/components/charts/donut";
 import { BarChart } from "@/components/charts/bar-chart";
 import { FlowBars } from "@/components/charts/flow-bars";
 import { Button } from "@/components/ui/button";
@@ -1435,6 +1435,21 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
   const holding = accountRows.filter((a) => a.native !== 0).length;
 
   /**
+   * The cash ring and its key, from one array.
+   *
+   * Proportioned by the dollar figure because six accounts in two currencies
+   * cannot share a ring otherwise; the key shows each balance in the currency
+   * the account is actually held in, which is what the old list did and the
+   * only reason it was worth its own panel.
+   */
+  const cashLegend = accountRows.slice(0, 6);
+  const cashSlices = cashLegend.map((account, i) => ({
+    label: account.name,
+    value: Math.max(0, account.usd),
+    tone: ((i % 6) + 1) as 1 | 2 | 3 | 4 | 5 | 6,
+  }));
+
+  /**
    * The work, richest first.
    *
    * Each row carries the money at stake and the page that clears it. A queue
@@ -1634,36 +1649,95 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       </div>
 
       {/* ---- What it has been doing, and where it is sitting ---- */}
+      {/*
+        Three questions about the money, three cards, one row.
+
+        It used to be a 1.6fr/1fr split with two charts stacked in the wide
+        column and the account list running down the narrow one — so the band
+        was as tall as two cards and the list dictated the height of everything
+        beside it.
+      */}
       <div>
         <SectionLabel action={{ href: "/app/finance/transactions", label: "The Ledger" }}>
-          Collections &amp; cash
+          The money, in shape
         </SectionLabel>
-        <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-        <div className="space-y-6">
-          {/* Money in and out, one baseline, one scale. */}
-          <section className="panel p-5">
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="font-display font-semibold">Money in and out</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          {/* The account list becomes the key to a ring rather than a panel of
+              its own. Proportioned by each account's dollar figure — the same
+              basis "Cash available" is computed on, so no new conversion is
+              invented here — while the legend keeps every balance in the
+              currency the account is actually held in. */}
+          <section className="panel p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">Where the cash sits</h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {holding} of {accountRows.length} accounts holding
+                </p>
+              </div>
+              <Link
+                href="/app/finance/accounts"
+                className="focus-ring shrink-0 rounded text-[11px] font-semibold text-brand hover:underline"
+              >
+                All
+              </Link>
+            </div>
+
+            {cashUsd > 0 ? (
+              <>
+                <div className="mt-3 flex justify-center">
+                  <Donut
+                    size={118}
+                    stroke={18}
+                    label={tsh(cashUsd).replace("TSh ", "")}
+                    caption="TSh in hand"
+                    slices={cashSlices}
+                  />
+                </div>
+                <ul className="mt-3 space-y-1.5">
+                  {cashSlices.map((slice, i) => (
+                    <li key={slice.label} className="flex items-center gap-2 text-xs">
+                      <span
+                        aria-hidden
+                        className={`h-2 w-2 shrink-0 rounded-sm ${SWATCHES[slice.tone]}`}
+                      />
+                      <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                        {slice.label}
+                      </span>
+                      <span className="shrink-0 font-mono font-semibold tabular-nums">
+                        {formatMoney(cashLegend[i].native, cashLegend[i].currency)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                Every account is empty.
+              </p>
+            )}
+          </section>
+
+          <section className="panel p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">Money in and out</h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
                   What arrived against what it cost, this year
                 </p>
               </div>
-              <div className="text-right">
-                <p
-                  className={`font-display text-xl font-bold leading-none tabular ${
-                    netThisMonth < 0 ? "text-signal" : "text-success"
-                  }`}
-                >
-                  {netThisMonth < 0 ? "−" : "+"}
-                  {tsh(Math.abs(netThisMonth))}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  kept this month · {tsh(collectedThisMonth)} in
-                </p>
-              </div>
+              <p
+                className={`shrink-0 text-right font-mono text-[11px] font-semibold ${
+                  netThisMonth < 0 ? "text-signal" : "text-success"
+                }`}
+              >
+                {netThisMonth < 0 ? "−" : "+"}
+                {tsh(Math.abs(netThisMonth))}
+              </p>
             </div>
             <FlowBars
+              className="mt-3"
               labels={flow.labels}
               valuesIn={flow.moneyIn}
               valuesOut={flow.moneyOut}
@@ -1672,84 +1746,45 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
             />
           </section>
 
-          {/* How old the debt is — the question "TSh 25m owed" never answers. */}
-          <section className="panel p-5">
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="font-display font-semibold">
-                  What we are owed, by age
-                </h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Counted from the day the customer was told, not the day the
-                  bill was raised
+          <section className="panel p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">What we are owed, by age</h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  From the day the bill became real
                 </p>
               </div>
               {ageing.oldestDays > 0 ? (
-                <p className="text-right text-[11px] text-muted-foreground">
-                  oldest
-                  <span className="ml-1 font-mono font-semibold text-foreground">
+                <p className="shrink-0 text-right text-[11px] text-muted-foreground">
+                  oldest{" "}
+                  <span className="font-mono font-semibold text-foreground">
                     {ageing.oldestDays}d
                   </span>
                 </p>
               ) : null}
             </div>
-
             <AgeingBar
-              segments={ageing.buckets.map((b) => ({
-                key: b.key,
-                label: b.label,
-                count: b.count,
-                value: b.usd,
+              className="mt-3"
+              segments={ageing.buckets.map((bucket) => ({
+                key: bucket.key,
+                label: bucket.label,
+                count: bucket.count,
+                value: bucket.usd,
               }))}
               format={tsh}
               empty="Nothing is owed. Every bill raised has been settled."
             />
-
           </section>
-        </div>
-
-        <section className="panel overflow-hidden">
-          <header className="flex items-center justify-between gap-3 border-b px-5 py-3.5">
-            <div>
-              <h2 className="font-display font-semibold">Where the cash sits</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Each account in its own currency
-              </p>
-            </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/app/finance/accounts">All accounts</Link>
-            </Button>
-          </header>
-          <ul className="divide-y">
-            {accountRows.map((account) => (
-              <li
-                key={account.id}
-                className="flex items-center justify-between gap-3 px-5 py-2.5"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{account.name}</p>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    {account.kind.replace(/_/g, " ").toLowerCase()}
-                  </p>
-                </div>
-                <p
-                  className={`shrink-0 font-mono text-sm font-semibold tabular ${
-                    account.native === 0 ? "text-muted-foreground" : ""
-                  }`}
-                >
-                  {formatMoney(account.native, account.currency)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
         </div>
       </div>
 
       {/* ---- The cargo those figures are made of ---- */}
       <div>
         <SectionLabel>Cargo behind the money</SectionLabel>
-        <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+        {/* One child, so no grid. It was in a 1.6fr/1fr split with nothing in
+            the second column — the table was squeezed into two thirds of the
+            row and the rest was blank. */}
+        <div>
         <section className="panel overflow-hidden">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5">
             <div>

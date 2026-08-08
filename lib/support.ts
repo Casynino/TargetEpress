@@ -502,3 +502,58 @@ export async function customerProfile(idOrCode: string) {
     },
   };
 }
+
+/**
+ * Tickets opened against tickets closed, day by day.
+ *
+ * Whether this desk is keeping up. The open count alone cannot say: forty open
+ * is fine if forty are closed a day and a crisis if none are, and the number on
+ * its own looks identical either way.
+ *
+ * Closed is counted from resolvedAt — the moment somebody actually finished it,
+ * not the moment the row was last touched.
+ */
+export async function ticketFlowByDay(days = 14, now = new Date()) {
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  start.setDate(start.getDate() - (days - 1));
+
+  const [opened, closed] = await Promise.all([
+    prisma.supportTicket.findMany({
+      where: { createdAt: { gte: start } },
+      select: { createdAt: true },
+    }),
+    prisma.supportTicket.findMany({
+      where: { resolvedAt: { gte: start } },
+      select: { resolvedAt: true },
+    }),
+  ]);
+
+  const labels: string[] = [];
+  const inCounts = Array.from({ length: days }, () => 0);
+  const outCounts = Array.from({ length: days }, () => 0);
+
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    labels.push(d.toLocaleDateString("en-GB", { day: "numeric" }));
+  }
+
+  const indexOf = (date: Date) =>
+    Math.floor(
+      (new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() -
+        start.getTime()) /
+        86_400_000
+    );
+
+  for (const row of opened) {
+    const i = indexOf(row.createdAt);
+    if (i >= 0 && i < days) inCounts[i] += 1;
+  }
+  for (const row of closed) {
+    if (!row.resolvedAt) continue;
+    const i = indexOf(row.resolvedAt);
+    if (i >= 0 && i < days) outCounts[i] += 1;
+  }
+
+  return { labels, inCounts, outCounts, currentIndex: days - 1 };
+}

@@ -18,6 +18,7 @@ import { AttentionCenter, type AttnItem } from "@/components/app/attention-cente
 import { SectionLabel } from "@/components/app/section-label";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Donut } from "@/components/charts/donut";
+import { FlowBars } from "@/components/charts/flow-bars";
 import { CargoSearch } from "@/components/app/cargo-search";
 import { QuickAction } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +26,7 @@ import { formatDateTime, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
-import { followUpQueue, supportOverview } from "@/lib/support";
+import { followUpQueue, supportOverview, ticketFlowByDay } from "@/lib/support";
 
 export const metadata: Metadata = { title: "Support desk" };
 
@@ -76,8 +77,16 @@ export default async function SupportHome() {
     month: "long",
   });
 
-  const [overview, queue, tickets, requests, rateRow, callBacks, submissions] =
-    await Promise.all([
+  const [
+    overview,
+    queue,
+    tickets,
+    requests,
+    rateRow,
+    callBacks,
+    submissions,
+    ticketFlow,
+  ] = await Promise.all([
     supportOverview(),
     followUpQueue(),
     prisma.supportTicket.findMany({
@@ -117,6 +126,8 @@ export default async function SupportHome() {
     // no presence on the page they open first, so a claim Finance sent back
     // sat unseen until somebody thought to go looking for it.
     prisma.paymentSubmission.groupBy({ by: ["status"], _count: true }),
+    // Whether this desk is keeping up, which the open count cannot say.
+    ticketFlowByDay(14),
   ]);
   const submissionCount = (status: string) =>
     submissions.find((row) => row.status === status)?._count ?? 0;
@@ -406,9 +417,17 @@ export default async function SupportHome() {
         <SectionLabel action={{ href: "/app/collections/follow-up", label: "Full queue" }}>
           Where the queue is stuck
         </SectionLabel>
-        <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr]">
-          <section className="panel p-5">
-            <div className="flex flex-wrap items-center gap-6">
+        {/* Three cards, one row — the rhythm the warehouse floors and the money
+            desk use. Two answer "what is stuck, and for how long"; the third
+            answers the one a count can never show, which is whether this desk
+            is keeping up at all. */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <section className="panel p-4">
+            <h3 className="text-sm font-semibold">What the queue is made of</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Every consignment in Dar, by what is holding it
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-5">
               <Donut
                 slices={split.map((slice) => ({
                   label: slice.label,
@@ -454,10 +473,10 @@ export default async function SupportHome() {
             </div>
           </section>
 
-          <section className="panel p-5">
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <section className="panel p-4">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="font-display font-semibold">How long they have waited</h2>
+                <h3 className="text-sm font-semibold">How long they have waited</h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Days on the floor since the plane landed
                 </p>
@@ -478,6 +497,39 @@ export default async function SupportHome() {
               height={168}
               highlightIndex={ageing.length - 1}
               formatValue={(n) => `${n} consignment${n === 1 ? "" : "s"}`}
+            />
+          </section>
+
+          {/* Opened against closed. A desk with forty tickets open is fine if
+              it closes forty a day and in trouble if it closes none — and the
+              open count on its own reads identically either way. */}
+          <section className="panel p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">Opened and closed</h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Tickets raised against tickets finished, a fortnight
+                </p>
+              </div>
+              <p className="shrink-0 text-right text-[11px] text-muted-foreground">
+                <span className="font-mono font-semibold text-success">
+                  {ticketFlow.inCounts.reduce((a, b) => a + b, 0)}
+                </span>
+                {" / "}
+                <span className="font-mono font-semibold text-signal">
+                  {ticketFlow.outCounts.reduce((a, b) => a + b, 0)}
+                </span>
+              </p>
+            </div>
+            <FlowBars
+              className="mt-3"
+              labels={ticketFlow.labels}
+              valuesIn={ticketFlow.inCounts}
+              valuesOut={ticketFlow.outCounts}
+              currentIndex={ticketFlow.currentIndex}
+              format={(n) => `${n} ticket${n === 1 ? "" : "s"}`}
+              legendIn="Opened"
+              legendOut="Closed"
             />
           </section>
         </div>

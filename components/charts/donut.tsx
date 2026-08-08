@@ -16,7 +16,7 @@ export type DonutSlice = {
  * `bg-chart-${n}` is a class Tailwind never generates, and the swatch would
  * render with no colour at all.
  */
-const SWATCHES: Record<DonutSlice["tone"], string> = {
+export const SWATCHES: Record<DonutSlice["tone"], string> = {
   1: "bg-chart-1",
   2: "bg-chart-2",
   3: "bg-chart-3",
