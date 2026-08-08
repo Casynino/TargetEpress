@@ -27,12 +27,24 @@ const badgeVariants = cva(
 )
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof badgeVariants> {}
 
+/**
+ * A span, not a div.
+ *
+ * A badge is inline content — it sits beside a customer's name, inside a
+ * sentence, next to a figure — so it lands in a <p> constantly. A <div> in a
+ * <p> is invalid HTML: the browser closes the paragraph early, the server
+ * markup and the client tree stop matching, and React throws a hydration error
+ * on a page that looked fine.
+ *
+ * Nothing moves by a pixel. The base class is already inline-flex, so the box
+ * renders identically either way; only the tag the parser will accept changes.
+ */
 function Badge({ className, variant, ...props }: BadgeProps) {
   return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    <span className={cn(badgeVariants({ variant }), className)} {...props} />
   )
 }
 
