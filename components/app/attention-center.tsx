@@ -46,17 +46,6 @@ const RANK: Record<AttnSeverity, number> = { critical: 0, warning: 1, info: 2 };
 const VISIBLE_ROWS = 3;
 
 /**
- * A FIXED height, not a maximum.
- *
- * Every desk's panel is the same size whether it is holding three problems or
- * thirty, so the page below it does not move as the day goes on and a
- * supervisor moving between departments is not re-finding the first tile. The
- * cost is a little empty space on a quiet desk, which is the right trade: a
- * band that resizes under you is worse than a band with room to spare.
- */
-const LIST_HEIGHT = "h-[10.5rem]";
-
-/**
  * Everything waiting on this desk, in one panel that never grows.
  *
  * The dashboards had two of these — an aggregate band counting the work and a
@@ -117,14 +106,7 @@ export function AttentionCenter({
 
       <section className="panel overflow-hidden">
       {items.length === 0 ? (
-        <p
-          className={cn(
-            LIST_HEIGHT,
-            "flex items-center justify-center px-6 text-center text-sm text-muted-foreground"
-          )}
-        >
-          {empty}
-        </p>
+        <p className="px-4 py-8 text-center text-sm text-muted-foreground">{empty}</p>
       ) : (
         <>
           {/* Pills only earn their place once there is more than one kind of
@@ -156,7 +138,7 @@ export function AttentionCenter({
 
           {/* Fixed height, internal scroll. The panel is the same size whether
               this desk has three problems or thirty. */}
-          <ul className={cn(LIST_HEIGHT, "divide-y overflow-y-auto")}>
+          <ul className="max-h-[10.5rem] divide-y overflow-y-auto">
             {shown.map((item) => {
               const meta = SEVERITY[item.severity];
               const Icon = meta.icon;
