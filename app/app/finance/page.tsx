@@ -473,7 +473,7 @@ export default async function FinanceOverviewPage() {
               href="/app/collections/follow-up"
               className="shrink-0 text-xs font-medium text-brand hover:underline"
             >
-              Full chase queue →
+              Payment follow-up →
             </Link>
           </div>
 

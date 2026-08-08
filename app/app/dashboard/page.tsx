@@ -1123,7 +1123,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     { href: "/app/finance/verify", label: "Verify payments", icon: ShieldCheck, tone: "info" },
     { href: "/app/finance/accounts", label: "Accounts", icon: Landmark, tone: "violet" },
     { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: QrCode, tone: "success" },
-    { href: "/app/collections/follow-up", label: "Chase queue", icon: Clock, tone: "warning" },
+    { href: "/app/collections/follow-up", label: "Payment follow-up", icon: Clock, tone: "warning" },
   ];
 
   return (
@@ -1298,7 +1298,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
               </p>
             </div>
             <Button asChild variant="ghost" size="sm">
-              <Link href="/app/collections/follow-up">Full chase queue</Link>
+              <Link href="/app/collections/follow-up">Payment follow-up</Link>
             </Button>
           </header>
 
