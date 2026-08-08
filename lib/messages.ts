@@ -51,13 +51,28 @@ export const CHANNEL_LABELS: Record<string, string> = {
 };
 
 /**
- * Where customers go to track. Read from the environment because the message
- * goes out to a real person — a wrong host here is a dead link in a customer's
- * WhatsApp, not a broken page a developer notices.
+ * Where customers go to track.
+ *
+ * Read from the environment because the message goes out to a real person — a
+ * wrong host here is a dead link in a customer's WhatsApp, not a broken page a
+ * developer notices.
+ *
+ * A localhost value is REFUSED rather than used. NEXT_PUBLIC_SITE_URL is
+ * "http://localhost:3000" in this repo's .env, which is correct for a dev
+ * server and catastrophic in a customer message: anybody testing a reminder
+ * from their own machine would send a link that resolves to the customer's own
+ * phone. The public domain is the only sane answer for a message leaving the
+ * building, so that is what a local value falls back to.
  */
-const TRACK_URL = `${
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://targetexpress.co.tz"
-}/track`;
+const PUBLIC_HOST = (() => {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  if (!configured) return "https://targetexpress.co.tz";
+  return /localhost|127\.0\.0\.1|0\.0\.0\.0/.test(configured)
+    ? "https://targetexpress.co.tz"
+    : configured;
+})();
+
+const TRACK_URL = `${PUBLIC_HOST}/track`;
 
 function firstName(fullName: string) {
   return fullName.trim().split(/\s+/)[0] ?? fullName;
@@ -185,73 +200,102 @@ export function suggestedKind(input: {
 
 /** A wa.me link that opens WhatsApp with the message already typed. */
 /**
+ * Short names for the message, where the legal name is a mouthful.
+ *
+ * The NUMBERS still come from PAYMENT_ACCOUNTS and are never restated here —
+ * one source of truth for the thing that decides where money lands. This map
+ * only shortens what a customer reads on a phone.
+ */
+const BANK_LABEL: Record<string, string> = {
+  "Tanzania Commercial Bank": "TCB Bank",
+  "Vodacom (M-Pesa)": "Vodacom M-Pesa",
+};
+
+const label = (name: string) => BANK_LABEL[name] ?? name;
+
+/**
  * The payment reminder a customer actually reads, in Swahili.
  *
- * Written to be acted on rather than acknowledged: greeting, which cargo,
- * what it costs, where to send it, and one reason to do it today. Everything
- * a customer needs to pay is in the message, so nobody has to ring back to
- * ask for an account number.
+ * Written to be acted on rather than acknowledged: which cargo, what it costs,
+ * where to send it, and what happens once they have. Everything needed to pay
+ * is in the message, so nobody rings back to ask for an account number.
  *
- * Swahili only. The bilingual templates elsewhere double the length of a
- * WhatsApp message, and a customer who has to scroll past an English copy of
- * what they just read is a customer who stops reading.
+ * Formatted for WhatsApp specifically. Asterisks are its bold, a blank line is
+ * its paragraph, and each account is three short lines — provider, number,
+ * name — because that is how a person checks a number on a phone: one glance
+ * per line, not a sentence to be parsed. Markdown's two-space line break does
+ * nothing here and would arrive as trailing whitespace, so every break is a
+ * real newline.
  *
- * Short on purpose. Every line earns its place — the accounts are the longest
- * part and they are the part that gets the money in.
+ * Swahili only. The bilingual templates elsewhere double the length, and a
+ * customer scrolling past an English copy of what they just read stops
+ * reading.
  *
- * "Lipa kwa mara moja" is deliberate: part-payments leave cargo on our floor
- * accruing storage and take three phone calls to settle instead of none.
+ * Every account carries its OWN name. CRDB is TARGET(GZ) EXPRESS AIR CARGO and
+ * the others are not — one name printed under a list of five is how a payment
+ * bounces, or reaches somebody else.
  */
 export function paymentReminderSwahili(input: {
   customerName: string;
   trackingNumber: string;
   description: string;
   invoiceNumber: string | null;
-  /** Already formatted, in the currency the customer will pay in. */
+  /** Already formatted, in the currency the customer will actually send. */
   amount: string;
 }) {
   const first = input.customerName.trim().split(/\s+/)[0] || "mteja";
 
-  /**
-   * Each line carries its own account name.
-   *
-   * A single "Jina la akaunti" under the whole list was wrong and dangerous:
-   * CRDB is TARGET(GZ) EXPRESS AIR CARGO and the others are not, so a customer
-   * paying into Tanzania Commercial Bank would have checked the name against
-   * the wrong one. A mistyped account name is a payment that bounces or, worse,
-   * reaches somebody else. This is the one place in the message where extra
-   * words buy something.
-   */
-  const mobile = PAYMENT_ACCOUNTS.mobileMoney.map(
-    (account) =>
-      `${account.provider}: ${account.number} - ${account.accountName}`
-  );
-  const banks = PAYMENT_ACCOUNTS.banks.flatMap((bank) =>
-    bank.accounts.map(
-      (account) =>
-        `${bank.bank} (${account.currency}): ${account.number} - ${bank.accountName}`
-    )
-  );
+  // Where the customer can see the bill themselves. The staff PDF sits behind
+  // a login, so this is the public tracking page — which already shows the
+  // cost, what has been paid and whether the cargo may be collected.
+  const invoiceLink = `${TRACK_URL}?q=${encodeURIComponent(input.trackingNumber)}`;
+
+  const accounts = [
+    ...PAYMENT_ACCOUNTS.mobileMoney.map((account) => [
+      `*${label(account.provider)}*`,
+      account.number,
+      `*${account.accountName}*`,
+    ]),
+    ...PAYMENT_ACCOUNTS.banks.flatMap((bank) =>
+      bank.accounts.map((account) => [
+        `*${label(bank.bank)} (${account.currency})*`,
+        account.number,
+        `*${bank.accountName}*`,
+      ])
+    ),
+  ];
 
   return [
-    `Habari ${first},`,
+    `📦 *${COMPANY.name.toUpperCase()}*`,
     ``,
-    `Mzigo wako ${input.trackingNumber} (${input.description}) umefika Dar es Salaam.`,
-    input.invoiceNumber ? `Ankara: ${input.invoiceNumber}` : "",
-    `Kiasi cha kulipa: ${input.amount}`,
+    `Habari *${first}*,`,
     ``,
-    `Njia za malipo:`,
-    ...mobile,
-    ...banks,
+    `Tunafurahi kukujulisha kuwa mzigo wako umefika salama kwenye *warehouse yetu ya Dar es Salaam* na uko tayari kuchukuliwa baada ya malipo kuthibitishwa.`,
     ``,
-    `Tafadhali lipa kwa mara moja ili kuepuka gharama za hifadhi. Mzigo hutolewa baada ya malipo kuthibitishwa.`,
+    `*📋 Maelezo ya Mzigo*`,
     ``,
-    `Asante,`,
-    COMPANY.name,
-    COMPANY.phone,
+    `• *Tracking No.:* ${input.trackingNumber}`,
+    `• *Bidhaa:* ${input.description}`,
+    ...(input.invoiceNumber ? [`• *Invoice No.:* ${input.invoiceNumber}`] : []),
+    `• *Kiasi cha Kulipa:* *${input.amount}*`,
+    ``,
+    `📄 *Angalia invoice yako kamili hapa:*`,
+    `🔗 ${invoiceLink}`,
+    ``,
+    `*💳 Njia za Malipo*`,
+    ``,
+    ...accounts.flatMap((lines) => [...lines, ``]),
+    `✅ Baada ya kufanya malipo, tafadhali tuma uthibitisho wa malipo. Malipo yakishathibitishwa, utapokea *Pickup Note* ya kuchukua mzigo wako.`,
+    ``,
+    `⚠️ *Tafadhali chukua mzigo wako mapema ili kuepuka gharama za storage.*`,
+    ``,
+    `Asante kwa kuchagua *${COMPANY.name}*.`,
+    ``,
+    `📞 ${COMPANY.phone}`,
   ]
-    .filter((line) => line !== "" || true)
     .join("\n")
+    // Three or more breaks anywhere means a section ended with its own blank
+    // line and the next began with one. WhatsApp renders every one of them.
     .replace(/\n{3,}/g, "\n\n");
 }
 
