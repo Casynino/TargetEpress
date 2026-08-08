@@ -42,6 +42,17 @@ export default async function CustomerProfilePage({
 
   const { customer, stats } = profile;
   const showMoney = can(user.role, "finance.view");
+  /**
+   * Collecting from the customer's own page.
+   *
+   * Somebody searches a customer, opens them, and sees a bill with money owed
+   * against it — that is the moment the payment gets recorded, not after
+   * navigating back out to a queue and finding the same row again. Finance and
+   * the CEO record it directly; Customer Support hands the proof up. Both
+   * arrive from the same button on the same row.
+   */
+  const mayRecord = can(user.role, "payment.record");
+  const mayCollect = can(user.role, "payment.submit");
   const canMessage = can(user.role, "message.send");
 
   // Compose every template up front so the composer can switch between them
@@ -218,6 +229,21 @@ export default async function CustomerProfilePage({
                                   >
                                     never sent
                                   </Badge>
+                                ) : null}
+                                {outstanding !== null &&
+                                outstanding > 0 &&
+                                shipment.invoice.status !== "DRAFT" &&
+                                (mayRecord || mayCollect) ? (
+                                  <Link
+                                    href={
+                                      mayRecord
+                                        ? `/app/cargo/${shipment.trackingNumber}`
+                                        : `/app/collections/record/${shipment.invoice.id}`
+                                    }
+                                    className="focus-ring mt-1.5 inline-flex items-center rounded-full bg-brand px-2.5 py-1 text-[10px] font-semibold text-brand-foreground transition-colors hover:bg-brand/90"
+                                  >
+                                    Record payment
+                                  </Link>
                                 ) : null}
                               </>
                             ) : (

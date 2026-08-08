@@ -92,12 +92,30 @@ export function ShipmentActions(props: Props) {
     status === "RECEIVED_AT_DAR" &&
     props.outstanding !== null &&
     props.outstanding <= 0;
+  /**
+   * The collections desk's way in.
+   *
+   * Customer Support holds payment.submit and not payment.record, so canPay is
+   * false for them and this panel offered them nothing at all — the one screen
+   * where a customer's cargo, bill and balance are all in front of them had no
+   * way to act on a payment. They do not record money; they hand the customer's
+   * proof to Finance, so the button goes there instead of opening a form that
+   * would settle a bill.
+   */
+  const canCollect =
+    !canPay &&
+    can(role, "payment.submit") &&
+    props.hasInvoice &&
+    props.invoiceStatus !== "DRAFT" &&
+    props.outstanding !== null &&
+    props.outstanding > 0;
+
   const canCancel =
     can(role, "shipment.cancel") &&
     status !== "DELIVERED" &&
     status !== "CANCELLED";
 
-  const anything = canInvoice || canPay || canIssueNote || canCancel;
+  const anything = canInvoice || canPay || canCollect || canIssueNote || canCancel;
   if (!anything) return null;
 
   return (
@@ -108,6 +126,24 @@ export function ShipmentActions(props: Props) {
             and a clerk with a customer at the counter should not have to read
             past two other panels to find the one button they came for. */}
         {canPay ? <PaymentPanel {...props} /> : null}
+        {canCollect ? (
+          <div className="border-l-2 border-brand bg-brand/5 p-5">
+            <p className="flex items-center gap-2 font-medium">
+              <Wallet className="h-5 w-5 text-brand" />
+              Customer paid?
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Everything on this bill is already known. Add the reference they
+              sent and their receipt, and it goes to Finance to verify.
+            </p>
+            <Link
+              href={`/app/collections/record/${props.invoiceId}`}
+              className="focus-ring mt-3 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground transition-colors hover:bg-brand/90"
+            >
+              Record their payment
+            </Link>
+          </div>
+        ) : null}
         {canInvoice && props.invoiceStatus === "DRAFT" ? (
           <ConfirmPricePanel {...props} />
         ) : null}
