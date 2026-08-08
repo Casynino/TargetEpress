@@ -17,6 +17,34 @@ const ICON_TONES: Record<Tone, string> = {
   danger: "bg-destructive/10 text-destructive",
 };
 
+/**
+ * A wash of the tone's own colour across the card, matching MoneyTile so the
+ * money desk and the warehouse floor read as one system.
+ *
+ * Faint on purpose — it tints the card rather than colouring it, so a row of
+ * five still reads as one row and the figures keep their contrast against it.
+ * Written out in full: Tailwind scans source text, so from-${tone}/[0.12] is a
+ * class that never exists.
+ */
+const WASHES: Record<Tone, string> = {
+  brand: "from-brand/[0.12]",
+  signal: "from-signal/[0.12]",
+  success: "from-success/[0.12]",
+  warning: "from-warning/[0.14]",
+  info: "from-info/[0.12]",
+  danger: "from-destructive/[0.12]",
+};
+
+/** The figure itself. Every call site sets a tone, so none of these is noise. */
+const VALUE_TONES: Record<Tone, string> = {
+  brand: "text-brand",
+  signal: "text-signal",
+  success: "text-success",
+  warning: "text-warning",
+  info: "text-info",
+  danger: "text-destructive",
+};
+
 const SPARK_TONE: Record<Tone, 1 | 2 | 3 | 4 | 5 | 6> = {
   brand: 1,
   signal: 3,
@@ -93,13 +121,20 @@ export function KpiCard({
   const body = (
     <div
       className={cn(
-        "panel h-full animate-slide-up p-5 transition-shadow",
+        "panel relative h-full animate-slide-up overflow-hidden p-5 transition-shadow",
         href && "hover:shadow-lift",
         className
       )}
       style={{ animationDelay: `${delay * 40}ms` }}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-0 bg-gradient-to-br to-transparent",
+          WASHES[tone]
+        )}
+      />
+      <div className="relative flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
           {Icon ? (
             <span
@@ -127,9 +162,14 @@ export function KpiCard({
         ) : null}
       </div>
 
-      <div className="mt-3 flex items-end justify-between gap-3">
+      <div className="relative mt-3 flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-display text-[26px] font-bold leading-none tracking-tight tabular">
+          <p
+            className={cn(
+              "font-display text-[26px] font-bold leading-none tracking-tight tabular",
+              VALUE_TONES[tone]
+            )}
+          >
             {numeric !== undefined ? (
               <CountUp
                 value={numeric}
