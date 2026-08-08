@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { FileText, Paperclip } from "lucide-react";
 
 import { CollectionsNav } from "@/components/app/collections-nav";
@@ -35,8 +36,14 @@ export default async function SubmissionsPage({
 }) {
   const user = await requirePermission("collections.view");
   const { status } = await searchParams;
+  const canVerify = can(user.role, "payment.verify");
 
   const active = FILTERS.find((f) => f.key === status)?.key ?? "PENDING";
+
+  // A verifier asking for the pending list wants the one with the buttons.
+  // Same rows, same order — this page is the read-only copy, and offering it to
+  // the desk that can act is a dead end dressed as a queue.
+  if (canVerify && active === "PENDING") redirect("/app/finance/verify");
   const rows = await submissionQueue(
     active === "ALL" ? null : (active as "PENDING" | "VERIFIED" | "REJECTED")
   );
@@ -45,13 +52,17 @@ export default async function SubmissionsPage({
     <>
       <PageHeader
         title="Collection history"
-        description="What this desk has handed to Finance, and what they decided. The customer's evidence stays attached to every one."
+        description={
+          canVerify
+            ? "What Customer Support has handed up, and what was decided. The customer's evidence stays attached to every one."
+            : "What this desk has handed to Finance, and what they decided. The customer's evidence stays attached to every one."
+        }
       />
 
-      <CollectionsNav status={active} canVerify={can(user.role, "payment.verify")} />
+      <CollectionsNav status={active} canVerify={canVerify} />
 
       <div className="mb-4 flex flex-wrap gap-2">
-        {FILTERS.map((filter) => (
+        {FILTERS.filter((f) => !(canVerify && f.key === "PENDING")).map((filter) => (
           <Link
             key={filter.key}
             href={`/app/collections/submissions?status=${filter.key}`}

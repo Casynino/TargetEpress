@@ -20,6 +20,12 @@ type Tab = {
   query?: string;
   /** Shown only to the desk that can act on it — see `canVerify`. */
   verifierOnly?: boolean;
+  /**
+   * Hidden from the desk that can verify. Not a permission — Finance may read
+   * these rows — but for them this tab and "Verify payments" are one list, and
+   * this is the copy with the buttons taken off.
+   */
+  collectorOnly?: boolean;
 };
 
 const TABS: Tab[] = [
@@ -37,7 +43,7 @@ const TABS: Tab[] = [
   // payment.verify, and a tab that answers "that area is not yours" is worse
   // than no tab at all.
   { href: "/app/finance/verify", label: "Verify payments", verifierOnly: true },
-  { href: "/app/collections/submissions?status=PENDING", label: "With Finance", match: "/app/collections/submissions" },
+  { href: "/app/collections/submissions?status=PENDING", label: "With Finance", match: "/app/collections/submissions", collectorOnly: true },
   { href: "/app/collections/submissions?status=VERIFIED", label: "Verified", match: "/app/collections/submissions", query: "VERIFIED" },
   { href: "/app/finance/pickup-notes", label: "Pickup notes" },
   { href: "/app/customers", label: "Customer accounts" },
@@ -58,7 +64,9 @@ export function CollectionsNav({
       aria-label="Collections workspace"
       className="mb-6 flex gap-2 overflow-x-auto pb-1"
     >
-      {TABS.filter((tab) => canVerify || !tab.verifierOnly).map((tab) => {
+      {TABS.filter((tab) =>
+        canVerify ? !tab.collectorOnly : !tab.verifierOnly
+      ).map((tab) => {
         const base = tab.match ?? tab.href;
         // Two tabs share one route and are told apart by the filter on it, so
         // the query has to take part in deciding which is lit.
