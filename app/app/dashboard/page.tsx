@@ -32,6 +32,7 @@ import { ActivityFeed } from "@/components/app/activity-feed";
 import { ActionPills, type ActionPill } from "@/components/app/action-pills";
 import { CargoSearch } from "@/components/app/cargo-search";
 import { AlertQueue } from "@/components/app/alert-queue";
+import { AttentionCenter, type AttnItem } from "@/components/app/attention-center";
 import { KpiCard } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
 import { SectionLabel } from "@/components/app/section-label";
@@ -752,57 +753,68 @@ async function DarDashboard({
    * nowhere to go is why people stop reading a dashboard.
    */
   const shortBoxes = floor.declaredPackages - floor.packages;
-  const notFullyChecked = incoming.filter(
-    (b) => b.status === "ARRIVED" && b._count.verifications < b._count.shipments
-  ).length;
 
-  const floorJobs: WorkItem[] = [
-    {
-      when: stats.openExceptions > 0,
-      label: `${stats.openExceptions} open ${stats.openExceptions === 1 ? "case" : "cases"}`,
-      detail:
-        "Cargo reported missing, damaged or wrong on arrival. It cannot be handed over until the case is closed.",
-      aside: exceptionParts.join(" · ") || "under investigation",
-      href: "/app/exceptions",
-      cta: "Work them",
-      urgent: true,
-    },
-    {
-      when: shortBoxes > 0,
-      label: `${shortBoxes} box${shortBoxes === 1 ? "" : "es"} short of the manifest`,
-      detail:
-        "Checked in with fewer cartons than the Guangzhou paperwork claims. Every one is either mis-scanned or genuinely missing.",
-      href: "/app/receive",
-      cta: "Check them in",
-      urgent: true,
-    },
-    {
-      when: notFullyChecked > 0,
-      label: `${notFullyChecked} landed batch${notFullyChecked === 1 ? "" : "es"} not finished`,
-      detail:
-        "The plane is down and the manifest is not fully ticked off. Nothing on it can be billed or collected yet.",
-      href: "/app/receive",
-      cta: "Finish it",
-      urgent: true,
-    },
-    {
-      when: floor.aging > 0,
-      label: `${floor.aging} past the free storage window`,
-      detail: `Standing more than ${STORAGE_POLICY.freeDays} days. Storage is being charged and the customer usually does not know.`,
-      aside: `longest ${floor.longestHeldDays} day${floor.longestHeldDays === 1 ? "" : "s"}`,
-      href: "/app/inventory",
-      cta: "See them",
-    },
-    {
-      when: stats.readyForPickup > 0,
-      label: `${stats.readyForPickup} paid, not collected`,
-      detail:
-        "Cleared by Finance and still on our shelves. The customer can take these away today.",
-      aside: `${stats.readyPackages} box(es)`,
-      href: "/app/pickup-queue",
-      cta: "Hand over",
-    },
-  ].filter((job) => job.when) as WorkItem[];
+  /**
+   * Everything waiting on this floor, as one list.
+   *
+   * Aggregates and specifics in the same panel, and never both for one thing:
+   * the open cases arrive as named consignments from attentionItems, so there
+   * is deliberately no "3 open cases" row counting them again. The rest are
+   * floor-wide conditions with no single tracking number to point at.
+   */
+  const GROUP_BY_PREFIX: Record<string, string> = {
+    exc: "Cases",
+    batch: "Receiving",
+    open: "Receiving",
+    noinv: "Billing",
+    unpaid: "Billing",
+    note: "Pickup",
+  };
+
+  const attention: AttnItem[] = [
+    ...alerts.map((alert) => ({
+      id: alert.id,
+      group: GROUP_BY_PREFIX[alert.id.split("-")[0]] ?? "Other",
+      severity: alert.severity,
+      label: alert.title,
+      detail: alert.detail,
+      href: alert.href ?? "/app/exceptions",
+      value: alert.meta,
+    })),
+    ...([
+      {
+        when: shortBoxes > 0,
+        id: "short-boxes",
+        group: "Receiving",
+        severity: "critical" as const,
+        label: `${shortBoxes} box${shortBoxes === 1 ? "" : "es"} short of the manifest`,
+        detail:
+          "Checked in with fewer cartons than the Guangzhou paperwork claims — mis-scanned, or genuinely missing.",
+        href: "/app/receive",
+      },
+      {
+        when: floor.aging > 0,
+        id: "aging",
+        group: "Storage",
+        severity: "warning" as const,
+        label: `${floor.aging} past the free storage window`,
+        detail: `Standing more than ${STORAGE_POLICY.freeDays} days. Storage is being charged and the customer usually does not know.`,
+        href: "/app/inventory",
+        value: `longest ${floor.longestHeldDays}d`,
+      },
+      {
+        when: stats.readyForPickup > 0,
+        id: "ready",
+        group: "Pickup",
+        severity: "info" as const,
+        label: `${stats.readyForPickup} paid, not collected`,
+        detail:
+          "Cleared by Finance and still on our shelves. The customer can take these away today.",
+        href: "/app/pickup-queue",
+        value: `${stats.readyPackages} box(es)`,
+      },
+    ].filter((job) => job.when) as AttnItem[]),
+  ];
 
   const floorFormat = (n: number) =>
     `${n.toLocaleString("en-US")} consignment${n === 1 ? "" : "s"}`;
@@ -813,14 +825,11 @@ async function DarDashboard({
 
       <FloorChips chips={chips} />
 
-      <div>
-        <SectionLabel count={floorJobs.length}>Needs your attention</SectionLabel>
-        <WorkList
-          items={floorJobs}
-          rate={null}
-          empty="Nothing is waiting on this floor. Every batch is checked in, nothing is short, and no case is open."
-        />
-      </div>
+      <AttentionCenter
+        items={attention}
+        reviewAll={{ href: "/app/exceptions" }}
+        empty="Nothing is waiting on this floor. Every batch is checked in, nothing is short, and no case is open."
+      />
 
       {/* The floor, in the five states cargo can be in between the plane and
           the customer.
@@ -1007,18 +1016,12 @@ async function DarDashboard({
         </div>
       </div>
 
-      {/* The cases themselves, by name and tracking number. Not a second
-          "Needs your attention" — that band counts them; this is which ones,
-          and the two would be the same heading over the same facts twice. */}
+      {/* No second attention panel. Every case it listed is now an AttnItem in
+          the band above — which is the point of that band: one place, one
+          heading, one count that can be trusted. */}
       <div>
-        <SectionLabel>Flagged cargo &amp; inbound</SectionLabel>
-        <div className="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
-        <AlertQueue
-          items={alerts}
-          description="The consignments behind the count above"
-          emptyMessage="Floor is clear. Every batch checked in."
-        />
-
+        <SectionLabel>Inbound</SectionLabel>
+        <div className="grid gap-6">
         <section className="panel p-5">
           <h2 className="font-display font-semibold">Inbound &amp; on the floor</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
