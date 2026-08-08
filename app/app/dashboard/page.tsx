@@ -5,13 +5,13 @@ import {
   ArrowRight,
   Banknote,
   Boxes,
+  ChartNoAxesCombined,
   ClipboardCheck,
   Clock,
   Hourglass,
   Landmark,
   Package,
   PackageCheck,
-  PackageSearch,
   PackagePlus,
   Plane,
   Printer,
@@ -484,7 +484,6 @@ async function ChinaDashboard({
           { href: "/app/cargo/new", label: "Register cargo", icon: PackagePlus, weight: "primary" },
           { href: "/app/batches", label: "Load a batch", icon: Plane, weight: "secondary" },
           { href: "/app/shipments", label: "Shipments", icon: Package },
-          { href: "/app/search", label: "Find cargo", icon: PackageSearch },
           { href: "/app/customers", label: "Customers", icon: Users },
         ]}
       />
@@ -846,9 +845,13 @@ async function darFloorStats() {
 const DAR_QUICK_ACTIONS: ActionPill[] = [
   { href: "/app/receive", label: "Receiving dock", icon: PackagePlus, weight: "primary", tone: "brand" },
   { href: "/app/pickup-queue", label: "Pickup queue", icon: Truck, weight: "secondary", tone: "signal" },
-  { href: "/app/search", label: "Find cargo", icon: PackageSearch, tone: "info" },
-  { href: "/app/inventory", label: "Inventory", icon: Boxes, tone: "violet" },
+  // No Find cargo. The banner's own search box sits directly above this row,
+  // and a pill pointing at the same page is a second control for one action.
+  { href: "/app/inventory", label: "Available Cargo", icon: Boxes, tone: "violet" },
   { href: "/app/exceptions", label: "Issues & Claims", icon: AlertTriangle, tone: "warning" },
+  // Last, because it is read rather than started — the row runs from the job
+  // pressed most to the one opened least.
+  { href: "/app/reports", label: "Reports", icon: ChartNoAxesCombined, tone: "info" },
 ];
 // Scanning is deliberately not in this row: it is already the big button in the
 // banner directly above, and the same action twice on one screen is the clutter
