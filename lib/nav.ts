@@ -391,7 +391,9 @@ const SUPPORT_SECTIONS: NavSection[] = [
   {
     title: "Top",
     items: [
-      { href: "/app/support", label: "Support Home", icon: "Headset", exact: true },
+      // "Home", not "Support Home" — this sidebar renders only for the support
+      // desk, so the qualifier restated where the person already is.
+      { href: "/app/support", label: "Home", icon: "Headset", exact: true },
       { href: "/app/search", label: "Search Cargo", icon: "Package" },
       { href: "/app/customers", label: "Customers", icon: "Users" },
     ],
