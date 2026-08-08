@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
+  Banknote,
   Boxes,
   Headset,
   MessageSquare,
@@ -58,9 +59,23 @@ const PRIORITY_TONE: Record<string, string> = {
  * link — this page is a launchpad, not a report.
  */
 export default async function SupportHome() {
-  await requirePermission("ticket.manage");
+  const user = await requirePermission("ticket.manage");
 
-  const [overview, queue, tickets, requests, rateRow, callBacks] =
+  // Read the name from the record rather than the session token, which carries
+  // whatever it was at sign-in — somebody who renames themselves would be
+  // greeted by their old name until they signed out and back in.
+  const me = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { name: true },
+  });
+  const firstName = (me?.name ?? user.name).split(" ")[0];
+  const today = new Date().toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
+  const [overview, queue, tickets, requests, rateRow, callBacks, submissions] =
     await Promise.all([
     supportOverview(),
     followUpQueue(),
@@ -97,7 +112,13 @@ export default async function SupportHome() {
     // Investigations parked on the customer's answer. This desk is the one
     // that rings them, and nothing on the page has ever said so.
     prisma.shipmentException.count({ where: { status: "WAITING_CUSTOMER" } }),
+    // Collections is this desk's money work now. It had its own workspace and
+    // no presence on the page they open first, so a claim Finance sent back
+    // sat unseen until somebody thought to go looking for it.
+    prisma.paymentSubmission.groupBy({ by: ["status"], _count: true }),
   ]);
+  const submissionCount = (status: string) =>
+    submissions.find((row) => row.status === status)?._count ?? 0;
 
   const topOfQueue = queue.slice(0, 6);
   const rate = rateRow ? toNumber(rateRow.rate) : null;
@@ -213,6 +234,27 @@ export default async function SupportHome() {
       cta: "Chase",
     },
     {
+      // Ahead of the softer queues: a rejected claim means a customer was told
+      // their payment went through and it did not.
+      when: submissionCount("REJECTED") > 0,
+      label: `${submissionCount("REJECTED")} payment${submissionCount("REJECTED") === 1 ? "" : "s"} sent back by Finance`,
+      detail:
+        "Finance could not verify these. The customer needs ringing before the claim can go up again.",
+      href: "/app/collections/submissions?status=REJECTED",
+      cta: "See why",
+      aside: "needs a call",
+      urgent: true,
+    },
+    {
+      when: submissionCount("PENDING") > 0,
+      label: `${submissionCount("PENDING")} with Finance`,
+      detail:
+        "Payments this desk has handed up, waiting to be checked. Nothing to do but watch.",
+      href: "/app/collections/submissions?status=PENDING",
+      cta: "Track",
+      aside: "waiting on Finance",
+    },
+    {
       when: overview.openRequests > 0,
       label: `${overview.openRequests} sourcing request${overview.openRequests === 1 ? "" : "s"} open`,
       detail: "Somebody asked us to find them something in China.",
@@ -249,16 +291,25 @@ export default async function SupportHome() {
           className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/5"
         />
         <div className="relative p-6">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
-            Support desk
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
+              {today}
+            </span>
+            <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+              Support desk
+            </span>
+          </div>
+          {/* The person, then the job. Every other desk in the app opens by
+              greeting whoever signed in; this one opened on an instruction,
+              which made it the only screen that did not know who was reading
+              it. */}
           <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight text-white">
-            Find a shipment
+            Habari, {firstName}
           </h1>
           <p className="mt-2 text-sm text-white/80">
-            A tracking number, a customer&rsquo;s name, the number they are
-            calling from, a batch or an invoice — any of them will do.
+            Find a shipment by tracking number, a customer&rsquo;s name, the
+            number they are calling from, a batch or an invoice.
           </p>
           <div className="mt-4 max-w-2xl">
             <SupportSearch action="/app/support/search" />
@@ -269,8 +320,9 @@ export default async function SupportHome() {
       <div className="mb-7">
         <ActionPills
           items={[
-            { href: "/app/support/tickets", label: "Tickets", icon: MessageSquare, weight: "primary" },
+            { href: "/app/collections", label: "Collections", icon: Banknote, weight: "primary" },
             { href: "/app/support/follow-up", label: "Chase queue", icon: PhoneCall, weight: "secondary" },
+            { href: "/app/support/tickets", label: "Tickets", icon: MessageSquare },
             { href: "/app/support/sourcing", label: "Sourcing", icon: ShoppingBag },
             { href: "/app/customers", label: "Customers", icon: Users },
             { href: "/app/search", label: "Search cargo", icon: PackageSearch },
