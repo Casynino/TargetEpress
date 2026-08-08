@@ -81,7 +81,7 @@ export function AgeingBar({
   return (
     <div className={className}>
       {/* The proportion, before any number. */}
-      <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
+      <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
         {segments.map((segment, i) =>
           segment.value > 0 ? (
             <div
@@ -94,7 +94,7 @@ export function AgeingBar({
         )}
       </div>
 
-      <ul className="mt-4 space-y-2.5">
+      <ul className="mt-3 space-y-1.5">
         {segments.map((segment, i) => {
           const share = (segment.value / total) * 100;
           const empty = segment.count === 0;
@@ -102,7 +102,7 @@ export function AgeingBar({
             <li
               key={segment.key}
               className={cn(
-                "flex items-center gap-3 text-sm",
+                "flex items-center gap-2 text-xs",
                 empty && "opacity-40"
               )}
             >
@@ -114,19 +114,19 @@ export function AgeingBar({
                 aria-hidden
               />
               <span className="min-w-0 flex-1 truncate">{segment.label}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">
+              <span className="shrink-0 text-[11px] text-muted-foreground">
                 {segment.count} {unit}
                 {segment.count === 1 ? "" : "s"}
               </span>
               <span
                 className={cn(
-                  "w-32 shrink-0 text-right font-mono text-xs tabular-nums",
+                  "w-20 shrink-0 text-right font-mono text-[11px] tabular-nums",
                   empty ? "" : TEXT[i] ?? TEXT[TEXT.length - 1]
                 )}
               >
                 {format(segment.value)}
               </span>
-              <span className="w-10 shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
+              <span className="w-8 shrink-0 text-right font-mono text-[10px] tabular-nums text-muted-foreground">
                 {share >= 0.5 ? `${Math.round(share)}%` : "—"}
               </span>
             </li>

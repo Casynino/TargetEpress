@@ -57,7 +57,7 @@ export function FlowBars({
           return (
             <div key={label} className="flex min-w-0 flex-1 flex-col">
               {/* Takings, growing up from the line. */}
-              <div className="flex h-20 items-end">
+              <div className="flex h-14 items-end">
                 <div
                   className={cn(
                     "w-full rounded-t-sm transition-[height]",
@@ -71,7 +71,7 @@ export function FlowBars({
               <div className="h-px w-full bg-border" aria-hidden />
 
               {/* Costs, growing down from the same line. */}
-              <div className="flex h-12 items-start">
+              <div className="flex h-8 items-start">
                 <div
                   className={cn(
                     "w-full rounded-b-sm transition-[height]",
@@ -99,7 +99,7 @@ export function FlowBars({
         })}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-success" aria-hidden />
           {legendIn}
@@ -108,7 +108,7 @@ export function FlowBars({
           <span className="h-2 w-2 rounded-full bg-signal" aria-hidden />
           {legendOut}
         </span>
-        <span className="ml-auto">Both sides share one scale</span>
+        <span className="ml-auto hidden sm:inline">One scale</span>
       </div>
     </div>
   );

@@ -7,6 +7,24 @@ export type DonutSlice = {
   tone: 1 | 2 | 3 | 4 | 5 | 6;
 };
 
+/**
+ * Swatches, matching STROKES one for one.
+ *
+ * They live beside the strokes on purpose: a legend whose colours drift from
+ * the ring it explains is worse than no legend, and the only way that cannot
+ * happen is for both maps to be edited in the same place. Written out in full —
+ * `bg-chart-${n}` is a class Tailwind never generates, and the swatch would
+ * render with no colour at all.
+ */
+const SWATCHES: Record<DonutSlice["tone"], string> = {
+  1: "bg-chart-1",
+  2: "bg-chart-2",
+  3: "bg-chart-3",
+  4: "bg-chart-4",
+  5: "bg-chart-5",
+  6: "bg-chart-6",
+};
+
 const STROKES: Record<DonutSlice["tone"], string> = {
   1: "stroke-chart-1",
   2: "stroke-chart-2",
@@ -131,4 +149,41 @@ export function Donut({
 function drawnGap(fraction: number, circumference: number) {
   const length = fraction * circumference;
   return length > 10 ? 3 : 0;
+}
+
+/**
+ * The key to a ring.
+ *
+ * A donut without one is a decoration: the reader can see that one slice is
+ * bigger, and has no way to learn what either slice is. Kept in this file so
+ * the swatch and the stroke are edited together.
+ */
+export function DonutLegend({
+  slices,
+  format,
+  className,
+}: {
+  slices: DonutSlice[];
+  /** How a slice's value reads. Defaults to the bare number. */
+  format?: (value: number) => string;
+  className?: string;
+}) {
+  return (
+    <ul className={cn("space-y-1.5", className)}>
+      {slices.map((slice) => (
+        <li key={slice.label} className="flex items-center gap-2 text-xs">
+          <span
+            aria-hidden
+            className={cn("h-2 w-2 shrink-0 rounded-sm", SWATCHES[slice.tone])}
+          />
+          <span className="min-w-0 flex-1 truncate text-muted-foreground">
+            {slice.label}
+          </span>
+          <span className="shrink-0 font-mono font-semibold tabular-nums">
+            {format ? format(slice.value) : slice.value}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
 }

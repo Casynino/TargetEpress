@@ -40,7 +40,7 @@ import { StatStrip } from "@/components/app/stat-strip";
 import { WorkList, type WorkItem } from "@/components/app/work-list";
 import { AreaChart } from "@/components/charts/area-chart";
 import { AgeingBar } from "@/components/charts/ageing-bar";
-import { Donut } from "@/components/charts/donut";
+import { Donut, DonutLegend } from "@/components/charts/donut";
 import { BarChart } from "@/components/charts/bar-chart";
 import { FlowBars } from "@/components/charts/flow-bars";
 import { Button } from "@/components/ui/button";
@@ -816,6 +816,14 @@ async function DarDashboard({
     ].filter((job) => job.when) as AttnItem[]),
   ];
 
+  // One array for the ring and its legend — two lists would be two chances to
+  // relabel one and not the other.
+  const floorSlices = [
+    { label: "Under investigation", value: composition.flagged, tone: 3 as const },
+    { label: "Waiting on payment", value: composition.held, tone: 4 as const },
+    { label: "Cleared, ready to go", value: composition.cleared, tone: 5 as const },
+  ];
+
   const floorFormat = (n: number) =>
     `${n.toLocaleString("en-US")} consignment${n === 1 ? "" : "s"}`;
 
@@ -920,99 +928,93 @@ async function DarDashboard({
           The floor, in shape
         </SectionLabel>
 
-        <div className="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
-          {/* What the pile is made of. Slices are mutually exclusive and sum to
-              the count beside them — see floorComposition; the snapshot's own
-              unpaid/cleared/flagged overlap and cannot be drawn as a whole. */}
-          <section className="panel p-5">
-            <h2 className="font-display font-semibold">What is on the floor</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Every consignment standing in the building, by what is holding it
+        {/* Three across, not a tall two-column split. The donut card was
+            stretched to the height of two stacked cards beside it and stood
+            almost empty — the chart band was taller than the work it was
+            meant to sit under. */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <section className="panel p-4">
+            <h3 className="text-sm font-semibold">What is on the floor</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              By what is holding each consignment
             </p>
-            <div className="mt-4 flex justify-center">
+            <div className="mt-3 flex justify-center">
               <Donut
+                size={118}
+                stroke={18}
                 label={String(composition.total)}
                 caption="consignments"
-                slices={[
-                  { label: "Under investigation", value: composition.flagged, tone: 3 },
-                  { label: "Waiting on payment", value: composition.held, tone: 4 },
-                  { label: "Cleared, ready to hand over", value: composition.cleared, tone: 5 },
-                ]}
+                slices={floorSlices}
               />
             </div>
+            {/* The ring was drawn without a key: three colours and no way to
+                learn what any of them meant. */}
+            <DonutLegend className="mt-3" slices={floorSlices} />
           </section>
 
-          <div className="space-y-6">
-            {/* Boxes arriving against boxes leaving. A floor with 86 standing
-                might be busy or seized up, and only the two rates together say
-                which. */}
-            <section className="panel p-5">
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-display font-semibold">In and out</h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Checked in against handed over, the last fortnight
-                  </p>
-                </div>
-                <p className="text-right text-[11px] text-muted-foreground">
-                  <span className="font-mono font-semibold text-success">
-                    {throughput.inCounts.reduce((a, b) => a + b, 0)}
-                  </span>{" "}
-                  in ·{" "}
-                  <span className="font-mono font-semibold text-signal">
-                    {throughput.outCounts.reduce((a, b) => a + b, 0)}
-                  </span>{" "}
-                  out
+          <section className="panel p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">In and out</h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Checked in against handed over, a fortnight
                 </p>
               </div>
-              <FlowBars
-                labels={throughput.labels}
-                valuesIn={throughput.inCounts}
-                valuesOut={throughput.outCounts}
-                currentIndex={throughput.currentIndex}
-                format={floorFormat}
-                legendIn="Checked in"
-                legendOut="Handed over"
-              />
-            </section>
+              <p className="shrink-0 text-right text-[11px] text-muted-foreground">
+                <span className="font-mono font-semibold text-success">
+                  {throughput.inCounts.reduce((a, b) => a + b, 0)}
+                </span>
+                {" / "}
+                <span className="font-mono font-semibold text-signal">
+                  {throughput.outCounts.reduce((a, b) => a + b, 0)}
+                </span>
+              </p>
+            </div>
+            <FlowBars
+              className="mt-3"
+              labels={throughput.labels}
+              valuesIn={throughput.inCounts}
+              valuesOut={throughput.outCounts}
+              currentIndex={throughput.currentIndex}
+              format={floorFormat}
+              legendIn="Checked in"
+              legendOut="Handed over"
+            />
+          </section>
 
-            {/* How long it has been standing. The storage clock is money
-                leaking from a customer who has stopped paying attention. */}
-            <section className="panel p-5">
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-display font-semibold">
-                    How long it has been standing
-                  </h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Counted from the day it was checked in against a manifest
-                  </p>
-                </div>
-                {floor.longestHeldDays > 0 ? (
-                  <p className="text-right text-[11px] text-muted-foreground">
-                    longest
-                    <span className="ml-1 font-mono font-semibold text-foreground">
-                      {floor.longestHeldDays}d
-                    </span>
-                  </p>
-                ) : null}
+          <section className="panel p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">How long it has stood</h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  From the day it was checked in
+                </p>
               </div>
-              <AgeingBar
-                // Proportioned by boxes, counted in consignments: the bar is
-                // the shelf space each age band is eating, the count beside it
-                // is how many customers that represents.
-                segments={ageing.map((b) => ({
-                  key: b.key,
-                  label: b.label,
-                  count: b.count,
-                  value: b.packages,
-                }))}
-                format={(n) => `${n} box${n === 1 ? "" : "es"}`}
-                unit="consignment"
-                empty="Nothing is standing on the floor."
-              />
-            </section>
-          </div>
+              {floor.longestHeldDays > 0 ? (
+                <p className="shrink-0 text-right text-[11px] text-muted-foreground">
+                  longest{" "}
+                  <span className="font-mono font-semibold text-foreground">
+                    {floor.longestHeldDays}d
+                  </span>
+                </p>
+              ) : null}
+            </div>
+            <AgeingBar
+              className="mt-3"
+              // Proportioned by boxes, counted in consignments: the bar is the
+              // shelf space each age band eats, the count beside it is how many
+              // customers that represents.
+              segments={ageing.map((b) => ({
+                key: b.key,
+                label: b.label,
+                count: b.count,
+                value: b.packages,
+              }))}
+              format={(n) => `${n} box${n === 1 ? "" : "es"}`}
+              unit="consignment"
+              empty="Nothing is standing on the floor."
+            />
+          </section>
         </div>
       </div>
 
