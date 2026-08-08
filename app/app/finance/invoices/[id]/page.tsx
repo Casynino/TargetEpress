@@ -493,6 +493,10 @@ export default async function InvoicePage({
                     : totalLocal,
                 localCurrency,
                 storageDays: invoice.storageDays,
+                weightKg: toNumber(shipment.weightKg),
+                // The rate frozen on THIS invoice. Publishing a new rate
+                // tomorrow must not restate what this customer was quoted.
+                exchangeRate: invoiceRate,
               }),
             }))}
           />

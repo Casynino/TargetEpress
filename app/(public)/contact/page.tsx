@@ -114,7 +114,9 @@ export default function ContactPage() {
               simu au iliyochapishwa.
             </p>
 
-            <div className="mt-6 grid gap-5 md:grid-cols-2">
+            {/* One Dar office, so one card. A two-column grid would stand it
+                beside an empty half. */}
+            <div className="mt-6 grid gap-5">
               {COMPANY.offices.map((office, i) => (
                 <div
                   key={office.id}

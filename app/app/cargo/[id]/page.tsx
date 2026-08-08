@@ -631,6 +631,11 @@ export default async function ShipmentDetailPage({
                           ? null
                           : toNumber(shipment.invoice.totalLocal),
                       localCurrency: shipment.invoice.localCurrency,
+                      weightKg: toNumber(shipment.weightKg),
+                      exchangeRate:
+                        shipment.invoice.exchangeRate === null
+                          ? null
+                          : toNumber(shipment.invoice.exchangeRate),
                     })
                   )
                 : null

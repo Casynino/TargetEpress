@@ -54,23 +54,24 @@ export const COMPANY = {
   instagramFollowers: "7,200+",
   iosApp: "https://apps.apple.com/tz/app/targetexpresscargo/id1547951657",
 
-  /** Tanzanian collection points. */
+  /**
+   * The Tanzanian collection point. ONE office, not two.
+   *
+   * This was listed as an "Aggrey office" and a separate "Ndanda office",
+   * which put two addresses on the public site, in the footer, on the contact
+   * page and in customer messages — and sent people to a second building that
+   * does not exist. It is one office on the corner of both streets. The owner
+   * gave this wording; it is theirs, not a tidied version of it.
+   */
   offices: [
     {
-      id: "aggrey",
+      id: "kariakoo",
       city: "Dar es Salaam",
-      name: "Aggrey office",
-      address: "Aggrey / Likoma Street, near Mkombozi Bank",
-      note: "Main collection point.",
+      name: "Dar es Salaam office",
+      address:
+        "Kariakoo, Agrey & Ndanda Street Opposite na Mkombozi Bank Dar es Salaam, Tanzania",
+      note: "Collection point.",
       phones: ["+255 688 887 784", "+255 628 430 911"],
-    },
-    {
-      id: "ndanda",
-      city: "Dar es Salaam",
-      name: "Ndanda office",
-      address: "Ndanda Street",
-      note: "Second collection point.",
-      phones: ["+255 688 887 784"],
     },
   ],
 
@@ -86,7 +87,8 @@ export const COMPANY = {
   },
 
   // Kept for printed documents, which need one short line per location.
-  darAddress: "Aggrey / Likoma Street, near Mkombozi Bank, Dar es Salaam",
+  darAddress:
+    "Kariakoo, Agrey & Ndanda Street Opposite na Mkombozi Bank Dar es Salaam, Tanzania",
   chinaAddress: "ECAT Cultural Park, Jinshazhou, Baiyun District, Guangzhou",
 } as const;
 
@@ -100,35 +102,103 @@ export const DEFAULT_CURRENCY = "USD";
  * the account a customer paid into must be reproducible from the code that
  * generated that invoice, not from a table someone edited afterwards.
  */
+export type CollectionAccount = {
+  /**
+   * How the customer is told to pay, in full.
+   *
+   * "MIX BY YAS — LIPA NUMBER", never "Mixx". A customer reading "Mixx: 7122055"
+   * has to guess whether that is a Lipa number, a personal number or an
+   * account, and a guess at this step is money sent to the wrong place. The
+   * label states the service, what kind of number it is, and — for banks — the
+   * currency, because paying dollars into the shilling account is a reversal
+   * and a fortnight of somebody's time.
+   */
+  label: string;
+  number: string;
+  /** What the customer must see on their screen before they confirm. */
+  accountName: string;
+  kind: "MOBILE" | "BANK";
+  /** Banks only. Mobile money is shillings by definition here. */
+  currency?: "TZS" | "USD";
+};
+
+/**
+ * Official collection accounts. THE single source for every surface.
+ *
+ * Kept in code rather than the database because an invoice is a legal
+ * document: the account a customer paid into must be reproducible from the
+ * code that generated that invoice, not from a table someone edited
+ * afterwards.
+ *
+ * Nothing anywhere may write these numbers out again. Every customer-facing
+ * screen, PDF, WhatsApp message and email reads this list, so changing a
+ * number here changes it everywhere at once — which is the only way five
+ * surfaces can be guaranteed to agree.
+ */
+export const PAYMENT_METHODS: readonly CollectionAccount[] = [
+  {
+    label: "MIX BY YAS — LIPA NUMBER",
+    number: "7122055",
+    accountName: "SCOHU TARGET EXPRESS AIR CARGO",
+    kind: "MOBILE",
+  },
+  {
+    label: "VODACOM M-PESA — LIPA NUMBER",
+    number: "5581590",
+    accountName: "TARGET EXPRESS AIR CARGO",
+    kind: "MOBILE",
+  },
+  {
+    label: "CRDB BANK — TZS ACCOUNT",
+    number: "0150597916300",
+    accountName: "TARGET(GZ) EXPRESS AIR CARGO",
+    kind: "BANK",
+    currency: "TZS",
+  },
+  {
+    label: "TANZANIA COMMERCIAL BANK — TZS ACCOUNT",
+    number: "121400000029",
+    accountName: "TARGET EXPRESS AIR CARGO",
+    kind: "BANK",
+    currency: "TZS",
+  },
+  {
+    label: "TANZANIA COMMERCIAL BANK — USD ACCOUNT",
+    number: "121223000019",
+    accountName: "TARGET EXPRESS AIR CARGO",
+    kind: "BANK",
+    currency: "USD",
+  },
+];
+
+/**
+ * The old grouped shape, DERIVED so it cannot drift.
+ *
+ * The invoice page and the PDF read it. Rather than edit three renderers at
+ * once and risk one of them keeping a stale copy, the shape stays and the data
+ * behind it moves — there is still exactly one place a number is written down.
+ */
 export const PAYMENT_ACCOUNTS = {
-  mobileMoney: [
-    {
-      provider: "Mixx by Yas",
-      number: "7122055",
-      accountName: "SCOHU TARGET EXPRESS AIR CARGO",
-    },
-    {
-      provider: "Vodacom (M-Pesa)",
-      number: "5581590",
-      accountName: "TARGET EXPRESS AIR CARGO",
-    },
-  ],
-  banks: [
-    {
-      bank: "CRDB Bank",
-      accountName: "TARGET(GZ) EXPRESS AIR CARGO",
-      accounts: [{ currency: "TZS", number: "0150597916300" }],
-    },
-    {
-      bank: "Tanzania Commercial Bank",
-      accountName: "TARGET EXPRESS AIR CARGO",
-      accounts: [
-        { currency: "TZS", number: "121400000029" },
-        { currency: "USD", number: "121223000019" },
-      ],
-    },
-  ],
-} as const;
+  mobileMoney: PAYMENT_METHODS.filter((m) => m.kind === "MOBILE").map((m) => ({
+    provider: m.label,
+    number: m.number,
+    accountName: m.accountName,
+  })),
+  banks: Array.from(
+    PAYMENT_METHODS.filter((m) => m.kind === "BANK").reduce((byName, m) => {
+      // "CRDB BANK — TZS ACCOUNT" groups under "CRDB BANK".
+      const bank = m.label.split(" — ")[0]!;
+      const existing = byName.get(bank) ?? {
+        bank,
+        accountName: m.accountName,
+        accounts: [] as { currency: string; number: string }[],
+      };
+      existing.accounts.push({ currency: m.currency ?? "TZS", number: m.number });
+      byName.set(bank, existing);
+      return byName;
+    }, new Map<string, { bank: string; accountName: string; accounts: { currency: string; number: string }[] }>())
+  ).map(([, value]) => value),
+};
 
 /**
  * Storage terms. Free for a week from arrival in Dar, then chargeable per day

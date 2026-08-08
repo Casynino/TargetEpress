@@ -52,6 +52,10 @@ export type FollowUpRow = {
   customerPhone: string | null;
   arrivedAt: string | null;
   daysInWarehouse: number;
+  /** Off the cargo record, for the customer's message. */
+  weightKg: number | null;
+  /** The rate frozen on this invoice, never today's published one. */
+  exchangeRate: number | null;
   storageDays: number;
   storageCharge: number;
   invoiceId: string | null;
@@ -98,6 +102,9 @@ export async function followUpQueue() {
       status: true,
       arrivedAt: true,
       deliveredAt: true,
+      // The customer must be told what their cargo weighs, and nobody at a
+      // desk should be typing it.
+      weightKg: true,
       customer: { select: { id: true, name: true, phone: true } },
       invoice: {
         select: {
@@ -173,6 +180,8 @@ export async function followUpQueue() {
       customerPhone: shipment.customer.phone,
       arrivedAt: shipment.arrivedAt?.toISOString() ?? null,
       daysInWarehouse: shipment.arrivedAt ? daysBetween(shipment.arrivedAt) : 0,
+      weightKg: shipment.weightKg === null ? null : toNumber(shipment.weightKg),
+      exchangeRate: rate,
       storageDays,
       storageCharge: storageDays * STORAGE_POLICY.perDayUsd,
       invoiceId: invoice?.id ?? null,

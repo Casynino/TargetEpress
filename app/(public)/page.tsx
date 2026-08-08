@@ -388,7 +388,10 @@ export default function HomePage() {
             </h2>
           </div>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
+          {/* Two cards now, not three: the Dar offices were one building all
+              along. A three-column grid holding two cards leaves a hole where
+              a third used to be, which reads as something failing to load. */}
+          <div className="mt-10 grid gap-5 md:grid-cols-2">
             {COMPANY.offices.map((office) => (
               <div key={office.id} className="rounded-xl border bg-card p-6">
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10 text-brand">

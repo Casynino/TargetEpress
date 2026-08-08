@@ -50,12 +50,13 @@ export default async function FollowUpPage({
       trackingNumber: row.trackingNumber,
       description: row.description,
       invoiceNumber: row.invoiceNumber,
-      // Shillings when we know the rate — that is what the customer is
-      // sending. The dollar figure is the invoice's, not theirs.
-      amount:
-        row.outstandingLocal !== null
-          ? `${row.localCurrency} ${row.outstandingLocal.toLocaleString()}`
-          : `USD ${(row.outstanding ?? 0).toFixed(2)}`,
+      weightKg: row.weightKg,
+      // The invoice's own rate, so the figure the customer was quoted is the
+      // figure they are reminded of.
+      exchangeRate: row.exchangeRate,
+      amountUsd: row.outstanding,
+      amountLocal: row.outstandingLocal,
+      localCurrency: row.localCurrency,
     });
   const active = (FOLLOW_UP_FILTERS.find((f) => f.key === filter)?.key ??
     "all") as FollowUpFilter;

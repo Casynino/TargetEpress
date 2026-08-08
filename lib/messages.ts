@@ -2,7 +2,7 @@ import "server-only";
 
 import type { MessageKind } from "@prisma/client";
 
-import { COMPANY, PAYMENT_ACCOUNTS, STORAGE_POLICY } from "@/lib/constants";
+import { COMPANY, PAYMENT_METHODS, STORAGE_POLICY } from "@/lib/constants";
 import { formatLocal, formatUsd } from "@/lib/fx";
 
 /**
@@ -28,6 +28,16 @@ export type MessageContext = {
   amountLocal?: number | null;
   localCurrency?: string | null;
   storageDays?: number | null;
+  /** Off the cargo record. Nobody at a desk should be typing a weight. */
+  weightKg?: number | null;
+  /**
+   * The rate FROZEN ON THIS INVOICE, never today's published one.
+   *
+   * A customer who was quoted at 2,700 and reads 2,800 next month believes the
+   * bill changed. The invoice carries its own rate precisely so that cannot
+   * happen, and this is the only rate a message may print.
+   */
+  exchangeRate?: number | null;
 };
 
 export const MESSAGE_KIND_LABELS: Record<MessageKind, string> = {
@@ -94,49 +104,58 @@ function money(context: MessageContext) {
  * The two messages that ask a customer for money, in one shape.
  *
  * An invoice being issued and a payment being chased are the same conversation
- * at two moments: here is the cargo, here is the amount, here is where to send
- * it. Only the opening line differs, so only the opening line is passed in —
- * two hand-written versions of this drift apart within a month, and the one
- * that drifts is the one a customer reads.
+ * at two moments — here is the cargo, here is what it weighs, here is the rate
+ * we used, here is the amount, here is where to send it. Only the opening line
+ * differs, so only the opening line is passed in: two hand-written versions
+ * drift apart within a month and the one that drifts is the one a customer
+ * reads.
  *
- * Swahili only. The bilingual version doubled the length of a WhatsApp
- * message, and a customer scrolling past an English copy of what they just
- * read stops reading.
+ * Everything a customer needs to pay correctly is here and nothing else is.
+ * The weight comes off the cargo record and the rate off the invoice, so no
+ * clerk types either and neither can disagree with the bill.
  *
- * Laid out for WhatsApp: asterisks are its bold, a blank line is its
- * paragraph. Two accounts, not all five — this is a nudge attached to an
- * invoice, and the full list belongs on the follow-up queue's reminder, which
- * is the message sent when somebody has stopped paying attention.
+ * Simple Swahili, at the owner's instruction: "Invoice", not "Ankara".
  */
 function moneyMessage(context: MessageContext, opening: string) {
   const name = firstName(context.customerName);
   const tracking = context.trackingNumber ?? "";
-  const mobile = PAYMENT_ACCOUNTS.mobileMoney[0];
-  const bank = PAYMENT_ACCOUNTS.banks[0];
+  const bold = (text: string) => `*${text}*`;
 
   return [
-    `📦 *${COMPANY.name.toUpperCase()}*`,
+    `📦 ${bold(COMPANY.name.toUpperCase())}`,
     ``,
-    `*Habari ${name},*`,
+    `${bold(`Habari ${name},`)}`,
     ``,
     opening,
     ``,
-    ...(tracking ? [`• *Tracking No.:* ${tracking}`] : []),
+    bold("Maelezo ya Mzigo"),
+    ...(tracking ? [`• ${bold("Tracking No.:")} ${tracking}`] : []),
     ...(context.invoiceNumber
-      ? [`• *Invoice No.:* ${context.invoiceNumber}`]
+      ? [`• ${bold("Invoice No.:")} ${context.invoiceNumber}`]
       : []),
-    `• *Kiasi:* *${money(context)}*`,
+    ...(context.description ? [`• ${bold("Mzigo:")} ${context.description}`] : []),
+    ...(context.weightKg !== null && context.weightKg !== undefined
+      ? [`• ${bold("Uzito:")} ${context.weightKg} kg`]
+      : []),
+    ...(context.exchangeRate
+      ? [
+          `• ${bold("Rate iliyotumika:")} USD 1 = TZS ${context.exchangeRate.toLocaleString("en-US")}`,
+        ]
+      : []),
+    `• ${bold("Kiasi cha kulipa:")} ${bold(money(context))}`,
     ``,
-    `📄 *Angalia maelezo ya malipo hapa:*`,
+    `📄 ${bold("Angalia invoice yako kamili:")}`,
     `🔗 ${TRACK_URL}${tracking ? `?q=${encodeURIComponent(tracking)}` : ""}`,
     ``,
-    `*Njia za malipo:*`,
-    `• *${label(mobile.provider)}:* ${mobile.number}`,
-    `• *${label(bank.bank)}:* ${bank.accounts[0].number}`,
+    bold("Njia za Malipo"),
     ``,
-    `Ikiwa bado hujafanya malipo, tafadhali ukipata nafasi unaweza kukamilisha malipo yako. Baada ya kuthibitishwa, tutakutumia *Pickup Note* ya kuchukua mzigo wako.`,
+    ...paymentBlock(bold),
+    `Baada ya kufanya malipo, tafadhali tuma uthibitisho wa malipo ili timu yetu iweze kuuhakiki. Malipo yakishathibitishwa, utapokea ${bold("Pickup Note")} ya kuchukua mzigo wako.`,
     ``,
-    `Asante kwa kutumia *${COMPANY.name}.*`,
+    `⚠️ Tafadhali chukua mzigo wako mapema ili kuepuka gharama za storage.`,
+    ``,
+    ...officeBlock(bold),
+    `Asante kwa kutumia ${bold(COMPANY.name)}.`,
     ``,
     `📞 ${COMPANY.phone}`,
   ]
@@ -176,7 +195,7 @@ export function composeMessage(
     case "ARRIVED_DAR":
       return (
         `Habari ${name}, mzigo wako ${tracking} umefika Dar es Salaam. ` +
-        `Tunaukagua na tutakutumia ankara hivi punde.\n\n` +
+        `Tunaukagua na tutakutumia invoice hivi punde.\n\n` +
         `Hello ${name}, your cargo ${tracking} has arrived in Dar es Salaam. ` +
         `We are checking it in and will send your invoice shortly.` +
         sign
@@ -244,103 +263,73 @@ export function suggestedKind(input: {
 
 /** A wa.me link that opens WhatsApp with the message already typed. */
 /**
- * Short names for the message, where the legal name is a mouthful.
+ * How a customer is told to pay. One block, every surface, every method.
  *
- * The NUMBERS still come from PAYMENT_ACCOUNTS and are never restated here —
- * one source of truth for the thing that decides where money lands. This map
- * only shortens what a customer reads on a phone.
+ * Three lines each — what to open, the number, the name they must see before
+ * confirming — because that is how somebody checks a number on a phone: one
+ * glance per line, not a sentence to parse.
+ *
+ * Nothing is shortened. "Mixx: 7122055" makes a customer guess whether that is
+ * a Lipa number, a personal number or an account, and a guess here is money
+ * sent somewhere it cannot be recovered from. The labels carry the service, the
+ * kind of number, and the currency for banks.
+ *
+ * Read straight from PAYMENT_METHODS, so a number changed there changes here,
+ * on the invoice, in the PDF and on the public site at the same moment.
  */
-const BANK_LABEL: Record<string, string> = {
-  "Tanzania Commercial Bank": "TCB Bank",
-  "Vodacom (M-Pesa)": "Vodacom M-Pesa",
-};
+function paymentBlock(bold: (text: string) => string) {
+  return PAYMENT_METHODS.flatMap((method) => [
+    bold(method.label),
+    method.number,
+    bold(method.accountName),
+    ``,
+  ]);
+}
 
-const label = (name: string) => BANK_LABEL[name] ?? name;
+/** Where to find us, from configuration — never typed into a template. */
+function officeBlock(bold: (text: string) => string) {
+  const dar = COMPANY.offices[0];
+  return [
+    bold("Ofisi zetu:"),
+    `Dar es Salaam: ${dar.address}`,
+    `Guangzhou: ${COMPANY.chinaOffice.addressEn}`,
+    ``,
+  ];
+}
 
 /**
- * The payment reminder a customer actually reads, in Swahili.
+ * The reminder the follow-up queue sends.
  *
- * Written to be acted on rather than acknowledged: which cargo, what it costs,
- * where to send it, and what happens once they have. Everything needed to pay
- * is in the message, so nobody rings back to ask for an account number.
- *
- * Formatted for WhatsApp specifically. Asterisks are its bold, a blank line is
- * its paragraph, and each account is three short lines — provider, number,
- * name — because that is how a person checks a number on a phone: one glance
- * per line, not a sentence to be parsed. Markdown's two-space line break does
- * nothing here and would arrive as trailing whitespace, so every break is a
- * real newline.
- *
- * Swahili only. The bilingual templates elsewhere double the length, and a
- * customer scrolling past an English copy of what they just read stops
- * reading.
- *
- * Every account carries its OWN name. CRDB is TARGET(GZ) EXPRESS AIR CARGO and
- * the others are not — one name printed under a list of five is how a payment
- * bounces, or reaches somebody else.
+ * Deliberately the SAME message the invoice composer drafts. There is one way
+ * this business asks to be paid, and two builders producing two versions of it
+ * is how a customer gets one set of accounts on Monday and another on Friday.
  */
 export function paymentReminderSwahili(input: {
   customerName: string;
   trackingNumber: string;
   description: string;
   invoiceNumber: string | null;
-  /** Already formatted, in the currency the customer will actually send. */
-  amount: string;
+  weightKg?: number | null;
+  /** The invoice's own rate. Never today's. */
+  exchangeRate?: number | null;
+  amountUsd?: number | null;
+  amountLocal?: number | null;
+  localCurrency?: string | null;
 }) {
-  const first = input.customerName.trim().split(/\s+/)[0] || "mteja";
-
-  // Where the customer can see the bill themselves. The staff PDF sits behind
-  // a login, so this is the public tracking page — which already shows the
-  // cost, what has been paid and whether the cargo may be collected.
-  const invoiceLink = `${TRACK_URL}?q=${encodeURIComponent(input.trackingNumber)}`;
-
-  const accounts = [
-    ...PAYMENT_ACCOUNTS.mobileMoney.map((account) => [
-      `*${label(account.provider)}*`,
-      account.number,
-      `*${account.accountName}*`,
-    ]),
-    ...PAYMENT_ACCOUNTS.banks.flatMap((bank) =>
-      bank.accounts.map((account) => [
-        `*${label(bank.bank)} (${account.currency})*`,
-        account.number,
-        `*${bank.accountName}*`,
-      ])
-    ),
-  ];
-
-  return [
-    `📦 *${COMPANY.name.toUpperCase()}*`,
-    ``,
-    `Habari *${first}*,`,
-    ``,
-    `Tunafurahi kukujulisha kuwa mzigo wako umefika salama kwenye *warehouse yetu ya Dar es Salaam* na uko tayari kuchukuliwa baada ya malipo kuthibitishwa.`,
-    ``,
-    `*📋 Maelezo ya Mzigo*`,
-    ``,
-    `• *Tracking No.:* ${input.trackingNumber}`,
-    `• *Bidhaa:* ${input.description}`,
-    ...(input.invoiceNumber ? [`• *Invoice No.:* ${input.invoiceNumber}`] : []),
-    `• *Kiasi cha Kulipa:* *${input.amount}*`,
-    ``,
-    `📄 *Angalia invoice yako kamili hapa:*`,
-    `🔗 ${invoiceLink}`,
-    ``,
-    `*💳 Njia za Malipo*`,
-    ``,
-    ...accounts.flatMap((lines) => [...lines, ``]),
-    `✅ Baada ya kufanya malipo, tafadhali tuma uthibitisho wa malipo. Malipo yakishathibitishwa, utapokea *Pickup Note* ya kuchukua mzigo wako.`,
-    ``,
-    `⚠️ *Tafadhali chukua mzigo wako mapema ili kuepuka gharama za storage.*`,
-    ``,
-    `Asante kwa kuchagua *${COMPANY.name}*.`,
-    ``,
-    `📞 ${COMPANY.phone}`,
-  ]
-    .join("\n")
-    // Three or more breaks anywhere means a section ended with its own blank
-    // line and the next began with one. WhatsApp renders every one of them.
-    .replace(/\n{3,}/g, "\n\n");
+  return moneyMessage(
+    {
+      customerName: input.customerName,
+      trackingNumber: input.trackingNumber,
+      description: input.description,
+      invoiceNumber: input.invoiceNumber,
+      weightKg: input.weightKg,
+      exchangeRate: input.exchangeRate,
+      amountUsd: input.amountUsd,
+      amountLocal: input.amountLocal,
+      localCurrency: input.localCurrency,
+    },
+    "Tunapenda kukukumbusha kuhusu malipo ya mzigo wako."
+  );
 }
 
 export function whatsappLink(phone: string | null, body: string) {
