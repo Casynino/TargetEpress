@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 
-import { BrandMark } from "@/components/brand-mark";
+import { BrandLogo } from "@/components/brand-mark";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
 import { COMPANY, PAYMENT_METHOD_LABELS } from "@/lib/constants";
@@ -66,16 +66,14 @@ export default async function PickupNotePage({
 
       <article className="print-plain rounded-xl border-2 bg-white p-8 text-black shadow-soft">
         <header className="flex items-start justify-between border-b-2 border-black/80 pb-5">
-          <div className="flex items-center gap-3">
-            <BrandMark className="h-11 w-11" />
-            <div>
-              <p className="font-display text-xl font-bold leading-none">
-                TARGET EXPRESS AIR CARGO
-              </p>
-              <p className="mt-1 text-[11px] uppercase tracking-[0.18em]">
-                Pickup note
-              </p>
-            </div>
+          {/* The registered lockup, in its own colours. This page prints on
+              white and leaves the building, so it carries the artwork rather
+              than the mark plus the name set in our own type. */}
+          <div>
+            <BrandLogo className="h-14 w-auto" />
+            <p className="mt-2 text-[11px] uppercase tracking-[0.18em]">
+              Pickup note
+            </p>
           </div>
           <div className="text-right text-[11px] leading-relaxed">
             <p className="font-mono text-sm font-bold tabular">

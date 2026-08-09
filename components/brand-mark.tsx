@@ -1,67 +1,50 @@
+import { EMBLEM_GLOBE, EMBLEM_JET, EMBLEM_VIEWBOX } from "@/components/brand-paths";
 import { cn } from "@/lib/utils";
 
 /**
- * Target Express mark — a navy globe with a red aircraft sweeping across it.
+ * Target Express — the real emblem, not a drawing of it.
  *
- * A redraw, kept deliberately. The original artwork now lives at
- * public/brand/target-express-logo.png and is used wherever the full lockup
- * belongs on white — an invoice, a pickup note, a package label. It cannot be
- * used here: its "Express Air Cargo" is navy ink on transparency, which
- * disappears into the sidebar this mark spends most of its life in.
+ * This was a redraw for a while: a wireframe globe with a paper-dart aeroplane,
+ * which was honest about being a stand-in and still wrong, because a company's
+ * mark is not a thing to approximate. It is now the registered artwork itself,
+ * traced to vector so it can be painted with tokens instead of baked pixels.
  *
- * So the redraw carries the same elements in tokens that survive both themes,
- * and the file is the reference it is drawn from rather than a thing it
- * replaces. Colours corrected against it: the wordmark is red over navy, not
- * navy over red.
+ * Tokens matter here. The original is navy ink on transparency, and navy on the
+ * navy sidebar is a hole in the page — this mark spends most of its life on
+ * dark. text-brand is the logo's own navy on a light page and a legible blue on
+ * a dark one, so the same file works in both without two artworks to keep in
+ * step. The land is not painted at all: even-odd fill leaves the continents as
+ * holes, so they take the colour of whatever is behind them.
+ *
+ * The mark is wider than it is tall — the aircraft leaves the globe on the
+ * right. Size it by height (h-9 w-auto); a square box would squash it.
  */
 export function BrandMark({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 40 40"
-      fill="none"
+      viewBox={EMBLEM_VIEWBOX}
       xmlns="http://www.w3.org/2000/svg"
-      className={cn("h-9 w-9", className)}
+      className={cn("h-9 w-auto", className)}
       aria-hidden="true"
     >
-      {/* Globe */}
-      <circle cx="19" cy="21" r="12" className="fill-brand/10" />
-      <circle
-        cx="19"
-        cy="21"
-        r="12"
-        className="stroke-brand"
-        strokeWidth="1.6"
-      />
-      {/* Meridians */}
-      <ellipse
-        cx="19"
-        cy="21"
-        rx="5.2"
-        ry="12"
-        className="stroke-brand/55"
-        strokeWidth="1.1"
-      />
-      <path
-        d="M7.4 17.2h23.2M7.4 24.8h23.2"
-        className="stroke-brand/55"
-        strokeWidth="1.1"
-      />
-      {/* Aircraft breaking out of the globe, tilted like the original */}
-      <path
-        d="M12 26.4 33.6 6.2l-7.1 22.5-4.6-8.1-9.9-4.2Z"
-        className="fill-signal"
-      />
-      {/* Speed streak */}
-      <path
-        d="M9.6 30.6 20 24"
-        className="stroke-signal"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <path d={EMBLEM_GLOBE} fillRule="evenodd" className="fill-brand" />
+      <path d={EMBLEM_JET} fillRule="evenodd" className="fill-signal" />
     </svg>
   );
 }
 
+/**
+ * The mark with the name set beside it.
+ *
+ * Not the full artwork. In the real lockup "Express Air Cargo" is a third the
+ * height of "Target", and in a 64px sidebar header that lands at about four
+ * pixels of letter — present, unreadable, and the kind of detail that makes a
+ * product look like a scan of a business card. So the emblem is the artwork and
+ * the name is type, at a size a person can actually read.
+ *
+ * Colours follow the registered mark: Target in red, Express Air Cargo in navy.
+ * They were the other way round until the artwork was checked against.
+ */
 export function BrandLockup({
   className,
   subtitle = true,
@@ -70,22 +53,12 @@ export function BrandLockup({
   subtitle?: boolean;
 }) {
   return (
-    <span className={cn("flex items-center gap-2.5", className)}>
-      <BrandMark className="h-9 w-9 shrink-0" />
+    // gap-2, not gap-2.5: the aircraft leaves the emblem at the top right, so
+    // the box is empty beside the words and already reads as a wider gap than
+    // it measures.
+    <span className={cn("flex items-center gap-2", className)}>
+      <BrandMark className="h-8 w-auto shrink-0" />
       <span className="flex flex-col leading-none">
-        {/*
-          The colours were the wrong way round.
-
-          The registered mark is "Target" in red over "Express Air Cargo" in
-          navy — see public/brand/target-express-logo.png, which is the artwork
-          itself. This lockup had the red on the second line and left the first
-          in whatever the page's foreground happened to be.
-
-          "Express Air Cargo" takes text-brand rather than a fixed navy: the
-          token is the logo's navy on a light page and a legible blue on a dark
-          one, and this lockup sits on both. Painting it #182A48 everywhere
-          would be faithful to the file and invisible in the sidebar.
-        */}
         <span className="font-display text-[16px] font-extrabold tracking-tight text-signal">
           Target
         </span>
@@ -96,5 +69,26 @@ export function BrandLockup({
         ) : null}
       </span>
     </span>
+  );
+}
+
+/**
+ * The full registered lockup, in its own colours.
+ *
+ * For the documents that leave the building — an invoice, a pickup note, a
+ * manifest. Those print on white, so the navy needs no token and the artwork
+ * can be used exactly as it is. Served as a file rather than inlined: it is
+ * thirteen kilobytes of path data that three print routes need and no screen
+ * does, and it should not ride along in everybody's bundle.
+ */
+export function BrandLogo({ className }: { className?: string }) {
+  return (
+    // A plain img on purpose: next/image refuses SVG without
+    // dangerouslyAllowSVG, and there is nothing here for it to optimise.
+    <img
+      src="/brand/target-express-logo.svg"
+      alt="Target Express Air Cargo"
+      className={cn("h-12 w-auto", className)}
+    />
   );
 }

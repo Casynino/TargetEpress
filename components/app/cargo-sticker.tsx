@@ -44,7 +44,7 @@ export function CargoSticker({ data }: { data: StickerData }) {
     <article className="sticker print-plain break-inside-avoid rounded-xl border-2 bg-white p-6 text-black">
       <header className="flex items-start justify-between border-b-2 border-black/80 pb-4">
         <div className="flex items-center gap-2">
-          <BrandMark className="h-9 w-9" />
+          <BrandMark className="h-9 w-auto" />
           <div>
             <p className="font-display text-lg font-bold leading-none">
               TARGET EXPRESS
