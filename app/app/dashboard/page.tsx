@@ -31,6 +31,7 @@ import {
 import { ActivityFeed } from "@/components/app/activity-feed";
 import { ActionPills, type ActionPill } from "@/components/app/action-pills";
 import { CargoSearch } from "@/components/app/cargo-search";
+import { DeskPulsePanel } from "@/components/app/desk-pulse";
 import { AlertQueue } from "@/components/app/alert-queue";
 import { AttentionCenter, type AttnItem } from "@/components/app/attention-center";
 import { KpiCard } from "@/components/app/kpi-card";
@@ -80,6 +81,8 @@ import {
   cargoMix,
   chinaStats,
   corridorPerformance,
+  corridorPosition,
+  deskPulse,
   executiveStats,
   financeStats,
   monthlyRevenue,
@@ -1903,8 +1906,20 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
 // ---------------------------------------------------------------------------
 
 async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
-  const [stats, volume, revenue, perf, alerts, activity, aging, execRateRow] =
-    await Promise.all([
+  const [
+    stats,
+    volume,
+    revenue,
+    perf,
+    alerts,
+    activity,
+    aging,
+    execRateRow,
+    position,
+    desks,
+    flow,
+    owed,
+  ] = await Promise.all([
     executiveStats(),
     monthlyVolume(),
     monthlyRevenue(),
@@ -1913,8 +1928,54 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     recentActivity(10),
     agingInWarehouse(5),
     currentRate(),
+    // The three the owner asks and nobody else can answer from one page:
+    // where is all of it, how is each desk, and is the money keeping up.
+    corridorPosition(),
+    currentRate().then((row) => deskPulse(row ? toNumber(row.rate) : null)),
+    cashFlowByMonth(),
+    receivablesAgeing(),
   ]);
   const execRate = execRateRow ? toNumber(execRateRow.rate) : null;
+  const execTsh = (usd: number) =>
+    execRate
+      ? `TSh ${Math.round(usd * execRate).toLocaleString("en-US")}`
+      : formatUsd(usd);
+
+  /**
+   * Everything waiting on the owner, in one bounded panel.
+   *
+   * The same band every desk in the app opens on, which is the point: the
+   * person who set the pattern should not be the one page still using the old
+   * one. Grouped by the department that owns the problem, because "which desk"
+   * is the first thing this reader needs from it.
+   */
+  const CEO_GROUP: Record<string, string> = {
+    exc: "Cases",
+    batch: "Receiving",
+    open: "Receiving",
+    noinv: "Finance",
+    unpaid: "Finance",
+    note: "Pickup",
+  };
+  const attention: AttnItem[] = alerts.map((alert) => ({
+    id: alert.id,
+    group: CEO_GROUP[alert.id.split("-")[0]] ?? "Other",
+    severity: alert.severity,
+    label: alert.title,
+    detail: alert.detail,
+    href: alert.href ?? "/app/exceptions",
+    value: alert.meta,
+  }));
+
+  const positionSlices = [
+    { label: "In Guangzhou", value: position.inChina, tone: 2 as const },
+    { label: "In the air", value: position.inAir, tone: 1 as const },
+    { label: "On the Dar floor", value: position.onFloor, tone: 4 as const },
+    { label: "Cleared, not collected", value: position.ready, tone: 5 as const },
+    { label: "Under investigation", value: position.flagged, tone: 3 as const },
+  ];
+
+  const netThisMonth = flow.net[flow.net.length - 1] ?? 0;
 
   const thisMonthRevenue = revenue.values[revenue.values.length - 1] ?? 0;
   const lastMonthRevenue = revenue.values[revenue.values.length - 2] ?? 0;
@@ -1939,19 +2000,23 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
         ]}
       />
 
+      {/* Top of the page, same as every other desk. It used to sit two thirds
+          of the way down beside a chart. */}
+      <AttentionCenter
+        items={attention}
+        reviewAll={{ href: "/app/exceptions", label: "Every case" }}
+        empty="Nothing needs your decision. Every desk is clear."
+      />
+
+      {/* In transit, In Dar and Exceptions came out: the corridor ring below
+          shows all three as proportions of one whole, and a figure twice on one
+          screen reads as a bug. What is left is not on any chart. */}
       <StatStrip
         chips={[
           { label: "Active", value: String(stats.active), icon: Package, tone: "brand" },
-          { label: "In transit", value: String(stats.inTransit), icon: Plane },
-          { label: "In Dar", value: String(stats.inWarehouse), icon: Warehouse },
           { label: "Batches", value: String(stats.activeBatches), icon: Boxes },
           { label: "Customers", value: String(stats.customers), icon: Users },
-          {
-            label: "Exceptions",
-            value: String(stats.openExceptions),
-            icon: AlertTriangle,
-            tone: stats.openExceptions ? "danger" : "success",
-          },
+          { label: "Staff", value: String(stats.staff), icon: UserCog },
         ]}
       />
 
@@ -2016,9 +2081,100 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
         </div>
       </div>
 
+      {/* Where all of it is, whether the money is keeping up, and how old the
+          debt is — the three the owner cannot get from any one desk's page. */}
       <div>
-        <SectionLabel>Volume &amp; what needs you</SectionLabel>
-        <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+        <SectionLabel action={{ href: "/app/shipments", label: "Every consignment" }}>
+          The corridor, right now
+        </SectionLabel>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <section className="panel p-4">
+            <h3 className="text-sm font-semibold">Where the cargo is</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Everything the business is carrying, Guangzhou to the counter
+            </p>
+            <div className="mt-3 flex justify-center">
+              <Donut
+                size={118}
+                stroke={18}
+                label={String(position.total)}
+                caption="consignments"
+                slices={positionSlices}
+              />
+            </div>
+            <DonutLegend className="mt-3" slices={positionSlices} />
+          </section>
+
+          <section className="panel p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">Money in and out</h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  What arrived against what it cost, this year
+                </p>
+              </div>
+              <p
+                className={`shrink-0 text-right font-mono text-[11px] font-semibold ${
+                  netThisMonth < 0 ? "text-signal" : "text-success"
+                }`}
+              >
+                {netThisMonth < 0 ? "−" : "+"}
+                {execTsh(Math.abs(netThisMonth))}
+              </p>
+            </div>
+            <FlowBars
+              className="mt-3"
+              labels={flow.labels}
+              valuesIn={flow.moneyIn}
+              valuesOut={flow.moneyOut}
+              currentIndex={flow.currentIndex}
+              format={execTsh}
+            />
+          </section>
+
+          <section className="panel p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">What we are owed, by age</h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  From the day the bill became real
+                </p>
+              </div>
+              {owed.oldestDays > 0 ? (
+                <p className="shrink-0 text-right text-[11px] text-muted-foreground">
+                  oldest{" "}
+                  <span className="font-mono font-semibold text-foreground">
+                    {owed.oldestDays}d
+                  </span>
+                </p>
+              ) : null}
+            </div>
+            <AgeingBar
+              className="mt-3"
+              segments={owed.buckets.map((bucket) => ({
+                key: bucket.key,
+                label: bucket.label,
+                count: bucket.count,
+                value: bucket.usd,
+              }))}
+              format={execTsh}
+              empty="Nothing is owed. Every bill raised has been settled."
+            />
+          </section>
+        </div>
+      </div>
+
+      {/* The panel that belongs only to this desk. Four departments cannot be
+          compared by opening four dashboards one at a time. */}
+      <div>
+        <SectionLabel>Every desk, right now</SectionLabel>
+        <DeskPulsePanel desks={desks} />
+      </div>
+
+      <div>
+        <SectionLabel action={{ href: "/app/shipments", label: "All shipments" }}>
+          Volume
+        </SectionLabel>
         <section className="panel p-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -2042,40 +2198,17 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
             ]}
           />
         </section>
-
-        <AlertQueue
-          items={alerts}
-          description="Across every department"
-          emptyMessage="Nothing needs your decision. The floor is clear."
-        />
-        </div>
       </div>
 
       <div>
         <SectionLabel action={{ href: "/app/finance/transactions", label: "The Ledger" }}>
-          Collections &amp; receivables
+          Cargo behind the money, and who did what
         </SectionLabel>
-        <div className="grid gap-6 lg:grid-cols-3">
-        <section className="panel p-5 lg:col-span-2">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-display font-semibold">Collections by month</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Money received, {revenue.labels.length} month(s) of {volume.year}
-              </p>
-            </div>
-          </div>
-          <BarChart
-            data={revenue.labels.map((label, i) => ({
-              label,
-              value: revenue.values[i] ?? 0,
-            }))}
-            tone={5}
-            highlightIndex={revenue.values.length - 1}
-            formatValue={(n) => formatUsd(n)}
-          />
-        </section>
-
+        {/* No "Collections by month" bar. Money in and out above draws the same
+            payments, against the costs they have to cover — one series where
+            there were two charts, and the one that could never answer whether
+            any of it was kept. */}
+        <div className="grid gap-6 lg:grid-cols-2">
         <section className="panel p-5">
           <h2 className="font-display font-semibold">Unpaid in warehouse</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -2106,21 +2239,21 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
             )}
           </ul>
         </section>
+        <ActivityFeed
+          entries={activity.map((entry) => ({
+            id: entry.id,
+            action: entry.action,
+            summary: entry.summary,
+            createdAt: entry.createdAt,
+            actorName: entry.actor?.name ?? entry.actorEmail ?? null,
+          }))}
+          title="Company activity"
+          description="Every privileged action, newest first"
+          href="/app/admin/audit"
+        />
         </div>
       </div>
 
-      <ActivityFeed
-        entries={activity.map((entry) => ({
-          id: entry.id,
-          action: entry.action,
-          summary: entry.summary,
-          createdAt: entry.createdAt,
-          actorName: entry.actor?.name ?? entry.actorEmail ?? null,
-        }))}
-        title="Company activity"
-        description="Every privileged action, newest first"
-        href="/app/admin/audit"
-      />
     </div>
   );
 }

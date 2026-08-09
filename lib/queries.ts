@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import {
   BILLED_INVOICE_STATUSES,
   EXCEPTION_OPEN_STATUSES,
+  STORAGE_POLICY,
 } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -286,6 +287,166 @@ export async function cashFlowByMonth(now = new Date()) {
     net: moneyIn.slice(0, upto).map((v, i) => v - moneyOut[i]),
     currentIndex: now.getMonth(),
   };
+}
+
+/**
+ * Every consignment in the business, by where it physically is.
+ *
+ * The one question only this desk asks: not "how is my floor" but "where is all
+ * of it". Mutually exclusive and summing to the total, because a ring whose
+ * slices do not add up to the number in the middle is read as a bug.
+ *
+ * Delivered is deliberately absent. This is what the business is currently
+ * carrying — cargo already handed over is not a position, it is history, and
+ * including it would swamp every slice that still needs somebody to act.
+ */
+export async function corridorPosition() {
+  const [inChina, inAir, onFloor, ready, flagged] = await Promise.all([
+    prisma.shipment.count({
+      where: { deletedAt: null, status: "READY_TO_DEPART" },
+    }),
+    prisma.shipment.count({ where: { deletedAt: null, status: "IN_TRANSIT" } }),
+    prisma.shipment.count({
+      where: { deletedAt: null, status: "RECEIVED_AT_DAR" },
+    }),
+    prisma.shipment.count({
+      where: { deletedAt: null, status: "READY_FOR_PICKUP" },
+    }),
+    prisma.shipment.count({
+      where: { deletedAt: null, status: "UNDER_INVESTIGATION" },
+    }),
+  ]);
+
+  return {
+    inChina,
+    inAir,
+    onFloor,
+    ready,
+    flagged,
+    total: inChina + inAir + onFloor + ready + flagged,
+  };
+}
+
+/**
+ * Every desk, side by side, with the one thing wrong on each.
+ *
+ * The CEO's own view and nobody else's: each department already has a page that
+ * answers "how am I doing", and none of them answers "which of my four desks
+ * needs me this morning". Four separate dashboards cannot be compared by
+ * opening them one at a time.
+ *
+ * Each row carries a headline figure, a second fact for context, and a problem
+ * — the problem being the reason the row is worth reading at all. A desk with
+ * nothing wrong says so.
+ */
+export type DeskPulse = {
+  key: string;
+  desk: string;
+  href: string;
+  headline: string;
+  headlineLabel: string;
+  detail: string;
+  /** What is wrong. Null when the desk is clean. */
+  problem: string | null;
+  tone: "brand" | "signal" | "success" | "warning" | "info";
+};
+
+export async function deskPulse(rate: number | null = null): Promise<DeskPulse[]> {
+  const [
+    chinaStanding,
+    chinaNoPhotos,
+    darStanding,
+    darAging,
+    unpaidCount,
+    unpaidValue,
+    openTickets,
+    openCases,
+    readyNotCollected,
+  ] = await Promise.all([
+    prisma.shipment.count({ where: { deletedAt: null, status: "READY_TO_DEPART" } }),
+    prisma.shipment.count({
+      where: { deletedAt: null, status: "READY_TO_DEPART", photos: { none: {} } },
+    }),
+    prisma.shipment.count({ where: { deletedAt: null, status: "RECEIVED_AT_DAR" } }),
+    prisma.shipment.count({
+      where: {
+        deletedAt: null,
+        status: "RECEIVED_AT_DAR",
+        arrivedAt: { lt: new Date(Date.now() - STORAGE_POLICY.freeDays * 86_400_000) },
+      },
+    }),
+    prisma.invoice.count({ where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } } }),
+    prisma.invoice.aggregate({
+      where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
+      _sum: { total: true, amountPaid: true },
+    }),
+    prisma.supportTicket.count({
+      where: { status: { in: ["OPEN", "IN_PROGRESS", "WAITING_CUSTOMER"] } },
+    }),
+    prisma.shipmentException.count({
+      where: { status: { in: [...EXCEPTION_OPEN_STATUSES] }, shipment: { deletedAt: null } },
+    }),
+    prisma.shipment.count({ where: { deletedAt: null, status: "READY_FOR_PICKUP" } }),
+  ]);
+
+  const owedUsd =
+    toNumber(unpaidValue._sum.total ?? 0) - toNumber(unpaidValue._sum.amountPaid ?? 0);
+
+  return [
+    {
+      key: "china",
+      desk: "Guangzhou",
+      href: "/app/shipments",
+      headline: String(chinaStanding),
+      headlineLabel: "standing",
+      detail: "registered, waiting to fly",
+      problem:
+        chinaNoPhotos > 0
+          ? `${chinaNoPhotos} with no photograph`
+          : null,
+      tone: "info",
+    },
+    {
+      key: "dar",
+      desk: "Dar floor",
+      href: "/app/inventory",
+      headline: String(darStanding),
+      headlineLabel: "on the floor",
+      detail: `${readyNotCollected} cleared and waiting to be collected`,
+      problem:
+        darAging > 0
+          ? `${darAging} past the free storage window`
+          : null,
+      tone: "brand",
+    },
+    {
+      key: "finance",
+      desk: "Finance",
+      href: "/app/finance",
+      headline: String(unpaidCount),
+      headlineLabel: "bills unpaid",
+      detail: "confirmed and still owed",
+      // Shillings lead. The owner reads this the way the till does; the dollar
+      // figure is what the invoice says and lives on the finance desk's page.
+      problem:
+        owedUsd > 0
+          ? rate
+            ? `TSh ${Math.round(owedUsd * rate).toLocaleString("en-US")} outstanding`
+            : `USD ${owedUsd.toFixed(2)} outstanding`
+          : null,
+      tone: "warning",
+    },
+    {
+      key: "support",
+      desk: "Support",
+      href: "/app/support",
+      headline: String(openTickets),
+      headlineLabel: "open tickets",
+      detail: "customers waiting on an answer",
+      problem: openCases > 0 ? `${openCases} open case${openCases === 1 ? "" : "s"}` : null,
+      tone: "signal",
+    },
+  ];
 }
 
 /** Batch weight utilisation — how full the batches we flew actually were. */
