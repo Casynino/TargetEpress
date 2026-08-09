@@ -73,8 +73,13 @@ export default function ChinaPage() {
              the Chinese address and the phone numbers would be white on white. */
           <div className="overflow-hidden rounded-2xl border-2 border-signal/40 bg-card text-foreground shadow-lift ring-1 ring-gold/20">
             <div className="bg-signal px-6 py-3">
+              {/* The Chinese stays 收货地址 — "receiving address" is what a
+                  supplier in Guangzhou reads and acts on. The English says
+                  whose address it is: ours, in China. "Delivery address" read
+                  like where the cargo was going, which is the opposite of what
+                  this card is for. */}
               <p className="text-sm font-bold uppercase tracking-widest text-signal-foreground">
-                收货地址 · Delivery address
+                收货地址 · China warehouse address
               </p>
             </div>
 
