@@ -18,10 +18,10 @@ import {
   QrCode,
   Scale,
   ShieldCheck,
-  SlidersHorizontal,
   ScanLine,
   Timer,
   TrendingDown,
+  Trash2,
   Truck,
   UserCog,
   Users,
@@ -1982,23 +1982,28 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
         what the four desks did with them. A shortcut row that lists places is a
         second sidebar; this one lists the things that stop without this chair.
 
-        Profit is genuinely nobody else's: profit.view is the owner's alone, and
-        it leads for that reason. Claims wait on exception.approve and expenses
-        on expense.approve — both blocking, both only here. Staff and Company
-        settings are the keys to the building.
+        Claims wait on exception.approve and expenses on expense.approve — both
+        blocking, both only here. Deleted records is shipment.cancel, the one
+        action in the app nobody else can take back.
 
-        Verify payments is the exception to "only the owner": Finance works that
-        queue daily. It earns a slot because it is money standing still, and the
-        owner clearing it when Finance is out is worth one press.
+        The Ledger and Verify payments are not exclusive — Finance reads one and
+        works the other every day. They lead anyway: this row is what the owner
+        presses, and money moving and money standing still are the two things
+        they check before anything else.
+
+        Profit & loss and Company settings came out at the owner's request. Both
+        are still a press away in the sidebar.
       */}
       <ActionPills
         items={[
-          { href: "/app/finance/reports", label: "Profit & loss", icon: TrendingDown, weight: "primary", tone: "success" },
-          { href: "/app/finance/transactions", label: "The Ledger", icon: Landmark, weight: "secondary", tone: "signal" },
-          { href: "/app/finance/verify", label: "Verify payments", icon: ShieldCheck, tone: "info" },
+          { href: "/app/finance/transactions", label: "The Ledger", icon: Landmark, weight: "primary", tone: "signal" },
+          { href: "/app/finance/verify", label: "Verify payments", icon: ShieldCheck, weight: "secondary", tone: "info" },
           { href: "/app/exceptions", label: "Issues & Claims", icon: AlertTriangle, tone: "warning" },
           { href: "/app/finance/expenses", label: "Expenses", icon: Wallet, tone: "violet" },
-          { href: "/app/admin/settings", label: "Company settings", icon: SlidersHorizontal, tone: "brand" },
+          // shipment.cancel is the owner's alone: restoring something a desk
+          // deleted, or purging it for good, is the one action in this app
+          // nobody else can take back.
+          { href: "/app/admin/deleted", label: "Deleted records", icon: Trash2, tone: "brand" },
         ]}
       />
 
