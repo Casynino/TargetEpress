@@ -219,8 +219,11 @@ export default function HomePage() {
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button asChild variant="signal" className="rounded-xl">
+                  {/* Same button, same page, so the same words. Two red buttons
+                      going to one place under two different names is how a
+                      visitor decides one of them must lead somewhere else. */}
                   <Link href="/china">
-                    Ukurasa kamili wa address
+                    Bonyeza hapa kupata China address
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>

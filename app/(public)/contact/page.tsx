@@ -207,8 +207,11 @@ export default function ContactPage() {
                   </li>
                 ))}
               </ul>
+              {/* A button has to say what pressing it does. "Ukurasa wa address
+                  ya China" named the destination and never asked for the tap —
+                  it read as a heading somebody had made red. */}
               <Button asChild variant="signal" className="mt-5 rounded-xl">
-                <Link href="/china">Ukurasa wa address ya China</Link>
+                <Link href="/china">Bonyeza hapa kupata China address</Link>
               </Button>
             </div>
           </div>
