@@ -410,11 +410,6 @@
    * the clipped plate would drag the dot pattern with it and read as a spinning
    * texture, not a turning world.
    */
-  @keyframes skySpin {
-    from { transform: rotateY(0deg) scaleX(1); }
-    50%  { transform: scaleX(0.06); }
-    to   { transform: scaleX(1); }
-  }
   @keyframes skyDraw {
     from { stroke-dashoffset: 420; opacity: 0; }
     25%  { opacity: 1; }
@@ -426,7 +421,6 @@
     100% { transform: scale(2.4); opacity: 0; }
   }
 
-  .sky-spin { animation: skySpin 42s linear infinite; }
   .sky-draw { animation: skyDraw 9s ease-in-out infinite; }
   /* transform-box keeps the ping centred on the circle rather than the
      viewBox origin, which is where an SVG transform lands by default. */
@@ -438,7 +432,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .drift-a, .drift-b, .drift-c, .twinkle,
-    .sky-spin, .sky-draw, .sky-ping { animation: none; }
+    .sky-draw, .sky-ping { animation: none; }
     /* Without the draw animation the dashes would sit at their start offset
        and the routes would be invisible. */
     .sky-draw { stroke-dashoffset: 0; opacity: 1; }
