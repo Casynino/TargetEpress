@@ -19,7 +19,7 @@ import { COMPANY } from "@/lib/constants";
 import { IMAGES, img } from "@/lib/imagery";
 
 export const metadata: Metadata = {
-  title: "Anwani ya China · China warehouse address",
+  title: "China warehouse address",
   description:
     "The Target Express warehouse address in Guangzhou, in Chinese and English — send it to your supplier so they can deliver your cargo.",
 };
@@ -52,14 +52,14 @@ export default function ChinaPage() {
           you came to copy on the right. */}
       <PageHero
         image={IMAGES.warehouseAisle}
-        eyebrow="Anwani ya warehouse yetu China"
+        eyebrow="Address ya warehouse yetu China"
         /* The owner's own wording. "Supplier" and "Address" in English inside a
            Swahili sentence is how the customers of this business actually talk
            about it — the words they use with their own suppliers. */
         title="Mpe Supplier wako Address hii"
         body={
           <>
-            Tuma anwani hii kwa muuzaji wako (supplier) kwa WeChat au WhatsApp.
+            Tuma address hii kwa Supplier wako kwa WeChat au WhatsApp.
             Ni ya Kichina — ndio wanayoihitaji wafikishe mzigo wako.
             <span className="mt-2 block text-sm text-white/55">
               Send this address to your supplier in China. They deliver your
@@ -121,7 +121,7 @@ export default function ChinaPage() {
               <div className="mt-6 flex flex-wrap gap-3 border-t pt-5">
                 <CopyField
                   value={CHINA_FULL}
-                  label="Copy anwani / 复制地址"
+                  label="Copy address / 复制地址"
                   copiedLabel="Imekopiwa"
                 />
                 <Button
@@ -150,7 +150,7 @@ export default function ChinaPage() {
         <div className="container">
           <div className="mx-auto max-w-3xl">
             <h2 className="rule-gold font-display text-2xl font-bold tracking-tight sm:text-3xl">
-              Mwambie muuzaji aandike hivi kwenye mzigo
+              Mwambie Supplier aandike hivi kwenye mzigo
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Tell your supplier to mark the cargo clearly. Without your name and

@@ -45,7 +45,7 @@ export function SiteFooter() {
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
               <li>
                 <Link href="/china" className="hover:text-foreground">
-                  Anwani ya China
+                  Address ya China
                 </Link>
               </li>
               <li>

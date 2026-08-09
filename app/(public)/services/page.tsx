@@ -118,7 +118,7 @@ export default function ServicesPage() {
       <MediaBand
         image={IMAGES.apron}
         eyebrow="Huduma zetu"
-        title="Kila kitu kati ya muuzaji wako na duka lako"
+        title="Kila kitu kati ya Supplier wako na duka lako"
         body="Njia moja, namba moja ya kufuatilia. Everything between your supplier's shop and your shop in Dar — handled by people who work for us at both ends."
       >
         <div className="flex flex-wrap gap-3">

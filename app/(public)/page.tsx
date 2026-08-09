@@ -35,7 +35,7 @@ const SERVICES = [
     icon: Warehouse,
     title: "Warehouse yetu Guangzhou",
     titleEn: "Our own warehouse in China",
-    body: "Muuzaji wako anaacha mzigo kwenye anwani yetu Guangzhou. Tunapokea, tunapima, tunapiga picha na tunaandika kwa jina lako.",
+    body: "Supplier wako anaacha mzigo kwenye address yetu Guangzhou. Tunapokea, tunapima, tunapiga picha na tunaandika kwa jina lako.",
   },
   {
     icon: Plane,
@@ -84,8 +84,8 @@ const SERVICES = [
 const STEPS = [
   {
     icon: Building2,
-    title: "Muuzaji anatuma Guangzhou",
-    body: "Mpe muuzaji wako anwani yetu ya China. Anaacha mzigo pale — hakuna kingine unachotakiwa kufanya.",
+    title: "Supplier anatuma Guangzhou",
+    body: "Mpe Supplier wako address yetu ya China. Anaacha mzigo pale — hakuna kingine unachotakiwa kufanya.",
   },
   {
     icon: Camera,
@@ -175,13 +175,13 @@ export default function HomePage() {
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
               <p className="text-sm font-bold uppercase tracking-wider text-signal">
-                Anwani ya China
+                Address ya China
               </p>
               <h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-                Mpe muuzaji wako anwani hii
+                Mpe Supplier wako Address hii
               </h2>
               <p className="mt-4 text-muted-foreground">
-                Hii ni warehouse yetu Guangzhou. Mtumie muuzaji wako anwani hii
+                Hii ni warehouse yetu Guangzhou. Mtumie Supplier wako address hii
                 kwa Kichina — ndio anayoihitaji ili kuleta mzigo wako.
               </p>
 
@@ -220,7 +220,7 @@ export default function HomePage() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button asChild variant="signal" className="rounded-xl">
                   <Link href="/china">
-                    Ukurasa kamili wa anwani
+                    Ukurasa kamili wa address
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -261,7 +261,7 @@ export default function HomePage() {
               Huduma zetu
             </p>
             <h2 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-              Kila kitu kati ya muuzaji wako na duka lako
+              Kila kitu kati ya Supplier wako na duka lako
             </h2>
             <p className="mt-4 text-muted-foreground">
               Njia moja, bei moja, namba moja ya kufuatilia. Yote yaliyo hapa
@@ -572,7 +572,7 @@ export default function HomePage() {
                 Unatuma mzigo mwezi huu?
               </h2>
               <p className="mt-4 text-signal-foreground/85">
-                Tuulize kabla muuzaji wako atume. Tutakupa anwani ya China,
+                Tuulize kabla Supplier wako atume. Tutakupa address ya China,
                 namba yako ya mteja, na bei ya mzigo wako.
               </p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">

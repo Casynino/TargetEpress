@@ -208,7 +208,7 @@ export default function ContactPage() {
                 ))}
               </ul>
               <Button asChild variant="signal" className="mt-5 rounded-xl">
-                <Link href="/china">Ukurasa wa anwani ya China</Link>
+                <Link href="/china">Ukurasa wa address ya China</Link>
               </Button>
             </div>
           </div>
