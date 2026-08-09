@@ -2011,19 +2011,32 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           Business health &middot; right now
         </SectionLabel>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          delay={0}
+        {/*
+          Shillings lead here too.
+
+          This was the one money card on the page still reading in dollars. The
+          reason was real — payments arrive in either currency and are summed at
+          the rate frozen onto each invoice, so the dollar figure is exact and a
+          shilling one is today's rate applied to it. But that is precisely what
+          the tile beside it does, and what every money figure in this app does:
+          the shilling leads because it is the money in the room, and the exact
+          dollar figure sits underneath labelled as the invoice's.
+
+          One card in dollars in a row of shillings does not read as more
+          precise. It reads as a different unit nobody warned you about.
+        */}
+        <MoneyTile
           label="Revenue this month"
-          numeric={thisMonthRevenue}
-          // USD, because that is what the bills are raised in. Payments arrive
-          // in either currency and are summed at the rate frozen onto each
-          // invoice, so this is one currency, not a mixture wearing a label.
-          prefix="USD "
-          decimals={2}
-          delta={delta(thisMonthRevenue, lastMonthRevenue)}
-          hint={`${formatUsd(stats.allTimeCollected)} all time`}
+          usd={thisMonthRevenue}
+          rate={execRate}
+          count={
+            lastMonthRevenue > 0
+              ? `${thisMonthRevenue >= lastMonthRevenue ? "+" : ""}${delta(thisMonthRevenue, lastMonthRevenue)?.toFixed(0) ?? 0}% on last month`
+              : "first month with takings"
+          }
+          hint={`${execTsh(stats.allTimeCollected)} all time`}
           icon={Banknote}
-          tone="success"
+          tone="good"
           trend={revenue.values}
           href="/app/finance"
         />

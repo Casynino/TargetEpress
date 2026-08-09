@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 
+import { Sparkline } from "@/components/charts/sparkline";
 import { formatUsd } from "@/lib/fx";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +63,7 @@ export function MoneyTile({
   href,
   count,
   emphasis = false,
+  trend,
 }: {
   label: string;
   usd: number;
@@ -75,6 +77,14 @@ export function MoneyTile({
   count?: string;
   /** Ring the card. For the one tile on a row that is a queue, not a fact. */
   emphasis?: boolean;
+  /**
+   * The shape behind the figure, when there is one.
+   *
+   * Added so a money figure does not have to give up its trend line to lead in
+   * shillings — the revenue tile was a KpiCard purely because this was missing,
+   * and it was the one money card on the page still reading in dollars.
+   */
+  trend?: number[];
 }) {
   const body = (
     <div
@@ -137,6 +147,17 @@ export function MoneyTile({
           <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
             {formatUsd(usd)}
           </span>
+        </div>
+      ) : null}
+
+      {trend && trend.length > 1 ? (
+        <div className="relative mt-2.5">
+          <Sparkline
+            values={trend}
+            tone={5}
+            label="Trend"
+            className="w-full"
+          />
         </div>
       ) : null}
 
