@@ -3,12 +3,15 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 
-import { BrandLogo } from "@/components/brand-mark";
+import {
+  DocumentFooter,
+  DocumentHeader,
+  DocumentSheet,
+} from "@/components/app/document-sheet";
 import { PageHeader } from "@/components/app/page-header";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
 import {
-  COMPANY,
   EXCEPTION_TYPE_LABELS,
   ORIGIN_LABELS,
   formatPackagesShort,
@@ -109,23 +112,19 @@ export default async function ManifestPage({
         />
       </div>
 
-      <article className="print-plain rounded-xl border bg-white p-8 text-black shadow-soft">
-        <header className="flex items-start justify-between border-b-2 border-black/80 pb-5">
-          {/* The registered lockup, in its own colours. This page prints on
-              white and leaves the building, so it carries the artwork rather
-              than the mark plus the name set in our own type. */}
-          <div>
-            <BrandLogo className="h-14 w-auto" />
-            <p className="mt-2 text-[11px] uppercase tracking-[0.18em]">
-              Batch manifest
-            </p>
-          </div>
-          <div className="text-right text-[11px] leading-relaxed">
-            <p>{COMPANY.phone}</p>
-            <p>{COMPANY.email}</p>
-            <p className="mt-1">Printed {formatDateTime(new Date())}</p>
-          </div>
-        </header>
+      <DocumentSheet>
+        <DocumentHeader
+          title="Batch manifest"
+          meta={
+            <>
+              <p className="font-mono text-sm font-bold tabular text-[#182A48]">
+                {batch.batchNumber}
+              </p>
+              <p>{ORIGIN_LABELS[batch.origin]} — Dar es Salaam</p>
+              <p>Printed {formatDateTime(new Date())}</p>
+            </>
+          }
+        />
 
         <dl className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
@@ -161,8 +160,11 @@ export default async function ManifestPage({
 
         <table className="mt-7 w-full border-collapse text-[11px]">
           <thead>
-            <tr className="border-y-2 border-black/70 text-left">
-              <th className="py-2 pr-2 font-semibold">#</th>
+            {/* The same navy band the invoice puts over its charges. Two
+                documents from two desks should look like they came from one
+                company. */}
+            <tr className="bg-[#182A48] text-left text-[10px] uppercase tracking-[0.08em] text-white">
+              <th className="rounded-l-md py-2 pl-2.5 pr-2 font-semibold">#</th>
               <th className="py-2 pr-2 font-semibold">Received</th>
               <th className="py-2 pr-2 font-semibold">Tracking</th>
               <th className="py-2 pr-2 font-semibold">Customer</th>
@@ -179,7 +181,9 @@ export default async function ManifestPage({
                   count is already in "Counted as" — one box per package only
                   repeated it. */}
               <th className="py-2 pr-2 font-semibold">Problem</th>
-              <th className="w-16 py-2 text-center font-semibold">Checked</th>
+              <th className="w-16 rounded-r-md py-2 pr-2 text-center font-semibold">
+                Checked
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -263,7 +267,9 @@ export default async function ManifestPage({
             <p className="mt-1.5 text-black/60">Date &amp; time</p>
           </div>
         </div>
-      </article>
+
+        <DocumentFooter />
+      </DocumentSheet>
     </div>
   );
 }

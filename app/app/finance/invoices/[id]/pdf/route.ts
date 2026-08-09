@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { AIRPORT_LABELS, CATEGORY_LABELS } from "@/lib/cargo";
+import { accountsForInvoice } from "@/lib/company-settings";
 import { formatDate, toNumber } from "@/lib/format";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
 import { prisma } from "@/lib/prisma";
@@ -47,6 +49,9 @@ export async function GET(
       exchangeRate: true,
       localCurrency: true,
       totalLocal: true,
+      // What this invoice was issued with. Reading today's settings instead
+      // would reprint account numbers the customer was never given.
+      paymentSnapshot: true,
       customer: { select: { name: true, phone: true, city: true } },
       shipment: {
         select: {
@@ -55,6 +60,9 @@ export async function GET(
           weightKg: true,
           packages: true,
           packageType: true,
+          origin: true,
+          cargoCategory: true,
+          cargoType: { select: { name: true } },
           batch: { select: { batchNumber: true } },
         },
       },
@@ -94,6 +102,10 @@ export async function GET(
     weightKg: toNumber(invoice.shipment.weightKg),
     packages: invoice.shipment.packages,
     packageType: invoice.shipment.packageType,
+    routeLabel: `${AIRPORT_LABELS[invoice.shipment.origin]} \u2192 Dar es Salaam`,
+    cargoLabel:
+      invoice.shipment.cargoType?.name ??
+      CATEGORY_LABELS[invoice.shipment.cargoCategory],
 
     currency: invoice.currency,
     // The figure that was actually billed, which is the override when Finance
@@ -115,6 +127,8 @@ export async function GET(
     localCurrency: invoice.localCurrency,
     totalLocal:
       invoice.totalLocal === null ? null : toNumber(invoice.totalLocal),
+
+    accounts: accountsForInvoice(invoice.paymentSnapshot),
   });
 
   return new NextResponse(Buffer.from(pdf), {

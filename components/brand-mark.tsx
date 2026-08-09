@@ -19,7 +19,23 @@ import { cn } from "@/lib/utils";
  * The mark is wider than it is tall — the aircraft leaves the globe on the
  * right. Size it by height (h-9 w-auto); a square box would squash it.
  */
-export function BrandMark({ className }: { className?: string }) {
+export function BrandMark({
+  className,
+  tone = "theme",
+}: {
+  className?: string;
+  /**
+   * "theme" follows the tokens, which is what the app chrome needs.
+   *
+   * "paper" pins the mark to the artwork's own inks. Printed documents are
+   * white in either theme, so a token that brightens for the dark sidebar would
+   * put pale blue on a page somebody is about to photocopy.
+   */
+  tone?: "theme" | "paper";
+}) {
+  const globe = tone === "paper" ? "fill-[#182A48]" : "fill-brand";
+  const jet = tone === "paper" ? "fill-[#D81E2A]" : "fill-signal";
+
   return (
     <svg
       viewBox={EMBLEM_VIEWBOX}
@@ -27,8 +43,8 @@ export function BrandMark({ className }: { className?: string }) {
       className={cn("h-9 w-auto", className)}
       aria-hidden="true"
     >
-      <path d={EMBLEM_GLOBE} fillRule="evenodd" className="fill-brand" />
-      <path d={EMBLEM_JET} fillRule="evenodd" className="fill-signal" />
+      <path d={EMBLEM_GLOBE} fillRule="evenodd" className={globe} />
+      <path d={EMBLEM_JET} fillRule="evenodd" className={jet} />
     </svg>
   );
 }

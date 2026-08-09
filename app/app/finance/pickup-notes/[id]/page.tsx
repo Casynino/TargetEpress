@@ -4,10 +4,16 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 
-import { BrandLogo } from "@/components/brand-mark";
+import {
+  DocumentField,
+  DocumentFooter,
+  DocumentHeader,
+  DocumentSheet,
+  DocumentStamp,
+} from "@/components/app/document-sheet";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
-import { COMPANY, PAYMENT_METHOD_LABELS } from "@/lib/constants";
+import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatDateTime, formatMoney, formatWeight } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
@@ -64,31 +70,27 @@ export default async function PickupNotePage({
         <PrintButton label="Print pickup note" />
       </div>
 
-      <article className="print-plain rounded-xl border-2 bg-white p-8 text-black shadow-soft">
-        <header className="flex items-start justify-between border-b-2 border-black/80 pb-5">
-          {/* The registered lockup, in its own colours. This page prints on
-              white and leaves the building, so it carries the artwork rather
-              than the mark plus the name set in our own type. */}
-          <div>
-            <BrandLogo className="h-14 w-auto" />
-            <p className="mt-2 text-[11px] uppercase tracking-[0.18em]">
-              Pickup note
-            </p>
-          </div>
-          <div className="text-right text-[11px] leading-relaxed">
-            <p className="font-mono text-sm font-bold tabular">
-              {note.noteNumber}
-            </p>
-            <p>{COMPANY.phone}</p>
-            <p>{COMPANY.darAddress}</p>
-          </div>
-        </header>
-
-        {note.status !== "ACTIVE" ? (
-          <p className="mt-4 rounded border-2 border-black/70 px-3 py-2 text-center text-sm font-bold uppercase tracking-widest">
-            {note.status === "USED" ? "Collected" : "Cancelled"}
-          </p>
-        ) : null}
+      <DocumentSheet>
+        <DocumentHeader
+          title="Pickup note"
+          badge={
+            note.status === "ACTIVE" ? null : (
+              // A used or cancelled note has to be unmistakable at the counter,
+              // where somebody is holding it out and a queue is forming.
+              <DocumentStamp tone={note.status === "USED" ? "success" : "danger"}>
+                {note.status === "USED" ? "Collected" : "Cancelled"}
+              </DocumentStamp>
+            )
+          }
+          meta={
+            <>
+              <p className="font-mono text-sm font-bold tabular text-[#182A48]">
+                {note.noteNumber}
+              </p>
+              <p>Issued {formatDateTime(note.issuedAt)}</p>
+            </>
+          }
+        />
 
         <div className="mt-6 flex flex-wrap gap-8">
           <Image
@@ -101,10 +103,7 @@ export default async function PickupNotePage({
           />
 
           <div className="min-w-[240px] flex-1 space-y-4">
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-widest text-black/55">
-                Customer
-              </p>
+            <DocumentField label="Customer">
               <p className="text-base font-bold">{note.customer.name}</p>
               <p className="font-mono text-sm tabular">
                 {note.customer.phone ?? "Phone not recorded"}
@@ -112,13 +111,10 @@ export default async function PickupNotePage({
               <p className="font-mono text-xs tabular text-black/60">
                 {note.customer.code}
               </p>
-            </div>
+            </DocumentField>
 
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-widest text-black/55">
-                Shipment
-              </p>
-              <p className="font-mono text-lg font-bold tabular">
+            <DocumentField label="Shipment">
+              <p className="font-mono text-lg font-bold tabular text-[#182A48]">
                 {note.shipment.trackingNumber}
               </p>
               <p className="text-sm">
@@ -129,19 +125,19 @@ export default async function PickupNotePage({
                   : ""}
               </p>
               <p className="text-sm">{note.shipment.description}</p>
-            </div>
+            </DocumentField>
           </div>
         </div>
 
-        <section className="mt-6 border-y border-black/20 py-5">
-          <p className="text-[9px] font-semibold uppercase tracking-widest text-black/55">
+        <section className="mt-6 rounded-lg bg-[#117447]/10 px-5 py-4">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/50">
             Payment confirmation
           </p>
-          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
-            <p className="font-mono text-2xl font-bold tabular">
+          <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-3">
+            <p className="font-mono text-2xl font-bold tabular text-[#117447]">
               {formatMoney(note.amountPaid, note.currency)}
             </p>
-            <p className="text-sm font-semibold uppercase tracking-wide">
+            <p className="text-sm font-bold uppercase tracking-wide text-[#117447]">
               Paid in full
             </p>
           </div>
@@ -180,19 +176,24 @@ export default async function PickupNotePage({
           together with their own ID.
         </p>
 
-        <footer className="mt-8 grid grid-cols-2 gap-10 text-[11px]">
+        <div className="mt-8 grid grid-cols-2 gap-10 text-[11px]">
           <div>
             <div className="h-10 border-b border-black/50" />
             <p className="mt-1.5 text-black/60">Received by (name &amp; signature)</p>
           </div>
           <div>
-            <p className="font-semibold">
-              Issued by {note.issuedBy?.name ?? "Finance"}
-            </p>
-            <p className="text-black/60">{formatDateTime(note.issuedAt)}</p>
+            <div className="h-10 border-b border-black/50" />
+            <p className="mt-1.5 text-black/60">Released by (Target Express staff)</p>
           </div>
-        </footer>
-      </article>
+        </div>
+
+        <DocumentFooter>
+          <p>
+            Issued by {note.issuedBy?.name ?? "Finance"} ·{" "}
+            {formatDateTime(note.issuedAt)}
+          </p>
+        </DocumentFooter>
+      </DocumentSheet>
     </div>
   );
 }

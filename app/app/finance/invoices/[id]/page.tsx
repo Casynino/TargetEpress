@@ -1,24 +1,22 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft, Download, MessageCircle } from "lucide-react";
 
-import { BrandLogo } from "@/components/brand-mark";
+import { InvoiceDocument } from "@/components/app/invoice-document";
 import { InvoiceEditor } from "@/components/app/invoice-editor";
 import { MessageComposer } from "@/components/app/message-composer";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
 import { formatPackages } from "@/lib/constants";
+import { accountsForInvoice } from "@/lib/company-settings";
 import { LOCAL_CURRENCY, formatLocal, toLocal } from "@/lib/fx";
 import { MESSAGE_KIND_LABELS, composeMessage, whatsappLink } from "@/lib/messages";
 import { AIRPORT_LABELS, CATEGORY_LABELS, METHOD_LABELS } from "@/lib/cargo";
 import {
   COMPANY,
-  PAYMENT_ACCOUNTS,
   PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
-  STORAGE_POLICY,
 } from "@/lib/constants";
 import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -87,6 +85,36 @@ export default async function InvoicePage({
       : toLocal(toNumber(invoice.total), invoiceRate);
   const outstandingLocal =
     invoiceRate === null ? null : toLocal(Math.max(0, outstanding), invoiceRate);
+
+  // A settled invoice shows what was paid, not a zero: "TZS 0" under the word
+  // PAID reads as a document that failed to render, and it is the copy the
+  // customer keeps.
+  const paidInFull = outstanding <= 0.005;
+  const heroUsd = paidInFull ? toNumber(invoice.total) : Math.max(0, outstanding);
+  const heroLocal =
+    invoiceRate === null ? null : toLocal(heroUsd, invoiceRate);
+
+  // What this invoice was issued with, not what Settings says today.
+  const accounts = accountsForInvoice(invoice.paymentSnapshot);
+
+  // How the freight figure was reached, in one line. Assembled here because it
+  // is the only part of the document that has to reach into the rate book.
+  const freightNote = [
+    `${AIRPORT_LABELS[shipment.origin]} — Dar es Salaam`,
+    shipment.quotedMethod ? METHOD_LABELS[shipment.quotedMethod] : "Weight-based",
+    shipment.quotedRate
+      ? `${money(toNumber(shipment.quotedRate), currency)}${
+          shipment.quotedMethod === "FIXED_PER_ITEM" ? " each" : "/kg"
+        }`
+      : null,
+    shipment.quotedMethod === "FIXED_PER_ITEM"
+      ? `× ${formatPackages(shipment.packages, shipment.packageType)}`
+      : shipment.chargeableKg
+        ? `× ${toNumber(shipment.chargeableKg).toFixed(2)} kg chargeable`
+        : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   // The invoice carries the shipment's own QR, so the document and the cargo
   // share one identity all the way to release.
@@ -196,294 +224,59 @@ export default async function InvoicePage({
         </div>
       ) : null}
 
-      <article className="print-plain rounded-xl border-2 bg-white p-8 text-black shadow-soft">
-        <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-black/80 pb-5">
-          {/* The registered lockup, in its own colours. This page prints on
-              white and leaves the building, so it carries the artwork rather
-              than the mark plus the name set in our own type. */}
-          <div>
-            <BrandLogo className="h-14 w-auto" />
-            <p className="mt-2 text-[11px] uppercase tracking-[0.18em]">
-              Invoice
-            </p>
-          </div>
-          <div className="text-right text-[11px] leading-relaxed">
-            <p className="font-mono text-sm font-bold tabular">
-              {invoice.invoiceNumber}
-            </p>
-            <p>Issued {formatDate(invoice.issuedAt)}</p>
-            <p>{COMPANY.phone}</p>
-            <p>{COMPANY.darAddress}</p>
-          </div>
-        </header>
-
-        {/* Billed to / shipment */}
-        <div className="mt-6 grid gap-6 sm:grid-cols-2">
-          <div>
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-black/55">
-              Billed to
-            </p>
-            <p className="mt-1 text-base font-bold">{invoice.customer.name}</p>
-            <p className="font-mono text-sm tabular">
-              {invoice.customer.phone ?? "Phone not recorded"}
-            </p>
-            <p className="font-mono text-xs tabular text-black/60">
-              {invoice.customer.code}
-            </p>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-widest text-black/55">
-                Shipment
-              </p>
-              <p className="mt-1 font-mono text-lg font-bold tabular">
-                {shipment.trackingNumber}
-              </p>
-              <p className="text-xs">
-                {shipment.batch ? `${shipment.batch.batchNumber} · ` : ""}
-                {AIRPORT_LABELS[shipment.origin]}
-              </p>
-            </div>
-            <Image
-              src={qr}
-              alt={`QR for ${shipment.trackingNumber}`}
-              width={72}
-              height={72}
-              className="shrink-0 border border-black/20"
-              unoptimized
-            />
-          </div>
-        </div>
-
-        {/* Cargo */}
-        <dl className="mt-6 grid grid-cols-2 gap-4 border-y border-black/20 py-4 sm:grid-cols-4">
-          {[
-            { label: "Cargo category", value: CATEGORY_LABELS[shipment.cargoCategory] },
-            { label: "Cargo type", value: shipment.cargoType?.name ?? "—" },
-            { label: "Weight", value: formatWeight(shipment.weightKg) },
-            {
-              label: "Quantity",
-              value: formatPackages(shipment.packages, shipment.packageType),
-            },
-          ].map((item) => (
-            <div key={item.label}>
-              <dt className="text-[9px] font-semibold uppercase tracking-widest text-black/55">
-                {item.label}
-              </dt>
-              <dd className="mt-0.5 text-xs font-bold">{item.value}</dd>
-            </div>
-          ))}
-        </dl>
-
-        {/* Charges — with the working shown */}
-        <table className="mt-6 w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b-2 border-black/70 text-left">
-              <th className="py-2 font-semibold">Description</th>
-              <th className="py-2 text-right font-semibold">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-b border-black/15">
-              <td className="py-2.5">
-                <p className="font-medium">Air freight</p>
-                <p className="text-[11px] text-black/60">
-                  {shipment.quotedMethod
-                    ? METHOD_LABELS[shipment.quotedMethod]
-                    : "Weight-based"}
-                  {shipment.quotedRate
-                    ? ` · ${money(toNumber(shipment.quotedRate), currency)}${
-                        shipment.quotedMethod === "FIXED_PER_ITEM" ? " each" : "/kg"
-                      }`
-                    : ""}
-                  {shipment.quotedMethod === "FIXED_PER_ITEM"
-                    ? ` × ${formatPackages(shipment.packages, shipment.packageType)}`
-                    : shipment.chargeableKg
-                      ? ` × ${toNumber(shipment.chargeableKg).toFixed(2)} kg chargeable`
-                      : ""}
-                </p>
-              </td>
-              <td className="py-2.5 text-right font-mono tabular">
-                {/* What was actually billed — the correction when Finance made
-                    one, the rate book otherwise. The same coalesce the total
-                    was computed from, and the same one the PDF prints. Reading
-                    freightCost alone made the line items on this page fail to
-                    add up to the total sitting under them. */}
-                {money(billedFreight, currency)}
-              </td>
-            </tr>
-
-            {invoice.storageDays > 0 ? (
-              <tr className="border-b border-black/15">
-                <td className="py-2.5">
-                  <p className="font-medium">Storage</p>
-                  <p className="text-[11px] text-black/60">
-                    {invoice.storageDays} chargeable day(s) beyond the{" "}
-                    {STORAGE_POLICY.freeDays} free days, at{" "}
-                    {money(STORAGE_POLICY.perDayUsd, STORAGE_POLICY.currency)}/day
-                  </p>
-                </td>
-                <td className="py-2.5 text-right font-mono tabular">
-                  {money(toNumber(invoice.storageCharge), currency)}
-                </td>
-              </tr>
-            ) : null}
-
-            {toNumber(invoice.otherCharges) > 0 ? (
-              <tr className="border-b border-black/15">
-                <td className="py-2.5 font-medium">Other charges</td>
-                <td className="py-2.5 text-right font-mono tabular">
-                  {money(toNumber(invoice.otherCharges), currency)}
-                </td>
-              </tr>
-            ) : null}
-
-            {toNumber(invoice.discount) > 0 ? (
-              <tr className="border-b border-black/15">
-                <td className="py-2.5 font-medium">Discount</td>
-                <td className="py-2.5 text-right font-mono tabular">
-                  −{money(toNumber(invoice.discount), currency)}
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-black/70">
-              <td className="py-3 font-display text-base font-bold">Total</td>
-              <td className="py-3 text-right font-mono text-base font-bold tabular">
-                {money(toNumber(invoice.total), currency)}
-              </td>
-            </tr>
-            {totalLocal !== null ? (
-              <tr>
-                <td className="pb-2 text-xs text-black/70">
-                  In shillings at {invoiceRate?.toLocaleString()} / USD — the rate
-                  on the day this invoice was raised
-                </td>
-                <td className="pb-2 text-right font-mono text-sm font-semibold tabular">
-                  {formatLocal(totalLocal, localCurrency)}
-                </td>
-              </tr>
-            ) : null}
-            {invoice.payments.length > 0 ? (
-              <tr>
-                <td className="py-1 text-xs text-black/70">Paid to date</td>
-                <td className="py-1 text-right font-mono text-xs tabular">
-                  −{money(toNumber(invoice.amountPaid), currency)}
-                </td>
-              </tr>
-            ) : null}
-            <tr>
-              <td className="pt-2 font-semibold">
-                {outstanding <= 0 ? "Paid in full" : "Amount due"}
-              </td>
-              <td className="pt-2 text-right font-mono font-bold tabular">
-                {money(Math.max(0, outstanding), currency)}
-                {outstandingLocal !== null && outstanding > 0 ? (
-                  <div className="text-xs font-semibold text-black/70">
-                    {formatLocal(outstandingLocal, localCurrency)}
-                  </div>
-                ) : null}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-
-        {invoice.payments.length > 0 ? (
-          <ul className="mt-3 space-y-0.5 text-[11px] text-black/70">
-            {invoice.payments.map((payment) => (
-              <li key={payment.id} className="flex justify-between gap-4">
-                <span>
-                  {payment.receipt?.receiptNumber} ·{" "}
-                  {PAYMENT_METHOD_LABELS[payment.method]}
-                  {payment.reference ? ` · ${payment.reference}` : ""} ·{" "}
-                  {formatDate(payment.paidAt)}
-                </span>
-                <span className="font-mono tabular">
-                  {money(toNumber(payment.amount), payment.currency)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {/* Payment options */}
-        <section className="mt-7 rounded-lg border-2 border-black/70 p-4">
-          <h2 className="font-display text-sm font-bold uppercase tracking-wide">
-            How to pay
-          </h2>
-
-          <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-widest text-black/55">
-                Mobile money
-              </p>
-              <ul className="mt-1.5 space-y-2">
-                {PAYMENT_ACCOUNTS.mobileMoney.map((account) => (
-                  <li key={account.number} className="text-xs">
-                    <p className="font-semibold">{account.provider}</p>
-                    <p className="font-mono text-sm font-bold tabular">
-                      {account.number}
-                    </p>
-                    <p className="text-[10px] text-black/60">
-                      {account.accountName}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <p className="text-[9px] font-semibold uppercase tracking-widest text-black/55">
-                Bank transfer
-              </p>
-              <ul className="mt-1.5 space-y-2">
-                {PAYMENT_ACCOUNTS.banks.map((bank) => (
-                  <li key={bank.bank} className="text-xs">
-                    <p className="font-semibold">{bank.bank}</p>
-                    {bank.accounts.map((account) => (
-                      <p
-                        key={account.number}
-                        className="font-mono text-sm font-bold tabular"
-                      >
-                        {account.currency}: {account.number}
-                      </p>
-                    ))}
-                    <p className="text-[10px] text-black/60">{bank.accountName}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          <p className="mt-3 border-t border-black/20 pt-2 text-[10px] text-black/70">
-            Quote <strong>{shipment.trackingNumber}</strong> as the payment
-            reference so we can match your payment immediately.
-          </p>
-        </section>
-
-        {/* Terms */}
-        <section className="mt-5">
-          <h2 className="text-[9px] font-semibold uppercase tracking-widest text-black/55">
-            Storage policy
-          </h2>
-          <div className="mt-1.5 space-y-1 text-[11px] leading-relaxed">
-            {STORAGE_POLICY.text.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-          </div>
-        </section>
-
-        <footer className="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-black/20 pt-3 text-[10px] text-black/60">
-          <p>
-            Issued by {invoice.issuedBy?.name ?? "Finance"} ·{" "}
-            {formatDateTime(invoice.issuedAt)}
-          </p>
-          <p>
-            {COMPANY.email} · {COMPANY.phone}
-          </p>
-        </footer>
-      </article>
+      <InvoiceDocument
+        invoiceNumber={invoice.invoiceNumber}
+        issuedOn={formatDate(invoice.issuedAt)}
+        dueOn={invoice.dueDate ? formatDate(invoice.dueDate) : null}
+        issuedAtLabel={formatDateTime(invoice.issuedAt)}
+        issuedByName={invoice.issuedBy?.name ?? null}
+        customer={{
+          name: invoice.customer.name,
+          phone: invoice.customer.phone,
+          code: invoice.customer.code,
+          city: invoice.customer.city,
+        }}
+        shipment={{
+          trackingNumber: shipment.trackingNumber,
+          batchNumber: shipment.batch?.batchNumber ?? null,
+          originLabel: AIRPORT_LABELS[shipment.origin],
+          description: shipment.description,
+          weightLabel: formatWeight(shipment.weightKg),
+          quantityLabel: formatPackages(shipment.packages, shipment.packageType),
+          cargoLabel:
+            shipment.cargoType?.name ?? CATEGORY_LABELS[shipment.cargoCategory],
+        }}
+        freightNote={freightNote}
+        currency={currency}
+        localCurrency={localCurrency}
+        exchangeRate={invoiceRate}
+        billedFreight={billedFreight}
+        storageCharge={toNumber(invoice.storageCharge)}
+        storageDays={invoice.storageDays}
+        otherCharges={toNumber(invoice.otherCharges)}
+        discount={toNumber(invoice.discount)}
+        total={toNumber(invoice.total)}
+        amountPaid={toNumber(invoice.amountPaid)}
+        paidInFull={paidInFull}
+        heroUsd={heroUsd}
+        heroLocal={heroLocal}
+        payments={invoice.payments.map((payment) => ({
+          id: payment.id,
+          line: [
+            payment.receipt?.receiptNumber,
+            PAYMENT_METHOD_LABELS[payment.method],
+            payment.reference,
+            formatDate(payment.paidAt),
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          amount: money(toNumber(payment.amount), payment.currency),
+        }))}
+        accounts={accounts}
+        qrDataUrl={qr}
+        money={money}
+        formatLocal={formatLocal}
+      />
       {canMessage ? (
         <section className="no-print mt-6 rounded-xl border bg-card p-5 shadow-soft">
           <h2 className="mb-1 font-semibold">Send this invoice</h2>

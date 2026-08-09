@@ -263,6 +263,20 @@
     .print-plain {
       box-shadow: none !important;
       border-color: #d4d4d8 !important;
+      /* Print the fills.
+
+         Browsers drop background colours by default, which is right for a web
+         page and wrong for a document whose brand rule, table header and total
+         panel ARE fills. Without this the invoice prints as an outline of
+         itself and the customer receives a worse version of what Finance
+         approved on screen. */
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .print-plain * {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
 
     body {
