@@ -29,7 +29,7 @@ export const metadata: Metadata = {
  * A photograph per collection point, by position rather than by id, so an
  * office added to the constants still gets a picture instead of a grey box.
  */
-const OFFICE_IMAGES = [IMAGES.loadingTruck, IMAGES.packedCartons];
+const OFFICE_IMAGES = [IMAGES.warehouseAisle, IMAGES.apron];
 
 export default function ContactPage() {
   return (

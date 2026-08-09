@@ -22,6 +22,11 @@ export const IMAGES = {
   warehouseAisle: photo("1553413077-190dd305871c"),
   loadingTruck: photo("1601584115197-04ecc0da31d7"),
   cargoHold: photo("1587293852726-70cdb56c2866"),
+  /**
+   * Two plain cartons on a table. Deliberately NOT a hero image anywhere:
+   * it is a photograph of packaging, and this is an air cargo company. It
+   * earns its place on one card — the market that sells cartons.
+   */
   packedCartons: photo("1595246140625-573b715d11dc"),
   airportNight: photo("1520437358207-323b43b50729"),
   paperwork: photo("1450101499163-c8848c66ca85"),
@@ -34,7 +39,6 @@ export const IMAGES = {
   furniture: photo("1555041469-a586c61ea9bc"),
   lighting: photo("1524484485831-a92ffc0de03f"),
   autoParts: photo("1486262715619-67b85e0b08d3"),
-  packaging: photo("1607083206968-13611e3d76db"),
 } as const;
 
 /** A sized, cropped, format-negotiated URL. */
@@ -49,7 +53,7 @@ export function img(url: string, width: number, quality = 68) {
  * plausible picture beats a picture of the wrong thing.
  */
 const MARKET_IMAGES: Record<string, string> = {
-  "yiwu-international-trade-city": IMAGES.packedCartons,
+  "yiwu-international-trade-city": IMAGES.warehouseAisle,
   "guangzhou-wholesale-markets": IMAGES.clothingRail,
   "shenzhen-electronics-markets": IMAGES.electronicsBench,
   "foshan-furniture-markets": IMAGES.furniture,
@@ -60,8 +64,8 @@ const MARKET_IMAGES: Record<string, string> = {
   "guangzhou-shoe-markets": IMAGES.sneakers,
   "guangzhou-auto-parts": IMAGES.autoParts,
   "guzhen-lighting-market": IMAGES.lighting,
-  "chenghai-toy-market": IMAGES.packedCartons,
-  "packaging-materials-market": IMAGES.packaging,
+  "chenghai-toy-market": IMAGES.warehouseAisle,
+  "packaging-materials-market": IMAGES.packedCartons,
 };
 
 export function marketImage(slug: string) {

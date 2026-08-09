@@ -19,6 +19,7 @@ import { PageHero } from "@/components/site/page-hero";
 import { CargoNote } from "@/components/site/cargo-note";
 import { SectionBackdrop } from "@/components/site/section-backdrop";
 import { TrackForm } from "@/components/site/track-form";
+import { TrackingSky } from "@/components/site/tracking-sky";
 import { IMAGES, img } from "@/lib/imagery";
 import { TrackingTimeline } from "@/components/site/tracking-timeline";
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,8 @@ export default async function TrackPage({
           the field they came to use should be the first thing on the screen,
           not below a banner. */}
       <PageHero
-        image={IMAGES.packedCartons}
+        backdrop={<TrackingSky />}
+        size="tall"
         eyebrow="Fuatilia mzigo"
         title="Track your cargo"
         body={

@@ -15,10 +15,12 @@ import { cn } from "@/lib/utils";
  * a fourth:
  *
  *  - `aurora` — slow-drifting colour, like light moving behind the page
- *  - `quiet`  — stars only, no colour at all. For a page whose whole job is a
- *    figure somebody owes: blue, gold and red washing behind a bill makes the
- *    amount look like part of a decoration, and a customer reading what they
- *    owe should not be read anything else at the same time.
+ *  - `quiet`  — depth without colour, for the page whose whole job is a figure
+ *    somebody owes. Blue, gold and red washing behind a bill makes the amount
+ *    look like part of a decoration, so this variant gets its structure from a
+ *    grid, a single navy pool of light behind the card, and the ghost of the
+ *    flight corridor along the top — nothing that competes for the eye with a
+ *    number, and nothing that leaves the field a flat black rectangle either.
  *  - `stars`  — the same, with a field of stars over it
  *  - `photo`  — a photograph under a scrim heavy enough for body text
  *
@@ -116,6 +118,50 @@ export function SectionBackdrop({
             />
           ))}
         </div>
+      ) : null}
+
+      {/*
+        For `quiet`: light behind the card, and the corridor overhead.
+
+        The field under the tracking result was a flat black rectangle with a
+        few stars in it — the card looked like it had been dropped onto nothing.
+        A pool of navy light gives it something to sit in, and two arcs at four
+        per cent opacity carry the route from the hero down past the result
+        without ever becoming a thing to look at. No gold, no red: the only
+        figure on this page that should catch the eye is the one the customer
+        owes.
+      */}
+      {variant === "quiet" ? (
+        <>
+          <div
+            className="absolute inset-x-0 top-0 h-[38rem]"
+            style={{
+              background:
+                "radial-gradient(60% 100% at 50% 0%, hsl(216 72% 34% / 0.22) 0%, transparent 70%)",
+            }}
+          />
+          <div className="drift-a absolute left-1/2 top-[26%] h-[38rem] w-[52rem] -translate-x-1/2 rounded-full bg-brand/[0.07] blur-3xl" />
+          <svg
+            viewBox="0 0 1200 520"
+            preserveAspectRatio="none"
+            className="absolute inset-x-0 top-0 h-[26rem] w-full opacity-[0.16]"
+          >
+            <path
+              d="M1180 40 Q 700 150 120 300"
+              fill="none"
+              stroke="hsl(205 90% 72%)"
+              strokeWidth="1.2"
+              strokeDasharray="6 10"
+            />
+            <path
+              d="M1180 130 Q 640 300 60 400"
+              fill="none"
+              stroke="hsl(3 84% 60%)"
+              strokeWidth="1.2"
+              strokeDasharray="4 12"
+            />
+          </svg>
+        </>
       ) : null}
 
       {/* A hairline grid, so the field has structure under the colour. */}

@@ -19,9 +19,9 @@ import { ARTICLES, articleBySlug } from "@/lib/learn";
  */
 const ARTICLE_IMAGES: Record<string, string> = {
   "how-air-cargo-works": IMAGES.cargoHold,
-  "why-weight-is-charged": IMAGES.packedCartons,
+  "why-weight-is-charged": IMAGES.apron,
   "choosing-a-supplier": IMAGES.clothingRail,
-  "packing-for-air-freight": IMAGES.packaging,
+  "packing-for-air-freight": IMAGES.packedCartons,
   "paying-suppliers": IMAGES.paperwork,
   "customs-and-clearing": IMAGES.airportNight,
   "first-import-checklist": IMAGES.apron,

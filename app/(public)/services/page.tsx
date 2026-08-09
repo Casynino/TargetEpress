@@ -64,7 +64,7 @@ const SERVICES = [
   },
   {
     href: "/learn/consolidation",
-    image: IMAGES.packedCartons,
+    image: IMAGES.apron,
     eyebrow: "Consolidation",
     title: "Several orders, one shipment",
     body: "Held free at our warehouse while the rest of your order comes together. One invoice, one collection.",

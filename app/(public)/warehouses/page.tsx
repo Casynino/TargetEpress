@@ -63,7 +63,7 @@ export default function WarehousesPage() {
           <Reveal className="group flex flex-col overflow-hidden rounded-2xl border bg-card shadow-soft transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-gold/50 hover:shadow-lift motion-reduce:transition-none motion-reduce:hover:translate-y-0">
             <div className="relative h-52 overflow-hidden sm:h-60">
               <Image
-                src={img(IMAGES.packedCartons, 900)}
+                src={img(IMAGES.cargoHold, 900)}
                 alt=""
                 fill
                 sizes="(max-width: 1024px) 100vw, 50vw"

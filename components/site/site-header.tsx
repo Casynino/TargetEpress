@@ -71,7 +71,10 @@ const NAV = [
   // not a list of aircraft, and the route is /schedule.
   { href: "/schedule", label: "Schedules" },
   { href: "/pricing", label: "Rates" },
-  { href: "/china", label: "China" },
+  // "Address", not "China". The page is the one thing a customer comes here
+  // to copy — the Guangzhou warehouse address they send to their supplier.
+  // "China" named a country; the visitor is looking for an address.
+  { href: "/china", label: "Address" },
   { href: "/services", label: "Services" },
   { href: "/learn", label: "Guides" },
   { href: "/contact", label: "Contact" },

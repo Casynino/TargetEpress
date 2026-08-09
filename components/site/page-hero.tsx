@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
  */
 export function PageHero({
   image,
+  backdrop,
   eyebrow,
   title,
   body,
@@ -29,7 +30,16 @@ export function PageHero({
   size = "standard",
   className,
 }: {
-  image: string;
+  /** Ignored when `backdrop` is given. */
+  image?: string;
+  /**
+   * Something drawn instead of the photograph.
+   *
+   * One page has a better answer than a picture: tracking, where the backdrop
+   * is the corridor the customer's box is on. The scrims below belong to the
+   * photograph, so a backdrop brings its own — see TrackingSky.
+   */
+  backdrop?: React.ReactNode;
   eyebrow: string;
   title: React.ReactNode;
   body?: React.ReactNode;
@@ -48,14 +58,16 @@ export function PageHero({
         className
       )}
     >
-      <Image
-        src={img(image, 1920)}
-        alt=""
-        fill
-        priority
-        sizes="100vw"
-        className="-z-10 object-cover"
-      />
+      {backdrop ?? (
+        <Image
+          src={img(image ?? "", 1920)}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="-z-10 object-cover"
+        />
+      )}
 
       {/* Two scrims doing different jobs: the first guarantees legibility on
           the left where the text sits, the second stops white type landing on
@@ -65,20 +77,26 @@ export function PageHero({
           they multiply — 0.45 over 0.55 leaves almost nothing of the
           photograph — and the hero goes back to being flat navy, which is the
           exact problem the photograph was added to solve. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10 bg-gradient-to-r from-[hsl(var(--ink)/0.94)] via-[hsl(var(--ink)/0.62)] to-[hsl(var(--ink)/0.15)]"
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10 bg-gradient-to-t from-[hsl(var(--ink)/0.72)] via-transparent to-[hsl(var(--ink)/0.3)]"
-      />
+      {backdrop ? null : (
+        <>
+          <div
+            aria-hidden
+            className="absolute inset-0 -z-10 bg-gradient-to-r from-[hsl(var(--ink)/0.94)] via-[hsl(var(--ink)/0.62)] to-[hsl(var(--ink)/0.15)]"
+          />
+          <div
+            aria-hidden
+            className="absolute inset-0 -z-10 bg-gradient-to-t from-[hsl(var(--ink)/0.72)] via-transparent to-[hsl(var(--ink)/0.3)]"
+          />
+        </>
+      )}
       {/* A wash of gold along the bottom edge — the accent that separates this
           from every other navy hero on the internet. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-[hsl(var(--gold)/0.14)] to-transparent"
-      />
+      {backdrop ? null : (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-[hsl(var(--gold)/0.14)] to-transparent"
+        />
+      )}
 
       <div
         className={cn(

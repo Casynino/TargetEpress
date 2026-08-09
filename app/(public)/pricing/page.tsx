@@ -75,7 +75,7 @@ export default function PricingPage() {
   return (
     <>
       <PageHero
-        image={IMAGES.packaging}
+        image={IMAGES.cargoHold}
         size="tall"
         eyebrow="Bei zetu"
         title="What it costs depends on what you are sending."

@@ -51,9 +51,12 @@ export default function ChinaPage() {
           rather than sitting below a banner: photograph on the left, the thing
           you came to copy on the right. */}
       <PageHero
-        image={IMAGES.loadingTruck}
+        image={IMAGES.warehouseAisle}
         eyebrow="Anwani ya warehouse yetu China"
-        title="Mpe muuzaji wako anwani hii"
+        /* The owner's own wording. "Supplier" and "Address" in English inside a
+           Swahili sentence is how the customers of this business actually talk
+           about it — the words they use with their own suppliers. */
+        title="Mpe Supplier wako Address hii"
         body={
           <>
             Tuma anwani hii kwa muuzaji wako (supplier) kwa WeChat au WhatsApp.
@@ -174,7 +177,7 @@ export default function ChinaPage() {
         <div className="container">
           <div className="mx-auto max-w-4xl overflow-hidden rounded-3xl border border-gold/25 shadow-lift">
             <Image
-              src={img(IMAGES.packedCartons, 1400)}
+              src={img(IMAGES.cargoHold, 1400)}
               alt="Labelled cartons ready for dispatch"
               width={1400}
               height={600}

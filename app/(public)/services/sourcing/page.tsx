@@ -153,7 +153,7 @@ export default function SourcingServicePage() {
       </section>
 
       <MediaBand
-        image={IMAGES.packedCartons}
+        image={IMAGES.warehouseAisle}
         align="center"
         eyebrow="Kutoka soko hadi duka lako"
         title="You never leave Tanzania."
