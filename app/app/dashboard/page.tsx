@@ -481,10 +481,13 @@ async function ChinaDashboard({
     <div className="space-y-7">
       <ActionPills
         items={[
-          { href: "/app/cargo/new", label: "Register cargo", icon: PackagePlus, weight: "primary" },
-          { href: "/app/batches", label: "Load a batch", icon: Plane, weight: "secondary" },
-          { href: "/app/shipments", label: "Shipments", icon: Package },
-          { href: "/app/customers", label: "Customers", icon: Users },
+          { href: "/app/cargo/new", label: "Register cargo", icon: PackagePlus, weight: "primary", tone: "brand" },
+          { href: "/app/batches", label: "Load a batch", icon: Plane, weight: "secondary", tone: "signal" },
+          { href: "/app/shipments", label: "Shipments", icon: Package, tone: "violet" },
+          // Customers is a sidebar row on this desk and is reached from any
+          // consignment; it is not something Guangzhou starts a job from.
+          // Reports goes last, read rather than started — same as the Dar floor.
+          { href: "/app/reports", label: "Reports", icon: ChartNoAxesCombined, tone: "info" },
         ]}
       />
 

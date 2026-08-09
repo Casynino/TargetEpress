@@ -593,7 +593,113 @@ const FINANCE_SECTIONS: NavSection[] = [
   },
 ];
 
+/**
+ * The Guangzhou desk's menu, grouped the way that floor is organised.
+ *
+ * Same skeleton as Dar, Finance and Support: Home alone, the work in the kinds
+ * it comes in, the record at the bottom outside any heading. The contents
+ * differ because the jobs do — this desk registers and loads cargo, it never
+ * receives or releases any.
+ *
+ * Every row already existed in the shared menu and every permission is
+ * unchanged. Reports is the one addition, and it opens a report written for
+ * this floor rather than Dar's.
+ */
+const CHINA_SECTIONS: NavSection[] = [
+  {
+    title: "Top",
+    items: [
+      {
+        href: "/app/dashboard",
+        label: "Home",
+        icon: "LayoutDashboard",
+        exact: true,
+      },
+    ],
+  },
+  {
+    title: "Cargo",
+    group: { label: "Cargo", icon: "Boxes" },
+    items: [
+      {
+        href: "/app/search",
+        label: "Search",
+        icon: "Package",
+        permission: "shipment.view",
+      },
+      {
+        href: "/app/requests",
+        label: "Requests",
+        icon: "Inbox",
+        // Bookings and pickups off the website. The desk that registers cargo
+        // is the desk that rings these people back.
+        permission: "shipment.create",
+      },
+      {
+        href: "/app/cargo/new",
+        label: "Receive Cargo",
+        icon: "PackagePlus",
+        permission: "shipment.create",
+      },
+    ],
+  },
+  {
+    title: "Shipments",
+    group: { label: "Shipments", icon: "PlaneTakeoff" },
+    items: [
+      {
+        href: "/app/batches",
+        label: "Batches",
+        icon: "Boxes",
+        permission: "batch.view",
+      },
+      {
+        href: "/app/shipments",
+        label: "Shipments",
+        icon: "PlaneTakeoff",
+        permission: "batch.view",
+      },
+    ],
+  },
+  {
+    title: "Customers",
+    group: { label: "Customers", icon: "Users" },
+    items: [
+      {
+        href: "/app/customers",
+        label: "Customers",
+        icon: "Users",
+        permission: "customer.view",
+      },
+    ],
+  },
+  {
+    title: "Support",
+    group: { label: "Support", icon: "MessageSquare" },
+    items: [
+      {
+        href: "/app/exceptions",
+        label: "Issues & Claims",
+        icon: "TriangleAlert",
+        permission: "exception.view",
+      },
+    ],
+  },
+  {
+    title: "Record",
+    items: [
+      {
+        href: "/app/reports",
+        label: "Reports",
+        icon: "ChartNoAxesCombined",
+        permission: "warehouse.reports",
+      },
+    ],
+  },
+];
+
 const ROLE_SECTIONS: Partial<Record<Role, NavSection[]>> = {
+  CHINA_WAREHOUSE: CHINA_SECTIONS,
   DAR_WAREHOUSE: DAR_SECTIONS,
   CUSTOMER_CARE: SUPPORT_SECTIONS,
   FINANCE: FINANCE_SECTIONS,

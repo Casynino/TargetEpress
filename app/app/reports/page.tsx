@@ -3,10 +3,13 @@ import Link from "next/link";
 import {
   AlertTriangle,
   Boxes,
+  Camera,
   ClipboardCheck,
   Hourglass,
   Package,
   PackageCheck,
+  PackagePlus,
+  Plane,
   ScanLine,
   Timer,
   Truck,
@@ -15,6 +18,10 @@ import {
 } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { KpiCard } from "@/components/app/kpi-card";
+import { AgeingBar } from "@/components/charts/ageing-bar";
+import { Donut, DonutLegend } from "@/components/charts/donut";
+import { FlowBars } from "@/components/charts/flow-bars";
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { StatCard } from "@/components/app/stat-card";
@@ -29,7 +36,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EXCEPTION_TYPE_LABELS, formatPackages } from "@/lib/constants";
-import { formatDate, formatWeight } from "@/lib/format";
+import { formatDate, formatWeight, toNumber } from "@/lib/format";
+import {
+  chinaAgeing,
+  chinaComposition,
+  chinaFlowByDay,
+  chinaProblems,
+} from "@/lib/floor";
+import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import {
   FLOW_WEEKS,
@@ -106,10 +120,24 @@ export default async function WarehouseReportsPage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  await requirePermission("warehouse.reports");
+  const user = await requirePermission("warehouse.reports");
 
   const { period } = await searchParams;
   const periodDays = parsePeriod(period);
+
+  /**
+   * Guangzhou reads its own floor, not Dar's.
+   *
+   * Everything below this line is built from the receiving and release record —
+   * arrivedAt, deliveredAt, who checked what in — and China performs none of
+   * those actions. Handing that report to the desk that registers cargo would
+   * be somebody else's day in a nice box, which is the same mistake the
+   * warehouse banner used to make with its chips.
+   */
+  if (user.role === "CHINA_WAREHOUSE") {
+    return <ChinaReport periodDays={periodDays} />;
+  }
+
   const report = await warehouseReport(periodDays);
   const window = periodLabel(periodDays).toLowerCase();
 
@@ -515,6 +543,170 @@ export default async function WarehouseReportsPage({
           </div>
         </div>
       </section>
+    </>
+  );
+}
+
+/**
+ * What the Guangzhou desk did, measured from its own record.
+ *
+ * The Dar report answers "what did the floor move and how long did it hold it".
+ * This one answers the questions that belong to a desk that registers and loads:
+ * how much came in, how much flew, what is still standing, and whether the
+ * photograph rule is actually being kept.
+ *
+ * No money anywhere, same as the Dar report. Warehouse staff see cargo and time.
+ */
+async function ChinaReport({ periodDays }: { periodDays: number }) {
+  const since = new Date(Date.now() - periodDays * 86_400_000);
+
+  const [registered, flown, composition, ageing, throughput, problems] =
+    await Promise.all([
+      prisma.shipment.aggregate({
+        where: { deletedAt: null, registeredAt: { gte: since } },
+        _count: true,
+        _sum: { weightKg: true, packages: true },
+      }),
+      prisma.shipment.count({
+        where: { deletedAt: null, batch: { departureDate: { gte: since } } },
+      }),
+      chinaComposition(),
+      chinaAgeing(),
+      chinaFlowByDay(Math.min(periodDays, 14)),
+      chinaProblems(),
+    ]);
+
+  const window = periodLabel(periodDays).toLowerCase();
+  const photographed = composition.total - problems.noPhotos;
+  const photoPct =
+    composition.total > 0
+      ? Math.round((photographed / composition.total) * 100)
+      : 100;
+
+  const slices = [
+    { label: "On no batch", value: composition.unassigned, tone: 3 as const },
+    { label: "Loading", value: composition.loading, tone: 4 as const },
+    { label: "Sealed, ready to fly", value: composition.sealed, tone: 5 as const },
+  ];
+
+  return (
+    <>
+      <PageHeader
+        title="Guangzhou reports"
+        description="What this desk registered, what it loaded and what is still standing — measured from the registration and dispatch record itself."
+        actions={
+          <div className="flex items-center gap-1 rounded-lg border bg-card p-1">
+            {PERIODS.map((option) => (
+              <Link
+                key={option.days}
+                href={`/app/reports?period=${option.days}`}
+                className={cn(
+                  "focus-ring rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+                  option.days === periodDays
+                    ? "bg-brand text-brand-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {option.label}
+              </Link>
+            ))}
+          </div>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          label="Registered"
+          numeric={registered._count}
+          hint={`booked in over the ${window}`}
+          icon={PackagePlus}
+          tone="brand"
+        />
+        <KpiCard
+          label="Flown"
+          numeric={flown}
+          hint={`left Guangzhou over the ${window}`}
+          icon={Plane}
+          tone="success"
+        />
+        <KpiCard
+          label="Still standing"
+          numeric={composition.total}
+          hint={`${formatWeight(toNumber(registered._sum.weightKg ?? 0))} registered in this window`}
+          icon={Boxes}
+          tone={composition.total > 0 ? "warning" : "success"}
+        />
+        {/* The rule exists; this is whether it is kept. */}
+        <KpiCard
+          label="Photographed"
+          numeric={photoPct}
+          suffix="%"
+          ringPct={photoPct}
+          ringLabel="Photograph compliance"
+          hint={
+            problems.noPhotos > 0
+              ? `${problems.noPhotos} standing with no photograph`
+              : "every consignment has one"
+          }
+          icon={Camera}
+          tone={photoPct < 90 ? "danger" : "success"}
+        />
+      </div>
+
+      <div className="mt-7 grid gap-4 lg:grid-cols-3">
+        <section className="panel p-4">
+          <h3 className="text-sm font-semibold">What is standing now</h3>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            By what is holding each consignment
+          </p>
+          <div className="mt-3 flex justify-center">
+            <Donut
+              size={118}
+              stroke={18}
+              label={String(composition.total)}
+              caption="consignments"
+              slices={slices}
+            />
+          </div>
+          <DonutLegend className="mt-3" slices={slices} />
+        </section>
+
+        <section className="panel p-4">
+          <h3 className="text-sm font-semibold">In and out</h3>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Registered against flown, by day
+          </p>
+          <FlowBars
+            className="mt-3"
+            labels={throughput.labels}
+            valuesIn={throughput.inCounts}
+            valuesOut={throughput.outCounts}
+            currentIndex={throughput.currentIndex}
+            format={(n) => `${n} consignment${n === 1 ? "" : "s"}`}
+            legendIn="Registered"
+            legendOut="Flown"
+          />
+        </section>
+
+        <section className="panel p-4">
+          <h3 className="text-sm font-semibold">How long it has waited</h3>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            From the day it was registered
+          </p>
+          <AgeingBar
+            className="mt-3"
+            segments={ageing.map((bucket) => ({
+              key: bucket.key,
+              label: bucket.label,
+              count: bucket.count,
+              value: bucket.packages,
+            }))}
+            format={(n) => `${n} box${n === 1 ? "" : "es"}`}
+            unit="consignment"
+            empty="Nothing is waiting in Guangzhou."
+          />
+        </section>
+      </div>
     </>
   );
 }

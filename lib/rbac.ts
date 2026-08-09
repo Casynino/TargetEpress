@@ -143,7 +143,7 @@ export type Permission =
   | "delivery.history" // cargo already handed over — the Dar release log
   // Dar warehouse floor
   | "inventory.view" // cargo physically held at the Dar warehouse
-  | "warehouse.reports" // Dar-scoped throughput/exception reporting
+  | "warehouse.reports" // throughput/exception reporting, scoped to the reader's own floor
   // Customers
   | "customer.view"
   | "customer.manage"
@@ -173,6 +173,10 @@ export type Permission =
   | "report.view";
 
 const CHINA: Permission[] = [
+  // This floor's own throughput, not Dar's. The report branches on the reader's
+  // warehouse — see app/app/reports. Nothing on it is money; warehouse staff see
+  // cargo and time, never a figure.
+  "warehouse.reports",
   "shipment.view",
   "shipment.create",
   "shipment.edit",
