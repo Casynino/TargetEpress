@@ -17,6 +17,7 @@ import {
   PUBLIC_TRACKING_CASE_SELECT,
   PUBLIC_TRACKING_CASE_WHERE,
   derivePublicInvestigation,
+  type PublicHoldState,
   type PublicInvestigation,
   type PublicTone,
 } from "@/lib/tracking-investigation";
@@ -42,6 +43,94 @@ export type PublicTimelineEntry = {
   at: string | null;
   done: boolean;
   current: boolean;
+  /**
+   * A hold, sitting between two real steps rather than being one of them.
+   *
+   * Coloured differently because it is not progress. Every other row on this
+   * timeline is a step forward; this one is the journey stopping.
+   */
+  tone?: "hold";
+};
+
+/**
+ * How far the cargo actually got before it was held.
+ *
+ * Read from the shipment's own stamps, never from the case. A stamp is a fact
+ * about the customer's cargo — it landed, or it did not — and it is the only
+ * thing needed to place the hold correctly. Nothing a member of staff typed
+ * into the case is consulted; lib/tracking-investigation.ts explains why that
+ * boundary is drawn where it is.
+ */
+export type HoldStage = "IN_CHINA" | "IN_TRANSIT" | "IN_DAR";
+
+function holdStageOf(shipment: {
+  departedAt: Date | null;
+  arrivedAt: Date | null;
+}): HoldStage {
+  if (shipment.arrivedAt) return "IN_DAR";
+  if (shipment.departedAt) return "IN_TRANSIT";
+  return "IN_CHINA";
+}
+
+/**
+ * What the hold is called, and where it stopped.
+ *
+ * This is the whole complaint answered: cargo that never landed was reading
+ * exactly like cargo sitting damaged on the shelf in Kariakoo, because the
+ * timeline went blank either way. Cargo that never arrived must not be shown as
+ * arrived. Cargo that DID arrive keeps its arrival — it arrived, and the
+ * problem came afterwards.
+ */
+const HOLD_STEP: Record<
+  HoldStage,
+  Record<PublicHoldState, { label: string; location: string }>
+> = {
+  IN_CHINA: {
+    UNDER_INVESTIGATION: {
+      label: "Held before the flight",
+      location: "China warehouse — not loaded",
+    },
+    COMPENSATION_IN_PROGRESS: {
+      label: "Claim being settled",
+      location: "China warehouse — not loaded",
+    },
+  },
+  IN_TRANSIT: {
+    UNDER_INVESTIGATION: {
+      label: "Did not arrive with the flight",
+      location: "Being traced between China and Dar es Salaam",
+    },
+    COMPENSATION_IN_PROGRESS: {
+      label: "Claim being settled",
+      location: "Did not arrive with the flight",
+    },
+  },
+  IN_DAR: {
+    UNDER_INVESTIGATION: {
+      label: "Arrived, then held for checking",
+      location: "Dar es Salaam warehouse",
+    },
+    COMPENSATION_IN_PROGRESS: {
+      label: "Claim being settled",
+      location: "Dar es Salaam warehouse",
+    },
+  },
+};
+
+/** The badge at the top of the page, qualified by where the cargo stopped. */
+const HOLD_HEADLINE: Record<HoldStage, Record<PublicHoldState, string>> = {
+  IN_CHINA: {
+    UNDER_INVESTIGATION: "In China — under investigation",
+    COMPENSATION_IN_PROGRESS: "In China — compensation in progress",
+  },
+  IN_TRANSIT: {
+    UNDER_INVESTIGATION: "In transit — under investigation",
+    COMPENSATION_IN_PROGRESS: "In transit — compensation in progress",
+  },
+  IN_DAR: {
+    UNDER_INVESTIGATION: "Arrived — under investigation",
+    COMPENSATION_IN_PROGRESS: "Arrived — compensation in progress",
+  },
 };
 
 /** What the customer owes. Absent entirely until an invoice exists. */
@@ -174,14 +263,18 @@ const ORIGIN_PUBLIC: Record<string, string> = {
   HONG_KONG: "Hong Kong",
 };
 
-function buildTimeline(shipment: {
-  status: ShipmentStatus;
-  registeredAt: Date;
-  departedAt: Date | null;
-  arrivedAt: Date | null;
-  readyForPickup: Date | null;
-  deliveredAt: Date | null;
-}): PublicTimelineEntry[] {
+function buildTimeline(
+  shipment: {
+    status: ShipmentStatus;
+    registeredAt: Date;
+    departedAt: Date | null;
+    arrivedAt: Date | null;
+    readyForPickup: Date | null;
+    deliveredAt: Date | null;
+  },
+  /** An open hold, if there is one. Null is the ordinary journey. */
+  hold: { state: PublicHoldState; since: string | null } | null
+): PublicTimelineEntry[] {
   const stamps: Record<string, Date | null> = {
     READY_TO_DEPART: shipment.registeredAt,
     IN_TRANSIT: shipment.departedAt,
@@ -190,20 +283,57 @@ function buildTimeline(shipment: {
     DELIVERED: shipment.deliveredAt,
   };
 
-  const currentIndex = SHIPMENT_FLOW.indexOf(shipment.status);
-
-  return SHIPMENT_FLOW.map((status, index) => {
+  const step = (status: ShipmentStatus, done: boolean, current: boolean) => {
     const meta = SHIPMENT_STATUS_META[status];
     return {
       status,
       label: meta.publicLabel,
       location: meta.publicLocation,
       at: stamps[status]?.toISOString() ?? null,
-      // A cancelled shipment has no current step at all.
-      done: currentIndex >= 0 && index < currentIndex,
-      current: currentIndex >= 0 && index === currentIndex,
+      done,
+      current,
     };
+  };
+
+  if (!hold) {
+    const currentIndex = SHIPMENT_FLOW.indexOf(shipment.status);
+    return SHIPMENT_FLOW.map((status, index) =>
+      // A cancelled shipment has no current step at all.
+      step(status, currentIndex >= 0 && index < currentIndex, currentIndex >= 0 && index === currentIndex)
+    );
+  }
+
+  /**
+   * Held: the timeline runs on the stamps, not on the status.
+   *
+   * UNDER_INVESTIGATION is not a point on SHIPMENT_FLOW, so indexOf returned
+   * -1 and every step came back neither done nor current — the whole journey
+   * greyed out, with no way to tell a consignment that never left the aircraft
+   * from one sitting damaged on the shelf in Kariakoo. A stamp cannot lie about
+   * that: the cargo either was checked in at Dar or it was not.
+   */
+  const stage = holdStageOf(shipment);
+  const reached = SHIPMENT_FLOW.reduce(
+    (last, status, index) => (stamps[status] ? index : last),
+    -1
+  );
+
+  const entries: PublicTimelineEntry[] = SHIPMENT_FLOW.map((status, index) =>
+    step(status, index <= reached, false)
+  );
+
+  const words = HOLD_STEP[stage][hold.state];
+  entries.splice(reached + 1, 0, {
+    status: "UNDER_INVESTIGATION",
+    label: words.label,
+    location: words.location,
+    at: hold.since,
+    done: false,
+    current: true,
+    tone: "hold",
   });
+
+  return entries;
 }
 
 export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
@@ -389,6 +519,11 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
     const investigation = derivePublicInvestigation(shipment.exceptions);
     const held = investigation?.blocksCollection ?? false;
 
+    // Where the cargo actually stopped, read off its own stamps. Used for the
+    // badge, the "Now at" line, the money note and the point the hold is
+    // pinned to on the timeline, so all four agree.
+    const stage = holdStageOf(shipment);
+
     // Deliberately mirrors the release rule the Dar warehouse enforces, so the
     // page never tells a customer to come and collect cargo that will be
     // refused at the counter.
@@ -420,29 +555,49 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
         "waiting for the next flight. Nothing to collect yet.";
     }
 
-    // A hold replaces the note outright — "settle the balance and we will
-    // release it the same day" is a promise nobody can keep on cargo that is
-    // being looked for. A claim that is not holding anything (the goods were
-    // released, the money was not) is added to it instead.
+    /**
+     * A hold replaces the note — "settle the balance and we will release it the
+     * same day" is a promise nobody can keep on cargo that is being looked for.
+     *
+     * It does NOT repeat the investigation paragraph. That paragraph is already
+     * printed at the top of the page, in the panel a held customer reads first;
+     * printing it again over the money made the page say the same three
+     * sentences twice, which reads as a fault in the page rather than emphasis.
+     * This slot answers the question it sits next to — what happens to the
+     * bill — and nothing else.
+     *
+     * A claim that is not holding anything (goods released, money still owed)
+     * is added to the ordinary note instead of replacing it.
+     */
+    const HOLD_MONEY_NOTE: Record<HoldStage, string> = {
+      IN_CHINA:
+        "Nothing is owed while this is open — the cargo has not flown, so no freight has been billed.",
+      IN_TRANSIT:
+        "Nothing is due from you while we trace it. No invoice is raised on cargo that has not been checked in at Dar es Salaam.",
+      IN_DAR:
+        charge && charge.outstanding > 0
+          ? "Your balance is frozen while this is open. Storage days are not counted against you, and nothing needs to be paid until it is settled."
+          : "There is nothing to pay while this is open, and storage days are not counted against you.",
+    };
+
     const collectionNote = investigation
       ? held
-        ? investigation.note
+        ? HOLD_MONEY_NOTE[stage]
         : `${baseNote} ${investigation.note}`
       : baseNote;
 
-    // The timeline must not run past what is true either. A held shipment is
-    // shown as far as "Arrived in Tanzania" — its pickup stamp is real but it
-    // no longer describes anything the customer can act on.
-    const timelineStatus: ShipmentStatus =
-      held && shipment.status === "READY_FOR_PICKUP"
-        ? "RECEIVED_AT_DAR"
-        : shipment.status;
 
     return {
       kind: "shipment",
       trackingNumber: shipment.trackingNumber,
       status: shipment.status,
-      statusLabel: investigation ? investigation.label : meta.publicLabel,
+      // "Under investigation" alone could not tell a customer whether their
+      // cargo is in Dar or somewhere over the Indian Ocean. The stage says.
+      statusLabel: investigation
+        ? held
+          ? HOLD_HEADLINE[stage][investigation.state]
+          : investigation.label
+        : meta.publicLabel,
       statusTone: investigation
         ? investigation.state === "COMPENSATION_IN_PROGRESS"
           ? "info"
@@ -450,7 +605,9 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
         : meta.tone,
       // Only a hold moves the cargo somewhere else. A settlement being paid on
       // goods the customer already has does not.
-      location: held ? investigation!.location : meta.publicLocation,
+      location: held
+        ? HOLD_STEP[stage][investigation!.state].location
+        : meta.publicLocation,
       batchNumber: shipment.batch?.batchNumber ?? null,
       packages: shipment.packages,
       packagesLabel: formatPackages(shipment.packages, shipment.packageType),
@@ -486,14 +643,19 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
       weightKg: shipment.weightKg === null ? null : toNumber(shipment.weightKg),
       origin: ORIGIN_PUBLIC[shipment.origin] ?? shipment.origin,
       lastUpdate: shipment.updatedAt.toISOString(),
-      timeline: buildTimeline({
-        ...shipment,
-        status: timelineStatus,
-        // Dropped with the step it belongs to: a "ready for pickup" date under
-        // a step the customer has not reached yet reads as a contradiction.
-        readyForPickup:
-          timelineStatus === shipment.status ? shipment.readyForPickup : null,
-      }),
+      timeline: buildTimeline(
+        {
+          ...shipment,
+          // A held shipment must not show "Ready for pickup" as reached. The
+          // stamp is real — Finance issued the note before the problem was
+          // found — but it no longer describes anything the customer can act
+          // on, and the timeline is built from the stamps.
+          readyForPickup: held ? null : shipment.readyForPickup,
+        },
+        held && investigation
+          ? { state: investigation.state, since: investigation.since }
+          : null
+      ),
       charge,
       collectable,
       collectionNote,

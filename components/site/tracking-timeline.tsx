@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, MapPin, PackageCheck, Plane, Warehouse } from "lucide-react";
+import {
+  Check,
+  MapPin,
+  PackageCheck,
+  Plane,
+  SearchCheck,
+  Warehouse,
+} from "lucide-react";
 
 import type { PublicTimelineEntry } from "@/lib/tracking";
 import { cn } from "@/lib/utils";
@@ -15,6 +22,9 @@ const STEP_ICON: Record<string, typeof Plane> = {
   RECEIVED_AT_DAR: MapPin,
   READY_FOR_PICKUP: PackageCheck,
   DELIVERED: Check,
+  // A hold is somebody looking, not a step forward — a magnifying glass rather
+  // than another pin on the route.
+  UNDER_INVESTIGATION: SearchCheck,
 };
 
 /**
@@ -33,6 +43,11 @@ export function TrackingTimeline({ steps }: { steps: TimelineStep[] }) {
   const reached = currentIndex >= 0 ? currentIndex : steps.filter((s) => s.done).length - 1;
   const progress =
     steps.length > 1 ? Math.max(0, reached) / (steps.length - 1) : 0;
+
+  // A held journey stops being a brand-coloured story about progress. The fill
+  // runs amber to where it got to and no further, which is the honest shape of
+  // "this far, and then a problem".
+  const held = steps.some((step) => step.tone === "hold" && step.current);
 
   const [grown, setGrown] = useState(false);
 
@@ -55,7 +70,10 @@ export function TrackingTimeline({ steps }: { steps: TimelineStep[] }) {
       />
       <span
         aria-hidden="true"
-        className="absolute left-[15px] top-3 w-0.5 origin-top bg-brand transition-transform duration-[1200ms] ease-out"
+        className={cn(
+          "absolute left-[15px] top-3 w-0.5 origin-top transition-transform duration-[1200ms] ease-out",
+          held ? "bg-warning" : "bg-brand"
+        )}
         style={{
           height: `calc(100% - 2.5rem)`,
           transform: `scaleY(${grown ? progress : 0})`,
@@ -71,16 +89,23 @@ export function TrackingTimeline({ steps }: { steps: TimelineStep[] }) {
             <span
               className={cn(
                 "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                step.current
-                  ? "border-brand bg-brand text-brand-foreground shadow-[0_0_0_4px_hsl(var(--brand)/0.15)]"
-                  : step.done
-                    ? "border-brand bg-brand/10 text-brand"
-                    : "border-border bg-background text-muted-foreground/50"
+                step.tone === "hold"
+                  ? "border-warning bg-warning text-warning-foreground shadow-[0_0_0_4px_hsl(var(--warning)/0.18)]"
+                  : step.current
+                    ? "border-brand bg-brand text-brand-foreground shadow-[0_0_0_4px_hsl(var(--brand)/0.15)]"
+                    : step.done
+                      ? "border-brand bg-brand/10 text-brand"
+                      : "border-border bg-background text-muted-foreground/50"
               )}
             >
               <Icon className="h-4 w-4" />
               {step.current ? (
-                <span className="absolute inset-0 animate-ping rounded-full bg-brand/30 [animation-duration:2.5s]" />
+                <span
+                  className={cn(
+                    "absolute inset-0 animate-ping rounded-full [animation-duration:2.5s]",
+                    step.tone === "hold" ? "bg-warning/30" : "bg-brand/30"
+                  )}
+                />
               ) : null}
             </span>
 
@@ -93,8 +118,15 @@ export function TrackingTimeline({ steps }: { steps: TimelineStep[] }) {
               >
                 {step.label}
                 {step.current ? (
-                  <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-semibold text-brand">
-                    now
+                  <span
+                    className={cn(
+                      "ml-2 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                      step.tone === "hold"
+                        ? "bg-warning/10 text-warning"
+                        : "bg-brand/10 text-brand"
+                    )}
+                  >
+                    {step.tone === "hold" ? "on hold" : "now"}
                   </span>
                 ) : null}
               </p>

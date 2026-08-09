@@ -341,7 +341,17 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
         {/* Nine facts in a four-column row left the last row two thirds empty,
             immediately above the amount owed. It spans the remainder now and
             says something true about where the cargo actually is. */}
-        <CargoNote status={result.status} />
+        <CargoNote
+          status={result.status}
+          origin={result.origin}
+          timeline={result.timeline}
+          expectedArrival={result.expectedArrival}
+          registeredAt={result.registeredAt}
+          packagesLabel={result.packagesLabel}
+          arrivedCount={result.packageProgress?.arrived ?? null}
+          outstanding={result.charge?.outstanding ?? null}
+          hold={result.investigation}
+        />
       </dl>
 
       {/* Once the cargo lands, the number that matters to a customer with five
