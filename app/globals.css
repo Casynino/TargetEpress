@@ -55,10 +55,10 @@
     --glass: 0 0% 100% / 0.7;
     --glass-border: 214 25% 88% / 0.9;
 
-    --brand: 216 72% 22%;
+    --brand: 217 50% 19%;
     --brand-foreground: 0 0% 100%;
     --brand-muted: 216 62% 96%;
-    --signal: 3 81% 47%;
+    --signal: 357 76% 48%;
     --signal-foreground: 0 0% 100%;
 
     /* Status */
@@ -141,10 +141,10 @@
     --chart-5: 152 52% 50%;
     --chart-6: 262 72% 68%;
 
-    --brand: 213 84% 64%;
+    --brand: 214 74% 62%;
     --brand-foreground: 218 40% 9%;
     --brand-muted: 218 34% 15%;
-    --signal: 3 84% 58%;
+    --signal: 357 78% 58%;
     --signal-foreground: 0 0% 100%;
 
     --success: 152 50% 45%;
