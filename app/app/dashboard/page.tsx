@@ -484,6 +484,10 @@ async function ChinaDashboard({
           { href: "/app/cargo/new", label: "Register cargo", icon: PackagePlus, weight: "primary", tone: "brand" },
           { href: "/app/batches", label: "Load a batch", icon: Plane, weight: "secondary", tone: "signal" },
           { href: "/app/shipments", label: "Shipments", icon: Package, tone: "violet" },
+          // Amber wherever it appears — on this desk, the Dar floor, the money
+          // desk and the support desk. Colour is only a landmark while it means
+          // the same thing twice.
+          { href: "/app/exceptions", label: "Issues & Claims", icon: AlertTriangle, tone: "warning" },
           // Customers is a sidebar row on this desk and is reached from any
           // consignment; it is not something Guangzhou starts a job from.
           // Reports goes last, read rather than started — same as the Dar floor.
