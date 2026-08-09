@@ -225,7 +225,7 @@ export default async function InventoryPage() {
               href="/app/receive"
               className="font-medium text-brand hover:underline"
             >
-              Receive Cargo
+              Receiving Dock
             </Link>
             . Cleared cargo is handed over from{" "}
             <Link

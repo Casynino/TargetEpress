@@ -481,7 +481,7 @@ async function ChinaDashboard({
     <div className="space-y-7">
       <ActionPills
         items={[
-          { href: "/app/cargo/new", label: "Register cargo", icon: PackagePlus, weight: "primary", tone: "brand" },
+          { href: "/app/cargo/new", label: "Receive Cargo", icon: PackagePlus, weight: "primary", tone: "brand" },
           { href: "/app/batches", label: "Load a batch", icon: Plane, weight: "secondary", tone: "signal" },
           { href: "/app/shipments", label: "Shipments", icon: Package, tone: "violet" },
           // Amber wherever it appears — on this desk, the Dar floor, the money
@@ -850,8 +850,8 @@ async function darFloorStats() {
  * support desk. Colour is only a landmark while it means the same thing twice.
  */
 const DAR_QUICK_ACTIONS: ActionPill[] = [
-  { href: "/app/receive", label: "Receiving dock", icon: PackagePlus, weight: "primary", tone: "brand" },
-  { href: "/app/pickup-queue", label: "Pickup queue", icon: Truck, weight: "secondary", tone: "signal" },
+  { href: "/app/receive", label: "Receiving Dock", icon: PackagePlus, weight: "primary", tone: "brand" },
+  { href: "/app/pickup-queue", label: "Pickup Queue", icon: Truck, weight: "secondary", tone: "signal" },
   // No Find cargo. The banner's own search box sits directly above this row,
   // and a pill pointing at the same page is a second control for one action.
   { href: "/app/inventory", label: "Available Cargo", icon: Boxes, tone: "violet" },
