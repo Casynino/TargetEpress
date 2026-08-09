@@ -18,6 +18,7 @@ import {
   QrCode,
   Scale,
   ShieldCheck,
+  SlidersHorizontal,
   ScanLine,
   Timer,
   TrendingDown,
@@ -1972,17 +1973,32 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
 
   return (
     <div className="space-y-7">
+      {/*
+        The six the owner alone decides, or reads.
+
+        Shipments, Batches and Customers came out. Every one is a sidebar row
+        one press away, and none of them is a decision — this desk does not
+        register cargo, load a batch or open a customer record, it answers for
+        what the four desks did with them. A shortcut row that lists places is a
+        second sidebar; this one lists the things that stop without this chair.
+
+        Profit is genuinely nobody else's: profit.view is the owner's alone, and
+        it leads for that reason. Claims wait on exception.approve and expenses
+        on expense.approve — both blocking, both only here. Staff and Company
+        settings are the keys to the building.
+
+        Verify payments is the exception to "only the owner": Finance works that
+        queue daily. It earns a slot because it is money standing still, and the
+        owner clearing it when Finance is out is worth one press.
+      */}
       <ActionPills
         items={[
-          { href: "/app/finance/transactions", label: "The Ledger", icon: Landmark, weight: "primary", tone: "signal" },
-          { href: "/app/finance/reports", label: "Profit & loss", icon: TrendingDown, weight: "secondary", tone: "success" },
-          { href: "/app/shipments", label: "Shipments", icon: Package, tone: "brand" },
-          { href: "/app/batches", label: "Batches", icon: Plane, tone: "violet" },
-          { href: "/app/customers", label: "Customers", icon: Users, tone: "info" },
-          // Was /app/users, which is not a route -- a 404 on the owner's own
-          // dashboard. The page is /app/admin/users, and the sidebar calls it
-          // Staff, so this does too.
-          { href: "/app/admin/users", label: "Staff", icon: UserCog, tone: "warning" },
+          { href: "/app/finance/reports", label: "Profit & loss", icon: TrendingDown, weight: "primary", tone: "success" },
+          { href: "/app/finance/transactions", label: "The Ledger", icon: Landmark, weight: "secondary", tone: "signal" },
+          { href: "/app/finance/verify", label: "Verify payments", icon: ShieldCheck, tone: "info" },
+          { href: "/app/exceptions", label: "Issues & Claims", icon: AlertTriangle, tone: "warning" },
+          { href: "/app/finance/expenses", label: "Expenses", icon: Wallet, tone: "violet" },
+          { href: "/app/admin/settings", label: "Company settings", icon: SlidersHorizontal, tone: "brand" },
         ]}
       />
 
