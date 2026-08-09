@@ -15,6 +15,20 @@ export const authConfig = {
   session: {
     strategy: "jwt",
     maxAge: 60 * 60 * 12, // a warehouse shift
+    /**
+     * Roll the shift forward while somebody is working.
+     *
+     * maxAge alone counts from the moment of sign-in, and NextAuth only
+     * rewrites a token once it is older than updateAge — which defaults to 24
+     * hours, so with a 12-hour session the refresh never happened and the clock
+     * could not be reset. A clerk who signed in at six was signed out at six
+     * whether or not they were mid-invoice.
+     *
+     * Thirty minutes: use extends the window, so nobody is thrown out in the
+     * middle of the work, and a phone left on a shelf in the warehouse still
+     * ends its own session.
+     */
+    updateAge: 60 * 30,
   },
   trustHost: true,
   callbacks: {

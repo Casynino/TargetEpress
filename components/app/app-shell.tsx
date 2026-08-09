@@ -14,6 +14,7 @@ import {
   ChartNoAxesCombined,
   ClipboardCheck,
   FlaskConical,
+  Globe,
   Headset,
   History,
   Inbox,
@@ -77,6 +78,7 @@ const ICONS: Record<string, LucideIcon> = {
   UserCog,
   History,
   FlaskConical,
+  Globe,
   UserRound,
   Bell,
   Inbox,
@@ -155,20 +157,56 @@ export function AppShell({
         </Link>
 
         <div className="flex items-center gap-1">
+          <MainSiteLink compact />
           <NotificationBell unread={unreadNotifications} />
           <ThemeToggle className="h-9 w-9" />
         </div>
       </div>
 
       <div className="lg:pl-64">
-        {/* A thin bar for the bell alone. Anything else that wanted to live up
-            here would be competing with the page's own heading. */}
-        <div className="sticky top-0 z-20 hidden h-14 items-center justify-end border-b bg-background/80 px-8 backdrop-blur lg:flex">
+        {/* A thin bar for the bell and the way out to the public site. Nothing
+            else belongs up here — anything more would compete with the page's
+            own heading. */}
+        <div className="sticky top-0 z-20 hidden h-14 items-center justify-end gap-1 border-b bg-background/80 px-8 backdrop-blur lg:flex">
+          <MainSiteLink />
           <NotificationBell unread={unreadNotifications} />
         </div>
         <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8">{children}</div>
       </div>
     </div>
+  );
+}
+
+/**
+ * The way back to the public site, from any desk.
+ *
+ * There was none. Once you were inside the portal the only door out of it was
+ * Sign out, so staff who wanted to look at the customer-facing site — to check
+ * a price page, or read what a customer is reading on the tracking screen —
+ * signed out and signed back in to get there and back.
+ *
+ * An ordinary in-tab link, deliberately. A new tab would leave two Target
+ * Express windows open on a warehouse phone and the person guessing which one
+ * still has their work in it. Going to the main site does not touch the
+ * session: it is the same origin, the cookie stays, and coming back lands on
+ * the department they left.
+ */
+function MainSiteLink({ compact = false }: { compact?: boolean }) {
+  return (
+    <Button
+      asChild
+      variant="ghost"
+      size={compact ? "icon" : "sm"}
+      className={cn(
+        "text-muted-foreground hover:text-foreground",
+        compact ? "h-9 w-9" : "gap-2 px-2.5"
+      )}
+    >
+      <Link href="/" title="Open the public website — you stay signed in">
+        <Globe className="h-4 w-4" />
+        {compact ? <span className="sr-only">Main site</span> : "Main site"}
+      </Link>
+    </Button>
   );
 }
 

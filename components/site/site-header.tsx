@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, PackageSearch } from "lucide-react";
+import { LayoutDashboard, Menu, PackageSearch } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { BrandLockup } from "@/components/brand-mark";
@@ -17,6 +17,33 @@ import {
 } from "@/components/ui/sheet";
 import { COMPANY } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+
+/**
+ * Is the person reading this already signed in as staff?
+ *
+ * Read from the hint cookie the middleware leaves — see middleware.ts. It is
+ * not a permission check and is not treated as one; it only decides whether
+ * this header offers "Login" or a way straight back to the desk somebody was
+ * already working at.
+ *
+ * Done on the client so the public pages stay statically generated. Reading the
+ * session on the server would make every marketing page render per request to
+ * change one word.
+ */
+function useStaffHint() {
+  const pathname = usePathname();
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    setSignedIn(
+      document.cookie.split("; ").some((c) => c === "tx.staff=1")
+    );
+    // Re-read on navigation: somebody can sign out in this tab and carry on
+    // browsing, and the header should stop offering them a dashboard.
+  }, [pathname]);
+
+  return signedIn;
+}
 
 // Ordered by what a visitor came to do, not by what the company wants to say.
 // Booking and pickup lead because they are the two things that turn a reader
@@ -70,6 +97,7 @@ const NAV = [
  */
 export function SiteHeader() {
   const pathname = usePathname();
+  const signedIn = useStaffHint();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -122,12 +150,22 @@ export function SiteHeader() {
           <div className="flex items-center gap-2 sm:gap-3">
             <ThemeToggle className="h-8 w-8" />
             <Separator orientation="vertical" className="hidden h-6 bg-white/20 sm:block" />
+            {/* One door, labelled for whoever is standing at it. Staff who are
+                already signed in are not asked to log in again — they are
+                offered the desk they left. */}
             <Button
               asChild
               variant="ghost"
-              className="hidden h-8 px-2 text-sm font-normal text-white/65 hover:bg-white/10 hover:text-white md:inline-flex"
+              className="hidden h-8 gap-1.5 px-2 text-sm font-normal text-white/65 hover:bg-white/10 hover:text-white md:inline-flex"
             >
-              <Link href="/login">Login</Link>
+              {signedIn ? (
+                <Link href="/app/dashboard">
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                  Dashboard
+                </Link>
+              ) : (
+                <Link href="/login">Login</Link>
+              )}
             </Button>
             <Button
               asChild
@@ -195,10 +233,17 @@ export function SiteHeader() {
                   <Button
                     asChild
                     variant="ghost"
-                    className="w-full justify-start text-muted-foreground"
+                    className="w-full justify-start gap-2 text-muted-foreground"
                     onClick={() => setOpen(false)}
                   >
-                    <Link href="/login">Login</Link>
+                    {signedIn ? (
+                      <Link href="/app/dashboard">
+                        <LayoutDashboard className="h-4 w-4" />
+                        Dashboard
+                      </Link>
+                    ) : (
+                      <Link href="/login">Login</Link>
+                    )}
                   </Button>
                 </nav>
               </SheetContent>

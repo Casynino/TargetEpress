@@ -11,6 +11,39 @@ const { auth } = NextAuth(authConfig);
  * in ROUTE_PERMISSIONS additionally need the permission. Server actions and
  * page loaders re-check independently — middleware alone is never the gate.
  */
+/**
+ * A hint, not a credential.
+ *
+ * The public site is statically generated and its header is a client
+ * component, so it has no way to know whether the person reading it is signed
+ * in — which is why its staff link said "Login" to somebody who was already
+ * signed in, and why stepping out to the main site felt like being logged out.
+ *
+ * So the middleware leaves a flag the header can read. It says that somebody is
+ * signed in and nothing else: no identity, no role, no token. It grants
+ * nothing — every /app request is still checked against the real session below
+ * — and the worst a stale one can do is show a link that bounces to the login
+ * page, which is what happens without it anyway.
+ *
+ * Readable by scripts on purpose. The session cookie stays httpOnly.
+ */
+const STAFF_HINT = "tx.staff";
+
+function withHint(res: NextResponse, signedIn: boolean) {
+  if (signedIn) {
+    res.cookies.set(STAFF_HINT, "1", {
+      httpOnly: false,
+      sameSite: "lax",
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 12, // the session's own life — see auth.config.ts
+    });
+  } else {
+    res.cookies.delete(STAFF_HINT);
+  }
+  return res;
+}
+
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const session = req.auth;
@@ -19,15 +52,22 @@ export default auth((req) => {
   const isLogin = pathname === "/login";
 
   if (isLogin && session?.user) {
-    return NextResponse.redirect(new URL("/app/dashboard", req.nextUrl));
+    return withHint(
+      NextResponse.redirect(new URL("/app/dashboard", req.nextUrl)),
+      true
+    );
   }
+
+  // Arriving at the login page without a session is the clearest signal there
+  // is that the hint is stale. Signing out lands here.
+  if (isLogin) return withHint(NextResponse.next(), false);
 
   if (!isInternal) return NextResponse.next();
 
   if (!session?.user) {
     const url = new URL("/login", req.nextUrl);
     url.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(url);
+    return withHint(NextResponse.redirect(url), false);
   }
 
   const required = permissionForPath(pathname);
@@ -35,11 +75,14 @@ export default auth((req) => {
     const role = session.user.role;
     const granted = role ? ROLE_PERMISSIONS[role] ?? [] : [];
     if (!granted.includes(required)) {
-      return NextResponse.redirect(new URL("/app/no-access", req.nextUrl));
+      return withHint(
+        NextResponse.redirect(new URL("/app/no-access", req.nextUrl)),
+        true
+      );
     }
   }
 
-  return NextResponse.next();
+  return withHint(NextResponse.next(), true);
 });
 
 export const config = {
