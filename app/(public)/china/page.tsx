@@ -39,8 +39,12 @@ const MARKINGS = [
   },
   {
     icon: Package,
-    title: "Idadi ya vipande",
-    body: "How many cartons or bags, so we can check nothing is missing.",
+    // The units a supplier writes on a packing list and a trader reads on an
+    // invoice. "Vipande" is the correct Swahili and it is not what is printed
+    // on the carton — slashes rather than "or" to match the shipping-mark card
+    // above, which already reads as an either/or.
+    title: "Idadi ya PCS / PACKAGE / CTN",
+    body: "How many pieces, packages or cartons — so we can check nothing is missing.",
   },
 ];
 

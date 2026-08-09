@@ -76,6 +76,9 @@ const NAV = [
   // "China" named a country; the visitor is looking for an address.
   { href: "/china", label: "Address" },
   { href: "/services", label: "Services" },
+  // The markets directory was only reachable from inside other pages, which is
+  // no way to treat the answer to the question every first-time trader asks.
+  { href: "/china/markets", label: "China Markets" },
   { href: "/learn", label: "Guides" },
   { href: "/contact", label: "Contact" },
 ];
@@ -138,7 +141,7 @@ export function SiteHeader() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "relative text-sm transition-colors hover:text-gold",
+                    "relative whitespace-nowrap text-sm transition-colors hover:text-gold",
                     pathname === item.href
                       ? "font-semibold text-white after:absolute after:-bottom-1.5 after:left-0 after:h-px after:w-full after:bg-gold"
                       : "text-white/65"
