@@ -698,7 +698,108 @@ const CHINA_SECTIONS: NavSection[] = [
   },
 ];
 
+/**
+ * The owner's menu, grouped the way the business is.
+ *
+ * The last role still reading the shared flat list, which had grown to
+ * twenty-five rows in five loosely-titled blocks — the longest menu in the app
+ * belonging to the person with the least time to hunt through it.
+ *
+ * Same skeleton as every other desk: Home alone at the top, the work in the
+ * kinds it comes in, and the record at the bottom outside any heading. The
+ * groups run in the order cargo moves — booked, flown, billed — then the desks
+ * that answer for it, then the business itself, then the keys to the building.
+ *
+ * Every row already existed and every permission is unchanged.
+ */
+const ADMIN_SECTIONS: NavSection[] = [
+  {
+    title: "Top",
+    items: [
+      { href: "/app/dashboard", label: "Home", icon: "LayoutDashboard", exact: true },
+    ],
+  },
+  {
+    title: "Cargo operations",
+    group: { label: "Cargo operations", icon: "Boxes" },
+    items: [
+      { href: "/app/search", label: "Search", icon: "Package", permission: "shipment.view" },
+      { href: "/app/requests", label: "Requests", icon: "Inbox", permission: "shipment.create" },
+      { href: "/app/cargo/new", label: "Receive cargo", icon: "PackagePlus", permission: "shipment.create" },
+      { href: "/app/receive", label: "Receive & verify", icon: "ClipboardCheck", permission: "batch.receive" },
+    ],
+  },
+  {
+    title: "Shipments",
+    group: { label: "Shipments", icon: "PlaneTakeoff" },
+    items: [
+      { href: "/app/scan", label: "Scan QR", icon: "ScanLine", permission: "shipment.scan" },
+      { href: "/app/batches", label: "Batches", icon: "Boxes", permission: "batch.view" },
+      { href: "/app/shipments", label: "Shipments", icon: "PlaneTakeoff", permission: "batch.view" },
+      { href: "/app/release", label: "Release cargo", icon: "Truck", permission: "shipment.release" },
+    ],
+  },
+  {
+    title: "Finance",
+    group: { label: "Finance", icon: "ReceiptText" },
+    items: [
+      { href: "/app/collections", label: "Collections", icon: "Banknote", permission: "collections.view" },
+      { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode", permission: "pickupNote.view" },
+      { href: "/app/finance", label: "General ledger", icon: "Wallet", permission: "accounting.view" },
+      // collections.view, matching the route's own guard. The shared menu had
+      // this on ticket.manage, from when the call list lived under /app/support.
+      { href: "/app/collections/follow-up", label: "Payment follow-up", icon: "PhoneCall", permission: "collections.view" },
+    ],
+  },
+  {
+    title: "Support",
+    group: { label: "Support and issues", icon: "MessageSquare" },
+    items: [
+      { href: "/app/support/tickets", label: "Tickets", icon: "MessageSquare", permission: "ticket.manage" },
+      // "Support home", not "Home" — this menu already has one, and a bare
+      // Home here would collide with the owner's own dashboard.
+      { href: "/app/support", label: "Support home", icon: "Headset", permission: "ticket.manage", exact: true },
+      { href: "/app/exceptions", label: "Issues & Claims", icon: "TriangleAlert", permission: "exception.view" },
+    ],
+  },
+  {
+    title: "Customers",
+    group: { label: "Customers", icon: "Users" },
+    items: [
+      { href: "/app/customers", label: "Customers", icon: "Users", permission: "customer.view" },
+    ],
+  },
+  {
+    title: "Business",
+    group: { label: "Business", icon: "Store" },
+    items: [
+      // The editor at /app/admin/markets, not the support desk's read view:
+      // this is the menu of the person who changes what customers are told.
+      { href: "/app/admin/markets", label: "China markets", icon: "Store", permission: "settings.manage" },
+      { href: "/app/support/sourcing", label: "Sourcing requests", icon: "ShoppingBag", permission: "sourcing.manage" },
+    ],
+  },
+  {
+    title: "Administration",
+    group: { label: "Administration", icon: "SlidersHorizontal" },
+    items: [
+      { href: "/app/admin/users", label: "Staff", icon: "UserCog", permission: "user.manage" },
+      { href: "/app/admin/deleted", label: "Deleted records", icon: "Trash2", permission: "shipment.cancel" },
+      { href: "/app/admin/settings", label: "Company settings", icon: "SlidersHorizontal", permission: "settings.manage" },
+    ],
+  },
+  {
+    // Outside the groups, same as every other desk: the log is where you go to
+    // settle an argument, not a kind of work.
+    title: "Record",
+    items: [
+      { href: "/app/admin/audit", label: "Audit log", icon: "History", permission: "audit.view" },
+    ],
+  },
+];
+
 const ROLE_SECTIONS: Partial<Record<Role, NavSection[]>> = {
+  ADMIN: ADMIN_SECTIONS,
   CHINA_WAREHOUSE: CHINA_SECTIONS,
   DAR_WAREHOUSE: DAR_SECTIONS,
   CUSTOMER_CARE: SUPPORT_SECTIONS,
