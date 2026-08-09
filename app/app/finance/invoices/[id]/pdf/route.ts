@@ -19,6 +19,39 @@ import { requirePermission } from "@/lib/session";
  * leave the building — so this is the one place the draft rule has to be a
  * hard stop rather than a label.
  */
+/**
+ * What the file is called once it lands on somebody's phone.
+ *
+ * It was INV-2026-000063.pdf, which is the right name for a filing cabinet and
+ * useless in a WhatsApp thread: the person forwarding it is looking at a list of
+ * attachments and needs to know which customer and which shipment without
+ * opening any of them. So: one name and the tracking number — "Daniel
+ * TX-000063.pdf".
+ *
+ * One name, not the whole thing. Business customers are registered under names
+ * like "Neema Traders Ltd", and a filename that long is truncated by every chat
+ * client at exactly the point where the tracking number would have been.
+ */
+function invoiceFileName(customerName: string, trackingNumber: string) {
+  const first = customerName.trim().split(/\s+/)[0] ?? "";
+  // Anything a filesystem or a Content-Disposition header would choke on: the
+  // separators, the quote that would close the header value early, and control
+  // characters. Letters and digits from any script survive.
+  const clean = first.replace(/[^\p{L}\p{N}]/gu, "");
+  const name = clean.length > 0 ? clean : "Customer";
+  const full = `${name} ${trackingNumber}.pdf`;
+
+  return {
+    full,
+    // The fallback has to be plain ASCII. A Swahili or Chinese name reduced to
+    // nothing here still leaves the tracking number, which is the half that
+    // identifies the cargo.
+    ascii:
+      full.replace(/[^\x20-\x7E]/g, "").replace(/"/g, "").trim() ||
+      `${trackingNumber}.pdf`,
+  };
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -131,12 +164,23 @@ export async function GET(
     accounts: accountsForInvoice(invoice.paymentSnapshot),
   });
 
+  const fileName = invoiceFileName(
+    invoice.customer.name,
+    invoice.shipment.trackingNumber
+  );
+
   return new NextResponse(Buffer.from(pdf), {
     headers: {
       "Content-Type": "application/pdf",
       // attachment, not inline: the point is a file on the phone that can be
       // forwarded, not another tab.
-      "Content-Disposition": `attachment; filename="${invoice.invoiceNumber}.pdf"`,
+      //
+      // Both forms of the name. filename* carries the real one; the quoted
+      // filename is the ASCII fallback for anything that does not read RFC 5987,
+      // and it has to come first or some clients take the fallback and stop.
+      "Content-Disposition":
+        `attachment; filename="${fileName.ascii}"; ` +
+        `filename*=UTF-8''${encodeURIComponent(fileName.full)}`,
       "Cache-Control": "no-store",
     },
   });
