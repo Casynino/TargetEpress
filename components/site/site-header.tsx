@@ -40,7 +40,9 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/book", label: "Book" },
   { href: "/pickup", label: "Pickup" },
-  { href: "/schedule", label: "Flights" },
+  // "Schedules", not "Flights": the page is a timetable with cut-off days,
+  // not a list of aircraft, and the route is /schedule.
+  { href: "/schedule", label: "Schedules" },
   { href: "/pricing", label: "Rates" },
   { href: "/china", label: "China" },
   { href: "/services", label: "Services" },
@@ -125,7 +127,7 @@ export function SiteHeader() {
               variant="ghost"
               className="hidden h-8 px-2 text-sm font-normal text-white/65 hover:bg-white/10 hover:text-white md:inline-flex"
             >
-              <Link href="/login">Staff Login</Link>
+              <Link href="/login">Login</Link>
             </Button>
             <Button
               asChild
@@ -134,7 +136,7 @@ export function SiteHeader() {
             >
               <Link href="/track">
                 <PackageSearch className="mr-1.5 h-4 w-4" />
-                Fuatilia mzigo
+                Track
               </Link>
             </Button>
 
@@ -174,7 +176,7 @@ export function SiteHeader() {
                     className="w-full rounded-full font-semibold"
                     onClick={() => setOpen(false)}
                   >
-                    <Link href="/track">Fuatilia mzigo</Link>
+                    <Link href="/track">Track</Link>
                   </Button>
                   <Button
                     asChild
@@ -196,7 +198,7 @@ export function SiteHeader() {
                     className="w-full justify-start text-muted-foreground"
                     onClick={() => setOpen(false)}
                   >
-                    <Link href="/login">Staff Login</Link>
+                    <Link href="/login">Login</Link>
                   </Button>
                 </nav>
               </SheetContent>
