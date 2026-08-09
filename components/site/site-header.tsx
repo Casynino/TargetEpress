@@ -22,26 +22,30 @@ import { cn } from "@/lib/utils";
 // Booking and pickup lead because they are the two things that turn a reader
 // into a customer; the reference pages sit behind them.
 /**
- * The nav, in full words.
+ * One word each, all in one language.
  *
- * "Book", "Pickup", "Bei", "Huduma" — half English, half Swahili, and every one
- * of them a single word that could mean several things. A visitor scanning a
- * cargo site wants to know what a link does before pressing it, and "Book" on
- * its own is as likely to be a reading list as a consignment.
+ * It was half English and half Swahili, then briefly two words a link — and
+ * eight two-word labels is a nav that wraps on a laptop and reads as a
+ * sentence. A nav is scanned, not read: the eye wants a shape it can jump
+ * between, and every extra word costs it.
  *
- * All English now, at the owner's instruction. The Swahili is not gone from the
- * site — the headlines, the promise and the payment instructions are still in
- * it, which is where a customer actually reads rather than scans.
+ * So one word each, chosen to be unambiguous on a cargo site. "Rates" rather
+ * than "Pricing" because that is the freight word, "Guides" rather than "Learn"
+ * because the row is otherwise all nouns and one verb in it reads as a button.
+ *
+ * The Swahili is not gone from the site — the headlines, the promise and the
+ * payment instructions are still in it, which is where a customer reads rather
+ * than scans.
  */
 const NAV = [
-  { href: "/book", label: "Book Shipment" },
-  { href: "/pickup", label: "Pickup Service" },
-  { href: "/schedule", label: "Flight Schedule" },
-  { href: "/pricing", label: "Shipping Rates" },
-  { href: "/china", label: "China Address" },
-  { href: "/services", label: "Our Services" },
-  { href: "/learn", label: "Resources" },
-  { href: "/contact", label: "Contact Us" },
+  { href: "/book", label: "Book" },
+  { href: "/pickup", label: "Pickup" },
+  { href: "/schedule", label: "Flights" },
+  { href: "/pricing", label: "Rates" },
+  { href: "/china", label: "China" },
+  { href: "/services", label: "Services" },
+  { href: "/learn", label: "Guides" },
+  { href: "/contact", label: "Contact" },
 ];
 
 /**
