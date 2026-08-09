@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft, Lock, Plane, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 
 import { BrandLockup } from "@/components/brand-mark";
 import { LoginForm } from "@/components/login-form";
+import { LoginSky } from "@/components/login-sky";
 import { COMPANY } from "@/lib/constants";
 
 export const metadata: Metadata = {
@@ -11,6 +12,22 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+/**
+ * The first thing the company says to its own staff.
+ *
+ * It was a form on a white half and a flat blue half — correct, and it looked
+ * like the login of something bought rather than built. This is the same form
+ * over the corridor the business actually runs: Guangzhou, Hong Kong and Dubai
+ * into Dar es Salaam, drawn from the real route list rather than invented
+ * cities, because the first screen should not open with a decoration that is
+ * not true.
+ *
+ * Dark on purpose, and always dark regardless of the theme toggle: this page
+ * sits outside the app shell and is read at six in the morning on a warehouse
+ * floor and at midnight from a phone. The backdrop is one server component with
+ * no JavaScript at all — see LoginSky — so nothing here delays the form a
+ * person is trying to type into.
+ */
 export default async function LoginPage({
   searchParams,
 }: {
@@ -19,66 +36,103 @@ export default async function LoginPage({
   const { callbackUrl } = await searchParams;
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Form side */}
-      <div className="flex flex-col justify-between p-6 sm:p-10">
-        <div className="flex items-center justify-between">
-          <Link href="/">
+    <div className="relative isolate min-h-screen overflow-hidden bg-[#05070f] text-white">
+      <LoginSky />
+
+      <div className="relative flex min-h-screen flex-col">
+        <header className="flex items-center justify-between gap-4 p-6 sm:px-10">
+          <Link href="/" className="focus-ring rounded-lg">
             <BrandLockup />
           </Link>
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-sm text-white/70 backdrop-blur-sm transition-colors hover:border-white/30 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to site
           </Link>
-        </div>
+        </header>
 
-        <div className="mx-auto w-full max-w-sm py-12">
-          <div className="mb-8">
-            <span className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-              <Lock className="h-3 w-3" />
-              Staff access only
-            </span>
-            <h1 className="mt-4 font-display text-3xl font-bold tracking-tight">
-              Sign in
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Your dashboard opens automatically based on your department.
-            </p>
+        <main className="flex flex-1 items-center px-6 py-10 sm:px-10">
+          <div className="mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1fr_minmax(360px,420px)]">
+            {/* The claim, on the side the routes are flying through. Hidden on
+                a phone: the form is why anybody opened this page, and it should
+                not start below the fold. */}
+            <div className="hidden lg:block">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70 backdrop-blur-sm">
+                <Plane className="h-3.5 w-3.5" />
+                China · Tanzania air corridor
+              </span>
+
+              <h1 className="mt-6 max-w-xl font-display text-[44px] font-bold leading-[1.05] tracking-tight">
+                Every kilo that leaves Guangzhou is accounted for before it
+                leaves Dar.
+              </h1>
+
+              <p className="mt-4 max-w-md text-sm leading-relaxed text-white/60">
+                One record per consignment, from the label printed in China to
+                the signature at the counter in Kariakoo.
+              </p>
+
+              <dl className="mt-10 flex flex-wrap gap-x-10 gap-y-5">
+                {[
+                  { k: COMPANY.promiseDays + " days", v: "door to door" },
+                  { k: "2", v: "warehouses, one record" },
+                  { k: "1", v: "QR code per box" },
+                ].map((stat) => (
+                  <div key={stat.v}>
+                    <dt className="font-display text-2xl font-bold tabular-nums">
+                      {stat.k}
+                    </dt>
+                    <dd className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-white/45">
+                      {stat.v}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+
+            {/* The card. Glass over the routes rather than a panel beside
+                them, so the backdrop is something it sits in, not next to. */}
+            <div className="relative w-full">
+              <div
+                aria-hidden
+                className="absolute -inset-px rounded-3xl bg-gradient-to-b from-white/25 via-white/5 to-transparent"
+              />
+              <div className="relative rounded-3xl border border-white/10 bg-white/[0.06] p-7 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-8">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/70">
+                  <Lock className="h-3 w-3" />
+                  Staff access only
+                </span>
+
+                <h2 className="mt-4 font-display text-3xl font-bold tracking-tight">
+                  Sign in
+                </h2>
+                <p className="mt-2 text-sm text-white/55">
+                  Your dashboard opens automatically based on your department.
+                </p>
+
+                <div className="mt-7">
+                  <LoginForm callbackUrl={callbackUrl} />
+                </div>
+
+                <p className="mt-6 flex items-start gap-2 border-t border-white/10 pt-5 text-xs leading-relaxed text-white/45">
+                  <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/35" />
+                  Lost your password? Ask the CEO to reset it — accounts are
+                  managed internally, and nobody else can issue one.
+                </p>
+              </div>
+            </div>
           </div>
+        </main>
 
-          <LoginForm callbackUrl={callbackUrl} />
-        </div>
-
-        <p className="text-xs text-muted-foreground">
-          Lost your password? Ask the CEO to reset it — accounts are managed
-          internally.
-        </p>
-      </div>
-
-      {/* Brand side */}
-      <div className="relative hidden overflow-hidden bg-brand lg:block">
-        <div
-          className="absolute inset-0 opacity-[0.14]"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 20% 20%, white 1px, transparent 1px)",
-            backgroundSize: "28px 28px",
-          }}
-        />
-        <div className="relative flex h-full flex-col justify-end gap-6 p-12 text-brand-foreground">
-          <blockquote className="max-w-md font-display text-3xl font-semibold leading-tight tracking-tight">
-            Every kilo that leaves Guangzhou is accounted for before it leaves
-            Dar.
-          </blockquote>
-          <div className="space-y-1 text-sm text-brand-foreground/70">
-            <p className="font-medium text-brand-foreground">{COMPANY.name}</p>
-            <p>{COMPANY.chinaAddress}</p>
-            <p>{COMPANY.darAddress}</p>
+        <footer className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 p-6 text-[11px] leading-relaxed text-white/35 sm:px-10">
+          <p className="font-medium text-white/60">{COMPANY.name}</p>
+          <div className="flex flex-wrap gap-x-8 gap-y-1">
+            <p>🇨🇳 {COMPANY.chinaAddress}</p>
+            <p>🇹🇿 {COMPANY.darAddress}</p>
           </div>
-        </div>
+        </footer>
       </div>
     </div>
   );
