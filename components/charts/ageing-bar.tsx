@@ -120,7 +120,9 @@ export function AgeingBar({
               </span>
               <span
                 className={cn(
-                  "w-20 shrink-0 text-right font-mono text-[11px] tabular-nums",
+                  // Wide enough for "TSh 25,458,300" on one line. At w-20 it wrapped, and a
+                // figure split across two lines is read as two figures.
+                "w-28 shrink-0 whitespace-nowrap text-right font-mono text-[11px] tabular-nums",
                   empty ? "" : TEXT[i] ?? TEXT[TEXT.length - 1]
                 )}
               >

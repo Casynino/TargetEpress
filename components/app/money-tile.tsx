@@ -114,9 +114,11 @@ export function MoneyTile({
       >
         {rate ? (
           <>
-            <span className="text-[15px] font-semibold text-muted-foreground">
-              TSh{" "}
-            </span>
+            {/* Half the size of the figure and in its colour, not muted grey.
+                This is a Tanzanian business — the unit is not a footnote to the
+                number, it is half of what the number means, and at 15px in
+                muted grey it read as a label somebody had switched off. */}
+            <span className="mr-1 text-[19px] font-bold opacity-80">TSh</span>
             {Math.round(usd * rate).toLocaleString("en-US")}
           </>
         ) : (
