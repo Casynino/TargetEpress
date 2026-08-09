@@ -26,10 +26,10 @@ type City = {
 };
 
 const CITIES: City[] = [
-  { id: "gz", name: "Guangzhou", x: 700, y: 208 },
-  { id: "hk", name: "Hong Kong", x: 712, y: 232 },
-  { id: "dxb", name: "Dubai", x: 546, y: 236 },
-  { id: "dar", name: "Dar es Salaam", x: 470, y: 356, destination: true },
+  { id: "gz", name: "Guangzhou", x: 604, y: 150 },
+  { id: "hk", name: "Hong Kong", x: 616, y: 182 },
+  { id: "dxb", name: "Dubai", x: 404, y: 196 },
+  { id: "dar", name: "Dar es Salaam", x: 296, y: 384, destination: true },
 ];
 
 /**
@@ -40,10 +40,22 @@ const CITIES: City[] = [
  * something else.
  */
 const ROUTES = [
-  { id: "r1", d: "M700 208 Q560 150 470 356", dur: "7s", delay: "0s" },
-  { id: "r2", d: "M712 232 Q580 190 470 356", dur: "8.5s", delay: "1.4s" },
-  { id: "r3", d: "M546 236 Q510 250 470 356", dur: "6s", delay: "2.8s" },
+  { id: "r1", d: "M604 150 Q420 130 296 384", dur: "9s", delay: "0s" },
+  { id: "r2", d: "M616 182 Q450 190 296 384", dur: "11s", delay: "2s" },
+  { id: "r3", d: "M404 196 Q330 240 296 384", dur: "7.5s", delay: "4s" },
 ] as const;
+
+/**
+ * A plane, not a dot.
+ *
+ * Drawn nose-up at the origin so `rotate="auto"` points it along the path it is
+ * flying. A circle travelling a line is a loading indicator; what was asked for
+ * is an aircraft leaving China.
+ */
+const PLANE =
+  "M0 -7 L2.1 -1.4 L7.4 1.2 L7.4 2.6 L2.1 1.6 L1.5 5.2 L3.6 6.6 L3.6 7.6 " +
+  "L0 6.8 L-3.6 7.6 L-3.6 6.6 L-1.5 5.2 L-2.1 1.6 L-7.4 2.6 L-7.4 1.2 " +
+  "L-2.1 -1.4 Z";
 
 export function LoginSky() {
   return (
@@ -90,8 +102,8 @@ export function LoginSky() {
       >
         <defs>
           <radialGradient id="sky-globe" cx="38%" cy="32%">
-            <stop offset="0%" stopColor="hsl(213 84% 64%)" stopOpacity="0.30" />
-            <stop offset="60%" stopColor="hsl(216 72% 22%)" stopOpacity="0.22" />
+            <stop offset="0%" stopColor="hsl(213 84% 64%)" stopOpacity="0.42" />
+            <stop offset="60%" stopColor="hsl(216 72% 22%)" stopOpacity="0.30" />
             <stop offset="100%" stopColor="#05070f" stopOpacity="0" />
           </radialGradient>
           <linearGradient id="sky-route" x1="0" y1="0" x2="1" y2="1">
@@ -108,21 +120,21 @@ export function LoginSky() {
           {/* One dot of the graticule, tiled — a hand-drawn map would be a
               hundred paths nobody can correct later. */}
           <pattern id="sky-dots" width="14" height="14" patternUnits="userSpaceOnUse">
-            <circle cx="1.5" cy="1.5" r="1.1" fill="hsl(213 84% 64%)" fillOpacity="0.22" />
+            <circle cx="1.5" cy="1.5" r="1.1" fill="hsl(213 84% 64%)" fillOpacity="0.38" />
           </pattern>
           <clipPath id="sky-sphere">
-            <circle cx="600" cy="270" r="250" />
+            <circle cx="430" cy="280" r="300" />
           </clipPath>
         </defs>
 
         {/* The sphere: a dotted plate clipped to a circle, with meridians
             sweeping across it. Cheaper than a projection and, at this opacity,
             indistinguishable from one. */}
-        <circle cx="600" cy="270" r="250" fill="url(#sky-globe)" />
+        <circle cx="430" cy="280" r="300" fill="url(#sky-globe)" />
         <g clipPath="url(#sky-sphere)">
-          <rect x="350" y="20" width="500" height="500" fill="url(#sky-dots)" />
-          <g className="sky-spin" style={{ transformOrigin: "600px 270px" }}>
-            {[-200, -120, -40, 40, 120, 200].map((dx) => (
+          <rect x="120" y="-30" width="620" height="620" fill="url(#sky-dots)" />
+          <g className="sky-spin" style={{ transformOrigin: "430px 280px" }}>
+            {[-240, -150, -60, 60, 150, 240].map((dx) => (
               <ellipse
                 key={dx}
                 cx="600"
@@ -131,19 +143,19 @@ export function LoginSky() {
                 ry="250"
                 fill="none"
                 stroke="hsl(213 84% 64%)"
-                strokeOpacity="0.16"
+                strokeOpacity="0.30"
               />
             ))}
           </g>
-          {[-170, -85, 0, 85, 170].map((dy) => (
+          {[-210, -105, 0, 105, 210].map((dy) => (
             <line
               key={dy}
-              x1="350"
-              y1={270 + dy}
-              x2="850"
-              y2={270 + dy}
+              x1="120"
+              y1={280 + dy}
+              x2="740"
+              y2={280 + dy}
               stroke="hsl(213 84% 64%)"
-              strokeOpacity="0.12"
+              strokeOpacity="0.22"
             />
           ))}
         </g>
@@ -153,7 +165,7 @@ export function LoginSky() {
           r="250"
           fill="none"
           stroke="hsl(213 84% 64%)"
-          strokeOpacity="0.28"
+          strokeOpacity="0.50"
         />
 
         {/* Routes. The dash draws itself in, then a lit dot flies the path. */}
@@ -163,13 +175,13 @@ export function LoginSky() {
               d={route.d}
               fill="none"
               stroke="url(#sky-route)"
-              strokeOpacity="0.5"
-              strokeWidth="1.4"
+              strokeOpacity="0.9"
+              strokeWidth="2"
               strokeDasharray="5 7"
               className="sky-draw"
               style={{ animationDelay: route.delay }}
             />
-            <circle r="3.2" fill="hsl(3 84% 58%)" filter="url(#sky-glow)">
+            <path d={PLANE} fill="hsl(3 84% 58%)" filter="url(#sky-glow)">
               <animateMotion
                 dur={route.dur}
                 begin={route.delay}
@@ -177,7 +189,7 @@ export function LoginSky() {
                 path={route.d}
                 rotate="auto"
               />
-            </circle>
+            </path>
           </g>
         ))}
 
@@ -209,7 +221,7 @@ export function LoginSky() {
               className="font-mono"
               fontSize="10"
               fill="white"
-              fillOpacity={city.destination ? 0.85 : 0.55}
+              fillOpacity={city.destination ? 0.95 : 0.7}
               letterSpacing="0.08em"
             >
               {city.name.toUpperCase()}

@@ -61,17 +61,30 @@ export default async function LoginPage({
             <div className="hidden lg:block">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70 backdrop-blur-sm">
                 <Plane className="h-3.5 w-3.5" />
-                China · Tanzania air corridor
+                Guangzhou · Hong Kong · Dubai — Dar es Salaam
               </span>
 
-              <h1 className="mt-6 max-w-xl font-display text-[44px] font-bold leading-[1.05] tracking-tight">
-                Every kilo that leaves Guangzhou is accounted for before it
-                leaves Dar.
+              <h1 className="mt-6 font-display text-[42px] font-bold leading-none tracking-tight">
+                Welcome on board
               </h1>
 
-              <p className="mt-4 max-w-md text-sm leading-relaxed text-white/60">
-                One record per consignment, from the label printed in China to
-                the signature at the counter in Kariakoo.
+              {/* Three lines to the person signing in, not to a customer. The
+                  claim about kilos belongs on the public site; this is the
+                  screen a clerk opens at six in the morning. */}
+              <p className="mt-5 max-w-md text-[15px] leading-relaxed text-white/70">
+                Every shipment has a journey.
+                <br />
+                Every detail matters.
+                <br />
+                Every action keeps our customers moving forward.
+              </p>
+
+              <p className="mt-6 font-display text-lg font-bold tracking-tight text-white/90">
+                Target Express Air Cargo
+              </p>
+              {/* The company's own words, in the company's own language. */}
+              <p className="mt-1 font-display text-xl font-bold tracking-[0.08em] text-signal">
+                KWETU MUDA NI MALI
               </p>
 
               <dl className="mt-10 flex flex-wrap gap-x-10 gap-y-5">
