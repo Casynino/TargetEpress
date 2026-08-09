@@ -21,15 +21,27 @@ import { cn } from "@/lib/utils";
 // Ordered by what a visitor came to do, not by what the company wants to say.
 // Booking and pickup lead because they are the two things that turn a reader
 // into a customer; the reference pages sit behind them.
+/**
+ * The nav, in full words.
+ *
+ * "Book", "Pickup", "Bei", "Huduma" — half English, half Swahili, and every one
+ * of them a single word that could mean several things. A visitor scanning a
+ * cargo site wants to know what a link does before pressing it, and "Book" on
+ * its own is as likely to be a reading list as a consignment.
+ *
+ * All English now, at the owner's instruction. The Swahili is not gone from the
+ * site — the headlines, the promise and the payment instructions are still in
+ * it, which is where a customer actually reads rather than scans.
+ */
 const NAV = [
-  { href: "/book", label: "Book" },
-  { href: "/pickup", label: "Pickup" },
-  { href: "/schedule", label: "Flights" },
-  { href: "/pricing", label: "Bei" },
-  { href: "/china", label: "Anwani ya China" },
-  { href: "/services", label: "Huduma" },
-  { href: "/learn", label: "Learn" },
-  { href: "/contact", label: "Wasiliana" },
+  { href: "/book", label: "Book Shipment" },
+  { href: "/pickup", label: "Pickup Service" },
+  { href: "/schedule", label: "Flight Schedule" },
+  { href: "/pricing", label: "Shipping Rates" },
+  { href: "/china", label: "China Address" },
+  { href: "/services", label: "Our Services" },
+  { href: "/learn", label: "Resources" },
+  { href: "/contact", label: "Contact Us" },
 ];
 
 /**
@@ -109,7 +121,7 @@ export function SiteHeader() {
               variant="ghost"
               className="hidden h-8 px-2 text-sm font-normal text-white/65 hover:bg-white/10 hover:text-white md:inline-flex"
             >
-              <Link href="/login">Staff login</Link>
+              <Link href="/login">Staff Login</Link>
             </Button>
             <Button
               asChild
@@ -180,7 +192,7 @@ export function SiteHeader() {
                     className="w-full justify-start text-muted-foreground"
                     onClick={() => setOpen(false)}
                   >
-                    <Link href="/login">Staff login</Link>
+                    <Link href="/login">Staff Login</Link>
                   </Button>
                 </nav>
               </SheetContent>

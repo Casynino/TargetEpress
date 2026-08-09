@@ -80,7 +80,7 @@ export function SiteFooter() {
               </li>
               <li>
                 <Link href="/login" className="hover:text-foreground">
-                  Staff login
+                  Staff Login
                 </Link>
               </li>
             </ul>
