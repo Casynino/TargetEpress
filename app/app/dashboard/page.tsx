@@ -89,6 +89,7 @@ import {
   receivablesAgeing,
   cashFlowByMonth,
   monthlyVolume,
+  ownerAttention,
   recentActivity,
 } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
@@ -1911,12 +1912,12 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     volume,
     revenue,
     perf,
-    alerts,
     activity,
     aging,
     execRateRow,
     position,
     desks,
+    ownerItems,
     flow,
     owed,
   ] = await Promise.all([
@@ -1924,7 +1925,6 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     monthlyVolume(),
     monthlyRevenue(),
     corridorPerformance(),
-    attentionItems(role),
     recentActivity(10),
     agingInWarehouse(5),
     currentRate(),
@@ -1932,6 +1932,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     // where is all of it, how is each desk, and is the money keeping up.
     corridorPosition(),
     currentRate().then((row) => deskPulse(row ? toNumber(row.rate) : null)),
+    currentRate().then((row) => ownerAttention(row ? toNumber(row.rate) : null)),
     cashFlowByMonth(),
     receivablesAgeing(),
   ]);
@@ -1944,28 +1945,13 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
   /**
    * Everything waiting on the owner, in one bounded panel.
    *
-   * The same band every desk in the app opens on, which is the point: the
-   * person who set the pattern should not be the one page still using the old
-   * one. Grouped by the department that owns the problem, because "which desk"
-   * is the first thing this reader needs from it.
+   * ownerAttention composes each desk's own problem set rather than the named,
+   * thresholded list every other role gets — this chair answers for all four,
+   * and a desk quietly failing at scale must not read as a clear desk. Grouped
+   * by the department that owns the fix, because "which of my desks" is the
+   * first thing this reader needs.
    */
-  const CEO_GROUP: Record<string, string> = {
-    exc: "Cases",
-    batch: "Receiving",
-    open: "Receiving",
-    noinv: "Finance",
-    unpaid: "Finance",
-    note: "Pickup",
-  };
-  const attention: AttnItem[] = alerts.map((alert) => ({
-    id: alert.id,
-    group: CEO_GROUP[alert.id.split("-")[0]] ?? "Other",
-    severity: alert.severity,
-    label: alert.title,
-    detail: alert.detail,
-    href: alert.href ?? "/app/exceptions",
-    value: alert.meta,
-  }));
+  const attention: AttnItem[] = ownerItems;
 
   const positionSlices = [
     { label: "In Guangzhou", value: position.inChina, tone: 2 as const },

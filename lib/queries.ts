@@ -8,6 +8,7 @@ import {
   STORAGE_POLICY,
 } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
+import { chinaProblems, floorSnapshot } from "@/lib/floor";
 import { prisma } from "@/lib/prisma";
 
 const MONTHS = [
@@ -447,6 +448,226 @@ export async function deskPulse(rate: number | null = null): Promise<DeskPulse[]
       tone: "signal",
     },
   ];
+}
+
+/**
+ * Everything wrong anywhere in the business, for the one chair that answers for
+ * all of it.
+ *
+ * attentionItems() gives the owner the *named* problems — this case, that
+ * batch — and thresholds them, so a desk can be quietly failing at scale and
+ * show nothing: forty consignments registered with no photograph produced not
+ * one row, because no rule in it looks at photographs.
+ *
+ * This composes each desk's own problem set instead. Every count here is the
+ * same query that desk's own panel runs, so the owner cannot be told something
+ * different from the person responsible for it — and a new kind of problem is
+ * added to a department once, not twice.
+ *
+ * Ordered by severity inside the panel; grouped by the desk that owns the fix,
+ * because "which of my desks" is the first thing this reader needs.
+ */
+export type OwnerAttn = {
+  id: string;
+  group: string;
+  severity: "critical" | "warning" | "info";
+  label: string;
+  detail: string;
+  href: string;
+  value?: string;
+};
+
+export async function ownerAttention(rate: number | null = null): Promise<OwnerAttn[]> {
+  const [china, floor, darProblems, finance, support] = await Promise.all([
+    chinaProblems(),
+    floorSnapshot(),
+    (async () => {
+      const [openCases, readyForPickup, unfinishedBatches] = await Promise.all([
+        prisma.shipmentException.count({
+          where: { status: { in: [...EXCEPTION_OPEN_STATUSES] }, shipment: { deletedAt: null } },
+        }),
+        prisma.shipment.count({ where: { deletedAt: null, status: "READY_FOR_PICKUP" } }),
+        prisma.batch.count({
+          where: { status: "ARRIVED" },
+        }),
+      ]);
+      return { openCases, readyForPickup, unfinishedBatches };
+    })(),
+    (async () => {
+      const [drafts, unattributed, unpaid, unpaidValue] = await Promise.all([
+        prisma.invoice.count({ where: { status: "DRAFT" } }),
+        prisma.payment.count({ where: { accountId: null } }),
+        prisma.invoice.count({ where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } } }),
+        prisma.invoice.aggregate({
+          where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
+          _sum: { total: true, amountPaid: true },
+        }),
+      ]);
+      const owedUsd =
+        toNumber(unpaidValue._sum.total ?? 0) - toNumber(unpaidValue._sum.amountPaid ?? 0);
+      return { drafts, unattributed, unpaid, owedUsd };
+    })(),
+    (async () => {
+      const [urgentTickets, openRequests, rejected, pending] = await Promise.all([
+        prisma.supportTicket.count({
+          where: { priority: "URGENT", status: { in: ["OPEN", "IN_PROGRESS", "WAITING_CUSTOMER"] } },
+        }),
+        prisma.sourcingRequest.count({ where: { status: { notIn: ["COMPLETED", "CANCELLED"] } } }),
+        prisma.paymentSubmission.count({ where: { status: "REJECTED" } }),
+        prisma.paymentSubmission.count({ where: { status: "PENDING" } }),
+      ]);
+      return { urgentTickets, openRequests, rejected, pending };
+    })(),
+  ]);
+
+  const money = (usd: number) =>
+    rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : `USD ${usd.toFixed(2)}`;
+  const shortBoxes = floor.declaredPackages - floor.packages;
+
+  return [
+    // ---- Guangzhou ----
+    {
+      when: china.noPhotos > 0,
+      id: "cn-photos",
+      group: "Guangzhou",
+      severity: "critical" as const,
+      label: `${china.noPhotos} registered with no photograph`,
+      detail:
+        "Nothing to show a customer whose cargo arrives damaged, and nothing to argue with when they say it did.",
+      href: "/app/shipments",
+    },
+    {
+      when: china.unassigned > 0,
+      id: "cn-unassigned",
+      group: "Guangzhou",
+      severity: "critical" as const,
+      label: `${china.unassigned} on no batch`,
+      detail: "Registered and sitting loose. Cargo on no batch does not get on an aircraft.",
+      href: "/app/batches",
+    },
+    {
+      when: china.staleBatches > 0,
+      id: "cn-batches",
+      group: "Guangzhou",
+      severity: "warning" as const,
+      label: `${china.staleBatches} batch(es) open more than ${china.staleDays} days`,
+      detail: "A batch left open stops being a batch and becomes a shelf.",
+      href: "/app/batches",
+    },
+    // ---- Dar floor ----
+    {
+      when: shortBoxes > 0,
+      id: "dar-short",
+      group: "Dar floor",
+      severity: "critical" as const,
+      label: `${shortBoxes} box(es) short of the manifest`,
+      detail: "Checked in with fewer cartons than the Guangzhou paperwork claims.",
+      href: "/app/receive",
+    },
+    {
+      when: darProblems.unfinishedBatches > 0,
+      id: "dar-unfinished",
+      group: "Dar floor",
+      severity: "warning" as const,
+      label: `${darProblems.unfinishedBatches} landed batch(es) not finished`,
+      detail: "The plane is down and the manifest is not fully ticked off.",
+      href: "/app/receive",
+    },
+    {
+      when: floor.aging > 0,
+      id: "dar-aging",
+      group: "Dar floor",
+      severity: "warning" as const,
+      label: `${floor.aging} past the free storage window`,
+      detail: `Standing more than ${STORAGE_POLICY.freeDays} days, and the customer usually does not know.`,
+      href: "/app/inventory",
+      value: `longest ${floor.longestHeldDays}d`,
+    },
+    {
+      when: darProblems.readyForPickup > 0,
+      id: "dar-ready",
+      group: "Dar floor",
+      severity: "info" as const,
+      label: `${darProblems.readyForPickup} paid, not collected`,
+      detail: "Cleared by Finance and still on our shelves.",
+      href: "/app/pickup-queue",
+    },
+    // ---- Finance ----
+    {
+      when: finance.drafts > 0,
+      id: "fin-drafts",
+      group: "Finance",
+      severity: "critical" as const,
+      label: `${finance.drafts} price(s) to confirm`,
+      detail: "Nothing can be invoiced, and no cargo released, until they are signed off.",
+      href: "/app/shipments",
+    },
+    {
+      when: finance.unattributed > 0,
+      id: "fin-unattributed",
+      group: "Finance",
+      severity: "warning" as const,
+      label: `${finance.unattributed} payment(s) in no account`,
+      detail: "Money we hold that nobody has said where it landed.",
+      href: "/app/finance/payments",
+    },
+    {
+      when: finance.unpaid > 0,
+      id: "fin-unpaid",
+      group: "Finance",
+      severity: "warning" as const,
+      label: `${finance.unpaid} bill(s) unpaid`,
+      detail: "Confirmed and sent to the customer. The money has not arrived.",
+      href: "/app/collections/follow-up",
+      value: money(finance.owedUsd),
+    },
+    {
+      when: support.pending > 0,
+      id: "fin-verify",
+      group: "Finance",
+      severity: "warning" as const,
+      label: `${support.pending} collection(s) to verify`,
+      detail: "Customer Support collected these at the counter and handed them up.",
+      href: "/app/finance/verify",
+    },
+    // ---- Support ----
+    {
+      when: support.urgentTickets > 0,
+      id: "sup-urgent",
+      group: "Support",
+      severity: "critical" as const,
+      label: `${support.urgentTickets} ticket(s) marked urgent`,
+      detail: "A customer is waiting on an answer somebody flagged as important.",
+      href: "/app/support/tickets?priority=high",
+    },
+    {
+      when: support.rejected > 0,
+      id: "sup-rejected",
+      group: "Support",
+      severity: "critical" as const,
+      label: `${support.rejected} payment(s) sent back by Finance`,
+      detail: "The customer was told their payment went through and it did not.",
+      href: "/app/collections/submissions?status=REJECTED",
+    },
+    {
+      when: support.openRequests > 0,
+      id: "sup-sourcing",
+      group: "Support",
+      severity: "info" as const,
+      label: `${support.openRequests} sourcing request(s) open`,
+      detail: "Somebody asked us to find them something in China.",
+      href: "/app/support/sourcing",
+    },
+    {
+      when: darProblems.openCases > 0,
+      id: "cases",
+      group: "Cases",
+      severity: "critical" as const,
+      label: `${darProblems.openCases} open case(s)`,
+      detail: "Cargo reported missing, damaged or wrong on arrival.",
+      href: "/app/exceptions",
+    },
+  ].filter((row) => row.when) as OwnerAttn[];
 }
 
 /** Batch weight utilisation — how full the batches we flew actually were. */
