@@ -1982,9 +1982,8 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
         what the four desks did with them. A shortcut row that lists places is a
         second sidebar; this one lists the things that stop without this chair.
 
-        Claims wait on exception.approve and expenses on expense.approve — both
-        blocking, both only here. Deleted records is shipment.cancel, the one
-        action in the app nobody else can take back.
+        Claims wait on exception.approve, and Deleted records on shipment.cancel
+        — the one action in this app nobody else can take back.
 
         The Ledger and Verify payments are not exclusive — Finance reads one and
         works the other every day. They lead anyway: this row is what the owner
@@ -1999,11 +1998,15 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           { href: "/app/finance/transactions", label: "The Ledger", icon: Landmark, weight: "primary", tone: "signal" },
           { href: "/app/finance/verify", label: "Verify payments", icon: ShieldCheck, weight: "secondary", tone: "info" },
           { href: "/app/exceptions", label: "Issues & Claims", icon: AlertTriangle, tone: "warning" },
-          { href: "/app/finance/expenses", label: "Expenses", icon: Wallet, tone: "violet" },
+          // Brand and violet wherever these two appear — the support desk, the
+          // warehouse floors and here. Colour is only a landmark while it means
+          // the same thing on every screen.
+          { href: "/app/shipments", label: "Shipments", icon: Package, tone: "brand" },
+          { href: "/app/batches", label: "Batches", icon: Plane, tone: "violet" },
           // shipment.cancel is the owner's alone: restoring something a desk
           // deleted, or purging it for good, is the one action in this app
           // nobody else can take back.
-          { href: "/app/admin/deleted", label: "Deleted records", icon: Trash2, tone: "brand" },
+          { href: "/app/admin/deleted", label: "Deleted records", icon: Trash2, tone: "success" },
         ]}
       />
 
