@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { PageHero } from "@/components/site/page-hero";
+import { CargoNote } from "@/components/site/cargo-note";
 import { SectionBackdrop } from "@/components/site/section-backdrop";
 import { TrackForm } from "@/components/site/track-form";
 import { IMAGES, img } from "@/lib/imagery";
@@ -78,7 +79,7 @@ export default async function TrackPage({
           everything below is `bg-card` with muted labels — dark-on-light —
           and an ink section would swallow the whole result card. */}
       <section className="relative isolate py-12 md:py-16">
-        <SectionBackdrop variant="aurora" />
+        <SectionBackdrop variant="quiet" />
         <div className="container">
           <div className="mx-auto max-w-3xl">
             {result ? <TrackingResultView result={result} /> : <EmptyState />}
@@ -336,6 +337,11 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
             <dd className="mt-1 text-sm font-medium">{item.value}</dd>
           </div>
         ))}
+
+        {/* Nine facts in a four-column row left the last row two thirds empty,
+            immediately above the amount owed. It spans the remainder now and
+            says something true about where the cargo actually is. */}
+        <CargoNote status={result.status} />
       </dl>
 
       {/* Once the cargo lands, the number that matters to a customer with five
@@ -516,22 +522,47 @@ function ChargePanel({
             <Wallet className="h-3.5 w-3.5" />
             {settled ? "Total paid" : "Amount due"}
           </p>
-          <p className="mt-1 font-display text-2xl font-bold tabular">
-            {charge.currency}{" "}
-            {(settled ? charge.total : charge.outstanding).toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </p>
+          {/*
+            Shillings lead, dollars underneath.
+
+            This is the one figure on the public site a customer acts on, and
+            they pay it in shillings — at a Lipa number, in a bank hall, in
+            cash at the counter in Kariakoo. Leading in dollars asked every
+            customer to convert in their head, at whatever rate they
+            remembered, to answer a question about their own money.
+
+            The dollar line stays because the invoice is raised in dollars and
+            the customer may be holding one. It is the reference, not the ask.
+          */}
           {(settled ? charge.totalLocal : charge.outstandingLocal) !== null ? (
-            <p className="text-sm text-muted-foreground">
-              ≈ {charge.localCurrency}{" "}
-              {(settled
-                ? charge.totalLocal!
-                : charge.outstandingLocal!
-              ).toLocaleString("en-US")}
+            <>
+              <p className="mt-1 font-display text-[32px] font-bold leading-none tabular">
+                <span className="mr-1.5 text-xl font-bold opacity-70">TSh</span>
+                {(settled
+                  ? charge.totalLocal!
+                  : charge.outstandingLocal!
+                ).toLocaleString("en-US")}
+              </p>
+              <p className="mt-2 font-mono text-sm text-muted-foreground">
+                {charge.currency}{" "}
+                {(settled ? charge.total : charge.outstanding).toLocaleString(
+                  "en-US",
+                  { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                )}{" "}
+                on the invoice
+              </p>
+            </>
+          ) : (
+            /* No rate on the invoice yet, so there is no honest shilling
+               figure to lead with. The dollar one is what exists. */
+            <p className="mt-1 font-display text-[32px] font-bold leading-none tabular">
+              {charge.currency}{" "}
+              {(settled ? charge.total : charge.outstanding).toLocaleString(
+                "en-US",
+                { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+              )}
             </p>
-          ) : null}
+          )}
           <p className="mt-1 font-mono text-xs text-muted-foreground">
             Invoice {charge.invoiceNumber}
           </p>

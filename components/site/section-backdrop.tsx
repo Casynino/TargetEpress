@@ -15,6 +15,10 @@ import { cn } from "@/lib/utils";
  * a fourth:
  *
  *  - `aurora` — slow-drifting colour, like light moving behind the page
+ *  - `quiet`  — stars only, no colour at all. For a page whose whole job is a
+ *    figure somebody owes: blue, gold and red washing behind a bill makes the
+ *    amount look like part of a decoration, and a customer reading what they
+ *    owe should not be read anything else at the same time.
  *  - `stars`  — the same, with a field of stars over it
  *  - `photo`  — a photograph under a scrim heavy enough for body text
  *
@@ -52,7 +56,7 @@ export function SectionBackdrop({
   image,
   className,
 }: {
-  variant?: "aurora" | "stars" | "photo";
+  variant?: "aurora" | "stars" | "photo" | "quiet";
   /** Required for `photo`; ignored otherwise. */
   image?: string;
   className?: string;
@@ -82,12 +86,20 @@ export function SectionBackdrop({
       ) : null}
 
       {/* Drifting colour. Three blobs at different speeds never line up, so the
-          movement reads as ambient rather than as a loop. */}
-      <div className="drift-a absolute -left-24 top-[-15%] h-[34rem] w-[34rem] rounded-full bg-brand/[0.13] blur-3xl" />
-      <div className="drift-b absolute right-[-10%] top-[10%] h-[30rem] w-[30rem] rounded-full bg-gold/[0.09] blur-3xl" />
-      <div className="drift-c absolute bottom-[-20%] left-[35%] h-[28rem] w-[28rem] rounded-full bg-signal/[0.08] blur-3xl" />
+          movement reads as ambient rather than as a loop.
 
-      {variant === "stars" ? (
+          Skipped for `quiet`, and only for `quiet` — nine pages ask for stars
+          today and get these blobs behind them, so removing them from `stars`
+          would restyle the whole site to fix one page. */}
+      {variant !== "quiet" ? (
+        <>
+          <div className="drift-a absolute -left-24 top-[-15%] h-[34rem] w-[34rem] rounded-full bg-brand/[0.13] blur-3xl" />
+          <div className="drift-b absolute right-[-10%] top-[10%] h-[30rem] w-[30rem] rounded-full bg-gold/[0.09] blur-3xl" />
+          <div className="drift-c absolute bottom-[-20%] left-[35%] h-[28rem] w-[28rem] rounded-full bg-signal/[0.08] blur-3xl" />
+        </>
+      ) : null}
+
+      {variant === "stars" || variant === "quiet" ? (
         <div className="absolute inset-0">
           {STARS.map((star, i) => (
             <span
