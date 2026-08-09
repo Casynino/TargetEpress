@@ -91,7 +91,7 @@ export function Hero() {
         <div className="grid items-center gap-12 lg:grid-cols-[1.02fr_minmax(0,0.98fr)] lg:gap-8 xl:gap-14">
           {/* Left — the promise, and the three things a visitor can do */}
           <div>
-            <span className="rise inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-gold backdrop-blur">
+            <span className="rise inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-gold">
               <Plane className="h-3.5 w-3.5" />
               Guangzhou / Hong Kong → Dar es Salaam
             </span>

@@ -59,8 +59,12 @@ export default async function LoginPage({
                 a phone: the form is why anybody opened this page, and it should
                 not start below the fold. */}
             <div className="hidden lg:block">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70 backdrop-blur-sm">
-                <Plane className="h-3.5 w-3.5" />
+              {/* No pill. A border and a tinted fill around three place names
+                  is chrome doing the work that letter-spacing and a brighter
+                  ink already do — and on a dark page it reads as a button
+                  nobody can press. */}
+              <span className="inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
+                <Plane className="h-3.5 w-3.5 text-signal" />
                 Guangzhou · Hong Kong · Dubai — Dar es Salaam
               </span>
 
@@ -113,7 +117,7 @@ export default async function LoginPage({
                 className="absolute -inset-px rounded-3xl bg-gradient-to-b from-white/25 via-white/5 to-transparent"
               />
               <div className="relative rounded-3xl border border-white/10 bg-white/[0.06] p-7 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-8">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/70">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
                   <Lock className="h-3 w-3" />
                   Staff access only
                 </span>
