@@ -2018,6 +2018,13 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
         empty="Nothing needs your decision. Every desk is clear."
       />
 
+      {/* The panel that belongs only to this desk. Four departments cannot be
+          compared by opening four dashboards one at a time. */}
+      <div>
+        <SectionLabel>Every desk, right now</SectionLabel>
+        <DeskPulsePanel desks={desks} />
+      </div>
+
       {/* In transit, In Dar and Exceptions came out: the corridor ring below
           shows all three as proportions of one whole, and a figure twice on one
           screen reads as a bug. What is left is not on any chart. */}
@@ -2185,13 +2192,6 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
             />
           </section>
         </div>
-      </div>
-
-      {/* The panel that belongs only to this desk. Four departments cannot be
-          compared by opening four dashboards one at a time. */}
-      <div>
-        <SectionLabel>Every desk, right now</SectionLabel>
-        <DeskPulsePanel desks={desks} />
       </div>
 
       <div>
