@@ -71,10 +71,10 @@ export function Hero() {
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 hidden lg:block"
+        className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(circle 460px at 74% 52%, hsl(var(--ink)/0.92) 0%, hsl(var(--ink)/0.72) 45%, transparent 78%)",
+            "radial-gradient(circle 320px at 50% 72%, hsl(var(--ink)/0.9) 0%, hsl(var(--ink)/0.7) 45%, transparent 78%)",
         }}
       />
 
@@ -191,8 +191,20 @@ export function Hero() {
             </ul>
           </div>
 
-          {/* Right — the globe, in its own column so nothing crops it */}
-          <div className="rise rise-4 relative hidden lg:block">
+          {/*
+            Right — the globe, in its own column so nothing crops it.
+
+            It used to be `hidden lg:block`, so every phone got the headline and
+            an empty dark rectangle: the landing page was words. This is the one
+            thing on the site that says what the business does without reading,
+            and most of the people who open this link open it on a phone.
+
+            It costs nothing extra to show. The canvas sizes itself from this
+            column, caps device pixel ratio at 2, and stops animating under
+            prefers-reduced-motion — all of which it already did while nobody on
+            a phone could see it.
+          */}
+          <div className="rise rise-4 relative">
             {/* The mask existed to hide the hard edge of a filled sphere.
                 There is no longer a filled sphere, so it only has to feather
                 the outermost ring of dots. */}
@@ -210,7 +222,7 @@ export function Hero() {
             {/* The deadline, floated over the sphere. It is the one number that
                 turns a browser into a booking, so it does not get buried. */}
             {nextFlight ? (
-              <div className="glass-dark absolute bottom-2 left-1/2 flex w-[min(100%,320px)] -translate-x-1/2 items-center justify-between gap-3 rounded-2xl px-4 py-3">
+              <div className="glass-dark absolute bottom-2 left-1/2 hidden w-[min(100%,320px)] -translate-x-1/2 items-center justify-between gap-3 rounded-2xl px-4 py-3 lg:flex">
                 <span className="min-w-0">
                   <span className="block text-[11px] uppercase tracking-widest text-gold">
                     Ndege inayofuata
