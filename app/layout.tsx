@@ -59,10 +59,17 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${sora.variable} ${mono.variable} font-sans`}
       >
+        {/* Dark by default, and the toggle is how somebody leaves it.
+
+            enableSystem is off deliberately. With it on, "default" means the
+            visitor's operating system decides — so a customer on a light phone
+            would open the site in light whatever we set here, and the choice
+            would not be ours to make. The warehouse floor, the counter and the
+            phone in a van all read this in the dark. */}
         <ThemeProvider
           attribute="class"
-          defaultTheme="light"
-          enableSystem
+          defaultTheme="dark"
+          enableSystem={false}
           disableTransitionOnChange
         >
           <ToastProvider>{children}</ToastProvider>
