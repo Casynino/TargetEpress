@@ -242,7 +242,105 @@ export default async function AccountDetailPage({
           description="Payments attributed to it, costs paid from it and transfers in or out all appear here as they happen."
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
+        <>
+        {/*
+          One account's register, on a phone.
+
+          Recorded by, Reference, Related and Proof were all switched off below
+          various breakpoints, so a phone showed the date, a badge, a name and
+          an amount — not which receipt it was, what it related to, or whether
+          there is proof attached. On an account page, "where did this money
+          come from and can I evidence it" is the whole question.
+
+          Same shape as the general ledger: what it was on the left, the
+          movement on the right with its sign, and the supporting codes and
+          proof underneath.
+        */}
+        <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-soft md:hidden">
+          {entries.map((entry) => {
+            const inbound = entry.direction === "IN";
+            const detail =
+              entry.payment?.invoice.customer.name ??
+              entry.expense?.vendor ??
+              entry.description;
+            const related =
+              entry.payment?.receipt?.receiptNumber ??
+              entry.expense?.expenseNumber ??
+              entry.transfer?.transferNumber ??
+              null;
+            const tracking = entry.payment?.invoice.shipment.trackingNumber ?? null;
+            const proof =
+              entry.payment?.proofs[0]?.url ??
+              entry.expense?.receipts[0]?.url ??
+              null;
+
+            return (
+              <li key={entry.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{detail}</p>
+                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                      {entry.description}
+                    </p>
+                  </div>
+                  <p
+                    className={
+                      inbound
+                        ? "shrink-0 font-mono text-sm font-semibold tabular text-success"
+                        : "shrink-0 font-mono text-sm font-semibold tabular text-warning"
+                    }
+                  >
+                    {inbound ? "+" : "−"}
+                    {money(toNumber(entry.amount))}
+                  </p>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+                  <Badge
+                    variant="outline"
+                    className={`whitespace-nowrap px-1.5 py-0 text-[10px] font-normal ${
+                      inbound
+                        ? "border-success/40 text-success"
+                        : "border-warning/40 text-warning"
+                    }`}
+                  >
+                    {ENTRY_LABEL[entry.kind] ?? entry.kind}
+                  </Badge>
+                  <span>{formatDateTime(entry.occurredAt)}</span>
+                  {related ? (
+                    <span className="whitespace-nowrap font-mono text-muted-foreground/70">
+                      {related}
+                    </span>
+                  ) : null}
+                  {tracking ? (
+                    <Link
+                      href={`/app/cargo/${tracking}`}
+                      className="whitespace-nowrap font-mono text-brand hover:underline"
+                    >
+                      {tracking}
+                    </Link>
+                  ) : null}
+                  {proof ? (
+                    <a
+                      href={proof}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 font-medium text-brand hover:underline"
+                    >
+                      <Paperclip className="h-3 w-3" />
+                      Proof
+                    </a>
+                  ) : null}
+                  <span className="text-muted-foreground/70">
+                    {entry.recordedBy?.name ?? "—"}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="hidden overflow-hidden rounded-xl border bg-card shadow-soft md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -357,6 +455,7 @@ export default async function AccountDetailPage({
             </TableBody>
           </Table>
         </div>
+        </>
       )}
     </>
   );
