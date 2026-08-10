@@ -174,7 +174,104 @@ export default async function CustomerProfilePage({
             <header className="border-b p-4">
               <h2 className="font-semibold">Shipments</h2>
             </header>
-            <div className="overflow-x-auto">
+            {/*
+              A customer's shipments, on a phone.
+
+              Status was hidden below md and Registered below lg, so the two
+              questions this list answers — where is it, and how long ago —
+              were both switched off on the screen most likely to be open while
+              a customer is on the phone asking exactly that.
+
+              A card each: tracking and cargo, the status badge, and the money
+              with its Record payment action kept at full width, because that
+              is the thing somebody opens this page to do.
+            */}
+            <ul className="divide-y md:hidden">
+              {customer.shipments.map((shipment) => {
+                const outstanding = shipment.invoice
+                  ? Math.max(
+                      0,
+                      toNumber(shipment.invoice.total) -
+                        toNumber(shipment.invoice.amountPaid)
+                    )
+                  : null;
+                return (
+                  <li key={shipment.id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <Link
+                          href={`/app/cargo/${shipment.trackingNumber}`}
+                          className="font-mono text-sm font-semibold hover:text-brand"
+                        >
+                          {shipment.trackingNumber}
+                        </Link>
+                        <p className="mt-0.5 line-clamp-2 text-sm">
+                          {shipment.description}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          {formatWeight(shipment.weightKg)} · {shipment.packages} pkg
+                          {shipment.batch ? ` · ${shipment.batch.batchNumber}` : ""}
+                        </p>
+                      </div>
+                      <ShipmentStatusBadge status={shipment.status} />
+                    </div>
+
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Registered {formatDate(shipment.registeredAt)}
+                    </p>
+
+                    {showMoney ? (
+                      <div className="mt-3 border-t pt-3">
+                        {shipment.invoice ? (
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <Link
+                                href={`/app/finance/invoices/${shipment.invoice.id}`}
+                                className="font-mono text-xs hover:text-brand"
+                              >
+                                {shipment.invoice.invoiceNumber}
+                              </Link>
+                              <span
+                                className={`ml-2 text-xs tabular-nums ${
+                                  outstanding && outstanding > 0
+                                    ? "text-destructive"
+                                    : "text-success"
+                                }`}
+                              >
+                                {outstanding && outstanding > 0
+                                  ? `${formatUsd(outstanding)} owed`
+                                  : "paid"}
+                              </span>
+                            </div>
+                            {outstanding !== null &&
+                            outstanding > 0 &&
+                            shipment.invoice.status !== "DRAFT" &&
+                            (mayRecord || mayCollect) ? (
+                              <Link
+                                href={
+                                  mayRecord
+                                    ? `/app/cargo/${shipment.trackingNumber}`
+                                    : `/app/collections/record/${shipment.invoice.id}`
+                                }
+                                className="focus-ring inline-flex items-center rounded-full bg-brand px-3 py-1.5 text-[11px] font-semibold text-brand-foreground"
+                              >
+                                Record payment
+                              </Link>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            not billed
+                          </span>
+                        )}
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
