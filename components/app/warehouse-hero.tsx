@@ -84,16 +84,25 @@ export function WarehouseHero({
       />
 
       <div className="relative p-6">
-        <div className="flex flex-wrap items-start justify-between gap-6">
-          {/* flex-1 so the column takes the width it is given — max-w-2xl on
-              the search is a maximum, and a column sized to its own text never
-              reaches it. */}
-          <div className="min-w-0 flex-1">
+        {/*
+          Two blocks that stack on a phone and sit side by side from `sm`.
+
+          They were both flex children with no width floor, so on a 375px screen
+          the clocks and the scan button — which need about 300px between them —
+          took what they wanted and left the greeting roughly forty pixels to
+          live in. `flex-1` shrinks; it does not wrap. The result was a heading
+          reading one word per line down the middle of the phone, which is what
+          the warehouse actually sees every morning.
+
+          `w-full` below `sm` forces the wrap instead of the squeeze.
+        */}
+        <div className="flex flex-wrap items-start justify-between gap-5 sm:gap-6">
+          <div className="w-full min-w-0 sm:w-auto sm:flex-1">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
               {warehouseName}
             </span>
-            <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight text-white">
+            <h1 className="mt-3 font-display text-[26px] font-bold leading-tight tracking-tight text-white sm:text-[32px] sm:leading-none">
               {greeting}, {firstName}
             </h1>
             <p className="mt-2 text-sm text-white/80">
@@ -106,7 +115,7 @@ export function WarehouseHero({
             ) : null}
           </div>
 
-          <div className="flex flex-wrap items-center gap-5">
+          <div className="flex w-full flex-wrap items-center justify-between gap-4 sm:w-auto sm:justify-start sm:gap-5">
             <DualClock emphasis={emphasis} />
             <Link
               href={action.href}
