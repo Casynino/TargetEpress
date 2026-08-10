@@ -46,7 +46,34 @@ export default async function MyShipmentsPage() {
           You have not registered any cargo yet.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
+        <>
+        {/* Seven columns is a spreadsheet on a handset. Below md this is the
+            clerk's own record of what they booked in: what it was, whose it is,
+            and where it has got to. */}
+        <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-soft md:hidden">
+          {rows.map((row) => (
+            <li key={row.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <Link
+                  href={`/app/cargo/${row.trackingNumber}`}
+                  className="font-mono text-sm font-semibold tabular hover:text-brand"
+                >
+                  {row.trackingNumber}
+                </Link>
+                <ShipmentStatusBadge status={row.status as ShipmentStatus} />
+              </div>
+              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                {row.item}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {row.customerName} · {row.weightKg.toFixed(1)} kg ·{" "}
+                {row.packagesLabel} · {row.registeredLabel}
+              </p>
+            </li>
+          ))}
+        </ul>
+
+        <div className="hidden overflow-hidden rounded-xl border bg-card shadow-soft md:block">
           <div className="max-h-[70vh] overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -99,6 +126,7 @@ export default async function MyShipmentsPage() {
             </table>
           </div>
         </div>
+        </>
       )}
     </>
   );

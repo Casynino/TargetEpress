@@ -62,7 +62,80 @@ export default async function SupportSearchPage({
       ) : null}
 
       {results.length > 0 ? (
-        <div className="overflow-x-auto rounded-xl border bg-card shadow-soft">
+        <>
+        {/*
+          Customer Care searches this while somebody is on the phone. Six
+          columns on a handset is panning around a spreadsheet with a customer
+          waiting, so below md each result is a card: who they are and what they
+          sent, the status, and — where the desk is allowed to see money — what
+          is owed.
+        */}
+        <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-soft md:hidden">
+          {results.map((shipment) => {
+            const outstanding = shipment.invoice
+              ? Math.max(
+                  0,
+                  toNumber(shipment.invoice.total) -
+                    toNumber(shipment.invoice.amountPaid)
+                )
+              : null;
+            return (
+              <li key={shipment.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/app/customers/${shipment.customer.id}`}
+                      className="block truncate font-medium hover:text-brand"
+                    >
+                      {shipment.customer.name}
+                    </Link>
+                    <p className="font-mono text-[11px] text-muted-foreground">
+                      {shipment.customer.phone ?? "no phone"}
+                    </p>
+                  </div>
+                  <ShipmentStatusBadge status={shipment.status} />
+                </div>
+
+                <Link
+                  href={`/app/cargo/${shipment.trackingNumber}`}
+                  className="mt-2 block font-mono text-sm font-semibold hover:text-brand"
+                >
+                  {shipment.trackingNumber}
+                </Link>
+                <p className="mt-0.5 line-clamp-2 text-sm">{shipment.description}</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {formatWeight(shipment.weightKg)} · {shipment.packages} pkg ·{" "}
+                  {shipment.origin === "GUANGZHOU" ? "Guangzhou" : "Hong Kong"}
+                  {shipment.batch ? ` · ${shipment.batch.batchNumber}` : ""}
+                </p>
+
+                {showMoney ? (
+                  <div className="mt-2 flex items-center gap-2 border-t pt-2 font-mono text-xs tabular-nums">
+                    {outstanding === null ? (
+                      <span className="text-muted-foreground">not billed</span>
+                    ) : outstanding > 0 ? (
+                      <span className="text-destructive">
+                        {formatUsd(outstanding)} owed
+                      </span>
+                    ) : (
+                      <span className="text-success">paid</span>
+                    )}
+                    {shipment.invoice && !shipment.invoice.sentAt ? (
+                      <Badge
+                        variant="outline"
+                        className="border-warning/40 text-[10px] text-warning"
+                      >
+                        never sent
+                      </Badge>
+                    ) : null}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="hidden overflow-x-auto rounded-xl border bg-card shadow-soft md:block">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -145,6 +218,7 @@ export default async function SupportSearchPage({
             </tbody>
           </table>
         </div>
+        </>
       ) : null}
     </>
   );
