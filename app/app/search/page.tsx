@@ -159,13 +159,23 @@ export default async function SearchCargoPage({
       <PageHeader
         title="Search cargo"
         description="Find a box by its QR label, tracking number, customer name or phone number."
+        /*
+          Offered only to the desks that can actually use a camera.
+
+          This page is reachable by every role, but the scanner behind this
+          button is not: it lives on the release screen, which needs
+          shipment.release. Ungated, three of the five roles pressed it and
+          were bounced to /app/no-access.
+        */
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/app/scan">
-              <ScanLine className="mr-2 h-4 w-4" />
-              Use the camera
-            </Link>
-          </Button>
+          can(user.role, "shipment.release") ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/app/release">
+                <ScanLine className="mr-2 h-4 w-4" />
+                Use the camera
+              </Link>
+            </Button>
+          ) : null
         }
       />
 

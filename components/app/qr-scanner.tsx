@@ -74,7 +74,9 @@ export function QrScanner({
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-muted text-center">
             <Camera className="h-8 w-8 text-muted-foreground/60" />
             <p className="px-6 text-sm text-muted-foreground">{label}</p>
-            <Button type="button" variant="brand" size="sm" onClick={start}>
+            {/* Tapped for every consignment, all day, on a phone held in one
+              hand — 36px was too small for the control this screen turns on. */}
+          <Button type="button" variant="brand" className="h-11" onClick={start}>
               Start camera
             </Button>
           </div>

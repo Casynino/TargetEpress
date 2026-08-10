@@ -36,9 +36,21 @@ export async function releaseShipment(
   if (!parsed.success) return fail(firstError(parsed.error));
   const input = parsed.data;
 
-  const scanned = await resolveScannedCode(input.shipmentQr);
-  if (!scanned) {
+  /**
+   * The scan, when there was one.
+   *
+   * A code identifies the cargo AND proves the box was in somebody's hand. A
+   * pickup note id identifies it only — used when the label is unreadable, and
+   * recorded below as exactly that.
+   */
+  const scanned = input.shipmentQr
+    ? await resolveScannedCode(input.shipmentQr)
+    : null;
+  if (input.shipmentQr && !scanned) {
     return fail("That code is not a Target Express label.");
+  }
+  if (!scanned && !input.pickupNoteId) {
+    return fail("Scan the cargo label to confirm.");
   }
 
   // Proof of handover. Required before anything leaves the building, and
@@ -74,7 +86,7 @@ export async function releaseShipment(
       const note = await tx.pickupNote.findFirst({
         where: input.pickupNoteId
           ? { id: input.pickupNoteId }
-          : { shipmentId: scanned.shipmentId, status: "ACTIVE" },
+          : { shipmentId: scanned!.shipmentId, status: "ACTIVE" },
         orderBy: { issuedAt: "desc" },
         select: {
           id: true,
@@ -118,7 +130,7 @@ export async function releaseShipment(
       // The scanned carton must belong to the exact shipment on the note. A
       // package label resolves to its shipment, so scanning any one of the five
       // boxes is enough to identify the consignment.
-      if (note.shipment.id !== scanned.shipmentId) {
+      if (scanned && note.shipment.id !== scanned.shipmentId) {
         throw new Error(
           `The scanned cargo is not the one on this pickup note (${note.shipment.trackingNumber}). Do not release it.`
         );
@@ -163,7 +175,22 @@ export async function releaseShipment(
           receiverPhone: input.receiverPhone,
           receiverIdNumber: input.receiverIdNumber || null,
           relationship: input.relationship,
-          note: input.note || null,
+          /*
+            The record says when nothing was scanned.
+
+            Written by the server, from whether a code actually arrived — not
+            from a flag the browser could set. A handover backed only by a
+            photograph must be distinguishable months later, when it is the
+            thing a claim turns on.
+          */
+          note: scanned
+            ? input.note || null
+            : [
+                "Released without scanning the label (label unreadable).",
+                input.note?.trim(),
+              ]
+                .filter(Boolean)
+                .join(" "),
           releasedById: user.id,
           releasedAt: now,
         },
@@ -219,7 +246,10 @@ export async function releaseShipment(
             relationship: input.relationship,
             deliveryPhotos: uploaded.length,
             packagesReleased: note.shipment.packageList.length,
-            scannedPackage: scanned.package?.reference ?? "shipment label",
+            // The audit line says which box was read, or that none was.
+            scannedPackage: scanned
+              ? (scanned.package?.reference ?? "shipment label")
+              : "none — label unreadable",
           },
         },
         tx

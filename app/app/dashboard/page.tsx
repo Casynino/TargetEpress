@@ -271,7 +271,7 @@ export default async function DashboardPage() {
           action={
             can(user.role, "shipment.create")
               ? { href: "/app/cargo/new", label: "Receive cargo" }
-              : { href: "/app/scan", label: "Scan a label" }
+              : { href: "/app/release", label: "Scan & release" }
           }
           // The same box the money and support desks open on. The floor is
           // asked "where is my cargo" all day too.
@@ -341,9 +341,9 @@ export default async function DashboardPage() {
                 Receive cargo
               </Link>
             ) : null}
-            {can(user.role, "shipment.scan") ? (
+            {can(user.role, "shipment.release") ? (
               <Link
-                href="/app/scan"
+                href="/app/release"
                 className={
                   can(user.role, "shipment.create")
                     ? "focus-ring inline-flex items-center rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/25"
@@ -351,7 +351,7 @@ export default async function DashboardPage() {
                 }
               >
                 <ScanLine className="mr-2 h-4 w-4" />
-                Scan QR
+                Scan &amp; release
               </Link>
             ) : null}
           </div>

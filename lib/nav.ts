@@ -114,16 +114,6 @@ const SECTIONS: NavSection[] = [
         permission: "pickupNote.view",
       },
       {
-        href: "/app/scan",
-        label: "Scan QR",
-        icon: "ScanLine",
-        // The warehouse floors only. China prints labels and never scans them;
-        // Finance and Support are never standing in front of a box. Offering
-        // the link to a desk that cannot use it implies a workflow that does
-        // not exist.
-        permission: "shipment.scan",
-      },
-      {
         href: "/app/receive",
         label: "Receive & verify",
         icon: "ClipboardCheck",
@@ -131,8 +121,15 @@ const SECTIONS: NavSection[] = [
       },
       {
         href: "/app/release",
-        label: "Release cargo",
-        icon: "Truck",
+        // "Scan & release", not two entries.
+        //
+        // There was a "Scan QR" door and a "Release cargo" door, and they now
+        // open the same room: a scan lands on the release screen and finishes
+        // there. Naming it for both halves is what stops a clerk hunting for
+        // the scanner — the same two roles hold both permissions, so nobody
+        // sees this who cannot do either.
+        label: "Scan & release",
+        icon: "ScanLine",
         permission: "shipment.release",
       },
       {
@@ -334,10 +331,10 @@ const DAR_SECTIONS: NavSection[] = [
         permission: "shipment.view",
       },
       {
-        href: "/app/scan",
-        label: "Scan QR",
+        href: "/app/release",
+        label: "Scan & release",
         icon: "ScanLine",
-        permission: "shipment.scan",
+        permission: "shipment.release",
       },
       {
         href: "/app/pickup-queue",
@@ -733,10 +730,9 @@ const ADMIN_SECTIONS: NavSection[] = [
     title: "Shipments",
     group: { label: "Shipments", icon: "PlaneTakeoff" },
     items: [
-      { href: "/app/scan", label: "Scan QR", icon: "ScanLine", permission: "shipment.scan" },
+      { href: "/app/release", label: "Scan & release", icon: "ScanLine", permission: "shipment.release" },
       { href: "/app/batches", label: "Batches", icon: "Boxes", permission: "batch.view" },
       { href: "/app/shipments", label: "Shipments", icon: "PlaneTakeoff", permission: "batch.view" },
-      { href: "/app/release", label: "Release cargo", icon: "Truck", permission: "shipment.release" },
     ],
   },
   {

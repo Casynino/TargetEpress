@@ -326,7 +326,7 @@ export default async function TestDataPage() {
                     <TableCell>
                       <div className="flex flex-wrap items-center justify-end gap-2">
                         <Button asChild size="sm" variant="signal">
-                          <Link href={`/app/scan?code=${encodeURIComponent(payload)}`}>
+                          <Link href={`/app/release?code=${encodeURIComponent(payload)}`}>
                             <ScanLine className="mr-1.5 h-3.5 w-3.5" />
                             Scan this
                           </Link>

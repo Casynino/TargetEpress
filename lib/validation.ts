@@ -195,13 +195,31 @@ export const releaseSchema = z.object({
    * the scanned shipment; left out, the note is found from the cargo.
    */
   pickupNoteId: z.string().min(1).optional(),
-  shipmentQr: z.string().trim().min(1, "Scan the cargo label to confirm."),
+  /**
+   * The code read off the box. Optional ONLY when a pickupNoteId names the
+   * cargo instead.
+   *
+   * A torn or soaked label cannot be scanned, and that is exactly when somebody
+   * is standing at the counter with the box and the customer. Refusing the
+   * handover there is not a security control, it is a queue; the mandatory
+   * proof-of-delivery photograph is what carries the evidence in that case.
+   *
+   * The absence is recorded on the delivery, so "released without a scan" is a
+   * thing the record says rather than a thing nobody can tell afterwards. Every
+   * other guard — note open, status, investigation lock, every carton present —
+   * is unchanged and still runs inside the release transaction.
+   */
+  shipmentQr: z.string().trim().min(1).optional(),
   receiverName: z.string().trim().min(2, "Receiver name is required."),
   receiverPhone: z.string().trim().min(7, "Receiver phone is required."),
   receiverIdNumber: z.string().trim().optional(),
   relationship: z.enum(["SELF", "AGENT", "EMPLOYEE", "FAMILY"]),
   note: z.string().trim().optional(),
-});
+})
+  .refine((v) => Boolean(v.shipmentQr || v.pickupNoteId), {
+    message: "Scan the cargo label to confirm.",
+    path: ["shipmentQr"],
+  });
 
 export const exceptionSchema = z.object({
   shipmentId: z.string().min(1),

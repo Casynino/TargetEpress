@@ -1,36 +1,33 @@
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
-import { PageHeader } from "@/components/app/page-header";
-import { ScanWorkbench } from "@/components/app/scan-workbench";
-import { ROLE_LABELS } from "@/lib/constants";
 import { requirePermission } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Scan QR" };
-
-const ROLE_HINT: Record<string, string> = {
-  DAR_WAREHOUSE: "You will see whether this cargo may be released.",
-  FINANCE: "You will see the invoice and what is still owed.",
-  ADMIN: "You will see the full picture for this shipment.",
-};
+/**
+ * The old scan screen, now a doorway.
+ *
+ * Scanning a label used to open a detail page that reported what the cargo was
+ * and then offered a button through to the release page, where the counter
+ * scanned the same box again. The two permissions involved make that pointless:
+ * `shipment.scan` and `shipment.release` are held by exactly the same roles, so
+ * nobody was ever shown that page who could not have gone straight to the
+ * handover. It cost a navigation with a customer standing there.
+ *
+ * Kept as a redirect rather than deleted: the code is printed inside test
+ * material, sits in bookmarks and browser history, and a warehouse phone that
+ * has autocompleted /app/scan for months should still land somewhere useful.
+ */
+export const metadata: Metadata = { title: "Scan a label" };
 
 export default async function ScanPage({
   searchParams,
 }: {
   searchParams: Promise<{ code?: string }>;
 }) {
-  const user = await requirePermission("shipment.scan");
+  // Checked before redirecting, so a role without the permission still gets the
+  // refusal it would have got here rather than one from another route.
+  await requirePermission("shipment.scan");
   const { code } = await searchParams;
 
-  return (
-    <div className="mx-auto max-w-2xl">
-      <PageHeader
-        title="Scan a label"
-        description={`${ROLE_LABELS[user.role]} — ${ROLE_HINT[user.role] ?? ""}`}
-      />
-      {/* A code in the URL is resolved immediately. That makes a QR testable
-          without a second device, and lets a scanner app that opens URLs hand
-          off straight into this screen. */}
-      <ScanWorkbench initialCode={code} />
-    </div>
-  );
+  redirect(code ? `/app/release?code=${encodeURIComponent(code)}` : "/app/release");
 }

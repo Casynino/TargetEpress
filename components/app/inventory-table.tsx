@@ -404,7 +404,9 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
               </Button>
               {row.paid ? (
                 <Button asChild size="sm" variant="signal">
-                  <Link href="/app/release">Hand over</Link>
+                  <Link href={`/app/release?open=${encodeURIComponent(row.trackingNumber)}`}>
+                    Hand over
+                  </Link>
                 </Button>
               ) : null}
             </div>
