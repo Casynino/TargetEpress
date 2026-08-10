@@ -134,7 +134,72 @@ export default async function TicketsPage({
         <NewTicketForm customers={customers} />
       </div>
 
-      <div className="overflow-x-auto rounded-xl border bg-card shadow-soft">
+      {/*
+        A ticket queue on a phone.
+
+        Category, Handled by and Opened were switched off below md, xl and lg,
+        so a phone showed a subject, a caller and two badges — not who is
+        dealing with it or how long it has been sitting. "Whose is this and how
+        old is it" is the whole job of a queue.
+
+        A ticket is a thing you act on one at a time, so it gets a card rather
+        than a compact register row: subject first, then the caller and their
+        number, then the state and the age.
+      */}
+      <ul className="space-y-3 md:hidden">
+        {tickets.map((ticket) => (
+          <li key={ticket.id} className="panel p-4">
+            <Link
+              href={`/app/support/tickets/${ticket.id}`}
+              className="block font-medium hover:text-brand"
+            >
+              {ticket.subject}
+            </Link>
+            <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+              {ticket.ticketNumber}
+              {ticket.shipment ? ` · ${ticket.shipment.trackingNumber}` : ""}
+            </p>
+
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline" className={PRIORITY_TONE[ticket.priority] ?? ""}>
+                {ticket.priority.toLowerCase()}
+              </Badge>
+              <Badge variant="outline" className={STATUS_TONE[ticket.status] ?? ""}>
+                {ticket.status.replace(/_/g, " ").toLowerCase()}
+              </Badge>
+              <span className="text-[11px] text-muted-foreground">
+                {CATEGORY_LABEL[ticket.category] ?? ticket.category}
+              </span>
+            </div>
+
+            <div className="mt-3 flex items-end justify-between gap-3 border-t pt-3 text-xs">
+              <div className="min-w-0">
+                {ticket.customer ? (
+                  <Link
+                    href={`/app/customers/${ticket.customer.id}`}
+                    className="block truncate font-medium hover:text-brand"
+                  >
+                    {ticket.customer.name}
+                  </Link>
+                ) : (
+                  <span className="block truncate font-medium">
+                    {ticket.contactName ?? "Unknown caller"}
+                  </span>
+                )}
+                <span className="block font-mono text-[11px] text-muted-foreground">
+                  {ticket.customer?.phone ?? ticket.contactPhone ?? "—"}
+                </span>
+              </div>
+              <div className="shrink-0 text-right text-[11px] text-muted-foreground">
+                <span className="block">{ticket.assignedTo?.name ?? "Unassigned"}</span>
+                <span className="block">{formatDateTime(ticket.createdAt)}</span>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden overflow-x-auto rounded-xl border bg-card shadow-soft md:block">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
