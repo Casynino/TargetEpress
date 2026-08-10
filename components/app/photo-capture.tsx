@@ -19,6 +19,62 @@ type Preview = { id: string; url: string; name: string; sizeMb: string };
  * The file input is left in the DOM (visually hidden) rather than being
  * re-created, so the FormData the parent form submits always carries the files.
  */
+
+/**
+ * Shrink a photo in the browser before it is ever sent.
+ *
+ * The reason is a hard platform limit, not a preference: a Vercel serverless
+ * function refuses a request body over 4.5 MB, and no config raises it. A
+ * modern phone photo is 3-8 MB, so releasing cargo with a handover photo
+ * failed in production with "Something went wrong" while working perfectly on
+ * a laptop — the request never reached the action, which is why nothing was
+ * saved and no error of ours was ever shown.
+ *
+ * 1600px on the long edge at 82% JPEG is 200-600 KB. That is far inside the
+ * limit, uploads in a second on the mobile data this business actually runs on,
+ * and is still more resolution than a proof-of-condition photo needs — you can
+ * read a carton label and see a torn corner.
+ *
+ * It also converts HEIC to JPEG on the way through: iPhones hand over HEIC,
+ * which most Android phones and Windows machines cannot display. A proof
+ * photograph nobody can open is not proof.
+ *
+ * If anything here fails — an exotic format, a browser without canvas — the
+ * original file is used. A slightly-too-big photo that might fail beats no
+ * photo at all, and the server still enforces its own limit.
+ */
+const MAX_EDGE = 1600;
+const JPEG_QUALITY = 0.82;
+
+async function shrink(file: File): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY)
+    );
+    if (!blob || blob.size >= file.size) return file;
+
+    const name = (file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg";
+    return new File([blob], name, { type: "image/jpeg", lastModified: Date.now() });
+  } catch {
+    return file;
+  }
+}
+
 export function PhotoCapture({
   name = "photos",
   required = false,
@@ -60,12 +116,23 @@ export function PhotoCapture({
     );
   }
 
-  function add(incoming: FileList | null) {
+  const [working, setWorking] = useState(false);
+
+  async function add(incoming: FileList | null) {
     if (!incoming) return;
     const room = max - filesRef.current.length;
     if (room <= 0) return;
-    filesRef.current = [...filesRef.current, ...Array.from(incoming).slice(0, room)];
-    sync();
+
+    setWorking(true);
+    try {
+      const shrunk = await Promise.all(
+        Array.from(incoming).slice(0, room).map(shrink)
+      );
+      filesRef.current = [...filesRef.current, ...shrunk];
+      sync();
+    } finally {
+      setWorking(false);
+    }
   }
 
   function remove(index: number) {
@@ -120,17 +187,17 @@ export function PhotoCapture({
           type="button"
           variant="signal"
           size="sm"
-          disabled={full}
+          disabled={full || working}
           onClick={() => cameraRef.current?.click()}
         >
           <Camera className="mr-2 h-4 w-4" />
-          Take photo
+          {working ? "Preparing…" : "Take photo"}
         </Button>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          disabled={full}
+          disabled={full || working}
           onClick={() => libraryRef.current?.click()}
         >
           <ImagePlus className="mr-2 h-4 w-4" />

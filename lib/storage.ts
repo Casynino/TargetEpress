@@ -19,7 +19,7 @@ import { join } from "path";
  * nobody deploys believing photos are being kept when they are not.
  */
 
-const MAX_BYTES = 6 * 1024 * 1024; // 6 MB — a phone photo, not a raw scan
+const MAX_BYTES = 4 * 1024 * 1024; // under Vercel's 4.5 MB request ceiling
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/heic"]);
 
 export type StoredImage = { url: string; bytes: number; contentType: string };
@@ -95,7 +95,7 @@ export async function putImage(
  * to a bank or shown to a customer has to open on the other end, and HEIC does
  * not open on most of what a Tanzanian customer or a bank clerk is using.
  */
-const DOC_MAX_BYTES = 12 * 1024 * 1024;
+const DOC_MAX_BYTES = 4 * 1024 * 1024; // as above — the platform, not a preference
 const DOC_ALLOWED = new Set([
   "image/jpeg",
   "image/png",
