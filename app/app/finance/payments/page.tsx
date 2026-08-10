@@ -190,7 +190,109 @@ export default async function PaymentsPage() {
             description="Payments are recorded from a shipment's page once an invoice exists."
           />
         ) : (
-          <div className="rounded-xl border bg-card shadow-soft">
+          <>
+          {/*
+            A phone gets cards, not a table with most of it switched off.
+
+            The table hides Customer, Method, Landed in, Received by and When
+            below various breakpoints, so on a phone a finance clerk saw a
+            receipt number, a tracking number and an amount — not who paid,
+            how, into which account, or when. Those are the questions this page
+            exists to answer, and hiding them is worse than scrolling for them.
+          */}
+          <ul className="space-y-3 md:hidden">
+            {payments.map((payment) => (
+              <li key={payment.id} className="panel p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/app/cargo/${payment.invoice.shipment.trackingNumber}`}
+                      className="block font-mono text-sm font-semibold tabular hover:text-brand"
+                    >
+                      {payment.invoice.shipment.trackingNumber}
+                    </Link>
+                    <p className="mt-0.5 truncate text-sm">
+                      {payment.invoice.customer.name}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="font-mono text-base font-semibold tabular">
+                      {formatMoney(payment.amount, payment.currency)}
+                    </p>
+                    {payment.creditedAmount !== null &&
+                    payment.currency !== payment.invoice.currency ? (
+                      <p className="text-[11px] text-muted-foreground">
+                        settled {formatUsd(toNumber(payment.creditedAmount))}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t pt-3 text-xs">
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Method
+                    </dt>
+                    <dd className="mt-0.5">
+                      {PAYMENT_METHOD_LABELS[payment.method]}
+                      {payment.reference ? (
+                        <span className="block text-[11px] text-muted-foreground">
+                          {payment.reference}
+                        </span>
+                      ) : null}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Received by
+                    </dt>
+                    <dd className="mt-0.5">{payment.receivedBy?.name ?? "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      When
+                    </dt>
+                    <dd className="mt-0.5 text-muted-foreground">
+                      {formatDateTime(payment.paidAt)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Receipt
+                    </dt>
+                    <dd className="mt-0.5">
+                      <Link
+                        href={`/app/finance/payments/${payment.id}`}
+                        className="font-mono tabular hover:text-brand"
+                      >
+                        {payment.receipt?.receiptNumber ?? "Open"}
+                      </Link>
+                    </dd>
+                  </div>
+                </dl>
+
+                {/* Attribution is an action, not a field — it gets the width. */}
+                <div className="mt-3 border-t pt-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Landed in
+                  </p>
+                  <div className="mt-1">
+                    {payment.account ? (
+                      <span className="text-sm">{payment.account.name}</span>
+                    ) : (
+                      <AttributePayment
+                        paymentId={payment.id}
+                        currency={payment.currency}
+                        accounts={accounts}
+                      />
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden rounded-xl border bg-card shadow-soft md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -272,6 +374,7 @@ export default async function PaymentsPage() {
               </TableBody>
             </Table>
           </div>
+          </>
         )}
       </div>
     </>
