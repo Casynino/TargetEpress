@@ -403,7 +403,72 @@ export function CargoGrid({
         </p>
       )}
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
+      {/*
+        Eleven columns, two of them pinned to the right edge. That is a good
+        desk table and an impossible phone one — and this list is read on the
+        floor, next to the cargo it describes.
+
+        Below md: one card per consignment. Flagged cargo keeps its red tint,
+        because "which of these has a problem" is the question somebody walking
+        the floor is actually asking.
+      */}
+      <ul className="space-y-2 md:hidden">
+        {sorted.map((cell) => (
+          <li
+            key={cell.id}
+            className={cn(
+              "rounded-xl border bg-card p-3 shadow-soft",
+              cell.verification === "EXCEPTION" && "border-destructive/40 bg-destructive/5"
+            )}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <Link
+                href={`/app/cargo/${cell.trackingNumber}`}
+                className="font-mono text-sm font-semibold hover:text-brand"
+              >
+                {cell.trackingNumber}
+              </Link>
+              <span className="shrink-0 text-xs">
+                {cell.verification === "EXCEPTION" ? (
+                  <span className="font-medium text-destructive">Flagged</span>
+                ) : cell.verification === "VERIFIED" ? (
+                  <span className="text-success">Checked in</span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    {SHORT_STATUS[cell.statusLabel] ?? cell.statusLabel}
+                  </span>
+                )}
+              </span>
+            </div>
+
+            <p className="mt-1 truncate text-sm">{cell.customerName}</p>
+            <p className="line-clamp-2 text-xs text-muted-foreground">
+              {cell.description}
+            </p>
+
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+              <span className="font-mono tabular-nums">
+                {cell.weightKg.toFixed(1)} kg
+              </span>
+              <span className="font-mono tabular-nums">{cell.packagesLabel}</span>
+              <span>{cell.receivedLabel}</span>
+              {showPrice && cell.price ? (
+                <span className="font-mono tabular-nums text-foreground">
+                  {cell.price.currency} {cell.price.amount.toFixed(2)}
+                  {!cell.price.confirmed ? (
+                    <span className="ml-1 rounded bg-signal/10 px-1 py-0.5 text-[10px] font-medium text-signal">
+                      draft
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+              <PhotoProof photos={cell.photos} tracking={cell.trackingNumber} />
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden overflow-hidden rounded-xl border bg-card shadow-soft md:block">
           <div className="max-h-[70vh] overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
