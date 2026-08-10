@@ -28,6 +28,8 @@ type Note = {
   packages: number;
   weightKg: number;
   description: string;
+  /** Every code printed for this cargo: the shipment's, and one per carton. */
+  tokens: string[];
 };
 
 /**
@@ -44,6 +46,7 @@ export function ReleaseWorkbench({
 }) {
   const [selected, setSelected] = useState<Note | null>(null);
   const [query, setQuery] = useState("");
+  const [scanMiss, setScanMiss] = useState<string | null>(null);
 
   const filtered = notes.filter((note) => {
     const q = query.trim().toLowerCase();
@@ -59,8 +62,56 @@ export function ReleaseWorkbench({
   return (
     <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
       <section className="rounded-xl border bg-card shadow-soft">
+        {/*
+          The scan comes first, because the box is what identifies the cargo.
+
+          The counter used to pick a customer off this list and then scan to
+          confirm the pick — two identifications of one consignment, where the
+          second could only agree with the first and the first could be wrong.
+          Now the scan opens the customer. The list stays underneath for the
+          times a label is torn, wet or missing, which happens on a warehouse
+          floor and should not stop a handover.
+        */}
         <div className="border-b p-4">
-          <h2 className="text-sm font-semibold">Cleared for collection</h2>
+          <h2 className="text-sm font-semibold">Scan the box</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            The customer&apos;s pickup note is for reading — only the box gets
+            scanned.
+          </p>
+          <div className="mt-3">
+            <QrScanner
+              onResult={(raw) => {
+                // The label encodes a URL ending /t/<token>; a bare token also
+                // works, which is what older labels carry.
+                const token =
+                  raw.trim().match(/\/t\/([A-Za-z0-9_\-%]+)\/?$/)?.[1] ??
+                  raw.trim().replace(/^TXAC:[SP]:/, "");
+                const hit = notes.find((n) =>
+                  n.tokens.some((t) => t === token || t === decodeURIComponent(token))
+                );
+                if (hit) {
+                  setScanMiss(null);
+                  setSelected(hit);
+                } else {
+                  // Cleared cargo only reaches this list once Finance has
+                  // issued a note, so an unmatched scan is usually a shipment
+                  // that has not been paid for — say that, not "not found".
+                  setScanMiss(
+                    "That box is not cleared for collection. It may be unpaid, already collected, or on hold — search for it below."
+                  );
+                }
+              }}
+            />
+          </div>
+          {scanMiss ? (
+            <p className="mt-2 rounded-lg border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
+              {scanMiss}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="border-b p-4">
+          <h2 className="text-sm font-semibold">Or find it by hand</h2>
           <div className="relative mt-3">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -116,10 +167,10 @@ export function ReleaseWorkbench({
         <div className="flex items-center justify-center rounded-xl border border-dashed bg-muted/20 p-12 text-center">
           <div>
             <ScanLine className="mx-auto h-8 w-8 text-muted-foreground/50" />
-            <p className="mt-3 font-medium">Pick the customer&apos;s note to begin</p>
+            <p className="mt-3 font-medium">Scan the box to begin</p>
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-              Read their pickup note to confirm who they are — it never needs
-              scanning. The only code you scan is the one on the box.
+              Read the pickup note to check who they are, then scan the code on
+              the carton. It opens their cargo and its payment status.
             </p>
           </div>
         </div>

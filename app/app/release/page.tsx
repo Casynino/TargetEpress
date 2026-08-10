@@ -26,6 +26,11 @@ export default async function ReleasePage() {
           weightKg: true,
           description: true,
           status: true,
+          // Every code printed for this consignment: the shipment's own, and
+          // one per carton. The counter scans a box and this is what tells the
+          // screen which customer is standing in front of them.
+          qrToken: true,
+          packageList: { select: { qrToken: true }, orderBy: { sequence: "asc" } },
         },
       },
     },
@@ -35,7 +40,7 @@ export default async function ReleasePage() {
     <>
       <PageHeader
         title="Release cargo"
-        description="Scan the customer's pickup note, then scan the cargo. Both must match before anything leaves."
+        description="Read the customer's pickup note, then scan the box. The scan opens their cargo."
       />
 
       {notes.length === 0 ? (
@@ -58,6 +63,10 @@ export default async function ReleasePage() {
             trackingNumber: note.shipment.trackingNumber,
             packages: note.shipment.packages,
             weightKg: toNumber(note.shipment.weightKg),
+            tokens: [
+              note.shipment.qrToken,
+              ...note.shipment.packageList.map((pkg) => pkg.qrToken),
+            ],
             description: note.shipment.description,
           }))}
         />
