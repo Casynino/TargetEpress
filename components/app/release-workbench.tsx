@@ -104,9 +104,15 @@ export function ReleaseWorkbench({
             />
           </div>
           {scanMiss ? (
-            <p className="mt-2 rounded-lg border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
-              {scanMiss}
-            </p>
+            <div className="mt-2 rounded-xl border-2 border-destructive/50 bg-destructive/10 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-destructive/80">
+                Payment status
+              </p>
+              <p className="font-display text-base font-bold leading-tight text-destructive">
+                NOT CLEARED — DO NOT RELEASE
+              </p>
+              <p className="mt-1 text-xs text-destructive/90">{scanMiss}</p>
+            </div>
           ) : null}
         </div>
 
@@ -237,6 +243,35 @@ function ReleaseForm({
           {note.packages} package(s) · {formatWeight(note.weightKg)} ·{" "}
           {note.description}
         </p>
+
+        {/*
+          The money question, answered before anything else.
+
+          Everything on this screen arrived here because Finance issued a
+          pickup note, and Finance issues one only once the invoice is settled —
+          so cargo that reaches this form is paid, and saying so plainly is what
+          lets a clerk hand a box over without going to find someone. The
+          opposite case never gets this far: unpaid cargo has no note, so a scan
+          of it does not open this form at all. That is the guarantee, and it is
+          worth stating in the words the floor uses rather than leaving the
+          clerk to infer it from a figure in the corner.
+        */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-success/50 bg-success/10 px-4 py-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-success/80">
+              Payment status
+            </p>
+            <p className="font-display text-lg font-bold leading-tight text-success">
+              PAID — READY FOR RELEASE
+            </p>
+          </div>
+          <p className="text-right text-xs text-success/80">
+            <span className="block font-mono text-sm font-semibold">
+              {formatMoney(note.amountPaid, note.currency)}
+            </span>
+            settled in full
+          </p>
+        </div>
       </header>
 
       <div className="grid gap-6 md:grid-cols-2">
