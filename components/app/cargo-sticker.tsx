@@ -20,6 +20,8 @@ export type StickerData = {
   sequence: number;
   /** Printed under the tracking number: TX-2026-00125-P1. */
   packageRef: string;
+  /** When the box was booked in at the China counter, already formatted. */
+  registeredOn: string;
   /** Pre-rendered QR as a data URL — generated on the server. */
   qr: string;
 };
@@ -110,6 +112,10 @@ export function CargoSticker({ data }: { data: StickerData }) {
               ORIGIN_LABELS[data.origin as keyof typeof ORIGIN_LABELS] ?? data.origin,
           },
           { label: "Batch", value: data.batchNumber ?? "—" },
+          // The date the box entered our custody. A label with no date on it
+          // cannot settle an argument about how long something has been sitting
+          // in a warehouse, which is the argument these labels get used in.
+          { label: "Registered", value: data.registeredOn },
         ].map((item) => (
           <div key={item.label}>
             <dt className="text-[9px] font-semibold uppercase tracking-widest text-black/60">

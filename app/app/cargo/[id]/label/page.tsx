@@ -8,7 +8,7 @@ import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_LABELS } from "@/lib/cargo";
 import { formatPackages } from "@/lib/constants";
-import { formatWeight } from "@/lib/format";
+import { formatDate, formatWeight } from "@/lib/format";
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { packageQrDataUrl } from "@/lib/qr";
@@ -79,6 +79,7 @@ export default async function LabelPage({
         shipment.packageType
       ),
       weightLabel: formatWeight(shipment.weightKg),
+      registeredOn: formatDate(shipment.registeredAt),
       origin: shipment.origin,
       batchNumber: shipment.batch?.batchNumber ?? null,
       sequence: pkg.sequence,

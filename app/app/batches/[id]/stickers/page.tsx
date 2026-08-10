@@ -8,7 +8,7 @@ import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_LABELS } from "@/lib/cargo";
 import { formatPackages } from "@/lib/constants";
-import { formatWeight } from "@/lib/format";
+import { formatDate, formatWeight } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { packageQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
@@ -80,6 +80,7 @@ export default async function BatchStickersPage({
         packages: item.packageList.length,
         packagesLabel: formatPackages(item.packageList.length, item.packageType),
         weightLabel: formatWeight(item.weightKg),
+        registeredOn: formatDate(item.registeredAt),
         origin: item.origin,
         batchNumber: item.batch?.batchNumber ?? null,
         sequence: pkg.sequence,

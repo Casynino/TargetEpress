@@ -2,24 +2,34 @@ import "server-only";
 
 import QRCode from "qrcode";
 
+import { siteUrl } from "@/lib/site-url";
+
 /**
  * QR payloads.
  *
- * Two kinds of label exist. `TXAC:S:` identifies a shipment — the customer's
- * order, one per invoice. `TXAC:P:` identifies a single physical package, and
- * that is the one that goes on a box: five cartons carry five different codes.
+ * Every code is a URL, because the phone in a customer's hand is the commonest
+ * scanner this business has. The old payload was `TXAC:P:<token>` — plain text
+ * to a camera, which answers "No usable data found" and leaves the person
+ * holding a box none the wiser. A URL opens the tracking page for that cargo
+ * with no app and no account.
  *
- * Both carry an opaque token rather than a tracking number, and both are
- * prefixed so a scanner can tell one of our labels from a random QR printed by
- * a Guangzhou supplier. Scanning resolves the token server-side — the code
- * itself grants nothing without a signed-in user.
+ * It carries the token rather than the tracking number, and that is deliberate.
+ * Tracking numbers run in sequence: TX-000042 tells you TX-000043 exists. This
+ * same code is what the Dar counter scans to identify a box before releasing
+ * it, so a guessable one is a way to walk in and claim someone else's cargo.
+ * The token is random and unguessable; /t/<token> resolves it and sends the
+ * visitor on to the public tracking page, which was always meant to be read by
+ * anyone holding the number.
+ *
+ * The label prints the tracking number and "2 of 5" in large type beside the
+ * code. Nobody reads a QR by eye — they read the label and scan the code.
  */
 export function shipmentQrPayload(qrToken: string) {
-  return `TXAC:S:${qrToken}`;
+  return `${siteUrl()}/t/${encodeURIComponent(qrToken)}`;
 }
 
 export function packageQrPayload(qrToken: string) {
-  return `TXAC:P:${qrToken}`;
+  return `${siteUrl()}/t/${encodeURIComponent(qrToken)}`;
 }
 
 export type ScannedCode = {
@@ -37,8 +47,15 @@ export function parseQrPayload(raw: string): ScannedCode | null {
   const shipment = value.match(/^TXAC:S:(.+)$/);
   if (shipment) return { kind: "shipment", token: shipment[1] };
 
-  // Tolerate a bare token, and full URLs from older labels. Neither says which
-  // kind it is; the resolver falls back to looking in both tables.
+  // The current label: a URL ending /t/<token>. "shipment" is a guess the
+  // resolver corrects — it looks the token up in both tables, and a token is
+  // unique across them.
+  const link = value.match(/\/t\/([A-Za-z0-9_\-%]+)\/?$/);
+  if (link) return { kind: "shipment", token: decodeURIComponent(link[1]) };
+
+  // Tolerate a bare token, and older URL shapes. Labels already glued to boxes
+  // in Guangzhou carry the old payloads and must keep working for as long as
+  // those boxes are in the air.
   const urlMatch = value.match(/[?&]t=([^&]+)/);
   if (urlMatch) return { kind: "shipment", token: decodeURIComponent(urlMatch[1]) };
   if (/^TXQ[\w-]{20,}$/.test(value)) return { kind: "shipment", token: value };

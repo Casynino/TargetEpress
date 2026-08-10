@@ -78,5 +78,23 @@ export function normalisePhone(input: string): string {
 
 /** Tracking / batch numbers are typed by hand constantly — be forgiving. */
 export function normaliseCode(input: string) {
-  return input.trim().toUpperCase().replace(/\s+/g, "");
+  const value = input.trim().toUpperCase().replace(/\s+/g, "");
+
+  /**
+   * Put the dash back into a tracking number.
+   *
+   * Tracking numbers are TX-000131, and people type TX000131, tx131, or read
+   * one off a label without the dash. Every one of those found nothing, which
+   * on a page whose entire job is a lookup reads as "your cargo does not
+   * exist" — and now that the label carries a typeable /track/TX-000131 link,
+   * a missed dash is a customer who thinks we lost their box.
+   *
+   * Only TX followed by digits is touched. Batch numbers (BATCH-2026-001) and
+   * China batch codes (GZ-SHIP-2026-001) carry letters and more than one dash,
+   * and are left exactly as typed.
+   */
+  const tx = value.replace(/-/g, "").match(/^TX(\d{1,6})$/);
+  if (tx) return `TX-${tx[1].padStart(6, "0")}`;
+
+  return value;
 }
