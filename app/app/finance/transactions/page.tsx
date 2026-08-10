@@ -353,7 +353,101 @@ export default async function LedgerPage({
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border bg-card">
+        <>
+        {/*
+          A ledger on a phone.
+
+          Nothing was hidden here — unlike the payments table, this one scrolls
+          sideways, so every column was reachable. But a register is read down
+          the balance, and you cannot follow a balance you have to swipe to see.
+          Ten columns on a 375px screen is a spreadsheet somebody is panning
+          around, not a page.
+
+          So below `md`: one line per entry with what it was and what it moved,
+          the running balance directly under the amount, and the codes on a
+          third line for anyone matching a receipt in their hand. The same
+          derivation as the table below — title, purpose, refs and category are
+          computed once per entry in both, from the same fields.
+        */}
+        <ul className="divide-y overflow-hidden rounded-xl border bg-card md:hidden">
+          {entries.map((entry) => {
+            const inbound = entry.direction === "IN";
+            const amount = formatMoney(toNumber(entry.amount), entry.currency);
+
+            let title = entry.description;
+            let purpose: string | null = null;
+            if (entry.payment) {
+              title = entry.payment.invoice.customer.name;
+              purpose = entry.payment.invoice.shipment.description;
+            } else if (entry.expense) {
+              title = entry.expense.description;
+              purpose = entry.expense.vendor ? `paid to ${entry.expense.vendor}` : null;
+            } else if (entry.transfer) {
+              title = inbound
+                ? `In from ${entry.transfer.fromAccount.name}`
+                : `Out to ${entry.transfer.toAccount.name}`;
+              purpose = entry.transfer.reason;
+            }
+
+            const refs = [
+              entry.payment?.receipt?.receiptNumber ??
+                entry.expense?.expenseNumber ??
+                entry.transfer?.transferNumber ??
+                entry.entryNumber,
+              entry.payment?.invoice.shipment.trackingNumber,
+            ].filter((v): v is string => Boolean(v));
+
+            return (
+              <li key={entry.id} className="relative">
+                <Link
+                  href={`/app/finance/transactions/${entry.id}`}
+                  className="block p-4 transition-colors hover:bg-accent/40"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{title}</p>
+                      {purpose ? (
+                        <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                          {purpose}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p
+                        className={
+                          inbound
+                            ? "font-mono text-sm font-semibold tabular text-success"
+                            : "font-mono text-sm font-semibold tabular text-destructive"
+                        }
+                      >
+                        {inbound ? "+" : "−"}
+                        {amount}
+                      </p>
+                      {/* The balance under the movement, which is the pair a
+                          register is actually read in. */}
+                      <p className="mt-0.5 font-mono text-[11px] tabular text-muted-foreground">
+                        {showBalance(runningById.get(entry.id) ?? 0)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+                    <span>{formatDate(entry.occurredAt)}</span>
+                    <span aria-hidden>·</span>
+                    <span className="truncate">{entry.account.name}</span>
+                    {refs.map((ref) => (
+                      <span key={ref} className="whitespace-nowrap font-mono text-muted-foreground/70">
+                        {ref}
+                      </span>
+                    ))}
+                  </p>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="hidden overflow-x-auto rounded-xl border bg-card md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -543,6 +637,7 @@ export default async function LedgerPage({
             </TableBody>
           </Table>
         </div>
+        </>
       )}
 
       {pages > 1 ? (
