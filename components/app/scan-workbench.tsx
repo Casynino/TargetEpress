@@ -12,6 +12,14 @@ import { formatMoney, formatWeight } from "@/lib/format";
 
 export function ScanWorkbench({ initialCode }: { initialCode?: string }) {
   const [result, setResult] = useState<ScanResult | null>(null);
+  /**
+   * The raw string the camera read.
+   *
+   * Kept so "Go to release" can hand the scan on. It used to link to a bare
+   * /app/release, which threw the scan away and asked the counter to point the
+   * camera at the same box a second time.
+   */
+  const [rawCode, setRawCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -20,6 +28,7 @@ export function ScanWorkbench({ initialCode }: { initialCode?: string }) {
     startTransition(async () => {
       const response = await resolveScan(code);
       if (response.ok && response.data) {
+        setRawCode(code);
         setResult(response.data);
       } else {
         setResult(null);
@@ -147,7 +156,11 @@ export function ScanWorkbench({ initialCode }: { initialCode?: string }) {
           </Button>
           {result.canRelease ? (
             <Button asChild variant="signal">
-              <Link href="/app/release">Go to release</Link>
+              <Link
+                href={`/app/release?code=${encodeURIComponent(rawCode || result.trackingNumber)}`}
+              >
+                Release this cargo
+              </Link>
             </Button>
           ) : null}
         </div>

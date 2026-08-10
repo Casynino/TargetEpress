@@ -33,20 +33,64 @@ type Note = {
 };
 
 /**
- * Counter workflow: pick the pickup note, scan the actual carton, capture who
- * is taking it. The scan is verified server-side against the note — this UI
- * only collects it.
+ * Which cargo does this scanned string belong to?
+ *
+ * Labels encode a URL ending /t/<token>; older ones carry a bare token or the
+ * TXAC: prefix. Shared by the camera here and by a scan handed over from
+ * /app/scan, so both doors resolve a code identically.
+ */
+function matchNote(notes: Note[], raw: string) {
+  const trimmed = raw.trim();
+  const token =
+    trimmed.match(/\/t\/([A-Za-z0-9_\-%]+)\/?$/)?.[1] ??
+    trimmed.replace(/^TXAC:[SP]:/, "");
+  const scanned = notes.find((n) =>
+    n.tokens.some((t) => t === token || t === decodeURIComponent(token))
+  );
+  if (scanned) return { note: scanned, viaScan: true };
+
+  // A tracking number identifies the cargo but is not a scan of the box, so it
+  // opens the note without satisfying the scan the server verifies.
+  const typed = notes.find(
+    (n) => n.trackingNumber.toLowerCase() === trimmed.toLowerCase()
+  );
+  return typed ? { note: typed, viaScan: false } : null;
+}
+
+/**
+ * Counter workflow: scan the carton, check the receiver, hand it over. One
+ * scan. The scan is verified server-side against the note — this UI only
+ * collects it.
  */
 export function ReleaseWorkbench({
   notes,
   photosDurable,
+  initialCode,
 }: {
   notes: Note[];
   photosDurable: boolean;
+  /**
+   * A code already scanned on /app/scan and handed over in the URL.
+   *
+   * The counter scans once, at whichever screen they happen to be on, and
+   * lands here with the cargo already open and the scan already satisfied.
+   */
+  initialCode?: string;
 }) {
-  const [selected, setSelected] = useState<Note | null>(null);
+  const handover = initialCode ? matchNote(notes, initialCode) : null;
+  const [selected, setSelected] = useState<Note | null>(handover?.note ?? null);
   const [query, setQuery] = useState("");
   const [scanMiss, setScanMiss] = useState<string | null>(null);
+  /**
+   * The code that opened this cargo, carried into the form.
+   *
+   * Without it the counter scanned at the top of the page to find the customer
+   * and then scanned the very same box again inside the form — which is the
+   * double scan this whole change exists to remove.
+   */
+  const [scannedCode, setScannedCode] = useState(
+    handover?.viaScan ? initialCode!.trim() : ""
+  );
 
   const filtered = notes.filter((note) => {
     const q = query.trim().toLowerCase();
@@ -72,6 +116,39 @@ export function ReleaseWorkbench({
           times a label is torn, wet or missing, which happens on a warehouse
           floor and should not stop a handover.
         */}
+        {/*
+          Once a cargo is open, the picker gets out of the way.
+
+          A counter arriving from a scan on another screen was landing on a
+          live camera with the release form pushed below it — which reads as
+          "scan again", whatever the form underneath already knows. The picker
+          returns the moment they finish or choose different cargo.
+        */}
+        {selected ? (
+          <div className="flex items-center justify-between gap-3 p-4">
+            <div className="min-w-0">
+              <p className="font-mono text-sm font-medium tabular">
+                {selected.trackingNumber}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {selected.customerName}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={() => {
+                setSelected(null);
+                setScannedCode("");
+              }}
+            >
+              Different cargo
+            </Button>
+          </div>
+        ) : (
+          <>
         <div className="border-b p-4">
           <h2 className="text-sm font-semibold">Scan the box</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -81,17 +158,11 @@ export function ReleaseWorkbench({
           <div className="mt-3">
             <QrScanner
               onResult={(raw) => {
-                // The label encodes a URL ending /t/<token>; a bare token also
-                // works, which is what older labels carry.
-                const token =
-                  raw.trim().match(/\/t\/([A-Za-z0-9_\-%]+)\/?$/)?.[1] ??
-                  raw.trim().replace(/^TXAC:[SP]:/, "");
-                const hit = notes.find((n) =>
-                  n.tokens.some((t) => t === token || t === decodeURIComponent(token))
-                );
+                const hit = matchNote(notes, raw);
                 if (hit) {
                   setScanMiss(null);
-                  setSelected(hit);
+                  setScannedCode(hit.viaScan ? raw.trim() : "");
+                  setSelected(hit.note);
                 } else {
                   // Cleared cargo only reaches this list once Finance has
                   // issued a note, so an unmatched scan is usually a shipment
@@ -135,9 +206,7 @@ export function ReleaseWorkbench({
               <button
                 type="button"
                 onClick={() => setSelected(note)}
-                className={`w-full px-4 py-3 text-left transition-colors hover:bg-muted/60 ${
-                  selected?.id === note.id ? "bg-brand/5" : ""
-                }`}
+                className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/60"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono text-sm font-medium tabular">
@@ -160,12 +229,15 @@ export function ReleaseWorkbench({
             </li>
           ) : null}
         </ul>
+          </>
+        )}
       </section>
 
       {selected ? (
         <ReleaseForm
           key={selected.id}
           note={selected}
+          initialScan={scannedCode}
           photosDurable={photosDurable}
           onDone={() => setSelected(null)}
         />
@@ -189,16 +261,19 @@ function ReleaseForm({
   note,
   photosDurable,
   onDone,
+  initialScan = "",
 }: {
   note: Note;
   photosDurable: boolean;
   onDone: () => void;
+  /** The scan that opened this cargo. Empty when it was found by hand. */
+  initialScan?: string;
 }) {
   const [state, action] = useActionState<
     ActionResult<{ trackingNumber: string }>,
     FormData
   >(releaseShipment, { ok: true });
-  const [scanned, setScanned] = useState("");
+  const [scanned, setScanned] = useState(initialScan);
 
   if (state.ok && state.data?.trackingNumber) {
     return (
@@ -276,30 +351,26 @@ function ReleaseForm({
 
       <div className="grid gap-6 md:grid-cols-2">
         <div>
-          <h3 className="mb-3 text-sm font-semibold">1. Scan the box</h3>
+          <h3 className="mb-3 text-sm font-semibold">
+            {scanned ? "1. Box confirmed" : "1. Scan the box"}
+          </h3>
           {scanned ? (
             <div className="rounded-xl border border-success/40 bg-success/5 p-4">
               <p className="flex items-center gap-2 text-sm font-medium text-success">
                 <PackageCheck className="h-4 w-4" />
-                Label captured
+                Scanned — no need to scan again
               </p>
+              {/* The tail of the code, not the whole URL. It is here so a
+                  supervisor can tell two labels apart, and "http://…/t/" is
+                  the same on every one of them. */}
               <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
-                {scanned}
+                {scanned.split("/").pop() || scanned}
               </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-2"
-                onClick={() => setScanned("")}
-              >
-                Scan a different label
-              </Button>
             </div>
           ) : (
             <QrScanner
               onResult={setScanned}
-              label="Point the camera at the QR on the pickup note"
+              label="Point the camera at the QR on the carton"
             />
           )}
         </div>

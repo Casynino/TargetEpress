@@ -11,7 +11,14 @@ import { storageIsDurable } from "@/lib/storage";
 
 export const metadata: Metadata = { title: "Release cargo" };
 
-export default async function ReleasePage() {
+export default async function ReleasePage({
+  searchParams,
+}: {
+  // A scan taken on /app/scan arrives here as ?code=, so the counter never
+  // points the camera at the same box twice.
+  searchParams: Promise<{ code?: string }>;
+}) {
+  const { code } = await searchParams;
   await requirePermission("shipment.release");
 
   const notes = await prisma.pickupNote.findMany({
@@ -40,7 +47,7 @@ export default async function ReleasePage() {
     <>
       <PageHeader
         title="Release cargo"
-        description="Read the customer's pickup note, then scan the box. The scan opens their cargo."
+        description="One scan of the box opens the cargo and confirms it. Check the receiver, take the photo, hand it over."
       />
 
       {notes.length === 0 ? (
@@ -51,6 +58,7 @@ export default async function ReleasePage() {
         />
       ) : (
         <ReleaseWorkbench
+          initialCode={code}
           photosDurable={storageIsDurable()}
           notes={notes.map((note) => ({
             id: note.id,
