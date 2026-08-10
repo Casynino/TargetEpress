@@ -99,37 +99,56 @@ export function AgeingBar({
           const share = (segment.value / total) * 100;
           const empty = segment.count === 0;
           return (
+            /*
+              Two lines on a phone, one line from `sm`.
+
+              The row is a label plus three fixed-width figures. On a 375px
+              screen those figures claim about 275px between them, so the label
+              was squeezed to "Landed today or yester…" and the percentage was
+              pushed off the edge — the shape in the owner's screenshot. Nothing
+              here is optional: the band, how many consignments, how many boxes
+              and what share of the floor are the whole point of the chart.
+
+              So the label gets its own line and the figures line up underneath
+              it, which is also the order somebody reads them in.
+            */
             <li
               key={segment.key}
               className={cn(
-                "flex items-center gap-2 text-xs",
+                "flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:gap-2",
                 empty && "opacity-40"
               )}
             >
-              <span
-                className={cn(
-                  "h-2 w-2 shrink-0 rounded-full",
-                  DOT[i] ?? DOT[DOT.length - 1]
-                )}
-                aria-hidden
-              />
-              <span className="min-w-0 flex-1 truncate">{segment.label}</span>
-              <span className="shrink-0 text-[11px] text-muted-foreground">
-                {segment.count} {unit}
-                {segment.count === 1 ? "" : "s"}
+              <span className="flex min-w-0 items-center gap-2 sm:flex-1">
+                <span
+                  className={cn(
+                    "h-2 w-2 shrink-0 rounded-full",
+                    DOT[i] ?? DOT[DOT.length - 1]
+                  )}
+                  aria-hidden
+                />
+                <span className="min-w-0 flex-1 truncate">{segment.label}</span>
               </span>
-              <span
-                className={cn(
-                  // Wide enough for "TSh 25,458,300" on one line. At w-20 it wrapped, and a
-                // figure split across two lines is read as two figures.
-                "w-28 shrink-0 whitespace-nowrap text-right font-mono text-[11px] tabular-nums",
-                  empty ? "" : TEXT[i] ?? TEXT[TEXT.length - 1]
-                )}
-              >
-                {format(segment.value)}
-              </span>
-              <span className="w-8 shrink-0 text-right font-mono text-[10px] tabular-nums text-muted-foreground">
-                {share >= 0.5 ? `${Math.round(share)}%` : "—"}
+
+              <span className="flex items-center justify-between gap-2 pl-4 sm:contents sm:pl-0">
+                <span className="shrink-0 text-[11px] text-muted-foreground">
+                  {segment.count} {unit}
+                  {segment.count === 1 ? "" : "s"}
+                </span>
+                <span
+                  className={cn(
+                    // Wide enough for "TSh 25,458,300" on one line. At w-20 it
+                    // wrapped, and a figure split across two lines is read as
+                    // two figures.
+                    "shrink-0 whitespace-nowrap text-right font-mono text-[11px] tabular-nums sm:w-28",
+                    empty ? "" : TEXT[i] ?? TEXT[TEXT.length - 1]
+                  )}
+                >
+                  {format(segment.value)}
+                </span>
+                <span className="w-8 shrink-0 text-right font-mono text-[10px] tabular-nums text-muted-foreground">
+                  {share >= 0.5 ? `${Math.round(share)}%` : "—"}
+                </span>
               </span>
             </li>
           );
