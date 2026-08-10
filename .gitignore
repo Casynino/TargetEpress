@@ -28,3 +28,5 @@ next-env.d.ts
 
 # local editor / tooling config
 .claude/
+.env*
+!.env.example
