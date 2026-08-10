@@ -59,8 +59,23 @@ export async function releaseShipment(
 
   try {
     const trackingNumber = await prisma.$transaction(async (tx) => {
-      const note = await tx.pickupNote.findUnique({
-        where: { id: input.pickupNoteId },
+      /**
+       * The note follows the cargo, not the other way round.
+       *
+       * One scan of the carton is the whole identification: a package label
+       * resolves to its shipment, and a shipment has one open pickup note. The
+       * counter used to choose the note from a list and then scan to prove the
+       * choice — two steps where the second could only ever agree with the
+       * first, and the first could be wrong.
+       *
+       * Every guard below is unchanged. Finding the note this way is stricter
+       * than choosing it: a clerk cannot land on another customer's note.
+       */
+      const note = await tx.pickupNote.findFirst({
+        where: input.pickupNoteId
+          ? { id: input.pickupNoteId }
+          : { shipmentId: scanned.shipmentId, status: "ACTIVE" },
+        orderBy: { issuedAt: "desc" },
         select: {
           id: true,
           noteNumber: true,
@@ -84,7 +99,13 @@ export async function releaseShipment(
           },
         },
       });
-      if (!note) throw new Error("Pickup note not found.");
+      if (!note) {
+        // Said in the counter's terms: the cargo is real and in front of them,
+        // what is missing is Finance's clearance to hand it over.
+        throw new Error(
+          "No pickup note is open for this cargo. Finance issues one once the invoice is settled — check the payment first."
+        );
+      }
       if (note.status === "USED") {
         throw new Error(
           `${note.noteNumber} has already been used. This cargo was collected.`

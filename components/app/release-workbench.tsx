@@ -116,10 +116,10 @@ export function ReleaseWorkbench({
         <div className="flex items-center justify-center rounded-xl border border-dashed bg-muted/20 p-12 text-center">
           <div>
             <ScanLine className="mx-auto h-8 w-8 text-muted-foreground/50" />
-            <p className="mt-3 font-medium">Pick a pickup note to begin</p>
+            <p className="mt-3 font-medium">Pick the customer&apos;s note to begin</p>
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-              Choose the customer&apos;s note from the list, then scan the cargo
-              label to confirm you are handing over the right box.
+              Read their pickup note to confirm who they are — it never needs
+              scanning. The only code you scan is the one on the box.
             </p>
           </div>
         </div>
@@ -190,7 +190,7 @@ function ReleaseForm({
 
       <div className="grid gap-6 md:grid-cols-2">
         <div>
-          <h3 className="mb-3 text-sm font-semibold">1. Scan the pickup note</h3>
+          <h3 className="mb-3 text-sm font-semibold">1. Scan the box</h3>
           {scanned ? (
             <div className="rounded-xl border border-success/40 bg-success/5 p-4">
               <p className="flex items-center gap-2 text-sm font-medium text-success">
@@ -308,7 +308,7 @@ function ReleaseForm({
         </SubmitButton>
         {!scanned ? (
           <p className="text-xs text-muted-foreground">
-            Scan the pickup note first.
+            Scan the box first.
           </p>
         ) : null}
         <Button type="button" variant="ghost" onClick={onDone}>

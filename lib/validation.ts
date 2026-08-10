@@ -185,7 +185,16 @@ export const paymentSchema = z.object({
 });
 
 export const releaseSchema = z.object({
-  pickupNoteId: z.string().min(1),
+  /**
+   * Optional: the scan identifies the cargo, and the cargo has exactly one
+   * pickup note open at a time.
+   *
+   * It was required, which forced the counter to pick a customer's note off a
+   * list before scanning anything — a step that could pick the WRONG note, and
+   * that the scan then only re-proved. Passed in it is still checked against
+   * the scanned shipment; left out, the note is found from the cargo.
+   */
+  pickupNoteId: z.string().min(1).optional(),
   shipmentQr: z.string().trim().min(1, "Scan the cargo label to confirm."),
   receiverName: z.string().trim().min(2, "Receiver name is required."),
   receiverPhone: z.string().trim().min(7, "Receiver phone is required."),
