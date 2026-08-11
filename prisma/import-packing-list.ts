@@ -472,7 +472,18 @@ async function main() {
         customerId,
         cargoCategory: line.category,
         goodsType: classify(line.cn, line.en),
-        description: describe(line.cn, line.en),
+        /*
+          The sheet already carries both languages — column C Chinese, column D
+          English — so the bilingual columns are filled from it directly rather
+          than being left for a translator to guess at later. `description`
+          keeps what Guangzhou typed, which is the Chinese, and each rendering
+          sits beside it. A Dar clerk reading English sees "Auto parts"; the
+          Guangzhou desk sees 汽配; neither is shown the other's language.
+        */
+        description: line.cn.trim() || describe(line.cn, line.en),
+        descriptionZh: line.cn.trim() || null,
+        descriptionEn: line.en.trim() ? capitalise(line.en.replace(/\s+/g, " ").trim()) : null,
+        descriptionLang: line.cn.trim() ? "zh" : line.en.trim() ? "en" : null,
         packages: line.quantity,
         weightKg: new Prisma.Decimal(line.weightKg),
         origin: route,
@@ -484,6 +495,25 @@ async function main() {
         createdById: china.id,
         internalNotes: notes.join(" "),
       },
+    });
+
+    /*
+      One row per physical box, each with its own QR — the same thing
+      createShipment does for cargo registered through the app.
+
+      This was missing, so imported cargo carried a package COUNT and no
+      packages. Nothing could be printed for it, nothing could be scanned, and
+      a release refuses any shipment whose boxes are not all checked in — which
+      for a shipment with no package rows is all of them. A real manifest
+      imported this way was cargo the counter could never hand over.
+    */
+    await prisma.package.createMany({
+      data: Array.from({ length: Math.max(1, line.quantity) }, (_, index) => ({
+        shipmentId: shipment.id,
+        sequence: index + 1,
+        reference: `${trackingNumber}-P${index + 1}`,
+        qrToken: qrToken(),
+      })),
     });
 
     await prisma.shipmentStatusHistory.create({
