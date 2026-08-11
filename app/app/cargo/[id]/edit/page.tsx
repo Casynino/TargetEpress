@@ -9,10 +9,12 @@ import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { cargoHistory } from "@/lib/actions/cargo-edit";
 import { formatDateTime, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { storageIsDurable } from "@/lib/storage";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Edit cargo" };
 
@@ -33,6 +35,7 @@ export default async function EditCargoPage({
   params: Promise<{ id: string }>;
 }) {
   const user = await requirePermission("shipment.edit");
+  const locale = await viewerLocale();
   const { id } = await params;
   const key = decodeURIComponent(id);
 
@@ -81,7 +84,7 @@ export default async function EditCargoPage({
           <Button asChild variant="ghost" size="sm">
             <Link href={`/app/cargo/${cargo.trackingNumber}`}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to cargo
+              {t(locale, "Back to cargo")}
             </Link>
           </Button>
         }
@@ -117,22 +120,26 @@ export default async function EditCargoPage({
 
         <section className="panel h-fit">
           <div className="border-b px-5 py-4">
-            <h2 className="font-display font-semibold">Change history</h2>
+            <h2 className="font-display font-semibold">
+              {t(locale, "Change history")}
+            </h2>
             <p className="text-xs text-muted-foreground">
               {can(user.role, "audit.view")
-                ? "Every edit ever made to this record."
-                : "Kept for management."}
+                ? t(locale, "Every edit ever made to this record.")
+                : t(locale, "Kept for management.")}
             </p>
           </div>
 
           {!can(user.role, "audit.view") ? (
             <p className="p-5 text-sm text-muted-foreground">
-              Your changes are recorded with your name against them. Management
-              can read the full history.
+              {t(
+                locale,
+                "Your changes are recorded with your name against them. Management can read the full history."
+              )}
             </p>
           ) : history.length === 0 ? (
             <p className="p-5 text-sm text-muted-foreground">
-              Nothing has been changed since this cargo was received.
+              {t(locale, "Nothing has been changed since this cargo was received.")}
             </p>
           ) : (
             <ol className="divide-y">
@@ -142,7 +149,7 @@ export default async function EditCargoPage({
                     {entry.actorName} · {formatDateTime(entry.createdAt)}
                   </p>
                   <p className="mt-1 text-sm">
-                    <span className="font-medium">{entry.label}</span>{" "}
+                    <span className="font-medium">{t(locale, entry.label)}</span>{" "}
                     <span className="text-muted-foreground line-through">
                       {entry.before}
                     </span>{" "}

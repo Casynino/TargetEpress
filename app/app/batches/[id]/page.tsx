@@ -16,9 +16,11 @@ import {
   formatPackagesShort,
 } from "@/lib/constants";
 import { formatDate, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Batch" };
 
@@ -52,6 +54,7 @@ export default async function LoadingTablePage({
   params: Promise<{ id: string }>;
 }) {
   const user = await requirePermission("batch.view");
+  const locale = await viewerLocale();
   const { id } = await params;
 
   const batch = await prisma.batch.findUnique({
@@ -137,13 +140,13 @@ export default async function LoadingTablePage({
             <Button asChild variant="outline" size="sm">
               <Link href={`/app/batches/${batch.id}/manifest`}>
                 <FileText className="mr-2 h-4 w-4" />
-                Manifest
+                {t(locale, "Manifest")}
               </Link>
             </Button>
             <Button asChild variant="ghost" size="sm">
               <Link href="/app/batches">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Both batches
+                {t(locale, "Both batches")}
               </Link>
             </Button>
           </>
@@ -153,42 +156,42 @@ export default async function LoadingTablePage({
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           delay={0}
-          label="Cargo waiting"
+          label={t(locale, "Cargo waiting")}
           numeric={waiting.length}
           hint={
             byUnit.length > 0
               ? byUnit
                   .map(([type, count]) => formatPackages(count, type))
                   .join(" · ")
-              : "Nothing waiting"
+              : t(locale, "Nothing waiting")
           }
           icon={Package}
           tone="brand"
         />
         <KpiCard
           delay={1}
-          label="Total weight"
+          label={t(locale, "Total weight")}
           value={`${totalWeight.toFixed(1)} kg`}
-          hint="What the flight will carry"
+          hint={t(locale, "What the flight will carry")}
           icon={Scale}
           tone="info"
         />
         <KpiCard
           delay={2}
-          label="Customers"
+          label={t(locale, "Customers")}
           numeric={customers}
-          hint="Waiting on this flight"
+          hint={t(locale, "Waiting on this flight")}
           icon={Users}
           tone="signal"
         />
         <KpiCard
           delay={3}
-          label="Oldest piece"
-          value={daysWaiting === 0 ? "Today" : `${daysWaiting} days`}
+          label={t(locale, "Oldest piece")}
+          value={daysWaiting === 0 ? t(locale, "Today") : `${daysWaiting} days`}
           hint={
             oldest
               ? `Received ${oldest.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`
-              : "Nothing waiting"
+              : t(locale, "Nothing waiting")
           }
           icon={Clock}
           tone={daysWaiting >= 7 ? "warning" : "success"}
@@ -204,8 +207,10 @@ export default async function LoadingTablePage({
               table belong{misrouted.length === 1 ? "s" : ""} on the other one
             </p>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Assignment is automatic, so this should not happen. Check the cargo
-              category before dispatching.
+              {t(
+                locale,
+                "Assignment is automatic, so this should not happen. Check the cargo category before dispatching."
+              )}
             </p>
             <ul className="mt-2 space-y-1 text-sm">
               {misrouted.map((shipment) => (
@@ -218,7 +223,7 @@ export default async function LoadingTablePage({
                   </Link>
                   <span className="ml-2 text-muted-foreground">
                     {shipment.description} —{" "}
-                    {CATEGORY_LABELS[shipment.cargoCategory]}
+                    {t(locale, CATEGORY_LABELS[shipment.cargoCategory])}
                   </span>
                 </li>
               ))}
@@ -231,7 +236,7 @@ export default async function LoadingTablePage({
         <div className="mb-6">
           <DispatchForm
             batchId={batch.id}
-            routeLabel={ROUTE_LABEL[batch.origin] ?? "batch"}
+            routeLabel={t(locale, ROUTE_LABEL[batch.origin] ?? "batch")}
             cargoCount={waiting.length}
             weightKg={totalWeight}
             packages={totalPackages}
@@ -241,7 +246,9 @@ export default async function LoadingTablePage({
 
       <section className="rounded-xl border bg-card shadow-soft">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-          <h2 className="font-display font-semibold">On this table</h2>
+          <h2 className="font-display font-semibold">
+            {t(locale, "On this table")}
+          </h2>
           <p className="text-xs tabular-nums text-muted-foreground">
             {waiting.length} piece(s) · {totalPackages} package(s) ·{" "}
             {totalWeight.toFixed(1)} kg
@@ -250,10 +257,12 @@ export default async function LoadingTablePage({
 
         {waiting.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="font-medium">Nothing waiting</p>
+            <p className="font-medium">{t(locale, "Nothing waiting")}</p>
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-              Cargo appears here the moment the desk registers it. Nobody has to
-              put it here.
+              {t(
+                locale,
+                "Cargo appears here the moment the desk registers it. Nobody has to put it here."
+              )}
             </p>
           </div>
         ) : (

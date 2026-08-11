@@ -15,6 +15,7 @@ import {
 import { InvestigationTimeline } from "@/components/app/investigation-timeline";
 import { RecordCompensationForm } from "@/components/app/compensation-form";
 import { LifecycleSteps } from "@/components/app/lifecycle-steps";
+import { useT } from "@/components/app/locale-provider";
 import { ResolveInvestigationForm } from "@/components/app/resolve-investigation-form";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +77,8 @@ export function ExceptionTable({
   /** A historical list rather than a live queue — styled back. */
   closed?: boolean;
 }) {
+  const t = useT();
+
   if (exceptions.length === 0) return null;
 
   return (
@@ -85,21 +88,21 @@ export function ExceptionTable({
           <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="w-8 px-2 py-2" />
-              <th className="px-3 py-2 font-medium">Problem</th>
-              <th className="px-3 py-2 font-medium">Case</th>
-              <th className="px-3 py-2 font-medium">Tracking</th>
-              <th className="px-3 py-2 font-medium">Customer</th>
+              <th className="px-3 py-2 font-medium">{t("Problem")}</th>
+              <th className="px-3 py-2 font-medium">{t("Case")}</th>
+              <th className="px-3 py-2 font-medium">{t("Tracking")}</th>
+              <th className="px-3 py-2 font-medium">{t("Customer")}</th>
               <th className="hidden px-3 py-2 font-medium xl:table-cell">
-                Goods
+                {t("Goods")}
               </th>
               <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
-                Boxes here
+                {t("Boxes here")}
               </th>
               <th className="hidden px-3 py-2 font-medium lg:table-cell">
-                Cargo status
+                {t("Cargo status")}
               </th>
               <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
-                {closed ? "Closed" : "Open for"}
+                {closed ? t("Closed") : t("Open for")}
               </th>
             </tr>
           </thead>
@@ -131,6 +134,7 @@ function ExceptionRow({
   assignees: { id: string; name: string; roleLabel: string }[];
   closed: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const detailId = `case-${exception.id}`;
 
@@ -169,7 +173,7 @@ function ExceptionRow({
               }`}
             />
             <span className="sr-only">
-              {open ? "Hide case detail" : "Show case detail"}
+              {open ? t("Hide case detail") : t("Show case detail")}
             </span>
           </button>
         </td>
@@ -197,7 +201,7 @@ function ExceptionRow({
             {exception.compensation && !exception.compensation.paidAt ? (
               <Coins
                 className="h-3.5 w-3.5 text-warning"
-                aria-label="Payout recorded, not yet paid"
+                aria-label={t("Payout recorded, not yet paid")}
               />
             ) : null}
           </span>
@@ -224,11 +228,11 @@ function ExceptionRow({
         <td className="whitespace-nowrap px-3 py-1.5 text-right tabular">
           {absent.length > 0 ? (
             <span className="font-semibold text-warning">
-              {onFloor} of {total}
+              {onFloor} {t("of")} {total}
             </span>
           ) : (
             <span>
-              {onFloor} of {total}
+              {onFloor} {t("of")} {total}
             </span>
           )}
         </td>
@@ -242,7 +246,7 @@ function ExceptionRow({
             formatDate(exception.resolvedAt)
           ) : (
             <span className={age >= 7 ? "font-semibold text-destructive" : ""}>
-              {age === 0 ? "today" : `${age}d`}
+              {age === 0 ? t("today") : `${age}d`}
             </span>
           )}
         </td>
@@ -289,6 +293,7 @@ function CaseRecord({
   absent: number[];
   unit: { one: string; many: string };
 }) {
+  const t = useT();
   const { shipment } = exception;
 
   return (
@@ -299,11 +304,13 @@ function CaseRecord({
       <div className="grid items-start gap-4 lg:grid-cols-2">
         {/* ---- The case ------------------------------------------------ */}
         <div className="space-y-3">
-          <Panel title="Reported issue">
+          <Panel title={t("Reported issue")}>
             <p className="text-sm">{exception.description}</p>
             {exception.severity ? (
               <p className="mt-2 text-xs">
-                <span className="text-muted-foreground">Damage severity: </span>
+                <span className="text-muted-foreground">
+                  {t("Damage severity:")}{" "}
+                </span>
                 <Badge
                   variant={
                     exception.severity === "TOTAL_LOSS" ||
@@ -318,24 +325,24 @@ function CaseRecord({
             ) : null}
           </Panel>
 
-          <Panel title="The case">
+          <Panel title={t("The case")}>
           <dl className="grid gap-x-6 gap-y-3 text-xs sm:grid-cols-2">
-            <Fact label="Reported by">
+            <Fact label={t("Reported by")}>
               {exception.raisedByName ?? "—"}
               <span className="block text-muted-foreground">
                 {formatDateTime(exception.raisedAt)}
               </span>
             </Fact>
-            <Fact label="Carried by">
-              {exception.assignedToName ?? "Nobody yet"}
+            <Fact label={t("Carried by")}>
+              {exception.assignedToName ?? t("Nobody yet")}
             </Fact>
-            <Fact label="Customer">
+            <Fact label={t("Customer")}>
               {shipment.customerName}
               <span className="block text-muted-foreground">
-                {shipment.customerPhone ?? "no phone on file"}
+                {shipment.customerPhone ?? t("no phone on file")}
               </span>
             </Fact>
-            <Fact label="Shipment">
+            <Fact label={t("Shipment")}>
               <span className="font-mono tabular">
                 {shipment.trackingNumber}
               </span>
@@ -343,7 +350,7 @@ function CaseRecord({
                 {shipment.description}
               </span>
             </Fact>
-            <Fact label="Original batch">
+            <Fact label={t("Original batch")}>
               {exception.batch ? (
                 <>
                   <Link
@@ -355,17 +362,17 @@ function CaseRecord({
                   <span className="block text-muted-foreground">
                     {[exception.batch.airline, exception.batch.flightNumber]
                       .filter(Boolean)
-                      .join(" ") || "flight not recorded"}
+                      .join(" ") || t("flight not recorded")}
                     {exception.batch.arrivalDate
                       ? ` · landed ${formatDate(exception.batch.arrivalDate)}`
                       : ""}
                   </span>
                 </>
               ) : (
-                "Not on a dispatch"
+                t("Not on a dispatch")
               )}
             </Fact>
-            <Fact label="Where the cargo is">
+            <Fact label={t("Where the cargo is")}>
               {absent.length === 0
                 ? `Every ${unit.one} is in the Dar warehouse.`
                 : `${unit.one} ${absent.join(", ")} not accounted for.`}
@@ -383,11 +390,11 @@ function CaseRecord({
                 <span className="flex items-center gap-3 text-[11px] text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <span className="h-2 w-2 rounded-sm bg-success/60" />
-                    here
+                    {t("here")}
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="h-2 w-2 rounded-sm border border-dashed border-destructive/60" />
-                    not accounted for
+                    {t("not accounted for")}
                   </span>
                 </span>
               }
@@ -398,10 +405,10 @@ function CaseRecord({
                   key={pkg.sequence}
                   title={
                     pkg.deliveredAt
-                      ? "Collected"
+                      ? t("Collected")
                       : pkg.receivedAt
-                        ? "In the Dar warehouse"
-                        : "Not accounted for"
+                        ? t("In the Dar warehouse")
+                        : t("Not accounted for")
                   }
                   className={`inline-flex h-7 min-w-7 items-center justify-center rounded border px-2 text-xs font-semibold tabular ${
                     pkg.receivedAt
@@ -419,17 +426,17 @@ function CaseRecord({
           {/* Two sets of photos, kept apart on purpose: an investigation is
               decided by comparing what China photographed against what came
               off the plane. */}
-          <Panel title="Evidence">
+          <Panel title={t("Evidence")}>
             <div className="grid gap-4 sm:grid-cols-2">
               <PhotoStrip
-                title="Photographed in China"
+                title={t("Photographed in China")}
                 photos={exception.chinaPhotos}
-                empty="No registration photos on file."
+                empty={t("No registration photos on file.")}
               />
               <PhotoStrip
-                title="Photographed on arrival"
+                title={t("Photographed on arrival")}
                 photos={exception.arrivalPhotos}
-                empty="Nothing photographed at check-in."
+                empty={t("Nothing photographed at check-in.")}
               />
             </div>
           </Panel>
@@ -439,7 +446,7 @@ function CaseRecord({
 
         {/* ---- What was done about it ---------------------------------- */}
         <div className="space-y-3">
-          <Panel title="Timeline" aside={<span className="text-[11px] text-muted-foreground">oldest first</span>}>
+          <Panel title={t("Timeline")} aside={<span className="text-[11px] text-muted-foreground">{t("oldest first")}</span>}>
             <InvestigationTimeline
               events={exception.events}
               openedAt={exception.raisedAt}
@@ -449,7 +456,7 @@ function CaseRecord({
 
           {exception.resolutionNote ? (
             <p className="rounded-md bg-muted/60 p-2 text-xs">
-              <span className="font-medium">Outcome: </span>
+              <span className="font-medium">{t("Outcome:")} </span>
               {exception.resolutionNote}
               {exception.resolvedByName
                 ? ` — ${exception.resolvedByName}, ${formatDateTime(exception.resolvedAt)}`
@@ -481,7 +488,7 @@ function CaseRecord({
           {!(EXCEPTION_TERMINAL_STATUSES as readonly string[]).includes(
             exception.status
           ) && allow.close ? (
-            <Panel title="Resolve investigation">
+            <Panel title={t("Resolve investigation")}>
               <ResolveInvestigationForm exceptionId={exception.id} />
             </Panel>
           ) : null}
@@ -546,6 +553,8 @@ function PhotoStrip({
   photos: InvestigationPhoto[];
   empty: string;
 }) {
+  const t = useT();
+
   return (
     <div>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -575,7 +584,7 @@ function PhotoStrip({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={photo.url}
-                alt={photo.caption ?? "Cargo photo"}
+                alt={photo.caption ?? t("Cargo photo")}
                 loading="lazy"
                 // 56px was too small to tell a crushed corner from a shadow,
                 // which is the entire job of these photos on this page.
@@ -606,6 +615,7 @@ function CompensationPanel({
   exception: InvestigationRecord;
   allow: InvestigationAllowances;
 }) {
+  const t = useT();
   const comp = exception.compensation;
   const finished = (EXCEPTION_TERMINAL_STATUSES as readonly string[]).includes(
     exception.status
@@ -622,16 +632,16 @@ function CompensationPanel({
   if (!comp) {
     if (!approved) return null;
     return (
-      <Panel title="Compensation">
+      <Panel title={t("Compensation")}>
         <p className="mb-3 flex items-center gap-2 rounded-md border border-warning/40 bg-warning/5 p-2 text-xs text-warning">
           <Coins className="h-3.5 w-3.5 shrink-0" />
-          Compensation approved — no payout recorded yet.
+          {t("Compensation approved — no payout recorded yet.")}
         </p>
         {showRecord ? (
           <RecordCompensationForm exceptionId={exception.id} />
         ) : (
           <p className="text-xs text-muted-foreground">
-            Finance records the payout.
+            {t("Finance records the payout.")}
           </p>
         )}
       </Panel>
@@ -639,16 +649,18 @@ function CompensationPanel({
   }
 
   return (
-    <Panel title="Compensation">
+    <Panel title={t("Compensation")}>
     <div className="rounded-md border bg-card p-2.5 text-xs">
       <p className="flex flex-wrap items-center gap-2">
         <Coins className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="font-medium">Compensation</span>
+        <span className="font-medium">{t("Compensation")}</span>
         {comp.amount ? (
           <span className="font-semibold tabular">{comp.amount}</span>
         ) : null}
         <Badge variant={comp.paidAt ? "success" : "warning"}>
-          {comp.paidAt ? `Paid ${formatDate(comp.paidAt)}` : "Payment pending"}
+          {comp.paidAt
+            ? `Paid ${formatDate(comp.paidAt)}`
+            : t("Payment pending")}
         </Badge>
         {comp.methodLabel ? (
           <span className="text-muted-foreground">{comp.methodLabel}</span>
@@ -659,7 +671,7 @@ function CompensationPanel({
       ) : null}
       {comp.recordedByName ? (
         <p className="mt-1 text-muted-foreground">
-          Recorded by {comp.recordedByName}
+          {t("Recorded by")} {comp.recordedByName}
         </p>
       ) : null}
     </div>

@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { recordAudit } from "@/lib/audit";
 import { ROLE_DEFAULT_DEPARTMENT, ROLE_LABELS } from "@/lib/constants";
 import { normalisePhone } from "@/lib/format";
+import { defaultLocaleForRole } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -57,6 +58,9 @@ export async function createUser(
         employeeId: input.employeeId,
         // A rank on a Finance account would be a field nobody can act on.
         rank: warehouse ? input.rank ?? "OPERATOR" : null,
+        // Guangzhou opens in Chinese; every Tanzanian desk opens in English.
+        // A starting point only — whatever the person picks later overrides it.
+        preferredLanguage: defaultLocaleForRole(input.role),
         status: input.status,
         active: input.status === "ACTIVE",
         createdById: actor.id,

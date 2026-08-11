@@ -20,6 +20,7 @@ import {
   ROLE_LABELS,
 } from "@/lib/constants";
 import { formatMoney, normaliseCode } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import type { InvestigationRecord } from "@/lib/investigation-lifecycle";
 import {
   investigationCounts,
@@ -30,6 +31,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { ROLE_PERMISSIONS, can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Issues & Claims" };
 
@@ -271,6 +273,7 @@ export default async function ExceptionsPage({
   // money — and what each may *do* to a case is decided below, case by case,
   // rather than at the door.
   const user = await requirePermission("exception.view");
+  const locale = await viewerLocale();
   const params = await searchParams;
 
   const set: QueueSet = isQueueSet(params.set) ? params.set : "open";
@@ -423,19 +426,19 @@ export default async function ExceptionsPage({
         className="mb-5"
         chips={[
           {
-            label: "Packages unaccounted for",
+            label: t(locale, "Packages unaccounted for"),
             value: String(missingPieces),
             icon: PackageX,
             tone: missingPieces > 0 ? "danger" : "success",
           },
           {
-            label: "Oldest open",
+            label: t(locale, "Oldest open"),
             value: oldest > 0 ? `${oldest}d` : "—",
             icon: Clock,
             tone: oldest >= 7 ? "danger" : oldest >= 2 ? "warning" : "neutral",
           },
           {
-            label: "Nobody carrying",
+            label: t(locale, "Nobody carrying"),
             value: String(unassigned),
             icon: UserX,
             tone: unassigned > 0 ? "warning" : "success",
@@ -447,7 +450,7 @@ export default async function ExceptionsPage({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 px-4 py-2.5">
           <p className="flex items-center gap-2 text-sm">
             <Search className="h-4 w-4 text-muted-foreground" />
-            Showing flags on{" "}
+            {t(locale, "Showing flags on")}{" "}
             <span className="font-mono font-semibold tabular">{tracking}</span>
           </p>
           <Link
@@ -455,7 +458,7 @@ export default async function ExceptionsPage({
             className="focus-ring inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" />
-            Show the whole queue
+            {t(locale, "Show the whole queue")}
           </Link>
         </div>
       ) : null}
@@ -472,7 +475,7 @@ export default async function ExceptionsPage({
                 active ? "border-brand bg-brand text-brand-foreground" : "hover:bg-accent"
               }`}
             >
-              {option.label}
+              {t(locale, option.label)}
               <span
                 className={`rounded-full px-1.5 text-xs tabular ${
                   active ? "bg-white/20" : "bg-muted text-muted-foreground"
@@ -487,10 +490,10 @@ export default async function ExceptionsPage({
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">
-          {copy.heading} ({records.length})
+          {t(locale, copy.heading)} ({records.length})
           {records.length > 1 ? (
             <span className="ml-2 font-normal text-muted-foreground">
-              {copy.note}
+              {t(locale, copy.note)}
             </span>
           ) : null}
         </h2>
@@ -502,15 +505,21 @@ export default async function ExceptionsPage({
               group === "all"
                 ? tracking
                   ? `Nothing on ${tracking}`
-                  : copy.emptyTitle
-                : "Nothing of this kind here"
+                  : t(locale, copy.emptyTitle)
+                : t(locale, "Nothing of this kind here")
             }
             description={
               group === "all"
                 ? tracking
-                  ? "This shipment has no case in this view. Try another card above."
-                  : copy.emptyBody
-                : "Other cases are in this view — switch the filter above to see them."
+                  ? t(
+                      locale,
+                      "This shipment has no case in this view. Try another card above."
+                    )
+                  : t(locale, copy.emptyBody)
+                : t(
+                    locale,
+                    "Other cases are in this view — switch the filter above to see them."
+                  )
             }
           />
         ) : (
@@ -526,7 +535,7 @@ export default async function ExceptionsPage({
       {closedRecords.length > 0 ? (
         <section className="mt-8 space-y-3">
           <h2 className="text-sm font-semibold">
-            Recently closed ({closedRecords.length})
+            {t(locale, "Recently closed")} ({closedRecords.length})
           </h2>
           {/* Closed cases stay on the page but read back: they are a record,
               not a queue. Same table so the eye does not have to re-learn the

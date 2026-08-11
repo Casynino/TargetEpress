@@ -4,8 +4,10 @@ import { ArrowLeft, Boxes } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
+import { t } from "@/lib/i18n";
 import { myBatches } from "@/lib/profile";
 import { requireUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "My batches" };
 
@@ -18,6 +20,7 @@ export const metadata: Metadata = { title: "My batches" };
  */
 export default async function MyBatchesPage() {
   const me = await requireUser();
+  const locale = await viewerLocale();
   const batches = await myBatches(me.id);
 
   const totals = batches.reduce(
@@ -41,7 +44,7 @@ export default async function MyBatchesPage() {
           <Button asChild variant="ghost" size="sm">
             <Link href="/app/profile">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Profile
+              {t(locale, "Profile")}
             </Link>
           </Button>
         }
@@ -49,7 +52,7 @@ export default async function MyBatchesPage() {
 
       {batches.length === 0 ? (
         <p className="rounded-xl border border-dashed p-12 text-center text-sm text-muted-foreground">
-          You have not put cargo on a batch yet.
+          {t(locale, "You have not put cargo on a batch yet.")}
         </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -72,19 +75,28 @@ export default async function MyBatchesPage() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     {batch.departedLabel
                       ? `Departed ${batch.departedLabel}`
-                      : "Still in China"}
+                      : t(locale, "Still in China")}
                   </p>
                 </div>
                 <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-                  {batch.statusLabel}
+                  {t(locale, batch.statusLabel)}
                 </span>
               </div>
 
               <dl className="mt-4 grid grid-cols-3 gap-3 border-t pt-4">
                 {[
-                  { label: "Registered by you", value: String(batch.shipments) },
-                  { label: "Your weight", value: `${batch.weightKg.toFixed(1)} kg` },
-                  { label: "Your packages", value: String(batch.packages) },
+                  {
+                    label: t(locale, "Registered by you"),
+                    value: String(batch.shipments),
+                  },
+                  {
+                    label: t(locale, "Your weight"),
+                    value: `${batch.weightKg.toFixed(1)} kg`,
+                  },
+                  {
+                    label: t(locale, "Your packages"),
+                    value: String(batch.packages),
+                  },
                 ].map((item) => (
                   <div key={item.label}>
                     <dt className="text-[11px] text-muted-foreground">

@@ -8,10 +8,12 @@ import { PrintBar } from "@/components/app/print-bar";
 import { Button } from "@/components/ui/button";
 import { formatPackages } from "@/lib/constants";
 import { formatDate, formatWeight } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { LABEL_MM } from "@/lib/print";
 import { packageQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Print stickers" };
 
@@ -37,6 +39,7 @@ export default async function BatchStickersPage({
   // ROUTE_PERMISSIONS, which Dar and Finance both hold, so this guard is what
   // actually keeps them out.
   await requirePermission("label.print");
+  const locale = await viewerLocale();
   const { id } = await params;
   const { ids } = await searchParams;
 
@@ -90,7 +93,7 @@ export default async function BatchStickersPage({
         <Button asChild variant="ghost" size="sm">
           <Link href={`/app/batches/${batch.id}`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to batch
+            {t(locale, "Back to batch")}
           </Link>
         </Button>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -107,15 +110,15 @@ export default async function BatchStickersPage({
           downloadHref={`/app/batches/${batch.id}/stickers/pdf${
             selected.length > 0 ? `?ids=${selected.join(",")}` : ""
           }`}
-          hint="One code per box — never copy a label onto two."
+          hint={t(locale, "One code per box — never copy a label onto two.")}
         />
       ) : null}
 
       {stickers.length === 0 ? (
         <div className="rounded-xl border border-dashed p-12 text-center">
-          <p className="font-medium">Nothing to print</p>
+          <p className="font-medium">{t(locale, "Nothing to print")}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Select cargo on the batch page, then come back.
+            {t(locale, "Select cargo on the batch page, then come back.")}
           </p>
         </div>
       ) : (

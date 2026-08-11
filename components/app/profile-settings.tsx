@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Lock, UserRound } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -31,6 +32,7 @@ export type EditableProfile = {
  * does not.
  */
 export function PersonalDetailsForm({ profile }: { profile: EditableProfile }) {
+  const t = useT();
   const [state, action] = useActionState(updateMyProfile, undefined);
   const [preview, setPreview] = useState<string | null>(profile.photoUrl);
 
@@ -39,7 +41,7 @@ export function PersonalDetailsForm({ profile }: { profile: EditableProfile }) {
       <FormError state={state} />
       {state?.ok ? (
         <p className="rounded-lg border border-success/40 bg-success/5 p-3 text-sm text-success">
-          Saved.
+          {t("Saved.")}
         </p>
       ) : null}
 
@@ -48,7 +50,7 @@ export function PersonalDetailsForm({ profile }: { profile: EditableProfile }) {
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={preview}
-            alt="Your profile photo"
+            alt={t("Your profile photo")}
             className="h-16 w-16 rounded-xl border object-cover"
           />
         ) : (
@@ -57,7 +59,7 @@ export function PersonalDetailsForm({ profile }: { profile: EditableProfile }) {
           </div>
         )}
         <div className="min-w-0 flex-1 space-y-1.5">
-          <Label htmlFor="photo">Profile photo</Label>
+          <Label htmlFor="photo">{t("Profile photo")}</Label>
           <Input
             id="photo"
             name="photo"
@@ -70,29 +72,30 @@ export function PersonalDetailsForm({ profile }: { profile: EditableProfile }) {
             }}
           />
           <p className="text-xs text-muted-foreground">
-            Leave empty to keep the photo you have.
+            {t("Leave empty to keep the photo you have.")}
           </p>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="name">Your name</Label>
+          <Label htmlFor="name">{t("Your name")}</Label>
           <Input
             id="name"
             name="name"
             defaultValue={profile.name}
-            placeholder="How you want to be known"
+            placeholder={t("How you want to be known")}
             maxLength={60}
             required
           />
           <p className="text-xs text-muted-foreground">
-            Shown against every piece of cargo you receive, including the
-            printed manifest.
+            {t(
+              "Shown against every piece of cargo you receive, including the printed manifest."
+            )}
           </p>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="phone">Phone number</Label>
+          <Label htmlFor="phone">{t("Phone number")}</Label>
           <Input
             id="phone"
             name="phone"
@@ -102,34 +105,34 @@ export function PersonalDetailsForm({ profile }: { profile: EditableProfile }) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="emergencyContact">Emergency contact</Label>
+          <Label htmlFor="emergencyContact">{t("Emergency contact")}</Label>
           <Input
             id="emergencyContact"
             name="emergencyContact"
             defaultValue={profile.emergencyContact ?? ""}
-            placeholder="Name and number"
+            placeholder={t("Name and number")}
             maxLength={120}
           />
           <p className="text-xs text-muted-foreground">
-            Optional. Only management can see this.
+            {t("Optional. Only management can see this.")}
           </p>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="preferredLanguage">Preferred language</Label>
+          <Label htmlFor="preferredLanguage">{t("Preferred language")}</Label>
           <NativeSelect
             id="preferredLanguage"
             name="preferredLanguage"
             defaultValue={profile.preferredLanguage}
           >
-            <option value="en">English</option>
-            <option value="sw">Kiswahili</option>
+            <option value="en">{t("English")}</option>
+            <option value="sw">{t("Kiswahili")}</option>
             <option value="zh">中文</option>
           </NativeSelect>
         </div>
       </div>
 
-      <SubmitButton variant="brand" pendingLabel="Saving…">
-        Save changes
+      <SubmitButton variant="brand" pendingLabel={t("Saving…")}>
+        {t("Save changes")}
       </SubmitButton>
     </form>
   );
@@ -137,6 +140,7 @@ export function PersonalDetailsForm({ profile }: { profile: EditableProfile }) {
 
 /** Changing your own password, which needs the old one. */
 export function PasswordForm() {
+  const t = useT();
   const [state, action] = useActionState(changeMyPassword, undefined);
 
   return (
@@ -144,17 +148,17 @@ export function PasswordForm() {
       <FormError state={state} />
       {state?.ok ? (
         <p className="rounded-lg border border-success/40 bg-success/5 p-3 text-sm text-success">
-          Password changed. It applies the next time you sign in.
+          {t("Password changed. It applies the next time you sign in.")}
         </p>
       ) : null}
 
       <div className="space-y-1.5">
-        <Label htmlFor="current">Current password</Label>
+        <Label htmlFor="current">{t("Current password")}</Label>
         <Input id="current" name="current" type="password" required />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="next">New password</Label>
+          <Label htmlFor="next">{t("New password")}</Label>
           <Input
             id="next"
             name="next"
@@ -164,17 +168,17 @@ export function PasswordForm() {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="confirm">Repeat new password</Label>
+          <Label htmlFor="confirm">{t("Repeat new password")}</Label>
           <Input id="confirm" name="confirm" type="password" required />
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
-        At least 10 characters. This account can move other people&apos;s cargo.
+        {t("At least 10 characters. This account can move other people's cargo.")}
       </p>
 
-      <SubmitButton variant="outline" pendingLabel="Changing…">
+      <SubmitButton variant="outline" pendingLabel={t("Changing…")}>
         <Lock className="mr-2 h-4 w-4" />
-        Change password
+        {t("Change password")}
       </SubmitButton>
     </form>
   );

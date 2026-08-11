@@ -37,6 +37,8 @@ import {
 } from "@/components/ui/table";
 import { EXCEPTION_TYPE_LABELS, formatPackages } from "@/lib/constants";
 import { formatDate, formatWeight, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import {
   chinaAgeing,
   chinaComposition,
@@ -54,6 +56,7 @@ import {
   type Spread,
 } from "@/lib/warehouse-reports";
 import { cn } from "@/lib/utils";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Reports" };
 
@@ -77,11 +80,14 @@ function TimingRow({
   note,
   spread,
   owner,
+  locale,
 }: {
   label: string;
   note: string;
   spread: Spread;
   owner: string;
+  /** Passed in: a plain helper cannot await `viewerLocale()` itself. */
+  locale: Locale;
 }) {
   const thin = spread.sample > 0 && spread.sample < 5;
 
@@ -99,11 +105,15 @@ function TimingRow({
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <Badge variant="muted">{owner}</Badge>
         {spread.sample === 0 ? (
-          <span>No completed journeys in this window.</span>
+          <span>{t(locale, "No completed journeys in this window.")}</span>
         ) : (
           <>
-            <span className="tabular">median {days(spread.median)}</span>
-            <span className="tabular">longest {days(spread.longest)}</span>
+            <span className="tabular">
+              {t(locale, "median")} {days(spread.median)}
+            </span>
+            <span className="tabular">
+              {t(locale, "longest")} {days(spread.longest)}
+            </span>
             <span className={cn("tabular", thin && "text-warning")}>
               {spread.sample} measured
               {thin ? " — too few to read as a trend" : ""}
@@ -138,6 +148,7 @@ export default async function WarehouseReportsPage({
     return <ChinaReport periodDays={periodDays} />;
   }
 
+  const locale = await viewerLocale();
   const report = await warehouseReport(periodDays);
   const window = periodLabel(periodDays).toLowerCase();
 
@@ -147,8 +158,11 @@ export default async function WarehouseReportsPage({
   return (
     <>
       <PageHeader
-        title="Warehouse reports"
-        description="What the Dar floor moved, how long it took and what went wrong — measured from the receiving and release record itself."
+        title={t(locale, "Warehouse reports")}
+        description={t(
+          locale,
+          "What the Dar floor moved, how long it took and what went wrong — measured from the receiving and release record itself."
+        )}
         actions={
           <div className="flex items-center gap-1 rounded-lg border bg-card p-1">
             {PERIODS.map((option) => (
@@ -162,7 +176,7 @@ export default async function WarehouseReportsPage({
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {option.label}
+                {t(locale, option.label)}
               </Link>
             ))}
           </div>
@@ -174,18 +188,18 @@ export default async function WarehouseReportsPage({
         <h2 className="text-sm font-semibold">Throughput · last {window}</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            label="Cargo checked in"
+            label={t(locale, "Cargo checked in")}
             value={throughput.shipmentsCheckedIn}
             hint={`${throughput.packagesCheckedIn.toLocaleString()} boxes · ${formatWeight(throughput.weightCheckedInKg)}`}
             icon={PackageCheck}
             tone="brand"
           />
           <StatCard
-            label="Released to customers"
+            label={t(locale, "Released to customers")}
             value={throughput.released}
             hint={
               netChange === 0
-                ? "In and out balanced over the window"
+                ? t(locale, "In and out balanced over the window")
                 : netChange > 0
                   ? `${netChange} more in than out — the floor is filling`
                   : `${Math.abs(netChange)} more out than in — backlog clearing`
@@ -194,7 +208,7 @@ export default async function WarehouseReportsPage({
             tone="success"
           />
           <StatCard
-            label="Held in the warehouse"
+            label={t(locale, "Held in the warehouse")}
             value={holding.total}
             hint={`${holding.awaitingPayment} awaiting payment · ${holding.readyForPickup} ready · ${formatWeight(holding.weightKg)}`}
             icon={Warehouse}
@@ -202,7 +216,7 @@ export default async function WarehouseReportsPage({
             href="/app/inventory"
           />
           <StatCard
-            label="Check failure rate"
+            label={t(locale, "Check failure rate")}
             value={
               quality.exceptionRate === null
                 ? "—"
@@ -210,7 +224,7 @@ export default async function WarehouseReportsPage({
             }
             hint={
               quality.checksTotal === 0
-                ? "No cargo checked in this window"
+                ? t(locale, "No cargo checked in this window")
                 : `${quality.checksFlagged} of ${quality.checksTotal} manifest checks flagged`
             }
             icon={AlertTriangle}
@@ -227,7 +241,9 @@ export default async function WarehouseReportsPage({
       <section className="mt-8">
         <div className="panel">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-5 py-4">
-            <h2 className="font-display font-semibold">Cargo received per week</h2>
+            <h2 className="font-display font-semibold">
+              {t(locale, "Cargo received per week")}
+            </h2>
             <p className="text-xs text-muted-foreground">
               Last {FLOW_WEEKS} weeks, against what went out the door
             </p>
@@ -236,9 +252,10 @@ export default async function WarehouseReportsPage({
             <WarehouseFlowChart weeks={report.weeks} />
           </div>
           <p className="border-t px-5 py-3 text-xs text-muted-foreground">
-            A week is counted on the date each shipment was checked in against
-            its manifest, and each release on the date it was handed over.
-            Independent of the period switch above.
+            {t(
+              locale,
+              "A week is counted on the date each shipment was checked in against its manifest, and each release on the date it was handed over. Independent of the period switch above."
+            )}
           </p>
         </div>
       </section>
@@ -248,32 +265,48 @@ export default async function WarehouseReportsPage({
         <div className="panel">
           <h2 className="flex items-center gap-2 border-b px-5 py-4 font-display font-semibold">
             <Timer className="h-4 w-4" />
-            How long each leg takes
+            {t(locale, "How long each leg takes")}
           </h2>
           <div className="divide-y">
             <TimingRow
-              label="Landing to checked in"
-              note="Flight arrived until the boxes were ticked off the manifest."
+              locale={locale}
+              label={t(locale, "Landing to checked in")}
+              note={t(
+                locale,
+                "Flight arrived until the boxes were ticked off the manifest."
+              )}
               spread={speed.checkInLag}
-              owner="Our clock"
+              owner={t(locale, "Our clock")}
             />
             <TimingRow
-              label="Checked in to cleared for pickup"
-              note="Waiting on the invoice being settled and the pickup note issued."
+              locale={locale}
+              label={t(locale, "Checked in to cleared for pickup")}
+              note={t(
+                locale,
+                "Waiting on the invoice being settled and the pickup note issued."
+              )}
               spread={speed.arrivalToCleared}
-              owner="Finance"
+              owner={t(locale, "Finance")}
             />
             <TimingRow
-              label="Cleared to collected"
-              note="Sitting on the floor waiting for the customer to come."
+              locale={locale}
+              label={t(locale, "Cleared to collected")}
+              note={t(
+                locale,
+                "Sitting on the floor waiting for the customer to come."
+              )}
               spread={speed.clearedToCollection}
-              owner="Customer"
+              owner={t(locale, "Customer")}
             />
             <TimingRow
-              label="Arrival to collection"
-              note="The whole time cargo spends in this warehouse, end to end."
+              locale={locale}
+              label={t(locale, "Arrival to collection")}
+              note={t(
+                locale,
+                "The whole time cargo spends in this warehouse, end to end."
+              )}
               spread={speed.arrivalToCollection}
-              owner="All three"
+              owner={t(locale, "All three")}
             />
           </div>
           <p className="border-t px-5 py-3 text-xs text-muted-foreground">
@@ -286,7 +319,7 @@ export default async function WarehouseReportsPage({
         <div className="panel">
           <h2 className="flex items-center gap-2 border-b px-5 py-4 font-display font-semibold">
             <ClipboardCheck className="h-4 w-4" />
-            What went wrong
+            {t(locale, "What went wrong")}
           </h2>
 
           <div className="grid grid-cols-3 divide-x border-b">
@@ -295,7 +328,7 @@ export default async function WarehouseReportsPage({
                 {quality.checksTotal}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Manifest checks
+                {t(locale, "Manifest checks")}
               </p>
             </div>
             <div className="px-5 py-4">
@@ -308,7 +341,7 @@ export default async function WarehouseReportsPage({
                 {quality.exceptionsRaised}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Exceptions raised
+                {t(locale, "Exceptions raised")}
               </p>
             </div>
             <div className="px-5 py-4">
@@ -321,7 +354,7 @@ export default async function WarehouseReportsPage({
                 {quality.exceptionsOpen}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Still open
+                {t(locale, "Still open")}
               </p>
             </div>
           </div>
@@ -330,7 +363,7 @@ export default async function WarehouseReportsPage({
             <div className="p-5">
               <EmptyState
                 icon={ClipboardCheck}
-                title="Nothing flagged"
+                title={t(locale, "Nothing flagged")}
                 description={`Every shipment checked in over the last ${window} matched its manifest.`}
               />
             </div>
@@ -342,7 +375,7 @@ export default async function WarehouseReportsPage({
                   className="flex items-center justify-between gap-3 px-5 py-3"
                 >
                   <span className="text-sm">
-                    {EXCEPTION_TYPE_LABELS[row.type]}
+                    {t(locale, EXCEPTION_TYPE_LABELS[row.type])}
                   </span>
                   <span className="flex items-center gap-2 text-sm text-muted-foreground tabular">
                     {row.open > 0 ? (
@@ -366,10 +399,10 @@ export default async function WarehouseReportsPage({
                 be released until they are found.{" "}
               </>
             ) : (
-              "No cargo on the floor is short a box. "
+              `${t(locale, "No cargo on the floor is short a box.")} `
             )}
             <Link href="/app/exceptions" className="text-brand hover:underline">
-              Open exceptions
+              {t(locale, "Open exceptions")}
             </Link>
           </p>
         </div>
@@ -380,21 +413,31 @@ export default async function WarehouseReportsPage({
         <div className="panel">
           <h2 className="flex items-center gap-2 border-b px-5 py-4 font-display font-semibold">
             <Users className="h-4 w-4" />
-            Who did the work
+            {t(locale, "Who did the work")}
           </h2>
           {staff.length === 0 ? (
             <div className="p-5">
-              <EmptyState title="No floor activity recorded in this window" />
+              <EmptyState
+                title={t(locale, "No floor activity recorded in this window")}
+              />
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="text-right">Released</TableHead>
-                  <TableHead className="text-right">Cargo checked in</TableHead>
-                  <TableHead className="text-right">Boxes checked in</TableHead>
-                  <TableHead className="text-right">Exceptions raised</TableHead>
+                  <TableHead>{t(locale, "Name")}</TableHead>
+                  <TableHead className="text-right">
+                    {t(locale, "Released")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t(locale, "Cargo checked in")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t(locale, "Boxes checked in")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t(locale, "Exceptions raised")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -434,35 +477,42 @@ export default async function WarehouseReportsPage({
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-5 py-4">
             <h2 className="flex items-center gap-2 font-display font-semibold">
               <Hourglass className="h-4 w-4" />
-              Longest held, still on the floor
+              {t(locale, "Longest held, still on the floor")}
             </h2>
             <Link
               href="/app/inventory"
               className="text-xs text-brand hover:underline"
             >
-              Full inventory
+              {t(locale, "Full inventory")}
             </Link>
           </div>
           {holding.oldest.length === 0 ? (
             <div className="p-5">
               <EmptyState
                 icon={Boxes}
-                title="The floor is clear"
-                description="Nothing is being held at the Dar warehouse."
+                title={t(locale, "The floor is clear")}
+                description={t(
+                  locale,
+                  "Nothing is being held at the Dar warehouse."
+                )}
               />
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Tracking</TableHead>
-                  <TableHead>Customer</TableHead>
+                  <TableHead>{t(locale, "Tracking")}</TableHead>
+                  <TableHead>{t(locale, "Customer")}</TableHead>
                   <TableHead className="hidden sm:table-cell">
-                    Checked in
+                    {t(locale, "Checked in")}
                   </TableHead>
-                  <TableHead className="hidden md:table-cell">Cargo</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead className="text-right">Days held</TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    {t(locale, "Cargo")}
+                  </TableHead>
+                  <TableHead>{t(locale, "State")}</TableHead>
+                  <TableHead className="text-right">
+                    {t(locale, "Days held")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -505,40 +555,46 @@ export default async function WarehouseReportsPage({
       {/* ---------------------------------------------------------------- */}
       <section className="mt-8">
         <div className="panel-inset px-5 py-4">
-          <h2 className="text-sm font-semibold">What this page does not measure</h2>
+          <h2 className="text-sm font-semibold">
+            {t(locale, "What this page does not measure")}
+          </h2>
           <ul className="mt-2 space-y-1.5 text-xs text-muted-foreground">
             <li>
               <strong className="font-medium text-foreground">
-                Anything in money.
+                {t(locale, "Anything in money.")}
               </strong>{" "}
-              Freight charges, storage fees, invoices and outstanding balances
-              belong to Finance and are not shown to warehouse staff anywhere in
-              this app, including here.
+              {t(
+                locale,
+                "Freight charges, storage fees, invoices and outstanding balances belong to Finance and are not shown to warehouse staff anywhere in this app, including here."
+              )}
             </li>
             <li>
               <strong className="font-medium text-foreground">
-                Damage cost or write-off value.
+                {t(locale, "Damage cost or write-off value.")}
               </strong>{" "}
-              A damaged-cargo exception records what was damaged, never what it
-              was worth, so any figure would be invented.
+              {t(
+                locale,
+                "A damaged-cargo exception records what was damaged, never what it was worth, so any figure would be invented."
+              )}
             </li>
             <li>
               <strong className="font-medium text-foreground">
-                A collection deadline.
+                {t(locale, "A collection deadline.")}
               </strong>{" "}
-              Nothing in the system promises a customer a collection date, so
-              "days held" is reported as it is rather than dressed up as an
-              on-time percentage.
+              {t(
+                locale,
+                'Nothing in the system promises a customer a collection date, so "days held" is reported as it is rather than dressed up as an on-time percentage.'
+              )}
             </li>
           </ul>
           <div className="mt-3 flex flex-wrap gap-3 border-t pt-3 text-xs">
             <Link href="/app/deliveries" className="text-brand hover:underline">
               <Package className="mr-1 inline h-3 w-3" />
-              Collected cargo
+              {t(locale, "Collected cargo")}
             </Link>
             <Link href="/app/receive" className="text-brand hover:underline">
               <ScanLine className="mr-1 inline h-3 w-3" />
-              Incoming shipments
+              {t(locale, "Incoming shipments")}
             </Link>
           </div>
         </div>
@@ -558,6 +614,7 @@ export default async function WarehouseReportsPage({
  * No money anywhere, same as the Dar report. Warehouse staff see cargo and time.
  */
 async function ChinaReport({ periodDays }: { periodDays: number }) {
+  const locale = await viewerLocale();
   const since = new Date(Date.now() - periodDays * 86_400_000);
 
   const [registered, flown, composition, ageing, throughput, problems] =
@@ -584,16 +641,27 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
       : 100;
 
   const slices = [
-    { label: "On no batch", value: composition.unassigned, tone: 3 as const },
+    {
+      label: t(locale, "On no batch"),
+      value: composition.unassigned,
+      tone: 3 as const,
+    },
     { label: "Loading", value: composition.loading, tone: 4 as const },
-    { label: "Sealed, ready to fly", value: composition.sealed, tone: 5 as const },
+    {
+      label: t(locale, "Sealed, ready to fly"),
+      value: composition.sealed,
+      tone: 5 as const,
+    },
   ];
 
   return (
     <>
       <PageHeader
-        title="Guangzhou reports"
-        description="What this desk registered, what it loaded and what is still standing — measured from the registration and dispatch record itself."
+        title={t(locale, "Guangzhou reports")}
+        description={t(
+          locale,
+          "What this desk registered, what it loaded and what is still standing — measured from the registration and dispatch record itself."
+        )}
         actions={
           <div className="flex items-center gap-1 rounded-lg border bg-card p-1">
             {PERIODS.map((option) => (
@@ -607,7 +675,7 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {option.label}
+                {t(locale, option.label)}
               </Link>
             ))}
           </div>
@@ -616,21 +684,21 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
-          label="Registered"
+          label={t(locale, "Registered")}
           numeric={registered._count}
           hint={`booked in over the ${window}`}
           icon={PackagePlus}
           tone="brand"
         />
         <KpiCard
-          label="Flown"
+          label={t(locale, "Flown")}
           numeric={flown}
           hint={`left Guangzhou over the ${window}`}
           icon={Plane}
           tone="success"
         />
         <KpiCard
-          label="Still standing"
+          label={t(locale, "Still standing")}
           numeric={composition.total}
           hint={`${formatWeight(toNumber(registered._sum.weightKg ?? 0))} registered in this window`}
           icon={Boxes}
@@ -638,15 +706,15 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
         />
         {/* The rule exists; this is whether it is kept. */}
         <KpiCard
-          label="Photographed"
+          label={t(locale, "Photographed")}
           numeric={photoPct}
           suffix="%"
           ringPct={photoPct}
-          ringLabel="Photograph compliance"
+          ringLabel={t(locale, "Photograph compliance")}
           hint={
             problems.noPhotos > 0
               ? `${problems.noPhotos} standing with no photograph`
-              : "every consignment has one"
+              : t(locale, "every consignment has one")
           }
           icon={Camera}
           tone={photoPct < 90 ? "danger" : "success"}
@@ -655,16 +723,18 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
 
       <div className="mt-7 grid gap-4 lg:grid-cols-3">
         <section className="panel p-4">
-          <h3 className="text-sm font-semibold">What is standing now</h3>
+          <h3 className="text-sm font-semibold">
+            {t(locale, "What is standing now")}
+          </h3>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            By what is holding each consignment
+            {t(locale, "By what is holding each consignment")}
           </p>
           <div className="mt-3 flex justify-center">
             <Donut
               size={118}
               stroke={18}
               label={String(composition.total)}
-              caption="consignments"
+              caption={t(locale, "consignments")}
               slices={slices}
             />
           </div>
@@ -672,9 +742,9 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
         </section>
 
         <section className="panel p-4">
-          <h3 className="text-sm font-semibold">In and out</h3>
+          <h3 className="text-sm font-semibold">{t(locale, "In and out")}</h3>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Registered against flown, by day
+            {t(locale, "Registered against flown, by day")}
           </p>
           <FlowBars
             className="mt-3"
@@ -683,27 +753,29 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
             valuesOut={throughput.outCounts}
             currentIndex={throughput.currentIndex}
             format={(n) => `${n} consignment${n === 1 ? "" : "s"}`}
-            legendIn="Registered"
-            legendOut="Flown"
+            legendIn={t(locale, "Registered")}
+            legendOut={t(locale, "Flown")}
           />
         </section>
 
         <section className="panel p-4">
-          <h3 className="text-sm font-semibold">How long it has waited</h3>
+          <h3 className="text-sm font-semibold">
+            {t(locale, "How long it has waited")}
+          </h3>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            From the day it was registered
+            {t(locale, "From the day it was registered")}
           </p>
           <AgeingBar
             className="mt-3"
             segments={ageing.map((bucket) => ({
               key: bucket.key,
-              label: bucket.label,
+              label: t(locale, bucket.label),
               count: bucket.count,
               value: bucket.packages,
             }))}
             format={(n) => `${n} box${n === 1 ? "" : "es"}`}
             unit="consignment"
-            empty="Nothing is waiting in Guangzhou."
+            empty={t(locale, "Nothing is waiting in Guangzhou.")}
           />
         </section>
       </div>

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
+import { viewerLocale } from "@/lib/viewer";
 
 export type WorkItem = {
   /** Only rows that are true are passed in; a zero queue is not a row. */
@@ -35,7 +37,7 @@ export type WorkItem = {
  * Deliberately headless. The SectionLabel above it is the heading — a panel
  * that repeats the section's name under the rule prints one heading twice.
  */
-export function WorkList({
+export async function WorkList({
   items,
   empty,
   rate,
@@ -46,8 +48,11 @@ export function WorkList({
   /** USD→TZS. Null when no rate is published — then figures stay in dollars. */
   rate: number | null;
 }) {
+  const locale = await viewerLocale();
   const tsh = (usd: number) =>
-    rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : formatUsd(usd);
+    rate
+      ? `${t(locale, "TSh")} ${Math.round(usd * rate).toLocaleString("en-US")}`
+      : formatUsd(usd);
 
   return (
     <section className="panel overflow-hidden">

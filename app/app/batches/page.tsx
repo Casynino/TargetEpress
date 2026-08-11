@@ -4,9 +4,11 @@ import { ArrowRight, Package, Plane } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Batches" };
 
@@ -32,6 +34,7 @@ const ROUTE_TAKES: Record<string, string> = {
  */
 export default async function BatchesPage() {
   const user = await requirePermission("batch.view");
+  const locale = await viewerLocale();
   const canDispatch = can(user.role, "shipment.depart");
 
   const tables = await prisma.batch.findMany({
@@ -92,10 +95,11 @@ export default async function BatchesPage() {
               <header className="flex items-start justify-between gap-3 border-b p-5">
                 <div>
                   <h2 className="font-display text-lg font-bold">
-                    {ROUTE_LABEL[table.origin]}
+                    {t(locale, ROUTE_LABEL[table.origin])}
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    Takes {ROUTE_TAKES[table.origin].toLowerCase()}
+                    {t(locale, "Takes")}{" "}
+                    {t(locale, ROUTE_TAKES[table.origin]).toLowerCase()}
                   </p>
                 </div>
                 <span
@@ -106,7 +110,9 @@ export default async function BatchesPage() {
                   }`}
                 >
                   <Plane className="h-3 w-3" />
-                  {table.origin === "HONG_KONG" ? "Hong Kong" : "Guangzhou"}
+                  {table.origin === "HONG_KONG"
+                    ? t(locale, "Hong Kong")
+                    : t(locale, "Guangzhou")}
                 </span>
               </header>
 
@@ -114,31 +120,37 @@ export default async function BatchesPage() {
                 {table.shipments.length === 0 ? (
                   <div className="rounded-lg border border-dashed p-8 text-center">
                     <Package className="mx-auto h-6 w-6 text-muted-foreground/50" />
-                    <p className="mt-2 text-sm font-medium">Empty</p>
+                    <p className="mt-2 text-sm font-medium">{t(locale, "Empty")}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Ready for the next cargo.
+                      {t(locale, "Ready for the next cargo.")}
                     </p>
                   </div>
                 ) : (
                   <dl className="grid grid-cols-3 gap-4 text-center">
                     <div>
-                      <dt className="text-xs text-muted-foreground">Pieces</dt>
+                      <dt className="text-xs text-muted-foreground">
+                        {t(locale, "Pieces")}
+                      </dt>
                       <dd className="mt-1 font-display text-2xl font-bold tabular-nums">
                         {table.shipments.length}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-muted-foreground">Packages</dt>
+                      <dt className="text-xs text-muted-foreground">
+                        {t(locale, "Packages")}
+                      </dt>
                       <dd className="mt-1 font-display text-2xl font-bold tabular-nums">
                         {packages}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-muted-foreground">Weight</dt>
+                      <dt className="text-xs text-muted-foreground">
+                        {t(locale, "Weight")}
+                      </dt>
                       <dd className="mt-1 font-display text-2xl font-bold tabular-nums">
                         {weight.toFixed(0)}
                         <span className="ml-1 text-sm font-medium text-muted-foreground">
-                          kg
+                          {t(locale, "kg")}
                         </span>
                       </dd>
                     </div>
@@ -147,7 +159,7 @@ export default async function BatchesPage() {
 
                 {oldest ? (
                   <p className="mt-4 text-center text-xs text-muted-foreground">
-                    Oldest piece received{" "}
+                    {t(locale, "Oldest piece received")}{" "}
                     {oldest.toLocaleDateString("en-GB", {
                       day: "2-digit",
                       month: "short",
@@ -163,8 +175,8 @@ export default async function BatchesPage() {
                   className="inline-flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
                 >
                   {canDispatch && table.shipments.length > 0
-                    ? "Review and dispatch"
-                    : "Open batch"}
+                    ? t(locale, "Review and dispatch")
+                    : t(locale, "Open batch")}
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </footer>
@@ -177,13 +189,13 @@ export default async function BatchesPage() {
         <section className="mt-8">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Recently dispatched
+              {t(locale, "Recently dispatched")}
             </h2>
             <Link
               href="/app/shipments"
               className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
             >
-              All shipments
+              {t(locale, "All shipments")}
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -198,7 +210,7 @@ export default async function BatchesPage() {
                     {dispatch.batchNumber}
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    {dispatch._count.shipments} pieces ·{" "}
+                    {dispatch._count.shipments} {t(locale, "pieces")} ·{" "}
                     {dispatch.status.replace(/_/g, " ").toLowerCase()}
                   </span>
                 </Link>

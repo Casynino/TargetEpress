@@ -6,8 +6,10 @@ import { RequestStatusPicker } from "@/components/app/request-status";
 import { CATEGORY_LABELS } from "@/lib/cargo";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { formatDate, formatRelative, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Requests" };
 
@@ -25,6 +27,7 @@ export const metadata: Metadata = { title: "Requests" };
  */
 export default async function RequestsPage() {
   await requirePermission("shipment.create");
+  const locale = await viewerLocale();
 
   const [bookings, pickups] = await Promise.all([
     prisma.bookingRequest.findMany({
@@ -54,7 +57,7 @@ export default async function RequestsPage() {
           <div className="flex items-center justify-between border-b px-5 py-4">
             <h2 className="flex items-center gap-2 font-display font-semibold">
               <PackagePlus className="h-4 w-4" />
-              Shipment bookings
+              {t(locale, "Shipment bookings")}
             </h2>
             <span className="text-xs text-muted-foreground tabular">
               {bookings.length}
@@ -63,7 +66,7 @@ export default async function RequestsPage() {
 
           {bookings.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground">
-              Nothing yet. Bookings made on the website land here.
+              {t(locale, "Nothing yet. Bookings made on the website land here.")}
             </p>
           ) : (
             <ul className="divide-y">
@@ -96,19 +99,27 @@ export default async function RequestsPage() {
                   <p className="mt-3 text-sm">{booking.description}</p>
 
                   <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
-                    <span>{CATEGORY_LABELS[booking.cargoCategory]}</span>
-                    <span>{ORIGIN_LABELS[booking.origin]}</span>
+                    <span>{t(locale, CATEGORY_LABELS[booking.cargoCategory])}</span>
+                    <span>{t(locale, ORIGIN_LABELS[booking.origin])}</span>
                     {booking.estimatedWeightKg ? (
-                      <span>~{toNumber(booking.estimatedWeightKg)} kg</span>
+                      <span>
+                        ~{toNumber(booking.estimatedWeightKg)} {t(locale, "kg")}
+                      </span>
                     ) : null}
-                    {booking.packages ? <span>{booking.packages} pieces</span> : null}
+                    {booking.packages ? (
+                      <span>
+                        {booking.packages} {t(locale, "pieces")}
+                      </span>
+                    ) : null}
                     {booking.pickupNeeded ? (
                       <span className="font-medium text-warning">
-                        Needs collection
+                        {t(locale, "Needs collection")}
                       </span>
                     ) : null}
                     {booking.wantedBy ? (
-                      <span>Wanted by {formatDate(booking.wantedBy)}</span>
+                      <span>
+                        {t(locale, "Wanted by")} {formatDate(booking.wantedBy)}
+                      </span>
                     ) : null}
                   </dl>
 
@@ -132,7 +143,7 @@ export default async function RequestsPage() {
           <div className="flex items-center justify-between border-b px-5 py-4">
             <h2 className="flex items-center gap-2 font-display font-semibold">
               <Truck className="h-4 w-4" />
-              Pickup requests
+              {t(locale, "Pickup requests")}
             </h2>
             <span className="text-xs text-muted-foreground tabular">
               {pickups.length}
@@ -141,7 +152,7 @@ export default async function RequestsPage() {
 
           {pickups.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground">
-              Nothing yet. Collection requests land here for the driver.
+              {t(locale, "Nothing yet. Collection requests land here for the driver.")}
             </p>
           ) : (
             <ul className="divide-y">
@@ -179,7 +190,7 @@ export default async function RequestsPage() {
                           rel="noopener noreferrer"
                           className="ml-2 text-xs text-brand hover:underline"
                         >
-                          Open map
+                          {t(locale, "Open map")}
                         </a>
                       ) : null}
                     </span>
@@ -191,11 +202,19 @@ export default async function RequestsPage() {
 
                   <dl className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
                     {pickup.estimatedWeightKg ? (
-                      <span>~{toNumber(pickup.estimatedWeightKg)} kg</span>
+                      <span>
+                        ~{toNumber(pickup.estimatedWeightKg)} {t(locale, "kg")}
+                      </span>
                     ) : null}
-                    {pickup.packages ? <span>{pickup.packages} pieces</span> : null}
+                    {pickup.packages ? (
+                      <span>
+                        {pickup.packages} {t(locale, "pieces")}
+                      </span>
+                    ) : null}
                     {pickup.preferredAt ? (
-                      <span>Prefers {formatDate(pickup.preferredAt)}</span>
+                      <span>
+                        {t(locale, "Prefers")} {formatDate(pickup.preferredAt)}
+                      </span>
                     ) : null}
                   </dl>
 

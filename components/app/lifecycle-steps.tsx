@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { ArrowRight, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { advanceInvestigation } from "@/lib/actions/investigation-queue";
@@ -64,6 +65,7 @@ export function LifecycleSteps({
     advanceInvestigation,
     { ok: true }
   );
+  const t = useT();
 
   const steps = LIFECYCLE_STEPS[status] ?? [];
   if (steps.length === 0) return null;
@@ -80,26 +82,26 @@ export function LifecycleSteps({
   const mine = steps.filter((step) => may(step.permission));
   const others = steps.filter((step) => !may(step.permission));
   const waitingOn = Array.from(
-    new Set(others.map((step) => DESK[step.permission] ?? "another desk"))
+    new Set(others.map((step) => t(DESK[step.permission] ?? "another desk")))
   );
 
   return (
     <div className="space-y-3 rounded-lg border bg-card p-3">
       <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-        What happens next
+        {t("What happens next")}
       </p>
 
       {chosen ? (
         <form action={action} className="space-y-2">
           <input type="hidden" name="exceptionId" value={exceptionId} />
           <input type="hidden" name="to" value={chosen.to} />
-          <p className="text-sm font-semibold">{chosen.label}</p>
-          <p className="text-xs text-muted-foreground">{chosen.hint}</p>
+          <p className="text-sm font-semibold">{t(chosen.label)}</p>
+          <p className="text-xs text-muted-foreground">{t(chosen.hint)}</p>
           <div className="space-y-1">
             <Label htmlFor={`note-${exceptionId}`} className="text-xs">
               {NOTE_REQUIRED_ON.includes(chosen.to)
-                ? "What happened? The next person will ask."
-                : "Note (optional)"}
+                ? t("What happened? The next person will ask.")
+                : t("Note (optional)")}
             </Label>
             <Textarea
               id={`note-${exceptionId}`}
@@ -111,8 +113,8 @@ export function LifecycleSteps({
           </div>
           <FormError state={state} />
           <div className="flex items-center gap-2">
-            <SubmitButton size="sm" variant="brand" pendingLabel="Saving…">
-              {chosen.label}
+            <SubmitButton size="sm" variant="brand" pendingLabel={t("Saving…")}>
+              {t(chosen.label)}
             </SubmitButton>
             <button
               type="button"
@@ -120,7 +122,7 @@ export function LifecycleSteps({
               className="focus-ring inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
             >
               <X className="h-3.5 w-3.5" />
-              Cancel
+              {t("Cancel")}
             </button>
           </div>
         </form>
@@ -134,9 +136,11 @@ export function LifecycleSteps({
                 className={`focus-ring group flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors ${TONES[step.tone]}`}
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">{step.label}</span>
+                  <span className="block text-sm font-medium">
+                    {t(step.label)}
+                  </span>
                   <span className="block text-[11px] leading-snug text-muted-foreground">
-                    {step.hint}
+                    {t(step.hint)}
                   </span>
                 </span>
                 <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
@@ -150,13 +154,13 @@ export function LifecycleSteps({
           to see it greyed out — they need to know who to chase. */}
       {mine.length === 0 && waitingOn.length > 0 ? (
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Nothing here is yours to do — this case is with{" "}
+          {t("Nothing here is yours to do — this case is with")}{" "}
           <span className="font-medium text-foreground">
-            {waitingOn.join(" and ")}
+            {waitingOn.join(` ${t("and")} `)}
           </span>
           .
           {allow.compensate
-            ? " Your part comes if a payout is approved: you record what actually goes out."
+            ? ` ${t("Your part comes if a payout is approved: you record what actually goes out.")}`
             : ""}
         </p>
       ) : null}

@@ -1,6 +1,8 @@
 import { BadgeCheck, Building2, CalendarDays, IdCard } from "lucide-react";
 
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { viewerLocale } from "@/lib/viewer";
 
 export type ProfileIdentity = {
   name: string;
@@ -23,13 +25,14 @@ export type ProfileIdentity = {
  * first name. The photo is doing real work here, and the employee number under
  * it is what a manager quotes when something needs chasing.
  */
-export function ProfileHeader({
+export async function ProfileHeader({
   identity,
   actions,
 }: {
   identity: ProfileIdentity;
   actions?: React.ReactNode;
 }) {
+  const locale = await viewerLocale();
   const initials = identity.name
     .split(/\s+/)
     .slice(0, 2)
@@ -57,10 +60,10 @@ export function ProfileHeader({
           <span
             title={
               identity.online
-                ? "Online now"
+                ? t(locale, "Online now")
                 : identity.lastSeenLabel
                   ? `Last seen ${identity.lastSeenLabel}`
-                  : "Never signed in"
+                  : t(locale, "Never signed in")
             }
             className={cn(
               "absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-card",
@@ -80,14 +83,14 @@ export function ProfileHeader({
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <Building2 className="h-3.5 w-3.5" />
-              {identity.departmentLabel}
+              {t(locale, identity.departmentLabel)}
             </span>
             {/* Warehouse roles are named after their department, so without a
                 rank this chip would just repeat the line before it. */}
             {(identity.rankLabel ?? identity.roleLabel) !== identity.departmentLabel ? (
               <span className="inline-flex items-center gap-1.5">
                 <BadgeCheck className="h-3.5 w-3.5" />
-                {identity.rankLabel ?? identity.roleLabel}
+                {t(locale, identity.rankLabel ?? identity.roleLabel)}
               </span>
             ) : null}
             {identity.employeeId ? (
@@ -98,7 +101,7 @@ export function ProfileHeader({
             ) : null}
             <span className="inline-flex items-center gap-1.5">
               <CalendarDays className="h-3.5 w-3.5" />
-              Joined {identity.joinedLabel}
+              {t(locale, "Joined")} {identity.joinedLabel}
             </span>
           </div>
 
@@ -110,14 +113,16 @@ export function ProfileHeader({
               )}
             >
               {identity.online
-                ? "Online now"
+                ? t(locale, "Online now")
                 : identity.lastSeenLabel
                   ? `Last active ${identity.lastSeenLabel}`
-                  : "Has never signed in"}
+                  : t(locale, "Has never signed in")}
             </span>
             {identity.status !== "ACTIVE" ? (
               <span className="ml-2 rounded-full bg-warning/10 px-2 py-0.5 font-medium text-warning">
-                {identity.status === "SUSPENDED" ? "Suspended" : "Inactive"}
+                {identity.status === "SUSPENDED"
+                  ? t(locale, "Suspended")
+                  : t(locale, "Inactive")}
               </span>
             ) : null}
           </p>

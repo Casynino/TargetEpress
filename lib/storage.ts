@@ -20,6 +20,15 @@ import { join } from "path";
  */
 
 const MAX_BYTES = 4 * 1024 * 1024; // under Vercel's 4.5 MB request ceiling
+
+/**
+ * The limit, as a person should read it.
+ *
+ * Derived rather than written out, because both refusal messages had drifted
+ * from the constant — a 5 MB photo was rejected with "the limit is 6 MB", which
+ * tells a clerk the upload should have worked and leaves them retrying it.
+ */
+const mb = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/heic"]);
 
 export type StoredImage = { url: string; bytes: number; contentType: string };
@@ -51,7 +60,7 @@ export async function putImage(
   }
   if (file.size > MAX_BYTES) {
     throw new Error(
-      `That photo is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is 6 MB — use your phone's normal camera setting.`
+      `That photo is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is ${mb(MAX_BYTES)} — use your phone's normal camera setting.`
     );
   }
   if (file.type && !ALLOWED.has(file.type)) {
@@ -112,7 +121,7 @@ export async function putDocument(
   }
   if (file.size > DOC_MAX_BYTES) {
     throw new Error(
-      `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is 12 MB.`
+      `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is ${mb(DOC_MAX_BYTES)}.`
     );
   }
   if (file.type === "image/heic" || /\.heic$/i.test(file.name ?? "")) {

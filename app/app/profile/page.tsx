@@ -15,6 +15,7 @@ import { ProfileHeader } from "@/components/app/profile-header";
 import { Button } from "@/components/ui/button";
 import { DEPARTMENT_LABELS, ROLE_LABELS } from "@/lib/constants";
 import { formatDate, formatRelative } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import {
   dailyActivity,
@@ -24,6 +25,7 @@ import {
   profileStats,
 } from "@/lib/profile";
 import { requireUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "My profile" };
 
@@ -45,6 +47,7 @@ const RANK_LABELS: Record<string, string> = {
  */
 export default async function MyProfilePage() {
   const session = await requireUser();
+  const locale = await viewerLocale();
 
   const me = await prisma.user.findUnique({
     where: { id: session.id },
@@ -91,7 +94,7 @@ export default async function MyProfilePage() {
           <Button asChild variant="outline" size="sm" className="rounded-lg">
             <Link href="/app/profile/settings">
               <Settings className="mr-2 h-4 w-4" />
-              Edit profile
+              {t(locale, "Edit profile")}
             </Link>
           </Button>
         }
@@ -101,29 +104,29 @@ export default async function MyProfilePage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Tile
           icon={Package}
-          label="Today's cargo"
+          label={t(locale, "Today's cargo")}
           value={String(stats.todayShipments)}
           hint={`${stats.todayWeightKg.toFixed(1)} kg recorded today`}
         />
         <Tile
           icon={Scale}
-          label="This week"
+          label={t(locale, "This week")}
           value={String(stats.weekShipments)}
           hint={`${stats.monthShipments} in the last 30 days`}
         />
         <Tile
           icon={Printer}
-          label="Labels printed"
+          label={t(locale, "Labels printed")}
           value={String(stats.labelsPrinted)}
-          hint="Sticker sheets you opened"
+          hint={t(locale, "Sticker sheets you opened")}
         />
         <Tile
           icon={Boxes}
-          label="Active batch"
+          label={t(locale, "Active batch")}
           value={stats.activeBatch ?? "—"}
           hint={
             stats.batchesTouched === 1
-              ? "1 batch worked on"
+              ? t(locale, "1 batch worked on")
               : `${stats.batchesTouched} batches worked on`
           }
         />
@@ -135,7 +138,7 @@ export default async function MyProfilePage() {
               numbers that change hourly. */}
           <section className="panel">
             <div className="border-b px-5 py-4">
-              <h2 className="font-display font-semibold">All time</h2>
+              <h2 className="font-display font-semibold">{t(locale, "All time")}</h2>
               <p className="text-xs text-muted-foreground">
                 Since {formatDate(me.joinedAt)}
               </p>
@@ -143,17 +146,17 @@ export default async function MyProfilePage() {
             <dl className="grid gap-px bg-border sm:grid-cols-3">
               {[
                 {
-                  label: "Shipments registered",
+                  label: t(locale, "Shipments registered"),
                   value: stats.totalShipments.toLocaleString(),
                 },
                 {
-                  label: "Weight processed",
+                  label: t(locale, "Weight processed"),
                   value: `${stats.totalWeightKg.toLocaleString(undefined, {
                     maximumFractionDigits: 1,
                   })} kg`,
                 },
                 {
-                  label: "Packages registered",
+                  label: t(locale, "Packages registered"),
                   value: stats.totalPackages.toLocaleString(),
                 },
               ].map((item) => (
@@ -170,9 +173,11 @@ export default async function MyProfilePage() {
           <section className="panel">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-4">
               <div>
-                <h2 className="font-display font-semibold">Your last two weeks</h2>
+                <h2 className="font-display font-semibold">
+                  {t(locale, "Your last two weeks")}
+                </h2>
                 <p className="text-xs text-muted-foreground">
-                  Shipments you registered, per day
+                  {t(locale, "Shipments you registered, per day")}
                 </p>
               </div>
               <p className="font-display text-xl font-bold tabular">
@@ -185,22 +190,26 @@ export default async function MyProfilePage() {
                   label: d.label,
                   value: d.shipments,
                 }))}
-                unit="shipments"
+                unit={t(locale, "shipments")}
               />
             </div>
           </section>
 
           <section className="panel">
             <div className="flex items-center justify-between border-b px-5 py-4">
-              <h2 className="font-display font-semibold">Recent activity</h2>
+              <h2 className="font-display font-semibold">
+                {t(locale, "Recent activity")}
+              </h2>
               <span className="text-xs text-muted-foreground">
-                Your actions, newest first
+                {t(locale, "Your actions, newest first")}
               </span>
             </div>
             {activity.length === 0 ? (
               <p className="p-6 text-sm text-muted-foreground">
-                Nothing recorded yet. Register a piece of cargo and it will
-                appear here.
+                {t(
+                  locale,
+                  "Nothing recorded yet. Register a piece of cargo and it will appear here."
+                )}
               </p>
             ) : (
               <ol className="divide-y">
@@ -228,18 +237,22 @@ export default async function MyProfilePage() {
         <div className="space-y-6">
           <section className="panel">
             <div className="flex items-center justify-between border-b px-5 py-4">
-              <h2 className="font-display font-semibold">My batches</h2>
+              <h2 className="font-display font-semibold">
+                {t(locale, "My batches")}
+              </h2>
               <Link
                 href="/app/profile/batches"
                 className="text-xs font-medium text-brand hover:underline"
               >
-                All
+                {t(locale, "All")}
               </Link>
             </div>
             {batches.length === 0 ? (
               <p className="p-5 text-sm text-muted-foreground">
-                None yet — cargo you register joins a loading table
-                automatically.
+                {t(
+                  locale,
+                  "None yet — cargo you register joins a loading table automatically."
+                )}
               </p>
             ) : (
               <ul className="divide-y">
@@ -250,11 +263,11 @@ export default async function MyProfilePage() {
                         {batch.batchNumber}
                       </p>
                       <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                        {batch.statusLabel}
+                        {t(locale, batch.statusLabel)}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Registered by you:{" "}
+                      {t(locale, "Registered by you:")}{" "}
                       <span className="font-medium text-foreground tabular">
                         {batch.shipments}
                       </span>{" "}
@@ -268,35 +281,35 @@ export default async function MyProfilePage() {
 
           <section className="panel">
             <h2 className="border-b px-5 py-4 font-display font-semibold">
-              Your work
+              {t(locale, "Your work")}
             </h2>
             <div className="divide-y">
               <ProfileLink
                 href="/app/profile/shipments"
-                title="My shipments"
+                title={t(locale, "My shipments")}
                 detail={`${stats.totalShipments} you registered`}
               />
               <ProfileLink
                 href="/app/profile/batches"
-                title="My batches"
+                title={t(locale, "My batches")}
                 detail={`${stats.batchesTouched} you contributed to`}
               />
               {/* The whole floor's activity sits beside your own — this page
                   is already the answer to "what has been happening". */}
               <ProfileLink
                 href="/app/activity"
-                title="Floor activity"
-                detail="What everyone has been doing, by day"
+                title={t(locale, "Floor activity")}
+                detail={t(locale, "What everyone has been doing, by day")}
               />
               <ProfileLink
                 href="/app/notifications"
-                title="Notifications"
-                detail="Dispatches, edits and announcements"
+                title={t(locale, "Notifications")}
+                detail={t(locale, "Dispatches, edits and announcements")}
               />
               <ProfileLink
                 href="/app/profile/settings"
-                title="Personal details"
-                detail="Photo, name, phone and password"
+                title={t(locale, "Personal details")}
+                detail={t(locale, "Photo, name, phone and password")}
               />
             </div>
           </section>

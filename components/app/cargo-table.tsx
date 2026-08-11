@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Printer, QrCode } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
+import { useT } from "@/components/app/locale-provider";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -46,11 +47,12 @@ export function ShipmentsTable({
   canPrintLabel: boolean;
 }) {
   const { toast } = useToast();
+  const t = useT();
 
   const columns: Column<ShipmentRow>[] = [
     {
       id: "trackingNumber",
-      header: "Tracking",
+      header: t("Tracking"),
       sortValue: (row) => row.trackingNumber,
       cell: (row) => (
         <Link
@@ -63,34 +65,34 @@ export function ShipmentsTable({
     },
     {
       id: "customer",
-      header: "Customer",
+      header: t("Customer"),
       sortValue: (row) => row.customerName,
       cell: (row) => (
         <div className="min-w-0">
           <p className="truncate text-sm">{row.customerName}</p>
           <p className="truncate text-xs text-muted-foreground tabular">
-            {row.customerPhone ?? "No phone recorded"}
+            {row.customerPhone ?? t("No phone recorded")}
           </p>
         </div>
       ),
     },
     {
       id: "cargo",
-      header: "Cargo",
+      header: t("Cargo"),
       hideBelow: "lg",
       sortValue: (row) => row.description,
       cell: (row) => (
         <div className="min-w-0">
           <p className="max-w-[220px] truncate text-sm">{row.description}</p>
           <p className="text-xs text-muted-foreground tabular">
-            {row.packages} pkg · {formatWeight(row.weightKg)}
+            {row.packages} {t("pkg")} · {formatWeight(row.weightKg)}
           </p>
         </div>
       ),
     },
     {
       id: "weight",
-      header: "Weight",
+      header: t("Weight"),
       align: "right",
       defaultHidden: true,
       sortValue: (row) => row.weightKg,
@@ -100,7 +102,7 @@ export function ShipmentsTable({
     },
     {
       id: "batch",
-      header: "Batch",
+      header: t("Batch"),
       hideBelow: "xl",
       sortValue: (row) => row.batchNumber,
       cell: (row) => (
@@ -111,14 +113,14 @@ export function ShipmentsTable({
     },
     {
       id: "status",
-      header: "Status",
+      header: t("Status"),
       sortValue: (row) => Object.keys(SHIPMENT_STATUS_META).indexOf(row.status),
       cell: (row) => <ShipmentStatusBadge status={row.status} />,
     },
     ...(showMoney
       ? [{
       id: "outstanding",
-      header: "Owed",
+      header: t("Owed"),
       align: "right",
       hideBelow: "xl",
       sortValue: (row) => row.outstanding ?? -1,
@@ -126,7 +128,7 @@ export function ShipmentsTable({
         row.outstanding === null || row.outstanding === undefined ? (
           <span className="text-xs text-muted-foreground">—</span>
         ) : row.outstanding <= 0 ? (
-          <span className="text-xs font-medium text-success">Settled</span>
+          <span className="text-xs font-medium text-success">{t("Settled")}</span>
         ) : (
           <span className="font-mono text-sm font-medium tabular text-warning">
             {formatMoney(row.outstanding, row.currency)}
@@ -136,7 +138,7 @@ export function ShipmentsTable({
       : []),
     {
       id: "registeredAt",
-      header: "Registered",
+      header: t("Registered"),
       hideBelow: "lg",
       sortValue: (row) => new Date(row.registeredAt),
       cell: (row) => (
@@ -150,7 +152,7 @@ export function ShipmentsTable({
   const filters: TableFilter<ShipmentRow>[] = [
     {
       id: "status",
-      label: "Status",
+      label: t("Status"),
       options: Object.entries(SHIPMENT_STATUS_META).map(([value, meta]) => ({
         value,
         label: meta.label,
@@ -159,7 +161,7 @@ export function ShipmentsTable({
     },
     {
       id: "origin",
-      label: "Origin",
+      label: t("Origin"),
       options: Object.entries(ORIGIN_LABELS).map(([value, label]) => ({
         value,
         label,
@@ -168,7 +170,7 @@ export function ShipmentsTable({
     },
     {
       id: "goodsType",
-      label: "Goods type",
+      label: t("Goods type"),
       options: Object.entries(GOODS_TYPE_LABELS).map(([value, label]) => ({
         value,
         label,
@@ -178,11 +180,11 @@ export function ShipmentsTable({
     ...(showMoney
       ? [{
       id: "payment",
-      label: "Payment",
+      label: t("Payment"),
       options: [
-        { value: "owing", label: "Money outstanding" },
-        { value: "settled", label: "Settled" },
-        { value: "uninvoiced", label: "Not invoiced" },
+        { value: "owing", label: t("Money outstanding") },
+        { value: "settled", label: t("Settled") },
+        { value: "uninvoiced", label: t("Not invoiced") },
       ],
       match: (row, value) => {
         const owed = row.outstanding;
@@ -208,15 +210,15 @@ export function ShipmentsTable({
           row.batchNumber ?? "",
         ].join(" ")
       }
-      searchPlaceholder="Tracking number, customer, phone or batch…"
+      searchPlaceholder={t("Tracking number, customer, phone or batch…")}
       filters={filters}
       initialSort={{ columnId: "registeredAt", direction: "desc" }}
-      emptyTitle="No shipments match"
-      emptyDescription="Try a different search, or clear the filters."
+      emptyTitle={t("No shipments match")}
+      emptyDescription={t("Try a different search, or clear the filters.")}
       toolbar={
         canCreate ? (
           <Button asChild variant="signal" size="sm" className="h-10">
-            <Link href="/app/cargo/new">Receive cargo</Link>
+            <Link href="/app/cargo/new">{t("Receive cargo")}</Link>
           </Button>
         ) : null
       }
@@ -235,21 +237,21 @@ export function ShipmentsTable({
                   toast({
                     tone: "success",
                     title: `${selected.length} tracking number(s) copied`,
-                    description: "Paste them wherever you need them.",
+                    description: t("Paste them wherever you need them."),
                   })
                 )
                 .catch(() =>
                   toast({
                     tone: "error",
-                    title: "Could not copy",
-                    description: "Your browser blocked clipboard access.",
+                    title: t("Could not copy"),
+                    description: t("Your browser blocked clipboard access."),
                   })
                 );
               clear();
             }}
           >
             <QrCode className="mr-2 h-4 w-4" />
-            Copy numbers
+            {t("Copy numbers")}
           </Button>
           {canPrintLabel ? (
             <Button asChild variant="outline" size="sm">
@@ -258,7 +260,7 @@ export function ShipmentsTable({
                 target="_blank"
               >
                 <Printer className="mr-2 h-4 w-4" />
-                Print first label
+                {t("Print first label")}
               </Link>
             </Button>
           ) : null}
@@ -271,7 +273,7 @@ export function ShipmentsTable({
             { label: "Origin", value: ORIGIN_LABELS[row.origin] },
             { label: "Packages", value: String(row.packages) },
             { label: "Weight", value: formatWeight(row.weightKg) },
-            { label: "Batch", value: row.batchNumber ?? "Not assigned" },
+            { label: "Batch", value: row.batchNumber ?? t("Not assigned") },
             { label: "Registered", value: formatDate(row.registeredAt) },
             ...(showMoney
               ? [
@@ -279,7 +281,7 @@ export function ShipmentsTable({
                     label: "Outstanding",
                     value:
                       row.outstanding === null || row.outstanding === undefined
-                        ? "Not invoiced"
+                        ? t("Not invoiced")
                         : formatMoney(row.outstanding, row.currency),
                   },
                 ]
@@ -287,14 +289,14 @@ export function ShipmentsTable({
             { label: "Description", value: row.description },
           ].map((item) => (
             <div key={item.label}>
-              <dt className="text-xs text-muted-foreground">{item.label}</dt>
+              <dt className="text-xs text-muted-foreground">{t(item.label)}</dt>
               <dd className="mt-0.5 text-sm font-medium">{item.value}</dd>
             </div>
           ))}
           <div className="sm:col-span-4">
             <Button asChild size="sm" variant="outline">
               <Link href={`/app/cargo/${row.trackingNumber}`}>
-                Open shipment
+                {t("Open shipment")}
               </Link>
             </Button>
           </div>
@@ -313,17 +315,17 @@ export function ShipmentsTable({
           </div>
           <p className="mt-2 truncate text-sm">{row.customerName}</p>
           <p className="text-xs text-muted-foreground tabular">
-            {row.customerPhone ?? "No phone recorded"}
+            {row.customerPhone ?? t("No phone recorded")}
           </p>
           <p className="mt-2 truncate text-xs text-muted-foreground">
-            {row.packages} pkg · {formatWeight(row.weightKg)}
+            {row.packages} {t("pkg")} · {formatWeight(row.weightKg)}
             {row.batchNumber ? ` · ${row.batchNumber}` : ""}
           </p>
           {showMoney &&
           typeof row.outstanding === "number" &&
           row.outstanding > 0 ? (
             <p className="mt-2 font-mono text-xs font-medium tabular text-warning">
-              {formatMoney(row.outstanding, row.currency)} outstanding
+              {formatMoney(row.outstanding, row.currency)} {t("outstanding")}
             </p>
           ) : null}
         </Link>

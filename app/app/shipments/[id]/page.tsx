@@ -23,9 +23,11 @@ import {
 import { formatDate, formatDateTime, toNumber } from "@/lib/format";
 import { batchFinance } from "@/lib/batch-finance";
 import { cargoLabel } from "@/lib/cargo";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Shipment" };
 
@@ -45,6 +47,7 @@ export default async function ShipmentPage({
   // user rather than discarding them, so the band can be gated on its own.
   const user = await requirePermission("batch.view");
   const { id } = await params;
+  const locale = await viewerLocale();
 
   const showMoney = can(user.role, "finance.view");
 
@@ -157,46 +160,46 @@ export default async function ShipmentPage({
   const timeline: TimelineEntry[] = [
     {
       id: "created",
-      label: "Dispatch created",
+      label: t(locale, "Dispatch created"),
       detail: dispatch.createdBy
         ? `Raised by ${dispatch.createdBy.name}`
-        : "Raised in China",
+        : t(locale, "Raised in China"),
       at: formatDateTime(dispatch.createdAt),
       done: true,
     },
     {
       id: "departed",
-      label: "Left China",
+      label: t(locale, "Left China"),
       detail:
         [dispatch.airline, dispatch.flightNumber].filter(Boolean).join(" ") ||
-        "Flight not recorded",
+        t(locale, "Flight not recorded"),
       at: dispatch.departedAt ? formatDateTime(dispatch.departedAt) : "—",
       done: Boolean(dispatch.departedAt),
     },
     {
       id: "expected",
-      label: "Expected in Dar es Salaam",
+      label: t(locale, "Expected in Dar es Salaam"),
       detail: dispatch.expectedArrival
-        ? "What Dar was told to expect"
-        : "No expected date recorded",
+        ? t(locale, "What Dar was told to expect")
+        : t(locale, "No expected date recorded"),
       at: dispatch.expectedArrival ? formatDate(dispatch.expectedArrival) : "—",
       done: Boolean(dispatch.expectedArrival),
     },
     {
       id: "arrived",
-      label: "Landed",
+      label: t(locale, "Landed"),
       detail: dispatch.arrivedAt
-        ? "Confirmed by the Dar warehouse"
-        : "Not yet confirmed",
+        ? t(locale, "Confirmed by the Dar warehouse")
+        : t(locale, "Not yet confirmed"),
       at: dispatch.arrivedAt ? formatDateTime(dispatch.arrivedAt) : "—",
       done: Boolean(dispatch.arrivedAt),
     },
     {
       id: "verified",
-      label: "Checked in against the manifest",
+      label: t(locale, "Checked in against the manifest"),
       detail: dispatch.verifiedAt
-        ? "Every piece accounted for or flagged"
-        : "Check-in not finished",
+        ? t(locale, "Every piece accounted for or flagged")
+        : t(locale, "Check-in not finished"),
       at: dispatch.verifiedAt ? formatDateTime(dispatch.verifiedAt) : "—",
       done: Boolean(dispatch.verifiedAt),
     },
@@ -210,20 +213,20 @@ export default async function ShipmentPage({
     <>
       <PageHeader
         title={dispatch.batchNumber}
-        description={`${ORIGIN_LABELS[dispatch.origin]} → Dar es Salaam`}
+        description={`${t(locale, ORIGIN_LABELS[dispatch.origin])} → ${t(locale, "Dar es Salaam")}`}
         actions={
           <>
             <BatchStatusBadge status={dispatch.status} />
             <Button asChild variant="outline" size="sm">
               <Link href={`/app/batches/${dispatch.id}/manifest`}>
                 <FileText className="mr-2 h-4 w-4" />
-                Manifest
+                {t(locale, "Manifest")}
               </Link>
             </Button>
             <Button asChild variant="ghost" size="sm">
               <Link href="/app/shipments">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                All shipments
+                {t(locale, "All shipments")}
               </Link>
             </Button>
           </>
@@ -252,12 +255,12 @@ export default async function ShipmentPage({
             <Plane className="h-4 w-4 text-brand" />
             <span className="text-sm font-medium">
               {[dispatch.airline, dispatch.flightNumber].filter(Boolean).join(" ") ||
-                "Flight not recorded"}
+                t(locale, "Flight not recorded")}
             </span>
           </div>
           {dispatch.waybillNumber ? (
             <span className="font-mono text-sm text-muted-foreground">
-              Waybill {dispatch.waybillNumber}
+              {t(locale, "Waybill")} {dispatch.waybillNumber}
             </span>
           ) : null}
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -268,12 +271,12 @@ export default async function ShipmentPage({
 
         <dl className="grid gap-px bg-border sm:grid-cols-3 lg:grid-cols-6">
           {[
-            { label: "Cargo pieces", value: String(cargo.length) },
-            { label: "Packages", value: String(packages) },
-            { label: "Total weight", value: `${weight.toFixed(1)} kg` },
-            { label: "Departed", value: formatDate(dispatch.departureDate) },
-            { label: "Expected", value: formatDate(dispatch.expectedArrival) },
-            { label: "Arrived", value: formatDate(dispatch.arrivalDate) },
+            { label: t(locale, "Cargo pieces"), value: String(cargo.length) },
+            { label: t(locale, "Packages"), value: String(packages) },
+            { label: t(locale, "Total weight"), value: `${weight.toFixed(1)} kg` },
+            { label: t(locale, "Departed"), value: formatDate(dispatch.departureDate) },
+            { label: t(locale, "Expected"), value: formatDate(dispatch.expectedArrival) },
+            { label: t(locale, "Arrived"), value: formatDate(dispatch.arrivalDate) },
           ].map((stat) => (
             <div key={stat.label} className="bg-card p-4">
               <dt className="text-xs text-muted-foreground">{stat.label}</dt>

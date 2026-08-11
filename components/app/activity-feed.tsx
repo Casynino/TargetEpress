@@ -14,7 +14,9 @@ import {
 } from "lucide-react";
 
 import { formatRelative } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { viewerLocale } from "@/lib/viewer";
 
 /** Maps an audit action onto an icon and a colour, so the feed is scannable. */
 const ACTION_STYLE: { test: RegExp; icon: LucideIcon; tone: string }[] = [
@@ -47,7 +49,7 @@ export type ActivityEntry = {
   actorName: string | null;
 };
 
-export function ActivityFeed({
+export async function ActivityFeed({
   entries,
   title = "Activity",
   description,
@@ -68,13 +70,16 @@ export function ActivityFeed({
   showActor?: boolean;
   emptyMessage?: string;
 }) {
+  const locale = await viewerLocale();
   return (
     <section className={cn("panel flex flex-col", className)}>
       <header className="flex items-start justify-between gap-3 border-b px-5 py-4">
         <div>
-          <h2 className="font-display font-semibold">{title}</h2>
+          <h2 className="font-display font-semibold">{t(locale, title)}</h2>
           {description ? (
-            <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t(locale, description)}
+            </p>
           ) : null}
         </div>
         {href ? (
@@ -82,14 +87,14 @@ export function ActivityFeed({
             href={href}
             className="focus-ring shrink-0 rounded-md text-xs font-medium text-brand hover:underline"
           >
-            View all
+            {t(locale, "View all")}
           </Link>
         ) : null}
       </header>
 
       {entries.length === 0 ? (
         <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-          {emptyMessage}
+          {t(locale, emptyMessage)}
         </p>
       ) : (
         <ol className="max-h-[360px] overflow-y-auto px-5 py-2">
@@ -110,7 +115,7 @@ export function ActivityFeed({
                   <p className="text-sm leading-snug">{entry.summary}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {showActor
-                      ? `${entry.actorName ?? "System"} · ${formatRelative(entry.createdAt)}`
+                      ? `${entry.actorName ?? t(locale, "System")} · ${formatRelative(entry.createdAt)}`
                       : formatRelative(entry.createdAt)}
                   </p>
                 </div>

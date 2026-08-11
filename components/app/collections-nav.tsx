@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useT } from "@/components/app/locale-provider";
 import { cn } from "@/lib/utils";
 
 /**
@@ -58,10 +59,11 @@ export function CollectionsNav({
   canVerify?: boolean;
 }) {
   const pathname = usePathname();
+  const t = useT();
 
   return (
     <nav
-      aria-label="Collections workspace"
+      aria-label={t("Collections workspace")}
       className="mb-6 flex gap-2 overflow-x-auto pb-1"
     >
       {TABS.filter((tab) =>
@@ -89,7 +91,7 @@ export function CollectionsNav({
                 : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
             )}
           >
-            {tab.label}
+            {t(tab.label)}
           </Link>
         );
       })}

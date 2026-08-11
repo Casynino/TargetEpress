@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { viewerLocale } from "@/lib/viewer";
 
 export type MixSlice = {
   name: string;
@@ -46,7 +48,7 @@ function toneFor(name: string, index: number) {
   return TONES[index % TONES.length];
 }
 
-export function CargoMix({
+export async function CargoMix({
   slices,
   totalShipments,
   totalWeightKg,
@@ -58,13 +60,17 @@ export function CargoMix({
   totalWeightKg: number;
   periodLabel: string;
 }) {
+  const locale = await viewerLocale();
+
   if (totalShipments === 0) {
     return (
       <section className="panel flex flex-col p-5">
-        <h2 className="font-display font-semibold">What you are sending</h2>
+        <h2 className="font-display font-semibold">
+          {t(locale, "What you are sending")}
+        </h2>
         <p className="mt-0.5 text-xs text-muted-foreground">{periodLabel}</p>
         <p className="mt-6 text-sm text-muted-foreground">
-          Nothing received yet in this period.
+          {t(locale, "Nothing received yet in this period.")}
         </p>
       </section>
     );
@@ -96,7 +102,9 @@ export function CargoMix({
     <section className="panel flex flex-col p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-display font-semibold">What you are sending</h2>
+          <h2 className="font-display font-semibold">
+            {t(locale, "What you are sending")}
+          </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">{periodLabel}</p>
         </div>
         <p className="text-right text-xs text-muted-foreground tabular">
@@ -140,7 +148,7 @@ export function CargoMix({
               {totalShipments.toLocaleString()}
             </span>
             <span className="mt-1 text-[11px] text-muted-foreground">
-              shipments
+              {t(locale, "shipments")}
             </span>
           </div>
         </div>
@@ -185,7 +193,10 @@ export function CargoMix({
             {unclassified} without an item chosen
           </span>
           <span className="mt-0.5 block text-muted-foreground">
-            Finance prices these on the general rate, which is usually wrong.
+            {t(
+              locale,
+              "Finance prices these on the general rate, which is usually wrong."
+            )}
           </span>
         </Link>
       ) : (
@@ -193,7 +204,7 @@ export function CargoMix({
           href="/app/shipments"
           className="mt-4 text-xs font-medium text-brand hover:underline"
         >
-          All shipments →
+          {t(locale, "All shipments →")}
         </Link>
       )}
     </section>

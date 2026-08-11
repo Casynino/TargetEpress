@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { Languages } from "lucide-react";
 
+import { useT } from "@/components/app/locale-provider";
 import { setLanguage } from "@/lib/actions/language";
 import { LOCALES, LOCALE_LABELS, type Locale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
@@ -27,11 +28,12 @@ export function LanguageSwitch({
   className?: string;
 }) {
   const [pending, start] = useTransition();
+  const t = useT();
 
   return (
     <div
       role="group"
-      aria-label="Language"
+      aria-label={t("Language")}
       className={cn("inline-flex rounded-lg border p-0.5", className)}
     >
       {LOCALES.map((locale) => {

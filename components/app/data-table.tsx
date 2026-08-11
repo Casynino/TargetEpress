@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -82,7 +83,7 @@ export function DataTable<T>({
   columns,
   getRowId,
   searchValue,
-  searchPlaceholder = "Search…",
+  searchPlaceholder,
   filters = [],
   pageSize = 25,
   renderExpanded,
@@ -90,7 +91,7 @@ export function DataTable<T>({
   rowHref,
   bulkActions,
   toolbar,
-  emptyTitle = "Nothing to show",
+  emptyTitle,
   emptyDescription,
   initialSort,
   className,
@@ -124,6 +125,7 @@ export function DataTable<T>({
   initialSort?: { columnId: string; direction: "asc" | "desc" };
   className?: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [query, setQuery] = React.useState("");
   const [sort, setSort] = React.useState(initialSort ?? null);
@@ -137,6 +139,7 @@ export function DataTable<T>({
   const [showFilters, setShowFilters] = React.useState(false);
 
   const visibleColumns = columns.filter((c) => !hidden.has(c.id));
+  const placeholder = searchPlaceholder ?? t("Search…");
 
   // --- derive: filter → search → sort ------------------------------------
   const filtered = React.useMemo(() => {
@@ -234,16 +237,16 @@ export function DataTable<T>({
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={searchPlaceholder}
+              placeholder={placeholder}
               className="pl-9"
-              aria-label={searchPlaceholder}
+              aria-label={placeholder}
             />
             {query ? (
               <button
                 type="button"
                 onClick={() => setQuery("")}
                 className="focus-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground"
-                aria-label="Clear search"
+                aria-label={t("Clear search")}
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -263,7 +266,7 @@ export function DataTable<T>({
               className="h-10"
             >
               <SlidersHorizontal className="mr-2 h-4 w-4" />
-              Filters
+              {t("Filters")}
               {activeFilterCount ? (
                 <span className="ml-2 rounded-full bg-brand px-1.5 text-[10px] font-semibold text-brand-foreground tabular">
                   {activeFilterCount}
@@ -276,11 +279,11 @@ export function DataTable<T>({
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="outline" size="sm" className="h-10">
                 <Columns3 className="mr-2 h-4 w-4" />
-                Columns
+                {t("Columns")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Show columns</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("Show columns")}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {columns.map((column) => (
                 <DropdownMenuCheckboxItem
@@ -337,7 +340,7 @@ export function DataTable<T>({
                     }
                     className="h-9"
                   >
-                    <option value="">All</option>
+                    <option value="">{t("All")}</option>
                     {filter.options.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
@@ -353,7 +356,7 @@ export function DataTable<T>({
                   size="sm"
                   onClick={() => setFilterValues({})}
                 >
-                  Clear all
+                  {t("Clear all")}
                 </Button>
               ) : null}
             </div>
@@ -382,7 +385,7 @@ export function DataTable<T>({
                 size="sm"
                 onClick={() => setSelected(new Set())}
               >
-                Clear
+                {t("Clear")}
               </Button>
             </div>
           </motion.div>
@@ -392,7 +395,7 @@ export function DataTable<T>({
       {/* Empty */}
       {filtered.length === 0 ? (
         <EmptyState
-          title={emptyTitle}
+          title={emptyTitle ?? t("Nothing to show")}
           description={emptyDescription}
           action={
             query || activeFilterCount ? (
@@ -403,7 +406,7 @@ export function DataTable<T>({
                   setFilterValues({});
                 }}
               >
-                Clear search and filters
+                {t("Clear search and filters")}
               </Button>
             ) : null
           }
@@ -436,7 +439,7 @@ export function DataTable<T>({
                           checked={allOnPageSelected}
                           indeterminate={!allOnPageSelected && someOnPageSelected}
                           onChange={toggleAllOnPage}
-                          aria-label="Select all rows on this page"
+                          aria-label={t("Select all rows on this page")}
                         />
                       </th>
                     ) : null}
@@ -547,7 +550,7 @@ export function DataTable<T>({
                               <Checkbox
                                 checked={isSelected}
                                 onChange={() => toggleRow(id)}
-                                aria-label="Select row"
+                                aria-label={t("Select row")}
                               />
                             </td>
                           ) : null}
@@ -572,7 +575,9 @@ export function DataTable<T>({
                                 type="button"
                                 onClick={() => toggleExpanded(id)}
                                 aria-expanded={isOpen}
-                                aria-label={isOpen ? "Collapse row" : "Expand row"}
+                                aria-label={
+                                  isOpen ? t("Collapse row") : t("Expand row")
+                                }
                                 className="focus-ring rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
                               >
                                 <ChevronRight
@@ -621,7 +626,7 @@ export function DataTable<T>({
                   disabled={currentPage === 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  Previous
+                  {t("Previous")}
                 </Button>
                 <span className="text-xs text-muted-foreground tabular">
                   {currentPage} / {pageCount}
@@ -633,7 +638,7 @@ export function DataTable<T>({
                   disabled={currentPage === pageCount}
                   onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
                 >
-                  Next
+                  {t("Next")}
                 </Button>
               </div>
             ) : null}

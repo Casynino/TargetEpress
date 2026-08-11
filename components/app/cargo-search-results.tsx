@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AlertTriangle, ChevronRight, QrCode } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
+import { useT } from "@/components/app/locale-provider";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { ORIGIN_LABELS, SHIPMENT_STATUS_META } from "@/lib/constants";
@@ -47,12 +48,13 @@ export type CargoSearchRow = {
 };
 
 export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
+  const t = useT();
   const showMoney = rows.some((row) => row.owed !== undefined);
 
   const columns: Column<CargoSearchRow>[] = [
     {
       id: "trackingNumber",
-      header: "Tracking",
+      header: t("Tracking"),
       sortValue: (row) => row.trackingNumber,
       cell: (row) => (
         <div className="min-w-0">
@@ -65,7 +67,7 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
           {row.fromLabel ? (
             <Badge variant="brand" className="ml-2 align-middle text-[10px]">
               <QrCode className="mr-1 h-3 w-3" />
-              scanned
+              {t("scanned")}
             </Badge>
           ) : null}
         </div>
@@ -73,7 +75,7 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
     },
     {
       id: "customer",
-      header: "Customer",
+      header: t("Customer"),
       sortValue: (row) => row.customerName,
       cell: (row) => (
         <div className="min-w-0">
@@ -84,29 +86,29 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
             {row.customerName}
           </Link>
           <p className="truncate text-xs text-muted-foreground tabular">
-            {row.customerPhone ?? "No phone recorded"}
+            {row.customerPhone ?? t("No phone recorded")}
           </p>
         </div>
       ),
     },
     {
       id: "cargo",
-      header: "Cargo",
+      header: t("Cargo"),
       hideBelow: "lg",
       sortValue: (row) => row.description,
       cell: (row) => (
         <div className="min-w-0">
           <p className="max-w-[220px] truncate text-sm">{row.description}</p>
           <p className="text-xs text-muted-foreground tabular">
-            {row.packages} pkg · {formatWeight(row.weightKg)} ·{" "}
-            {ORIGIN_LABELS[row.origin]}
+            {row.packages} {t("pkg")} · {formatWeight(row.weightKg)} ·{" "}
+            {t(ORIGIN_LABELS[row.origin])}
           </p>
         </div>
       ),
     },
     {
       id: "status",
-      header: "Status",
+      header: t("Status"),
       sortValue: (row) => Object.keys(SHIPMENT_STATUS_META).indexOf(row.status),
       cell: (row) => (
         <div className="flex flex-wrap items-center gap-1.5">
@@ -122,15 +124,17 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
     },
     {
       id: "where",
-      header: "Where it is",
+      header: t("Where it is"),
       hideBelow: "md",
       sortValue: (row) => SHIPMENT_STATUS_META[row.status].publicLocation,
       cell: (row) => (
         <div className="min-w-0">
-          <p className="text-sm">{SHIPMENT_STATUS_META[row.status].publicLocation}</p>
+          <p className="text-sm">
+            {t(SHIPMENT_STATUS_META[row.status].publicLocation)}
+          </p>
           {row.arrivedAt ? (
             <p className="text-xs text-muted-foreground tabular">
-              Landed {formatDate(row.arrivedAt)}
+              {t("Landed")} {formatDate(row.arrivedAt)}
             </p>
           ) : null}
         </div>
@@ -138,7 +142,7 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
     },
     {
       id: "batch",
-      header: "Batch",
+      header: t("Batch"),
       hideBelow: "xl",
       sortValue: (row) => row.batchNumber,
       cell: (row) => (
@@ -151,7 +155,7 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
       ? ([
           {
             id: "owed",
-            header: "Owed",
+            header: t("Owed"),
             align: "right",
             hideBelow: "xl",
             sortValue: (row) => row.owed?.label ?? "",
@@ -189,10 +193,10 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
   const filters: TableFilter<CargoSearchRow>[] = [
     {
       id: "status",
-      label: "Status",
+      label: t("Status"),
       options: Object.entries(SHIPMENT_STATUS_META).map(([value, meta]) => ({
         value,
-        label: meta.label,
+        label: t(meta.label),
       })),
       match: (row, value) => row.status === value,
     },
@@ -212,11 +216,13 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
           row.batchNumber ?? "",
         ].join(" ")
       }
-      searchPlaceholder="Narrow these results…"
+      searchPlaceholder={t("Narrow these results…")}
       filters={filters}
       rowHref={(row) => `/app/cargo/${row.trackingNumber}`}
-      emptyTitle="Nothing left after narrowing"
-      emptyDescription="Clear the box above to see the full result set again."
+      emptyTitle={t("Nothing left after narrowing")}
+      emptyDescription={t(
+        "Clear the box above to see the full result set again."
+      )}
       renderCard={(row) => (
         <Link
           href={`/app/cargo/${row.trackingNumber}`}
@@ -240,14 +246,14 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
           ) : null}
           <p className="mt-1 truncate text-sm">{row.customerName}</p>
           <p className="text-xs text-muted-foreground tabular">
-            {row.customerPhone ?? "No phone recorded"}
+            {row.customerPhone ?? t("No phone recorded")}
           </p>
           <p className="mt-2 truncate text-xs text-muted-foreground">
             {row.description}
           </p>
           <p className="mt-1 text-xs text-muted-foreground tabular">
-            {row.packages} pkg · {formatWeight(row.weightKg)} ·{" "}
-            {SHIPMENT_STATUS_META[row.status].publicLocation}
+            {row.packages} {t("pkg")} · {formatWeight(row.weightKg)} ·{" "}
+            {t(SHIPMENT_STATUS_META[row.status].publicLocation)}
           </p>
         </Link>
       )}

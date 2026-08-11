@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ChevronDown, ChevronRight, Info } from "lucide-react";
 
+import { useT } from "@/components/app/locale-provider";
 import { SectionLabel } from "@/components/app/section-label";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +73,7 @@ export function AttentionCenter({
   reviewAll?: { href: string; label?: string };
   empty: string;
 }) {
+  const t = useT();
   const groups = useMemo(() => {
     const counts = new Map<string, number>();
     for (const item of items) counts.set(item.group, (counts.get(item.group) ?? 0) + 1);
@@ -97,11 +99,11 @@ export function AttentionCenter({
         count={items.length}
         action={
           reviewAll && items.length > 0
-            ? { href: reviewAll.href, label: reviewAll.label ?? "Review all" }
+            ? { href: reviewAll.href, label: reviewAll.label ?? t("Review all") }
             : undefined
         }
       >
-        Needs your attention
+        {t("Needs your attention")}
       </SectionLabel>
 
       <section className="panel overflow-hidden">
@@ -128,7 +130,7 @@ export function AttentionCenter({
                         : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
                     )}
                   >
-                    {group}
+                    {t(group)}
                     <span className="tabular-nums opacity-75">{count}</span>
                   </button>
                 )

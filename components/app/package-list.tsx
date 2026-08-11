@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PACKAGE_TYPE_LABELS, formatPackages } from "@/lib/constants";
+import { t } from "@/lib/i18n";
+import { viewerLocale } from "@/lib/viewer";
 
 export type PackageRow = {
   id: string;
@@ -22,7 +24,7 @@ export type PackageRow = {
  * a second rather than counted. The same list serves China (labels printed) and
  * Dar (boxes checked in), because it is the same five boxes.
  */
-export function PackageList({
+export async function PackageList({
   trackingNumber,
   packageType,
   packages,
@@ -33,6 +35,7 @@ export function PackageList({
   packages: PackageRow[];
   canPrint?: boolean;
 }) {
+  const locale = await viewerLocale();
   const unit = PACKAGE_TYPE_LABELS[packageType] ?? PACKAGE_TYPE_LABELS.PACKAGE;
   const received = packages.filter((p) => p.receivedAt).length;
   const missing = packages.filter((p) => !p.receivedAt).map((p) => p.sequence);
@@ -42,7 +45,7 @@ export function PackageList({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
         <h2 className="flex items-center gap-2 font-display font-semibold">
           <Boxes className="h-4 w-4" />
-          Packages
+          {t(locale, "Packages")}
         </h2>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground tabular">
@@ -53,7 +56,7 @@ export function PackageList({
             <Button asChild variant="outline" size="sm" className="rounded-lg">
               <Link href={`/app/cargo/${trackingNumber}/label`}>
                 <Printer className="mr-2 h-3.5 w-3.5" />
-                Print labels
+                {t(locale, "Print labels")}
               </Link>
             </Button>
           ) : null}
@@ -83,16 +86,16 @@ export function PackageList({
                 {pkg.deliveredAt ? (
                   <Badge variant="outline" className="gap-1 text-xs">
                     <PackageCheck className="h-3 w-3" />
-                    Collected
+                    {t(locale, "Collected")}
                   </Badge>
                 ) : pkg.receivedAt ? (
                   <Badge variant="outline" className="gap-1 text-xs">
                     <Check className="h-3 w-3" />
-                    In Dar
+                    {t(locale, "In Dar")}
                   </Badge>
                 ) : (
                   <Badge variant="secondary" className="text-xs">
-                    Not checked in
+                    {t(locale, "Not checked in")}
                   </Badge>
                 )}
               </div>
@@ -103,7 +106,7 @@ export function PackageList({
             <p className="text-right text-xs text-muted-foreground">
               {pkg.receivedByName
                 ? `Checked in by ${pkg.receivedByName}`
-                : "Awaiting arrival"}
+                : t(locale, "Awaiting arrival")}
             </p>
           </li>
         ))}

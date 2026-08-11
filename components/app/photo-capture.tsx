@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Camera, ImagePlus, Trash2, TriangleAlert } from "lucide-react";
 
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -91,6 +92,7 @@ export function PhotoCapture({
   /** False when storage is local disk — say so rather than imply permanence. */
   durable?: boolean;
 }) {
+  const t = useT();
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
   const [previews, setPreviews] = useState<Preview[]>([]);
@@ -146,7 +148,7 @@ export function PhotoCapture({
     <div className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-sm font-medium">
-          {label}
+          {t(label)}
           {required ? <span className="ml-1 text-signal">*</span> : null}
         </p>
         <p className="text-xs text-muted-foreground tabular">
@@ -154,7 +156,7 @@ export function PhotoCapture({
         </p>
       </div>
 
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      {hint ? <p className="text-xs text-muted-foreground">{t(hint)}</p> : null}
 
       {/* Real inputs, hidden but present so the form submits their files. */}
       <input
@@ -191,7 +193,7 @@ export function PhotoCapture({
           onClick={() => cameraRef.current?.click()}
         >
           <Camera className="mr-2 h-4 w-4" />
-          {working ? "Preparing…" : "Take photo"}
+          {working ? t("Preparing…") : t("Take photo")}
         </Button>
         <Button
           type="button"
@@ -201,7 +203,7 @@ export function PhotoCapture({
           onClick={() => libraryRef.current?.click()}
         >
           <ImagePlus className="mr-2 h-4 w-4" />
-          Choose file
+          {t("Choose file")}
         </Button>
       </div>
 
@@ -214,10 +216,10 @@ export function PhotoCapture({
         >
           <Camera className="mx-auto h-6 w-6 text-muted-foreground/60" />
           <p className="mt-2 text-sm font-medium">
-            {required ? "A photo is required" : "No photos yet"}
+            {required ? t("A photo is required") : t("No photos yet")}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Photograph the cargo as it sits, before it is packed.
+            {t("Photograph the cargo as it sits, before it is packed.")}
           </p>
         </div>
       ) : (
@@ -251,8 +253,9 @@ export function PhotoCapture({
         <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 p-2.5 text-xs text-warning">
           <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>
-            Photos are being saved to this machine&apos;s disk. Set
-            BLOB_READ_WRITE_TOKEN before deploying, or uploads will not survive.
+            {t(
+              "Photos are being saved to this machine's disk. Set BLOB_READ_WRITE_TOKEN before deploying, or uploads will not survive."
+            )}
           </span>
         </p>
       ) : null}

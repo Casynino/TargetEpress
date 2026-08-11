@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Save } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { PhotoCapture } from "@/components/app/photo-capture";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +48,7 @@ export function CargoEditForm({
   items: ItemOption[];
   photosDurable: boolean;
 }) {
+  const t = useT();
   const [state, action] = useActionState(updateCargo, undefined);
 
   return (
@@ -61,11 +63,11 @@ export function CargoEditForm({
 
       <section className="panel">
         <h2 className="border-b px-5 py-4 font-display font-semibold">
-          Customer
+          {t("Customer")}
         </h2>
         <div className="grid gap-4 p-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="customerName">Name</Label>
+            <Label htmlFor="customerName">{t("Name")}</Label>
             <Input
               id="customerName"
               name="customerName"
@@ -73,12 +75,13 @@ export function CargoEditForm({
               required
             />
             <p className="text-xs text-muted-foreground">
-              Changes the customer record, so it updates on their other cargo
-              too.
+              {t(
+                "Changes the customer record, so it updates on their other cargo too."
+              )}
             </p>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="customerPhone">Phone</Label>
+            <Label htmlFor="customerPhone">{t("Phone")}</Label>
             <Input
               id="customerPhone"
               name="customerPhone"
@@ -91,17 +94,17 @@ export function CargoEditForm({
 
       <section className="panel">
         <h2 className="border-b px-5 py-4 font-display font-semibold">
-          What is in the boxes
+          {t("What is in the boxes")}
         </h2>
         <div className="space-y-4 p-5">
           <div className="space-y-1.5">
-            <Label htmlFor="cargoTypeId">Which item?</Label>
+            <Label htmlFor="cargoTypeId">{t("Which item?")}</Label>
             <NativeSelect
               id="cargoTypeId"
               name="cargoTypeId"
               defaultValue={cargo.cargoTypeId ?? ""}
             >
-              <option value="">Not listed / mixed</option>
+              <option value="">{t("Not listed / mixed")}</option>
               {items.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name}
@@ -109,13 +112,14 @@ export function CargoEditForm({
               ))}
             </NativeSelect>
             <p className="text-xs text-muted-foreground">
-              This is what Finance prices against. Leaving it unset means the
-              general rate.
+              {t(
+                "This is what Finance prices against. Leaving it unset means the general rate."
+              )}
             </p>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{t("Description")}</Label>
             <Input
               id="description"
               name="description"
@@ -123,12 +127,12 @@ export function CargoEditForm({
               required
             />
             <p className="text-xs text-muted-foreground">
-              Your own words. The customer sees this when they track.
+              {t("Your own words. The customer sees this when they track.")}
             </p>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="internalNotes">Internal note</Label>
+            <Label htmlFor="internalNotes">{t("Internal note")}</Label>
             <Textarea
               id="internalNotes"
               name="internalNotes"
@@ -136,7 +140,7 @@ export function CargoEditForm({
               defaultValue={cargo.internalNotes ?? ""}
             />
             <p className="text-xs text-muted-foreground">
-              Never shown to the customer.
+              {t("Never shown to the customer.")}
             </p>
           </div>
         </div>
@@ -144,14 +148,16 @@ export function CargoEditForm({
 
       <section className="panel">
         <div className="border-b px-5 py-4">
-          <h2 className="font-display font-semibold">Weigh and count</h2>
+          <h2 className="font-display font-semibold">{t("Weigh and count")}</h2>
           <p className="text-xs text-muted-foreground">
-            Changing the quantity adds or removes packages, each with its own QR.
+            {t(
+              "Changing the quantity adds or removes packages, each with its own QR."
+            )}
           </p>
         </div>
         <div className="grid gap-4 p-5 sm:grid-cols-3">
           <div className="space-y-1.5">
-            <Label htmlFor="weightKg">Weight (kg)</Label>
+            <Label htmlFor="weightKg">{t("Weight (kg)")}</Label>
             <Input
               id="weightKg"
               name="weightKg"
@@ -163,7 +169,7 @@ export function CargoEditForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="packages">How many</Label>
+            <Label htmlFor="packages">{t("How many")}</Label>
             <Input
               id="packages"
               name="packages"
@@ -174,7 +180,7 @@ export function CargoEditForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="packageType">Counted as</Label>
+            <Label htmlFor="packageType">{t("Counted as")}</Label>
             <NativeSelect
               id="packageType"
               name="packageType"
@@ -189,7 +195,7 @@ export function CargoEditForm({
                 )
               ).map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.label)}
                 </option>
               ))}
             </NativeSelect>
@@ -199,9 +205,11 @@ export function CargoEditForm({
 
       <section className="panel">
         <div className="border-b px-5 py-4">
-          <h2 className="font-display font-semibold">Add photos</h2>
+          <h2 className="font-display font-semibold">{t("Add photos")}</h2>
           <p className="text-xs text-muted-foreground">
-            Added to the record. Existing photos are never replaced or removed.
+            {t(
+              "Added to the record. Existing photos are never replaced or removed."
+            )}
           </p>
         </div>
         <div className="p-5">
@@ -217,7 +225,7 @@ export function CargoEditForm({
 
       <SubmitButton variant="brand" pendingLabel="Saving…">
         <Save className="mr-2 h-4 w-4" />
-        Save changes
+        {t("Save changes")}
       </SubmitButton>
     </form>
   );

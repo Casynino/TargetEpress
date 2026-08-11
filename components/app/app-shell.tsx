@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { LanguageSwitch } from "@/components/app/language-switch";
+import { LocaleProvider } from "@/components/app/locale-provider";
 import { NotificationBell } from "@/components/app/notification-bell";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -122,6 +123,10 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
+    // Publishes the reader's language to every client component below. Server
+    // components resolve it themselves; a client component has no session to
+    // read it from, so the shell hands it down once per request.
+    <LocaleProvider locale={user.locale}>
     <div className="min-h-screen bg-muted/30">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-background lg:flex">
@@ -226,6 +231,7 @@ export function AppShell({
         </div>
       </div>
     </div>
+    </LocaleProvider>
   );
 }
 

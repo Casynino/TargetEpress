@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Textarea } from "@/components/ui/textarea";
 import { saveCustomerNotes } from "@/lib/actions/support";
 
@@ -23,11 +24,12 @@ export function CustomerNotesForm({
   canEdit: boolean;
 }) {
   const [state, action] = useActionState(saveCustomerNotes, undefined);
+  const t = useT();
 
   if (!canEdit) {
     return (
       <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-        {notes || "No notes on this customer."}
+        {notes || t("No notes on this customer.")}
       </p>
     );
   }
@@ -38,17 +40,17 @@ export function CustomerNotesForm({
       <FormError state={state} />
       {state?.ok ? (
         <p className="rounded-md border border-success/30 bg-success/5 p-2 text-xs text-success">
-          Saved.
+          {t("Saved.")}
         </p>
       ) : null}
       <Textarea
         name="notes"
         rows={5}
         defaultValue={notes ?? ""}
-        placeholder="Anything the next person should know before they call."
+        placeholder={t("Anything the next person should know before they call.")}
       />
-      <SubmitButton pendingLabel="Saving…" variant="secondary" size="sm">
-        Save notes
+      <SubmitButton pendingLabel={t("Saving…")} variant="secondary" size="sm">
+        {t("Save notes")}
       </SubmitButton>
     </form>
   );

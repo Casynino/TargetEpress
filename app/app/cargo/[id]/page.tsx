@@ -40,11 +40,13 @@ import {
   toNumber,
 } from "@/lib/format";
 import { activeAccounts } from "@/lib/accounts";
+import { t } from "@/lib/i18n";
 import { composeMessage, whatsappLink } from "@/lib/messages";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Shipment" };
 
@@ -61,6 +63,7 @@ export default async function ShipmentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const user = await requirePermission("shipment.view");
+  const locale = await viewerLocale();
   const { id } = await params;
 
   const shipment = await prisma.shipment.findUnique({
@@ -174,7 +177,7 @@ export default async function ShipmentDetailPage({
     <>
       <PageHeader
         title={shipment.trackingNumber}
-        description={`${shipment.customer.name} · ${SHIPMENT_STATUS_META[shipment.status].description}`}
+        description={`${shipment.customer.name} · ${t(locale, SHIPMENT_STATUS_META[shipment.status].description)}`}
         actions={
           <>
             <ShipmentStatusBadge status={shipment.status} />
@@ -184,7 +187,7 @@ export default async function ShipmentDetailPage({
             {openExceptions.map((exception) => (
               <Badge key={exception.id} variant="destructive">
                 <AlertTriangle className="mr-1 h-3 w-3" />
-                {EXCEPTION_TYPE_LABELS[exception.type]}
+                {t(locale, EXCEPTION_TYPE_LABELS[exception.type])}
               </Badge>
             ))}
             {/* Offered only while the record can actually be changed — a
@@ -196,7 +199,7 @@ export default async function ShipmentDetailPage({
               <Button asChild variant="outline" size="sm" className="rounded-lg">
                 <Link href={`/app/cargo/${shipment.trackingNumber}/edit`}>
                   <Pencil className="mr-2 h-4 w-4" />
-                  Edit
+                  {t(locale, "Edit")}
                 </Link>
               </Button>
             ) : null}
@@ -206,7 +209,7 @@ export default async function ShipmentDetailPage({
               <Button asChild variant="outline" size="sm" className="rounded-lg">
                 <Link href={`/app/cargo/${shipment.trackingNumber}/label`}>
                   <Printer className="mr-2 h-4 w-4" />
-                  Label
+                  {t(locale, "Label")}
                 </Link>
               </Button>
             ) : null}
@@ -218,24 +221,32 @@ export default async function ShipmentDetailPage({
         <div className="space-y-6">
           {/* Cargo */}
           <section className="rounded-xl border bg-card shadow-soft">
-            <h2 className="border-b px-5 py-4 font-display font-semibold">Cargo</h2>
+            <h2 className="border-b px-5 py-4 font-display font-semibold">
+              {t(locale, "Cargo")}
+            </h2>
             <dl className="grid gap-px bg-border sm:grid-cols-3">
               {[
-                { label: "Goods type", value: GOODS_TYPE_LABELS[shipment.goodsType] },
                 {
-                  label: "Counted as",
+                  label: t(locale, "Goods type"),
+                  value: t(locale, GOODS_TYPE_LABELS[shipment.goodsType]),
+                },
+                {
+                  label: t(locale, "Counted as"),
                   value: formatPackages(shipment.packages, shipment.packageType),
                 },
-                { label: "Weight", value: formatWeight(shipment.weightKg) },
-                { label: "Origin", value: ORIGIN_LABELS[shipment.origin] },
+                { label: t(locale, "Weight"), value: formatWeight(shipment.weightKg) },
                 {
-                  label: "Volume",
+                  label: t(locale, "Origin"),
+                  value: t(locale, ORIGIN_LABELS[shipment.origin]),
+                },
+                {
+                  label: t(locale, "Volume"),
                   value: shipment.volumeCbm
                     ? `${toNumber(shipment.volumeCbm)} CBM`
                     : "—",
                 },
                 {
-                  label: "Batch",
+                  label: t(locale, "Batch"),
                   value: shipment.batch ? (
                     <Link
                       href={`/app/batches/${shipment.batch.id}`}
@@ -244,11 +255,11 @@ export default async function ShipmentDetailPage({
                       {shipment.batch.batchNumber}
                     </Link>
                   ) : (
-                    "Not assigned"
+                    t(locale, "Not assigned")
                   ),
                 },
                 {
-                  label: "Carton",
+                  label: t(locale, "Carton"),
                   value: shipment.cartonRef ?? "—",
                 },
                 // Who it belongs to and what it flew on, in the same card as
@@ -256,7 +267,7 @@ export default async function ShipmentDetailPage({
                 // right-hand column, which made reading one consignment a
                 // matter of looking in three places.
                 {
-                  label: "Customer",
+                  label: t(locale, "Customer"),
                   value: (
                     <Link
                       href={`/app/customers/${shipment.customerId}`}
@@ -267,24 +278,24 @@ export default async function ShipmentDetailPage({
                   ),
                 },
                 {
-                  label: "Phone",
-                  value: shipment.customer.phone ?? "Not recorded",
+                  label: t(locale, "Phone"),
+                  value: shipment.customer.phone ?? t(locale, "Not recorded"),
                 },
                 {
-                  label: "Customer code",
+                  label: t(locale, "Customer code"),
                   value: (
                     <span className="code-chip">{shipment.customer.code}</span>
                   ),
                 },
                 {
-                  label: "Flight",
+                  label: t(locale, "Flight"),
                   value:
                     [shipment.batch?.airline, shipment.batch?.flightNumber]
                       .filter(Boolean)
-                      .join(" ") || "Not recorded",
+                      .join(" ") || t(locale, "Not recorded"),
                 },
                 {
-                  label: "Waybill",
+                  label: t(locale, "Waybill"),
                   value: shipment.batch?.waybillNumber ?? "—",
                 },
               ].map((item) => (
@@ -295,7 +306,9 @@ export default async function ShipmentDetailPage({
               ))}
             </dl>
             <div className="border-t p-5">
-              <p className="text-xs text-muted-foreground">Description</p>
+              <p className="text-xs text-muted-foreground">
+                {t(locale, "Description")}
+              </p>
               <p className="mt-1 text-sm">{shipment.description}</p>
               {/* Plain text, no warning box. What is actually in here is
                   packing-list bookkeeping — a carton reference and a row
@@ -335,7 +348,7 @@ export default async function ShipmentDetailPage({
               <div className="flex items-center justify-between border-b px-5 py-4">
                 <h2 className="flex items-center gap-2 font-display font-semibold">
                   <Camera className="h-4 w-4" />
-                  Photos
+                  {t(locale, "Photos")}
                 </h2>
                 <p className="text-xs text-muted-foreground tabular">
                   {shipment.photos.length}
@@ -355,17 +368,17 @@ export default async function ShipmentDetailPage({
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={photo.url}
-                        alt={photo.caption ?? "Cargo photo"}
+                        alt={photo.caption ?? t(locale, "Cargo photo")}
                         className="aspect-square w-full object-cover transition-transform group-hover:scale-[1.03]"
                         loading="lazy"
                       />
                     </a>
                     <p className="mt-1.5 text-xs font-medium">
                       {photo.kind === "PROOF_OF_DELIVERY"
-                        ? "Handover"
+                        ? t(locale, "Handover")
                         : photo.kind === "DAMAGE"
-                          ? "Damage"
-                          : "Receiving"}
+                          ? t(locale, "Damage")
+                          : t(locale, "Receiving")}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {formatDate(photo.createdAt)}
@@ -382,8 +395,10 @@ export default async function ShipmentDetailPage({
               <p className="flex items-start gap-2 text-sm text-warning">
                 <Camera className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
-                  No photos on record. Every shipment registered from now on
-                  requires one; this predates that rule.
+                  {t(
+                    locale,
+                    "No photos on record. Every shipment registered from now on requires one; this predates that rule."
+                  )}
                 </span>
               </p>
             </section>
@@ -407,13 +422,13 @@ export default async function ShipmentDetailPage({
                 >
                   <AlertTriangle className="h-4 w-4" />
                   {openExceptions.length > 0
-                    ? "This cargo has a problem"
-                    : "Problems on record"}
+                    ? t(locale, "This cargo has a problem")
+                    : t(locale, "Problems on record")}
                 </h2>
                 <p className="text-xs text-muted-foreground">
                   {openExceptions.length > 0
                     ? `${openExceptions.length} under investigation · do not hand over`
-                    : "All resolved"}
+                    : t(locale, "All resolved")}
                 </p>
               </div>
               <ul className="divide-y">
@@ -423,15 +438,15 @@ export default async function ShipmentDetailPage({
                     <li key={exception.id} className="px-5 py-4">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant={open ? "destructive" : "muted"}>
-                          {EXCEPTION_TYPE_LABELS[exception.type]}
+                          {t(locale, EXCEPTION_TYPE_LABELS[exception.type])}
                         </Badge>
                         {exception.severity ? (
                           <Badge variant="muted" className="text-[10px]">
-                            {DAMAGE_SEVERITY_LABELS[exception.severity]}
+                            {t(locale, DAMAGE_SEVERITY_LABELS[exception.severity])}
                           </Badge>
                         ) : null}
                         <span className="text-xs text-muted-foreground">
-                          {EXCEPTION_STATUS_LABELS[exception.status]} ·{" "}
+                          {t(locale, EXCEPTION_STATUS_LABELS[exception.status])} ·{" "}
                           {formatDateTime(exception.raisedAt)}
                         </span>
                       </div>
@@ -444,7 +459,10 @@ export default async function ShipmentDetailPage({
                       {exception.resolutionType ? (
                         <div className="mt-3 rounded-lg border bg-muted/30 p-3">
                           <p className="text-xs font-medium">
-                            {RESOLUTION_TYPE_LABELS[exception.resolutionType]}
+                            {t(
+                              locale,
+                              RESOLUTION_TYPE_LABELS[exception.resolutionType]
+                            )}
                             {exception.resolvedAt
                               ? ` · ${formatDate(exception.resolvedAt)}`
                               : ""}
@@ -456,18 +474,19 @@ export default async function ShipmentDetailPage({
                           ) : null}
                           {exception.foundLocation ? (
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Found: {exception.foundLocation}
+                              {t(locale, "Found:")} {exception.foundLocation}
                             </p>
                           ) : null}
                           {exception.weightWasKg && exception.weightNowKg ? (
                             <p className="mt-1 text-xs text-muted-foreground tabular">
-                              Weight {formatWeight(exception.weightWasKg)} →{" "}
+                              {t(locale, "Weight")}{" "}
+                              {formatWeight(exception.weightWasKg)} →{" "}
                               {formatWeight(exception.weightNowKg)}
                             </p>
                           ) : null}
                           {exception.damageOutcome ? (
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Settled: {exception.damageOutcome}
+                              {t(locale, "Settled:")} {exception.damageOutcome}
                             </p>
                           ) : null}
                         </div>
@@ -477,7 +496,8 @@ export default async function ShipmentDetailPage({
                           cargo is damaged, not which colleague reported it. */}
                       {showInternal ? (
                         <p className="mt-2 text-xs text-muted-foreground">
-                          Raised by {exception.raisedBy?.name ?? "—"}
+                          {t(locale, "Raised by")}{" "}
+                          {exception.raisedBy?.name ?? "—"}
                           {exception.resolvedBy
                             ? ` · Closed by ${exception.resolvedBy.name}`
                             : ""}
@@ -500,7 +520,7 @@ export default async function ShipmentDetailPage({
             <section className="rounded-xl border bg-card shadow-soft">
               <h2 className="flex items-center gap-2 border-b px-5 py-4 font-display font-semibold">
                 <ReceiptText className="h-4 w-4" />
-                Payments received
+                {t(locale, "Payments received")}
               </h2>
               <ul className="divide-y">
                 {shipment.invoice!.payments.map((payment) => (
@@ -547,8 +567,8 @@ export default async function ShipmentDetailPage({
                         >
                           <Paperclip className="h-3 w-3" />
                           {proof.contentType === "application/pdf"
-                            ? "Slip"
-                            : "Screenshot"}
+                            ? t(locale, "Slip")
+                            : t(locale, "Screenshot")}
                           {payment.proofs.length > 1 ? ` ${index + 1}` : ""}
                         </a>
                       ))}
@@ -567,26 +587,32 @@ export default async function ShipmentDetailPage({
             <section className="rounded-xl border bg-card shadow-soft">
               <h2 className="flex items-center gap-2 border-b px-5 py-4 font-display font-semibold">
                 <Truck className="h-4 w-4" />
-                Delivery record
+                {t(locale, "Delivery record")}
               </h2>
               <dl className="grid gap-px bg-border sm:grid-cols-3">
                 {[
-                  { label: "Received by", value: shipment.delivery.receiverName },
-                  { label: "Phone", value: shipment.delivery.receiverPhone },
                   {
-                    label: "Relationship",
+                    label: t(locale, "Received by"),
+                    value: shipment.delivery.receiverName,
+                  },
+                  {
+                    label: t(locale, "Phone"),
+                    value: shipment.delivery.receiverPhone,
+                  },
+                  {
+                    label: t(locale, "Relationship"),
                     value: shipment.delivery.relationship.toLowerCase(),
                   },
                   {
-                    label: "ID number",
+                    label: t(locale, "ID number"),
                     value: shipment.delivery.receiverIdNumber ?? "—",
                   },
                   {
-                    label: "Released by",
+                    label: t(locale, "Released by"),
                     value: shipment.delivery.releasedBy?.name ?? "—",
                   },
                   {
-                    label: "Released at",
+                    label: t(locale, "Released at"),
                     value: formatDateTime(shipment.delivery.releasedAt),
                   },
                 ].map((item) => (
@@ -604,7 +630,7 @@ export default async function ShipmentDetailPage({
           {/* Timeline */}
           <section className="rounded-xl border bg-card shadow-soft">
             <h2 className="border-b px-5 py-4 font-display font-semibold">
-              Status history
+              {t(locale, "Status history")}
             </h2>
             <ol className="divide-y">
               {shipment.statusHistory.map((entry) => (
@@ -623,7 +649,7 @@ export default async function ShipmentDetailPage({
                   ) : null}
                   {showInternal ? (
                     <p className="mt-1 text-xs text-muted-foreground/80">
-                      by {entry.actor?.name ?? "System"}
+                      by {entry.actor?.name ?? t(locale, "System")}
                     </p>
                   ) : null}
                 </li>
@@ -717,7 +743,7 @@ export default async function ShipmentDetailPage({
                 {shipment.trackingNumber}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                The same code from China to release.
+                {t(locale, "The same code from China to release.")}
               </p>
             </section>
           ) : null}

@@ -5,9 +5,11 @@ import { Bell, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { MarkAllReadButton } from "@/components/app/notification-actions";
 import { formatRelative } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Notifications" };
 
@@ -21,6 +23,7 @@ export const metadata: Metadata = { title: "Notifications" };
  */
 export default async function NotificationsPage() {
   const me = await requireUser();
+  const locale = await viewerLocale();
 
   const rows = await prisma.notification.findMany({
     where: { userId: me.id },
@@ -44,10 +47,12 @@ export default async function NotificationsPage() {
       {rows.length === 0 ? (
         <div className="rounded-xl border border-dashed p-12 text-center">
           <Bell className="mx-auto h-6 w-6 text-muted-foreground" />
-          <p className="mt-3 font-medium">Nothing yet</p>
+          <p className="mt-3 font-medium">{t(locale, "Nothing yet")}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            You will hear about batches leaving China, cargo of yours that a
-            manager edited, and company announcements.
+            {t(
+              locale,
+              "You will hear about batches leaving China, cargo of yours that a manager edited, and company announcements."
+            )}
           </p>
         </div>
       ) : (

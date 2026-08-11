@@ -13,12 +13,14 @@ import { Input } from "@/components/ui/input";
 import { EXCEPTION_TYPE_LABELS } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { resolveScannedCode } from "@/lib/packages";
 import { prisma } from "@/lib/prisma";
 import { parseQrPayload } from "@/lib/qr";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { searchShipments } from "@/lib/support";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Search cargo" };
 
@@ -69,6 +71,7 @@ export default async function SearchCargoPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const user = await requirePermission("shipment.view");
+  const locale = await viewerLocale();
   const showMoney = can(user.role, "finance.view");
 
   const { q } = await searchParams;
@@ -128,8 +131,8 @@ export default async function SearchCargoPage({
       // problem to whoever is reading the row, not two badges.
       problems: [
         ...new Set(
-          shipment.exceptions.map(
-            (exception) => EXCEPTION_TYPE_LABELS[exception.type]
+          shipment.exceptions.map((exception) =>
+            t(locale, EXCEPTION_TYPE_LABELS[exception.type])
           )
         ),
       ],
@@ -138,10 +141,10 @@ export default async function SearchCargoPage({
             owed: {
               label:
                 outstanding === null
-                  ? "Not billed"
+                  ? t(locale, "Not billed")
                   : outstanding > 0
                     ? formatUsd(outstanding)
-                    : "Settled",
+                    : t(locale, "Settled"),
               state:
                 outstanding === null
                   ? ("unbilled" as const)
@@ -172,7 +175,7 @@ export default async function SearchCargoPage({
             <Button asChild variant="outline" size="sm">
               <Link href="/app/release">
                 <ScanLine className="mr-2 h-4 w-4" />
-                Use the camera
+                {t(locale, "Use the camera")}
               </Link>
             </Button>
           ) : null
@@ -183,13 +186,13 @@ export default async function SearchCargoPage({
         <Input
           name="q"
           defaultValue={query}
-          placeholder="QR code, tracking number, customer name or phone number"
+          placeholder={t(locale, "QR code, tracking number, customer name or phone number")}
           className="flex-1"
           autoComplete="off"
-          aria-label="Search cargo"
+          aria-label={t(locale, "Search cargo")}
         />
         <Button type="submit" variant="brand">
-          Search
+          {t(locale, "Search")}
         </Button>
       </form>
 
@@ -199,9 +202,11 @@ export default async function SearchCargoPage({
             <div key={handle.title} className="panel p-4">
               <p className="flex items-center gap-2 text-sm font-medium">
                 <handle.icon className="h-4 w-4 text-brand" />
-                {handle.title}
+                {t(locale, handle.title)}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">{handle.hint}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t(locale, handle.hint)}
+              </p>
             </div>
           ))}
         </div>
@@ -211,11 +216,13 @@ export default async function SearchCargoPage({
         <div className="mb-4 rounded-xl border border-destructive/40 bg-destructive/5 p-4">
           <p className="flex items-center gap-2 text-sm font-medium text-destructive">
             <QrCode className="h-4 w-4" />
-            That code is not a Target Express label
+            {t(locale, "That code is not a Target Express label")}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Nothing in the system carries it. Check you scanned our sticker and
-            not a supplier&apos;s, then try the tracking number instead.
+            {t(
+              locale,
+              "Nothing in the system carries it. Check you scanned our sticker and not a supplier's, then try the tracking number instead."
+            )}
           </p>
         </div>
       ) : null}
@@ -224,20 +231,20 @@ export default async function SearchCargoPage({
         <div className="mb-4 rounded-xl border border-brand/40 bg-brand/5 p-4">
           <p className="flex items-center gap-2 text-sm font-medium">
             <QrCode className="h-4 w-4 text-brand" />
-            Label read
+            {t(locale, "Label read")}
             {scanned.package
               ? ` — ${scanned.package.reference}, package ${scanned.package.sequence}`
-              : " — shipment label"}
+              : ` ${t(locale, "— shipment label")}`}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {scanned.package
               ? scanned.package.deliveredAt
-                ? "This box has already been handed over."
+                ? t(locale, "This box has already been handed over.")
                 : scanned.package.receivedAt
-                  ? "This box has been checked in at Dar."
-                  : "This box has not been checked in yet."
-              : "The code identifies the consignment rather than one box."}{" "}
-            Its cargo is first in the results below.
+                  ? t(locale, "This box has been checked in at Dar.")
+                  : t(locale, "This box has not been checked in yet.")
+              : t(locale, "The code identifies the consignment rather than one box.")}{" "}
+            {t(locale, "Its cargo is first in the results below.")}
           </p>
         </div>
       ) : null}
@@ -252,8 +259,11 @@ export default async function SearchCargoPage({
       {query && rows.length === 0 ? (
         <EmptyState
           icon={SearchX}
-          title="Nothing matched"
-          description="Try a shorter piece of it — part of a name, the last few digits of the phone number, or the carton reference written on the box."
+          title={t(locale, "Nothing matched")}
+          description={t(
+            locale,
+            "Try a shorter piece of it — part of a name, the last few digits of the phone number, or the carton reference written on the box."
+          )}
         />
       ) : null}
 

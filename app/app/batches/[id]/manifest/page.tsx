@@ -18,8 +18,10 @@ import {
 } from "@/lib/constants";
 import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
 import { cargoLabel } from "@/lib/cargo";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Batch manifest" };
 
@@ -35,6 +37,7 @@ export default async function ManifestPage({
   params: Promise<{ id: string }>;
 }) {
   await requirePermission("batch.view");
+  const locale = await viewerLocale();
   const { id } = await params;
 
   const batch = await prisma.batch.findUnique({
@@ -103,10 +106,10 @@ export default async function ManifestPage({
               <Button asChild variant="ghost" size="sm">
                 <Link href={`/app/batches/${batch.id}`}>
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back
+                  {t(locale, "Back")}
                 </Link>
               </Button>
-              <PrintButton label="Print manifest" />
+              <PrintButton label={t(locale, "Print manifest")} />
             </>
           }
         />
@@ -114,13 +117,15 @@ export default async function ManifestPage({
 
       <DocumentSheet>
         <DocumentHeader
-          title="Batch manifest"
+          title={t(locale, "Batch manifest")}
           meta={
             <>
               <p className="font-mono text-sm font-bold tabular text-[#182A48]">
                 {batch.batchNumber}
               </p>
-              <p>{ORIGIN_LABELS[batch.origin]} — Dar es Salaam</p>
+              <p>
+                {ORIGIN_LABELS[batch.origin]} — {t(locale, "Dar es Salaam")}
+              </p>
               <p>Printed {formatDateTime(new Date())}</p>
             </>
           }
@@ -138,7 +143,9 @@ export default async function ManifestPage({
             },
             {
               label: "Cargo category",
-              value: CATEGORY_FOR_ROUTE[batch.origin] ?? "—",
+              value: CATEGORY_FOR_ROUTE[batch.origin]
+                ? t(locale, CATEGORY_FOR_ROUTE[batch.origin])
+                : "—",
             },
             { label: "Waybill", value: batch.waybillNumber ?? "—" },
             { label: "Departed", value: formatDate(batch.departureDate) },
@@ -149,7 +156,7 @@ export default async function ManifestPage({
           ].map((item) => (
             <div key={item.label}>
               <dt className="text-[9px] font-semibold uppercase tracking-widest text-black/55">
-                {item.label}
+                {t(locale, item.label)}
               </dt>
               <dd className="mt-0.5 font-mono text-xs font-bold tabular">
                 {item.value}
@@ -165,24 +172,26 @@ export default async function ManifestPage({
                 company. */}
             <tr className="bg-[#182A48] text-left text-[10px] uppercase tracking-[0.08em] text-white">
               <th className="rounded-l-md py-2 pl-2.5 pr-2 font-semibold">#</th>
-              <th className="py-2 pr-2 font-semibold">Received</th>
-              <th className="py-2 pr-2 font-semibold">Tracking</th>
-              <th className="py-2 pr-2 font-semibold">Customer</th>
-              <th className="py-2 pr-2 font-semibold">Phone</th>
-              <th className="py-2 pr-2 font-semibold">Which item?</th>
+              <th className="py-2 pr-2 font-semibold">{t(locale, "Received")}</th>
+              <th className="py-2 pr-2 font-semibold">{t(locale, "Tracking")}</th>
+              <th className="py-2 pr-2 font-semibold">{t(locale, "Customer")}</th>
+              <th className="py-2 pr-2 font-semibold">{t(locale, "Phone")}</th>
+              <th className="py-2 pr-2 font-semibold">{t(locale, "Which item?")}</th>
               <th className="whitespace-nowrap py-2 pr-2 text-right font-semibold">
-                Counted as
+                {t(locale, "Counted as")}
               </th>
-              <th className="py-2 pr-2 text-right font-semibold">Weight</th>
+              <th className="py-2 pr-2 text-right font-semibold">
+                {t(locale, "Weight")}
+              </th>
               <th className="whitespace-nowrap py-2 pr-2 font-semibold">
-                Received by
+                {t(locale, "Received by")}
               </th>
               {/* Physically ticked with a pen while checking the cargo. The
                   count is already in "Counted as" — one box per package only
                   repeated it. */}
-              <th className="py-2 pr-2 font-semibold">Problem</th>
+              <th className="py-2 pr-2 font-semibold">{t(locale, "Problem")}</th>
               <th className="w-16 rounded-r-md py-2 pr-2 text-center font-semibold">
-                Checked
+                {t(locale, "Checked")}
               </th>
             </tr>
           </thead>
@@ -211,7 +220,7 @@ export default async function ManifestPage({
                     const short = here < shipment.packages;
                     return short ? (
                       <span className="font-semibold">
-                        {here} of{" "}
+                        {here} {t(locale, "of")}{" "}
                         {formatPackagesShort(
                           shipment.packages,
                           shipment.packageType
@@ -246,7 +255,7 @@ export default async function ManifestPage({
           <tfoot>
             <tr className="border-t-2 border-black/70 font-semibold">
               <td className="py-2" colSpan={6}>
-                Total
+                {t(locale, "Total")}
               </td>
               <td className="py-2 pr-2 text-right tabular">{totalPackages}</td>
               <td className="py-2 pr-2 text-right tabular">
@@ -260,11 +269,13 @@ export default async function ManifestPage({
         <div className="mt-10 grid grid-cols-2 gap-10 text-[11px]">
           <div>
             <div className="h-10 border-b border-black/50" />
-            <p className="mt-1.5 text-black/60">Checked by (name &amp; signature)</p>
+            <p className="mt-1.5 text-black/60">
+              {t(locale, "Checked by (name & signature)")}
+            </p>
           </div>
           <div>
             <div className="h-10 border-b border-black/50" />
-            <p className="mt-1.5 text-black/60">Date &amp; time</p>
+            <p className="mt-1.5 text-black/60">{t(locale, "Date & time")}</p>
           </div>
         </div>
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useT } from "@/components/app/locale-provider";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,13 +30,14 @@ export type FinanceTab = {
 
 export function FinanceNav({ tabs }: { tabs: FinanceTab[] }) {
   const pathname = usePathname();
+  const t = useT();
   const shown = tabs.filter((tab) => tab.visible);
 
   if (shown.length < 2) return null;
 
   return (
     <nav
-      aria-label="Finance workspace"
+      aria-label={t("Finance workspace")}
       className="mb-6 flex gap-2 overflow-x-auto pb-1"
     >
       {shown.map((tab) => {
@@ -57,7 +59,7 @@ export function FinanceNav({ tabs }: { tabs: FinanceTab[] }) {
                 : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
             )}
           >
-            {tab.label}
+            {t(tab.label)}
           </Link>
         );
       })}

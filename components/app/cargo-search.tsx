@@ -1,5 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { t } from "@/lib/i18n";
+import { viewerLocale } from "@/lib/viewer";
 
 /**
  * One box that finds a consignment however the person on the phone describes it.
@@ -13,7 +15,7 @@ import { Button } from "@/components/ui/button";
  * its own search that also covers tickets and sourcing; everyone else uses the
  * cargo search at /app/search. Same box, same behaviour, whichever it posts to.
  */
-export function CargoSearch({
+export async function CargoSearch({
   action,
   defaultValue,
   placeholder,
@@ -22,19 +24,21 @@ export function CargoSearch({
   defaultValue?: string;
   placeholder?: string;
 }) {
+  const locale = await viewerLocale();
   return (
     <form action={action} className="flex gap-2">
       <Input
         name="q"
         defaultValue={defaultValue}
-        placeholder={
+        placeholder={t(
+          locale,
           placeholder ?? "Tracking number, customer name, phone, batch or invoice"
-        }
+        )}
         className="flex-1"
         autoComplete="off"
-        aria-label="Search cargo"
+        aria-label={t(locale, "Search cargo")}
       />
-      <Button type="submit">Search</Button>
+      <Button type="submit">{t(locale, "Search")}</Button>
     </form>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 
+import { useT } from "@/components/app/locale-provider";
 import { NativeSelect } from "@/components/ui/native-select";
 import { setRequestStatus } from "@/lib/actions/requests-admin";
 
@@ -30,11 +31,12 @@ export function RequestStatusPicker({
   id: string;
   status: string;
 }) {
+  const t = useT();
   const [pending, start] = useTransition();
 
   return (
     <NativeSelect
-      aria-label="Request status"
+      aria-label={t("Request status")}
       disabled={pending}
       defaultValue={status}
       onChange={(event) => {
@@ -45,7 +47,7 @@ export function RequestStatusPicker({
     >
       {OPTIONS.map((option) => (
         <option key={option.value} value={option.value}>
-          {option.label}
+          {t(option.label)}
         </option>
       ))}
     </NativeSelect>

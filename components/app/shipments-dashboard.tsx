@@ -10,6 +10,7 @@ import {
   Warehouse,
 } from "lucide-react";
 
+import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -86,6 +87,7 @@ const FILTERS = [
  * "in transit" and "pending clearance" should not wait on a round trip.
  */
 export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
+  const t = useT();
   const [filter, setFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
 
@@ -126,7 +128,7 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search shipment number, waybill, airline or flight…"
+            placeholder={t("Search shipment number, waybill, airline or flight…")}
             className="pl-9"
           />
         </div>
@@ -144,7 +146,7 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
                   : "hover:bg-accent"
               )}
             >
-              {option.label}
+              {t(option.label)}
               <span
                 className={cn(
                   "rounded-full px-1.5 text-xs tabular-nums",
@@ -166,9 +168,9 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
       {visible.length === 0 ? (
         <div className="rounded-xl border border-dashed p-12 text-center">
           <Plane className="mx-auto h-8 w-8 text-muted-foreground/50" />
-          <p className="mt-3 font-medium">Nothing here</p>
+          <p className="mt-3 font-medium">{t("Nothing here")}</p>
           <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-            Dispatch a batch and it appears here permanently.
+            {t("Dispatch a batch and it appears here permanently.")}
           </p>
         </div>
       ) : (
@@ -191,17 +193,17 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
                           STATUS_TONE[row.status] ?? "bg-muted"
                         )}
                       >
-                        {STATUS_LABEL[row.status] ?? row.status}
+                        {t(STATUS_LABEL[row.status] ?? row.status)}
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {row.route} → Dar es Salaam
+                      {row.route} → {t("Dar es Salaam")}
                       {row.airline ? ` · ${row.airline}` : ""}
                       {row.flightNumber ? ` ${row.flightNumber}` : ""}
                     </p>
                     {row.waybillNumber ? (
                       <p className="mt-0.5 font-mono text-xs text-muted-foreground">
-                        Waybill {row.waybillNumber}
+                        {t("Waybill")} {row.waybillNumber}
                       </p>
                     ) : null}
                   </div>
@@ -211,18 +213,18 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
 
                 <dl className="mt-4 grid grid-cols-2 gap-4 border-t pt-4 sm:grid-cols-3 lg:grid-cols-6">
                   {[
-                    { label: "Cargo", value: String(row.cargoCount), Icon: Package },
-                    { label: "Customers", value: String(row.customerCount) },
-                    { label: "Packages", value: String(row.packages) },
-                    { label: "Weight", value: `${row.weightKg.toFixed(1)} kg` },
+                    { label: t("Cargo"), value: String(row.cargoCount), Icon: Package },
+                    { label: t("Customers"), value: String(row.customerCount) },
+                    { label: t("Packages"), value: String(row.packages) },
+                    { label: t("Weight"), value: `${row.weightKg.toFixed(1)} kg` },
                     {
-                      label: row.arrivedLabel ? "Arrived" : "Expected",
+                      label: row.arrivedLabel ? t("Arrived") : t("Expected"),
                       value: row.arrivedLabel ?? row.expectedLabel ?? "—",
                       Icon: Warehouse,
                     },
                     {
-                      label: "Under investigation",
-                      value: row.flagged ? String(row.flagged) : "None",
+                      label: t("Under investigation"),
+                      value: row.flagged ? String(row.flagged) : t("None"),
                       tone: row.flagged ? "text-destructive" : undefined,
                     },
                   ].map((stat) => (
@@ -247,17 +249,17 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
                   <dl className="mt-3 grid grid-cols-2 gap-4 border-t pt-3 sm:grid-cols-4">
                     {[
                       {
-                        label: "Expected",
+                        label: t("Expected"),
                         value: `${row.money.currency} ${money(row.money.expected)}`,
                         tone: "text-foreground",
                       },
                       {
-                        label: "Collected",
+                        label: t("Collected"),
                         value: `${row.money.currency} ${money(row.money.collected)}`,
                         tone: "text-success",
                       },
                       {
-                        label: "To collect",
+                        label: t("To collect"),
                         value: `${row.money.currency} ${money(row.money.outstanding)}`,
                         tone:
                           row.money.outstanding > 0
@@ -265,10 +267,10 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
                             : "text-muted-foreground",
                       },
                       {
-                        label: "Prices to confirm",
+                        label: t("Prices to confirm"),
                         value: row.money.drafts
                           ? String(row.money.drafts)
-                          : "All confirmed",
+                          : t("All confirmed"),
                         tone: row.money.drafts
                           ? "text-signal"
                           : "text-muted-foreground",

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentForm } from "@/components/app/shipment-form";
+import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer";
 import { prisma } from "@/lib/prisma";
 import { cargoTypesByCategory } from "@/lib/pricing";
@@ -12,6 +13,8 @@ export const metadata: Metadata = { title: "Receive cargo" };
 
 export default async function NewShipmentPage() {
   await requirePermission("shipment.create");
+
+  const locale = await viewerLocale();
 
   // Both airports' open batches are loaded; the form shows only those matching
   // the route the chosen category flies from.
@@ -27,11 +30,14 @@ export default async function NewShipmentPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        title="Receive cargo"
-        description="Record what arrived. The system works out the route, the batch and the price."
+        title={t(locale, "Receive cargo")}
+        description={t(
+          locale,
+          "Record what arrived. The system works out the route, the batch and the price."
+        )}
       />
       <ShipmentForm
-        locale={await viewerLocale()}
+        locale={locale}
         typesByCategory={typesByCategory}
         photosDurable={storageIsDurable()}
       />

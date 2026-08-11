@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 
+import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 
@@ -108,6 +109,7 @@ function PhotoProof({
   tracking: string;
 }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
 
   if (photos.length === 0) {
     return <span className="text-xs text-muted-foreground">—</span>;
@@ -122,7 +124,8 @@ function PhotoProof({
         className="inline-flex items-center gap-1.5 text-sm font-medium text-brand transition-opacity hover:opacity-80"
       >
         <Paperclip className="h-3.5 w-3.5" />
-        View{photos.length > 1 ? ` ${photos.length}` : ""}
+        {t("View")}
+        {photos.length > 1 ? ` ${photos.length}` : ""}
       </button>
 
       {open ? (
@@ -146,6 +149,8 @@ function PhotoViewer({
   tracking: string;
   onClose: () => void;
 }) {
+  const t = useT();
+
   // Escape closes it. A viewer opened by accident in a busy warehouse should
   // take one key to get out of, not a hunt for the X.
   useEffect(() => {
@@ -180,7 +185,9 @@ function PhotoViewer({
       >
         <div className="sticky top-0 flex items-center justify-between gap-3 border-b bg-card px-5 py-4">
           <div className="min-w-0">
-            <p className="font-display font-semibold">Proof of receipt</p>
+            <p className="font-display font-semibold">
+              {t("Proof of receipt")}
+            </p>
             <p className="font-mono text-xs text-muted-foreground tabular">
               {tracking} · {photos.length} photo
               {photos.length === 1 ? "" : "s"}
@@ -189,7 +196,7 @@ function PhotoViewer({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("Close")}
             className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X className="h-4 w-4" />
@@ -218,7 +225,7 @@ function PhotoViewer({
                   className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  Download
+                  {t("Download")}
                 </a>
               </figcaption>
             </figure>
@@ -261,6 +268,7 @@ export function CargoGrid({
   const [filter, setFilter] = useState<string>("ALL");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("received");
+  const t = useT();
 
   const sorted = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -313,15 +321,15 @@ export function CargoGrid({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Customer, tracking number or goods…"
+            placeholder={t("Customer, tracking number or goods…")}
             className="pl-9 pr-9"
-            aria-label="Search cargo"
+            aria-label={t("Search cargo")}
           />
           {query ? (
             <button
               type="button"
               onClick={() => setQuery("")}
-              aria-label="Clear search"
+              aria-label={t("Clear search")}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -329,15 +337,15 @@ export function CargoGrid({
           ) : null}
         </div>
         <NativeSelect
-          aria-label="Sort cargo"
+          aria-label={t("Sort cargo")}
           value={sort}
           onChange={(event) => setSort(event.target.value)}
           className="sm:w-48"
         >
-          <option value="received">Sort: newest first</option>
-          <option value="customer">Sort: customer A–Z</option>
-          <option value="tracking">Sort: tracking number</option>
-          <option value="weight">Sort: heaviest first</option>
+          <option value="received">{t("Sort: newest first")}</option>
+          <option value="customer">{t("Sort: customer A–Z")}</option>
+          <option value="tracking">{t("Sort: tracking number")}</option>
+          <option value="weight">{t("Sort: heaviest first")}</option>
         </NativeSelect>
       </div>
 
@@ -353,7 +361,7 @@ export function CargoGrid({
                 : "hover:bg-accent"
             )}
           >
-            All {counts.total}
+            {t("All")} {counts.total}
           </button>
         ) : null}
         {categories.length > 1
@@ -369,7 +377,7 @@ export function CargoGrid({
                 : "hover:bg-accent"
             )}
           >
-                {CATEGORY_LABEL[category] ?? category} {count}
+                {t(CATEGORY_LABEL[category] ?? category)} {count}
               </button>
             ))
           : null}
@@ -380,7 +388,7 @@ export function CargoGrid({
             className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
           >
             <Printer className="h-3.5 w-3.5" />
-            Print all stickers
+            {t("Print all stickers")}
           </Link>
         ) : null}
 
@@ -430,12 +438,12 @@ export function CargoGrid({
               </Link>
               <span className="shrink-0 text-xs">
                 {cell.verification === "EXCEPTION" ? (
-                  <span className="font-medium text-destructive">Flagged</span>
+                  <span className="font-medium text-destructive">{t("Flagged")}</span>
                 ) : cell.verification === "VERIFIED" ? (
-                  <span className="text-success">Checked in</span>
+                  <span className="text-success">{t("Checked in")}</span>
                 ) : (
                   <span className="text-muted-foreground">
-                    {SHORT_STATUS[cell.statusLabel] ?? cell.statusLabel}
+                    {t(SHORT_STATUS[cell.statusLabel] ?? cell.statusLabel)}
                   </span>
                 )}
               </span>
@@ -457,7 +465,7 @@ export function CargoGrid({
                   {cell.price.currency} {cell.price.amount.toFixed(2)}
                   {!cell.price.confirmed ? (
                     <span className="ml-1 rounded bg-signal/10 px-1 py-0.5 text-[10px] font-medium text-signal">
-                      draft
+                      {t("draft")}
                     </span>
                   ) : null}
                 </span>
@@ -473,38 +481,42 @@ export function CargoGrid({
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Received</th>
-                  <th className="px-3 py-2 font-medium">Tracking</th>
-                  <th className="px-3 py-2 font-medium">Customer</th>
+                  <th className="px-3 py-2 font-medium">{t("Received")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Tracking")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Customer")}</th>
                   {/* The same words as the registration form, so the desk recognises
                       what it typed. */}
                   <th className="whitespace-nowrap px-3 py-2 font-medium">
-                    Which item?
+                    {t("Which item?")}
                   </th>
-                  <th className="px-3 py-2 text-right font-medium">Weight</th>
+                  <th className="px-3 py-2 text-right font-medium">
+                    {t("Weight")}
+                  </th>
                   <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
-                    Counted as
+                    {t("Counted as")}
                   </th>
-                  <th className="hidden px-3 py-2 font-medium md:table-cell">Proof</th>
+                  <th className="hidden px-3 py-2 font-medium md:table-cell">
+                    {t("Proof")}
+                  </th>
                   {showPrice ? (
                     <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
-                      Price
+                      {t("Price")}
                     </th>
                   ) : null}
                   <th className="hidden px-3 py-2 font-medium 2xl:table-cell">
-                    Received by
+                    {t("Received by")}
                   </th>
-                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium">{t("Status")}</th>
                   {/* Both actions get a heading of their own. A blank column
                       header over two buttons reads as an accident. Widths are
                       fixed so the pinned offsets below line up with them. */}
                   {canPrintLabel ? (
                     <th className="sticky right-[92px] z-20 w-[92px] min-w-[92px] bg-muted px-3 py-2 font-medium">
-                      Print
+                      {t("Print")}
                     </th>
                   ) : null}
                   <th className="sticky right-0 z-20 w-[92px] min-w-[92px] bg-muted px-3 py-2 font-medium">
-                    Open
+                    {t("Open")}
                   </th>
                 </tr>
               </thead>
@@ -555,7 +567,7 @@ export function CargoGrid({
                                 already agreed. */}
                             {!cell.price.confirmed ? (
                               <span className="ml-1.5 rounded bg-signal/10 px-1.5 py-0.5 text-[10px] font-medium text-signal">
-                                draft
+                                {t("draft")}
                               </span>
                             ) : null}
                           </>
@@ -569,12 +581,12 @@ export function CargoGrid({
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5 text-xs">
                       {cell.verification === "EXCEPTION" ? (
-                        <span className="font-medium text-destructive">Flagged</span>
+                        <span className="font-medium text-destructive">{t("Flagged")}</span>
                       ) : cell.verification === "VERIFIED" ? (
-                        <span className="text-success">Checked in</span>
+                        <span className="text-success">{t("Checked in")}</span>
                       ) : (
                         <span className="text-muted-foreground">
-                          {SHORT_STATUS[cell.statusLabel] ?? cell.statusLabel}
+                          {t(SHORT_STATUS[cell.statusLabel] ?? cell.statusLabel)}
                         </span>
                       )}
                     </td>
@@ -599,7 +611,7 @@ export function CargoGrid({
                           className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                         >
                           <Printer className="h-3.5 w-3.5" />
-                          Print
+                          {t("Print")}
                         </Link>
                       </td>
                     ) : null}
@@ -618,7 +630,7 @@ export function CargoGrid({
                         href={`/app/cargo/${cell.trackingNumber}`}
                         className="inline-flex items-center gap-0.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"
                       >
-                        Open
+                        {t("Open")}
                         <ChevronRight className="h-3.5 w-3.5" />
                       </Link>
                     </td>
@@ -631,7 +643,7 @@ export function CargoGrid({
 
       {sorted.length === 0 ? (
         <p className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-          Nothing in this batch matches that filter.
+          {t("Nothing in this batch matches that filter.")}
         </p>
       ) : null}
     </div>

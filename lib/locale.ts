@@ -27,6 +27,21 @@ export function localeOf(preferred: string | null | undefined): Locale {
   return preferred === "zh" ? "zh" : "en";
 }
 
+/**
+ * The language a new account starts in, before anyone has chosen one.
+ *
+ * Guangzhou opens in Chinese. Making the floor that does not read English go
+ * and find a language switch before it can register its first box is a poor
+ * way to hand somebody a system — and the one desk whose staff are Chinese is
+ * exactly the desk we know the answer for in advance.
+ *
+ * It is a starting point, not a lock: the switch sits in every sidebar and
+ * whatever a person picks is stored against them and wins from then on.
+ */
+export function defaultLocaleForRole(role: string | null | undefined): Locale {
+  return role === "CHINA_WAREHOUSE" ? "zh" : "en";
+}
+
 const CJK = /[一-鿿㐀-䶿]/;
 
 /**

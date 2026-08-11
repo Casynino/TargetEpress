@@ -5,8 +5,10 @@ import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
+import { t } from "@/lib/i18n";
 import { myShipments, profileStats } from "@/lib/profile";
 import { requireUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 import type { ShipmentStatus } from "@prisma/client";
 
 export const metadata: Metadata = { title: "My shipments" };
@@ -21,6 +23,7 @@ export const metadata: Metadata = { title: "My shipments" };
  */
 export default async function MyShipmentsPage() {
   const me = await requireUser();
+  const locale = await viewerLocale();
   const [rows, stats] = await Promise.all([
     myShipments(me.id),
     profileStats(me.id),
@@ -35,7 +38,7 @@ export default async function MyShipmentsPage() {
           <Button asChild variant="ghost" size="sm">
             <Link href="/app/profile">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Profile
+              {t(locale, "Profile")}
             </Link>
           </Button>
         }
@@ -43,7 +46,7 @@ export default async function MyShipmentsPage() {
 
       {rows.length === 0 ? (
         <p className="rounded-xl border border-dashed p-12 text-center text-sm text-muted-foreground">
-          You have not registered any cargo yet.
+          {t(locale, "You have not registered any cargo yet.")}
         </p>
       ) : (
         <>
@@ -78,17 +81,25 @@ export default async function MyShipmentsPage() {
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Registered</th>
-                  <th className="px-3 py-2 font-medium">Tracking</th>
-                  <th className="px-3 py-2 font-medium">Customer</th>
+                  <th className="px-3 py-2 font-medium">
+                    {t(locale, "Registered")}
+                  </th>
+                  <th className="px-3 py-2 font-medium">
+                    {t(locale, "Tracking")}
+                  </th>
+                  <th className="px-3 py-2 font-medium">
+                    {t(locale, "Customer")}
+                  </th>
                   <th className="whitespace-nowrap px-3 py-2 font-medium">
-                    Which item?
+                    {t(locale, "Which item?")}
                   </th>
-                  <th className="px-3 py-2 text-right font-medium">Weight</th>
+                  <th className="px-3 py-2 text-right font-medium">
+                    {t(locale, "Weight")}
+                  </th>
                   <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
-                    Counted as
+                    {t(locale, "Counted as")}
                   </th>
-                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium">{t(locale, "Status")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">

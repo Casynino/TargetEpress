@@ -12,6 +12,7 @@ import {
   Search,
 } from "lucide-react";
 
+import { useT } from "@/components/app/locale-provider";
 import { RowPriceEditor } from "@/components/app/row-price-editor";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -119,6 +120,7 @@ export function ShipmentDetailTabs({
   /** invoice.discount — may move the freight figure itself, or discount it. */
   canOverridePrice?: boolean;
 }) {
+  const t = useT();
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("cargo");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("ALL");
@@ -177,7 +179,7 @@ export function ShipmentDetailTabs({
               )}
             >
               <Icon className="h-4 w-4" />
-              {label}
+              {t(label)}
               <span className="rounded-full bg-background px-1.5 text-xs tabular-nums text-muted-foreground">
                 {count}
               </span>
@@ -194,33 +196,33 @@ export function ShipmentDetailTabs({
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Tracking number, customer, phone or goods…"
+                placeholder={t("Tracking number, customer, phone or goods…")}
                 className="pl-9"
               />
             </div>
             <NativeSelect
-              aria-label="Filter by category"
+              aria-label={t("Filter by category")}
               value={category}
               onChange={(event) => setCategory(event.target.value)}
               className="sm:w-48"
             >
-              <option value="ALL">All categories</option>
+              <option value="ALL">{t("All categories")}</option>
               {categories.map((value) => (
                 <option key={value} value={value}>
-                  {CATEGORY_LABEL[value] ?? value}
+                  {t(CATEGORY_LABEL[value] ?? value)}
                 </option>
               ))}
             </NativeSelect>
             <NativeSelect
-              aria-label="Sort cargo"
+              aria-label={t("Sort cargo")}
               value={sort}
               onChange={(event) => setSort(event.target.value)}
               className="sm:w-44"
             >
-              <option value="carton">Sort: date received</option>
-              <option value="tracking">Sort: tracking</option>
-              <option value="customer">Sort: customer</option>
-              <option value="weight">Sort: heaviest</option>
+              <option value="carton">{t("Sort: date received")}</option>
+              <option value="tracking">{t("Sort: tracking")}</option>
+              <option value="customer">{t("Sort: customer")}</option>
+              <option value="weight">{t("Sort: heaviest")}</option>
             </NativeSelect>
           </div>
 
@@ -232,23 +234,23 @@ export function ShipmentDetailTabs({
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Received</th>
-                  <th className="px-3 py-2 font-medium">Tracking</th>
-                  <th className="px-3 py-2 font-medium">Customer</th>
-                  <th className="px-3 py-2 font-medium">Goods</th>
-                  <th className="px-3 py-2 text-right font-medium">Weight</th>
+                  <th className="px-3 py-2 font-medium">{t("Received")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Tracking")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Customer")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Goods")}</th>
+                  <th className="px-3 py-2 text-right font-medium">{t("Weight")}</th>
                   <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
-                    Counted as
+                    {t("Counted as")}
                   </th>
                   {/* Beside the weight and the count it is worked out from —
                       and never last, where the table scrolls it off the edge
                       of the screen and Finance cannot find it. */}
                   {showPrice ? (
                     <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
-                      Price
+                      {t("Price")}
                     </th>
                   ) : null}
-                  <th className="px-3 py-2 font-medium">Proof</th>
+                  <th className="px-3 py-2 font-medium">{t("Proof")}</th>
                   <th className="w-20 px-3 py-2" />
                 </tr>
               </thead>
@@ -323,7 +325,7 @@ export function ShipmentDetailTabs({
                                 already agreed. */}
                             {!line.price.confirmed ? (
                               <span className="rounded bg-signal/10 px-1.5 py-0.5 text-[10px] font-medium text-signal">
-                                draft
+                                {t("draft")}
                               </span>
                             ) : null}
                           </span>
@@ -360,7 +362,7 @@ export function ShipmentDetailTabs({
                           <a
                             href={line.photos[0].url}
                             download={`${line.trackingNumber}.jpg`}
-                            title="Download"
+                            title={t("Download")}
                             className="text-muted-foreground transition-colors hover:text-foreground"
                           >
                             <Download className="h-3.5 w-3.5" />
@@ -373,7 +375,7 @@ export function ShipmentDetailTabs({
                         href={`/app/cargo/${line.trackingNumber}`}
                         className="inline-flex items-center gap-0.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"
                       >
-                        Open
+                        {t("Open")}
                         <ChevronRight className="h-3.5 w-3.5" />
                       </Link>
                     </td>
@@ -385,7 +387,7 @@ export function ShipmentDetailTabs({
                       colSpan={10}
                       className="p-10 text-center text-sm text-muted-foreground"
                     >
-                      No cargo matches that search.
+                      {t("No cargo matches that search.")}
                     </td>
                   </tr>
                 ) : null}
@@ -400,10 +402,11 @@ export function ShipmentDetailTabs({
           {documents.length === 0 ? (
             <div className="p-12 text-center">
               <FileText className="mx-auto h-8 w-8 text-muted-foreground/50" />
-              <p className="mt-3 font-medium">No documents yet</p>
+              <p className="mt-3 font-medium">{t("No documents yet")}</p>
               <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-                Waybills, customs paperwork and packing photos attached to this
-                shipment appear here.
+                {t(
+                  "Waybills, customs paperwork and packing photos attached to this shipment appear here."
+                )}
               </p>
             </div>
           ) : (

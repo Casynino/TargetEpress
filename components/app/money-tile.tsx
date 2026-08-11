@@ -3,7 +3,9 @@ import type { LucideIcon } from "lucide-react";
 
 import { Sparkline } from "@/components/charts/sparkline";
 import { formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { viewerLocale } from "@/lib/viewer";
 
 type Tone = "default" | "good" | "warn" | "bad" | "brand";
 
@@ -53,7 +55,7 @@ const ICON_TONES: Record<Tone, string> = {
  * dollars meant everyone reading the page had to convert in their head, at
  * whatever rate they remembered, to answer a question about their own till.
  */
-export function MoneyTile({
+export async function MoneyTile({
   label,
   usd,
   rate,
@@ -86,6 +88,7 @@ export function MoneyTile({
    */
   trend?: number[];
 }) {
+  const locale = await viewerLocale();
   const body = (
     <div
       className={cn(
@@ -102,7 +105,9 @@ export function MoneyTile({
         )}
       />
       <div className="relative flex items-start justify-between gap-2">
-        <p className="text-[13px] font-medium text-muted-foreground">{label}</p>
+        <p className="text-[13px] font-medium text-muted-foreground">
+          {t(locale, label)}
+        </p>
         {Icon ? (
           <span
             className={cn(
@@ -142,7 +147,7 @@ export function MoneyTile({
       {rate ? (
         <div className="relative mt-2.5 flex items-baseline gap-1.5 rounded-lg bg-background/70 px-2.5 py-1.5">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            on the invoice
+            {t(locale, "on the invoice")}
           </span>
           <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
             {formatUsd(usd)}
@@ -155,7 +160,7 @@ export function MoneyTile({
           <Sparkline
             values={trend}
             tone={5}
-            label="Trend"
+            label={t(locale, "Trend")}
             className="w-full"
           />
         </div>
@@ -165,7 +170,7 @@ export function MoneyTile({
         {count ? <p className="text-xs font-semibold">{count}</p> : null}
         {hint ? (
           <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-            {hint}
+            {t(locale, hint)}
           </p>
         ) : null}
       </div>

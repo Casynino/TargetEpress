@@ -72,6 +72,7 @@ import {
 } from "@/lib/floor";
 import { MoneyTile } from "@/components/app/money-tile";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { activeAccounts } from "@/lib/accounts";
 import { accountBalances } from "@/lib/ledger";
@@ -103,6 +104,7 @@ import {
 } from "@/components/app/warehouse-hero";
 import { todaySummary } from "@/lib/warehouse-home";
 import { requireUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 /** Midnight where the cargo is, in the server's local zone. */
 function startOfToday() {
@@ -131,16 +133,21 @@ function delta(current: number, previous: number): number | undefined {
 /** China's banner numbers: what the registration desk booked in today. */
 async function chinaHeroChips(): Promise<HeroChip[]> {
   const summary = await todaySummary();
+  const locale = await viewerLocale();
   return [
-    { icon: Package, label: "Cargo today", value: String(summary.shipments) },
+    {
+      icon: Package,
+      label: t(locale, "Cargo today"),
+      value: String(summary.shipments),
+    },
     {
       icon: Scale,
-      label: "Weight today",
+      label: t(locale, "Weight today"),
       value: `${summary.weightKg.toFixed(1)} kg`,
     },
     {
       icon: Printer,
-      label: "Labels printed",
+      label: t(locale, "Labels printed"),
       value: String(summary.labelsPrinted),
     },
   ];
@@ -168,20 +175,21 @@ async function darHeroChips(floor: FloorSnapshot): Promise<HeroChip[]> {
   // and the second is only ever zero at eight in the morning. A banner whose
   // every number is 0 until the first batch lands teaches people to skip it.
   const shortBoxes = floor.declaredPackages - floor.packages;
+  const locale = await viewerLocale();
 
   return [
     {
       icon: Boxes,
-      label: "Cargo in the warehouse",
+      label: t(locale, "Cargo in the warehouse"),
       value: String(floor.shipments),
       href: "/app/inventory",
       sub: checkedIn._count
         ? `${checkedIn._count} checked in today`
-        : "Nothing checked in yet today",
+        : t(locale, "Nothing checked in yet today"),
     },
     {
       icon: PackageCheck,
-      label: "Boxes on the floor",
+      label: t(locale, "Boxes on the floor"),
       value: floor.packages.toLocaleString(),
       href: "/app/inventory",
       sub: shortBoxes
@@ -190,7 +198,7 @@ async function darHeroChips(floor: FloorSnapshot): Promise<HeroChip[]> {
     },
     {
       icon: Scale,
-      label: "Weight on the floor",
+      label: t(locale, "Weight on the floor"),
       value: formatWeight(floor.weightKg),
       href: "/app/inventory",
       sub: `${formatWeight(toNumber(checkedIn._sum.weightKg ?? 0))} checked in today`,
@@ -200,6 +208,7 @@ async function darHeroChips(floor: FloorSnapshot): Promise<HeroChip[]> {
 
 export default async function DashboardPage() {
   const user = await requireUser();
+  const locale = await viewerLocale();
 
   /**
    * Customer Care's home is the support desk, not this page.
@@ -259,7 +268,11 @@ export default async function DashboardPage() {
       {warehouse ? (
         <WarehouseHero
           firstName={firstName}
-          warehouseName={inChina ? "China Warehouse" : "Dar es Salaam Warehouse"}
+          warehouseName={
+            inChina
+              ? t(locale, "China Warehouse")
+              : t(locale, "Dar es Salaam Warehouse")
+          }
           emphasis={inChina ? "CN" : "TZ"}
           // Where this desk's day starts.
           //
@@ -270,8 +283,8 @@ export default async function DashboardPage() {
           // China desk and named the wrong action for Dar.
           action={
             can(user.role, "shipment.create")
-              ? { href: "/app/cargo/new", label: "Receive cargo" }
-              : { href: "/app/release", label: "Scan & release" }
+              ? { href: "/app/cargo/new", label: t(locale, "Receive cargo") }
+              : { href: "/app/release", label: t(locale, "Scan & release") }
           }
           // The same box the money and support desks open on. The floor is
           // asked "where is my cargo" all day too.
@@ -308,7 +321,7 @@ export default async function DashboardPage() {
                 {today}
               </span>
               <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
-                {ROLE_LABELS[user.role]}
+                {t(locale, ROLE_LABELS[user.role])}
               </span>
             </div>
             <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight text-white">
@@ -316,8 +329,8 @@ export default async function DashboardPage() {
             </h1>
             <p className="mt-2 text-sm text-white/80">
               {user.role === "FINANCE"
-                ? "Here is the money, and what is waiting on you."
-                : "Here is what is happening at Target Express today."}
+                ? t(locale, "Here is the money, and what is waiting on you.")
+                : t(locale, "Here is what is happening at Target Express today.")}
             </p>
             {/* The same box the support desk opens on. Every desk that is not
                 holding the box finds one this way — a customer reads out a
@@ -338,7 +351,7 @@ export default async function DashboardPage() {
                 className="focus-ring inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand shadow-lift transition-colors hover:bg-white/90"
               >
                 <PackagePlus className="mr-2 h-4 w-4" />
-                Receive cargo
+                {t(locale, "Receive cargo")}
               </Link>
             ) : null}
             {can(user.role, "shipment.release") ? (
@@ -351,7 +364,7 @@ export default async function DashboardPage() {
                 }
               >
                 <ScanLine className="mr-2 h-4 w-4" />
-                Scan &amp; release
+                {t(locale, "Scan & release")}
               </Link>
             ) : null}
           </div>
@@ -421,6 +434,8 @@ async function ChinaDashboard({
     chinaProblems(),
   ]);
 
+  const locale = await viewerLocale();
+
   /**
    * What is wrong on this floor, in the words of the desk that registers cargo.
    *
@@ -432,41 +447,49 @@ async function ChinaDashboard({
     {
       when: problems.noPhotos > 0,
       id: "no-photos",
-      group: "Registration",
+      group: t(locale, "Registration"),
       severity: "critical" as const,
       label: `${problems.noPhotos} consignment${problems.noPhotos === 1 ? "" : "s"} with no photograph`,
-      detail:
-        "Nothing to show the customer if it arrives damaged, and nothing to argue with when they say it did.",
+      detail: t(
+        locale,
+        "Nothing to show the customer if it arrives damaged, and nothing to argue with when they say it did."
+      ),
       href: "/app/shipments",
     },
     {
       when: problems.unassigned > 0,
       id: "unassigned",
-      group: "Loading",
+      group: t(locale, "Loading"),
       severity: "critical" as const,
       label: `${problems.unassigned} on no batch`,
-      detail:
-        "Registered and sitting loose. Cargo on no batch does not get on an aircraft.",
+      detail: t(
+        locale,
+        "Registered and sitting loose. Cargo on no batch does not get on an aircraft."
+      ),
       href: "/app/batches",
     },
     {
       when: problems.staleBatches > 0,
       id: "stale-batches",
-      group: "Loading",
+      group: t(locale, "Loading"),
       severity: "warning" as const,
       label: `${problems.staleBatches} batch${problems.staleBatches === 1 ? "" : "es"} open more than ${problems.staleDays} days`,
-      detail:
-        "A batch left open stops being a batch and becomes a shelf. Seal it or fly it.",
+      detail: t(
+        locale,
+        "A batch left open stops being a batch and becomes a shelf. Seal it or fly it."
+      ),
       href: "/app/batches",
     },
     {
       when: problems.waiting > 0,
       id: "waiting",
-      group: "Waiting",
+      group: t(locale, "Waiting"),
       severity: "info" as const,
       label: `${problems.waiting} waiting more than ${problems.staleDays} days`,
-      detail:
-        "Booked in and still in Guangzhou. Every day here is a day the customer is counting.",
+      detail: t(
+        locale,
+        "Booked in and still in Guangzhou. Every day here is a day the customer is counting."
+      ),
       href: "/app/shipments",
       value: `${stats.stagedWeightKg.toFixed(0)} kg`,
     },
@@ -477,26 +500,34 @@ async function ChinaDashboard({
 
   // One array for the ring and its key, so the two cannot be relabelled apart.
   const chinaSlices = [
-    { label: "On no batch", value: composition.unassigned, tone: 3 as const },
-    { label: "Loading", value: composition.loading, tone: 4 as const },
-    { label: "Sealed, ready to fly", value: composition.sealed, tone: 5 as const },
+    {
+      label: t(locale, "On no batch"),
+      value: composition.unassigned,
+      tone: 3 as const,
+    },
+    { label: t(locale, "Loading"), value: composition.loading, tone: 4 as const },
+    {
+      label: t(locale, "Sealed, ready to fly"),
+      value: composition.sealed,
+      tone: 5 as const,
+    },
   ];
 
   return (
     <div className="space-y-7">
       <ActionPills
         items={[
-          { href: "/app/cargo/new", label: "Receive Cargo", icon: PackagePlus, weight: "primary", tone: "brand" },
-          { href: "/app/batches", label: "Load a batch", icon: Plane, weight: "secondary", tone: "signal" },
-          { href: "/app/shipments", label: "Shipments", icon: Package, tone: "violet" },
+          { href: "/app/cargo/new", label: t(locale, "Receive Cargo"), icon: PackagePlus, weight: "primary", tone: "brand" },
+          { href: "/app/batches", label: t(locale, "Load a batch"), icon: Plane, weight: "secondary", tone: "signal" },
+          { href: "/app/shipments", label: t(locale, "Shipments"), icon: Package, tone: "violet" },
           // Amber wherever it appears — on this desk, the Dar floor, the money
           // desk and the support desk. Colour is only a landmark while it means
           // the same thing twice.
-          { href: "/app/exceptions", label: "Issues & Claims", icon: AlertTriangle, tone: "warning" },
+          { href: "/app/exceptions", label: t(locale, "Issues & Claims"), icon: AlertTriangle, tone: "warning" },
           // Customers is a sidebar row on this desk and is reached from any
           // consignment; it is not something Guangzhou starts a job from.
           // Reports goes last, read rather than started — same as the Dar floor.
-          { href: "/app/reports", label: "Reports", icon: ChartNoAxesCombined, tone: "info" },
+          { href: "/app/reports", label: t(locale, "Reports"), icon: ChartNoAxesCombined, tone: "info" },
         ]}
       />
 
@@ -507,18 +538,23 @@ async function ChinaDashboard({
           duplication every other dashboard in this app has had removed. */}
       <AttentionCenter
         items={attention}
-        reviewAll={{ href: "/app/shipments", label: "All cargo" }}
-        empty="Nothing is waiting on this desk. Every consignment is photographed, on a batch, and moving."
+        reviewAll={{ href: "/app/shipments", label: t(locale, "All cargo") }}
+        empty={t(
+          locale,
+          "Nothing is waiting on this desk. Every consignment is photographed, on a batch, and moving."
+        )}
       />
 
       <div>
-        <SectionLabel action={{ href: "/app/shipments", label: "All shipments" }}>
-          The desk &middot; right now
+        <SectionLabel
+          action={{ href: "/app/shipments", label: t(locale, "All shipments") }}
+        >
+          {t(locale, "The desk · right now")}
         </SectionLabel>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           delay={0}
-          label="In China warehouse"
+          label={t(locale, "In China warehouse")}
           numeric={stats.readyToDepart}
           hint={`${formatWeight(stats.stagedWeightKg)} waiting for a flight`}
           icon={Package}
@@ -527,19 +563,19 @@ async function ChinaDashboard({
         />
         <KpiCard
           delay={1}
-          label="Registered this month"
+          label={t(locale, "Registered this month")}
           numeric={volume.thisMonth}
           delta={delta(volume.thisMonth, volume.lastMonth)}
-          hint="vs last month"
+          hint={t(locale, "vs last month")}
           icon={PackagePlus}
           tone="brand"
           trend={volume.current}
         />
         <KpiCard
           delay={2}
-          label="Shipments in transit"
+          label={t(locale, "Shipments in transit")}
           numeric={stats.inTransitShipments}
-          hint="In the air to Dar"
+          hint={t(locale, "In the air to Dar")}
           icon={Plane}
           tone="success"
           href="/app/batches?status=IN_TRANSIT"
@@ -549,21 +585,25 @@ async function ChinaDashboard({
 
       {/* The same three questions the Dar floor asks, in Guangzhou's terms. */}
       <div>
-        <SectionLabel action={{ href: "/app/shipments", label: "All cargo" }}>
-          The desk, in shape
+        <SectionLabel
+          action={{ href: "/app/shipments", label: t(locale, "All cargo") }}
+        >
+          {t(locale, "The desk, in shape")}
         </SectionLabel>
         <div className="grid gap-4 lg:grid-cols-3">
           <section className="panel p-4">
-            <h3 className="text-sm font-semibold">What is in Guangzhou</h3>
+            <h3 className="text-sm font-semibold">
+              {t(locale, "What is in Guangzhou")}
+            </h3>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              By what is holding each consignment
+              {t(locale, "By what is holding each consignment")}
             </p>
             <div className="mt-3 flex justify-center">
               <Donut
                 size={118}
                 stroke={18}
                 label={String(composition.total)}
-                caption="consignments"
+                caption={t(locale, "consignments")}
                 slices={chinaSlices}
               />
             </div>
@@ -573,9 +613,11 @@ async function ChinaDashboard({
           <section className="panel p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold">In and out</h3>
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "In and out")}
+                </h3>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Registered against flown, a fortnight
+                  {t(locale, "Registered against flown, a fortnight")}
                 </p>
               </div>
               <p className="shrink-0 text-right text-[11px] text-muted-foreground">
@@ -595,15 +637,17 @@ async function ChinaDashboard({
               valuesOut={throughput.outCounts}
               currentIndex={throughput.currentIndex}
               format={chinaFormat}
-              legendIn="Registered"
-              legendOut="Flown"
+              legendIn={t(locale, "Registered")}
+              legendOut={t(locale, "Flown")}
             />
           </section>
 
           <section className="panel p-4">
-            <h3 className="text-sm font-semibold">How long it has waited</h3>
+            <h3 className="text-sm font-semibold">
+              {t(locale, "How long it has waited")}
+            </h3>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              From the day it was registered in Guangzhou
+              {t(locale, "From the day it was registered in Guangzhou")}
             </p>
             <AgeingBar
               className="mt-3"
@@ -614,20 +658,22 @@ async function ChinaDashboard({
                 value: bucket.packages,
               }))}
               format={(n) => `${n} box${n === 1 ? "" : "es"}`}
-              unit="consignment"
-              empty="Nothing is waiting in Guangzhou."
+              unit={t(locale, "consignment")}
+              empty={t(locale, "Nothing is waiting in Guangzhou.")}
             />
           </section>
         </div>
       </div>
 
       <div>
-        <SectionLabel>Volume &amp; mix</SectionLabel>
+        <SectionLabel>{t(locale, "Volume & mix")}</SectionLabel>
         <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         <section className="panel p-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="font-display font-semibold">Registration volume</h2>
+              <h2 className="font-display font-semibold">
+                {t(locale, "Registration volume")}
+              </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Shipments registered at the China desk, {volume.year} against{" "}
                 {volume.year - 1}
@@ -660,21 +706,25 @@ async function ChinaDashboard({
       </div>
 
       <div>
-        <SectionLabel action={{ href: "/app/batches", label: "All batches" }}>
-          Batches on the floor
+        <SectionLabel
+          action={{ href: "/app/batches", label: t(locale, "All batches") }}
+        >
+          {t(locale, "Batches on the floor")}
         </SectionLabel>
         <div className="grid gap-6 lg:grid-cols-2">
         <section className="panel p-5">
-          <h2 className="font-display font-semibold">Batches on the floor</h2>
+          <h2 className="font-display font-semibold">
+            {t(locale, "Batches on the floor")}
+          </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Load these, then seal and record the flight.
+            {t(locale, "Load these, then seal and record the flight.")}
           </p>
           <ul className="mt-4 space-y-3">
             {openBatches.length === 0 ? (
               <li className="panel-inset p-4 text-sm text-muted-foreground">
-                No open batches.{" "}
+                {t(locale, "No open batches.")}{" "}
                 <Link href="/app/batches/new" className="text-brand hover:underline">
-                  Open one
+                  {t(locale, "Open one")}
                 </Link>
                 .
               </li>
@@ -696,7 +746,10 @@ async function ChinaDashboard({
                           {batch.batchNumber}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {batch.status === "OPEN" ? "Loading" : "Sealed"} ·{" "}
+                          {batch.status === "OPEN"
+                            ? t(locale, "Loading")
+                            : t(locale, "Sealed")}{" "}
+                          ·{" "}
                           {formatRelative(batch.createdAt)}
                         </span>
                       </div>
@@ -721,9 +774,11 @@ async function ChinaDashboard({
         </section>
 
         <section className="panel p-5">
-          <h2 className="font-display font-semibold">Weight flown per batch</h2>
+          <h2 className="font-display font-semibold">
+            {t(locale, "Weight flown per batch")}
+          </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Recent departures, kilograms per batch
+            {t(locale, "Recent departures, kilograms per batch")}
           </p>
           <div className="mt-5">
             <BarChart
@@ -745,10 +800,10 @@ async function ChinaDashboard({
           createdAt: entry.createdAt,
           actorName: entry.actor?.name ?? entry.actorEmail ?? null,
         }))}
-        title="Your activity"
-        description="What you have done, newest first"
+        title={t(locale, "Your activity")}
+        description={t(locale, "What you have done, newest first")}
         showActor={false}
-        emptyMessage="Nothing recorded against your account yet."
+        emptyMessage={t(locale, "Nothing recorded against your account yet.")}
       />
     </div>
   );
@@ -906,6 +961,8 @@ async function DarDashboard({
     floorFlowByDay(14),
   ]);
 
+  const locale = await viewerLocale();
+
   const exceptionParts = [
     stats.missing ? `${stats.missing} missing` : null,
     stats.damaged ? `${stats.damaged} damaged` : null,
@@ -943,7 +1000,7 @@ async function DarDashboard({
   const attention: AttnItem[] = [
     ...alerts.map((alert) => ({
       id: alert.id,
-      group: GROUP_BY_PREFIX[alert.id.split("-")[0]] ?? "Other",
+      group: t(locale, GROUP_BY_PREFIX[alert.id.split("-")[0]] ?? "Other"),
       severity: alert.severity,
       label: alert.title,
       detail: alert.detail,
@@ -954,17 +1011,19 @@ async function DarDashboard({
       {
         when: shortBoxes > 0,
         id: "short-boxes",
-        group: "Receiving",
+        group: t(locale, "Receiving"),
         severity: "critical" as const,
         label: `${shortBoxes} box${shortBoxes === 1 ? "" : "es"} short of the manifest`,
-        detail:
-          "Checked in with fewer cartons than the Guangzhou paperwork claims — mis-scanned, or genuinely missing.",
+        detail: t(
+          locale,
+          "Checked in with fewer cartons than the Guangzhou paperwork claims — mis-scanned, or genuinely missing."
+        ),
         href: "/app/receive",
       },
       {
         when: floor.aging > 0,
         id: "aging",
-        group: "Storage",
+        group: t(locale, "Storage"),
         severity: "warning" as const,
         label: `${floor.aging} past the free storage window`,
         detail: `Standing more than ${STORAGE_POLICY.freeDays} days. Storage is being charged and the customer usually does not know.`,
@@ -974,11 +1033,13 @@ async function DarDashboard({
       {
         when: stats.readyForPickup > 0,
         id: "ready",
-        group: "Pickup",
+        group: t(locale, "Pickup"),
         severity: "info" as const,
         label: `${stats.readyForPickup} paid, not collected`,
-        detail:
-          "Cleared by Finance and still on our shelves. The customer can take these away today.",
+        detail: t(
+          locale,
+          "Cleared by Finance and still on our shelves. The customer can take these away today."
+        ),
         href: "/app/pickup-queue",
         value: `${stats.readyPackages} box(es)`,
       },
@@ -988,9 +1049,21 @@ async function DarDashboard({
   // One array for the ring and its legend — two lists would be two chances to
   // relabel one and not the other.
   const floorSlices = [
-    { label: "Under investigation", value: composition.flagged, tone: 3 as const },
-    { label: "Waiting on payment", value: composition.held, tone: 4 as const },
-    { label: "Cleared, ready to go", value: composition.cleared, tone: 5 as const },
+    {
+      label: t(locale, "Under investigation"),
+      value: composition.flagged,
+      tone: 3 as const,
+    },
+    {
+      label: t(locale, "Waiting on payment"),
+      value: composition.held,
+      tone: 4 as const,
+    },
+    {
+      label: t(locale, "Cleared, ready to go"),
+      value: composition.cleared,
+      tone: 5 as const,
+    },
   ];
 
   const floorFormat = (n: number) =>
@@ -998,14 +1071,22 @@ async function DarDashboard({
 
   return (
     <div className="space-y-7">
-      <ActionPills items={DAR_QUICK_ACTIONS} />
+      <ActionPills
+        items={DAR_QUICK_ACTIONS.map((pill) => ({
+          ...pill,
+          label: t(locale, pill.label),
+        }))}
+      />
 
       <FloorChips chips={chips} />
 
       <AttentionCenter
         items={attention}
         reviewAll={{ href: "/app/exceptions" }}
-        empty="Nothing is waiting on this floor. Every batch is checked in, nothing is short, and no case is open."
+        empty={t(
+          locale,
+          "Nothing is waiting on this floor. Every batch is checked in, nothing is short, and no case is open."
+        )}
       />
 
       {/* The floor, in the five states cargo can be in between the plane and
@@ -1016,18 +1097,20 @@ async function DarDashboard({
           slot it freed went to aging stock, which nobody else shows this desk
           and which is the only figure here that costs the customer money. */}
       <div>
-        <SectionLabel action={{ href: "/app/inventory", label: "The floor" }}>
-          The floor &middot; right now
+        <SectionLabel
+          action={{ href: "/app/inventory", label: t(locale, "The floor") }}
+        >
+          {t(locale, "The floor · right now")}
         </SectionLabel>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           delay={0}
-          label="Incoming shipments"
+          label={t(locale, "Incoming shipments")}
           numeric={stats.incoming}
           hint={
             stats.batchesInAir
               ? `${stats.batchesInAir} batch(es) · ${formatWeight(stats.incomingWeightKg)} in the air`
-              : "Nothing in the air from China"
+              : t(locale, "Nothing in the air from China")
           }
           icon={Plane}
           tone="info"
@@ -1035,12 +1118,12 @@ async function DarDashboard({
         />
         <KpiCard
           delay={1}
-          label="Awaiting verification"
+          label={t(locale, "Awaiting verification")}
           numeric={stats.awaitingVerification}
           hint={
             stats.batchesOnFloor
               ? `${stats.batchesOnFloor} batch(es) landed, not checked in`
-              : "Every landed batch is checked in"
+              : t(locale, "Every landed batch is checked in")
           }
           icon={ClipboardCheck}
           tone={stats.awaitingVerification ? "warning" : "success"}
@@ -1048,7 +1131,7 @@ async function DarDashboard({
         />
         <KpiCard
           delay={2}
-          label="Ready for pickup"
+          label={t(locale, "Ready for pickup")}
           numeric={stats.readyForPickup}
           hint={
             stats.readyForPickup
@@ -1061,7 +1144,7 @@ async function DarDashboard({
           ringPct={
             floor.shipments ? (floor.cleared / floor.shipments) * 100 : 0
           }
-          ringLabel="Share of held cargo cleared for collection"
+          ringLabel={t(locale, "Share of held cargo cleared for collection")}
         />
         <KpiCard
           delay={3}
@@ -1070,7 +1153,7 @@ async function DarDashboard({
           hint={
             floor.longestHeldDays > 0
               ? `Longest standing ${floor.longestHeldDays} day(s) · storage is charged after ${STORAGE_POLICY.freeDays}`
-              : "Nothing has aged yet"
+              : t(locale, "Nothing has aged yet")
           }
           icon={Hourglass}
           tone={floor.aging ? "danger" : "success"}
@@ -1078,12 +1161,12 @@ async function DarDashboard({
         />
         <KpiCard
           delay={4}
-          label="Missing or damaged"
+          label={t(locale, "Missing or damaged")}
           numeric={stats.openExceptions}
           hint={
             exceptionParts.length
               ? exceptionParts.join(" · ")
-              : "Nothing flagged on the floor"
+              : t(locale, "Nothing flagged on the floor")
           }
           icon={AlertTriangle}
           tone={stats.openExceptions ? "danger" : "success"}
@@ -1093,8 +1176,10 @@ async function DarDashboard({
       </div>
 
       <div>
-        <SectionLabel action={{ href: "/app/inventory", label: "The floor" }}>
-          The floor, in shape
+        <SectionLabel
+          action={{ href: "/app/inventory", label: t(locale, "The floor") }}
+        >
+          {t(locale, "The floor, in shape")}
         </SectionLabel>
 
         {/* Three across, not a tall two-column split. The donut card was
@@ -1103,16 +1188,18 @@ async function DarDashboard({
             meant to sit under. */}
         <div className="grid gap-4 lg:grid-cols-3">
           <section className="panel p-4">
-            <h3 className="text-sm font-semibold">What is on the floor</h3>
+            <h3 className="text-sm font-semibold">
+              {t(locale, "What is on the floor")}
+            </h3>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              By what is holding each consignment
+              {t(locale, "By what is holding each consignment")}
             </p>
             <div className="mt-3 flex justify-center">
               <Donut
                 size={118}
                 stroke={18}
                 label={String(composition.total)}
-                caption="consignments"
+                caption={t(locale, "consignments")}
                 slices={floorSlices}
               />
             </div>
@@ -1124,9 +1211,11 @@ async function DarDashboard({
           <section className="panel p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold">In and out</h3>
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "In and out")}
+                </h3>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Checked in against handed over, a fortnight
+                  {t(locale, "Checked in against handed over, a fortnight")}
                 </p>
               </div>
               <p className="shrink-0 text-right text-[11px] text-muted-foreground">
@@ -1146,22 +1235,24 @@ async function DarDashboard({
               valuesOut={throughput.outCounts}
               currentIndex={throughput.currentIndex}
               format={floorFormat}
-              legendIn="Checked in"
-              legendOut="Handed over"
+              legendIn={t(locale, "Checked in")}
+              legendOut={t(locale, "Handed over")}
             />
           </section>
 
           <section className="panel p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold">How long it has stood</h3>
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "How long it has stood")}
+                </h3>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  From the day it was checked in
+                  {t(locale, "From the day it was checked in")}
                 </p>
               </div>
               {floor.longestHeldDays > 0 ? (
                 <p className="shrink-0 text-right text-[11px] text-muted-foreground">
-                  longest{" "}
+                  {t(locale, "longest")}{" "}
                   <span className="font-mono font-semibold text-foreground">
                     {floor.longestHeldDays}d
                   </span>
@@ -1180,8 +1271,8 @@ async function DarDashboard({
                 value: b.packages,
               }))}
               format={(n) => `${n} box${n === 1 ? "" : "es"}`}
-              unit="consignment"
-              empty="Nothing is standing on the floor."
+              unit={t(locale, "consignment")}
+              empty={t(locale, "Nothing is standing on the floor.")}
             />
           </section>
         </div>
@@ -1191,18 +1282,23 @@ async function DarDashboard({
           the band above — which is the point of that band: one place, one
           heading, one count that can be trusted. */}
       <div>
-        <SectionLabel>Inbound</SectionLabel>
+        <SectionLabel>{t(locale, "Inbound")}</SectionLabel>
         <div className="grid gap-6">
         <section className="panel p-5">
-          <h2 className="font-display font-semibold">Inbound &amp; on the floor</h2>
+          <h2 className="font-display font-semibold">
+            {t(locale, "Inbound & on the floor")}
+          </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Batches in the air, and batches landed but not fully checked in
+            {t(
+              locale,
+              "Batches in the air, and batches landed but not fully checked in"
+            )}
           </p>
 
           <ul className="mt-4 space-y-3">
             {incoming.length === 0 ? (
               <li className="panel-inset p-4 text-sm text-muted-foreground">
-                Nothing inbound.
+                {t(locale, "Nothing inbound.")}
               </li>
             ) : (
               incoming.map((batch) => {
@@ -1226,7 +1322,9 @@ async function DarDashboard({
                               : "rounded-full bg-info/10 px-2 py-0.5 text-[11px] font-semibold text-info"
                           }
                         >
-                          {arrived ? "On the floor" : "In the air"}
+                          {arrived
+                            ? t(locale, "On the floor")
+                            : t(locale, "In the air")}
                         </span>
                       </div>
                       <p className="mt-1.5 text-xs text-muted-foreground">
@@ -1238,7 +1336,9 @@ async function DarDashboard({
                       {arrived ? (
                         <>
                           <div className="mt-3 flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Checked in</span>
+                            <span className="text-muted-foreground">
+                              {t(locale, "Checked in")}
+                            </span>
                             <span className="font-medium tabular">
                               {checked} / {total}
                             </span>
@@ -1273,37 +1373,45 @@ async function DarDashboard({
       >
         {perf.sample > 0 ? (
         <section className="panel p-5">
-          <h2 className="font-display font-semibold">Corridor performance</h2>
+          <h2 className="font-display font-semibold">
+            {t(locale, "Corridor performance")}
+          </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Measured over the last {perf.sample} delivered shipment(s)
           </p>
           <dl className="mt-5 space-y-4">
             {[
               {
-                label: "Flight to warehouse",
+                label: t(locale, "Flight to warehouse"),
                 value:
                   perf.avgFlightDays === null
                     ? "—"
                     : `${perf.avgFlightDays.toFixed(1)} days`,
-                note: "Departure → checked in at Dar. Ours to control.",
+                note: t(locale, "Departure → checked in at Dar. Ours to control."),
                 icon: Plane,
               },
               {
-                label: "Waiting for collection",
+                label: t(locale, "Waiting for collection"),
                 value:
                   perf.avgDwellDays === null
                     ? "—"
                     : `${perf.avgDwellDays.toFixed(1)} days`,
-                note: "Arrival → collected. Depends on payment and the customer.",
+                note: t(
+                  locale,
+                  "Arrival → collected. Depends on payment and the customer."
+                ),
                 icon: Clock,
               },
               {
-                label: "Within the 3-day promise",
+                label: t(locale, "Within the 3-day promise"),
                 value:
                   perf.promiseRate === null
                     ? "—"
                     : `${perf.promiseRate.toFixed(0)}%`,
-                note: "Share of shipments checked in within 3 days of departure.",
+                note: t(
+                  locale,
+                  "Share of shipments checked in within 3 days of departure."
+                ),
                 icon: Timer,
               },
             ].map(({ label, value, note, icon: Icon }) => (
@@ -1330,10 +1438,10 @@ async function DarDashboard({
             createdAt: entry.createdAt,
             actorName: entry.actor?.name ?? entry.actorEmail ?? null,
           }))}
-          title="Your activity"
-          description="What you have done, newest first"
+          title={t(locale, "Your activity")}
+          description={t(locale, "What you have done, newest first")}
           showActor={false}
-          emptyMessage="Nothing recorded against your account yet."
+          emptyMessage={t(locale, "Nothing recorded against your account yet.")}
         />
       </div>
     </div>
@@ -1418,6 +1526,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     }),
   ]);
 
+  const locale = await viewerLocale();
   const rate = rateRow ? toNumber(rateRow.rate) : null;
   const tsh = (usd: number) =>
     rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : formatUsd(usd);
@@ -1473,56 +1582,68 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
    */
   const jobs = [
     {
-      group: "Pricing",
+      group: t(locale, "Pricing"),
       when: drafts._count > 0,
       label: `${drafts._count} price${drafts._count === 1 ? "" : "s"} to confirm`,
-      detail:
-        "Priced automatically at check-in. Nothing can be invoiced, and no cargo released, until you sign them off.",
+      detail: t(
+        locale,
+        "Priced automatically at check-in. Nothing can be invoiced, and no cargo released, until you sign them off."
+      ),
       usd: draftValue,
       href: "/app/shipments",
-      cta: "Review by flight",
+      cta: t(locale, "Review by flight"),
       urgent: true,
     },
     {
-      group: "Payments",
+      group: t(locale, "Payments"),
       when: unattributed._count > 0,
       label: `${unattributed._count} payment${unattributed._count === 1 ? "" : "s"} with no account`,
-      detail:
-        "Taken from the customer, but nobody said where it landed — so it sits in no account and no balance.",
+      detail: t(
+        locale,
+        "Taken from the customer, but nobody said where it landed — so it sits in no account and no balance."
+      ),
       usd: unattributedUsd,
       href: "/app/finance/payments",
-      cta: "Say where it landed",
+      cta: t(locale, "Say where it landed"),
       urgent: true,
     },
     {
-      group: "Collections",
+      group: t(locale, "Collections"),
       when: unsettled > 0,
       label: `${unsettled} bill${unsettled === 1 ? "" : "s"} unpaid`,
-      detail: "Confirmed and sent to the customer. The money has not arrived.",
+      detail: t(
+        locale,
+        "Confirmed and sent to the customer. The money has not arrived."
+      ),
       usd: stats.outstanding,
       href: "/app/collections/follow-up",
-      cta: "Chase",
+      cta: t(locale, "Chase"),
       urgent: false,
     },
     {
-      group: "Costs",
+      group: t(locale, "Costs"),
       when: owedOut._count > 0,
       label: `${owedOut._count} cost${owedOut._count === 1 ? "" : "s"} to pay out`,
-      detail: "Recorded against the business, not yet disbursed from an account.",
+      detail: t(
+        locale,
+        "Recorded against the business, not yet disbursed from an account."
+      ),
       usd: owedOutUsd,
       href: "/app/finance/transactions?kind=EXPENSE",
-      cta: "Settle",
+      cta: t(locale, "Settle"),
       urgent: false,
     },
     {
-      group: "Pickup",
+      group: t(locale, "Pickup"),
       when: stats.activeNotes > 0,
       label: `${stats.activeNotes} cleared, not collected`,
-      detail:
-        "Paid for and released. The cargo is still on our floor waiting for the customer to turn up.",
-      aside: "already paid for",
+      detail: t(
+        locale,
+        "Paid for and released. The cargo is still on our floor waiting for the customer to turn up."
+      ),
+      aside: t(locale, "already paid for"),
       href: "/app/finance/pickup-notes",
-      cta: "See notes",
+      cta: t(locale, "See notes"),
       urgent: false,
     },
   ].filter((job) => job.when);
@@ -1549,7 +1670,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     })),
     ...alerts.map((alert) => ({
       id: alert.id,
-      group: "Cargo",
+      group: t(locale, "Cargo"),
       severity: alert.severity,
       label: alert.title,
       detail: alert.detail,
@@ -1572,16 +1693,16 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
    * this" amber. A pill that changes colour between screens is not a landmark.
    */
   const shortcuts: ActionPill[] = [
-    { href: "/app/shipments", label: "Confirm prices", icon: ClipboardCheck, weight: "primary", tone: "brand" },
-    { href: "/app/finance/transactions", label: "Record a cost", icon: Banknote, weight: "secondary", tone: "signal" },
+    { href: "/app/shipments", label: t(locale, "Confirm prices"), icon: ClipboardCheck, weight: "primary", tone: "brand" },
+    { href: "/app/finance/transactions", label: t(locale, "Record a cost"), icon: Banknote, weight: "secondary", tone: "signal" },
     // Verify payments, not Payments. What Finance starts here is the queue
     // Customer Support hands up — proofs collected at the counter that are
     // worth nothing until this desk agrees with them. The payments list is a
     // record to read, and it is not even in the Finance tab row; this is a
     // job with people waiting on it.
-    { href: "/app/finance/verify", label: "Verify payments", icon: ShieldCheck, tone: "info" },
-    { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: QrCode, tone: "success" },
-    { href: "/app/collections/follow-up", label: "Payment follow-up", icon: Clock, tone: "warning" },
+    { href: "/app/finance/verify", label: t(locale, "Verify payments"), icon: ShieldCheck, tone: "info" },
+    { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), icon: QrCode, tone: "success" },
+    { href: "/app/collections/follow-up", label: t(locale, "Payment follow-up"), icon: Clock, tone: "warning" },
   ];
 
   return (
@@ -1596,68 +1717,88 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
             things until you work out it is one. */}
       <AttentionCenter
           items={financeAttention}
-          reviewAll={{ href: "/app/collections/follow-up", label: "The call list" }}
-          empty="Nothing is waiting on you. Every price is confirmed, every payment sits in an account, and every bill has been settled."
+          reviewAll={{
+            href: "/app/collections/follow-up",
+            label: t(locale, "The call list"),
+          }}
+          empty={t(
+            locale,
+            "Nothing is waiting on you. Every price is confirmed, every payment sits in an account, and every bill has been settled."
+          )}
         />
       </div>
 
       {/* ---- The position those decisions are made against ---- */}
       <div>
-        <SectionLabel action={{ href: "/app/finance", label: "Full position" }}>
-          The money · right now
+        <SectionLabel
+          action={{ href: "/app/finance", label: t(locale, "Full position") }}
+        >
+          {t(locale, "The money · right now")}
         </SectionLabel>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MoneyTile
-          label="Cash available"
+          label={t(locale, "Cash available")}
           usd={cashUsd}
           rate={rate}
           icon={Wallet}
           tone="good"
           count={`${holding} of ${accountRows.length} accounts holding`}
-          hint="Every till and bank account, added up. Comes from the ledger, so it moves the moment money does."
+          hint={t(
+            locale,
+            "Every till and bank account, added up. Comes from the ledger, so it moves the moment money does."
+          )}
           href="/app/finance/accounts"
         />
         <MoneyTile
-          label="Waiting to be billed"
+          label={t(locale, "Waiting to be billed")}
           usd={draftValue}
           rate={rate}
           icon={Hourglass}
           tone="warn"
           emphasis={drafts._count > 0}
           count={`${drafts._count} consignment${drafts._count === 1 ? "" : "s"}`}
-          hint="Sitting in the warehouse with a price nobody has confirmed. This is the biggest number on the page for a reason."
+          hint={t(
+            locale,
+            "Sitting in the warehouse with a price nobody has confirmed. This is the biggest number on the page for a reason."
+          )}
           href="/app/shipments"
         />
         <MoneyTile
-          label="Owed by customers"
+          label={t(locale, "Owed by customers")}
           usd={stats.outstanding}
           rate={rate}
           icon={Clock}
           tone={stats.outstanding > 0 ? "warn" : "default"}
           count={
             unsettled === 0
-              ? "nothing outstanding"
+              ? t(locale, "nothing outstanding")
               : `${unsettled} bill${unsettled === 1 ? "" : "s"}`
           }
           hint={
             unsettled === 0
-              ? "Every bill that has actually been raised is settled. Not the same as everything being billed."
-              : "Confirmed, sent, and still unpaid."
+              ? t(
+                  locale,
+                  "Every bill that has actually been raised is settled. Not the same as everything being billed."
+                )
+              : t(locale, "Confirmed, sent, and still unpaid.")
           }
           href="/app/collections/follow-up"
         />
         <MoneyTile
-          label="Spent this month"
+          label={t(locale, "Spent this month")}
           usd={spentUsd}
           rate={rate}
           icon={TrendingDown}
           tone={spentUsd > 0 ? "bad" : "default"}
           count={
             spent._count === 0
-              ? "no costs recorded yet"
+              ? t(locale, "no costs recorded yet")
               : `${spent._count} payment${spent._count === 1 ? "" : "s"} out`
           }
-          hint="Fuel, customs, the clearing agent, rent — what has actually left an account since the 1st."
+          hint={t(
+            locale,
+            "Fuel, customs, the clearing agent, rent — what has actually left an account since the 1st."
+          )}
           href="/app/finance/transactions?direction=OUT&period=month"
         />
         </div>
@@ -1673,8 +1814,13 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
         beside it.
       */}
       <div>
-        <SectionLabel action={{ href: "/app/finance/transactions", label: "The Ledger" }}>
-          The money, in shape
+        <SectionLabel
+          action={{
+            href: "/app/finance/transactions",
+            label: t(locale, "The Ledger"),
+          }}
+        >
+          {t(locale, "The money, in shape")}
         </SectionLabel>
 
         <div className="grid gap-4 lg:grid-cols-3">
@@ -1686,7 +1832,9 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           <section className="panel p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold">Where the cash sits</h3>
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "Where the cash sits")}
+                </h3>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                   {holding} of {accountRows.length} accounts holding
                 </p>
@@ -1695,7 +1843,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                 href="/app/finance/accounts"
                 className="focus-ring shrink-0 rounded text-[11px] font-semibold text-brand hover:underline"
               >
-                All
+                {t(locale, "All")}
               </Link>
             </div>
 
@@ -1706,7 +1854,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                     size={118}
                     stroke={18}
                     label={tsh(cashUsd).replace("TSh ", "")}
-                    caption="TSh in hand"
+                    caption={t(locale, "TSh in hand")}
                     slices={cashSlices}
                   />
                 </div>
@@ -1729,7 +1877,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
               </>
             ) : (
               <p className="mt-6 text-center text-sm text-muted-foreground">
-                Every account is empty.
+                {t(locale, "Every account is empty.")}
               </p>
             )}
           </section>
@@ -1737,9 +1885,11 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           <section className="panel p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold">Money in and out</h3>
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "Money in and out")}
+                </h3>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  What arrived against what it cost, this year
+                  {t(locale, "What arrived against what it cost, this year")}
                 </p>
               </div>
               <p
@@ -1764,14 +1914,16 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           <section className="panel p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold">What we are owed, by age</h3>
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "What we are owed, by age")}
+                </h3>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  From the day the bill became real
+                  {t(locale, "From the day the bill became real")}
                 </p>
               </div>
               {ageing.oldestDays > 0 ? (
                 <p className="shrink-0 text-right text-[11px] text-muted-foreground">
-                  oldest{" "}
+                  {t(locale, "oldest")}{" "}
                   <span className="font-mono font-semibold text-foreground">
                     {ageing.oldestDays}d
                   </span>
@@ -1787,7 +1939,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                 value: bucket.usd,
               }))}
               format={tsh}
-              empty="Nothing is owed. Every bill raised has been settled."
+              empty={t(locale, "Nothing is owed. Every bill raised has been settled.")}
             />
           </section>
         </div>
@@ -1795,7 +1947,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
 
       {/* ---- The cargo those figures are made of ---- */}
       <div>
-        <SectionLabel>Cargo behind the money</SectionLabel>
+        <SectionLabel>{t(locale, "Cargo behind the money")}</SectionLabel>
         {/* One child, so no grid. It was in a 1.6fr/1fr split with nothing in
             the second column — the table was squeezed into two thirds of the
             row and the rest was blank. */}
@@ -1804,32 +1956,41 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5">
             <div>
               <h2 className="font-display font-semibold">
-                Longest in the warehouse
+                {t(locale, "Longest in the warehouse")}
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Oldest arrivals still unpaid — storage is accruing on every one
+                {t(
+                  locale,
+                  "Oldest arrivals still unpaid — storage is accruing on every one"
+                )}
               </p>
             </div>
             <Button asChild variant="ghost" size="sm">
-              <Link href="/app/collections/follow-up">Payment follow-up</Link>
+              <Link href="/app/collections/follow-up">
+                {t(locale, "Payment follow-up")}
+              </Link>
             </Button>
           </header>
 
           {aging.length === 0 ? (
             <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-              Nothing to chase.
+              {t(locale, "Nothing to chase.")}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Cargo</TableHead>
+                    <TableHead>{t(locale, "Cargo")}</TableHead>
                     <TableHead className="hidden sm:table-cell">
-                      Customer
+                      {t(locale, "Customer")}
                     </TableHead>
-                    <TableHead className="text-right">Value</TableHead>
-                    <TableHead className="text-right">Waiting</TableHead>
+                    <TableHead className="text-right">
+                      {t(locale, "Value")}
+                    </TableHead>
+                    <TableHead className="text-right">
+                      {t(locale, "Waiting")}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1866,7 +2027,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                         <TableCell className="py-2.5 text-right">
                           {outstanding === null ? (
                             <span className="text-xs text-muted-foreground">
-                              not priced
+                              {t(locale, "not priced")}
                             </span>
                           ) : (
                             <>
@@ -1879,7 +2040,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                                 }`}
                               >
                                 {draft
-                                  ? "price not confirmed"
+                                  ? t(locale, "price not confirmed")
                                   : formatMoney(outstanding, invoice?.currency)}
                               </span>
                             </>
@@ -1937,6 +2098,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     cashFlowByMonth(),
     receivablesAgeing(),
   ]);
+  const locale = await viewerLocale();
   const execRate = execRateRow ? toNumber(execRateRow.rate) : null;
   const execTsh = (usd: number) =>
     execRate
@@ -1955,11 +2117,23 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
   const attention: AttnItem[] = ownerItems;
 
   const positionSlices = [
-    { label: "In Guangzhou", value: position.inChina, tone: 2 as const },
-    { label: "In the air", value: position.inAir, tone: 1 as const },
-    { label: "On the Dar floor", value: position.onFloor, tone: 4 as const },
-    { label: "Cleared, not collected", value: position.ready, tone: 5 as const },
-    { label: "Under investigation", value: position.flagged, tone: 3 as const },
+    { label: t(locale, "In Guangzhou"), value: position.inChina, tone: 2 as const },
+    { label: t(locale, "In the air"), value: position.inAir, tone: 1 as const },
+    {
+      label: t(locale, "On the Dar floor"),
+      value: position.onFloor,
+      tone: 4 as const,
+    },
+    {
+      label: t(locale, "Cleared, not collected"),
+      value: position.ready,
+      tone: 5 as const,
+    },
+    {
+      label: t(locale, "Under investigation"),
+      value: position.flagged,
+      tone: 3 as const,
+    },
   ];
 
   const netThisMonth = flow.net[flow.net.length - 1] ?? 0;
@@ -1995,18 +2169,18 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
       */}
       <ActionPills
         items={[
-          { href: "/app/finance/transactions", label: "The Ledger", icon: Landmark, weight: "primary", tone: "signal" },
-          { href: "/app/finance/verify", label: "Verify payments", icon: ShieldCheck, weight: "secondary", tone: "info" },
-          { href: "/app/exceptions", label: "Issues & Claims", icon: AlertTriangle, tone: "warning" },
+          { href: "/app/finance/transactions", label: t(locale, "The Ledger"), icon: Landmark, weight: "primary", tone: "signal" },
+          { href: "/app/finance/verify", label: t(locale, "Verify payments"), icon: ShieldCheck, weight: "secondary", tone: "info" },
+          { href: "/app/exceptions", label: t(locale, "Issues & Claims"), icon: AlertTriangle, tone: "warning" },
           // Brand and violet wherever these two appear — the support desk, the
           // warehouse floors and here. Colour is only a landmark while it means
           // the same thing on every screen.
-          { href: "/app/shipments", label: "Shipments", icon: Package, tone: "brand" },
-          { href: "/app/batches", label: "Batches", icon: Plane, tone: "violet" },
+          { href: "/app/shipments", label: t(locale, "Shipments"), icon: Package, tone: "brand" },
+          { href: "/app/batches", label: t(locale, "Batches"), icon: Plane, tone: "violet" },
           // shipment.cancel is the owner's alone: restoring something a desk
           // deleted, or purging it for good, is the one action in this app
           // nobody else can take back.
-          { href: "/app/admin/deleted", label: "Deleted records", icon: Trash2, tone: "success" },
+          { href: "/app/admin/deleted", label: t(locale, "Deleted records"), icon: Trash2, tone: "success" },
         ]}
       />
 
@@ -2014,14 +2188,14 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           of the way down beside a chart. */}
       <AttentionCenter
         items={attention}
-        reviewAll={{ href: "/app/exceptions", label: "Every case" }}
-        empty="Nothing needs your decision. Every desk is clear."
+        reviewAll={{ href: "/app/exceptions", label: t(locale, "Every case") }}
+        empty={t(locale, "Nothing needs your decision. Every desk is clear.")}
       />
 
       {/* The panel that belongs only to this desk. Four departments cannot be
           compared by opening four dashboards one at a time. */}
       <div>
-        <SectionLabel>Every desk, right now</SectionLabel>
+        <SectionLabel>{t(locale, "Every desk, right now")}</SectionLabel>
         <DeskPulsePanel desks={desks} />
       </div>
 
@@ -2030,16 +2204,18 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           screen reads as a bug. What is left is not on any chart. */}
       <StatStrip
         chips={[
-          { label: "Active", value: String(stats.active), icon: Package, tone: "brand" },
-          { label: "Batches", value: String(stats.activeBatches), icon: Boxes },
-          { label: "Customers", value: String(stats.customers), icon: Users },
-          { label: "Staff", value: String(stats.staff), icon: UserCog },
+          { label: t(locale, "Active"), value: String(stats.active), icon: Package, tone: "brand" },
+          { label: t(locale, "Batches"), value: String(stats.activeBatches), icon: Boxes },
+          { label: t(locale, "Customers"), value: String(stats.customers), icon: Users },
+          { label: t(locale, "Staff"), value: String(stats.staff), icon: UserCog },
         ]}
       />
 
       <div>
-        <SectionLabel action={{ href: "/app/finance", label: "Full position" }}>
-          Business health &middot; right now
+        <SectionLabel
+          action={{ href: "/app/finance", label: t(locale, "Full position") }}
+        >
+          {t(locale, "Business health · right now")}
         </SectionLabel>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/*
@@ -2057,13 +2233,13 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           precise. It reads as a different unit nobody warned you about.
         */}
         <MoneyTile
-          label="Revenue this month"
+          label={t(locale, "Revenue this month")}
           usd={thisMonthRevenue}
           rate={execRate}
           count={
             lastMonthRevenue > 0
               ? `${thisMonthRevenue >= lastMonthRevenue ? "+" : ""}${delta(thisMonthRevenue, lastMonthRevenue)?.toFixed(0) ?? 0}% on last month`
-              : "first month with takings"
+              : t(locale, "first month with takings")
           }
           hint={`${execTsh(stats.allTimeCollected)} all time`}
           icon={Banknote}
@@ -2074,30 +2250,30 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
         {/* Shillings lead. Freight is priced in dollars and paid in
             shillings, and the owner reads this the way the till does. */}
         <MoneyTile
-          label="Outstanding"
+          label={t(locale, "Outstanding")}
           usd={stats.outstanding}
           rate={execRate}
-          hint="Owed to us by customers"
+          hint={t(locale, "Owed to us by customers")}
           icon={Wallet}
           tone={stats.outstanding > 0 ? "warn" : "good"}
           href="/app/finance/invoices?status=UNPAID"
         />
         <KpiCard
           delay={2}
-          label="Delivered this month"
+          label={t(locale, "Delivered this month")}
           numeric={stats.deliveredThisMonth}
           ringPct={deliveredShare}
-          ringLabel="Share of the month's cargo delivered"
+          ringLabel={t(locale, "Share of the month's cargo delivered")}
           hint={`${stats.active} still moving`}
           icon={Truck}
           tone="brand"
         />
         <KpiCard
           delay={3}
-          label="Within 3-day promise"
+          label={t(locale, "Within 3-day promise")}
           value={perf.promiseRate === null ? "—" : `${perf.promiseRate.toFixed(0)}%`}
           ringPct={perf.promiseRate ?? 0}
-          ringLabel="Promise adherence"
+          ringLabel={t(locale, "Promise adherence")}
           hint={`Over ${perf.sample} delivered`}
           icon={Timer}
           tone={
@@ -2114,21 +2290,28 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
       {/* Where all of it is, whether the money is keeping up, and how old the
           debt is — the three the owner cannot get from any one desk's page. */}
       <div>
-        <SectionLabel action={{ href: "/app/shipments", label: "Every consignment" }}>
-          The corridor, right now
+        <SectionLabel
+          action={{ href: "/app/shipments", label: t(locale, "Every consignment") }}
+        >
+          {t(locale, "The corridor, right now")}
         </SectionLabel>
         <div className="grid gap-4 lg:grid-cols-3">
           <section className="panel p-4">
-            <h3 className="text-sm font-semibold">Where the cargo is</h3>
+            <h3 className="text-sm font-semibold">
+              {t(locale, "Where the cargo is")}
+            </h3>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Everything the business is carrying, Guangzhou to the counter
+              {t(
+                locale,
+                "Everything the business is carrying, Guangzhou to the counter"
+              )}
             </p>
             <div className="mt-3 flex justify-center">
               <Donut
                 size={118}
                 stroke={18}
                 label={String(position.total)}
-                caption="consignments"
+                caption={t(locale, "consignments")}
                 slices={positionSlices}
               />
             </div>
@@ -2138,9 +2321,11 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           <section className="panel p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold">Money in and out</h3>
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "Money in and out")}
+                </h3>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  What arrived against what it cost, this year
+                  {t(locale, "What arrived against what it cost, this year")}
                 </p>
               </div>
               <p
@@ -2165,14 +2350,16 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           <section className="panel p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold">What we are owed, by age</h3>
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "What we are owed, by age")}
+                </h3>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  From the day the bill became real
+                  {t(locale, "From the day the bill became real")}
                 </p>
               </div>
               {owed.oldestDays > 0 ? (
                 <p className="shrink-0 text-right text-[11px] text-muted-foreground">
-                  oldest{" "}
+                  {t(locale, "oldest")}{" "}
                   <span className="font-mono font-semibold text-foreground">
                     {owed.oldestDays}d
                   </span>
@@ -2188,20 +2375,24 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
                 value: bucket.usd,
               }))}
               format={execTsh}
-              empty="Nothing is owed. Every bill raised has been settled."
+              empty={t(locale, "Nothing is owed. Every bill raised has been settled.")}
             />
           </section>
         </div>
       </div>
 
       <div>
-        <SectionLabel action={{ href: "/app/shipments", label: "All shipments" }}>
-          Volume
+        <SectionLabel
+          action={{ href: "/app/shipments", label: t(locale, "All shipments") }}
+        >
+          {t(locale, "Volume")}
         </SectionLabel>
         <section className="panel p-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="font-display font-semibold">Shipment volume</h2>
+              <h2 className="font-display font-semibold">
+                {t(locale, "Shipment volume")}
+              </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {volume.year} against {volume.year - 1}
               </p>
@@ -2210,7 +2401,9 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
               <p className="font-display text-2xl font-bold tabular">
                 {volume.total.toLocaleString()}
               </p>
-              <p className="text-xs text-muted-foreground">this year</p>
+              <p className="text-xs text-muted-foreground">
+                {t(locale, "this year")}
+              </p>
             </div>
           </div>
           <AreaChart
@@ -2224,8 +2417,13 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
       </div>
 
       <div>
-        <SectionLabel action={{ href: "/app/finance/transactions", label: "The Ledger" }}>
-          Cargo behind the money, and who did what
+        <SectionLabel
+          action={{
+            href: "/app/finance/transactions",
+            label: t(locale, "The Ledger"),
+          }}
+        >
+          {t(locale, "Cargo behind the money, and who did what")}
         </SectionLabel>
         {/* No "Collections by month" bar. Money in and out above draws the same
             payments, against the costs they have to cover — one series where
@@ -2233,14 +2431,16 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
             any of it was kept. */}
         <div className="grid gap-6 lg:grid-cols-2">
         <section className="panel p-5">
-          <h2 className="font-display font-semibold">Unpaid in warehouse</h2>
+          <h2 className="font-display font-semibold">
+            {t(locale, "Unpaid in warehouse")}
+          </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Cargo we are storing for free
+            {t(locale, "Cargo we are storing for free")}
           </p>
           <ul className="mt-4 divide-y">
             {aging.length === 0 ? (
               <li className="py-6 text-center text-sm text-muted-foreground">
-                Nothing outstanding.
+                {t(locale, "Nothing outstanding.")}
               </li>
             ) : (
               aging.map((shipment) => (
@@ -2270,8 +2470,8 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
             createdAt: entry.createdAt,
             actorName: entry.actor?.name ?? entry.actorEmail ?? null,
           }))}
-          title="Company activity"
-          description="Every privileged action, newest first"
+          title={t(locale, "Company activity")}
+          description={t(locale, "Every privileged action, newest first")}
           href="/app/admin/audit"
         />
         </div>

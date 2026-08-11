@@ -4,9 +4,11 @@ import { CustomersTable, type CustomerRow } from "@/components/app/customers-tab
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Customers" };
 
@@ -20,6 +22,7 @@ export const metadata: Metadata = { title: "Customers" };
  */
 export default async function CustomersPage() {
   const user = await requirePermission("customer.view");
+  const locale = await viewerLocale();
   const showMoney = can(user.role, "finance.view");
 
   const customers = await prisma.customer.findMany({
@@ -84,8 +87,11 @@ export default async function CustomersPage() {
 
       {rows.length === 0 ? (
         <EmptyState
-          title="No customers yet"
-          description="They appear here as soon as the China desk registers cargo."
+          title={t(locale, "No customers yet")}
+          description={t(
+            locale,
+            "They appear here as soon as the China desk registers cargo."
+          )}
         />
       ) : (
         <CustomersTable rows={rows} />

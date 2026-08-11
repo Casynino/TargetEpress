@@ -3,6 +3,8 @@ import { PackagePlus, type LucideIcon } from "lucide-react";
 
 import { CargoSearch } from "@/components/app/cargo-search";
 import { DualClock } from "@/components/app/dual-clock";
+import { t } from "@/lib/i18n";
+import { viewerLocale } from "@/lib/viewer";
 
 /**
  * One of the three headline numbers under the greeting.
@@ -35,7 +37,7 @@ export type HeroChip = {
  * registration count under "here is what is happening today" is a lie told in
  * a nice box.
  */
-export function WarehouseHero({
+export async function WarehouseHero({
   firstName,
   warehouseName,
   emphasis,
@@ -60,8 +62,11 @@ export function WarehouseHero({
   /** Local hour at the warehouse, computed on the server for that zone. */
   hourOfDay: number;
 }) {
-  const greeting =
-    hourOfDay < 12 ? "Good morning" : hourOfDay < 17 ? "Good afternoon" : "Good evening";
+  const locale = await viewerLocale();
+  const greeting = t(
+    locale,
+    hourOfDay < 12 ? "Good morning" : hourOfDay < 17 ? "Good afternoon" : "Good evening"
+  );
 
   return (
     <section className="relative mb-6 overflow-hidden rounded-2xl">
@@ -100,13 +105,13 @@ export function WarehouseHero({
           <div className="w-full min-w-0 sm:w-auto sm:flex-1">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
-              {warehouseName}
+              {t(locale, warehouseName)}
             </span>
             <h1 className="mt-3 font-display text-[26px] font-bold leading-tight tracking-tight text-white sm:text-[32px] sm:leading-none">
               {greeting}, {firstName}
             </h1>
             <p className="mt-2 text-sm text-white/80">
-              Here is what is happening on the floor today.
+              {t(locale, "Here is what is happening on the floor today.")}
             </p>
             {search ? (
               <div className="mt-4 max-w-2xl">
@@ -122,7 +127,7 @@ export function WarehouseHero({
               className="focus-ring inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand shadow-lift transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
             >
               <PackagePlus className="h-4 w-4" />
-              {action.label}
+              {t(locale, action.label)}
             </Link>
           </div>
         </div>

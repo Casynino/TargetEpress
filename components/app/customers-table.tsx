@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
+import { useT } from "@/components/app/locale-provider";
 
 export type CustomerRow = {
   id: string;
@@ -34,12 +35,13 @@ const day = (iso: string) =>
  * numbers in the first place rather than having them hidden in the markup.
  */
 export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
+  const t = useT();
   const showMoney = rows.some((row) => row.outstanding !== undefined);
 
   const columns: Column<CustomerRow>[] = [
     {
       id: "name",
-      header: "Customer",
+      header: t("Customer"),
       sortValue: (row) => row.name,
       cell: (row) => (
         <div className="min-w-0">
@@ -55,7 +57,7 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
     },
     {
       id: "phone",
-      header: "Phone",
+      header: t("Phone"),
       sortValue: (row) => row.phone ?? "",
       className: "font-mono text-xs",
       cell: (row) =>
@@ -65,13 +67,13 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
           </a>
         ) : (
           <span className="font-sans text-xs text-muted-foreground">
-            none recorded
+            {t("none recorded")}
           </span>
         ),
     },
     {
       id: "city",
-      header: "City",
+      header: t("City"),
       hideBelow: "lg",
       sortValue: (row) => row.city ?? "",
       className: "text-muted-foreground",
@@ -79,7 +81,7 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
     },
     {
       id: "shipments",
-      header: "Shipments",
+      header: t("Shipments"),
       align: "right",
       sortValue: (row) => row.shipments,
       className: "tabular-nums",
@@ -96,7 +98,7 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
       ? [
           {
             id: "outstanding",
-            header: "Owed",
+            header: t("Owed"),
             align: "right" as const,
             sortValue: (row: CustomerRow) => row.outstanding ?? 0,
             className: "font-mono tabular-nums",
@@ -113,15 +115,15 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
       : []),
     {
       id: "last",
-      header: "Last shipment",
+      header: t("Last shipment"),
       hideBelow: "xl",
       sortValue: (row) => (row.lastShipmentAt ? new Date(row.lastShipmentAt) : null),
       className: "text-xs text-muted-foreground",
-      cell: (row) => (row.lastShipmentAt ? day(row.lastShipmentAt) : "never"),
+      cell: (row) => (row.lastShipmentAt ? day(row.lastShipmentAt) : t("never")),
     },
     {
       id: "since",
-      header: "Customer since",
+      header: t("Customer since"),
       hideBelow: "xl",
       defaultHidden: true,
       sortValue: (row) => new Date(row.createdAt),
@@ -150,11 +152,11 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
   const filters: TableFilter<CustomerRow>[] = [
     {
       id: "activity",
-      label: "Activity",
+      label: t("Activity"),
       options: [
-        { value: "active", label: "Has cargo in flight" },
-        { value: "dormant", label: "Nothing active" },
-        { value: "new", label: "Never shipped" },
+        { value: "active", label: t("Has cargo in flight") },
+        { value: "dormant", label: t("Nothing active") },
+        { value: "new", label: t("Never shipped") },
       ],
       match: (row, value) =>
         value === "active"
@@ -165,10 +167,10 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
     },
     {
       id: "contact",
-      label: "Contact details",
+      label: t("Contact details"),
       options: [
-        { value: "phone", label: "Has a phone number" },
-        { value: "nophone", label: "No phone on file" },
+        { value: "phone", label: t("Has a phone number") },
+        { value: "nophone", label: t("No phone on file") },
       ],
       match: (row, value) =>
         value === "phone" ? row.phone !== null : row.phone === null,
@@ -177,10 +179,10 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
       ? [
           {
             id: "balance",
-            label: "Balance",
+            label: t("Balance"),
             options: [
-              { value: "owing", label: "Owes money" },
-              { value: "clear", label: "Nothing owed" },
+              { value: "owing", label: t("Owes money") },
+              { value: "clear", label: t("Nothing owed") },
             ],
             match: (row: CustomerRow, value: string) =>
               value === "owing" ? (row.outstanding ?? 0) > 0 : (row.outstanding ?? 0) === 0,
@@ -198,10 +200,10 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
       searchValue={(row) =>
         [row.name, row.code, row.phone ?? "", row.city ?? ""].join(" ").toLowerCase()
       }
-      searchPlaceholder="Name, customer ID, phone or city"
+      searchPlaceholder={t("Name, customer ID, phone or city")}
       initialSort={{ columnId: "shipments", direction: "desc" }}
-      emptyTitle="No customers match"
-      emptyDescription="Try a shorter piece of the name or number."
+      emptyTitle={t("No customers match")}
+      emptyDescription={t("Try a shorter piece of the name or number.")}
       renderCard={(row) => (
         <Link
           href={`/app/customers/${row.id}`}
@@ -211,16 +213,16 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
             <div className="min-w-0">
               <p className="font-medium">{row.name}</p>
               <p className="font-mono text-[11px] text-muted-foreground">{row.code}</p>
-              <p className="mt-1 font-mono text-xs">{row.phone ?? "no phone"}</p>
+              <p className="mt-1 font-mono text-xs">{row.phone ?? t("no phone")}</p>
             </div>
             <div className="text-right">
               <p className="text-sm font-medium tabular-nums">{row.shipments}</p>
-              <p className="text-[11px] text-muted-foreground">shipments</p>
+              <p className="text-[11px] text-muted-foreground">{t("shipments")}</p>
             </div>
           </div>
           {(row.outstanding ?? 0) > 0 ? (
             <p className="mt-3 border-t pt-3 font-mono text-sm text-destructive">
-              USD {(row.outstanding ?? 0).toFixed(2)} owed
+              USD {(row.outstanding ?? 0).toFixed(2)} {t("owed")}
             </p>
           ) : null}
         </Link>

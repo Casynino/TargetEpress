@@ -10,9 +10,11 @@ import {
 } from "@/components/app/shipments-dashboard";
 import { EXCEPTION_OPEN_STATUSES, ORIGIN_LABELS } from "@/lib/constants";
 import { formatDate, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Shipments" };
 
@@ -68,6 +70,7 @@ function moneyFor(
 
 export default async function ShipmentsPage() {
   const user = await requirePermission("batch.view");
+  const locale = await viewerLocale();
   const showMoney = can(user.role, "finance.view");
 
   const dispatches = await prisma.batch.findMany({
@@ -161,43 +164,43 @@ export default async function ShipmentsPage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <KpiCard
           delay={0}
-          label="Total shipments"
+          label={t(locale, "Total shipments")}
           numeric={rows.length}
-          hint="Every dispatch on record"
+          hint={t(locale, "Every dispatch on record")}
           icon={Plane}
           tone="brand"
         />
         <KpiCard
           delay={1}
-          label="Active"
+          label={t(locale, "Active")}
           numeric={active.length}
-          hint="In the air or awaiting clearance"
+          hint={t(locale, "In the air or awaiting clearance")}
           icon={Boxes}
           tone="info"
         />
         <KpiCard
           delay={2}
-          label="Cargo in transit"
+          label={t(locale, "Cargo in transit")}
           numeric={inTransitCargo}
-          hint="Pieces currently flying"
+          hint={t(locale, "Pieces currently flying")}
           icon={Plane}
           tone="signal"
         />
         <KpiCard
           delay={3}
-          label="Pending clearance"
+          label={t(locale, "Pending clearance")}
           numeric={pendingClearance}
           hint={
             pendingClearance > 0
-              ? "Landed, not yet checked in"
-              : "Nothing waiting on Dar"
+              ? t(locale, "Landed, not yet checked in")
+              : t(locale, "Nothing waiting on Dar")
           }
           icon={Warehouse}
           tone={pendingClearance > 0 ? "warning" : "success"}
         />
         <KpiCard
           delay={4}
-          label="Weight in motion"
+          label={t(locale, "Weight in motion")}
           value={`${activeWeight.toFixed(0)} kg`}
           hint={`${arrivedCargo} pieces landed`}
           icon={Scale}
@@ -209,9 +212,9 @@ export default async function ShipmentsPage() {
 
       <p className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
         <PackageCheck className="h-4 w-4" />
-        Cargo still waiting in China is on the{" "}
+        {t(locale, "Cargo still waiting in China is on the")}{" "}
         <Link href="/app/batches" className="font-medium text-brand hover:underline">
-          two loading tables
+          {t(locale, "two loading tables")}
         </Link>
         .
       </p>

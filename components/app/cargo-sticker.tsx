@@ -1,7 +1,9 @@
 import Image from "next/image";
 
 import { BrandMark } from "@/components/brand-mark";
+import { t } from "@/lib/i18n";
 import { LABEL_MM } from "@/lib/print";
+import { viewerLocale } from "@/lib/viewer";
 
 export type StickerData = {
   trackingNumber: string;
@@ -42,7 +44,8 @@ export type StickerData = {
  * rems depend on a root font size that is a browser preference, and 58mm of QR
  * is 58mm of QR on any printer that is honest about its scaling.
  */
-export function CargoSticker({ data }: { data: StickerData }) {
+export async function CargoSticker({ data }: { data: StickerData }) {
+  const locale = await viewerLocale();
   return (
     <article
       className="sticker print-plain flex shrink-0 break-inside-avoid flex-col overflow-hidden border border-black/70 bg-white text-black"
@@ -68,7 +71,7 @@ export function CargoSticker({ data }: { data: StickerData }) {
               className="font-semibold uppercase"
               style={{ fontSize: "6pt", letterSpacing: "0.18em", marginTop: "0.8mm" }}
             >
-              Air Cargo
+              {t(locale, "Air Cargo")}
             </p>
           </div>
         </div>
@@ -82,7 +85,7 @@ export function CargoSticker({ data }: { data: StickerData }) {
       </header>
 
       <div className="shrink-0" style={{ paddingTop: "2.6mm" }}>
-        <FieldLabel>Tracking number</FieldLabel>
+        <FieldLabel>{t(locale, "Tracking number")}</FieldLabel>
         <p
           className="font-mono font-bold leading-none tabular"
           style={{ fontSize: "23pt", marginTop: "1mm" }}
@@ -98,7 +101,7 @@ export function CargoSticker({ data }: { data: StickerData }) {
       </div>
 
       <div className="shrink-0" style={{ paddingTop: "2.6mm" }}>
-        <FieldLabel>Consignee</FieldLabel>
+        <FieldLabel>{t(locale, "Consignee")}</FieldLabel>
         <p
           className="truncate font-bold leading-tight"
           style={{ fontSize: "13pt", marginTop: "0.8mm" }}
@@ -132,7 +135,7 @@ export function CargoSticker({ data }: { data: StickerData }) {
       </div>
 
       <div className="shrink-0">
-        <FieldLabel>Contents</FieldLabel>
+        <FieldLabel>{t(locale, "Contents")}</FieldLabel>
         {/*
           Two lines and no more. A description runs to whatever the China desk
           typed; clamped, so a long one pushes nothing off the bottom of a card
@@ -167,7 +170,7 @@ export function CargoSticker({ data }: { data: StickerData }) {
               className="font-semibold uppercase text-black/55"
               style={{ fontSize: "6pt", letterSpacing: "0.12em" }}
             >
-              {item.label}
+              {t(locale, item.label)}
             </dt>
             <dd
               className="truncate font-mono font-bold tabular"
