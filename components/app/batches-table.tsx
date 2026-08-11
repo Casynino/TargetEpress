@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FileText, Plane, Warehouse } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
+import { useT } from "@/components/app/locale-provider";
 import { BatchStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -53,10 +54,11 @@ export function BatchesTable({
   rows: BatchRow[];
   canCreate: boolean;
 }) {
+  const t = useT();
   const columns: Column<BatchRow>[] = [
     {
       id: "batchNumber",
-      header: "Batch",
+      header: t("Batch"),
       sortValue: (row) => row.batchNumber,
       cell: (row) => (
         <div className="min-w-0">
@@ -72,34 +74,36 @@ export function BatchesTable({
             ) : (
               <Warehouse className="h-3 w-3" />
             )}
-            {AIRPORT_LABELS[row.origin]}
+            {t(AIRPORT_LABELS[row.origin])}
           </p>
         </div>
       ),
     },
     {
       id: "status",
-      header: "Stage",
+      header: t("Stage"),
       sortValue: (row) => STAGE_RANK[row.status] ?? 9,
       cell: (row) => <BatchStatusBadge status={row.status} />,
     },
     {
       id: "cargo",
-      header: "Cargo",
+      header: t("Cargo"),
       align: "right",
       sortValue: (row) => row.shipments,
       cell: (row) => (
         <div className="whitespace-nowrap">
-          <p className="text-sm font-medium tabular">{row.shipments} shpt</p>
+          <p className="text-sm font-medium tabular">
+            {row.shipments} {t("shpt")}
+          </p>
           <p className="text-xs text-muted-foreground tabular">
-            {row.packages} pkg
+            {row.packages} {t("pkg")}
           </p>
         </div>
       ),
     },
     {
       id: "weight",
-      header: "Weight",
+      header: t("Weight"),
       align: "right",
       sortValue: (row) => row.weightKg,
       cell: (row) => (
@@ -108,7 +112,7 @@ export function BatchesTable({
     },
     {
       id: "flight",
-      header: "Flight",
+      header: t("Flight"),
       hideBelow: "lg",
       sortValue: (row) => `${row.airline ?? ""} ${row.flightNumber ?? ""}`,
       cell: (row) =>
@@ -121,12 +125,14 @@ export function BatchesTable({
             </p>
           </div>
         ) : (
-          <span className="text-xs text-muted-foreground">Not booked</span>
+          <span className="text-xs text-muted-foreground">
+            {t("Not booked")}
+          </span>
         ),
     },
     {
       id: "dates",
-      header: "Departed / arrived",
+      header: t("Departed / arrived"),
       hideBelow: "xl",
       sortValue: (row) =>
         row.departureDate ? new Date(row.departureDate) : new Date(row.createdAt),
@@ -136,12 +142,12 @@ export function BatchesTable({
             <p>{formatDate(row.departureDate)}</p>
           ) : (
             <p className="text-muted-foreground">
-              opened {formatDate(row.createdAt)}
+              {t("opened")} {formatDate(row.createdAt)}
             </p>
           )}
           {row.arrivalDate ? (
             <p className="text-xs text-muted-foreground">
-              landed {formatDate(row.arrivalDate)}
+              {t("landed")} {formatDate(row.arrivalDate)}
             </p>
           ) : null}
         </div>
@@ -149,7 +155,7 @@ export function BatchesTable({
     },
     {
       id: "progress",
-      header: "Checked in",
+      header: t("Checked in"),
       cell: (row) => {
         if (STAGE_RANK[row.status] < 3) {
           return <span className="text-xs text-muted-foreground">—</span>;
@@ -159,7 +165,9 @@ export function BatchesTable({
           <div className="min-w-[100px]">
             <div className="flex items-center justify-between gap-2 text-xs">
               <span className={done ? "text-success" : "text-muted-foreground"}>
-                {done ? "Complete" : `${row.shipments - row.verified} left`}
+                {done
+                  ? t("Complete")
+                  : `${row.shipments - row.verified} ${t("left")}`}
               </span>
               <span className="font-medium tabular">
                 {row.verified}/{row.shipments}
@@ -170,7 +178,7 @@ export function BatchesTable({
               max={Math.max(1, row.shipments)}
               tone={done ? "success" : "warning"}
               className="mt-1.5"
-              label={`${row.batchNumber} check-in`}
+              label={`${row.batchNumber} ${t("check-in")}`}
             />
           </div>
         );
@@ -183,12 +191,14 @@ export function BatchesTable({
       cell: (row) => (
         <div className="flex items-center justify-end gap-1.5">
           <Button asChild size="sm" variant="outline">
-            <Link href={`/app/batches/${row.id}`}>Open</Link>
+            <Link href={`/app/batches/${row.id}`}>{t("Open")}</Link>
           </Button>
-          <Button asChild size="sm" variant="ghost" title="Print manifest">
+          <Button asChild size="sm" variant="ghost" title={t("Print manifest")}>
             <Link href={`/app/batches/${row.id}/manifest`}>
               <FileText className="h-4 w-4" />
-              <span className="sr-only">Manifest for {row.batchNumber}</span>
+              <span className="sr-only">
+                {t("Manifest for")} {row.batchNumber}
+              </span>
             </Link>
           </Button>
         </div>
@@ -199,28 +209,28 @@ export function BatchesTable({
   const filters: TableFilter<BatchRow>[] = [
     {
       id: "status",
-      label: "Stage",
+      label: t("Stage"),
       options: Object.entries(BATCH_STATUS_META).map(([value, meta]) => ({
         value,
-        label: meta.label,
+        label: t(meta.label),
       })),
       match: (row, value) => row.status === value,
     },
     {
       id: "origin",
-      label: "Departure airport",
+      label: t("Departure airport"),
       options: [
-        { value: "GUANGZHOU", label: "Guangzhou" },
-        { value: "HONG_KONG", label: "Hong Kong" },
+        { value: "GUANGZHOU", label: t("Guangzhou") },
+        { value: "HONG_KONG", label: t("Hong Kong") },
       ],
       match: (row, value) => row.origin === value,
     },
     {
       id: "live",
-      label: "Activity",
+      label: t("Activity"),
       options: [
-        { value: "live", label: "Still moving" },
-        { value: "done", label: "Finished" },
+        { value: "live", label: t("Still moving") },
+        { value: "done", label: t("Finished") },
       ],
       match: (row, value) =>
         value === "live"
@@ -242,16 +252,16 @@ export function BatchesTable({
           row.waybillNumber ?? "",
         ].join(" ")
       }
-      searchPlaceholder="Batch, airline, flight or waybill…"
+      searchPlaceholder={t("Batch, airline, flight or waybill…")}
       filters={filters}
       pageSize={25}
       initialSort={{ columnId: "status", direction: "asc" }}
-      emptyTitle="No batches yet"
-      emptyDescription="Open a batch to start grouping cargo for a flight."
+      emptyTitle={t("No batches yet")}
+      emptyDescription={t("Open a batch to start grouping cargo for a flight.")}
       toolbar={
         canCreate ? (
           <Button asChild variant="signal" size="sm" className="h-10">
-            <Link href="/app/batches/new">Open batch</Link>
+            <Link href="/app/batches/new">{t("Open batch")}</Link>
           </Button>
         ) : null
       }
@@ -268,11 +278,11 @@ export function BatchesTable({
           </div>
           <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
             <Plane className="h-3 w-3" />
-            {AIRPORT_LABELS[row.origin]}
+            {t(AIRPORT_LABELS[row.origin])}
             {row.airline ? ` · ${row.airline} ${row.flightNumber ?? ""}` : ""}
           </p>
           <p className="mt-1 text-xs text-muted-foreground tabular">
-            {row.shipments} shipment(s) · {row.packages} pkg ·{" "}
+            {row.shipments} {t("shipment(s)")} · {row.packages} {t("pkg")} ·{" "}
             {formatWeight(row.weightKg)}
           </p>
           {STAGE_RANK[row.status] >= 3 ? (
@@ -281,7 +291,7 @@ export function BatchesTable({
               max={Math.max(1, row.shipments)}
               tone={row.verified >= row.shipments ? "success" : "warning"}
               className="mt-3"
-              label={`${row.batchNumber} check-in`}
+              label={`${row.batchNumber} ${t("check-in")}`}
             />
           ) : null}
         </Link>

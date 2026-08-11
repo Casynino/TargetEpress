@@ -3,6 +3,8 @@ import { ArrowDownLeft, ArrowUpRight, Building2, Smartphone, Wallet } from "luci
 
 import { formatMoney, formatRelative } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
+import { viewerLocale } from "@/lib/viewer";
 
 type Kind = "BANK" | "MOBILE_MONEY" | "CASH";
 
@@ -55,7 +57,7 @@ function groupNumber(value: string) {
  * an M-Pesa till and it is empty" is a different fact from "we have no M-Pesa
  * till", and the page has to be able to say both.
  */
-export function AccountCard({
+export async function AccountCard({
   id,
   name,
   institution,
@@ -84,6 +86,7 @@ export function AccountCard({
   entries: number;
   lastMovedAt: Date | null;
 }) {
+  const locale = await viewerLocale();
   const Icon = ICON[kind];
   const live = entries > 0;
   const title = kind === "BANK" ? (institution ?? name) : name;
@@ -118,7 +121,7 @@ export function AccountCard({
           <div className="min-w-0">
             <p className="truncate font-semibold leading-tight">{title}</p>
             <p className="truncate text-[11px] text-muted-foreground">
-              {KIND_LABEL[kind]}
+              {t(locale, KIND_LABEL[kind])}
             </p>
           </div>
         </div>
@@ -161,13 +164,14 @@ export function AccountCard({
               </span>
             ) : null}
             <span className="ml-auto text-[11px] text-muted-foreground">
-              {entries} movement{entries === 1 ? "" : "s"}
+              {entries}{" "}
+              {entries === 1 ? t(locale, "movement") : t(locale, "movements")}
               {lastMovedAt ? ` · ${formatRelative(lastMovedAt)}` : ""}
             </span>
           </div>
         ) : (
           <p className="text-[11px] text-muted-foreground">
-            Nothing has moved through this account yet
+            {t(locale, "Nothing has moved through this account yet")}
           </p>
         )}
       </div>

@@ -3,10 +3,12 @@ import { NextResponse } from "next/server";
 import { cardFileName, pdfHeaders, renderPickupSlipPdf } from "@/lib/card-pdf";
 import { COMPANY, formatPackages } from "@/lib/constants";
 import { formatDate, formatMoney, formatWeight } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
 /**
  * The pickup slip as a file.
@@ -21,6 +23,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await requirePermission("pickupNote.view");
+  const locale = await viewerLocale();
   const { id } = await params;
 
   const note = await prisma.pickupNote.findUnique({
@@ -36,7 +39,7 @@ export async function GET(
         select: {
           trackingNumber: true,
           qrToken: true,
-          description: true,
+          ...selectText("description"),
           packages: true,
           packageType: true,
           weightKg: true,
@@ -47,7 +50,10 @@ export async function GET(
   });
 
   if (!note) {
-    return NextResponse.json({ error: "Pickup note not found." }, { status: 404 });
+    return NextResponse.json(
+      { error: t(locale, "Pickup note not found.") },
+      { status: 404 }
+    );
   }
 
   const pdf = renderPickupSlipPdf({
@@ -57,13 +63,20 @@ export async function GET(
     trackingNumber: note.shipment.trackingNumber,
     customerName: note.customer.name,
     customerPhone: note.customer.phone,
-    description: note.shipment.description,
+    // The reader's rendering, not whatever the Guangzhou desk typed. The card
+    // draws through WinAnsi, so an English clerk downloading this now gets the
+    // English line rather than Chinese that the font drops on the floor.
+    description: cargoText(locale, note.shipment, "description"),
     weightLabel: formatWeight(note.shipment.weightKg),
     packagesLabel: formatPackages(
       note.shipment.packages,
       note.shipment.packageType
     ),
     invoiceNumber: note.shipment.invoice?.invoiceNumber ?? null,
+    // Left in English on purpose: the card is drawn by jsPDF's WinAnsi
+    // Helvetica, which drops CJK rather than substituting it, so a translated
+    // stamp would print as an empty band. The whole card is English for that
+    // reason — see winAnsi() in lib/card-pdf.
     paymentStatus: "Paid in full",
     // The figure only for the desks allowed one — the warehouse reads the
     // payment fact and never the amount, the same gate the screen applies.

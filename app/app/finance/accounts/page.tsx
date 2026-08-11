@@ -11,10 +11,12 @@ import { TreasuryActions } from "@/components/app/treasury-panels";
 import { financeTabs } from "@/lib/finance-tabs";
 import { formatMoney, formatRelative, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { accountBalances } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 /**
  * The company's own money: which accounts exist and what has moved through them.
@@ -34,6 +36,7 @@ import { requirePermission } from "@/lib/session";
  */
 export default async function AccountsPage() {
   const user = await requirePermission("account.view");
+  const locale = await viewerLocale();
   const canManageAccounts = can(user.role, "account.manage");
 
   const [accounts, balances, unattributed, rateRow, counts] = await Promise.all([
@@ -128,13 +131,17 @@ export default async function AccountsPage() {
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
             <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-warning" />
             <span className="font-medium">
-              These are movements recorded here, not balances.
+              {t(locale, "These are movements recorded here, not balances.")}
             </span>
             <span className="text-muted-foreground">
               {needsOpening.length === accounts.filter((a) => a.active).length
-                ? "No account has an opening balance yet"
-                : `${needsOpening.length} account${needsOpening.length === 1 ? "" : "s"} without one`}
-              , so whatever was already in the account is not counted.
+                ? t(locale, "No account has an opening balance yet")
+                : `${needsOpening.length} ${
+                    needsOpening.length === 1
+                      ? t(locale, "account")
+                      : t(locale, "accounts")
+                  } ${t(locale, "without one")}`}
+              {t(locale, ", so whatever was already in the account is not counted.")}
             </span>
           </p>
           {canManageAccounts ? (
@@ -147,7 +154,10 @@ export default async function AccountsPage() {
             />
           ) : (
             <p className="mt-1.5 text-[11px] text-muted-foreground">
-              Setting them is the CEO&rsquo;s — it moves every total on this page.
+              {t(
+                locale,
+                "Setting them is the CEO’s — it moves every total on this page."
+              )}
             </p>
           )}
         </div>
@@ -159,7 +169,7 @@ export default async function AccountsPage() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-6 rounded-2xl border bg-card p-6">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Across every account
+            {t(locale, "Across every account")}
           </p>
           <p className="mt-2 font-display text-[36px] font-bold leading-none tracking-tight tabular-nums">
             {rate ? (
@@ -174,26 +184,32 @@ export default async function AccountsPage() {
             )}
           </p>
           <p className="mt-1.5 text-xs text-muted-foreground">
-            {formatUsd(totalUsd)} on the invoice rate · six accounts, one
-            currency each
+            {formatUsd(totalUsd)}{" "}
+            {t(locale, "on the invoice rate · six accounts, one currency each")}
           </p>
         </div>
 
         <dl className="flex flex-wrap gap-x-8 gap-y-3">
           <div>
-            <dt className="text-xs text-muted-foreground">Accounts in use</dt>
+            <dt className="text-xs text-muted-foreground">
+              {t(locale, "Accounts in use")}
+            </dt>
             <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
               {accounts.filter((a) => a.active).length}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">With movement</dt>
+            <dt className="text-xs text-muted-foreground">
+              {t(locale, "With movement")}
+            </dt>
             <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
               {rows.filter((r) => r.entries > 0).length}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Movements</dt>
+            <dt className="text-xs text-muted-foreground">
+              {t(locale, "Movements")}
+            </dt>
             <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
               <Link
                 href="/app/finance/transactions"
@@ -218,11 +234,17 @@ export default async function AccountsPage() {
           <CircleHelp className="h-4 w-4 shrink-0 text-warning" />
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-medium">
-              {unattributed._count} payment
-              {unattributed._count === 1 ? "" : "s"} not in any account
+              {unattributed._count}{" "}
+              {unattributed._count === 1
+                ? t(locale, "payment")
+                : t(locale, "payments")}{" "}
+              {t(locale, "not in any account")}
             </span>
             <span className="block text-xs text-muted-foreground">
-              Money we hold with no address yet — open it and say where it went
+              {t(
+                locale,
+                "Money we hold with no address yet — open it and say where it went"
+              )}
             </span>
           </span>
           <span className="text-right">
@@ -238,7 +260,7 @@ export default async function AccountsPage() {
             ) : null}
           </span>
           <span className="shrink-0 text-xs font-medium text-brand">
-            Fix it →
+            {t(locale, "Fix it →")}
           </span>
         </Link>
       ) : null}
@@ -270,7 +292,9 @@ export default async function AccountsPage() {
 
       {counts.length > 0 ? (
         <section className="mt-6 overflow-hidden rounded-xl border bg-card">
-          <h2 className="border-b px-5 py-3.5 font-semibold">Recent cash counts</h2>
+          <h2 className="border-b px-5 py-3.5 font-semibold">
+            {t(locale, "Recent cash counts")}
+          </h2>
           <ul className="divide-y">
             {counts.map((count) => {
               const diff = toNumber(count.variance);
@@ -302,8 +326,8 @@ export default async function AccountsPage() {
                     }`}
                   >
                     {diff === 0
-                      ? "matched"
-                      : `${diff > 0 ? "over" : "short"} ${formatMoney(
+                      ? t(locale, "matched")
+                      : `${diff > 0 ? t(locale, "over") : t(locale, "short")} ${formatMoney(
                           Math.abs(diff),
                           count.account.currency
                         )}`}

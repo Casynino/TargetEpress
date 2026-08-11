@@ -15,14 +15,20 @@ import { ReceivingQueue } from "@/components/app/receiving-queue";
 import { StatStrip } from "@/components/app/stat-strip";
 import { Button } from "@/components/ui/button";
 import { formatWeight } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { receivingQueue } from "@/lib/queries";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Incoming shipments" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await viewerLocale();
+  return { title: t(locale, "Incoming shipments") };
+}
 
 export default async function ReceivePage() {
   await requirePermission("batch.receive");
 
+  const locale = await viewerLocale();
   const { rows, summary } = await receivingQueue();
 
   // The single most urgent batch, so the operator never has to hunt for it.
@@ -47,7 +53,7 @@ export default async function ReceivePage() {
             <Button asChild variant="signal" className="rounded-lg">
               <Link href={`/app/receive/${next.id}`}>
                 <ClipboardCheck className="mr-2 h-4 w-4" />
-                Check in {next.batchNumber}
+                {t(locale, "Check in")} {next.batchNumber}
               </Link>
             </Button>
           ) : null
@@ -58,31 +64,36 @@ export default async function ReceivePage() {
         className="mb-5"
         chips={[
           {
-            label: "On the floor",
+            label: t(locale, "On the floor"),
             value: String(summary.onFloor),
             icon: Warehouse,
             tone: summary.onFloor > 0 ? "warning" : "success",
           },
           {
-            label: "To check in",
+            label: t(locale, "To check in"),
             value: String(summary.uncheckedShipments),
             icon: Package,
             tone: summary.uncheckedShipments > 0 ? "warning" : "success",
           },
-          { label: "In the air", value: String(summary.inAir), icon: Plane, tone: "brand" },
           {
-            label: "Arriving weight",
+            label: t(locale, "In the air"),
+            value: String(summary.inAir),
+            icon: Plane,
+            tone: "brand",
+          },
+          {
+            label: t(locale, "Arriving weight"),
             value: formatWeight(summary.inAirWeightKg),
             icon: Plane,
           },
           {
-            label: "Oldest wait",
+            label: t(locale, "Oldest wait"),
             value: summary.oldestWaitDays > 0 ? `${summary.oldestWaitDays}d` : "—",
             icon: Clock,
             tone: summary.oldestWaitDays >= 2 ? "danger" : "neutral",
           },
           {
-            label: "Flags",
+            label: t(locale, "Flags"),
             value: String(summary.openExceptions),
             icon: AlertTriangle,
             tone: summary.openExceptions > 0 ? "danger" : "success",
@@ -94,35 +105,39 @@ export default async function ReceivePage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           delay={0}
-          label="Shipments to check in"
+          label={t(locale, "Shipments to check in")}
           numeric={summary.uncheckedShipments}
           ringPct={checkedShare}
-          ringLabel="Share of floor cargo already checked in"
-          hint={`across ${summary.onFloor} batch(es) on the floor`}
+          ringLabel={t(locale, "Share of floor cargo already checked in")}
+          hint={`${t(locale, "across")} ${summary.onFloor} ${t(locale, "batch(es) on the floor")}`}
           icon={ClipboardCheck}
           tone={summary.uncheckedShipments > 0 ? "warning" : "success"}
         />
         <KpiCard
           delay={1}
-          label="Batches on the floor"
+          label={t(locale, "Batches on the floor")}
           numeric={summary.onFloor}
-          hint="Landed, not yet closed off"
+          hint={t(locale, "Landed, not yet closed off")}
           icon={Warehouse}
           tone={summary.onFloor > 0 ? "warning" : "success"}
         />
         <KpiCard
           delay={2}
-          label="Batches in the air"
+          label={t(locale, "Batches in the air")}
           numeric={summary.inAir}
-          hint={`${formatWeight(summary.inAirWeightKg)} arriving`}
+          hint={`${formatWeight(summary.inAirWeightKg)} ${t(locale, "arriving")}`}
           icon={Plane}
           tone="brand"
         />
         <KpiCard
           delay={3}
-          label="Longest on the floor"
-          value={summary.oldestWaitDays > 0 ? `${summary.oldestWaitDays} days` : "—"}
-          hint="Chase anything past two days"
+          label={t(locale, "Longest on the floor")}
+          value={
+            summary.oldestWaitDays > 0
+              ? `${summary.oldestWaitDays} ${t(locale, "days")}`
+              : "—"
+          }
+          hint={t(locale, "Chase anything past two days")}
           icon={Clock}
           tone={summary.oldestWaitDays >= 2 ? "danger" : "info"}
           invertDelta
@@ -136,17 +151,21 @@ export default async function ReceivePage() {
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
             <div>
               <p className="text-sm font-medium">
-                {next.batchNumber} has been on the floor for {next.waitDays} day
-                {next.waitDays === 1 ? "" : "s"}
+                {next.batchNumber} {t(locale, "has been on the floor for")}{" "}
+                {next.waitDays} {t(locale, next.waitDays === 1 ? "day" : "days")}
               </p>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                {next.unchecked} of {next.shipments} shipment(s) still unchecked.
-                Customers cannot be invoiced until their cargo is checked in.
+                {next.unchecked} {t(locale, "of")} {next.shipments}{" "}
+                {t(locale, "shipment(s) still unchecked.")}{" "}
+                {t(
+                  locale,
+                  "Customers cannot be invoiced until their cargo is checked in."
+                )}
               </p>
             </div>
           </div>
           <Button asChild variant="destructive" size="sm">
-            <Link href={`/app/receive/${next.id}`}>Open now</Link>
+            <Link href={`/app/receive/${next.id}`}>{t(locale, "Open now")}</Link>
           </Button>
         </div>
       ) : null}

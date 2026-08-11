@@ -25,11 +25,15 @@ import {
 import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "The Ledger" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "The Ledger") };
+}
 
 const KIND_LABEL: Record<string, string> = {
   OPENING_BALANCE: "Opening balance",
@@ -90,6 +94,7 @@ export default async function LedgerPage({
   }>;
 }) {
   const user = await requirePermission("ledger.view");
+  const locale = await viewerLocale();
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
   const canRecord = can(user.role, "expense.record");
@@ -174,7 +179,10 @@ export default async function LedgerPage({
                   // What the customer actually shipped. This is the answer to
                   // "what was this payment for", and it was not being asked for.
                   shipment: {
-                    select: { trackingNumber: true, description: true },
+                    select: {
+                      trackingNumber: true,
+                      ...selectText("description"),
+                    },
                   },
                 },
               },
@@ -278,8 +286,11 @@ export default async function LedgerPage({
   return (
     <>
       <PageHeader
-        title="The Ledger"
-        description="Every movement of money — freight collected, costs paid, transfers between accounts — with its account, who recorded it, and a running balance."
+        title={t(locale, "The Ledger")}
+        description={t(
+          locale,
+          "Every movement of money — freight collected, costs paid, transfers between accounts — with its account, who recorded it, and a running balance."
+        )}
         actions={
           canRecord ? (
             <RecordCostButton
@@ -304,16 +315,16 @@ export default async function LedgerPage({
         people={people}
         kinds={Object.entries(KIND_LABEL).map(([value, label]) => ({
           value,
-          label,
+          label: t(locale, label),
         }))}
         categories={Object.entries(EXPENSE_CATEGORY_LABELS).map(
-          ([value, label]) => ({ value, label })
+          ([value, label]) => ({ value, label: t(locale, label) })
         )}
       />
 
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-sm">
         <p className="text-muted-foreground">
-          {total} movement{total === 1 ? "" : "s"}
+          {total} {t(locale, total === 1 ? "movement" : "movements")}
           {unpaid._count > 0 ? (
             <>
               {" · "}
@@ -321,23 +332,24 @@ export default async function LedgerPage({
                 href="/app/finance/transactions?kind=EXPENSE"
                 className="text-warning hover:underline"
               >
-                {tsh(toNumber(unpaid._sum.amountUsd))} recorded but not yet paid
+                {tsh(toNumber(unpaid._sum.amountUsd))}{" "}
+                {t(locale, "recorded but not yet paid")}
               </Link>
-              , so not in the register
+              , {t(locale, "so not in the register")}
             </>
           ) : null}
         </p>
         <p className="flex flex-wrap gap-x-5 font-mono tabular-nums">
           <span>
-            <span className="text-muted-foreground">In </span>
+            <span className="text-muted-foreground">{t(locale, "In")} </span>
             <span className="font-semibold text-success">{tsh(inUsd)}</span>
           </span>
           <span>
-            <span className="text-muted-foreground">Out </span>
+            <span className="text-muted-foreground">{t(locale, "Out")} </span>
             <span className="font-semibold text-destructive">{tsh(outUsd)}</span>
           </span>
           <span>
-            <span className="text-muted-foreground">Net </span>
+            <span className="text-muted-foreground">{t(locale, "Net")} </span>
             <span className="font-semibold">{tsh(inUsd - outUsd)}</span>
           </span>
         </p>
@@ -345,11 +357,18 @@ export default async function LedgerPage({
 
       {entries.length === 0 ? (
         <EmptyState
-          title={q ? `Nothing matches “${q}”` : "No movements yet"}
+          title={
+            q
+              ? `${t(locale, "Nothing matches")} “${q}”`
+              : t(locale, "No movements yet")
+          }
           description={
             q
-              ? "Try a shorter search, or clear the filters."
-              : "Every payment, cost and transfer writes a line here as it happens."
+              ? t(locale, "Try a shorter search, or clear the filters.")
+              : t(
+                  locale,
+                  "Every payment, cost and transfer writes a line here as it happens."
+                )
           }
         />
       ) : (
@@ -378,14 +397,20 @@ export default async function LedgerPage({
             let purpose: string | null = null;
             if (entry.payment) {
               title = entry.payment.invoice.customer.name;
-              purpose = entry.payment.invoice.shipment.description;
+              purpose = cargoText(
+                locale,
+                entry.payment.invoice.shipment,
+                "description"
+              );
             } else if (entry.expense) {
               title = entry.expense.description;
-              purpose = entry.expense.vendor ? `paid to ${entry.expense.vendor}` : null;
+              purpose = entry.expense.vendor
+                ? `${t(locale, "paid to")} ${entry.expense.vendor}`
+                : null;
             } else if (entry.transfer) {
               title = inbound
-                ? `In from ${entry.transfer.fromAccount.name}`
-                : `Out to ${entry.transfer.toAccount.name}`;
+                ? `${t(locale, "In from")} ${entry.transfer.fromAccount.name}`
+                : `${t(locale, "Out to")} ${entry.transfer.toAccount.name}`;
               purpose = entry.transfer.reason;
             }
 
@@ -451,18 +476,28 @@ export default async function LedgerPage({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="hidden lg:table-cell">Category</TableHead>
-                <TableHead className="hidden md:table-cell">Account</TableHead>
-                <TableHead className="hidden lg:table-cell">By</TableHead>
-                <TableHead className="text-right">Debit</TableHead>
-                <TableHead className="text-right">Credit</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-                <TableHead className="hidden sm:table-cell text-right">
-                  Proof
+                <TableHead>{t(locale, "Date")}</TableHead>
+                <TableHead>{t(locale, "Description")}</TableHead>
+                <TableHead className="hidden lg:table-cell">
+                  {t(locale, "Category")}
                 </TableHead>
-                <TableHead className="w-8" aria-label="Open" />
+                <TableHead className="hidden md:table-cell">
+                  {t(locale, "Account")}
+                </TableHead>
+                <TableHead className="hidden lg:table-cell">
+                  {t(locale, "By")}
+                </TableHead>
+                <TableHead className="text-right">{t(locale, "Debit")}</TableHead>
+                <TableHead className="text-right">
+                  {t(locale, "Credit")}
+                </TableHead>
+                <TableHead className="text-right">
+                  {t(locale, "Balance")}
+                </TableHead>
+                <TableHead className="hidden sm:table-cell text-right">
+                  {t(locale, "Proof")}
+                </TableHead>
+                <TableHead className="w-8" aria-label={t(locale, "Open")} />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -488,16 +523,20 @@ export default async function LedgerPage({
 
                 if (entry.payment) {
                   title = entry.payment.invoice.customer.name;
-                  purpose = entry.payment.invoice.shipment.description;
+                  purpose = cargoText(
+                    locale,
+                    entry.payment.invoice.shipment,
+                    "description"
+                  );
                 } else if (entry.expense) {
                   title = entry.expense.description;
                   purpose = entry.expense.vendor
-                    ? `paid to ${entry.expense.vendor}`
+                    ? `${t(locale, "paid to")} ${entry.expense.vendor}`
                     : null;
                 } else if (entry.transfer) {
                   title = inbound
-                    ? `In from ${entry.transfer.fromAccount.name}`
-                    : `Out to ${entry.transfer.toAccount.name}`;
+                    ? `${t(locale, "In from")} ${entry.transfer.fromAccount.name}`
+                    : `${t(locale, "Out to")} ${entry.transfer.toAccount.name}`;
                   purpose = entry.transfer.reason;
                 }
 
@@ -524,13 +563,16 @@ export default async function LedgerPage({
                  * the figure is sitting in.
                  */
                 const category = entry.expense
-                  ? (EXPENSE_CATEGORY_LABELS[entry.expense.category] ??
-                    entry.expense.category)
+                  ? t(
+                      locale,
+                      EXPENSE_CATEGORY_LABELS[entry.expense.category] ??
+                        entry.expense.category
+                    )
                   : entry.kind === "CUSTOMER_PAYMENT"
-                    ? "Freight income"
+                    ? t(locale, "Freight income")
                     : entry.transfer
-                      ? "Between accounts"
-                      : (KIND_LABEL[entry.kind] ?? entry.kind);
+                      ? t(locale, "Between accounts")
+                      : t(locale, KIND_LABEL[entry.kind] ?? entry.kind);
 
                 return (
                   <TableRow
@@ -621,7 +663,7 @@ export default async function LedgerPage({
                           className="relative z-10 inline-flex items-center gap-1 font-medium text-brand hover:underline"
                         >
                           <Paperclip className="h-3 w-3" />
-                          View
+                          {t(locale, "View")}
                         </a>
                       ) : (
                         <span className="text-muted-foreground">—</span>
@@ -643,7 +685,7 @@ export default async function LedgerPage({
       {pages > 1 ? (
         <div className="mt-4 flex items-center justify-between text-sm">
           <p className="text-muted-foreground">
-            Page {page} of {pages}
+            {t(locale, "Page")} {page} {t(locale, "of")} {pages}
           </p>
           <div className="flex gap-2">
             {page > 1 ? (
@@ -651,7 +693,7 @@ export default async function LedgerPage({
                 href={pageLink(page - 1)}
                 className="focus-ring rounded-lg border px-3 py-1.5 hover:bg-accent"
               >
-                Previous
+                {t(locale, "Previous")}
               </Link>
             ) : null}
             {page < pages ? (
@@ -659,7 +701,7 @@ export default async function LedgerPage({
                 href={pageLink(page + 1)}
                 className="focus-ring rounded-lg border px-3 py-1.5 hover:bg-accent"
               >
-                Next
+                {t(locale, "Next")}
               </Link>
             ) : null}
           </div>

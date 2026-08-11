@@ -24,9 +24,11 @@ import { QuickAction } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import { followUpQueue, supportOverview, ticketFlowByDay } from "@/lib/support";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Support desk" };
 
@@ -62,6 +64,7 @@ const PRIORITY_TONE: Record<string, string> = {
  */
 export default async function SupportHome() {
   const user = await requirePermission("ticket.manage");
+  const locale = await viewerLocale();
 
   // Read the name from the record rather than the session token, which carries
   // whatever it was at sign-in — somebody who renames themselves would be
@@ -198,7 +201,7 @@ export default async function SupportHome() {
     { label: "15d+", min: 15, max: Infinity },
   ];
   const ageing = AGE_BUCKETS.map((bucket) => ({
-    label: bucket.label,
+    label: t(locale, bucket.label),
     value: queue.filter(
       (row) => row.daysInWarehouse >= bucket.min && row.daysInWarehouse <= bucket.max
     ).length,
@@ -210,19 +213,19 @@ export default async function SupportHome() {
       group: "Tickets",
       when: overview.urgentTickets > 0,
       label: `${overview.urgentTickets} ticket${overview.urgentTickets === 1 ? "" : "s"} marked urgent`,
-      detail: "A customer is waiting on an answer somebody flagged as important.",
+      detail: t(locale, "A customer is waiting on an answer somebody flagged as important."),
       href: "/app/support/tickets?priority=high",
-      cta: "Answer",
+      cta: t(locale, "Answer"),
       urgent: true,
     },
     {
       group: "Collections",
       when: chasing.length > 0,
       label: `${chasing.length} customer${chasing.length === 1 ? "" : "s"} to chase`,
-      detail: "Billed, and the money has not arrived.",
+      detail: t(locale, "Billed, and the money has not arrived."),
       usd: sum(chasing),
       href: "/app/collections/follow-up?filter=awaiting-payment",
-      cta: "Chase",
+      cta: t(locale, "Chase"),
     },
     {
       group: "Collections",
@@ -230,39 +233,45 @@ export default async function SupportHome() {
       // their payment went through and it did not.
       when: submissionCount("REJECTED") > 0,
       label: `${submissionCount("REJECTED")} payment${submissionCount("REJECTED") === 1 ? "" : "s"} sent back by Finance`,
-      detail:
-        "Finance could not verify these. The customer needs ringing before the claim can go up again.",
+      detail: t(
+        locale,
+        "Finance could not verify these. The customer needs ringing before the claim can go up again."
+      ),
       href: "/app/collections/submissions?status=REJECTED",
-      cta: "See why",
-      aside: "needs a call",
+      cta: t(locale, "See why"),
+      aside: t(locale, "needs a call"),
       urgent: true,
     },
     {
       group: "Collections",
       when: submissionCount("PENDING") > 0,
       label: `${submissionCount("PENDING")} with Finance`,
-      detail:
-        "Payments this desk has handed up, waiting to be checked. Nothing to do but watch.",
+      detail: t(
+        locale,
+        "Payments this desk has handed up, waiting to be checked. Nothing to do but watch."
+      ),
       href: "/app/collections/submissions?status=PENDING",
-      cta: "Track",
-      aside: "waiting on Finance",
+      cta: t(locale, "Track"),
+      aside: t(locale, "waiting on Finance"),
     },
     {
       group: "Sourcing",
       when: overview.openRequests > 0,
       label: `${overview.openRequests} sourcing request${overview.openRequests === 1 ? "" : "s"} open`,
-      detail: "Somebody asked us to find them something in China.",
+      detail: t(locale, "Somebody asked us to find them something in China."),
       href: "/app/support/sourcing",
-      cta: "Work them",
+      cta: t(locale, "Work them"),
     },
     {
       group: "Cases",
       when: callBacks > 0,
       label: `${callBacks} investigation${callBacks === 1 ? "" : "s"} waiting on the customer`,
-      detail:
-        "A case is parked until somebody rings them back. That call is this desk's.",
+      detail: t(
+        locale,
+        "A case is parked until somebody rings them back. That call is this desk's."
+      ),
       href: "/app/exceptions",
-      cta: "Ring them",
+      cta: t(locale, "Ring them"),
     },
   ].filter((job) => job.when);
 
@@ -312,7 +321,7 @@ export default async function SupportHome() {
               {today}
             </span>
             <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
-              Support desk
+              {t(locale, "Support desk")}
             </span>
           </div>
           {/* The person, then the job. Every other desk in the app opens by
@@ -320,11 +329,13 @@ export default async function SupportHome() {
               which made it the only screen that did not know who was reading
               it. */}
           <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight text-white">
-            Habari, {firstName}
+            {t(locale, "Habari")}, {firstName}
           </h1>
           <p className="mt-2 text-sm text-white/80">
-            Find a shipment by tracking number, a customer&rsquo;s name, the
-            number they are calling from, a batch or an invoice.
+            {t(
+              locale,
+              "Find a shipment by tracking number, a customer’s name, the number they are calling from, a batch or an invoice."
+            )}
           </p>
           <div className="mt-4 max-w-2xl">
             <CargoSearch action="/app/support/search" />
@@ -340,17 +351,17 @@ export default async function SupportHome() {
             // what it costs and whether it has been paid.
             // Whatever the call is about it starts with a consignment, and the
             // next thing asked is what it costs and whether it has been paid.
-            { href: "/app/shipments", label: "Shipments", icon: PlaneTakeoff, weight: "primary", tone: "brand" },
-            { href: "/app/collections", label: "Collections", icon: Banknote, weight: "secondary", tone: "signal" },
+            { href: "/app/shipments", label: t(locale, "Shipments"), icon: PlaneTakeoff, weight: "primary", tone: "brand" },
+            { href: "/app/collections", label: t(locale, "Collections"), icon: Banknote, weight: "secondary", tone: "signal" },
             // Investigations rather than Tickets: a case where cargo is
             // missing or short is what this desk is rung about and has to
             // reach mid-call. Tickets keeps its sidebar row.
-            { href: "/app/exceptions", label: "Issues & Claims", icon: TriangleAlert, tone: "warning" },
+            { href: "/app/exceptions", label: t(locale, "Issues & Claims"), icon: TriangleAlert, tone: "warning" },
             // Sourcing came out: it has a sidebar row and is a slow job worked
             // through a queue, not something reached with a customer waiting.
-            { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: QrCode, tone: "success" },
-            { href: "/app/customers", label: "Customers", icon: Users, tone: "info" },
-            { href: "/app/batches", label: "Batches", icon: Boxes, tone: "violet" },
+            { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), icon: QrCode, tone: "success" },
+            { href: "/app/customers", label: t(locale, "Customers"), icon: Users, tone: "info" },
+            { href: "/app/batches", label: t(locale, "Batches"), icon: Boxes, tone: "violet" },
           ]}
         />
       </div>
@@ -358,8 +369,11 @@ export default async function SupportHome() {
       {/* The work first, exactly as the money desk and the floor have it. */}
       <AttentionCenter
         items={attention}
-        reviewAll={{ href: "/app/collections/follow-up", label: "The call list" }}
-        empty="Nothing is waiting on you. Every landed consignment is billed and no customer is owed a call."
+        reviewAll={{ href: "/app/collections/follow-up", label: t(locale, "The call list") }}
+        empty={t(
+          locale,
+          "Nothing is waiting on you. Every landed consignment is billed and no customer is owed a call."
+        )}
       />
 
 
@@ -369,38 +383,38 @@ export default async function SupportHome() {
           Not one of the four repeats a figure from the list above; that is
           the rule that lets them sit this close to it. */}
       <div className="mb-8 mt-7">
-        <SectionLabel action={{ href: "/app/customers", label: "All customers" }}>
-          The desk &middot; today
+        <SectionLabel action={{ href: "/app/customers", label: t(locale, "All customers") }}>
+          {t(locale, "The desk · today")}
         </SectionLabel>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
-            label="Customers"
+            label={t(locale, "Customers")}
             numeric={overview.customers}
-            hint="On the books"
+            hint={t(locale, "On the books")}
             icon={Users}
             tone="brand"
             href="/app/customers"
           />
           <KpiCard
-            label="Active shipments"
+            label={t(locale, "Active shipments")}
             numeric={overview.activeShipments}
-            hint="Registered, flying or waiting in Dar"
+            hint={t(locale, "Registered, flying or waiting in Dar")}
             icon={Boxes}
             tone="info"
             href="/app/shipments"
           />
           <KpiCard
-            label="Ready for pickup"
+            label={t(locale, "Ready for pickup")}
             numeric={overview.readyForPickup}
-            hint="Paid and waiting to be collected"
+            hint={t(locale, "Paid and waiting to be collected")}
             icon={Headset}
             tone="success"
             href="/app/collections/follow-up?filter=ready"
           />
           <KpiCard
-            label="Contacted today"
+            label={t(locale, "Contacted today")}
             numeric={overview.contactedToday}
-            hint="Calls and messages this desk recorded"
+            hint={t(locale, "Calls and messages this desk recorded")}
             icon={MessageSquare}
             tone="brand"
           />
@@ -414,8 +428,8 @@ export default async function SupportHome() {
           why they sit below the tiles rather than between them and the list:
           the picture explains the queue, and the queue is read first. */}
       <div className="mb-8 mt-7">
-        <SectionLabel action={{ href: "/app/collections/follow-up", label: "Full queue" }}>
-          Where the queue is stuck
+        <SectionLabel action={{ href: "/app/collections/follow-up", label: t(locale, "Full queue") }}>
+          {t(locale, "Where the queue is stuck")}
         </SectionLabel>
         {/* Three cards, one row — the rhythm the warehouse floors and the money
             desk use. Two answer "what is stuck, and for how long"; the third
@@ -423,19 +437,19 @@ export default async function SupportHome() {
             is keeping up at all. */}
         <div className="grid gap-4 lg:grid-cols-3">
           <section className="panel p-4">
-            <h3 className="text-sm font-semibold">What the queue is made of</h3>
+            <h3 className="text-sm font-semibold">{t(locale, "What the queue is made of")}</h3>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Every consignment in Dar, by what is holding it
+              {t(locale, "Every consignment in Dar, by what is holding it")}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-5">
               <Donut
                 slices={split.map((slice) => ({
-                  label: slice.label,
+                  label: t(locale, slice.label),
                   value: slice.rows.length,
                   tone: slice.tone,
                 }))}
                 label={String(queue.length)}
-                caption="consignments in the warehouse"
+                caption={t(locale, "consignments in the warehouse")}
               />
               <ul className="min-w-[13rem] flex-1 space-y-1">
                 {split.map((slice) => {
@@ -451,7 +465,7 @@ export default async function SupportHome() {
                           aria-hidden
                         />
                         <span className="min-w-0 flex-1 truncate text-xs group-hover:text-brand">
-                          {slice.label}
+                          {t(locale, slice.label)}
                         </span>
                         <span className="shrink-0 text-right">
                           <span className="block text-sm font-semibold tabular">
@@ -476,18 +490,18 @@ export default async function SupportHome() {
           <section className="panel p-4">
             <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h3 className="text-sm font-semibold">How long they have waited</h3>
+                <h3 className="text-sm font-semibold">{t(locale, "How long they have waited")}</h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Days on the floor since the plane landed
+                  {t(locale, "Days on the floor since the plane landed")}
                 </p>
               </div>
               {stale > 0 ? (
                 <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
-                  {stale} over a fortnight
+                  {stale} {t(locale, "over a fortnight")}
                 </span>
               ) : (
                 <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
-                  nothing stale
+                  {t(locale, "nothing stale")}
                 </span>
               )}
             </div>
@@ -506,9 +520,9 @@ export default async function SupportHome() {
           <section className="panel p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold">Opened and closed</h3>
+                <h3 className="text-sm font-semibold">{t(locale, "Opened and closed")}</h3>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Tickets raised against tickets finished, a fortnight
+                  {t(locale, "Tickets raised against tickets finished, a fortnight")}
                 </p>
               </div>
               <p className="shrink-0 text-right text-[11px] text-muted-foreground">
@@ -528,8 +542,8 @@ export default async function SupportHome() {
               valuesOut={ticketFlow.outCounts}
               currentIndex={ticketFlow.currentIndex}
               format={(n) => `${n} ticket${n === 1 ? "" : "s"}`}
-              legendIn="Opened"
-              legendOut="Closed"
+              legendIn={t(locale, "Opened")}
+              legendOut={t(locale, "Closed")}
             />
           </section>
         </div>
@@ -541,16 +555,16 @@ export default async function SupportHome() {
           <section className="rounded-xl border bg-card shadow-soft">
             <header className="flex items-center justify-between gap-3 border-b p-4">
               <div>
-                <h2 className="font-semibold">Call these customers first</h2>
+                <h2 className="font-semibold">{t(locale, "Call these customers first")}</h2>
                 <p className="text-sm text-muted-foreground">
-                  Ranked by what it is costing them and us.
+                  {t(locale, "Ranked by what it is costing them and us.")}
                 </p>
               </div>
               <Link
                 href="/app/collections/follow-up"
                 className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-brand hover:underline"
               >
-                Full queue
+                {t(locale, "Full queue")}
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </header>
@@ -564,20 +578,20 @@ export default async function SupportHome() {
                     <div className="min-w-0">
                       <p className="font-medium">{row.customerName}</p>
                       <p className="font-mono text-xs text-muted-foreground">
-                        {row.trackingNumber} · {row.description}
+                        {row.trackingNumber} · {cargoText(locale, row, "description")}
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
                       {row.storageDays > 0 ? (
                         <Badge variant="outline" className="border-destructive/40 text-destructive">
-                          {row.storageDays}d storage
+                          {row.storageDays}d {t(locale, "storage")}
                         </Badge>
                       ) : null}
                       <div className="text-right">
-                        <p className="text-sm font-medium">{row.nextAction}</p>
+                        <p className="text-sm font-medium">{t(locale, row.nextAction)}</p>
                         {row.outstanding !== null && row.outstanding > 0 ? (
                           <p className="font-mono text-xs tabular-nums text-muted-foreground">
-                            {formatUsd(row.outstanding)} owed
+                            {formatUsd(row.outstanding)} {t(locale, "owed")}
                           </p>
                         ) : null}
                       </div>
@@ -587,7 +601,7 @@ export default async function SupportHome() {
               ))}
               {topOfQueue.length === 0 ? (
                 <li className="p-8 text-center text-sm text-muted-foreground">
-                  Nothing waiting in the Dar warehouse. Quiet day.
+                  {t(locale, "Nothing waiting in the Dar warehouse. Quiet day.")}
                 </li>
               ) : null}
             </ul>
@@ -596,12 +610,12 @@ export default async function SupportHome() {
           {/* Tickets */}
           <section className="rounded-xl border bg-card shadow-soft">
             <header className="flex items-center justify-between gap-3 border-b p-4">
-              <h2 className="font-semibold">Customers waiting on us</h2>
+              <h2 className="font-semibold">{t(locale, "Customers waiting on us")}</h2>
               <Link
                 href="/app/support/tickets"
                 className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
               >
-                All tickets
+                {t(locale, "All tickets")}
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </header>
@@ -616,7 +630,7 @@ export default async function SupportHome() {
                       <p className="truncate font-medium">{ticket.subject}</p>
                       <p className="text-xs text-muted-foreground">
                         <span className="font-mono">{ticket.ticketNumber}</span> ·{" "}
-                        {ticket.customer?.name ?? ticket.contactName ?? "Unknown caller"}{" "}
+                        {ticket.customer?.name ?? ticket.contactName ?? t(locale, "Unknown caller")}{" "}
                         · {formatDateTime(ticket.createdAt)}
                       </p>
                     </div>
@@ -624,14 +638,14 @@ export default async function SupportHome() {
                       variant="outline"
                       className={PRIORITY_TONE[ticket.priority] ?? ""}
                     >
-                      {ticket.priority.toLowerCase()}
+                      {t(locale, ticket.priority.toLowerCase())}
                     </Badge>
                   </Link>
                 </li>
               ))}
               {tickets.length === 0 ? (
                 <li className="p-8 text-center text-sm text-muted-foreground">
-                  No open tickets.
+                  {t(locale, "No open tickets.")}
                 </li>
               ) : null}
             </ul>
@@ -642,33 +656,33 @@ export default async function SupportHome() {
           {/* Quick actions */}
           <div>
             <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Quick actions
+              {t(locale, "Quick actions")}
             </h2>
             <div className="grid gap-3">
               <QuickAction
                 href="/app/support/tickets"
-                label="Create a support ticket"
-                hint="Log a call, a complaint or a price inquiry"
+                label={t(locale, "Create a support ticket")}
+                hint={t(locale, "Log a call, a complaint or a price inquiry")}
               />
               <QuickAction
                 href="/app/support/sourcing"
-                label="Create a sourcing request"
-                hint="Customer wants something found in China"
+                label={t(locale, "Create a sourcing request")}
+                hint={t(locale, "Customer wants something found in China")}
               />
               <QuickAction
                 href="/app/collections/follow-up?filter=awaiting-payment"
-                label="Chase a payment"
-                hint="Cargo that has been billed and is still unpaid"
+                label={t(locale, "Chase a payment")}
+                hint={t(locale, "Cargo that has been billed and is still unpaid")}
               />
               <QuickAction
                 href="/app/customers"
-                label="Open a customer profile"
-                hint="History, balance, previous invoices"
+                label={t(locale, "Open a customer profile")}
+                hint={t(locale, "History, balance, previous invoices")}
               />
               <QuickAction
                 href="/app/support/markets"
-                label="China markets directory"
-                hint="Recommend the right market for their goods"
+                label={t(locale, "China markets directory")}
+                hint={t(locale, "Recommend the right market for their goods")}
               />
             </div>
           </div>
@@ -676,7 +690,7 @@ export default async function SupportHome() {
           {/* Sourcing */}
           <section className="rounded-xl border bg-card shadow-soft">
             <header className="border-b p-4">
-              <h2 className="font-semibold">Sourcing in progress</h2>
+              <h2 className="font-semibold">{t(locale, "Sourcing in progress")}</h2>
             </header>
             <ul className="divide-y">
               {requests.map((request) => (
@@ -688,14 +702,14 @@ export default async function SupportHome() {
                     <p className="truncate text-sm font-medium">{request.product}</p>
                     <p className="text-xs text-muted-foreground">
                       <span className="font-mono">{request.requestNumber}</span> ·{" "}
-                      {request.customer?.name ?? request.contactName ?? "Unknown"}
+                      {request.customer?.name ?? request.contactName ?? t(locale, "Unknown")}
                     </p>
                   </Link>
                 </li>
               ))}
               {requests.length === 0 ? (
                 <li className="p-6 text-center text-sm text-muted-foreground">
-                  No open requests.
+                  {t(locale, "No open requests.")}
                 </li>
               ) : null}
             </ul>

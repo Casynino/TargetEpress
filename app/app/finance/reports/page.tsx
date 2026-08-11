@@ -10,10 +10,14 @@ import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { monthWindow, profitAndLoss, profitByDispatch, yearWindow } from "@/lib/profit";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Profit & loss" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Profit & loss") };
+}
 
 /**
  * What the business actually made.
@@ -31,6 +35,7 @@ export default async function FinanceReportsPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const user = await requirePermission("profit.view");
+  const locale = await viewerLocale();
   const { period } = await searchParams;
 
   const window =
@@ -51,21 +56,24 @@ export default async function FinanceReportsPage({
   return (
     <>
       <PageHeader
-        title="Profit & loss"
-        description="Revenue against costs, for a period and for a flight. Every figure is derived from the operational record — there is no separate set of books."
+        title={t(locale, "Profit & loss")}
+        description={t(
+          locale,
+          "Revenue against costs, for a period and for a flight. Every figure is derived from the operational record — there is no separate set of books."
+        )}
       />
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
       <div className="mb-4 flex flex-wrap gap-1.5">
         <Chip href="/app/finance/reports" active={!period || period === "month"}>
-          This month
+          {t(locale, "This month")}
         </Chip>
         <Chip href="/app/finance/reports?period=last" active={period === "last"}>
-          Last month
+          {t(locale, "Last month")}
         </Chip>
         <Chip href="/app/finance/reports?period=year" active={period === "year"}>
-          This year
+          {t(locale, "This year")}
         </Chip>
       </div>
 
@@ -93,54 +101,80 @@ export default async function FinanceReportsPage({
               <TrendingDown className="h-4 w-4" />
             )}
             {pl.margin === null
-              ? "no revenue yet"
-              : `${pl.margin.toFixed(1)}% margin`}
+              ? t(locale, "no revenue yet")
+              : `${pl.margin.toFixed(1)}% ${t(locale, "margin")}`}
           </span>
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {formatUsd(pl.revenue)} billed on {pl.invoices} confirmed invoice
-          {pl.invoices === 1 ? "" : "s"}, less {formatUsd(pl.costs)} of costs
-          incurred. Counted from the day the work happened, not the day the
-          money moved.
+          {formatUsd(pl.revenue)} {t(locale, "billed on")} {pl.invoices}{" "}
+          {t(
+            locale,
+            pl.invoices === 1 ? "confirmed invoice" : "confirmed invoices"
+          )}
+          , {t(locale, "less")} {formatUsd(pl.costs)}{" "}
+          {t(
+            locale,
+            "of costs incurred. Counted from the day the work happened, not the day the money moved."
+          )}
         </p>
       </section>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
         <section className="rounded-xl border bg-card p-5 shadow-soft">
-          <h2 className="font-semibold">Did the work make money</h2>
+          <h2 className="font-semibold">
+            {t(locale, "Did the work make money")}
+          </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Accrual — bills raised and costs incurred in this period, whether or
-            not anyone has paid yet.
+            {t(
+              locale,
+              "Accrual — bills raised and costs incurred in this period, whether or not anyone has paid yet."
+            )}
           </p>
           <dl className="mt-4 space-y-2 text-sm">
-            <Row label="Revenue billed" value={formatUsd(pl.revenue)} />
-            <Row label="Costs incurred" value={`− ${formatUsd(pl.costs)}`} />
-            <Row label="Profit" value={formatUsd(pl.profit)} strong />
+            <Row
+              label={t(locale, "Revenue billed")}
+              value={formatUsd(pl.revenue)}
+            />
+            <Row
+              label={t(locale, "Costs incurred")}
+              value={`− ${formatUsd(pl.costs)}`}
+            />
+            <Row label={t(locale, "Profit")} value={formatUsd(pl.profit)} strong />
           </dl>
         </section>
 
         <section className="rounded-xl border bg-card p-5 shadow-soft">
-          <h2 className="font-semibold">Did the money move</h2>
+          <h2 className="font-semibold">{t(locale, "Did the money move")}</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Cash — what customers actually paid and what actually left an
-            account. This is the one that decides whether you can make payroll.
+            {t(
+              locale,
+              "Cash — what customers actually paid and what actually left an account. This is the one that decides whether you can make payroll."
+            )}
           </p>
           <dl className="mt-4 space-y-2 text-sm">
-            <Row label="Collected" value={formatUsd(pl.cashIn)} />
-            <Row label="Paid out" value={`− ${formatUsd(pl.cashOut)}`} />
-            <Row label="Net cash" value={formatUsd(pl.netCash)} strong />
+            <Row label={t(locale, "Collected")} value={formatUsd(pl.cashIn)} />
+            <Row
+              label={t(locale, "Paid out")}
+              value={`− ${formatUsd(pl.cashOut)}`}
+            />
+            <Row label={t(locale, "Net cash")} value={formatUsd(pl.netCash)} strong />
           </dl>
         </section>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border bg-card shadow-soft">
-          <h2 className="border-b px-5 py-4 font-semibold">Where the money went</h2>
+          <h2 className="border-b px-5 py-4 font-semibold">
+            {t(locale, "Where the money went")}
+          </h2>
           {pl.categories.length === 0 ? (
             <div className="p-5">
               <EmptyState
-                title="No costs in this period"
-                description="Record costs on the Expenses tab and they appear here, split by what they were for."
+                title={t(locale, "No costs in this period")}
+                description={t(
+                  locale,
+                  "Record costs on the Expenses tab and they appear here, split by what they were for."
+                )}
               />
             </div>
           ) : (
@@ -148,7 +182,12 @@ export default async function FinanceReportsPage({
               {pl.categories.map((row) => (
                 <li key={row.category} className="px-5 py-3">
                   <div className="flex items-baseline justify-between gap-3 text-sm">
-                    <span>{EXPENSE_CATEGORY_LABELS[row.category] ?? row.category}</span>
+                    <span>
+                      {t(
+                        locale,
+                        EXPENSE_CATEGORY_LABELS[row.category] ?? row.category
+                      )}
+                    </span>
                     <span className="font-mono tabular-nums">
                       {formatUsd(row.amount)}
                     </span>
@@ -173,16 +212,18 @@ export default async function FinanceReportsPage({
           <div className="border-b px-5 py-4">
             <h2 className="flex items-center gap-2 font-semibold">
               <Plane className="h-4 w-4 text-muted-foreground" />
-              Profit per flight
+              {t(locale, "Profit per flight")}
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Only costs tied to a dispatch count here. Rent and salaries belong
-              to the business, not to one aeroplane.
+              {t(
+                locale,
+                "Only costs tied to a dispatch count here. Rent and salaries belong to the business, not to one aeroplane."
+              )}
             </p>
           </div>
           {dispatches.length === 0 ? (
             <div className="p-5">
-              <EmptyState title="No dispatches have flown yet" />
+              <EmptyState title={t(locale, "No dispatches have flown yet")} />
             </div>
           ) : (
             <ul className="divide-y">
@@ -198,11 +239,13 @@ export default async function FinanceReportsPage({
                       </Link>
                       <p className="text-xs text-muted-foreground">
                         {batch.departedAt
-                          ? `flew ${formatDate(batch.departedAt)}`
-                          : "not departed"}
+                          ? `${t(locale, "flew")} ${formatDate(batch.departedAt)}`
+                          : t(locale, "not departed")}
                         {" · "}
-                        {formatUsd(batch.revenue)} in
-                        {batch.hasCosts ? `, ${formatUsd(batch.costs)} out` : ""}
+                        {formatUsd(batch.revenue)} {t(locale, "in")}
+                        {batch.hasCosts
+                          ? `, ${formatUsd(batch.costs)} ${t(locale, "out")}`
+                          : ""}
                       </p>
                     </div>
                     <div className="text-right">
@@ -216,7 +259,7 @@ export default async function FinanceReportsPage({
                         </p>
                       ) : (
                         <p className="text-xs text-muted-foreground">
-                          no costs recorded
+                          {t(locale, "no costs recorded")}
                         </p>
                       )}
                       {/* Said plainly: a flight still full of draft prices has a
@@ -226,8 +269,13 @@ export default async function FinanceReportsPage({
                           variant="outline"
                           className="mt-0.5 border-warning/40 font-normal text-warning"
                         >
-                          {batch.unconfirmed} price
-                          {batch.unconfirmed === 1 ? "" : "s"} unconfirmed
+                          {batch.unconfirmed}{" "}
+                          {t(
+                            locale,
+                            batch.unconfirmed === 1
+                              ? "price unconfirmed"
+                              : "prices unconfirmed"
+                          )}
                         </Badge>
                       ) : null}
                     </div>

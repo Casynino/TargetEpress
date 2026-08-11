@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { AlertTriangle, Lock, SearchX } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,6 +51,7 @@ function LossReport({
   confirmLabel: string;
   onReported?: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState<
     ActionResult<LossResult>,
@@ -61,21 +63,21 @@ function LossReport({
       <div className="rounded-xl border border-warning/40 bg-warning/5 p-4">
         <p className="flex items-center gap-2 text-sm font-semibold text-warning">
           <Lock className="h-4 w-4 shrink-0" />
-          {state.data.trackingNumber} is locked
+          {state.data.trackingNumber} {t("is locked")}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Investigation {state.data.caseRef} is open. The cargo cannot be
-          released until it is closed, Admin and Customer Support have been
-          notified, and the customer&apos;s tracking now shows it as under
-          investigation.
+          {t("Investigation")} {state.data.caseRef}{" "}
+          {t(
+            "is open. The cargo cannot be released until it is closed, Admin and Customer Support have been notified, and the customer's tracking now shows it as under investigation."
+          )}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button asChild size="sm" variant="outline" className="rounded-lg">
-            <Link href="/app/exceptions">Open Issues & Claims</Link>
+            <Link href="/app/exceptions">{t("Open Issues & Claims")}</Link>
           </Button>
           {onReported ? (
             <Button size="sm" variant="ghost" onClick={onReported}>
-              Next customer
+              {t("Next customer")}
             </Button>
           ) : null}
         </div>
@@ -117,7 +119,7 @@ function LossReport({
 
       <div className="space-y-1.5">
         <Label htmlFor={`loss-note-${trackingNumber}`} className="text-xs">
-          Where did you look?
+          {t("Where did you look?")}
         </Label>
         <Textarea
           id={`loss-note-${trackingNumber}`}
@@ -136,7 +138,7 @@ function LossReport({
           variant="destructive"
           size="sm"
           className="rounded-lg"
-          pendingLabel="Locking cargo…"
+          pendingLabel={t("Locking cargo…")}
         >
           {confirmLabel}
         </SubmitButton>
@@ -146,7 +148,7 @@ function LossReport({
           size="sm"
           onClick={() => setOpen(false)}
         >
-          Cancel
+          {t("Cancel")}
         </Button>
       </div>
     </form>
@@ -166,16 +168,21 @@ export function UnableToLocateForm({
   trackingNumber: string;
   onReported?: () => void;
 }) {
+  const t = useT();
   return (
     <LossReport
       action={reportUnableToLocate}
       hidden={{ pickupNoteId }}
       trackingNumber={trackingNumber}
-      trigger="Unable to locate cargo"
-      heading="Stop this pickup"
-      blurb="Do not mark this delivered. Reporting it opens an investigation, locks the cargo against any further pickup attempt, and tells Admin and Customer Support straight away."
-      placeholder="e.g. Not in bay C where the manifest puts it, not on the overflow rack, not in the Dar office van."
-      confirmLabel="Stop pickup and open investigation"
+      trigger={t("Unable to locate cargo")}
+      heading={t("Stop this pickup")}
+      blurb={t(
+        "Do not mark this delivered. Reporting it opens an investigation, locks the cargo against any further pickup attempt, and tells Admin and Customer Support straight away."
+      )}
+      placeholder={t(
+        "e.g. Not in bay C where the manifest puts it, not on the overflow rack, not in the Dar office van."
+      )}
+      confirmLabel={t("Stop pickup and open investigation")}
       onReported={onReported}
     />
   );
@@ -195,6 +202,7 @@ export function ReportMissingCargoForm({
   pickupNoteId?: string;
   trackingNumber: string;
 }) {
+  const t = useT();
   return (
     <LossReport
       action={reportMissingCargo}
@@ -202,11 +210,15 @@ export function ReportMissingCargoForm({
         shipmentId ? { shipmentId } : { pickupNoteId: pickupNoteId ?? "" }
       }
       trackingNumber={trackingNumber}
-      trigger="Report missing cargo"
-      heading="Report this cargo missing"
-      blurb="This takes the cargo out of the pickup queue and prevents delivery until the case is closed. Admin and Customer Support are notified, and the customer sees “Under investigation” instead of “Ready for pickup”."
-      placeholder="e.g. Bay C is empty, checked the whole aisle and the returns shelf. Last seen at check-in on Tuesday."
-      confirmLabel="Lock cargo and open investigation"
+      trigger={t("Report missing cargo")}
+      heading={t("Report this cargo missing")}
+      blurb={t(
+        "This takes the cargo out of the pickup queue and prevents delivery until the case is closed. Admin and Customer Support are notified, and the customer sees “Under investigation” instead of “Ready for pickup”."
+      )}
+      placeholder={t(
+        "e.g. Bay C is empty, checked the whole aisle and the returns shelf. Last seen at check-in on Tuesday."
+      )}
+      confirmLabel={t("Lock cargo and open investigation")}
     />
   );
 }

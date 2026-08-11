@@ -19,8 +19,10 @@ import { Badge } from "@/components/ui/badge";
 import { collectionsOverview, submissionQueue } from "@/lib/collections";
 import { formatMoney, formatRelative, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Collections" };
 
@@ -38,6 +40,7 @@ export const metadata: Metadata = { title: "Collections" };
  */
 export default async function CollectionsHome() {
   const user = await requirePermission("collections.view");
+  const locale = await viewerLocale();
   /**
    * Two desks share this workspace and the pending queue means opposite things
    * to them. Support hands a proof up and can do nothing further; Finance is
@@ -58,99 +61,127 @@ export default async function CollectionsHome() {
     {
       when: stats.awaitingPayment > 0,
       label: `${stats.awaitingPayment} bill${stats.awaitingPayment === 1 ? "" : "s"} sent, not paid`,
-      detail:
-        "The customer has been told what they owe and the money has not arrived. This is the call list.",
+      detail: t(
+        locale,
+        "The customer has been told what they owe and the money has not arrived. This is the call list."
+      ),
       usd: stats.outstandingUsd,
       href: "/app/collections/follow-up",
-      cta: "Chase",
+      cta: t(locale, "Chase"),
       urgent: true,
     },
     {
       when: stats.rejected > 0,
       label: `${stats.rejected} sent back by Finance`,
-      detail:
-        "Finance could not verify these. The customer needs ringing before they can go up again.",
+      detail: t(
+        locale,
+        "Finance could not verify these. The customer needs ringing before they can go up again."
+      ),
       href: "/app/collections/submissions?status=REJECTED",
-      cta: "See why",
-      aside: "needs a call",
+      cta: t(locale, "See why"),
+      aside: t(locale, "needs a call"),
       urgent: true,
     },
     canVerify
       ? {
           when: stats.pendingCount > 0,
           label: `${stats.pendingCount} waiting on you to verify`,
-          detail:
-            "Customer Support collected these at the counter and handed them up. Nothing is settled and no cargo is released until you agree with them.",
+          detail: t(
+            locale,
+            "Customer Support collected these at the counter and handed them up. Nothing is settled and no cargo is released until you agree with them."
+          ),
           href: "/app/collections/verify",
-          cta: "Verify",
-          aside: "customers waiting",
+          cta: t(locale, "Verify"),
+          aside: t(locale, "customers waiting"),
           urgent: true,
         }
       : {
           when: stats.pendingCount > 0,
           label: `${stats.pendingCount} with Finance`,
-          detail:
-            "Handed up and waiting to be checked. Nothing for this desk to do but watch.",
+          detail: t(
+            locale,
+            "Handed up and waiting to be checked. Nothing for this desk to do but watch."
+          ),
           href: "/app/collections/submissions?status=PENDING",
-          cta: "Track",
-          aside: "waiting on Finance",
+          cta: t(locale, "Track"),
+          aside: t(locale, "waiting on Finance"),
         },
     {
       when: stats.notesReady > 0,
       label: `${stats.notesReady} pickup note${stats.notesReady === 1 ? "" : "s"} ready`,
-      detail:
-        "Verified and released. Tell the customer their cargo can be collected.",
+      detail: t(
+        locale,
+        "Verified and released. Tell the customer their cargo can be collected."
+      ),
       href: "/app/finance/pickup-notes",
-      cta: "Print",
-      aside: "cleared",
+      cta: t(locale, "Print"),
+      aside: t(locale, "cleared"),
     },
   ].filter((job) => job.when) as WorkItem[];
 
   return (
     <>
       <PageHeader
-        title="Collections"
+        title={t(locale, "Collections")}
         description={
           canVerify
-            ? "What customers owe, what Customer Support has collected from them, and what is waiting on you to verify."
-            : "Chasing what customers owe, collecting their proof, and handing it to Finance. No money is held or approved on this desk."
+            ? t(
+                locale,
+                "What customers owe, what Customer Support has collected from them, and what is waiting on you to verify."
+              )
+            : t(
+                locale,
+                "Chasing what customers owe, collecting their proof, and handing it to Finance. No money is held or approved on this desk."
+              )
         }
       />
 
       <CollectionsNav canVerify={canVerify} />
 
-      <SectionLabel count={jobs.length}>Needs your attention</SectionLabel>
+      <SectionLabel count={jobs.length}>{t(locale, "Needs your attention")}</SectionLabel>
       <WorkList
         items={jobs}
         rate={rate}
-        empty="Nothing is waiting on you. Every bill sent is settled, nothing has been sent back, and no claim is outstanding."
+        empty={t(
+          locale,
+          "Nothing is waiting on you. Every bill sent is settled, nothing has been sent back, and no claim is outstanding."
+        )}
       />
 
       <div className="mt-7">
-        <SectionLabel action={{ href: "/app/collections/follow-up", label: "The call list" }}>
-          What customers owe
+        <SectionLabel action={{ href: "/app/collections/follow-up", label: t(locale, "The call list") }}>
+          {t(locale, "What customers owe")}
         </SectionLabel>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MoneyTile
-            label="Outstanding"
+            label={t(locale, "Outstanding")}
             usd={stats.outstandingUsd}
             rate={rate}
             icon={Wallet}
             tone={stats.outstandingUsd > 0 ? "warn" : "good"}
             count={`${stats.owingCount} unsettled bill${stats.owingCount === 1 ? "" : "s"}`}
-            hint="Confirmed and raised. Drafts are not here — this desk cannot chase a price Finance has not signed off."
+            hint={t(
+              locale,
+              "Confirmed and raised. Drafts are not here — this desk cannot chase a price Finance has not signed off."
+            )}
             href="/app/collections/follow-up"
           />
           {/* A count, not a total. Customers pay in shillings and dollars and
               these rows are stored in whatever arrived, so adding them
               together produces a figure in no currency at all. */}
           <KpiCard
-            label={canVerify ? "Waiting on you" : "Waiting on Finance"}
+            label={canVerify ? t(locale, "Waiting on you") : t(locale, "Waiting on Finance")}
             numeric={stats.pendingCount}
             hint={
               canVerify
-                ? "Collected by Customer Support and handed up — not yet checked by you"
-                : "What customers say they have sent, handed up and not yet checked"
+                ? t(
+                    locale,
+                    "Collected by Customer Support and handed up — not yet checked by you"
+                  )
+                : t(
+                    locale,
+                    "What customers say they have sent, handed up and not yet checked"
+                  )
             }
             icon={Clock}
             tone={stats.pendingCount > 0 ? "warning" : "brand"}
@@ -161,27 +192,27 @@ export default async function CollectionsHome() {
             }
           />
           <KpiCard
-            label="Verified today"
+            label={t(locale, "Verified today")}
             numeric={stats.verifiedToday}
             hint={
               stats.todaysValue > 0
-                ? `TSh ${Math.round(stats.todaysValue).toLocaleString("en-US")} cleared`
-                : "Nothing cleared yet today"
+                ? `${t(locale, "TSh")} ${Math.round(stats.todaysValue).toLocaleString("en-US")} ${t(locale, "cleared")}`
+                : t(locale, "Nothing cleared yet today")
             }
             icon={BadgeCheck}
             tone="success"
             href="/app/collections/submissions?status=VERIFIED"
           />
           <KpiCard
-            label="Claims that stood up"
+            label={t(locale, "Claims that stood up")}
             numeric={stats.successRate ?? 0}
             suffix={stats.successRate === null ? "" : "%"}
             ringPct={stats.successRate ?? 0}
-            ringLabel="Verification rate"
+            ringLabel={t(locale, "Verification rate")}
             hint={
               stats.successRate === null
-                ? "Nothing submitted yet"
-                : `${stats.submitted} handed up all told`
+                ? t(locale, "Nothing submitted yet")
+                : `${stats.submitted} ${t(locale, "handed up all told")}`
             }
             icon={SendHorizontal}
             tone="brand"
@@ -194,10 +225,12 @@ export default async function CollectionsHome() {
           <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5">
             <div>
               <h2 className="font-display font-semibold">
-                {canVerify ? "Collected by Support, waiting on you" : "With Finance now"}
+                {canVerify
+                  ? t(locale, "Collected by Support, waiting on you")
+                  : t(locale, "With Finance now")}
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Oldest first — a claim sitting here is a customer waiting
+                {t(locale, "Oldest first — a claim sitting here is a customer waiting")}
               </p>
             </div>
             <Link
@@ -208,14 +241,17 @@ export default async function CollectionsHome() {
               }
               className="focus-ring rounded text-xs font-semibold text-brand hover:underline"
             >
-              {canVerify ? "Verify them all →" : "All of them →"}
+              {canVerify ? t(locale, "Verify them all →") : t(locale, "All of them →")}
             </Link>
           </header>
           {pending.length === 0 ? (
             <p className="px-5 py-10 text-center text-sm text-muted-foreground">
               {canVerify
-                ? "Customer Support has not handed anything up that is still waiting."
-                : "Nothing is with Finance."}
+                ? t(
+                    locale,
+                    "Customer Support has not handed anything up that is still waiting."
+                  )
+                : t(locale, "Nothing is with Finance.")}
             </p>
           ) : (
             <ul className="divide-y">
@@ -256,14 +292,14 @@ export default async function CollectionsHome() {
             and what came of it. */}
         <section className="panel overflow-hidden">
           <header className="border-b px-5 py-3.5">
-            <h2 className="font-display font-semibold">Recent collections</h2>
+            <h2 className="font-display font-semibold">{t(locale, "Recent collections")}</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Everything this desk has handed up, newest first
+              {t(locale, "Everything this desk has handed up, newest first")}
             </p>
           </header>
           {recent.length === 0 ? (
             <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-              Nothing collected yet.
+              {t(locale, "Nothing collected yet.")}
             </p>
           ) : (
             <ul className="divide-y">
@@ -284,8 +320,8 @@ export default async function CollectionsHome() {
                       }
                     >
                       {row.status === "PENDING"
-                        ? "with Finance"
-                        : row.status.toLowerCase()}
+                        ? t(locale, "with Finance")
+                        : t(locale, row.status.toLowerCase())}
                     </Badge>
                   </div>
                   <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">

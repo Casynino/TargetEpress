@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/table";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { accountBalances } from "@/lib/ledger";
 import { agingInWarehouse, financeStats } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
@@ -34,8 +35,11 @@ import { can } from "@/lib/rbac";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Finance" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Finance") };
+}
 
 /**
  * The whole money position, on one screen.
@@ -56,6 +60,7 @@ export const metadata: Metadata = { title: "Finance" };
  */
 export default async function FinanceOverviewPage() {
   const user = await requirePermission("accounting.view");
+  const locale = await viewerLocale();
   // Support holds finance.view because Support answers questions about a
   // customer's bill. What the COMPANY is worth is a different question, and
   // every tile answering it is gated on this instead.
@@ -192,47 +197,67 @@ export default async function FinanceOverviewPage() {
   const jobs = [
     {
       when: drafts._count > 0,
-      label: `${drafts._count} price${drafts._count === 1 ? "" : "s"} to confirm`,
-      detail: "Priced by the system — cannot be billed until you sign them off",
+      label: `${drafts._count} ${t(
+        locale,
+        drafts._count === 1 ? "price to confirm" : "prices to confirm"
+      )}`,
+      detail: t(
+        locale,
+        "Priced by the system — cannot be billed until you sign them off"
+      ),
       usd: draftValue,
       href: "/app/shipments",
-      cta: "Review by flight",
+      cta: t(locale, "Review by flight"),
       urgent: true,
     },
     {
       when: (unattributed?._count ?? 0) > 0,
-      label: `${unattributed?._count} payment${unattributed?._count === 1 ? "" : "s"} with no account`,
-      detail: "Money we hold that nobody has said where it landed",
+      label: `${unattributed?._count} ${t(
+        locale,
+        unattributed?._count === 1
+          ? "payment with no account"
+          : "payments with no account"
+      )}`,
+      detail: t(locale, "Money we hold that nobody has said where it landed"),
       usd: unattributedUsd,
       href: "/app/finance/payments",
-      cta: "Say where it landed",
+      cta: t(locale, "Say where it landed"),
       urgent: true,
     },
     {
       when: stats.unpaid + stats.partiallyPaid > 0,
-      label: `${stats.unpaid + stats.partiallyPaid} bill${stats.unpaid + stats.partiallyPaid === 1 ? "" : "s"} unpaid`,
-      detail: "Confirmed and sent — the customer still owes it",
+      label: `${stats.unpaid + stats.partiallyPaid} ${t(
+        locale,
+        stats.unpaid + stats.partiallyPaid === 1 ? "bill unpaid" : "bills unpaid"
+      )}`,
+      detail: t(locale, "Confirmed and sent — the customer still owes it"),
       usd: stats.outstanding,
       href: "/app/collections/follow-up",
-      cta: "Chase",
+      cta: t(locale, "Chase"),
       urgent: false,
     },
     {
       when: activeNotes.length > 0,
-      label: `${activeNotes.length} cleared, not collected`,
-      detail: "Paid for and released — waiting on the customer to turn up",
+      label: `${activeNotes.length} ${t(locale, "cleared, not collected")}`,
+      detail: t(
+        locale,
+        "Paid for and released — waiting on the customer to turn up"
+      ),
       usd: clearedNotCollected,
       href: "/app/finance/pickup-notes",
-      cta: "See notes",
+      cta: t(locale, "See notes"),
       urgent: false,
     },
     {
       when: seesCompanyMoney && (unpaidCosts?._count ?? 0) > 0,
-      label: `${unpaidCosts?._count} cost${unpaidCosts?._count === 1 ? "" : "s"} to pay`,
-      detail: "Recorded, not yet disbursed",
+      label: `${unpaidCosts?._count} ${t(
+        locale,
+        unpaidCosts?._count === 1 ? "cost to pay" : "costs to pay"
+      )}`,
+      detail: t(locale, "Recorded, not yet disbursed"),
       usd: owedOutUsd,
       href: "/app/finance/expenses",
-      cta: "Settle",
+      cta: t(locale, "Settle"),
       urgent: false,
     },
   ].filter((job) => job.when);
@@ -245,13 +270,16 @@ export default async function FinanceOverviewPage() {
   return (
     <>
       <PageHeader
-        title="General ledger"
-        description="What the business is holding, what is owed to it, and what has moved. Shown in shillings; the dollar figure is what the invoice says."
+        title={t(locale, "General ledger")}
+        description={t(
+          locale,
+          "What the business is holding, what is owed to it, and what has moved. Shown in shillings; the dollar figure is what the invoice says."
+        )}
         actions={
           <Button asChild variant="brand" className="rounded-lg">
             <Link href="/app/shipments">
               <ReceiptText className="mr-2 h-4 w-4" />
-              Review prices by flight
+              {t(locale, "Review prices by flight")}
             </Link>
           </Button>
         }
@@ -272,7 +300,9 @@ export default async function FinanceOverviewPage() {
       <section className="mb-6 rounded-2xl border bg-card p-6">
         <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
           <PiggyBank className="h-4 w-4 text-brand" />
-          {seesCompanyMoney ? "Cash available" : "Collected all time"}
+          {seesCompanyMoney
+            ? t(locale, "Cash available")
+            : t(locale, "Collected all time")}
         </p>
         <p className="mt-2 font-display text-[40px] font-bold leading-none tracking-tight tabular-nums">
           {rate ? (
@@ -290,17 +320,20 @@ export default async function FinanceOverviewPage() {
         </p>
         <p className="mt-1.5 text-xs text-muted-foreground">
           {seesCompanyMoney
-            ? "Across every bank, till and the office tin — derived from the ledger"
-            : "Every payment received"}{" "}
-          · {formatUsd(seesCompanyMoney ? cashOnHand : stats.collected)} on the
-          invoice
+            ? t(
+                locale,
+                "Across every bank, till and the office tin — derived from the ledger"
+              )
+            : t(locale, "Every payment received")}{" "}
+          · {formatUsd(seesCompanyMoney ? cashOnHand : stats.collected)}{" "}
+          {t(locale, "on the invoice")}
         </p>
 
         <dl className="mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t pt-4">
           <div>
             <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <ArrowDownLeft className="h-3.5 w-3.5 text-success" />
-              In this month
+              {t(locale, "In this month")}
             </dt>
             <dd className="mt-0.5 font-display text-lg font-bold tabular-nums text-success">
               {tsh(collectedMonth)}
@@ -311,14 +344,16 @@ export default async function FinanceOverviewPage() {
               <div>
                 <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <ArrowUpRight className="h-3.5 w-3.5" />
-                  Out this month
+                  {t(locale, "Out this month")}
                 </dt>
                 <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
                   {tsh(spentUsd)}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Net</dt>
+                <dt className="text-xs text-muted-foreground">
+                  {t(locale, "Net")}
+                </dt>
                 <dd
                   className={`mt-0.5 font-display text-lg font-bold tabular-nums ${
                     netMonth >= 0 ? "" : "text-destructive"
@@ -330,7 +365,9 @@ export default async function FinanceOverviewPage() {
             </>
           ) : null}
           <div className="ml-auto">
-            <dt className="text-xs text-muted-foreground">Rate today</dt>
+            <dt className="text-xs text-muted-foreground">
+              {t(locale, "Rate today")}
+            </dt>
             <dd className="mt-0.5 font-mono text-sm tabular-nums">
               {rate ? (
                 <>
@@ -341,13 +378,13 @@ export default async function FinanceOverviewPage() {
                   TSh
                 </>
               ) : (
-                <span className="text-destructive">not set</span>
+                <span className="text-destructive">{t(locale, "not set")}</span>
               )}
               <Link
                 href="/app/finance/pricing"
                 className="ml-2 text-xs font-medium text-brand hover:underline"
               >
-                change
+                {t(locale, "change")}
               </Link>
             </dd>
           </div>
@@ -360,19 +397,19 @@ export default async function FinanceOverviewPage() {
             <Button asChild variant="brand" size="sm" className="rounded-lg">
               <Link href="/app/finance/expenses">
                 <Receipt className="mr-2 h-4 w-4" />
-                Record a cost
+                {t(locale, "Record a cost")}
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="rounded-lg">
               <Link href="/app/finance/accounts">
                 <ArrowLeftRight className="mr-2 h-4 w-4" />
-                Move money between accounts
+                {t(locale, "Move money between accounts")}
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="rounded-lg">
               <Link href="/app/finance/accounts">
                 <Calculator className="mr-2 h-4 w-4" />
-                Count the cash tin
+                {t(locale, "Count the cash tin")}
               </Link>
             </Button>
           </div>
@@ -383,12 +420,14 @@ export default async function FinanceOverviewPage() {
              money attached and the door to go do it. */}
       <section className="mb-6 overflow-hidden rounded-xl border bg-card">
         <h2 className="border-b px-5 py-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          Needs you
+          {t(locale, "Needs you")}
         </h2>
         {jobs.length === 0 ? (
           <p className="px-5 py-6 text-sm text-muted-foreground">
-            Nothing is waiting. Every price is confirmed, every payment says
-            where it landed, and nothing is owed either way.
+            {t(
+              locale,
+              "Nothing is waiting. Every price is confirmed, every payment says where it landed, and nothing is owed either way."
+            )}
           </p>
         ) : (
           <ul className="divide-y">
@@ -432,18 +471,20 @@ export default async function FinanceOverviewPage() {
           its own. Every figure above hangs off cargo that is somewhere. */}
       <section className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border bg-card px-5 py-4">
         <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          Where the cargo is
+          {t(locale, "Where the cargo is")}
         </p>
         {wherever.map((item) => (
           <div key={item.label} className="flex items-baseline gap-2">
             <span className="font-display text-lg font-bold tabular-nums">
               {item.value}
             </span>
-            <span className="text-xs text-muted-foreground">{item.label}</span>
+            <span className="text-xs text-muted-foreground">
+              {t(locale, item.label)}
+            </span>
           </div>
         ))}
         <p className="ml-auto text-xs text-muted-foreground">
-          {formatWeight(heldWeightKg)} held in Dar
+          {formatWeight(heldWeightKg)} {t(locale, "held in Dar")}
         </p>
       </section>
 
@@ -459,13 +500,21 @@ export default async function FinanceOverviewPage() {
         <section className="overflow-hidden rounded-xl border bg-card">
           <div className="flex items-center justify-between gap-3 border-b px-5 py-3.5">
             <div className="min-w-0">
-              <h2 className="font-semibold">Longest waiting</h2>
+              <h2 className="font-semibold">{t(locale, "Longest waiting")}</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                On the Dar floor, oldest first
+                {t(locale, "On the Dar floor, oldest first")}
                 {agingDrafts === aging.length && aging.length > 0
-                  ? " · none of these prices are confirmed yet"
+                  ? ` · ${t(
+                      locale,
+                      "none of these prices are confirmed yet"
+                    )}`
                   : agingDrafts > 0
-                    ? ` · ${agingDrafts} price${agingDrafts === 1 ? "" : "s"} not confirmed`
+                    ? ` · ${agingDrafts} ${t(
+                        locale,
+                        agingDrafts === 1
+                          ? "price not confirmed"
+                          : "prices not confirmed"
+                      )}`
                     : ""}
               </p>
             </div>
@@ -473,22 +522,26 @@ export default async function FinanceOverviewPage() {
               href="/app/collections/follow-up"
               className="shrink-0 text-xs font-medium text-brand hover:underline"
             >
-              Payment follow-up →
+              {t(locale, "Payment follow-up →")}
             </Link>
           </div>
 
           {aging.length === 0 ? (
             <p className="px-5 py-6 text-sm text-muted-foreground">
-              Nothing is waiting on the floor.
+              {t(locale, "Nothing is waiting on the floor.")}
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead className="hidden sm:table-cell">Waiting</TableHead>
-                  <TableHead className="text-right">Worth</TableHead>
+                  <TableHead>{t(locale, "Cargo")}</TableHead>
+                  <TableHead>{t(locale, "Customer")}</TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    {t(locale, "Waiting")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t(locale, "Worth")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -525,8 +578,8 @@ export default async function FinanceOverviewPage() {
                               than with a badge on every row. */}
                           {draft ? (
                             <span
-                              aria-label="price not confirmed"
-                              title="Price not confirmed"
+                              aria-label={t(locale, "price not confirmed")}
+                              title={t(locale, "Price not confirmed")}
                               className="mr-1.5 text-warning"
                             >
                               •
@@ -551,31 +604,33 @@ export default async function FinanceOverviewPage() {
         <section className="overflow-hidden rounded-xl border bg-card">
           <div className="flex items-center justify-between gap-3 border-b px-5 py-3.5">
             <div className="min-w-0">
-              <h2 className="font-semibold">Recent payments</h2>
+              <h2 className="font-semibold">{t(locale, "Recent payments")}</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                What was handed over, and where it landed
+                {t(locale, "What was handed over, and where it landed")}
               </p>
             </div>
             <Link
               href="/app/finance/payments"
               className="shrink-0 text-xs font-medium text-brand hover:underline"
             >
-              All payments →
+              {t(locale, "All payments →")}
             </Link>
           </div>
 
           {recentPayments.length === 0 ? (
             <p className="px-5 py-6 text-sm text-muted-foreground">
-              No payments recorded yet.
+              {t(locale, "No payments recorded yet.")}
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Receipt</TableHead>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Landed in</TableHead>
-                  <TableHead className="text-right">Taken</TableHead>
+                  <TableHead>{t(locale, "Receipt")}</TableHead>
+                  <TableHead>{t(locale, "Cargo")}</TableHead>
+                  <TableHead>{t(locale, "Landed in")}</TableHead>
+                  <TableHead className="text-right">
+                    {t(locale, "Taken")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -594,7 +649,9 @@ export default async function FinanceOverviewPage() {
                     </TableCell>
                     <TableCell className="py-2.5 text-xs">
                       {payment.account?.name ?? (
-                        <span className="text-warning">no account named</span>
+                        <span className="text-warning">
+                          {t(locale, "no account named")}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="py-2.5 text-right">
@@ -605,11 +662,15 @@ export default async function FinanceOverviewPage() {
                       {payment.currency !== payment.invoice.currency &&
                       payment.creditedAmount !== null ? (
                         <span className="block font-mono text-[11px] tabular-nums text-muted-foreground">
-                          settled {formatUsd(toNumber(payment.creditedAmount))}
+                          {t(locale, "settled")}{" "}
+                          {formatUsd(toNumber(payment.creditedAmount))}
                         </span>
                       ) : (
                         <span className="block text-[11px] capitalize text-muted-foreground">
-                          {payment.method.replace("_", " ").toLowerCase()}
+                          {t(
+                            locale,
+                            payment.method.replace("_", " ").toLowerCase()
+                          )}
                         </span>
                       )}
                     </TableCell>

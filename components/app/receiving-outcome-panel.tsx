@@ -12,6 +12,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { PhotoCapture } from "@/components/app/photo-capture";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -86,6 +87,7 @@ export function ReceivingOutcomePanel({
   /** The row's own action, so one error surface serves the whole row. */
   action: (formData: FormData) => void;
 }) {
+  const t = useT();
   const [outcome, setOutcome] = useState<ReceivingOutcome | null>(null);
   // Everything is assumed present — the common case is a complete shipment, and
   // the clerk only has to act on what is not.
@@ -105,16 +107,19 @@ export function ReceivingOutcomePanel({
   return (
     <div className="mt-2 space-y-4 rounded-lg border border-destructive/30 bg-destructive/[0.03] p-3">
       <div>
-        <p className="text-xs font-medium">What happened to this cargo?</p>
+        <p className="text-xs font-medium">{t("What happened to this cargo?")}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Only <span className="font-medium">Received</span> reaches the pickup
-          counter. Everything else opens a case and holds the cargo.
+          {t("Only")}{" "}
+          <span className="font-medium">{t("Received")}</span>{" "}
+          {t(
+            "reaches the pickup counter. Everything else opens a case and holds the cargo."
+          )}
         </p>
       </div>
 
       <div
         role="radiogroup"
-        aria-label={`Check-in outcome for ${trackingNumber}`}
+        aria-label={`${t("Check-in outcome for")} ${trackingNumber}`}
         className="grid grid-cols-2 gap-2 sm:grid-cols-3"
       >
         {RECEIVING_OUTCOMES.map((value) => {
@@ -137,7 +142,9 @@ export function ReceivingOutcomePanel({
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              <span className="min-w-0">{RECEIVING_OUTCOME_LABELS[value]}</span>
+              <span className="min-w-0">
+                {t(RECEIVING_OUTCOME_LABELS[value])}
+              </span>
             </button>
           );
         })}
@@ -150,7 +157,7 @@ export function ReceivingOutcomePanel({
           <input type="hidden" name="outcome" value={outcome} />
 
           <p className="text-xs text-muted-foreground">
-            {RECEIVING_OUTCOME_HINTS[outcome]}
+            {t(RECEIVING_OUTCOME_HINTS[outcome])}
           </p>
 
           {/* Which boxes are on the floor. The short-shipment case is the only
@@ -172,10 +179,10 @@ export function ReceivingOutcomePanel({
               {manyBoxes ? (
                 <>
                   <p className="text-xs font-medium">
-                    Which {unit.many} are on the floor?
+                    {t("Which")} {t(unit.many)} {t("are on the floor?")}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Untick anything that did not arrive.
+                    {t("Untick anything that did not arrive.")}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {packageList.map((pkg) => {
@@ -185,7 +192,7 @@ export function ReceivingOutcomePanel({
                           key={pkg.id}
                           type="button"
                           aria-pressed={on}
-                          aria-label={`${unit.one} ${pkg.sequence} — ${on ? "on the floor" : "did not arrive"}`}
+                          aria-label={`${t(unit.one)} ${pkg.sequence} — ${on ? t("on the floor") : t("did not arrive")}`}
                           onClick={() =>
                             setPresent((current) =>
                               current.includes(pkg.id)
@@ -208,8 +215,8 @@ export function ReceivingOutcomePanel({
                     className={`mt-2 text-xs ${missingCount > 0 ? "text-warning" : "text-muted-foreground"}`}
                   >
                     {missingCount > 0
-                      ? `${missingCount} of ${packageList.length} short. The ${packageList.length - missingCount} that arrived are checked into the warehouse; release stays shut until the rest turn up.`
-                      : `Untick a ${unit.one} above to record it short.`}
+                      ? `${missingCount} ${t("of")} ${packageList.length} ${t("short. The")} ${packageList.length - missingCount} ${t("that arrived are checked into the warehouse; release stays shut until the rest turn up.")}`
+                      : `${t("Untick a")} ${t(unit.one)} ${t("above to record it short.")}`}
                   </p>
                 </>
               ) : null}
@@ -220,7 +227,7 @@ export function ReceivingOutcomePanel({
           {outcome === "DAMAGED" ? (
             <div className="space-y-1.5">
               <Label htmlFor={`severity-${shipmentId}`} className="text-xs">
-                How bad is it?
+                {t("How bad is it?")}
               </Label>
               <NativeSelect
                 id={`severity-${shipmentId}`}
@@ -229,7 +236,7 @@ export function ReceivingOutcomePanel({
               >
                 {enumOptions(DAMAGE_SEVERITY_LABELS).map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {t(option.label)}
                   </option>
                 ))}
               </NativeSelect>
@@ -239,14 +246,14 @@ export function ReceivingOutcomePanel({
           {outcomeNeedsNote(outcome) ? (
             <div className="space-y-1.5">
               <Label htmlFor={`note-${shipmentId}`} className="text-xs">
-                What did you see?
+                {t("What did you see?")}
               </Label>
               <Textarea
                 id={`note-${shipmentId}`}
                 name="note"
                 rows={2}
                 required
-                placeholder={NOTE_PLACEHOLDERS[outcome]}
+                placeholder={t(NOTE_PLACEHOLDERS[outcome])}
               />
             </div>
           ) : null}
@@ -273,13 +280,14 @@ export function ReceivingOutcomePanel({
               className="h-11 text-sm"
             >
               {outcome === "RECEIVED"
-                ? "Check in — present & correct"
-                : `Open a case — ${RECEIVING_OUTCOME_LABELS[outcome].toLowerCase()}`}
+                ? t("Check in — present & correct")
+                : `${t("Open a case —")} ${t(RECEIVING_OUTCOME_LABELS[outcome]).toLowerCase()}`}
             </SubmitButton>
             {outcome !== "RECEIVED" ? (
               <p className="text-xs text-muted-foreground">
-                Tracking will read <span className="font-medium">Under
-                investigation</span>, not Ready for pickup.
+                {t("Tracking will read")}{" "}
+                <span className="font-medium">{t("Under investigation")}</span>
+                {t(", not Ready for pickup.")}
               </p>
             ) : null}
           </div>

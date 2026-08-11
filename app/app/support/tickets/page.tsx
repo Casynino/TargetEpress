@@ -5,10 +5,15 @@ import { PageHeader } from "@/components/app/page-header";
 import { NewTicketForm } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Tickets" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await viewerLocale();
+  return { title: t(locale, "Tickets") };
+}
 
 const STATUS_FILTERS = [
   { key: "open", label: "Open", statuses: ["OPEN", "IN_PROGRESS"] },
@@ -53,6 +58,7 @@ export default async function TicketsPage({
   searchParams: Promise<{ view?: string; priority?: string }>;
 }) {
   await requirePermission("ticket.manage");
+  const locale = await viewerLocale();
   const { view, priority } = await searchParams;
 
   const filter =
@@ -118,7 +124,7 @@ export default async function TicketsPage({
                 : "hover:bg-accent"
             }`}
           >
-            {option.label}
+            {t(locale, option.label)}
             <span
               className={`rounded-full px-1.5 text-xs tabular-nums ${
                 option.key === filter.key ? "bg-white/20" : "bg-muted text-muted-foreground"
@@ -162,13 +168,13 @@ export default async function TicketsPage({
 
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <Badge variant="outline" className={PRIORITY_TONE[ticket.priority] ?? ""}>
-                {ticket.priority.toLowerCase()}
+                {t(locale, ticket.priority.toLowerCase())}
               </Badge>
               <Badge variant="outline" className={STATUS_TONE[ticket.status] ?? ""}>
-                {ticket.status.replace(/_/g, " ").toLowerCase()}
+                {t(locale, ticket.status.replace(/_/g, " ").toLowerCase())}
               </Badge>
               <span className="text-[11px] text-muted-foreground">
-                {CATEGORY_LABEL[ticket.category] ?? ticket.category}
+                {t(locale, CATEGORY_LABEL[ticket.category] ?? ticket.category)}
               </span>
             </div>
 
@@ -183,7 +189,7 @@ export default async function TicketsPage({
                   </Link>
                 ) : (
                   <span className="block truncate font-medium">
-                    {ticket.contactName ?? "Unknown caller"}
+                    {ticket.contactName ?? t(locale, "Unknown caller")}
                   </span>
                 )}
                 <span className="block font-mono text-[11px] text-muted-foreground">
@@ -191,7 +197,9 @@ export default async function TicketsPage({
                 </span>
               </div>
               <div className="shrink-0 text-right text-[11px] text-muted-foreground">
-                <span className="block">{ticket.assignedTo?.name ?? "Unassigned"}</span>
+                <span className="block">
+                  {ticket.assignedTo?.name ?? t(locale, "Unassigned")}
+                </span>
                 <span className="block">{formatDateTime(ticket.createdAt)}</span>
               </div>
             </div>
@@ -203,13 +211,19 @@ export default async function TicketsPage({
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="p-3 font-medium">Ticket</th>
-              <th className="p-3 font-medium">Customer</th>
-              <th className="hidden p-3 font-medium md:table-cell">Category</th>
-              <th className="p-3 font-medium">Priority</th>
-              <th className="p-3 font-medium">Status</th>
-              <th className="hidden p-3 font-medium xl:table-cell">Handled by</th>
-              <th className="hidden p-3 font-medium lg:table-cell">Opened</th>
+              <th className="p-3 font-medium">{t(locale, "Ticket")}</th>
+              <th className="p-3 font-medium">{t(locale, "Customer")}</th>
+              <th className="hidden p-3 font-medium md:table-cell">
+                {t(locale, "Category")}
+              </th>
+              <th className="p-3 font-medium">{t(locale, "Priority")}</th>
+              <th className="p-3 font-medium">{t(locale, "Status")}</th>
+              <th className="hidden p-3 font-medium xl:table-cell">
+                {t(locale, "Handled by")}
+              </th>
+              <th className="hidden p-3 font-medium lg:table-cell">
+                {t(locale, "Opened")}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -236,27 +250,27 @@ export default async function TicketsPage({
                       {ticket.customer.name}
                     </Link>
                   ) : (
-                    <span>{ticket.contactName ?? "Unknown caller"}</span>
+                    <span>{ticket.contactName ?? t(locale, "Unknown caller")}</span>
                   )}
                   <div className="text-xs text-muted-foreground">
                     {ticket.customer?.phone ?? ticket.contactPhone ?? "—"}
                   </div>
                 </td>
                 <td className="hidden p-3 text-muted-foreground md:table-cell">
-                  {CATEGORY_LABEL[ticket.category] ?? ticket.category}
+                  {t(locale, CATEGORY_LABEL[ticket.category] ?? ticket.category)}
                 </td>
                 <td className="p-3">
                   <Badge variant="outline" className={PRIORITY_TONE[ticket.priority] ?? ""}>
-                    {ticket.priority.toLowerCase()}
+                    {t(locale, ticket.priority.toLowerCase())}
                   </Badge>
                 </td>
                 <td className="p-3">
                   <Badge variant="outline" className={STATUS_TONE[ticket.status] ?? ""}>
-                    {ticket.status.replace(/_/g, " ").toLowerCase()}
+                    {t(locale, ticket.status.replace(/_/g, " ").toLowerCase())}
                   </Badge>
                 </td>
                 <td className="hidden p-3 text-muted-foreground xl:table-cell">
-                  {ticket.assignedTo?.name ?? "Unassigned"}
+                  {ticket.assignedTo?.name ?? t(locale, "Unassigned")}
                 </td>
                 <td className="hidden p-3 text-xs text-muted-foreground lg:table-cell">
                   {formatDateTime(ticket.createdAt)}
@@ -266,7 +280,7 @@ export default async function TicketsPage({
             {tickets.length === 0 ? (
               <tr>
                 <td colSpan={7} className="p-10 text-center text-sm text-muted-foreground">
-                  No tickets in this view.
+                  {t(locale, "No tickets in this view.")}
                 </td>
               </tr>
             ) : null}

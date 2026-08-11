@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Plus, RotateCcw, Trash2 } from "lucide-react";
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -25,6 +26,7 @@ import type { ActionResult } from "@/lib/actions/types";
  * numbers. That is stated on the page rather than left to be discovered.
  */
 export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
+  const t = useT();
   const [state, action] = useActionState<ActionResult, FormData>(
     saveCompanySettings,
     { ok: true }
@@ -52,11 +54,13 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
       <section className="panel p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="font-display font-semibold">Collection accounts</h2>
+            <h2 className="font-display font-semibold">
+              {t("Collection accounts")}
+            </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Printed on every invoice and in every payment message. The label is
-              what the customer reads — say which service and what kind of
-              number, never just the brand.
+              {t(
+                "Printed on every invoice and in every payment message. The label is what the customer reads — say which service and what kind of number, never just the brand."
+              )}
             </p>
           </div>
           <button
@@ -73,7 +77,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
             className="focus-ring inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors hover:border-brand/40 hover:text-brand"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add an account
+            {t("Add an account")}
           </button>
         </div>
 
@@ -82,7 +86,9 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
             <li key={index} className="rounded-xl border bg-muted/20 p-4">
               <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1.2fr_auto_auto]">
                 <div className="space-y-1">
-                  <Label className="text-[11px]">Label the customer sees</Label>
+                  <Label className="text-[11px]">
+                    {t("Label the customer sees")}
+                  </Label>
                   <Input
                     value={account.label}
                     onChange={(e) => setAccount(index, { label: e.target.value })}
@@ -91,7 +97,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">Number</Label>
+                  <Label className="text-[11px]">{t("Number")}</Label>
                   <Input
                     value={account.number}
                     onChange={(e) => setAccount(index, { number: e.target.value })}
@@ -99,7 +105,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">Account name</Label>
+                  <Label className="text-[11px]">{t("Account name")}</Label>
                   <Input
                     value={account.accountName}
                     onChange={(e) =>
@@ -109,7 +115,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">Kind</Label>
+                  <Label className="text-[11px]">{t("Kind")}</Label>
                   <NativeSelect
                     value={account.kind}
                     onChange={(e) =>
@@ -119,12 +125,12 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                     }
                     className="h-10 w-[7rem]"
                   >
-                    <option value="MOBILE">Mobile</option>
-                    <option value="BANK">Bank</option>
+                    <option value="MOBILE">{t("Mobile")}</option>
+                    <option value="BANK">{t("Bank")}</option>
                   </NativeSelect>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">Currency</Label>
+                  <Label className="text-[11px]">{t("Currency")}</Label>
                   <NativeSelect
                     value={account.currency ?? ""}
                     onChange={(e) =>
@@ -161,7 +167,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                   className="focus-ring inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  Remove
+                  {t("Remove")}
                 </button>
               </div>
             </li>
@@ -173,15 +179,16 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
         {(["dar", "china"] as const).map((which) => (
           <section key={which} className="panel p-5">
             <h2 className="font-display font-semibold">
-              {which === "dar" ? "Tanzania office" : "China office"}
+              {which === "dar" ? t("Tanzania office") : t("China office")}
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              One line per line of the address, as it would be written on an
-              envelope.
+              {t(
+                "One line per line of the address, as it would be written on an envelope."
+              )}
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
               <div className="space-y-1">
-                <Label className="text-[11px]">City</Label>
+                <Label className="text-[11px]">{t("City")}</Label>
                 <Input
                   value={settings[which].city}
                   onChange={(e) => setOffice(which, { city: e.target.value })}
@@ -189,7 +196,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px]">Country</Label>
+                <Label className="text-[11px]">{t("Country")}</Label>
                 <Input
                   value={settings[which].country}
                   onChange={(e) => setOffice(which, { country: e.target.value })}
@@ -197,7 +204,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px]">Flag</Label>
+                <Label className="text-[11px]">{t("Flag")}</Label>
                 <Input
                   value={settings[which].flag}
                   onChange={(e) => setOffice(which, { flag: e.target.value })}
@@ -206,7 +213,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
               </div>
             </div>
             <div className="mt-3 space-y-1">
-              <Label className="text-[11px]">Address lines</Label>
+              <Label className="text-[11px]">{t("Address lines")}</Label>
               <textarea
                 value={settings[which].lines.join("\n")}
                 onChange={(e) =>
@@ -223,7 +230,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
       </div>
 
       <section className="panel p-5">
-        <h2 className="font-display font-semibold">Contact</h2>
+        <h2 className="font-display font-semibold">{t("Contact")}</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {(
             [
@@ -234,7 +241,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
             ] as const
           ).map(([key, label]) => (
             <div key={key} className="space-y-1">
-              <Label className="text-[11px]">{label}</Label>
+              <Label className="text-[11px]">{t(label)}</Label>
               <Input
                 value={settings.contact[key]}
                 onChange={(e) =>
@@ -260,8 +267,8 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
       />
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-        <SubmitButton variant="brand" pendingLabel="Saving…">
-          Save settings
+        <SubmitButton variant="brand" pendingLabel={t("Saving…")}>
+          {t("Save settings")}
         </SubmitButton>
         <button
           type="button"
@@ -269,11 +276,12 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
           className="focus-ring inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
         >
           <RotateCcw className="h-3.5 w-3.5" />
-          Undo my changes
+          {t("Undo my changes")}
         </button>
         <p className="text-xs text-muted-foreground">
-          Invoices already raised keep the accounts they were issued with — this
-          changes what goes out from now on.
+          {t(
+            "Invoices already raised keep the accounts they were issued with — this changes what goes out from now on."
+          )}
         </p>
       </div>
     </form>

@@ -4,6 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { Eye, EyeOff, Pencil, Plus } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ export type MarketRow = {
  * a list, not operating a form builder.
  */
 export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
+  const t = useT();
   const [state, action] = useActionState(saveMarket, undefined);
   const [editing, setEditing] = useState<MarketRow | null>(null);
   const [open, setOpen] = useState(false);
@@ -64,9 +66,15 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
       <section className="rounded-xl border bg-card shadow-soft">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
           <div>
-            <h2 className="font-semibold">{open ? (editing ? "Edit market" : "Add a market") : "Markets"}</h2>
+            <h2 className="font-semibold">
+              {open
+                ? editing
+                  ? t("Edit market")
+                  : t("Add a market")
+                : t("Markets")}
+            </h2>
             <p className="text-sm text-muted-foreground">
-              Shown to the support desk and on the public guide.
+              {t("Shown to the support desk and on the public guide.")}
             </p>
           </div>
           <Button
@@ -75,7 +83,7 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
             size="sm"
             onClick={() => (open ? setOpen(false) : startEdit(null))}
           >
-            {open ? "Close" : <><Plus className="mr-1 h-4 w-4" />New market</>}
+            {open ? t("Close") : <><Plus className="mr-1 h-4 w-4" />{t("New market")}</>}
           </Button>
         </header>
 
@@ -86,26 +94,27 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
             <FormError state={state} />
             {state?.ok ? (
               <p className="rounded-md border border-success/30 bg-success/5 p-3 text-sm text-success">
-                Saved. The public guide updates within the hour, or immediately on
-                the support desk.
+                {t(
+                  "Saved. The public guide updates within the hour, or immediately on the support desk."
+                )}
               </p>
             ) : null}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="name">Market name</Label>
+                <Label htmlFor="name">{t("Market name")}</Label>
                 <Input id="name" name="name" defaultValue={editing?.name} required />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="nameCn">Chinese name</Label>
+                <Label htmlFor="nameCn">{t("Chinese name")}</Label>
                 <Input id="nameCn" name="nameCn" defaultValue={editing?.nameCn ?? ""} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="city">City</Label>
+                <Label htmlFor="city">{t("City")}</Label>
                 <Input id="city" name="city" defaultValue={editing?.city} required />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="district">District</Label>
+                <Label htmlFor="district">{t("District")}</Label>
                 <Input
                   id="district"
                   name="district"
@@ -113,42 +122,42 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="route">Goods fly out of</Label>
+                <Label htmlFor="route">{t("Goods fly out of")}</Label>
                 <NativeSelect
                   id="route"
                   name="route"
                   defaultValue={editing?.route ?? "GUANGZHOU"}
                 >
-                  <option value="GUANGZHOU">Guangzhou</option>
-                  <option value="HONG_KONG">Hong Kong</option>
+                  <option value="GUANGZHOU">{t("Guangzhou")}</option>
+                  <option value="HONG_KONG">{t("Hong Kong")}</option>
                 </NativeSelect>
                 <p className="text-xs text-muted-foreground">
-                  This decides what the customer pays to fly it home.
+                  {t("This decides what the customer pays to fly it home.")}
                 </p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="hours">Opening hours</Label>
+                <Label htmlFor="hours">{t("Opening hours")}</Label>
                 <Input
                   id="hours"
                   name="hours"
                   defaultValue={editing?.hours ?? ""}
-                  placeholder="Roughly 09:00–17:00 daily"
+                  placeholder={t("Roughly 09:00–17:00 daily")}
                 />
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="bestFor">Best for — one line</Label>
+                <Label htmlFor="bestFor">{t("Best for — one line")}</Label>
                 <Input
                   id="bestFor"
                   name="bestFor"
                   defaultValue={editing?.bestFor}
-                  placeholder="Clothing, shoes, bags and general merchandise"
+                  placeholder={t("Clothing, shoes, bags and general merchandise")}
                   required
                 />
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="summary">Description</Label>
+                <Label htmlFor="summary">{t("Description")}</Label>
                 <Textarea
                   id="summary"
                   name="summary"
@@ -159,7 +168,7 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="products">Products — one per line</Label>
+                <Label htmlFor="products">{t("Products — one per line")}</Label>
                 <Textarea
                   id="products"
                   name="products"
@@ -169,7 +178,9 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="tips">Tips for the customer — one per line</Label>
+                <Label htmlFor="tips">
+                  {t("Tips for the customer — one per line")}
+                </Label>
                 <Textarea
                   id="tips"
                   name="tips"
@@ -180,19 +191,21 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
 
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="verify">
-                  Warning to reconfirm{" "}
-                  <span className="font-normal text-muted-foreground">optional</span>
+                  {t("Warning to reconfirm")}{" "}
+                  <span className="font-normal text-muted-foreground">
+                    {t("optional")}
+                  </span>
                 </Label>
                 <Input
                   id="verify"
                   name="verify"
                   defaultValue={editing?.verify ?? ""}
-                  placeholder="Opening days vary — confirm before travelling."
+                  placeholder={t("Opening days vary — confirm before travelling.")}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="sortOrder">Position in the list</Label>
+                <Label htmlFor="sortOrder">{t("Position in the list")}</Label>
                 <Input
                   id="sortOrder"
                   name="sortOrder"
@@ -202,8 +215,8 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
               </div>
             </div>
 
-            <SubmitButton pendingLabel="Saving…">
-              {editing ? "Save changes" : "Add market"}
+            <SubmitButton pendingLabel={t("Saving…")}>
+              {editing ? t("Save changes") : t("Add market")}
             </SubmitButton>
           </form>
         ) : null}
@@ -233,9 +246,13 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="outline">
-                  {market.route === "HONG_KONG" ? "Hong Kong" : "Guangzhou"}
+                  {market.route === "HONG_KONG"
+                    ? t("Hong Kong")
+                    : t("Guangzhou")}
                 </Badge>
-                {market.active ? null : <Badge variant="outline">hidden</Badge>}
+                {market.active ? null : (
+                  <Badge variant="outline">{t("hidden")}</Badge>
+                )}
               </div>
             </div>
 
@@ -244,7 +261,8 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
               {market.summary}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              {market.products.length} products · {market.tips.length} tips
+              {market.products.length} {t("products")} · {market.tips.length}{" "}
+              {t("tips")}
             </p>
 
             <div className="mt-4 flex gap-2 border-t pt-3">
@@ -255,7 +273,7 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
                 onClick={() => startEdit(market)}
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                Edit
+                {t("Edit")}
               </Button>
               <Button
                 type="button"
@@ -267,12 +285,12 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
                 {market.active ? (
                   <>
                     <EyeOff className="mr-1.5 h-3.5 w-3.5" />
-                    Hide
+                    {t("Hide")}
                   </>
                 ) : (
                   <>
                     <Eye className="mr-1.5 h-3.5 w-3.5" />
-                    Publish
+                    {t("Publish")}
                   </>
                 )}
               </Button>

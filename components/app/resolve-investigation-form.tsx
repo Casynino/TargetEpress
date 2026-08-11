@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import type { ResolutionType } from "@prisma/client";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { resolveInvestigation } from "@/lib/actions/investigations";
@@ -47,6 +48,7 @@ export function ResolveInvestigationForm({
 }: {
   exceptionId: string;
 }) {
+  const t = useT();
   const [state, action] = useActionState<ActionResult, FormData>(
     resolveInvestigation,
     { ok: true }
@@ -72,7 +74,7 @@ export function ResolveInvestigationForm({
       <input type="hidden" name="exceptionId" value={exceptionId} />
 
       <div className="space-y-2">
-        <p className="text-xs font-medium">What happened?</p>
+        <p className="text-xs font-medium">{t("What happened?")}</p>
         <div className="grid gap-1.5 sm:grid-cols-2">
           {ORDER.map((option) => (
             <label
@@ -94,10 +96,10 @@ export function ResolveInvestigationForm({
               />
               <span className="min-w-0">
                 <span className="block font-medium">
-                  {RESOLUTION_TYPE_LABELS[option]}
+                  {t(RESOLUTION_TYPE_LABELS[option])}
                 </span>
                 <span className="block text-xs text-muted-foreground">
-                  {HINT[option]}
+                  {t(HINT[option])}
                 </span>
               </span>
             </label>
@@ -109,12 +111,13 @@ export function ResolveInvestigationForm({
       {type === "CARGO_FOUND" ? (
         <div className="space-y-1.5">
           <Label htmlFor={`found-${exceptionId}`} className="text-xs">
-            Where was it found? <span className="text-muted-foreground">(optional)</span>
+            {t("Where was it found?")}{" "}
+            <span className="text-muted-foreground">({t("optional")})</span>
           </Label>
           <Input
             id={`found-${exceptionId}`}
             name="foundLocation"
-            placeholder="e.g. Shelf B-12, behind the Guangzhou pallet"
+            placeholder={t("e.g. Shelf B-12, behind the Guangzhou pallet")}
           />
         </div>
       ) : null}
@@ -123,7 +126,7 @@ export function ResolveInvestigationForm({
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label htmlFor={`was-${exceptionId}`} className="text-xs">
-              Previous weight (kg)
+              {t("Previous weight (kg)")}
             </Label>
             <Input
               id={`was-${exceptionId}`}
@@ -137,7 +140,7 @@ export function ResolveInvestigationForm({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor={`now-${exceptionId}`} className="text-xs">
-              Actual weight (kg)
+              {t("Actual weight (kg)")}
             </Label>
             <Input
               id={`now-${exceptionId}`}
@@ -150,7 +153,7 @@ export function ResolveInvestigationForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Difference</Label>
+            <Label className="text-xs">{t("Difference")}</Label>
             <p className="flex h-10 items-center rounded-md border bg-muted/40 px-3 text-sm tabular">
               {difference === null ? (
                 <span className="text-muted-foreground">—</span>
@@ -168,12 +171,12 @@ export function ResolveInvestigationForm({
       {type === "DAMAGE_SETTLED" ? (
         <div className="space-y-1.5">
           <Label htmlFor={`outcome-${exceptionId}`} className="text-xs">
-            How was it settled?
+            {t("How was it settled?")}
           </Label>
           <Input
             id={`outcome-${exceptionId}`}
             name="damageOutcome"
-            placeholder="e.g. Customer accepted the cargo after agreement"
+            placeholder={t("e.g. Customer accepted the cargo after agreement")}
             required
           />
         </div>
@@ -186,20 +189,20 @@ export function ResolveInvestigationForm({
               on the compensation record. */}
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="compensationOwed" value="yes" />
-            Customer compensation required
+            {t("Customer compensation required")}
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="financeNotified" value="yes" />
-            Finance notified
+            {t("Finance notified")}
           </label>
         </div>
       ) : null}
 
       <div className="space-y-1.5">
         <Label htmlFor={`note-${exceptionId}`} className="text-xs">
-          Resolution note{" "}
+          {t("Resolution note")}{" "}
           {type && !noteRequired ? (
-            <span className="text-muted-foreground">(optional)</span>
+            <span className="text-muted-foreground">({t("optional")})</span>
           ) : null}
         </Label>
         <textarea
@@ -207,7 +210,7 @@ export function ResolveInvestigationForm({
           name="resolutionNote"
           rows={2}
           required={noteRequired}
-          placeholder="What happened, and how it was solved."
+          placeholder={t("What happened, and how it was solved.")}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-brand"
         />
       </div>
@@ -215,13 +218,14 @@ export function ResolveInvestigationForm({
       <label className="flex items-start gap-2 text-xs">
         <input type="checkbox" name="confirm" value="yes" required className="mt-0.5" />
         <span>
-          I confirm this is what happened. The case closes and stays on the
-          record.
+          {t(
+            "I confirm this is what happened. The case closes and stays on the record."
+          )}
         </span>
       </label>
 
-      <SubmitButton size="sm" variant="brand" pendingLabel="Closing…">
-        Confirm resolution
+      <SubmitButton size="sm" variant="brand" pendingLabel={t("Closing…")}>
+        {t("Confirm resolution")}
       </SubmitButton>
       <FormError state={state} />
     </form>

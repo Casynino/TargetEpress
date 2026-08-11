@@ -8,10 +8,15 @@ import { FinanceNav } from "@/components/app/finance-nav";
 import { Badge } from "@/components/ui/badge";
 import { financeTabs } from "@/lib/finance-tabs";
 import { formatDateTime } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Audit" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await viewerLocale();
+  return { title: t(locale, "Audit") };
+}
 
 /**
  * Everything money-related that anybody did, and who did it.
@@ -45,6 +50,7 @@ export default async function FinanceAuditPage({
   searchParams: Promise<{ entity?: string; page?: string }>;
 }) {
   const user = await requirePermission("audit.view");
+  const locale = await viewerLocale();
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
 
@@ -77,15 +83,18 @@ export default async function FinanceAuditPage({
   return (
     <>
       <PageHeader
-        title="Audit"
-        description="Every money action on the system, who did it and when. Append-only — nothing here can be edited or removed, including by the CEO."
+        title={t(locale, "Audit")}
+        description={t(
+          locale,
+          "Every money action on the system, who did it and when. Append-only — nothing here can be edited or removed, including by the CEO."
+        )}
       />
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
       <div className="mb-4 flex flex-wrap gap-1.5">
         <Chip href={linkFor()} active={!params.entity}>
-          Everything
+          {t(locale, "Everything")}
         </Chip>
         {MONEY_ENTITIES.map((entity) => (
           <Chip
@@ -93,15 +102,18 @@ export default async function FinanceAuditPage({
             href={linkFor(entity)}
             active={params.entity === entity}
           >
-            {entity}
+            {t(locale, entity)}
           </Chip>
         ))}
       </div>
 
       {entries.length === 0 ? (
         <EmptyState
-          title="Nothing recorded yet"
-          description="Actions appear here as they happen — a price confirmed, a payment taken, a cost paid."
+          title={t(locale, "Nothing recorded yet")}
+          description={t(
+            locale,
+            "Actions appear here as they happen — a price confirmed, a payment taken, a cost paid."
+          )}
         />
       ) : (
         <div className="rounded-xl border bg-card shadow-soft">
@@ -114,7 +126,7 @@ export default async function FinanceAuditPage({
                 <div className="min-w-0">
                   <p className="text-sm">{entry.summary}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {entry.actor?.name ?? entry.actorEmail ?? "System"} ·{" "}
+                    {entry.actor?.name ?? entry.actorEmail ?? t(locale, "System")} ·{" "}
                     {formatDateTime(entry.createdAt)}
                   </p>
                 </div>
@@ -130,7 +142,8 @@ export default async function FinanceAuditPage({
       {pages > 1 ? (
         <div className="mt-4 flex items-center justify-between text-sm">
           <p className="text-muted-foreground">
-            Page {page} of {pages} · {total} entries
+            {t(locale, "Page")} {page} {t(locale, "of")} {pages} · {total}{" "}
+            {t(locale, "entries")}
           </p>
           <div className="flex gap-2">
             {page > 1 ? (
@@ -138,7 +151,7 @@ export default async function FinanceAuditPage({
                 href={linkFor(params.entity, page - 1)}
                 className="focus-ring rounded-lg border px-3 py-1.5 hover:bg-accent"
               >
-                Previous
+                {t(locale, "Previous")}
               </Link>
             ) : null}
             {page < pages ? (
@@ -146,7 +159,7 @@ export default async function FinanceAuditPage({
                 href={linkFor(params.entity, page + 1)}
                 className="focus-ring rounded-lg border px-3 py-1.5 hover:bg-accent"
               >
-                Next
+                {t(locale, "Next")}
               </Link>
             ) : null}
           </div>

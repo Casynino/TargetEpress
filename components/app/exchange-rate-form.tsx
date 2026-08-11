@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +17,7 @@ import { setExchangeRate } from "@/lib/actions/fx";
  * spot as "TZS 2,700,000 for a hundred dollars" than as a number in a box.
  */
 export function ExchangeRateForm({ current }: { current: number | null }) {
+  const t = useT();
   const [state, action] = useActionState(setExchangeRate, undefined);
   const [draft, setDraft] = useState("");
 
@@ -29,14 +31,14 @@ export function ExchangeRateForm({ current }: { current: number | null }) {
       <FormError state={state} />
       {state?.ok ? (
         <p className="rounded-md border border-success/30 bg-success/5 p-3 text-sm text-success">
-          Rate published
-          {state.data ? `: 1 USD = ${state.data.rate.toLocaleString()} TZS` : ""}.
-          Invoices already raised keep the rate they were raised at.
+          {t("Rate published")}
+          {state.data ? `: 1 USD = ${state.data.rate.toLocaleString()} TZS` : ""}.{" "}
+          {t("Invoices already raised keep the rate they were raised at.")}
         </p>
       ) : null}
 
       <div className="space-y-1.5">
-        <Label htmlFor="rate">New rate — shillings to one US dollar</Label>
+        <Label htmlFor="rate">{t("New rate — shillings to one US dollar")}</Label>
         <Input
           id="rate"
           name="rate"
@@ -52,7 +54,9 @@ export function ExchangeRateForm({ current }: { current: number | null }) {
       {valid ? (
         <div className="rounded-lg border bg-muted/40 p-3 text-sm">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-muted-foreground">A USD 100 invoice becomes</span>
+            <span className="text-muted-foreground">
+              {t("A USD 100 invoice becomes")}
+            </span>
             <span className="font-mono font-semibold tabular-nums">
               TZS {Math.round(value * 100).toLocaleString()}
             </span>
@@ -60,10 +64,10 @@ export function ExchangeRateForm({ current }: { current: number | null }) {
           {move !== null ? (
             <p className="mt-1.5 text-xs text-muted-foreground">
               {Math.abs(move) < 0.01
-                ? "No change from the current rate."
-                : `${move > 0 ? "Up" : "Down"} ${Math.abs(move).toFixed(2)}% from ${current?.toLocaleString()}.`}
+                ? t("No change from the current rate.")
+                : `${t(move > 0 ? "Up" : "Down")} ${Math.abs(move).toFixed(2)}% ${t("from")} ${current?.toLocaleString()}.`}
               {Math.abs(move) > 10
-                ? " That is a large move — check the digits."
+                ? ` ${t("That is a large move — check the digits.")}`
                 : ""}
             </p>
           ) : null}
@@ -71,16 +75,16 @@ export function ExchangeRateForm({ current }: { current: number | null }) {
       ) : null}
 
       <div className="space-y-1.5">
-        <Label htmlFor="notes">Why (optional)</Label>
+        <Label htmlFor="notes">{t("Why (optional)")}</Label>
         <Textarea
           id="notes"
           name="notes"
           rows={2}
-          placeholder="e.g. BOT mid-rate, 30 July"
+          placeholder={t("e.g. BOT mid-rate, 30 July")}
         />
       </div>
 
-      <SubmitButton pendingLabel="Publishing…">Publish rate</SubmitButton>
+      <SubmitButton pendingLabel="Publishing…">{t("Publish rate")}</SubmitButton>
     </form>
   );
 }

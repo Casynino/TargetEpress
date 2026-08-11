@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
+import { t } from "@/lib/i18n";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 /**
  * The old scan screen, now a doorway.
@@ -17,7 +19,9 @@ import { requirePermission } from "@/lib/session";
  * material, sits in bookmarks and browser history, and a warehouse phone that
  * has autocompleted /app/scan for months should still land somewhere useful.
  */
-export const metadata: Metadata = { title: "Scan a label" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Scan a label") };
+}
 
 export default async function ScanPage({
   searchParams,

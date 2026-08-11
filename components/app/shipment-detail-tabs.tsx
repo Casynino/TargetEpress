@@ -227,7 +227,7 @@ export function ShipmentDetailTabs({
           </div>
 
           <p className="border-b px-4 py-2 text-xs text-muted-foreground">
-            {visible.length} of {cargo.length} pieces
+            {visible.length} {t("of")} {cargo.length} {t("pieces")}
           </p>
 
           <div className="max-h-[70vh] overflow-auto">
@@ -343,13 +343,13 @@ export function ShipmentDetailTabs({
                             href={line.photos[0].url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            title={`View ${line.photos.length} photo(s)`}
+                            title={`${t("View")} ${line.photos.length} ${t("photo(s)")}`}
                             className="group relative block h-8 w-8 shrink-0 overflow-hidden rounded border"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={line.photos[0].url}
-                              alt={line.photos[0].caption ?? `Cargo photo for ${line.trackingNumber}`}
+                              alt={line.photos[0].caption ?? `${t("Cargo photo for")} ${line.trackingNumber}`}
                               className="h-full w-full object-cover transition-transform group-hover:scale-110"
                               loading="lazy"
                             />

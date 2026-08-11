@@ -11,6 +11,7 @@ import { formatUsd } from "@/lib/fx";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { searchShipments } from "@/lib/support";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Find a shipment" };
 
@@ -27,6 +28,7 @@ export default async function SupportSearchPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const user = await requirePermission("shipment.view");
+  const locale = await viewerLocale();
   const { q } = await searchParams;
   const showMoney = can(user.role, "finance.view");
 
@@ -102,7 +104,9 @@ export default async function SupportSearchPage({
                 >
                   {shipment.trackingNumber}
                 </Link>
-                <p className="mt-0.5 line-clamp-2 text-sm">{shipment.description}</p>
+                <p className="mt-0.5 line-clamp-2 text-sm">
+                  {cargoText(locale, shipment, "description")}
+                </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                   {formatWeight(shipment.weightKg)} · {shipment.packages} pkg ·{" "}
                   {shipment.origin === "GUANGZHOU" ? "Guangzhou" : "Hong Kong"}
@@ -181,7 +185,9 @@ export default async function SupportSearchPage({
                       </div>
                     </td>
                     <td className="p-3">
-                      <div className="max-w-[16rem] truncate">{shipment.description}</div>
+                      <div className="max-w-[16rem] truncate">
+                        {cargoText(locale, shipment, "description")}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {formatWeight(shipment.weightKg)} · {shipment.packages} pkg ·{" "}
                         {shipment.origin === "GUANGZHOU" ? "Guangzhou" : "Hong Kong"}

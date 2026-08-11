@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import {
   ReportMissingCargoForm,
   UnableToLocateForm,
@@ -110,6 +111,7 @@ export function ReleaseWorkbench({
   );
   const [error, setError] = useState<string | null>(initialError ?? null);
   const [pending, startTransition] = useTransition();
+  const t = useT();
 
   const open = useCallback((code: string, how: Opened) => {
     setError(null);
@@ -136,10 +138,10 @@ export function ReleaseWorkbench({
         setTarget(null);
         setScanned("");
         setOpened("scan");
-        setError(response.ok ? "No cargo matches that code." : response.error);
+        setError(response.ok ? t("No cargo matches that code.") : response.error);
       }
     });
-  }, []);
+  }, [t]);
 
   const reset = useCallback(() => {
     setTarget(null);
@@ -163,7 +165,9 @@ export function ReleaseWorkbench({
     return (
       <div className="panel flex items-center justify-center p-16">
         <Loader2 className="h-6 w-6 animate-spin text-brand" />
-        <span className="ml-3 text-sm text-muted-foreground">Reading the label…</span>
+        <span className="ml-3 text-sm text-muted-foreground">
+          {t("Reading the label…")}
+        </span>
       </div>
     );
   }
@@ -200,6 +204,7 @@ function ScanPrompt({
 }) {
   const [query, setQuery] = useState("");
   const [byHand, setByHand] = useState(false);
+  const t = useT();
 
   const filtered = notes.filter((note) => {
     const q = query.trim().toLowerCase();
@@ -216,11 +221,12 @@ function ScanPrompt({
       <div className="panel p-4 sm:p-6">
         <div className="flex items-center gap-2">
           <ScanLine className="h-5 w-5 text-brand" />
-          <h2 className="font-display text-lg font-bold">Scan the box</h2>
+          <h2 className="font-display text-lg font-bold">{t("Scan the box")}</h2>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          The sticker on the carton, or the code on the customer&apos;s printed
-          pickup note — either one opens their cargo.
+          {t(
+            "The sticker on the carton, or the code on the customer's printed pickup note — either one opens their cargo."
+          )}
         </p>
         <div className="mt-4">
           <QrScanner onResult={(raw) => onOpen(raw, "scan")} />
@@ -229,7 +235,7 @@ function ScanPrompt({
         {error ? (
           <div className="mt-3 rounded-xl border-2 border-destructive/50 bg-destructive/10 p-3">
             <p className="font-display text-base font-bold leading-tight text-destructive">
-              Not read
+              {t("Not read")}
             </p>
             <p className="mt-1 text-xs text-destructive/90">{error}</p>
           </div>
@@ -252,10 +258,10 @@ function ScanPrompt({
         >
           <span className="flex items-center gap-2 text-sm font-medium">
             <Search className="h-4 w-4 text-muted-foreground" />
-            Label unreadable? Find it by hand
+            {t("Label unreadable? Find it by hand")}
           </span>
           <span className="text-xs text-muted-foreground">
-            {notes.length} cleared
+            {notes.length} {t("cleared")}
           </span>
         </button>
 
@@ -263,8 +269,9 @@ function ScanPrompt({
           <div className="mt-4 space-y-3">
             {notes.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No cargo is cleared for release right now. Finance issues a
-                pickup note once a shipment is paid for.
+                {t(
+                  "No cargo is cleared for release right now. Finance issues a pickup note once a shipment is paid for."
+                )}
               </p>
             ) : (
               <>
@@ -273,7 +280,7 @@ function ScanPrompt({
                   <Input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Tracking, note number or name"
+                    placeholder={t("Tracking, note number or name")}
                     className="h-11 pl-9"
                   />
                 </div>
@@ -297,14 +304,15 @@ function ScanPrompt({
                           {note.customerName}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {note.packages} pkg · {formatWeight(note.weightKg)}
+                          {note.packages} {t("pkg")} ·{" "}
+                          {formatWeight(note.weightKg)}
                         </p>
                       </button>
                     </li>
                   ))}
                   {filtered.length === 0 ? (
                     <li className="p-2 text-sm text-muted-foreground">
-                      Nothing matches that search.
+                      {t("Nothing matches that search.")}
                     </li>
                   ) : null}
                 </ul>
@@ -337,6 +345,7 @@ function ReleaseScreen({
   onDone: () => void;
 }) {
   const [released, setReleased] = useState<string | null>(null);
+  const t = useT();
 
   /*
     The confirmation replaces the screen rather than sitting under it.
@@ -366,9 +375,10 @@ function ReleaseScreen({
   const verdict = waitingOnScan
     ? {
         tone: "warn" as const,
-        headline: "Cleared — now scan the box",
-        detail:
-          "Payment and paperwork are in order. Read the QR on the carton to confirm you have the right one, then hand it over.",
+        headline: t("Cleared — now scan the box"),
+        detail: t(
+          "Payment and paperwork are in order. Read the QR on the carton to confirm you have the right one, then hand it over."
+        ),
       }
     : target.verdict;
 
@@ -419,6 +429,7 @@ function CargoFacts({
   onDone: () => void;
 }) {
   const note = target.pickupNote;
+  const t = useT();
 
   return (
     <div className="panel overflow-hidden">
@@ -429,7 +440,7 @@ function CargoFacts({
           </p>
           <p className="mt-1 text-base font-medium">{target.customerName}</p>
           <p className="text-sm text-muted-foreground">
-            {target.customerPhone ?? "No phone recorded"}
+            {target.customerPhone ?? t("No phone recorded")}
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
@@ -441,15 +452,15 @@ function CargoFacts({
             className="min-h-11"
             onClick={onDone}
           >
-            Scan another
+            {t("Scan another")}
           </Button>
         </div>
       </div>
 
       <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3">
         <Fact
-          label="Boxes here"
-          value={`${target.progress.received} of ${target.progress.total}`}
+          label={t("Boxes here")}
+          value={`${target.progress.received} ${t("of")} ${target.progress.total}`}
           tone={target.progress.complete ? "ok" : "bad"}
           // Which carton is short, wherever it is short. The number used to be
           // named only in the one verdict branch that requires a live pickup
@@ -458,16 +469,16 @@ function CargoFacts({
           note={
             target.progress.complete
               ? undefined
-              : `${target.progress.missing.map((n) => `#${n}`).join(", ")} not checked in`
+              : `${target.progress.missing.map((n) => `#${n}`).join(", ")} ${t("not checked in")}`
           }
         />
-        <Fact label="Weight" value={formatWeight(target.weightKg)} />
-        <Fact label="Packing carton" value={target.cartonRef ?? "—"} />
-        <Fact label="Batch" value={target.batchNumber ?? "—"} />
-        <Fact label="Arrived in Dar" value={target.arrivedAt ?? "—"} />
+        <Fact label={t("Weight")} value={formatWeight(target.weightKg)} />
+        <Fact label={t("Packing carton")} value={target.cartonRef ?? "—"} />
+        <Fact label={t("Batch")} value={target.batchNumber ?? "—"} />
+        <Fact label={t("Arrived in Dar")} value={target.arrivedAt ?? "—"} />
         <Fact
-          label="Pickup note"
-          value={note ? note.noteNumber : "Not issued"}
+          label={t("Pickup note")}
+          value={note ? note.noteNumber : t("Not issued")}
           tone={note?.status === "ACTIVE" ? "ok" : note ? "bad" : undefined}
         />
       </dl>
@@ -475,7 +486,7 @@ function CargoFacts({
       <div className="space-y-3 border-t p-4 sm:p-6">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Contents
+            {t("Contents")}
           </p>
           <p className="mt-0.5 text-sm">{target.description}</p>
         </div>
@@ -495,13 +506,13 @@ function CargoFacts({
                 : "font-medium text-warning"
             )}
           >
-            You scanned box {target.scannedPackage.sequence} of{" "}
+            {t("You scanned box")} {target.scannedPackage.sequence} {t("of")}{" "}
             {target.progress.total} (
             <span className="font-mono">{target.scannedPackage.reference}</span>
             ) —{" "}
             {target.scannedPackage.received
-              ? "checked in at Dar."
-              : "this one was never checked in at Dar."}
+              ? t("checked in at Dar.")
+              : t("this one was never checked in at Dar.")}
           </p>
         ) : null}
 
@@ -517,17 +528,17 @@ function CargoFacts({
         {target.finance ? (
           <div className="rounded-xl border bg-muted/30 p-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Invoice {target.finance.invoiceNumber}
+              {t("Invoice")} {target.finance.invoiceNumber}
             </p>
             <dl className="mt-1 flex flex-wrap gap-x-6 gap-y-1 text-sm">
               <div className="flex gap-2">
-                <dt className="text-muted-foreground">Total</dt>
+                <dt className="text-muted-foreground">{t("Total")}</dt>
                 <dd className="font-mono font-semibold tabular">
                   {formatMoney(target.finance.total, target.finance.currency)}
                 </dd>
               </div>
               <div className="flex gap-2">
-                <dt className="text-muted-foreground">Paid</dt>
+                <dt className="text-muted-foreground">{t("Paid")}</dt>
                 <dd className="font-mono font-semibold tabular">
                   {formatMoney(
                     target.finance.amountPaid,
@@ -536,7 +547,7 @@ function CargoFacts({
                 </dd>
               </div>
               <div className="flex gap-2">
-                <dt className="text-muted-foreground">Outstanding</dt>
+                <dt className="text-muted-foreground">{t("Outstanding")}</dt>
                 <dd
                   className={cn(
                     "font-mono font-semibold tabular",
@@ -576,17 +587,19 @@ function CargoFacts({
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-success/50 bg-success/10 px-4 py-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-success/80">
-                Payment
+                {t("Payment")}
               </p>
               <p className="font-display text-lg font-bold leading-tight text-success">
                 {note.amountPaid !== undefined && note.currency
                   ? formatMoney(note.amountPaid, note.currency)
-                  : "Settled in full"}
+                  : t("Settled in full")}
               </p>
             </div>
             <p className="text-right text-xs text-success/80">
               {note.noteNumber}
-              <span className="block">issued {note.issuedAt}</span>
+              <span className="block">
+                {t("issued")} {note.issuedAt}
+              </span>
             </p>
           </div>
         ) : null}
@@ -658,27 +671,30 @@ function BlockedActions({
   const short = !target.progress.complete;
   const notHereYet =
     target.status !== "READY_FOR_PICKUP" && target.status !== "DELIVERED";
+  const t = useT();
 
   return (
     <div className="panel p-4 sm:p-6">
       <p className="text-sm text-muted-foreground">
-        This cargo cannot be released from here. Nothing has been changed.
+        {t(
+          "This cargo cannot be released from here. Nothing has been changed."
+        )}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {/* Cargo the record has not receipted, with the box in the clerk's
             hand — checking it in is the actual next action. */}
         {short || notHereYet ? (
           <Button asChild variant="signal" className="h-11">
-            <Link href="/app/receive">Check the cargo in</Link>
+            <Link href="/app/receive">{t("Check the cargo in")}</Link>
           </Button>
         ) : null}
         <Button asChild variant="outline" className="h-11">
           <Link href={`/app/cargo/${target.trackingNumber}`}>
-            Open the shipment
+            {t("Open the shipment")}
           </Link>
         </Button>
         <Button variant="brand" className="h-11" onClick={onDone}>
-          Scan another box
+          {t("Scan another box")}
         </Button>
       </div>
 
@@ -709,6 +725,7 @@ function ReleasedPanel({
   onDone: () => void;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const t = useT();
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
@@ -721,14 +738,14 @@ function ReleasedPanel({
         tabIndex={-1}
         className="focus-ring mt-4 font-display text-xl font-bold"
       >
-        Cargo released
+        {t("Cargo released")}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        <span className="font-mono tabular">{trackingNumber}</span> has been
-        handed over and marked delivered.
+        <span className="font-mono tabular">{trackingNumber}</span>{" "}
+        {t("has been handed over and marked delivered.")}
       </p>
       <Button variant="brand" className="mt-6 h-11" onClick={onDone}>
-        Next customer
+        {t("Next customer")}
       </Button>
     </div>
   );
@@ -772,6 +789,7 @@ function ReleaseForm({
    */
   const [receiver, setReceiver] = useState(target.customerName);
   const [relationship, setRelationship] = useState("SELF");
+  const t = useT();
 
   const released = state.ok ? state.data?.trackingNumber : undefined;
   useEffect(() => {
@@ -811,44 +829,44 @@ function ReleaseForm({
           <div className="rounded-xl border-2 border-warning/50 bg-warning/10 p-3">
             <p className="flex items-center gap-2 text-sm font-semibold text-warning">
               <TriangleAlert className="h-4 w-4 shrink-0" />
-              Releasing without scanning the label
+              {t("Releasing without scanning the label")}
             </p>
             <p className="mt-1 text-xs text-warning/90">
-              You opened this from the unreadable-label list. Check the tracking
-              number against the customer&apos;s paperwork yourself, and make
-              sure the cargo is in the handover photograph — that photo is the
-              only record that the right box left the building.
+              {t(
+                "You opened this from the unreadable-label list. Check the tracking number against the customer's paperwork yourself, and make sure the cargo is in the handover photograph — that photo is the only record that the right box left the building."
+              )}
             </p>
           </div>
         ) : scanned ? (
           <div className="flex items-center gap-2 rounded-xl border border-success/40 bg-success/5 p-3">
             <PackageCheck className="h-4 w-4 shrink-0 text-success" />
             <p className="text-sm font-medium text-success">
-              Box scanned and confirmed
+              {t("Box scanned and confirmed")}
             </p>
           </div>
         ) : (
           <div>
             <h3 className="mb-1 text-sm font-semibold">
-              Scan the box to confirm
+              {t("Scan the box to confirm")}
             </h3>
             <p className="mb-3 text-xs text-muted-foreground">
-              You opened this cargo from a list, so the box itself has not been
-              read yet.
+              {t(
+                "You opened this cargo from a list, so the box itself has not been read yet."
+              )}
             </p>
             <QrScanner
               onResult={onScan}
-              label="Point the camera at the QR on the carton"
+              label={t("Point the camera at the QR on the carton")}
             />
           </div>
         )}
 
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold">Who is collecting?</h3>
+          <h3 className="text-sm font-semibold">{t("Who is collecting?")}</h3>
 
           <div className="space-y-1.5">
             <Label htmlFor="receiverName" className="text-xs">
-              Receiver name
+              {t("Receiver name")}
             </Label>
             <Input
               id="receiverName"
@@ -862,7 +880,7 @@ function ReleaseForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="receiverPhone" className="text-xs">
-              Receiver phone
+              {t("Receiver phone")}
             </Label>
             <Input
               id="receiverPhone"
@@ -877,7 +895,7 @@ function ReleaseForm({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="relationship" className="text-xs">
-                Collecting as
+                {t("Collecting as")}
               </Label>
               <NativeSelect
                 id="relationship"
@@ -886,20 +904,20 @@ function ReleaseForm({
                 value={relationship}
                 onChange={(e) => setRelationship(e.target.value)}
               >
-                <option value="SELF">The customer</option>
-                <option value="AGENT">Agent / transporter</option>
-                <option value="EMPLOYEE">Their employee</option>
-                <option value="FAMILY">Family member</option>
+                <option value="SELF">{t("The customer")}</option>
+                <option value="AGENT">{t("Agent / transporter")}</option>
+                <option value="EMPLOYEE">{t("Their employee")}</option>
+                <option value="FAMILY">{t("Family member")}</option>
               </NativeSelect>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="receiverIdNumber" className="text-xs">
-                ID number{" "}
+                {t("ID number")}{" "}
                 <span className="text-muted-foreground">
                   {relationship === "SELF"
-                    ? "if you checked one"
-                    : "required — someone else is collecting"}
+                    ? t("if you checked one")
+                    : t("required — someone else is collecting")}
                 </span>
               </Label>
               <Input
@@ -912,7 +930,7 @@ function ReleaseForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="note" className="text-xs">
-              Note
+              {t("Note")}
             </Label>
             <Textarea id="note" name="note" rows={2} />
           </div>
@@ -920,18 +938,20 @@ function ReleaseForm({
 
         <div className="border-t pt-5">
           <h3 className="mb-1 text-sm font-semibold">
-            Photograph the handover <span className="text-signal">*</span>
+            {t("Photograph the handover")}{" "}
+            <span className="text-signal">*</span>
           </h3>
           <p className="mb-4 text-xs text-muted-foreground">
-            Required. This is your proof the cargo was collected, and what
-            settles a dispute later.
+            {t(
+              "Required. This is your proof the cargo was collected, and what settles a dispute later."
+            )}
           </p>
           <PhotoCapture
             name="photos"
             required
             max={2}
-            label="Delivery photo"
-            hint="The cargo with the person collecting it, if they agree."
+            label={t("Delivery photo")}
+            hint={t("The cargo with the person collecting it, if they agree.")}
             durable={photosDurable}
           />
         </div>
@@ -950,22 +970,22 @@ function ReleaseForm({
           */}
           {armed ? (
             <p className="text-sm">
-              Handing{" "}
+              {t("Handing")}{" "}
               <span className="font-mono font-semibold tabular">
                 {target.trackingNumber}
               </span>{" "}
-              to <span className="font-semibold">{receiver || "—"}</span>
+              {t("to")} <span className="font-semibold">{receiver || "—"}</span>
               {relationship !== "SELF" ? (
                 <span className="text-muted-foreground">
                   {" "}
-                  ({RELATIONSHIP_WORDS[relationship]})
+                  ({t(RELATIONSHIP_WORDS[relationship])})
                 </span>
               ) : null}
               .
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Scan the box before releasing it.
+              {t("Scan the box before releasing it.")}
             </p>
           )}
           {/*
@@ -980,9 +1000,9 @@ function ReleaseForm({
             variant="brand"
             className="h-11 w-full sm:w-auto"
             disabled={!armed}
-            pendingLabel="Releasing…"
+            pendingLabel={t("Releasing…")}
           >
-            Release cargo
+            {t("Release cargo")}
           </SubmitButton>
         </div>
       </form>

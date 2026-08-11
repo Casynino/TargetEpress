@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Lock, PlaneTakeoff } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +32,7 @@ export function DispatchForm({
   weightKg: number;
   packages: number;
 }) {
+  const t = useT();
   const [state, action] = useActionState(dispatchLoadingTable, undefined);
   const [open, setOpen] = useState(false);
 
@@ -39,14 +41,16 @@ export function DispatchForm({
       <div className="rounded-xl border border-success/40 bg-success/5 p-5">
         <p className="flex items-center gap-2 font-display text-lg font-bold text-success">
           <PlaneTakeoff className="h-5 w-5" />
-          Dispatched
+          {t("Dispatched")}
         </p>
         <p className="mt-1 text-sm">
-          {state.data.cargo} piece{state.data.cargo === 1 ? "" : "s"} left China as{" "}
+          {state.data.cargo} {t(state.data.cargo === 1 ? "piece" : "pieces")}{" "}
+          {t("left China as")}{" "}
           <span className="font-mono font-semibold">{state.data.dispatchNumber}</span>.
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
-          The {routeLabel} is empty again and ready for the next cargo.
+          {t("The")} {routeLabel}{" "}
+          {t("is empty again and ready for the next cargo.")}
         </p>
       </div>
     );
@@ -55,7 +59,7 @@ export function DispatchForm({
   if (cargoCount === 0) {
     return (
       <div className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
-        Nothing on this table yet. Cargo appears here as the desk registers it.
+        {t("Nothing on this table yet. Cargo appears here as the desk registers it.")}
       </div>
     );
   }
@@ -69,14 +73,15 @@ export function DispatchForm({
           </span>
           <div>
             <h2 className="font-display text-lg font-bold">
-              Seal &amp; dispatch
+              {t("Seal & dispatch")}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Close this table off and put it on a flight.
+              {t("Close this table off and put it on a flight.")}
             </p>
             <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
-              {cargoCount} piece{cargoCount === 1 ? "" : "s"} · {packages} package
-              {packages === 1 ? "" : "s"} · {weightKg.toFixed(1)} kg
+              {cargoCount} {t(cargoCount === 1 ? "piece" : "pieces")} ·{" "}
+              {packages} {t(packages === 1 ? "package" : "packages")} ·{" "}
+              {weightKg.toFixed(1)} kg
             </p>
           </div>
         </div>
@@ -88,11 +93,11 @@ export function DispatchForm({
           onClick={() => setOpen((v) => !v)}
         >
           {open ? (
-            "Cancel"
+            t("Cancel")
           ) : (
             <>
               <PlaneTakeoff className="mr-2 h-4 w-4" />
-              Seal &amp; dispatch
+              {t("Seal & dispatch")}
             </>
           )}
         </Button>
@@ -105,7 +110,7 @@ export function DispatchForm({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="waybillNumber">Waybill number</Label>
+              <Label htmlFor="waybillNumber">{t("Waybill number")}</Label>
               <Input
                 id="waybillNumber"
                 name="waybillNumber"
@@ -117,11 +122,11 @@ export function DispatchForm({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="airline">Airline</Label>
+              <Label htmlFor="airline">{t("Airline")}</Label>
               <Input
                 id="airline"
                 name="airline"
-                placeholder="Ethiopian Airlines"
+                placeholder={t("Ethiopian Airlines")}
                 autoComplete="off"
                 required
               />
@@ -129,8 +134,10 @@ export function DispatchForm({
 
             <div className="space-y-1.5">
               <Label htmlFor="flightNumber">
-                Flight number{" "}
-                <span className="font-normal text-muted-foreground">optional</span>
+                {t("Flight number")}{" "}
+                <span className="font-normal text-muted-foreground">
+                  {t("optional")}
+                </span>
               </Label>
               <Input
                 id="flightNumber"
@@ -142,38 +149,47 @@ export function DispatchForm({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="departureDate">Departure date</Label>
+              <Label htmlFor="departureDate">{t("Departure date")}</Label>
               <Input id="departureDate" name="departureDate" type="date" required />
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="expectedArrival">
-                Expected arrival{" "}
-                <span className="font-normal text-muted-foreground">optional</span>
+                {t("Expected arrival")}{" "}
+                <span className="font-normal text-muted-foreground">
+                  {t("optional")}
+                </span>
               </Label>
               <Input id="expectedArrival" name="expectedArrival" type="date" />
               <p className="text-xs text-muted-foreground">
-                What Dar should expect. Actual arrival is recorded when it lands.
+                {t(
+                  "What Dar should expect. Actual arrival is recorded when it lands."
+                )}
               </p>
             </div>
 
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="notes">
-                Notes{" "}
-                <span className="font-normal text-muted-foreground">optional</span>
+                {t("Notes")}{" "}
+                <span className="font-normal text-muted-foreground">
+                  {t("optional")}
+                </span>
               </Label>
               <Textarea id="notes" name="notes" rows={2} />
             </div>
           </div>
 
           <p className="rounded-md border border-warning/30 bg-warning/5 p-3 text-sm text-warning">
-            This moves all {cargoCount} piece{cargoCount === 1 ? "" : "s"} onto the
-            flight and cannot be undone. The {routeLabel} then starts empty.
+            {t("This moves all")} {cargoCount}{" "}
+            {t(cargoCount === 1 ? "piece" : "pieces")}{" "}
+            {t("onto the flight and cannot be undone.")} {t("The")} {routeLabel}{" "}
+            {t("then starts empty.")}
           </p>
 
           <SubmitButton size="lg" variant="brand" className="rounded-xl" pendingLabel="Sealing and dispatching…">
             <PlaneTakeoff className="mr-2 h-4 w-4" />
-            Seal &amp; dispatch {cargoCount} piece{cargoCount === 1 ? "" : "s"}
+            {t("Seal & dispatch")} {cargoCount}{" "}
+            {t(cargoCount === 1 ? "piece" : "pieces")}
           </SubmitButton>
         </form>
       ) : null}

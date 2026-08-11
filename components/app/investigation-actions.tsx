@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import type { ExceptionStatus } from "@prisma/client";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { assignInvestigation } from "@/lib/actions/investigation-queue";
@@ -88,6 +89,7 @@ function AssignForm({
   assignees: { id: string; name: string; roleLabel: string }[];
   assignedToId: string | null;
 }) {
+  const t = useT();
   const [state, action] = useActionState<ActionResult, FormData>(
     assignInvestigation,
     { ok: true }
@@ -99,14 +101,14 @@ function AssignForm({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <label className="min-w-0 flex-1">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Carried by
+            {t("Carried by")}
           </span>
           <NativeSelect
             name="assignedToId"
             defaultValue={assignedToId ?? ""}
             className="mt-1 h-9"
           >
-            <option value="">Nobody yet</option>
+            <option value="">{t("Nobody yet")}</option>
             {assignees.map((person) => (
               <option key={person.id} value={person.id}>
                 {person.name} — {person.roleLabel}
@@ -120,7 +122,7 @@ function AssignForm({
           className="shrink-0"
           pendingLabel="Saving…"
         >
-          Reassign
+          {t("Reassign")}
         </SubmitButton>
       </div>
       <FormError state={state} />

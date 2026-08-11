@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Lock, Pencil } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +51,7 @@ export function InvoiceEditor({
   canDiscount: boolean;
 }) {
   const [state, action] = useActionState(adjustInvoice, undefined);
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [discountDraft, setDiscountDraft] = useState(String(discount || ""));
   const [otherDraft, setOtherDraft] = useState(String(otherCharges || ""));
@@ -73,9 +75,9 @@ export function InvoiceEditor({
       <div className="no-print flex items-start gap-3 rounded-xl border bg-muted/40 p-4 text-sm">
         <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <p className="text-muted-foreground">
-          Money has been received against this invoice, so it can no longer be
-          edited. Corrections after payment are handled as a new charge or a
-          refund, not by rewriting the bill.
+          {t(
+            "Money has been received against this invoice, so it can no longer be edited. Corrections after payment are handled as a new charge or a refund, not by rewriting the bill."
+          )}
         </p>
       </div>
     );
@@ -89,15 +91,16 @@ export function InvoiceEditor({
         className="flex w-full items-center justify-between gap-3 p-4 text-left"
       >
         <div>
-          <p className="font-semibold">Adjust this invoice</p>
+          <p className="font-semibold">{t("Adjust this invoice")}</p>
           <p className="text-sm text-muted-foreground">
-            Freight, extra charges, discount, exchange rate and notes — before
-            it is paid.
+            {t(
+              "Freight, extra charges, discount, exchange rate and notes — before it is paid."
+            )}
           </p>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand">
           <Pencil className="h-4 w-4" />
-          {open ? "Close" : "Edit"}
+          {open ? t("Close") : t("Edit")}
         </span>
       </button>
 
@@ -107,24 +110,27 @@ export function InvoiceEditor({
           <FormError state={state} />
           {state?.ok ? (
             <p className="rounded-md border border-success/30 bg-success/5 p-3 text-sm text-success">
-              Invoice updated. The customer&rsquo;s copy shows the new total.
+              {t("Invoice updated. The customer’s copy shows the new total.")}
             </p>
           ) : null}
 
           <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
             <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="text-muted-foreground">Storage</span>
+              <span className="text-muted-foreground">{t("Storage")}</span>
               <span className="font-mono tabular-nums">
                 {currency} {storage.toFixed(2)}
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Storage is not typed — it comes from the arrival date and the free
-              window.
+              {t(
+                "Storage is not typed — it comes from the arrival date and the free window."
+              )}
             </p>
 
             <div className="space-y-1.5 border-t pt-3">
-              <Label htmlFor="freightOverride">Air freight ({currency})</Label>
+              <Label htmlFor="freightOverride">
+                {t("Air freight")} ({currency})
+              </Label>
               <MoneyInput
                 id="freightOverride"
                 name="freightOverride"
@@ -134,9 +140,10 @@ export function InvoiceEditor({
                 disabled={locked || !canDiscount}
               />
               <p className="text-xs text-muted-foreground">
-                The rate book says {currency} {freight.toFixed(2)}. Leave blank
-                to use it. Anything else is recorded as a variance against the
-                price list, with your reason.
+                {t("The rate book says")} {currency} {freight.toFixed(2)}.{" "}
+                {t(
+                  "Leave blank to use it. Anything else is recorded as a variance against the price list, with your reason."
+                )}
               </p>
             </div>
 
@@ -144,12 +151,12 @@ export function InvoiceEditor({
             Number(freightDraft) !== freight ? (
               <div className="space-y-1.5">
                 <Label htmlFor="freightOverrideReason">
-                  Why is it different?
+                  {t("Why is it different?")}
                 </Label>
                 <Input
                   id="freightOverrideReason"
                   name="freightOverrideReason"
-                  placeholder="e.g. re-weighed on the floor scale at 8.9 kg"
+                  placeholder={t("e.g. re-weighed on the floor scale at 8.9 kg")}
                   required
                   disabled={locked}
                 />
@@ -159,7 +166,9 @@ export function InvoiceEditor({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="otherCharges">Additional charge ({currency})</Label>
+              <Label htmlFor="otherCharges">
+                {t("Additional charge")} ({currency})
+              </Label>
               <MoneyInput
                 id="otherCharges"
                 name="otherCharges"
@@ -168,12 +177,14 @@ export function InvoiceEditor({
                 placeholder="0.00"
               />
               <p className="text-xs text-muted-foreground">
-                Repacking, special handling, delivery.
+                {t("Repacking, special handling, delivery.")}
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="discount">Discount ({currency})</Label>
+              <Label htmlFor="discount">
+                {t("Discount")} ({currency})
+              </Label>
               <MoneyInput
                 id="discount"
                 name="discount"
@@ -184,14 +195,14 @@ export function InvoiceEditor({
               />
               <p className="text-xs text-muted-foreground">
                 {canDiscount
-                  ? "Recorded against your name in the audit log."
-                  : "You are not authorised to give discounts."}
+                  ? t("Recorded against your name in the audit log.")
+                  : t("You are not authorised to give discounts.")}
               </p>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="exchangeRate">
-                Exchange rate ({localCurrency} per {currency})
+                {t("Exchange rate")} ({localCurrency} {t("per")} {currency})
               </Label>
               <Input
                 id="exchangeRate"
@@ -202,25 +213,25 @@ export function InvoiceEditor({
                 placeholder="2700"
               />
               <p className="text-xs text-muted-foreground">
-                Overrides the published rate for this invoice only.
+                {t("Overrides the published rate for this invoice only.")}
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="invoice-notes">Note on the invoice</Label>
+              <Label htmlFor="invoice-notes">{t("Note on the invoice")}</Label>
               <Textarea
                 id="invoice-notes"
                 name="notes"
                 rows={3}
                 defaultValue={notes ?? ""}
-                placeholder="Shown to the customer on the printed invoice."
+                placeholder={t("Shown to the customer on the printed invoice.")}
               />
             </div>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-muted/30 p-3">
             <div>
-              <p className="text-xs text-muted-foreground">New total</p>
+              <p className="text-xs text-muted-foreground">{t("New total")}</p>
               <p className="font-display text-xl font-bold tabular-nums">
                 {currency} {total.toFixed(2)}
               </p>
@@ -232,17 +243,17 @@ export function InvoiceEditor({
             </div>
             {total < 0 ? (
               <p className="text-sm font-medium text-destructive">
-                The discount is larger than the rest of the invoice.
+                {t("The discount is larger than the rest of the invoice.")}
               </p>
             ) : null}
           </div>
 
           <div className="flex gap-2">
-            <SubmitButton pendingLabel="Saving…" disabled={total < 0}>
-              Save changes
+            <SubmitButton pendingLabel={t("Saving…")} disabled={total < 0}>
+              {t("Save changes")}
             </SubmitButton>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
+              {t("Cancel")}
             </Button>
           </div>
         </form>

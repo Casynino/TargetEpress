@@ -26,11 +26,15 @@ import {
 } from "@/components/ui/table";
 import { BATCH_STATUS_META } from "@/lib/constants";
 import { formatWeight, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrPayload } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Test data" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Test data") };
+}
 
 /**
  * A guided walkthrough of the live data, for trying the system out.
@@ -42,6 +46,7 @@ export const metadata: Metadata = { title: "Test data" };
  */
 export default async function TestDataPage() {
   await requirePermission("user.manage");
+  const locale = await viewerLocale();
 
   const [shipments, customers, batches, notes] = await Promise.all([
     prisma.shipment.findMany({
@@ -51,7 +56,7 @@ export default async function TestDataPage() {
         trackingNumber: true,
         qrToken: true,
         status: true,
-        description: true,
+        ...selectText("description"),
         packages: true,
         weightKg: true,
         customer: { select: { name: true, phone: true } },
@@ -102,83 +107,127 @@ export default async function TestDataPage() {
   const scenarios = [
     {
       icon: ScanLine,
-      role: "Any role",
-      title: "Scan a cargo label",
+      role: t(locale, "Any role"),
+      title: t(locale, "Scan a cargo label"),
       steps: [
-        "Press “Scan this” on any shipment in the table below — it opens the scanner with that QR already resolved.",
-        "The verdict changes with your role: Finance sees the money, the Dar warehouse sees whether it may release the cargo.",
-        `Try ${delivered?.trackingNumber ?? "a delivered shipment"} — it warns you the cargo has already been collected.`,
+        t(
+          locale,
+          "Press “Scan this” on any shipment in the table below — it opens the scanner with that QR already resolved."
+        ),
+        t(
+          locale,
+          "The verdict changes with your role: Finance sees the money, the Dar warehouse sees whether it may release the cargo."
+        ),
+        `${t(locale, "Try")} ${delivered?.trackingNumber ?? t(locale, "a delivered shipment")} — ${t(locale, "it warns you the cargo has already been collected.")}`,
       ],
     },
     {
       icon: Banknote,
-      role: "Finance",
-      title: "Take payment and clear cargo for collection",
+      role: t(locale, "Finance"),
+      title: t(locale, "Take payment and clear cargo for collection"),
       steps: unpaidAtDar
         ? [
-            `Open ${unpaidAtDar.trackingNumber} — it is in the Dar warehouse with an unpaid invoice.`,
-            "In the Actions panel, press “Record payment”. The outstanding amount is pre-filled; a receipt number is issued instantly.",
-            "“Issue pickup note” unlocks once it is settled. That is the only thing that moves cargo to Ready for pickup.",
+            `${t(locale, "Open")} ${unpaidAtDar.trackingNumber} — ${t(locale, "it is in the Dar warehouse with an unpaid invoice.")}`,
+            t(
+              locale,
+              "In the Actions panel, press “Record payment”. The outstanding amount is pre-filled; a receipt number is issued instantly."
+            ),
+            t(
+              locale,
+              "“Issue pickup note” unlocks once it is settled. That is the only thing that moves cargo to Ready for pickup."
+            ),
           ]
-        : ["Every shipment is settled — record a new one to try this flow."],
+        : [
+            t(
+              locale,
+              "Every shipment is settled — record a new one to try this flow."
+            ),
+          ],
     },
     {
       icon: Truck,
-      role: "Dar Warehouse",
-      title: "Release cargo at the counter",
+      role: t(locale, "Dar Warehouse"),
+      title: t(locale, "Release cargo at the counter"),
       steps:
         notes.length > 0
           ? [
-              `Go to Release cargo — ${notes[0].shipment.trackingNumber} is cleared and waiting.`,
-              "Pick it, then paste its QR from the table below into the scanner's manual field.",
-              "Now try pasting a different shipment's QR: it refuses and tells you not to release it. That is the whole point of the QR system.",
+              `${t(locale, "Go to Release cargo —")} ${notes[0].shipment.trackingNumber} ${t(locale, "is cleared and waiting.")}`,
+              t(
+                locale,
+                "Pick it, then paste its QR from the table below into the scanner's manual field."
+              ),
+              t(
+                locale,
+                "Now try pasting a different shipment's QR: it refuses and tells you not to release it. That is the whole point of the QR system."
+              ),
             ]
           : [
-              "No cargo is cleared for collection yet — run the Finance scenario above first, then come back.",
+              t(
+                locale,
+                "No cargo is cleared for collection yet — run the Finance scenario above first, then come back."
+              ),
             ],
     },
     {
       icon: ClipboardCheck,
-      role: "Dar Warehouse",
-      title: "Check a batch in against the manifest",
+      role: t(locale, "Dar Warehouse"),
+      title: t(locale, "Check a batch in against the manifest"),
       steps: arrivedBatch
         ? [
-            `Open Receive & verify → ${arrivedBatch.batchNumber} (${arrivedBatch._count.shipments - arrivedBatch._count.verifications} shipment(s) still unchecked).`,
-            "Print the manifest to see the tick-column sheet the warehouse actually uses.",
-            "Mark one “Present & correct”, and flag another as damaged — the exception appears on the CEO dashboard immediately.",
+            `${t(locale, "Open Receive & verify →")} ${arrivedBatch.batchNumber} (${arrivedBatch._count.shipments - arrivedBatch._count.verifications} ${t(locale, "shipment(s) still unchecked")}).`,
+            t(
+              locale,
+              "Print the manifest to see the tick-column sheet the warehouse actually uses."
+            ),
+            t(
+              locale,
+              "Mark one “Present & correct”, and flag another as damaged — the exception appears on the CEO dashboard immediately."
+            ),
           ]
-        : ["No batch is awaiting check-in right now."],
+        : [t(locale, "No batch is awaiting check-in right now.")],
     },
     {
       icon: PackagePlus,
-      role: "China Warehouse",
-      title: "Receive new cargo",
+      role: t(locale, "China Warehouse"),
+      title: t(locale, "Receive new cargo"),
       steps: [
-        "Go to Receive cargo and type 0762111222 in the phone field — it recognises Kariakoo Traders and fills the name for you.",
-        "Fill weight and description, then save. A tracking number and QR label are generated automatically.",
-        "Print the label — that is the sticker that goes on the carton.",
+        t(
+          locale,
+          "Go to Receive cargo and type 0762111222 in the phone field — it recognises Kariakoo Traders and fills the name for you."
+        ),
+        t(
+          locale,
+          "Fill weight and description, then save. A tracking number and QR label are generated automatically."
+        ),
+        t(locale, "Print the label — that is the sticker that goes on the carton."),
       ],
     },
     {
       icon: Plane,
-      role: "China Warehouse",
-      title: "Seal a batch and fly it",
+      role: t(locale, "China Warehouse"),
+      title: t(locale, "Seal a batch and fly it"),
       steps: openBatch
         ? [
-            `Open ${openBatch.batchNumber} — it has ${openBatch._count.shipments} shipment(s) loaded.`,
-            "Add any unassigned cargo, then press Seal batch.",
-            "Record the departure with an airline and waybill. Every shipment inside flips to In transit, and the public tracking page updates.",
+            `${t(locale, "Open")} ${openBatch.batchNumber} — ${t(locale, "it has")} ${openBatch._count.shipments} ${t(locale, "shipment(s) loaded.")}`,
+            t(locale, "Add any unassigned cargo, then press Seal batch."),
+            t(
+              locale,
+              "Record the departure with an airline and waybill. Every shipment inside flips to In transit, and the public tracking page updates."
+            ),
           ]
-        : ["No open batch — create one from Batches → Open batch."],
+        : [t(locale, "No open batch — create one from Batches → Open batch.")],
     },
     {
       icon: Boxes,
-      role: "Customer (no login)",
-      title: "Track like a customer",
+      role: t(locale, "Customer (no login)"),
+      title: t(locale, "Track like a customer"),
       steps: [
-        `Open the public site and search ${inTransit?.trackingNumber ?? readyToDepart?.trackingNumber ?? "TX-000005"} on the tracking page.`,
-        "Note what is missing: no staff names, no prices, no internal notes.",
-        `Now search a batch number like ${arrivedBatch?.batchNumber ?? "BATCH-2026-002"} — it shows flight status only, never the other customers' cargo.`,
+        `${t(locale, "Open the public site and search")} ${inTransit?.trackingNumber ?? readyToDepart?.trackingNumber ?? "TX-000005"} ${t(locale, "on the tracking page.")}`,
+        t(
+          locale,
+          "Note what is missing: no staff names, no prices, no internal notes."
+        ),
+        `${t(locale, "Now search a batch number like")} ${arrivedBatch?.batchNumber ?? "BATCH-2026-002"} — ${t(locale, "it shows flight status only, never the other customers' cargo.")}`,
       ],
     },
   ];
@@ -191,7 +240,7 @@ export default async function TestDataPage() {
         actions={
           <Button asChild variant="outline" size="sm">
             <Link href="/track" target="_blank">
-              Open public tracking
+              {t(locale, "Open public tracking")}
             </Link>
           </Button>
         }
@@ -201,13 +250,13 @@ export default async function TestDataPage() {
         <FlaskConical className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
         <div className="text-sm">
           <p className="font-medium text-warning">
-            This page shows QR credentials — CEO/Admin only
+            {t(locale, "This page shows QR credentials — CEO/Admin only")}
           </p>
           <p className="mt-1 text-muted-foreground">
-            A QR code is what authorises a release, so it is normally never
-            displayed as text. This screen exists so you can test the scanning
-            workflows at a desk. Remove it before handing the system to staff, or
-            leave it — no other role can reach it.
+            {t(
+              locale,
+              "A QR code is what authorises a release, so it is normally never displayed as text. This screen exists so you can test the scanning workflows at a desk. Remove it before handing the system to staff, or leave it — no other role can reach it."
+            )}
           </p>
         </div>
       </div>
@@ -215,7 +264,7 @@ export default async function TestDataPage() {
       {/* Scenarios */}
       <section className="mb-8">
         <h2 className="mb-4 font-display text-lg font-semibold">
-          Try these, in this order
+          {t(locale, "Try these, in this order")}
         </h2>
         <div className="grid gap-4 md:grid-cols-2">
           {scenarios.map(({ icon: Icon, role, title, steps }) => (
@@ -251,23 +300,28 @@ export default async function TestDataPage() {
       {/* Shipments with scannable codes */}
       <section className="mb-8">
         <h2 className="mb-1 font-display text-lg font-semibold">
-          Shipments ({shipments.length})
+          {t(locale, "Shipments")} ({shipments.length})
         </h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          “Scan this” opens the scanner with the code already resolved. “Copy”
-          puts the raw QR payload on your clipboard so you can paste it into the
-          release screen's manual field.
+          {t(
+            locale,
+            "“Scan this” opens the scanner with the code already resolved. “Copy” puts the raw QR payload on your clipboard so you can paste it into the release screen's manual field."
+          )}
         </p>
 
         <div className="panel overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Tracking</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead className="hidden lg:table-cell">Cargo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden md:table-cell">Money</TableHead>
+                <TableHead>{t(locale, "Tracking")}</TableHead>
+                <TableHead>{t(locale, "Customer")}</TableHead>
+                <TableHead className="hidden lg:table-cell">
+                  {t(locale, "Cargo")}
+                </TableHead>
+                <TableHead>{t(locale, "Status")}</TableHead>
+                <TableHead className="hidden md:table-cell">
+                  {t(locale, "Money")}
+                </TableHead>
                 <TableHead className="text-right">QR</TableHead>
               </TableRow>
             </TableHeader>
@@ -290,15 +344,15 @@ export default async function TestDataPage() {
                     <TableCell>
                       <p className="text-sm">{s.customer.name}</p>
                       <p className="text-xs text-muted-foreground tabular">
-                        {s.customer.phone ?? "No phone"}
+                        {s.customer.phone ?? t(locale, "No phone")}
                       </p>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       <p className="max-w-[200px] truncate text-sm">
-                        {s.description}
+                        {cargoText(locale, s, "description")}
                       </p>
                       <p className="text-xs text-muted-foreground tabular">
-                        {s.packages} pkg · {formatWeight(s.weightKg)}
+                        {s.packages} {t(locale, "pkg")} · {formatWeight(s.weightKg)}
                         {s.batch ? ` · ${s.batch.batchNumber}` : ""}
                       </p>
                     </TableCell>
@@ -306,20 +360,21 @@ export default async function TestDataPage() {
                       <ShipmentStatusBadge status={s.status} />
                       {s.pickupNote?.status === "ACTIVE" ? (
                         <p className="mt-1 text-[11px] text-success">
-                          note {s.pickupNote.noteNumber}
+                          {t(locale, "note")} {s.pickupNote.noteNumber}
                         </p>
                       ) : null}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       {outstanding === null ? (
                         <span className="text-xs text-muted-foreground">
-                          Not invoiced
+                          {t(locale, "Not invoiced")}
                         </span>
                       ) : outstanding <= 0 ? (
-                        <Badge variant="success">Paid</Badge>
+                        <Badge variant="success">{t(locale, "Paid")}</Badge>
                       ) : (
                         <Badge variant="warning">
-                          {Math.round(outstanding).toLocaleString()} owed
+                          {Math.round(outstanding).toLocaleString()}{" "}
+                          {t(locale, "owed")}
                         </Badge>
                       )}
                     </TableCell>
@@ -328,13 +383,13 @@ export default async function TestDataPage() {
                         <Button asChild size="sm" variant="signal">
                           <Link href={`/app/release?code=${encodeURIComponent(payload)}`}>
                             <ScanLine className="mr-1.5 h-3.5 w-3.5" />
-                            Scan this
+                            {t(locale, "Scan this")}
                           </Link>
                         </Button>
                         <CopyField
                           value={payload}
-                          label="Copy"
-                          copiedLabel="Copied"
+                          label={t(locale, "Copy")}
+                          copiedLabel={t(locale, "Copied")}
                         />
                       </div>
                     </TableCell>
@@ -350,20 +405,24 @@ export default async function TestDataPage() {
         {/* Customers */}
         <section>
           <h2 className="mb-1 font-display text-lg font-semibold">
-            Customers ({customers.length})
+            {t(locale, "Customers")} ({customers.length})
           </h2>
           <p className="mb-4 text-sm text-muted-foreground">
-            Type one of these phone numbers into the shipment form to see
-            auto-fill recognise them.
+            {t(
+              locale,
+              "Type one of these phone numbers into the shipment form to see auto-fill recognise them."
+            )}
           </p>
           <div className="panel overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead className="text-right">Shipments</TableHead>
+                  <TableHead>{t(locale, "Code")}</TableHead>
+                  <TableHead>{t(locale, "Name")}</TableHead>
+                  <TableHead>{t(locale, "Phone")}</TableHead>
+                  <TableHead className="text-right">
+                    {t(locale, "Shipments")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -375,10 +434,14 @@ export default async function TestDataPage() {
                     <TableCell className="text-sm">{c.name}</TableCell>
                     <TableCell>
                       {c.phone ? (
-                        <CopyField value={c.phone} label={c.phone} copiedLabel="Copied" />
+                        <CopyField
+                          value={c.phone}
+                          label={c.phone}
+                          copiedLabel={t(locale, "Copied")}
+                        />
                       ) : (
                         <span className="text-xs text-muted-foreground">
-                          No phone recorded
+                          {t(locale, "No phone recorded")}
                         </span>
                       )}
                     </TableCell>
@@ -395,20 +458,26 @@ export default async function TestDataPage() {
         {/* Batches */}
         <section>
           <h2 className="mb-1 font-display text-lg font-semibold">
-            Batches ({batches.length})
+            {t(locale, "Batches")} ({batches.length})
           </h2>
           <p className="mb-4 text-sm text-muted-foreground">
-            One batch at each stage, so every batch workflow has something to
-            act on.
+            {t(
+              locale,
+              "One batch at each stage, so every batch workflow has something to act on."
+            )}
           </p>
           <div className="panel overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Batch</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="hidden sm:table-cell">Flight</TableHead>
-                  <TableHead className="text-right">Checked</TableHead>
+                  <TableHead>{t(locale, "Batch")}</TableHead>
+                  <TableHead>{t(locale, "Status")}</TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    {t(locale, "Flight")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t(locale, "Checked")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -423,7 +492,7 @@ export default async function TestDataPage() {
                       </Link>
                     </TableCell>
                     <TableCell className="text-xs">
-                      {BATCH_STATUS_META[b.status].label}
+                      {t(locale, BATCH_STATUS_META[b.status].label)}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
                       {b.airline ? `${b.airline} ${b.flightNumber ?? ""}` : "—"}
@@ -440,11 +509,12 @@ export default async function TestDataPage() {
       </div>
 
       <div className="panel mt-8 p-5">
-        <h2 className="font-display font-semibold">Start over</h2>
+        <h2 className="font-display font-semibold">{t(locale, "Start over")}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Once you have delivered everything and want a clean set of demo cargo
-          again, run this in the project folder. It wipes the database and
-          reseeds it, including the staff accounts.
+          {t(
+            locale,
+            "Once you have delivered everything and want a clean set of demo cargo again, run this in the project folder. It wipes the database and reseeds it, including the staff accounts."
+          )}
         </p>
         <pre className="mt-3 overflow-x-auto rounded-lg border bg-muted/50 p-3 font-mono text-xs">
           npm run db:reset

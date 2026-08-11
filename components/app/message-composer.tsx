@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { ExternalLink, MessageCircle } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -53,16 +54,17 @@ export function MessageComposer({
   /** wa.me/<number>, without the text. Null when we have no phone on file. */
   whatsappBase: string | null;
 }) {
+  const t = useT();
   const [state, action] = useActionState(logCustomerMessage, undefined);
   const [kind, setKind] = useState(defaultKind);
   const [channel, setChannel] = useState("WHATSAPP");
   const [body, setBody] = useState(
-    templates.find((t) => t.kind === defaultKind)?.body ?? ""
+    templates.find((tpl) => tpl.kind === defaultKind)?.body ?? ""
   );
 
   const pickTemplate = (nextKind: string) => {
     setKind(nextKind);
-    const template = templates.find((t) => t.kind === nextKind);
+    const template = templates.find((tpl) => tpl.kind === nextKind);
     // Only overwrite what the clerk has not edited into something of their own —
     // switching template should not silently bin a message they just typed.
     if (template) setBody(template.body);
@@ -83,13 +85,14 @@ export function MessageComposer({
       <FormError state={state} />
       {state?.ok ? (
         <p className="rounded-md border border-success/30 bg-success/5 p-3 text-sm text-success">
-          Logged against {customerName}&rsquo;s record.
+          {t("Logged against")} {customerName}
+          {t("’s record.")}
         </p>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="kind">Message</Label>
+          <Label htmlFor="kind">{t("Message")}</Label>
           <NativeSelect
             id="kind"
             name="kind"
@@ -98,14 +101,14 @@ export function MessageComposer({
           >
             {templates.map((template) => (
               <option key={template.kind} value={template.kind}>
-                {template.label}
+                {t(template.label)}
               </option>
             ))}
           </NativeSelect>
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="channel">How</Label>
+          <Label htmlFor="channel">{t("How")}</Label>
           <NativeSelect
             id="channel"
             name="channel"
@@ -114,7 +117,7 @@ export function MessageComposer({
           >
             {CHANNELS.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {t(option.label)}
               </option>
             ))}
           </NativeSelect>
@@ -122,7 +125,7 @@ export function MessageComposer({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="composer-body">Wording — edit it freely</Label>
+        <Label htmlFor="composer-body">{t("Wording — edit it freely")}</Label>
         <Textarea
           id="composer-body"
           value={body}
@@ -137,26 +140,29 @@ export function MessageComposer({
           <Button asChild variant="secondary">
             <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
               <MessageCircle className="mr-2 h-4 w-4" />
-              Open in WhatsApp
+              {t("Open in WhatsApp")}
               <ExternalLink className="ml-2 h-3.5 w-3.5 opacity-60" />
             </a>
           </Button>
         ) : channel === "WHATSAPP" ? (
           <p className="text-sm text-muted-foreground">
-            No phone number on file for {customerName} — add one to their profile
-            to message them.
+            {t("No phone number on file for")} {customerName}{" "}
+            {t("— add one to their profile to message them.")}
           </p>
         ) : null}
 
-        <SubmitButton pendingLabel="Recording…">Record as sent</SubmitButton>
+        <SubmitButton pendingLabel={t("Recording…")}>
+          {t("Record as sent")}
+        </SubmitButton>
       </div>
 
       <p className="text-xs text-muted-foreground">
         {customerPhone
-          ? `Recorded against ${customerPhone}.`
-          : "No number on file."}{" "}
-        Recording it puts this on the customer&rsquo;s contact history so the next
-        person who speaks to them knows what they were told.
+          ? `${t("Recorded against")} ${customerPhone}.`
+          : t("No number on file.")}{" "}
+        {t(
+          "Recording it puts this on the customer's contact history so the next person who speaks to them knows what they were told."
+        )}
       </p>
     </form>
   );

@@ -9,8 +9,10 @@ import {
 import { PageHeader } from "@/components/app/page-header";
 import { CATEGORY_LABELS } from "@/lib/cargo";
 import { formatDateTime, formatWeight } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Deleted records" };
 
@@ -24,6 +26,7 @@ export const metadata: Metadata = { title: "Deleted records" };
  */
 export default async function DeletedRecordsPage() {
   await requirePermission("shipment.cancel");
+  const locale = await viewerLocale();
 
   // Asking for deletedAt explicitly is what opts this query out of the global
   // filter in lib/prisma. Nowhere else in the app does that.
@@ -51,10 +54,14 @@ export default async function DeletedRecordsPage() {
       {deleted.length === 0 ? (
         <div className="rounded-xl border border-dashed p-12 text-center">
           <Trash2 className="mx-auto h-8 w-8 text-muted-foreground/50" />
-          <p className="mt-3 font-medium">Nothing has been deleted</p>
+          <p className="mt-3 font-medium">
+            {t(locale, "Nothing has been deleted")}
+          </p>
           <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-            Deleted cargo appears here, with everything it had at the moment it
-            was removed.
+            {t(
+              locale,
+              "Deleted cargo appears here, with everything it had at the moment it was removed."
+            )}
           </p>
         </div>
       ) : (
@@ -82,28 +89,39 @@ export default async function DeletedRecordsPage() {
 
               <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-destructive">
-                  Reason
+                  {t(locale, "Reason")}
                 </p>
                 <p className="mt-1 text-sm">
-                  {cargo.deleteReason ?? "No reason recorded"}
+                  {cargo.deleteReason ?? t(locale, "No reason recorded")}
                 </p>
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  Deleted by {cargo.deletedBy?.name ?? "someone no longer on the system"}
+                  {t(locale, "Deleted by")}{" "}
+                  {cargo.deletedBy?.name ??
+                    t(locale, "someone no longer on the system")}
                   {cargo.deletedAt ? ` · ${formatDateTime(cargo.deletedAt)}` : ""}
                 </p>
               </div>
 
               <dl className="mt-4 grid gap-3 border-t pt-4 text-sm sm:grid-cols-3 lg:grid-cols-6">
                 {[
-                  { label: "Cargo", value: cargo.description },
-                  { label: "Type", value: CATEGORY_LABELS[cargo.cargoCategory] },
+                  {
+                    label: "Cargo",
+                    // What the box actually says, in the reader's language.
+                    value: cargoText(locale, cargo, "description"),
+                  },
+                  {
+                    label: "Type",
+                    value: t(locale, CATEGORY_LABELS[cargo.cargoCategory]),
+                  },
                   { label: "Weight", value: formatWeight(cargo.weightKg) },
                   { label: "Packages", value: String(cargo.packages) },
                   { label: "Batch", value: cargo.batch?.batchNumber ?? "—" },
                   { label: "Received by", value: cargo.createdBy?.name ?? "—" },
                 ].map((item) => (
                   <div key={item.label} className="min-w-0">
-                    <dt className="text-xs text-muted-foreground">{item.label}</dt>
+                    <dt className="text-xs text-muted-foreground">
+                      {t(locale, item.label)}
+                    </dt>
                     <dd className="mt-0.5 truncate font-medium">{item.value}</dd>
                   </div>
                 ))}
@@ -120,8 +138,11 @@ export default async function DeletedRecordsPage() {
                 <div className="mt-4 border-t pt-4">
                   <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                     <Camera className="h-3.5 w-3.5" />
-                    {cargo.photos.length} photo
-                    {cargo.photos.length === 1 ? "" : "s"} preserved
+                    {cargo.photos.length}{" "}
+                    {cargo.photos.length === 1
+                      ? t(locale, "photo")
+                      : t(locale, "photos")}{" "}
+                    {t(locale, "preserved")}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {cargo.photos.map((photo) => (
@@ -135,7 +156,7 @@ export default async function DeletedRecordsPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={photo.url}
-                          alt={`Preserved photo for ${cargo.trackingNumber}`}
+                          alt={`${t(locale, "Preserved photo for")} ${cargo.trackingNumber}`}
                           className="h-full w-full object-cover"
                           loading="lazy"
                         />
@@ -150,9 +171,9 @@ export default async function DeletedRecordsPage() {
       )}
 
       <p className="mt-6 text-sm text-muted-foreground">
-        Every deletion and restore is also written to the{" "}
+        {t(locale, "Every deletion and restore is also written to the")}{" "}
         <Link href="/app/admin/audit" className="text-brand hover:underline">
-          audit log
+          {t(locale, "audit log")}
         </Link>
         .
       </p>

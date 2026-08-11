@@ -46,9 +46,12 @@ import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
-import { viewerLocale } from "@/lib/viewer";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Shipment" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await viewerLocale();
+  return { title: t(locale, "Shipment") };
+}
 
 /** URLs use the tracking number, but a cuid must still resolve. */
 function whereFor(id: string) {
@@ -309,7 +312,9 @@ export default async function ShipmentDetailPage({
               <p className="text-xs text-muted-foreground">
                 {t(locale, "Description")}
               </p>
-              <p className="mt-1 text-sm">{shipment.description}</p>
+              <p className="mt-1 text-sm">
+                {cargoText(locale, shipment, "description")}
+              </p>
               {/* Plain text, no warning box. What is actually in here is
                   packing-list bookkeeping — a carton reference and a row
                   number — and dressing it as a secret the customer must never
@@ -319,7 +324,7 @@ export default async function ShipmentDetailPage({
                   could not act on anyway. */}
               {showInternal && shipment.internalNotes ? (
                 <p className="mt-3 text-sm text-muted-foreground">
-                  {shipment.internalNotes}
+                  {cargoText(locale, shipment, "internalNotes")}
                 </p>
               ) : null}
             </div>
@@ -427,7 +432,7 @@ export default async function ShipmentDetailPage({
                 </h2>
                 <p className="text-xs text-muted-foreground">
                   {openExceptions.length > 0
-                    ? `${openExceptions.length} under investigation · do not hand over`
+                    ? `${openExceptions.length} ${t(locale, "under investigation · do not hand over")}`
                     : t(locale, "All resolved")}
                 </p>
               </div>
@@ -499,7 +504,7 @@ export default async function ShipmentDetailPage({
                           {t(locale, "Raised by")}{" "}
                           {exception.raisedBy?.name ?? "—"}
                           {exception.resolvedBy
-                            ? ` · Closed by ${exception.resolvedBy.name}`
+                            ? ` · ${t(locale, "Closed by")} ${exception.resolvedBy.name}`
                             : ""}
                         </p>
                       ) : null}
@@ -532,7 +537,10 @@ export default async function ShipmentDetailPage({
                       <p className="text-sm font-medium tabular">
                         {formatMoney(payment.amount, payment.currency)}{" "}
                         <span className="font-normal text-muted-foreground">
-                          {payment.method.replace("_", " ").toLowerCase()}
+                          {t(
+                            locale,
+                            payment.method.replace("_", " ").toLowerCase()
+                          )}
                         </span>
                         {/* What it was worth against the bill, when the
                             customer paid in a different currency. */}
@@ -601,7 +609,10 @@ export default async function ShipmentDetailPage({
                   },
                   {
                     label: t(locale, "Relationship"),
-                    value: shipment.delivery.relationship.toLowerCase(),
+                    value: t(
+                      locale,
+                      shipment.delivery.relationship.toLowerCase()
+                    ),
                   },
                   {
                     label: t(locale, "ID number"),
@@ -649,7 +660,7 @@ export default async function ShipmentDetailPage({
                   ) : null}
                   {showInternal ? (
                     <p className="mt-1 text-xs text-muted-foreground/80">
-                      by {entry.actor?.name ?? t(locale, "System")}
+                      {t(locale, "by")} {entry.actor?.name ?? t(locale, "System")}
                     </p>
                   ) : null}
                 </li>
@@ -733,7 +744,7 @@ export default async function ShipmentDetailPage({
             <section className="rounded-xl border bg-card p-5 text-center shadow-soft">
               <Image
                 src={qr}
-                alt={`QR code for ${shipment.trackingNumber}`}
+                alt={`${t(locale, "QR code for")} ${shipment.trackingNumber}`}
                 width={200}
                 height={200}
                 className="mx-auto rounded-lg border bg-white p-2"
@@ -750,8 +761,8 @@ export default async function ShipmentDetailPage({
 
           {showInternal ? (
             <p className="px-1 text-xs text-muted-foreground">
-              Registered by {shipment.createdBy?.name ?? "—"} on{" "}
-              {formatDateTime(shipment.registeredAt)}.
+              {t(locale, "Registered by")} {shipment.createdBy?.name ?? "—"}{" "}
+              {t(locale, "on")} {formatDateTime(shipment.registeredAt)}.
             </p>
           ) : null}
 

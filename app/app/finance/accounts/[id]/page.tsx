@@ -21,8 +21,10 @@ import {
 } from "@/components/ui/table";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Account" };
 
@@ -66,6 +68,7 @@ export default async function AccountDetailPage({
   params: Promise<{ id: string }>;
 }) {
   await requirePermission("account.view");
+  const locale = await viewerLocale();
   const { id } = await params;
 
   const account = await prisma.companyAccount.findUnique({ where: { id } });
@@ -148,7 +151,7 @@ export default async function AccountDetailPage({
         className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        All accounts
+        {t(locale, "All accounts")}
       </Link>
 
       {/* The account itself, stated once and unmistakably. Somebody
@@ -163,7 +166,7 @@ export default async function AccountDetailPage({
           <div className="min-w-0">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium backdrop-blur">
               <Icon className="h-3.5 w-3.5" />
-              {KIND_LABEL[account.kind]}
+              {t(locale, KIND_LABEL[account.kind])}
             </span>
             <h1 className="mt-3 font-display text-3xl font-bold tracking-tight">
               {account.name}
@@ -175,20 +178,21 @@ export default async function AccountDetailPage({
             ) : null}
             {account.accountNumber ? (
               <p className="mt-1 font-mono text-sm tracking-wide text-brand-foreground/70">
-                A/C {account.accountNumber}
+                {t(locale, "A/C")} {account.accountNumber}
               </p>
             ) : null}
           </div>
 
           <div className="text-right">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-brand-foreground/70">
-              Balance
+              {t(locale, "Balance")}
             </p>
             <p className="mt-1 font-display text-4xl font-bold tabular-nums">
               {money(balance)}
             </p>
             <p className="mt-1 text-xs text-brand-foreground/70">
-              in {money(inflow)} · out {money(outflow)}
+              {t(locale, "in")} {money(inflow)} · {t(locale, "out")}{" "}
+              {money(outflow)}
             </p>
           </div>
         </div>
@@ -200,46 +204,54 @@ export default async function AccountDetailPage({
       {account.openingSetAt === null ? (
         <p className="mb-6 rounded-xl border border-warning/40 bg-warning/5 px-4 py-3 text-sm text-muted-foreground">
           <span className="font-medium text-foreground">
-            This is what has moved through the account here
+            {t(locale, "This is what has moved through the account here")}
           </span>{" "}
-          — no opening balance has been set, so whatever was already in it is
-          not counted.
+          {t(
+            locale,
+            "— no opening balance has been set, so whatever was already in it is not counted."
+          )}
         </p>
       ) : null}
 
       <dl className="mb-6 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3">
         <div className="bg-card p-4">
-          <dt className="text-sm text-muted-foreground">Balance</dt>
+          <dt className="text-sm text-muted-foreground">{t(locale, "Balance")}</dt>
           <dd className="mt-1 font-display text-2xl font-bold tabular-nums">
             {money(balance)}
           </dd>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {movements} movement{movements === 1 ? "" : "s"}
+            {movements}{" "}
+            {movements === 1 ? t(locale, "movement") : t(locale, "movements")}
           </p>
         </div>
         <div className="bg-card p-4">
-          <dt className="text-sm text-muted-foreground">Received (all time)</dt>
+          <dt className="text-sm text-muted-foreground">
+            {t(locale, "Received (all time)")}
+          </dt>
           <dd className="mt-1 font-display text-2xl font-bold tabular-nums text-success">
             {money(inflow)}
           </dd>
         </div>
         <div className="bg-card p-4">
           <dt className="text-sm text-muted-foreground">
-            Paid out (all time)
+            {t(locale, "Paid out (all time)")}
           </dt>
           <dd className="mt-1 font-display text-2xl font-bold tabular-nums">
             {outflow === 0 ? money(0) : money(outflow)}
           </dd>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            net this month {money(netMonth)}
+            {t(locale, "net this month")} {money(netMonth)}
           </p>
         </div>
       </dl>
 
       {entries.length === 0 ? (
         <EmptyState
-          title="Nothing has moved through this account yet"
-          description="Payments attributed to it, costs paid from it and transfers in or out all appear here as they happen."
+          title={t(locale, "Nothing has moved through this account yet")}
+          description={t(
+            locale,
+            "Payments attributed to it, costs paid from it and transfers in or out all appear here as they happen."
+          )}
         />
       ) : (
         <>
@@ -304,7 +316,7 @@ export default async function AccountDetailPage({
                         : "border-warning/40 text-warning"
                     }`}
                   >
-                    {ENTRY_LABEL[entry.kind] ?? entry.kind}
+                    {t(locale, ENTRY_LABEL[entry.kind] ?? entry.kind)}
                   </Badge>
                   <span>{formatDateTime(entry.occurredAt)}</span>
                   {related ? (
@@ -328,7 +340,7 @@ export default async function AccountDetailPage({
                       className="inline-flex items-center gap-1 font-medium text-brand hover:underline"
                     >
                       <Paperclip className="h-3 w-3" />
-                      Proof
+                      {t(locale, "Proof")}
                     </a>
                   ) : null}
                   <span className="text-muted-foreground/70">
@@ -344,14 +356,22 @@ export default async function AccountDetailPage({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Detail</TableHead>
-                <TableHead className="hidden lg:table-cell">Recorded by</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="hidden xl:table-cell">Reference</TableHead>
-                <TableHead className="hidden md:table-cell">Related</TableHead>
-                <TableHead className="hidden sm:table-cell">Proof</TableHead>
+                <TableHead>{t(locale, "Date")}</TableHead>
+                <TableHead>{t(locale, "Type")}</TableHead>
+                <TableHead>{t(locale, "Detail")}</TableHead>
+                <TableHead className="hidden lg:table-cell">
+                  {t(locale, "Recorded by")}
+                </TableHead>
+                <TableHead className="text-right">{t(locale, "Amount")}</TableHead>
+                <TableHead className="hidden xl:table-cell">
+                  {t(locale, "Reference")}
+                </TableHead>
+                <TableHead className="hidden md:table-cell">
+                  {t(locale, "Related")}
+                </TableHead>
+                <TableHead className="hidden sm:table-cell">
+                  {t(locale, "Proof")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -387,7 +407,7 @@ export default async function AccountDetailPage({
                             : "border-warning/40 text-warning"
                         }`}
                       >
-                        {ENTRY_LABEL[entry.kind] ?? entry.kind}
+                        {t(locale, ENTRY_LABEL[entry.kind] ?? entry.kind)}
                       </Badge>
                     </TableCell>
                     <TableCell className="max-w-[22rem] text-sm">
@@ -443,7 +463,7 @@ export default async function AccountDetailPage({
                           className="inline-flex items-center gap-1 font-medium text-brand hover:underline"
                         >
                           <Paperclip className="h-3 w-3" />
-                          View
+                          {t(locale, "View")}
                         </a>
                       ) : (
                         <span className="text-muted-foreground">—</span>

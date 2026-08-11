@@ -4,6 +4,7 @@ import { useActionState, useRef, useState } from "react";
 import { CloudUpload, FileText, Paperclip, X } from "lucide-react";
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,6 +54,7 @@ export function RecordCollectionForm({
   currency: string;
   rate: number | null;
 }) {
+  const t = useT();
   const [state, action] = useActionState<
     ActionResult<{ submissionNumber: string }>,
     FormData
@@ -114,7 +116,7 @@ export function RecordCollectionForm({
         ].map((fact) => (
           <div key={fact.label}>
             <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              {fact.label}
+              {t(fact.label)}
             </dt>
             <dd className="mt-0.5 text-sm font-medium">{fact.value}</dd>
           </div>
@@ -124,7 +126,7 @@ export function RecordCollectionForm({
       <div className="grid gap-4 sm:grid-cols-[1fr_auto_1fr]">
         <div className="space-y-1.5">
           <Label htmlFor="collectionAmount" className="text-xs">
-            What the customer sent
+            {t("What the customer sent")}
           </Label>
           <MoneyInput
             id="collectionAmount"
@@ -136,7 +138,7 @@ export function RecordCollectionForm({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="collectionCurrency" className="text-xs">
-            In
+            {t("In")}
           </Label>
           <NativeSelect
             id="collectionCurrency"
@@ -157,18 +159,18 @@ export function RecordCollectionForm({
             }}
             className="h-11 w-[6.5rem]"
           >
-            <option value="TZS">TSh</option>
+            <option value="TZS">{t("TSh")}</option>
             <option value="USD">USD</option>
           </NativeSelect>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="collectionMethod" className="text-xs">
-            How
+            {t("How")}
           </Label>
           <NativeSelect id="collectionMethod" name="method" className="h-11">
             {METHODS.map((method) => (
               <option key={method.value} value={method.value}>
-                {method.label}
+                {t(method.label)}
               </option>
             ))}
           </NativeSelect>
@@ -177,18 +179,19 @@ export function RecordCollectionForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="collectionReference" className="text-xs">
-          Reference from the customer
+          {t("Reference from the customer")}
         </Label>
         <Input
           id="collectionReference"
           name="reference"
-          placeholder="The M-Pesa code, slip number or cheque number"
+          placeholder={t("The M-Pesa code, slip number or cheque number")}
           className="h-11"
           required
         />
         <p className="text-[11px] text-muted-foreground">
-          The one thing that is not already in the system. Finance checks the
-          money against this.
+          {t(
+            "The one thing that is not already in the system. Finance checks the money against this."
+          )}
         </p>
       </div>
 
@@ -198,7 +201,7 @@ export function RecordCollectionForm({
       <div className="space-y-1.5">
         <Label className="flex items-center gap-1.5 text-xs">
           <Paperclip className="h-3.5 w-3.5" />
-          What the customer sent you
+          {t("What the customer sent you")}
         </Label>
         <div
           onDragOver={(event) => {
@@ -220,16 +223,16 @@ export function RecordCollectionForm({
         >
           <CloudUpload className="mx-auto h-7 w-7 text-muted-foreground" />
           <p className="mt-2 text-sm font-medium">
-            Drop the screenshot or slip here
+            {t("Drop the screenshot or slip here")}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            or{" "}
+            {t("or")}{" "}
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
               className="focus-ring rounded font-medium text-brand hover:underline"
             >
-              choose a file
+              {t("choose a file")}
             </button>
           </p>
           <input
@@ -260,7 +263,7 @@ export function RecordCollectionForm({
                 </span>
                 <button
                   type="button"
-                  aria-label={`Remove ${file.name}`}
+                  aria-label={`${t("Remove")} ${file.name}`}
                   onClick={() => {
                     const next = files.filter((_, i) => i !== index);
                     setFiles(next);
@@ -278,13 +281,13 @@ export function RecordCollectionForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="collectionNote" className="text-xs">
-          Anything Finance should know{" "}
-          <span className="text-muted-foreground">(optional)</span>
+          {t("Anything Finance should know")}{" "}
+          <span className="text-muted-foreground">({t("optional")})</span>
         </Label>
         <Input
           id="collectionNote"
           name="note"
-          placeholder="e.g. paid in two transfers, second one tomorrow"
+          placeholder={t("e.g. paid in two transfers, second one tomorrow")}
           className="h-11"
         />
       </div>
@@ -293,18 +296,19 @@ export function RecordCollectionForm({
       <FormSuccess
         message={
           state.ok && state.data
-            ? `${state.data.submissionNumber} is with Finance. You will see it move once they check it.`
+            ? `${state.data.submissionNumber} ${t("is with Finance. You will see it move once they check it.")}`
             : null
         }
       />
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
         <SubmitButton variant="brand" pendingLabel="Sending…">
-          Submit to Finance
+          {t("Submit to Finance")}
         </SubmitButton>
         <p className="text-xs text-muted-foreground">
-          Nothing is settled until Finance verifies it. No money moves on this
-          screen.
+          {t(
+            "Nothing is settled until Finance verifies it. No money moves on this screen."
+          )}
         </p>
       </div>
     </form>

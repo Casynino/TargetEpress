@@ -8,6 +8,7 @@ import { can } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { paymentReminderSwahili, whatsappLink } from "@/lib/messages";
 import { requirePermission } from "@/lib/session";
 import {
@@ -16,8 +17,11 @@ import {
   matchesFilter,
   type FollowUpFilter,
 } from "@/lib/support";
+import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Payment follow-up" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Payment follow-up") };
+}
 
 /**
  * The chase list.
@@ -42,6 +46,7 @@ export default async function FollowUpPage({
   searchParams: Promise<{ filter?: string }>;
 }) {
   const user = await requirePermission("collections.view");
+  const locale = await viewerLocale();
   const canRecord = can(user.role, "payment.record");
   const canCollect = !canRecord && can(user.role, "payment.submit");
   const { filter } = await searchParams;
@@ -108,14 +113,14 @@ export default async function FollowUpPage({
             <Link
               key={option.key}
               href={`/app/collections/follow-up?filter=${option.key}`}
-              title={option.hint}
+              title={t(locale, option.hint)}
               className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                 isActive
                   ? "border-brand bg-brand text-brand-foreground"
                   : "hover:bg-accent"
               }`}
             >
-              {option.label}
+              {t(locale, option.label)}
               <span
                 className={`rounded-full px-1.5 text-xs tabular-nums ${
                   isActive ? "bg-white/20" : "bg-muted text-muted-foreground"
@@ -130,7 +135,9 @@ export default async function FollowUpPage({
 
       <div className="mb-4 flex flex-wrap gap-6 rounded-xl border bg-card p-4 text-sm shadow-soft">
         <div>
-          <p className="text-xs text-muted-foreground">Shipments shown</p>
+          <p className="text-xs text-muted-foreground">
+            {t(locale, "Shipments shown")}
+          </p>
           <p className="font-display text-xl font-bold tabular-nums">{visible.length}</p>
         </div>
         {/* Shillings lead, here as everywhere. Freight is priced in dollars
@@ -138,16 +145,20 @@ export default async function FollowUpPage({
             shillings and so is the clerk. The invoice figure stays underneath,
             smaller, for matching against the bill that was sent. */}
         <div>
-          <p className="text-xs text-muted-foreground">Money outstanding</p>
+          <p className="text-xs text-muted-foreground">
+            {t(locale, "Money outstanding")}
+          </p>
           <p className="font-display text-xl font-bold tabular-nums">
             {tsh(totalOutstanding)}
           </p>
           <p className="font-mono text-[11px] text-muted-foreground">
-            {formatUsd(totalOutstanding)} on the invoices
+            {formatUsd(totalOutstanding)} {t(locale, "on the invoices")}
           </p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Storage charges accrued</p>
+          <p className="text-xs text-muted-foreground">
+            {t(locale, "Storage charges accrued")}
+          </p>
           <p className="font-display text-xl font-bold tabular-nums">
             {tsh(storageAtRisk)}
           </p>
@@ -161,12 +172,16 @@ export default async function FollowUpPage({
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="p-3 font-medium">Customer</th>
-              <th className="p-3 font-medium">Shipment</th>
-              <th className="hidden p-3 font-medium lg:table-cell">In warehouse</th>
-              <th className="p-3 font-medium">Owed</th>
-              <th className="p-3 font-medium">Next action</th>
-              <th className="p-3 text-right font-medium">Reach them</th>
+              <th className="p-3 font-medium">{t(locale, "Customer")}</th>
+              <th className="p-3 font-medium">{t(locale, "Shipment")}</th>
+              <th className="hidden p-3 font-medium lg:table-cell">
+                {t(locale, "In warehouse")}
+              </th>
+              <th className="p-3 font-medium">{t(locale, "Owed")}</th>
+              <th className="p-3 font-medium">{t(locale, "Next action")}</th>
+              <th className="p-3 text-right font-medium">
+                {t(locale, "Reach them")}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -180,7 +195,7 @@ export default async function FollowUpPage({
                     {row.customerName}
                   </Link>
                   <div className="text-xs text-muted-foreground">
-                    {row.customerPhone ?? "no phone on file"}
+                    {row.customerPhone ?? t(locale, "no phone on file")}
                   </div>
                 </td>
                 <td className="p-3">
@@ -207,9 +222,11 @@ export default async function FollowUpPage({
                 </td>
                 <td className="p-3 font-mono tabular-nums">
                   {row.outstanding === null ? (
-                    <span className="text-muted-foreground">not billed</span>
+                    <span className="text-muted-foreground">
+                      {t(locale, "not billed")}
+                    </span>
                   ) : row.outstanding <= 0 ? (
-                    <span className="text-success">paid</span>
+                    <span className="text-success">{t(locale, "paid")}</span>
                   ) : (
                     <>
                       {/* What the customer will actually send, first. */}
@@ -227,7 +244,9 @@ export default async function FollowUpPage({
                   )}
                 </td>
                 <td className="p-3">
-                  <span className="font-medium">{row.nextAction}</span>
+                  <span className="font-medium">
+                    {t(locale, row.nextAction)}
+                  </span>
                   {row.invoiceId ? (
                     <div className="mt-0.5">
                       <Link
@@ -243,7 +262,7 @@ export default async function FollowUpPage({
                         href={`/app/cargo/${row.trackingNumber}`}
                         className="text-xs text-brand hover:underline"
                       >
-                        Open shipment
+                        {t(locale, "Open shipment")}
                       </Link>
                     </div>
                   )}
@@ -274,8 +293,8 @@ export default async function FollowUpPage({
                         rel="noopener noreferrer"
                         title={
                           row.invoiceId
-                            ? `Remind ${row.customerName} on WhatsApp — the bill, the accounts and the amount`
-                            : `Message ${row.customerName} on WhatsApp`
+                            ? `${t(locale, "Remind")} ${row.customerName} ${t(locale, "on WhatsApp — the bill, the accounts and the amount")}`
+                            : `${t(locale, "Message")} ${row.customerName} ${t(locale, "on WhatsApp")}`
                         }
                         aria-label={`WhatsApp ${row.customerName}`}
                         className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-success/40 text-success transition-colors hover:bg-success/10"
@@ -297,10 +316,13 @@ export default async function FollowUpPage({
                         }
                         title={
                           canRecord
-                            ? "Record a payment against this cargo"
-                            : "Collect the customer's proof and hand it to Finance"
+                            ? t(locale, "Record a payment against this cargo")
+                            : t(
+                                locale,
+                                "Collect the customer's proof and hand it to Finance"
+                              )
                         }
-                        aria-label={`Record a payment for ${row.trackingNumber}`}
+                        aria-label={`${t(locale, "Record a payment for")} ${row.trackingNumber}`}
                         className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-brand/40 text-brand transition-colors hover:bg-brand/10"
                       >
                         <Banknote className="h-3.5 w-3.5" />
@@ -313,16 +335,16 @@ export default async function FollowUpPage({
                       <>
                         <a
                           href={`/app/finance/invoices/${row.invoiceNumber}/pdf`}
-                          title={`Download ${row.invoiceNumber} as a PDF`}
-                          aria-label={`Download ${row.invoiceNumber}`}
+                          title={`${t(locale, "Download")} ${row.invoiceNumber} ${t(locale, "as a PDF")}`}
+                          aria-label={`${t(locale, "Download")} ${row.invoiceNumber}`}
                           className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-chart-6/40 text-chart-6 transition-colors hover:bg-chart-6/10"
                         >
                           <Download className="h-3.5 w-3.5" />
                         </a>
                         <Link
                           href={`/app/finance/invoices/${row.invoiceId}`}
-                          title={`Open ${row.invoiceNumber}`}
-                          aria-label={`Open ${row.invoiceNumber}`}
+                          title={`${t(locale, "Open")} ${row.invoiceNumber}`}
+                          aria-label={`${t(locale, "Open")} ${row.invoiceNumber}`}
                           className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-warning/40 text-warning transition-colors hover:bg-warning/10"
                         >
                           <FileText className="h-3.5 w-3.5" />
@@ -336,7 +358,7 @@ export default async function FollowUpPage({
             {visible.length === 0 ? (
               <tr>
                 <td colSpan={6} className="p-10 text-center text-sm text-muted-foreground">
-                  Nothing in this queue. Nothing to chase.
+                  {t(locale, "Nothing in this queue. Nothing to chase.")}
                 </td>
               </tr>
             ) : null}

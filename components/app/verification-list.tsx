@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useLocale, useT } from "@/components/app/locale-provider";
 import { ReceivingOutcomePanel } from "@/components/app/receiving-outcome-panel";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ import {
   formatPackagesShort,
 } from "@/lib/constants";
 import { formatWeight } from "@/lib/format";
+import { pickText, type Locale } from "@/lib/locale";
 
 type PackageRow = {
   id: string;
@@ -56,13 +58,39 @@ type Row = {
   photos: { id: string; url: string; kind: string; caption: string | null }[];
   weightKg: number;
   description: string;
+  /** The renderings of `description`, so a Dar clerk never reads 手机配件. */
+  descriptionEn?: string | null;
+  descriptionZh?: string | null;
   goodsType: GoodsType;
   origin: Origin;
   cartonRef: string | null;
   internalNote: string | null;
+  internalNoteEn?: string | null;
+  internalNoteZh?: string | null;
   status: ShipmentStatus;
   verification: { result: string; note: string | null } | null;
 };
+
+/**
+ * The cargo description as this reader should see it.
+ *
+ * The server parent may hand the text down already resolved, in which case the
+ * rendering columns are absent and `pickText` falls through to it. Either way
+ * the box is never blank and never in the other desk's language.
+ */
+function cargoDescription(locale: Locale, shipment: Row) {
+  return pickText(locale, shipment.description, {
+    en: shipment.descriptionEn,
+    zh: shipment.descriptionZh,
+  });
+}
+
+function cargoNote(locale: Locale, shipment: Row) {
+  return pickText(locale, shipment.internalNote, {
+    en: shipment.internalNoteEn,
+    zh: shipment.internalNoteZh,
+  });
+}
 
 /**
  * The arrival checklist.
@@ -92,6 +120,7 @@ export function VerificationList({
       letting somebody photograph damage into a folder that will not survive. */
   photosDurable: boolean;
 }) {
+  const t = useT();
   const checked = shipments.filter((s) => s.verification).length;
   const flagged = shipments.filter(
     (s) => s.verification?.result === "EXCEPTION"
@@ -103,8 +132,8 @@ export function VerificationList({
       <div className="sticky top-14 z-20 flex flex-wrap items-center gap-3 rounded-xl border bg-card/95 p-4 shadow-soft backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:static sm:bg-card sm:backdrop-blur-none">
         <div className="flex-1">
           <p className="text-sm font-medium">
-            {checked} of {shipments.length} checked
-            {flagged > 0 ? ` · ${flagged} flagged` : ""}
+            {checked} {t("of")} {shipments.length} {t("checked")}
+            {flagged > 0 ? ` · ${flagged} ${t("flagged")}` : ""}
           </p>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
@@ -127,8 +156,9 @@ export function VerificationList({
 
       {batchStatus === "ARRIVED" && remaining > 0 ? (
         <p className="text-xs text-muted-foreground">
-          Everything normally arrives as sent. Accept the whole manifest, then
-          flag only what is missing or damaged.
+          {t(
+            "Everything normally arrives as sent. Accept the whole manifest, then flag only what is missing or damaged."
+          )}
         </p>
       ) : null}
 
@@ -141,23 +171,27 @@ export function VerificationList({
             <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="w-8 px-2 py-2" />
-                <th className="px-3 py-2 font-medium">Tracking</th>
-                <th className="px-3 py-2 font-medium">Customer</th>
-                <th className="px-3 py-2 font-medium">Goods</th>
+                <th className="px-3 py-2 font-medium">{t("Tracking")}</th>
+                <th className="px-3 py-2 font-medium">{t("Customer")}</th>
+                <th className="px-3 py-2 font-medium">{t("Goods")}</th>
                 <th className="hidden px-3 py-2 font-medium lg:table-cell">
-                  Type
+                  {t("Type")}
                 </th>
-                <th className="px-3 py-2 text-right font-medium">Weight</th>
+                <th className="px-3 py-2 text-right font-medium">
+                  {t("Weight")}
+                </th>
                 <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
-                  Counted as
+                  {t("Counted as")}
                 </th>
                 <th className="hidden px-3 py-2 font-medium md:table-cell">
-                  Proof
+                  {t("Proof")}
                 </th>
                 <th className="hidden px-3 py-2 font-medium md:table-cell">
-                  Status
+                  {t("Status")}
                 </th>
-                <th className="w-24 px-3 py-2 text-center font-medium">Check</th>
+                <th className="w-24 px-3 py-2 text-center font-medium">
+                  {t("Check")}
+                </th>
                 <th className="w-16 px-3 py-2" />
               </tr>
             </thead>
@@ -193,6 +227,7 @@ function AcceptAllButton({
   batchId: string;
   remaining: number;
 }) {
+  const t = useT();
   const [state, action] = useActionState<ActionResult, FormData>(
     verifyBatchAll,
     { ok: true }
@@ -203,7 +238,7 @@ function AcceptAllButton({
       <input type="hidden" name="batchId" value={batchId} />
       <SubmitButton variant="signal" className="rounded-lg" size="sm">
         <CheckCheck className="mr-2 h-4 w-4" />
-        All {remaining} present &amp; undamaged
+        {t("All")} {remaining} {t("present & undamaged")}
       </SubmitButton>
       <FormError state={state} />
     </form>
@@ -221,6 +256,8 @@ function VerificationRow({
   locked: boolean;
   photosDurable: boolean;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [state, action] = useActionState<ActionResult, FormData>(
     verifyShipment,
     { ok: true }
@@ -269,7 +306,7 @@ function VerificationRow({
               }`}
             />
             <span className="sr-only">
-              {open ? "Hide cargo detail" : "Show cargo detail"}
+              {open ? t("Hide cargo detail") : t("Show cargo detail")}
             </span>
           </button>
         </td>
@@ -292,11 +329,11 @@ function VerificationRow({
         </td>
 
         <td className="max-w-[14rem] truncate px-3 py-1.5">
-          {shipment.description}
+          {cargoDescription(locale, shipment)}
         </td>
 
         <td className="hidden whitespace-nowrap px-3 py-1.5 text-muted-foreground lg:table-cell">
-          {GOODS_TYPE_LABELS[shipment.goodsType] ?? shipment.goodsType}
+          {t(GOODS_TYPE_LABELS[shipment.goodsType] ?? shipment.goodsType)}
         </td>
 
         <td className="whitespace-nowrap px-3 py-1.5 text-right tabular">
@@ -306,7 +343,7 @@ function VerificationRow({
         <td className="whitespace-nowrap px-3 py-1.5 text-right tabular">
           {short > 0 && shipment.verification ? (
             <span className="font-semibold text-warning">
-              {shipment.packages - short} of{" "}
+              {shipment.packages - short} {t("of")}{" "}
               {formatPackagesShort(shipment.packages, shipment.packageType)}
             </span>
           ) : (
@@ -327,7 +364,7 @@ function VerificationRow({
 
         <td className="hidden whitespace-nowrap px-3 py-1.5 md:table-cell">
           {flagged ? (
-            <Badge variant="destructive">Exception</Badge>
+            <Badge variant="destructive">{t("Exception")}</Badge>
           ) : (
             <ShipmentStatusBadge status={shipment.status} />
           )}
@@ -350,24 +387,24 @@ function VerificationRow({
                   variant={done ? "outline" : "brand"}
                   size="icon"
                   className="h-8 w-8"
-                  title="Present & correct"
+                  title={t("Present & correct")}
                   pendingLabel=""
                 >
                   <Check className="h-4 w-4" />
                   <span className="sr-only">
-                    Present and correct — {shipment.trackingNumber}
+                    {t("Present and correct")} — {shipment.trackingNumber}
                   </span>
                 </SubmitButton>
               </form>
               <button
                 type="button"
                 onClick={() => setFlagging((v) => !v)}
-                title="Something is wrong"
+                title={t("Something is wrong")}
                 className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-md border text-destructive hover:bg-destructive/5"
               >
                 <AlertTriangle className="h-4 w-4" />
                 <span className="sr-only">
-                  Something is wrong — {shipment.trackingNumber}
+                  {t("Something is wrong")} — {shipment.trackingNumber}
                 </span>
               </button>
             </div>
@@ -378,18 +415,18 @@ function VerificationRow({
           {investigate ? (
             <Link
               href={`/app/exceptions?tracking=${shipment.trackingNumber}`}
-              title="Open in Issues & Claims"
+              title={t("Open in Issues & Claims")}
               className="focus-ring inline-flex items-center gap-1 text-xs font-medium text-destructive hover:underline"
             >
               <Search className="h-3 w-3" />
-              Case
+              {t("Case")}
             </Link>
           ) : (
             <Link
               href={`/app/cargo/${shipment.trackingNumber}`}
               className="focus-ring text-xs font-medium text-brand hover:underline"
             >
-              Open
+              {t("Open")}
             </Link>
           )}
         </td>
@@ -442,19 +479,27 @@ function VerificationRow({
  * Rendered only while open, so the ninety-row list stays a ninety-row list.
  */
 function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
+  const t = useT();
+  const locale = useLocale();
   const unit =
     PACKAGE_TYPE_LABELS[shipment.packageType] ?? PACKAGE_TYPE_LABELS.PACKAGE;
+  // Translated before it is capitalised: "纸箱" has no case, so the same two
+  // lines read correctly in both languages.
+  const unitOne = t(unit.one);
 
   const facts = [
     {
-      label: "Counted as",
+      label: t("Counted as"),
       value: formatPackages(shipment.packages, shipment.packageType),
     },
-    { label: "Declared weight", value: formatWeight(shipment.weightKg) },
-    { label: "Goods", value: GOODS_TYPE_LABELS[shipment.goodsType] },
-    { label: "Origin", value: ORIGIN_LABELS[shipment.origin] },
-    { label: "Carton in China", value: shipment.cartonRef ?? "—" },
-    { label: "Phone", value: shipment.customerPhone ?? "No phone recorded" },
+    { label: t("Declared weight"), value: formatWeight(shipment.weightKg) },
+    { label: t("Goods"), value: t(GOODS_TYPE_LABELS[shipment.goodsType]) },
+    { label: t("Origin"), value: t(ORIGIN_LABELS[shipment.origin]) },
+    { label: t("Carton in China"), value: shipment.cartonRef ?? "—" },
+    {
+      label: t("Phone"),
+      value: shipment.customerPhone ?? t("No phone recorded"),
+    },
   ];
 
   return (
@@ -464,7 +509,7 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
         <div>
           <p className="flex items-center gap-1.5 text-xs font-medium">
             <Camera className="h-3.5 w-3.5 text-muted-foreground" />
-            Photographed in {ORIGIN_LABELS[shipment.origin]}
+            {t("Photographed in")} {t(ORIGIN_LABELS[shipment.origin])}
           </p>
           <ul className="mt-2 flex flex-wrap gap-2">
             {shipment.photos.map((photo) => (
@@ -474,14 +519,17 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="focus-ring block overflow-hidden rounded-lg border"
-                  title={photo.caption ?? "Open full size"}
+                  title={photo.caption ?? t("Open full size")}
                 >
                   {/* Remote Blob URLs from a host list that keeps growing; a
                       plain img avoids configuring a loader for each one. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={photo.url}
-                    alt={photo.caption ?? `${shipment.trackingNumber} in China`}
+                    alt={
+                      photo.caption ??
+                      `${shipment.trackingNumber} ${t("in China")}`
+                    }
                     className="h-24 w-24 object-cover"
                     loading="lazy"
                     decoding="async"
@@ -493,14 +541,16 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
         </div>
       ) : (
         <p className="text-xs text-muted-foreground">
-          No photos were taken in China for this shipment — check the label and
-          the {unit.one} count instead.
+          {t(
+            "No photos were taken in China for this shipment — check the label and the"
+          )}{" "}
+          {unitOne} {t("count instead.")}
         </p>
       )}
 
       <div>
-        <p className="text-xs text-muted-foreground">Description</p>
-        <p className="mt-0.5 text-sm">{shipment.description}</p>
+        <p className="text-xs text-muted-foreground">{t("Description")}</p>
+        <p className="mt-0.5 text-sm">{cargoDescription(locale, shipment)}</p>
       </div>
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
@@ -516,9 +566,10 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
       {shipment.packageList.length > 0 ? (
         <div>
           <p className="text-xs font-medium">
-            {shipment.packageList.filter((pkg) => pkg.received).length} of{" "}
+            {shipment.packageList.filter((pkg) => pkg.received).length}{" "}
+            {t("of")}{" "}
             {formatPackages(shipment.packageList.length, shipment.packageType)}{" "}
-            checked in
+            {t("checked in")}
           </p>
           <ul className="mt-2 divide-y rounded-lg border">
             {shipment.packageList.map((pkg) => (
@@ -533,14 +584,14 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
                     <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-dashed" />
                   )}
                   <span className="shrink-0 text-sm tabular">
-                    {unit.one.charAt(0).toUpperCase() + unit.one.slice(1)}{" "}
-                    {pkg.sequence} of {shipment.packageList.length}
+                    {unitOne.charAt(0).toUpperCase() + unitOne.slice(1)}{" "}
+                    {pkg.sequence} {t("of")} {shipment.packageList.length}
                   </span>
                   <span className="code-chip shrink-0">{pkg.reference}</span>
                 </div>
                 <span className="text-xs text-muted-foreground tabular">
-                  {pkg.weightLabel ?? "no separate weight"}
-                  {pkg.received ? "" : " · not checked in"}
+                  {pkg.weightLabel ?? t("no separate weight")}
+                  {pkg.received ? "" : ` · ${t("not checked in")}`}
                 </span>
               </li>
             ))}
@@ -551,9 +602,9 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
       {shipment.internalNote ? (
         <div className="rounded-lg border border-warning/30 bg-warning/5 p-3">
           <p className="text-xs font-medium text-warning">
-            Note from China — never shown to the customer
+            {t("Note from China — never shown to the customer")}
           </p>
-          <p className="mt-1 text-sm">{shipment.internalNote}</p>
+          <p className="mt-1 text-sm">{cargoNote(locale, shipment)}</p>
         </div>
       ) : null}
     </div>
@@ -567,6 +618,7 @@ function CompleteButton({
   batchId: string;
   disabled: boolean;
 }) {
+  const t = useT();
   const [state, action] = useActionState<ActionResult, FormData>(
     completeVerification,
     { ok: true }
@@ -579,10 +631,10 @@ function CompleteButton({
         variant="brand"
         size="sm"
         disabled={disabled}
-        pendingLabel="Closing…"
+        pendingLabel={t("Closing…")}
       >
         <CheckCheck className="mr-1.5 h-4 w-4" />
-        Finish check-in
+        {t("Finish check-in")}
       </SubmitButton>
       <FormError state={state} />
     </form>

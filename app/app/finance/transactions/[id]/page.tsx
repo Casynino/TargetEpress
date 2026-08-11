@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Ledger entry" };
 
@@ -47,6 +49,7 @@ export default async function LedgerEntryPage({
   params: Promise<{ id: string }>;
 }) {
   await requirePermission("ledger.view");
+  const locale = await viewerLocale();
   const { id } = await params;
 
   const entry = await prisma.ledgerEntry.findUnique({
@@ -85,7 +88,7 @@ export default async function LedgerEntryPage({
 
   const facts: { label: string; value: React.ReactNode }[] = [
     { label: "Entry", value: <span className="font-mono text-xs">{entry.entryNumber}</span> },
-    { label: "Type", value: KIND_LABEL[entry.kind] ?? entry.kind },
+    { label: "Type", value: t(locale, KIND_LABEL[entry.kind] ?? entry.kind) },
     {
       label: "Account",
       value: (
@@ -109,9 +112,11 @@ export default async function LedgerEntryPage({
     facts.push(
       {
         label: "Category",
-        value:
+        value: t(
+          locale,
           EXPENSE_CATEGORY_LABELS[entry.expense.category] ??
-          entry.expense.category,
+            entry.expense.category
+        ),
       },
       { label: "Paid to", value: entry.expense.vendor ?? "—" },
       {
@@ -166,7 +171,7 @@ export default async function LedgerEntryPage({
         value:
           toNumber(entry.transfer.fee) > 0
             ? formatMoney(toNumber(entry.transfer.fee), entry.currency)
-            : "none",
+            : t(locale, "none"),
       }
     );
   }
@@ -178,18 +183,18 @@ export default async function LedgerEntryPage({
         className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        The Ledger
+        {t(locale, "The Ledger")}
       </Link>
 
       <PageHeader
         title={entry.expense?.description ?? entry.description}
-        description={`${KIND_LABEL[entry.kind] ?? entry.kind} · ${entry.account.name}`}
+        description={`${t(locale, KIND_LABEL[entry.kind] ?? entry.kind)} · ${entry.account.name}`}
       />
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <section className="rounded-2xl border bg-card p-6">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            {inbound ? "Money in" : "Money out"}
+            {inbound ? t(locale, "Money in") : t(locale, "Money out")}
           </p>
           <p
             className={`mt-2 font-display text-[36px] font-bold leading-none tracking-tight tabular-nums ${
@@ -203,7 +208,7 @@ export default async function LedgerEntryPage({
             <p className="mt-1.5 font-mono text-xs text-muted-foreground">
               {formatUsd(toNumber(entry.amountUsd))}
               {entry.exchangeRate
-                ? ` at ${toNumber(entry.exchangeRate).toLocaleString()} to the dollar`
+                ? ` ${t(locale, "at")} ${toNumber(entry.exchangeRate).toLocaleString()} ${t(locale, "to the dollar")}`
                 : ""}
             </p>
           )}
@@ -211,7 +216,9 @@ export default async function LedgerEntryPage({
           <dl className="mt-6 grid gap-x-6 gap-y-4 border-t pt-5 sm:grid-cols-2">
             {facts.map((fact) => (
               <div key={fact.label}>
-                <dt className="text-xs text-muted-foreground">{fact.label}</dt>
+                <dt className="text-xs text-muted-foreground">
+                  {t(locale, fact.label)}
+                </dt>
                 <dd className="mt-0.5 text-sm font-medium">{fact.value}</dd>
               </div>
             ))}
@@ -227,20 +234,27 @@ export default async function LedgerEntryPage({
             <div className="flex items-center justify-between gap-3 border-b px-5 py-3.5">
               <h2 className="flex items-center gap-2 font-semibold">
                 <Paperclip className="h-4 w-4 text-muted-foreground" />
-                Attachments
+                {t(locale, "Attachments")}
               </h2>
               <span className="text-xs text-muted-foreground">
                 {receipts.length === 0
-                  ? "none"
-                  : `${receipts.length} file${receipts.length === 1 ? "" : "s"}`}
+                  ? t(locale, "none")
+                  : `${receipts.length} ${
+                      receipts.length === 1
+                        ? t(locale, "file")
+                        : t(locale, "files")
+                    }`}
               </span>
             </div>
 
             {receipts.length === 0 ? (
               <p className="px-5 py-6 text-sm text-muted-foreground">
                 {entry.expense
-                  ? "No receipt was attached to this cost. The typed amount is the only record that it happened."
-                  : "This kind of movement carries no attachment."}
+                  ? t(
+                      locale,
+                      "No receipt was attached to this cost. The typed amount is the only record that it happened."
+                    )
+                  : t(locale, "This kind of movement carries no attachment.")}
               </p>
             ) : (
               <ul className="space-y-3 p-5">
@@ -258,7 +272,7 @@ export default async function LedgerEntryPage({
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img
                             src={receipt.url}
-                            alt={receipt.filename ?? "Receipt"}
+                            alt={receipt.filename ?? t(locale, "Receipt")}
                             className="h-40 w-full bg-muted object-cover"
                           />
                         ) : (
@@ -268,7 +282,7 @@ export default async function LedgerEntryPage({
                         )}
                         <span className="block px-3 py-2">
                           <span className="block truncate text-xs font-medium">
-                            {receipt.filename ?? "Attachment"}
+                            {receipt.filename ?? t(locale, "Attachment")}
                           </span>
                           <span className="block text-[11px] text-muted-foreground">
                             {fileSize(receipt.bytes)}
@@ -289,10 +303,10 @@ export default async function LedgerEntryPage({
               points at this one. Both directions are shown. */}
           {entry.reverses || entry.reversedBy ? (
             <section className="rounded-2xl border border-warning/40 bg-warning/5 p-5">
-              <h2 className="font-semibold">Corrections</h2>
+              <h2 className="font-semibold">{t(locale, "Corrections")}</h2>
               {entry.reversedBy ? (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  This line was cancelled by{" "}
+                  {t(locale, "This line was cancelled by")}{" "}
                   <Link
                     href={`/app/finance/transactions/${entry.reversedBy.id}`}
                     className="font-mono text-xs text-brand hover:underline"
@@ -304,7 +318,7 @@ export default async function LedgerEntryPage({
               ) : null}
               {entry.reverses ? (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  This line cancels{" "}
+                  {t(locale, "This line cancels")}{" "}
                   <Link
                     href={`/app/finance/transactions/${entry.reverses.id}`}
                     className="font-mono text-xs text-brand hover:underline"
@@ -318,21 +332,24 @@ export default async function LedgerEntryPage({
           ) : null}
 
           <section className="rounded-2xl border bg-card p-5">
-            <h2 className="font-semibold">Where it sits</h2>
+            <h2 className="font-semibold">{t(locale, "Where it sits")}</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              This line is part of{" "}
+              {t(locale, "This line is part of")}{" "}
               <Link
                 href={`/app/finance/transactions?account=${entry.account.id}`}
                 className="text-brand hover:underline"
               >
-                {entry.account.name}&rsquo;s running balance
+                {entry.account.name}
+                {t(locale, "’s running balance")}
               </Link>
-              . Nothing here can be edited — a wrong line is cancelled by a
-              reversing one, so the register keeps both what was believed and
-              what corrected it.
+              .{" "}
+              {t(
+                locale,
+                "Nothing here can be edited — a wrong line is cancelled by a reversing one, so the register keeps both what was believed and what corrected it."
+              )}
             </p>
             <Badge variant="outline" className="mt-3 font-normal">
-              append-only
+              {t(locale, "append-only")}
             </Badge>
           </section>
         </div>

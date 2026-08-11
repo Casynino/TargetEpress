@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronDown, Plus } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,6 +90,7 @@ function Disclosure({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
   return (
     <section className="rounded-xl border bg-card shadow-soft">
       <button
@@ -96,17 +98,17 @@ function Disclosure({
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between gap-3 p-4 text-left"
       >
-        <span className="font-semibold">{title}</span>
+        <span className="font-semibold">{t(title)}</span>
         <span className="inline-flex items-center gap-1.5 text-sm font-medium text-brand">
           {open ? (
             <>
-              Close
+              {t("Close")}
               <ChevronDown className="h-4 w-4 rotate-180" />
             </>
           ) : (
             <>
               <Plus className="h-4 w-4" />
-              {cta}
+              {t(cta)}
             </>
           )}
         </span>
@@ -125,18 +127,21 @@ function ContactFields({
   presetCustomerId?: string;
 }) {
   const [customerId, setCustomerId] = useState(presetCustomerId ?? "");
+  const t = useT();
 
   return (
     <>
       <div className="space-y-1.5 sm:col-span-2">
-        <Label htmlFor="customerId">Existing customer</Label>
+        <Label htmlFor="customerId">{t("Existing customer")}</Label>
         <NativeSelect
           id="customerId"
           name="customerId"
           value={customerId}
           onChange={(event) => setCustomerId(event.target.value)}
         >
-          <option value="">Not a customer yet — enter details below</option>
+          <option value="">
+            {t("Not a customer yet — enter details below")}
+          </option>
           {customers.map((customer) => (
             <option key={customer.id} value={customer.id}>
               {customer.name}
@@ -149,11 +154,15 @@ function ContactFields({
       {customerId ? null : (
         <>
           <div className="space-y-1.5">
-            <Label htmlFor="contactName">Their name</Label>
-            <Input id="contactName" name="contactName" placeholder="e.g. Mama Zainab" />
+            <Label htmlFor="contactName">{t("Their name")}</Label>
+            <Input
+              id="contactName"
+              name="contactName"
+              placeholder={t("e.g. Mama Zainab")}
+            />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="contactPhone">Their phone</Label>
+            <Label htmlFor="contactPhone">{t("Their phone")}</Label>
             <Input
               id="contactPhone"
               name="contactPhone"
@@ -177,6 +186,7 @@ export function NewTicketForm({
   presetCustomerId?: string;
 }) {
   const [state, action] = useActionState(createTicket, undefined);
+  const t = useT();
 
   return (
     <Disclosure title="Support tickets" cta="New ticket">
@@ -184,7 +194,8 @@ export function NewTicketForm({
         <FormError state={state} />
         {state?.ok && state.data ? (
           <p className="rounded-md border border-success/30 bg-success/5 p-3 text-sm text-success">
-            Ticket {state.data.ticketNumber} opened and assigned to you.
+            {t("Ticket")} {state.data.ticketNumber}{" "}
+            {t("opened and assigned to you.")}
           </p>
         ) : null}
 
@@ -192,33 +203,33 @@ export function NewTicketForm({
           <ContactFields customers={customers} presetCustomerId={presetCustomerId} />
 
           <div className="space-y-1.5">
-            <Label htmlFor="category">What is it about</Label>
+            <Label htmlFor="category">{t("What is it about")}</Label>
             <NativeSelect id="category" name="category" defaultValue="SHIPMENT_INQUIRY">
               {TICKET_CATEGORIES.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.label)}
                 </option>
               ))}
             </NativeSelect>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="priority">Priority</Label>
+            <Label htmlFor="priority">{t("Priority")}</Label>
             <NativeSelect id="priority" name="priority" defaultValue="NORMAL">
               {PRIORITIES.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.label)}
                 </option>
               ))}
             </NativeSelect>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="channel">How they reached us</Label>
+            <Label htmlFor="channel">{t("How they reached us")}</Label>
             <NativeSelect id="channel" name="channel" defaultValue="WHATSAPP">
               {CHANNELS.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.label)}
                 </option>
               ))}
             </NativeSelect>
@@ -226,8 +237,10 @@ export function NewTicketForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="trackingNumber">
-              Shipment{" "}
-              <span className="font-normal text-muted-foreground">optional</span>
+              {t("Shipment")}{" "}
+              <span className="font-normal text-muted-foreground">
+                {t("optional")}
+              </span>
             </Label>
             <Input
               id="trackingNumber"
@@ -238,22 +251,26 @@ export function NewTicketForm({
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="subject">Summary</Label>
+            <Label htmlFor="subject">{t("Summary")}</Label>
             <Input
               id="subject"
               name="subject"
-              placeholder="e.g. Carton arrived open, two pairs of shoes missing"
+              placeholder={t(
+                "e.g. Carton arrived open, two pairs of shoes missing"
+              )}
               required
             />
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="body">What the customer said</Label>
+            <Label htmlFor="body">{t("What the customer said")}</Label>
             <Textarea id="body" name="body" rows={3} required />
           </div>
         </div>
 
-        <SubmitButton pendingLabel="Opening…">Open ticket</SubmitButton>
+        <SubmitButton pendingLabel={t("Opening…")}>
+          {t("Open ticket")}
+        </SubmitButton>
       </form>
     </Disclosure>
   );
@@ -274,6 +291,7 @@ export function TicketWorkflow({
 }) {
   const [state, action] = useActionState(updateTicket, undefined);
   const [status, setStatus] = useState(ticket.status);
+  const t = useT();
   const closing = status === "RESOLVED" || status === "CLOSED";
 
   return (
@@ -283,7 +301,7 @@ export function TicketWorkflow({
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
-          <Label htmlFor="status">Status</Label>
+          <Label htmlFor="status">{t("Status")}</Label>
           <NativeSelect
             id="status"
             name="status"
@@ -292,14 +310,14 @@ export function TicketWorkflow({
           >
             {TICKET_STATUSES.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {t(option.label)}
               </option>
             ))}
           </NativeSelect>
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="ticket-priority">Priority</Label>
+          <Label htmlFor="ticket-priority">{t("Priority")}</Label>
           <NativeSelect
             id="ticket-priority"
             name="priority"
@@ -307,20 +325,20 @@ export function TicketWorkflow({
           >
             {PRIORITIES.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {t(option.label)}
               </option>
             ))}
           </NativeSelect>
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="assignedToId">Handled by</Label>
+          <Label htmlFor="assignedToId">{t("Handled by")}</Label>
           <NativeSelect
             id="assignedToId"
             name="assignedToId"
             defaultValue={ticket.assignedToId ?? ""}
           >
-            <option value="">Unassigned</option>
+            <option value="">{t("Unassigned")}</option>
             {staff.map((person) => (
               <option key={person.id} value={person.id}>
                 {person.name}
@@ -332,11 +350,15 @@ export function TicketWorkflow({
 
       <div className="space-y-1.5">
         <Label htmlFor="resolution">
-          Resolution{" "}
+          {t("Resolution")}{" "}
           {closing ? (
-            <span className="font-normal text-destructive">required to close</span>
+            <span className="font-normal text-destructive">
+              {t("required to close")}
+            </span>
           ) : (
-            <span className="font-normal text-muted-foreground">optional</span>
+            <span className="font-normal text-muted-foreground">
+              {t("optional")}
+            </span>
           )}
         </Label>
         <Textarea
@@ -344,17 +366,20 @@ export function TicketWorkflow({
           name="resolution"
           rows={3}
           defaultValue={ticket.resolution ?? ""}
-          placeholder="What did we actually do for this customer?"
+          placeholder={t("What did we actually do for this customer?")}
         />
       </div>
 
-      <SubmitButton pendingLabel="Saving…">Save ticket</SubmitButton>
+      <SubmitButton pendingLabel={t("Saving…")}>
+        {t("Save ticket")}
+      </SubmitButton>
     </form>
   );
 }
 
 export function TicketNoteForm({ ticketId }: { ticketId: string }) {
   const [state, action] = useActionState(addTicketNote, undefined);
+  const t = useT();
   return (
     <form action={action} className="space-y-3">
       <input type="hidden" name="ticketId" value={ticketId} />
@@ -362,11 +387,13 @@ export function TicketNoteForm({ ticketId }: { ticketId: string }) {
       <Textarea
         name="body"
         rows={2}
-        placeholder="Add an internal note — what you tried, who you spoke to."
+        placeholder={t(
+          "Add an internal note — what you tried, who you spoke to."
+        )}
         required
       />
-      <SubmitButton pendingLabel="Adding…" variant="secondary" size="sm">
-        Add note
+      <SubmitButton pendingLabel={t("Adding…")} variant="secondary" size="sm">
+        {t("Add note")}
       </SubmitButton>
     </form>
   );
@@ -382,6 +409,7 @@ export function NewSourcingForm({
   presetCustomerId?: string;
 }) {
   const [state, action] = useActionState(createSourcingRequest, undefined);
+  const t = useT();
 
   return (
     <Disclosure title="Sourcing requests" cta="New request">
@@ -389,7 +417,8 @@ export function NewSourcingForm({
         <FormError state={state} />
         {state?.ok && state.data ? (
           <p className="rounded-md border border-success/30 bg-success/5 p-3 text-sm text-success">
-            Request {state.data.requestNumber} opened and assigned to you.
+            {t("Request")} {state.data.requestNumber}{" "}
+            {t("opened and assigned to you.")}
           </p>
         ) : null}
 
@@ -397,66 +426,78 @@ export function NewSourcingForm({
           <ContactFields customers={customers} presetCustomerId={presetCustomerId} />
 
           <div className="space-y-1.5">
-            <Label htmlFor="type">What they need</Label>
+            <Label htmlFor="type">{t("What they need")}</Label>
             <NativeSelect id="type" name="type" defaultValue="FIND_PRODUCT">
               {SOURCING_TYPES.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.label)}
                 </option>
               ))}
             </NativeSelect>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="sourcing-priority">Priority</Label>
+            <Label htmlFor="sourcing-priority">{t("Priority")}</Label>
             <NativeSelect id="sourcing-priority" name="priority" defaultValue="NORMAL">
               {PRIORITIES.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.label)}
                 </option>
               ))}
             </NativeSelect>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="product">Product</Label>
+            <Label htmlFor="product">{t("Product")}</Label>
             <Input
               id="product"
               name="product"
-              placeholder="e.g. LED shop signs, 1.2 m"
+              placeholder={t("e.g. LED shop signs, 1.2 m")}
               required
             />
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="sourcing-category">
-              Category{" "}
-              <span className="font-normal text-muted-foreground">optional</span>
+              {t("Category")}{" "}
+              <span className="font-normal text-muted-foreground">
+                {t("optional")}
+              </span>
             </Label>
-            <Input id="sourcing-category" name="category" placeholder="Electronics" />
+            <Input
+              id="sourcing-category"
+              name="category"
+              placeholder={t("Electronics")}
+            />
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="budgetUsd">
-              Budget in USD{" "}
-              <span className="font-normal text-muted-foreground">optional</span>
+              {t("Budget in USD")}{" "}
+              <span className="font-normal text-muted-foreground">
+                {t("optional")}
+              </span>
             </Label>
             <Input id="budgetUsd" name="budgetUsd" inputMode="decimal" placeholder="500" />
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="description">Details</Label>
+            <Label htmlFor="description">{t("Details")}</Label>
             <Textarea
               id="description"
               name="description"
               rows={3}
-              placeholder="Quantity, colours, quality, any sample photos they sent."
+              placeholder={t(
+                "Quantity, colours, quality, any sample photos they sent."
+              )}
               required
             />
           </div>
         </div>
 
-        <SubmitButton pendingLabel="Opening…">Open request</SubmitButton>
+        <SubmitButton pendingLabel={t("Opening…")}>
+          {t("Open request")}
+        </SubmitButton>
       </form>
     </Disclosure>
   );
@@ -469,6 +510,7 @@ export function SourcingWorkflow({
 }) {
   const [state, action] = useActionState(updateSourcingRequest, undefined);
   const [status, setStatus] = useState(request.status);
+  const t = useT();
   const finishing = status === "COMPLETED" || status === "SUPPLIER_FOUND";
 
   return (
@@ -478,7 +520,7 @@ export function SourcingWorkflow({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="sourcing-status">Status</Label>
+          <Label htmlFor="sourcing-status">{t("Status")}</Label>
           <NativeSelect
             id="sourcing-status"
             name="status"
@@ -487,17 +529,17 @@ export function SourcingWorkflow({
           >
             {SOURCING_STATUSES.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {t(option.label)}
               </option>
             ))}
           </NativeSelect>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="req-priority">Priority</Label>
+          <Label htmlFor="req-priority">{t("Priority")}</Label>
           <NativeSelect id="req-priority" name="priority" defaultValue={request.priority}>
             {PRIORITIES.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {t(option.label)}
               </option>
             ))}
           </NativeSelect>
@@ -506,11 +548,15 @@ export function SourcingWorkflow({
 
       <div className="space-y-1.5">
         <Label htmlFor="findings">
-          What we found{" "}
+          {t("What we found")}{" "}
           {finishing ? (
-            <span className="font-normal text-destructive">required</span>
+            <span className="font-normal text-destructive">
+              {t("required")}
+            </span>
           ) : (
-            <span className="font-normal text-muted-foreground">optional</span>
+            <span className="font-normal text-muted-foreground">
+              {t("optional")}
+            </span>
           )}
         </Label>
         <Textarea
@@ -518,11 +564,15 @@ export function SourcingWorkflow({
           name="findings"
           rows={4}
           defaultValue={request.findings ?? ""}
-          placeholder="Supplier, market stall, unit price, minimum order, lead time."
+          placeholder={t(
+            "Supplier, market stall, unit price, minimum order, lead time."
+          )}
         />
       </div>
 
-      <SubmitButton pendingLabel="Saving…">Save request</SubmitButton>
+      <SubmitButton pendingLabel={t("Saving…")}>
+        {t("Save request")}
+      </SubmitButton>
     </form>
   );
 }
@@ -538,13 +588,14 @@ export function QuickAction({
   label: string;
   hint: string;
 }) {
+  const t = useT();
   return (
     <Link
       href={href}
       className="group rounded-xl border bg-card p-4 shadow-soft transition-colors hover:border-brand/40 hover:bg-accent/40"
     >
-      <p className="font-medium group-hover:text-brand">{label}</p>
-      <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
+      <p className="font-medium group-hover:text-brand">{t(label)}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{t(hint)}</p>
     </Link>
   );
 }

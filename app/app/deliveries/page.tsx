@@ -10,8 +10,10 @@ import { KpiCard } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
 import { formatPackages } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Collected cargo" };
 
@@ -33,6 +35,7 @@ const WINDOW = 300;
  */
 export default async function DeliveryHistoryPage() {
   await requirePermission("delivery.history");
+  const locale = await viewerLocale();
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
@@ -60,7 +63,7 @@ export default async function DeliveryHistoryPage() {
         shipment: {
           select: {
             trackingNumber: true,
-            description: true,
+            ...selectText("description"),
             packages: true,
             packageType: true,
             weightKg: true,
@@ -88,7 +91,9 @@ export default async function DeliveryHistoryPage() {
     id: record.id,
     releasedAt: record.releasedAt.toISOString(),
     trackingNumber: record.shipment.trackingNumber,
-    description: record.shipment.description,
+    // Resolved in the server parent — the history table runs in the browser
+    // and cannot ask who is reading it.
+    description: cargoText(locale, record.shipment, "description"),
     packagesLabel: formatPackages(
       record.shipment.packages,
       record.shipment.packageType
@@ -113,7 +118,7 @@ export default async function DeliveryHistoryPage() {
   // says so — a percentage that silently means "of the last 300" is a lie.
   const byAgent = rows.filter((row) => row.relationship !== "SELF").length;
   const withPhoto = rows.filter((row) => row.photos.length > 0).length;
-  const windowHint = `of the last ${rows.length}`;
+  const windowHint = `${t(locale, "of the last")} ${rows.length}`;
 
   return (
     <>
@@ -125,45 +130,48 @@ export default async function DeliveryHistoryPage() {
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           delay={0}
-          label="Handed over today"
+          label={t(locale, "Handed over today")}
           numeric={todayCount}
-          hint="Cargo that left the building today"
+          hint={t(locale, "Cargo that left the building today")}
           icon={Truck}
           tone="brand"
         />
         <KpiCard
           delay={1}
-          label="Last 7 days"
+          label={t(locale, "Last 7 days")}
           numeric={weekCount}
-          hint={`${totalCount.toLocaleString()} on record in total`}
+          hint={`${totalCount.toLocaleString()} ${t(locale, "on record in total")}`}
           icon={History}
           tone="info"
         />
         <KpiCard
           delay={2}
-          label="Collected by an agent"
+          label={t(locale, "Collected by an agent")}
           numeric={byAgent}
-          hint={`${windowHint} — not the customer in person`}
+          hint={`${windowHint} ${t(locale, "— not the customer in person")}`}
           icon={UserCheck}
           tone="signal"
         />
         <KpiCard
           delay={3}
-          label="Handover photo on file"
+          label={t(locale, "Handover photo on file")}
           value={`${withPhoto} / ${rows.length}`}
-          hint={`${windowHint} handovers`}
+          hint={`${windowHint} ${t(locale, "handovers")}`}
           icon={Camera}
           tone="success"
           ringPct={rows.length > 0 ? (withPhoto / rows.length) * 100 : 0}
-          ringLabel="Handovers with a photo"
+          ringLabel={t(locale, "Handovers with a photo")}
         />
       </div>
 
       {rows.length === 0 ? (
         <EmptyState
           icon={Truck}
-          title="Nothing has been handed over yet"
-          description="Every release recorded at the counter appears here, newest first, with the photo taken as the cargo changed hands."
+          title={t(locale, "Nothing has been handed over yet")}
+          description={t(
+            locale,
+            "Every release recorded at the counter appears here, newest first, with the photo taken as the cargo changed hands."
+          )}
         />
       ) : (
         <DeliveryHistoryTable rows={rows} />
@@ -171,10 +179,13 @@ export default async function DeliveryHistoryPage() {
 
       {totalCount > rows.length ? (
         <p className="mt-4 text-xs text-muted-foreground">
-          Showing the {rows.length.toLocaleString()} most recent handovers of{" "}
-          {totalCount.toLocaleString()}. Older cargo is on its own page — find it
-          under{" "}
-          <span className="font-medium text-foreground">Search</span>.
+          {t(locale, "Showing the")} {rows.length.toLocaleString()}{" "}
+          {t(locale, "most recent handovers of")} {totalCount.toLocaleString()}.{" "}
+          {t(locale, "Older cargo is on its own page — find it under")}{" "}
+          <span className="font-medium text-foreground">
+            {t(locale, "Search")}
+          </span>
+          .
         </p>
       ) : null}
     </>

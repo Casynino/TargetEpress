@@ -230,14 +230,14 @@ export function PhotoCapture({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={preview.url}
-                alt={`Cargo photo ${index + 1}`}
+                alt={`${t("Cargo photo")} ${index + 1}`}
                 className="aspect-square w-full rounded-lg border object-cover"
               />
               <button
                 type="button"
                 onClick={() => remove(index)}
                 className="focus-ring absolute right-1.5 top-1.5 rounded-md bg-background/90 p-1.5 text-destructive opacity-0 shadow-soft transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                aria-label={`Remove photo ${index + 1}`}
+                aria-label={`${t("Remove photo")} ${index + 1}`}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>

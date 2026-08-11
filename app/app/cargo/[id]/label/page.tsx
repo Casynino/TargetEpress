@@ -9,12 +9,16 @@ import { Button } from "@/components/ui/button";
 import { formatPackages } from "@/lib/constants";
 import { formatDate, formatWeight } from "@/lib/format";
 import { recordAudit } from "@/lib/audit";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { LABEL_MM } from "@/lib/print";
 import { packageQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Cargo labels" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Cargo labels") };
+}
 
 /**
  * Labels for one shipment — one per box.
@@ -33,6 +37,7 @@ export default async function LabelPage({
   // matches on prefixes, and /app/cargo already resolves to shipment.view — so
   // this guard is the whole gate rather than a second line behind middleware.
   const user = await requirePermission("label.print");
+  const locale = await viewerLocale();
   const { id } = await params;
   const key = decodeURIComponent(id);
 
@@ -68,7 +73,7 @@ export default async function LabelPage({
     shipment.packageList.map(async (pkg) => ({
       trackingNumber: shipment.trackingNumber,
       customerName: shipment.customer.name,
-      description: shipment.description,
+      description: cargoText(locale, shipment, "description"),
       packages: shipment.packageList.length,
       packagesLabel: formatPackages(
         shipment.packageList.length,
@@ -91,16 +96,17 @@ export default async function LabelPage({
         <Button asChild variant="ghost" size="sm">
           <Link href={`/app/cargo/${shipment.trackingNumber}`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to shipment
+            {t(locale, "Back to shipment")}
           </Link>
         </Button>
       </div>
 
       <PrintBar
         item={LABEL_MM}
-        printLabel={`Print ${stickers.length} label${stickers.length === 1 ? "" : "s"}`}
+        printLabel={`${t(locale, "Print")} ${stickers.length} ${t(locale, stickers.length === 1 ? "label" : "labels")}`}
         downloadHref={`/app/cargo/${shipment.trackingNumber}/label/pdf`}
-        hint="One code per box — never copy a label onto two."
+        downloadLabel={t(locale, "Download PDF")}
+        hint={t(locale, "One code per box — never copy a label onto two.")}
       />
 
       <div className="flex flex-col items-center gap-4 print:gap-0">

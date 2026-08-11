@@ -20,9 +20,11 @@ import { parseQrPayload } from "@/lib/qr";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { searchShipments } from "@/lib/support";
-import { viewerLocale } from "@/lib/viewer";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Search cargo" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Search cargo") };
+}
 
 /** The four handles a warehouse clerk actually has when hunting for a box. */
 const HANDLES = [
@@ -120,7 +122,7 @@ export default async function SearchCargoPage({
       customerId: shipment.customer.id,
       customerName: shipment.customer.name,
       customerPhone: shipment.customer.phone,
-      description: shipment.description,
+      description: cargoText(locale, shipment, "description"),
       packages: shipment.packages,
       weightKg: toNumber(shipment.weightKg),
       origin: shipment.origin,
@@ -160,8 +162,11 @@ export default async function SearchCargoPage({
   return (
     <>
       <PageHeader
-        title="Search cargo"
-        description="Find a box by its QR label, tracking number, customer name or phone number."
+        title={t(locale, "Search cargo")}
+        description={t(
+          locale,
+          "Find a box by its QR label, tracking number, customer name or phone number."
+        )}
         /*
           Offered only to the desks that can actually use a camera.
 
@@ -233,7 +238,7 @@ export default async function SearchCargoPage({
             <QrCode className="h-4 w-4 text-brand" />
             {t(locale, "Label read")}
             {scanned.package
-              ? ` — ${scanned.package.reference}, package ${scanned.package.sequence}`
+              ? ` — ${scanned.package.reference}, ${t(locale, "package")} ${scanned.package.sequence}`
               : ` ${t(locale, "— shipment label")}`}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -251,7 +256,8 @@ export default async function SearchCargoPage({
 
       {query ? (
         <p className="mb-3 text-sm text-muted-foreground">
-          {rows.length} result{rows.length === 1 ? "" : "s"} for{" "}
+          {rows.length}{" "}
+          {t(locale, rows.length === 1 ? "result for" : "results for")}{" "}
           <span className="font-medium text-foreground">{query}</span>
         </p>
       ) : null}

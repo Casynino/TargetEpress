@@ -17,6 +17,8 @@ import {
   storageDaysFor,
 } from "@/lib/constants";
 import { formatDate, formatDateTime, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import {
   PICKUP_LOCKING_STATUSES,
   PICKUP_LOCKING_TYPES,
@@ -25,19 +27,27 @@ import {
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Pickup queue" };
 
 const DAY = 86_400_000;
 
-/** "4 h", "3 d", "3 d 5 h". Computed server-side so hydration cannot disagree. */
-function waitLabel(ms: number): string {
+/**
+ * "4 h", "3 d", "3 d 5 h". Computed server-side so hydration cannot disagree.
+ *
+ * Takes the reader's locale rather than asking for it: a plain function cannot
+ * await, and the page has already resolved it once.
+ */
+function waitLabel(locale: Locale, ms: number): string {
   const hours = Math.floor(ms / 3_600_000);
-  if (hours < 1) return "just now";
-  if (hours < 24) return `${hours} h`;
+  if (hours < 1) return t(locale, "just now");
+  if (hours < 24) return `${hours} ${t(locale, "h")}`;
   const days = Math.floor(hours / 24);
   const rest = hours % 24;
-  return rest > 0 ? `${days} d ${rest} h` : `${days} d`;
+  return rest > 0
+    ? `${days} ${t(locale, "d")} ${rest} ${t(locale, "h")}`
+    : `${days} ${t(locale, "d")}`;
 }
 
 /**
@@ -53,6 +63,7 @@ function waitLabel(ms: number): string {
  */
 export default async function PickupQueuePage() {
   const user = await requirePermission("shipment.release");
+  const locale = await viewerLocale();
 
   // Warehouse staff get the payment FACT, never the figure — the owner's rule
   // is that warehouse users cannot view shipping prices. Finance and the CEO
@@ -75,7 +86,7 @@ export default async function PickupQueuePage() {
       shipment: {
         select: {
           trackingNumber: true,
-          description: true,
+          ...selectText("description"),
           packages: true,
           packageType: true,
           weightKg: true,
@@ -115,22 +126,25 @@ export default async function PickupQueuePage() {
     const blockers: string[] = [];
     if (shipment.status !== "READY_FOR_PICKUP") {
       blockers.push(
-        `Cargo is not cleared for release — it is still "${SHIPMENT_STATUS_META[shipment.status].label}".`
+        `${t(locale, "Cargo is not cleared for release — it is still")} "${t(locale, SHIPMENT_STATUS_META[shipment.status].label)}".`
       );
     }
     const lock = shipment.exceptions[0];
     if (lock) {
       blockers.push(
-        `Under investigation — ${EXCEPTION_TYPE_LABELS[lock.type]}, currently "${EXCEPTION_STATUS_LABELS[lock.status]}" (case ${caseReference(lock.id)}). Locked against pickup until the case is closed.`
+        `${t(locale, "Under investigation —")} ${t(locale, EXCEPTION_TYPE_LABELS[lock.type])}, ${t(locale, "currently")} "${t(locale, EXCEPTION_STATUS_LABELS[lock.status])}" (${t(locale, "case")} ${caseReference(lock.id)}). ${t(locale, "Locked against pickup until the case is closed.")}`
       );
     }
     if (packagesTotal === 0) {
       blockers.push(
-        "No package labels on this shipment, so nothing can be checked in against it."
+        t(
+          locale,
+          "No package labels on this shipment, so nothing can be checked in against it."
+        )
       );
     } else if (missingPackages.length > 0) {
       blockers.push(
-        `Still missing: ${missingPackages.map((n) => `package ${n}`).join(", ")}. A partial shipment is never released.`
+        `${t(locale, "Still missing:")} ${missingPackages.map((n) => `${t(locale, "package")} ${n}`).join(", ")}. ${t(locale, "A partial shipment is never released.")}`
       );
     }
 
@@ -149,12 +163,15 @@ export default async function PickupQueuePage() {
       issuedAtMs: note.issuedAt.getTime(),
       issuedByName: note.issuedBy?.name ?? null,
       waitingMs,
-      waitingLabel: waitLabel(waitingMs),
+      waitingLabel: waitLabel(locale, waitingMs),
       customerId: note.customer.id,
       customerName: note.customer.name,
       customerPhone: note.customer.phone,
       trackingNumber: shipment.trackingNumber,
-      description: shipment.description,
+      // Resolved here, in the server parent: the queue table runs in the
+      // browser and cannot ask who is reading it. Guangzhou's Chinese reads as
+      // English at the Dar counter, and stays Chinese in Guangzhou.
+      description: cargoText(locale, shipment, "description"),
       weightKg: toNumber(shipment.weightKg),
       packagesLabel: formatPackages(shipment.packages, shipment.packageType),
       packagesShort: formatPackagesShort(shipment.packages, shipment.packageType),
@@ -186,58 +203,65 @@ export default async function PickupQueuePage() {
       {rows.length === 0 ? (
         <EmptyState
           icon={Truck}
-          title="Nobody is waiting to collect"
-          description="A shipment joins this queue the moment Finance confirms payment and issues its pickup note."
+          title={t(locale, "Nobody is waiting to collect")}
+          description={t(
+            locale,
+            "A shipment joins this queue the moment Finance confirms payment and issues its pickup note."
+          )}
         />
       ) : (
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <KpiCard
               delay={0}
-              label="Awaiting collection"
+              label={t(locale, "Awaiting collection")}
               numeric={rows.length}
               hint={
                 longestWait > 0
-                  ? `Longest wait ${waitLabel(longestWait)}`
-                  : "Just issued"
+                  ? `${t(locale, "Longest wait")} ${waitLabel(locale, longestWait)}`
+                  : t(locale, "Just issued")
               }
               icon={Truck}
               tone="brand"
             />
             <KpiCard
               delay={1}
-              label="Ready to release"
+              label={t(locale, "Ready to release")}
               numeric={ready}
-              hint="Every package accounted for"
+              hint={t(locale, "Every package accounted for")}
               icon={PackageCheck}
               tone="success"
               ringPct={rows.length > 0 ? (ready / rows.length) * 100 : 0}
-              ringLabel="Share of the queue that can be handed over"
+              ringLabel={t(locale, "Share of the queue that can be handed over")}
             />
             <KpiCard
               delay={2}
-              label="Held back"
+              label={t(locale, "Held back")}
               numeric={held}
-              hint={held > 0 ? "Cannot be handed over yet" : "Nothing blocked"}
+              hint={
+                held > 0
+                  ? t(locale, "Cannot be handed over yet")
+                  : t(locale, "Nothing blocked")
+              }
               icon={AlertTriangle}
               tone={held > 0 ? "danger" : "success"}
             />
             <KpiCard
               delay={3}
-              label="Boxes on the floor"
+              label={t(locale, "Boxes on the floor")}
               numeric={boxesWaiting}
-              hint="Packages held for these customers"
+              hint={t(locale, "Packages held for these customers")}
               icon={Boxes}
               tone="info"
             />
             <KpiCard
               delay={4}
-              label="Storage accruing"
+              label={t(locale, "Storage accruing")}
               numeric={charging}
               hint={
                 overAWeek > 0
-                  ? `${overAWeek} waiting over a week`
-                  : "Everyone still inside free storage"
+                  ? `${overAWeek} ${t(locale, "waiting over a week")}`
+                  : t(locale, "Everyone still inside free storage")
               }
               icon={Hourglass}
               tone={charging > 0 ? "warning" : "success"}

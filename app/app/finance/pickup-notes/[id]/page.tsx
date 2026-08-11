@@ -8,11 +8,13 @@ import { PrintBar } from "@/components/app/print-bar";
 import { Button } from "@/components/ui/button";
 import { formatPackages } from "@/lib/constants";
 import { formatDate, formatMoney, formatWeight } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { SLIP_MM } from "@/lib/print";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Pickup note" };
 
@@ -24,6 +26,7 @@ export default async function PickupNotePage({
   // Support prints the note Finance issued. Issuing one is pickupNote.issue
   // and is checked in the action, not here.
   const user = await requirePermission("pickupNote.view");
+  const locale = await viewerLocale();
   const { id } = await params;
 
   const note = await prisma.pickupNote.findUnique({
@@ -39,7 +42,7 @@ export default async function PickupNotePage({
         select: {
           trackingNumber: true,
           qrToken: true,
-          description: true,
+          ...selectText("description"),
           packages: true,
           packageType: true,
           weightKg: true,
@@ -65,14 +68,14 @@ export default async function PickupNotePage({
     trackingNumber: note.shipment.trackingNumber,
     customerName: note.customer.name,
     customerPhone: note.customer.phone,
-    description: note.shipment.description,
+    description: cargoText(locale, note.shipment, "description"),
     weightLabel: formatWeight(note.shipment.weightKg),
     packagesLabel: formatPackages(
       note.shipment.packages,
       note.shipment.packageType
     ),
     invoiceNumber: note.shipment.invoice?.invoiceNumber ?? null,
-    paymentStatus: "Paid in full",
+    paymentStatus: t(locale, "Paid in full"),
     /*
       The figure only for the desks allowed one.
 
@@ -93,16 +96,16 @@ export default async function PickupNotePage({
         <Button asChild variant="ghost" size="sm">
           <Link href="/app/finance/pickup-notes">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            All pickup notes
+            {t(locale, "All pickup notes")}
           </Link>
         </Button>
       </div>
 
       <PrintBar
         item={SLIP_MM}
-        printLabel="Print pickup note"
+        printLabel={t(locale, "Print pickup note")}
         downloadHref={`/app/finance/pickup-notes/${id}/pdf`}
-        hint="Print it for the customer, or send them the file."
+        hint={t(locale, "Print it for the customer, or send them the file.")}
       />
 
       <div className="flex justify-center">

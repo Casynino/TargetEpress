@@ -8,11 +8,16 @@ import { PageHeader } from "@/components/app/page-header";
 import { RecordCollectionForm } from "@/components/app/record-collection-form";
 import { formatMoney, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Record a payment" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await viewerLocale();
+  return { title: t(locale, "Record a payment") };
+}
 
 /**
  * Completing one collection.
@@ -27,6 +32,7 @@ export default async function RecordCollectionPage({
   params: Promise<{ invoiceId: string }>;
 }) {
   const user = await requirePermission("payment.submit");
+  const locale = await viewerLocale();
   const { invoiceId } = await params;
 
   const [invoice, rateRow] = await Promise.all([
@@ -40,7 +46,9 @@ export default async function RecordCollectionPage({
         amountPaid: true,
         currency: true,
         customer: { select: { id: true, name: true, phone: true } },
-        shipment: { select: { trackingNumber: true, description: true } },
+        shipment: {
+          select: { trackingNumber: true, ...selectText("description") },
+        },
         submissions: {
           where: { status: "PENDING" },
           select: { submissionNumber: true },
@@ -63,7 +71,7 @@ export default async function RecordCollectionPage({
         className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        Awaiting payment
+        {t(locale, "Awaiting payment")}
       </Link>
 
       <PageHeader
@@ -77,21 +85,24 @@ export default async function RecordCollectionPage({
         <section className="panel p-6">
           {invoice.status === "DRAFT" ? (
             <p className="rounded-lg border border-warning/40 bg-warning/5 p-4 text-sm text-warning">
-              {invoice.invoiceNumber} is still a draft. Finance has to confirm
-              the price before anything can be collected against it — there is
-              no figure here the business has agreed to yet.
+              {invoice.invoiceNumber}{" "}
+              {t(
+                locale,
+                "is still a draft. Finance has to confirm the price before anything can be collected against it — there is no figure here the business has agreed to yet."
+              )}
             </p>
           ) : invoice.status === "PAID" ? (
             <p className="rounded-lg border border-success/40 bg-success/5 p-4 text-sm text-success">
-              {invoice.invoiceNumber} is settled in full. Nothing left to
-              collect.
+              {invoice.invoiceNumber}{" "}
+              {t(locale, "is settled in full. Nothing left to collect.")}
             </p>
           ) : pending ? (
             <p className="rounded-lg border border-warning/40 bg-warning/5 p-4 text-sm text-warning">
-              {pending.submissionNumber} is already with Finance for this bill.
-              Wait for it to be checked rather than sending a second claim —
-              two submissions against one invoice is the same money verified
-              twice.
+              {pending.submissionNumber}{" "}
+              {t(
+                locale,
+                "is already with Finance for this bill. Wait for it to be checked rather than sending a second claim — two submissions against one invoice is the same money verified twice."
+              )}
             </p>
           ) : (
             <RecordCollectionForm
@@ -99,7 +110,7 @@ export default async function RecordCollectionPage({
               invoiceNumber={invoice.invoiceNumber}
               customerName={invoice.customer.name}
               trackingNumber={invoice.shipment.trackingNumber}
-              goods={invoice.shipment.description}
+              goods={cargoText(locale, invoice.shipment, "description")}
               outstanding={outstanding}
               currency={invoice.currency}
               rate={rate}
@@ -111,7 +122,7 @@ export default async function RecordCollectionPage({
           <section className="panel p-5">
             <h2 className="flex items-center gap-2 font-semibold">
               <User className="h-4 w-4 text-muted-foreground" />
-              Customer
+              {t(locale, "Customer")}
             </h2>
             <p className="mt-3 text-sm font-medium">
               <Link
@@ -127,7 +138,7 @@ export default async function RecordCollectionPage({
 
             <h2 className="mt-5 flex items-center gap-2 font-semibold">
               <Package className="h-4 w-4 text-muted-foreground" />
-              Cargo
+              {t(locale, "Cargo")}
             </h2>
             <p className="mt-3 font-mono text-sm">
               <Link
@@ -138,34 +149,36 @@ export default async function RecordCollectionPage({
               </Link>
             </p>
             <p className="text-xs text-muted-foreground">
-              {invoice.shipment.description}
+              {cargoText(locale, invoice.shipment, "description")}
             </p>
           </section>
 
           <section className="panel p-5">
             <h2 className="flex items-center gap-2 font-semibold">
               <Receipt className="h-4 w-4 text-muted-foreground" />
-              The bill
+              {t(locale, "The bill")}
             </h2>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">Invoice</dt>
+                <dt className="text-muted-foreground">{t(locale, "Invoice")}</dt>
                 <dd className="font-mono text-xs">{invoice.invoiceNumber}</dd>
               </div>
               <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">Total</dt>
+                <dt className="text-muted-foreground">{t(locale, "Total")}</dt>
                 <dd className="font-mono tabular-nums">
                   {formatMoney(toNumber(invoice.total), invoice.currency)}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">Paid so far</dt>
+                <dt className="text-muted-foreground">
+                  {t(locale, "Paid so far")}
+                </dt>
                 <dd className="font-mono tabular-nums">
                   {formatMoney(toNumber(invoice.amountPaid), invoice.currency)}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-3 border-t pt-3">
-                <dt className="font-medium">Still owing</dt>
+                <dt className="font-medium">{t(locale, "Still owing")}</dt>
                 <dd className="font-mono font-semibold tabular-nums text-warning">
                   {formatMoney(outstanding, invoice.currency)}
                 </dd>

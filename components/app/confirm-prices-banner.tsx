@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { ClipboardCheck } from "lucide-react";
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { confirmBatchPrices } from "@/lib/actions/finance";
 import type { ActionResult } from "@/lib/actions/types";
 
@@ -34,6 +35,7 @@ export function ConfirmPricesBanner({
     ActionResult<{ confirmed: number; skipped: number; blocked: string[] }>,
     FormData
   >(confirmBatchPrices, { ok: true });
+  const t = useT();
 
   if (drafts === 0) return null;
 
@@ -45,25 +47,31 @@ export function ConfirmPricesBanner({
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 font-display font-semibold">
             <ClipboardCheck className="h-4 w-4 text-signal" />
-            {drafts} price{drafts === 1 ? "" : "s"} waiting for you
+            {drafts}{" "}
+            {t(
+              drafts === 1
+                ? "price waiting for you"
+                : "prices waiting for you"
+            )}
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            The system priced every consignment from the rate book when it was
-            checked in — {currency} {totalUsd.toLocaleString(undefined, {
+            {t(
+              "The system priced every consignment from the rate book when it was checked in —"
+            )}{" "}
+            {currency} {totalUsd.toLocaleString(undefined, {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}{" "}
-            in total. Read down the list below, open anything that looks wrong
-            and correct it, then confirm the rest in one go. Confirming
-            re-works each price out at today&apos;s storage days and exchange
-            rate, and turns it into an invoice you can send.
+            {t(
+              "in total. Read down the list below, open anything that looks wrong and correct it, then confirm the rest in one go. Confirming re-works each price out at today's storage days and exchange rate, and turns it into an invoice you can send."
+            )}
           </p>
         </div>
 
         <form action={action} className="shrink-0 space-y-2">
           <input type="hidden" name="batchId" value={batchId} />
-          <SubmitButton variant="signal" pendingLabel="Confirming…">
-            Confirm all {drafts} prices
+          <SubmitButton variant="signal" pendingLabel={t("Confirming…")}>
+            {t("Confirm all")} {drafts} {t("prices")}
           </SubmitButton>
         </form>
       </div>
@@ -73,9 +81,9 @@ export function ConfirmPricesBanner({
         <FormSuccess
           message={
             done
-              ? `${state.data!.confirmed} invoice(s) confirmed and ready to send.` +
+              ? `${state.data!.confirmed} ${t("invoice(s) confirmed and ready to send.")}` +
                 (state.data!.blocked.length
-                  ? ` ${state.data!.blocked.length} could not be priced: ${state.data!.blocked.slice(0, 3).join(", ")}${state.data!.blocked.length > 3 ? " and others" : ""}.`
+                  ? ` ${state.data!.blocked.length} ${t("could not be priced:")} ${state.data!.blocked.slice(0, 3).join(", ")}${state.data!.blocked.length > 3 ? ` ${t("and others")}` : ""}.`
                   : "")
               : null
           }

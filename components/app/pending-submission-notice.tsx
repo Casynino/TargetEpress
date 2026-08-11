@@ -3,6 +3,8 @@ import { ArrowRight, Hourglass, Paperclip } from "lucide-react";
 
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatMoney, formatRelative } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import { viewerLocale } from "@/lib/viewer";
 import type { PaymentMethod } from "@prisma/client";
 
 export type PendingSubmission = {
@@ -33,7 +35,7 @@ export type PendingSubmission = {
  * customer where it has got to, and the CEO can see why cargo that looks unpaid
  * is not being chased.
  */
-export function PendingSubmissionNotice({
+export async function PendingSubmissionNotice({
   submissions,
   canVerify,
 }: {
@@ -43,14 +45,16 @@ export function PendingSubmissionNotice({
 }) {
   if (submissions.length === 0) return null;
 
+  const locale = await viewerLocale();
+
   return (
     <section className="panel overflow-hidden border-warning/40">
       <header className="flex items-center gap-2 border-b border-warning/30 bg-warning/10 px-5 py-3">
         <Hourglass className="h-4 w-4 shrink-0 text-warning" />
         <h2 className="font-display text-sm font-semibold text-warning">
           {submissions.length === 1
-            ? "A payment is waiting to be verified"
-            : `${submissions.length} payments are waiting to be verified`}
+            ? t(locale, "A payment is waiting to be verified")
+            : `${submissions.length} ${t(locale, "payments are waiting to be verified")}`}
         </h2>
       </header>
 
@@ -61,9 +65,9 @@ export function PendingSubmissionNotice({
               <span className="font-semibold tabular-nums">
                 {formatMoney(s.amount, s.currency)}
               </span>{" "}
-              collected by{" "}
+              {t(locale, "collected by")}{" "}
               <span className="font-medium">
-                {s.submittedByName ?? "Customer Support"}
+                {s.submittedByName ?? t(locale, "Customer Support")}
               </span>{" "}
               <span className="text-muted-foreground">
                 {formatRelative(s.submittedAt)}
@@ -73,7 +77,7 @@ export function PendingSubmissionNotice({
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] text-muted-foreground">
               <span>{s.submissionNumber}</span>
               <span aria-hidden>·</span>
-              <span>{PAYMENT_METHOD_LABELS[s.method]}</span>
+              <span>{t(locale, PAYMENT_METHOD_LABELS[s.method])}</span>
               {s.reference ? (
                 <>
                   <span aria-hidden>·</span>
@@ -85,7 +89,8 @@ export function PendingSubmissionNotice({
                   <span aria-hidden>·</span>
                   <span className="inline-flex items-center gap-1">
                     <Paperclip className="h-3 w-3" />
-                    {s.proofCount} proof{s.proofCount === 1 ? "" : "s"}
+                    {s.proofCount}{" "}
+                    {t(locale, s.proofCount === 1 ? "proof" : "proofs")}
                   </span>
                 </>
               ) : null}
@@ -100,22 +105,25 @@ export function PendingSubmissionNotice({
             {/* The warning and its fix in one place. A caution with no way to
                 act on it just makes the next person hesitate. */}
             <p className="text-xs text-muted-foreground">
-              Do not record this again below — check it here and it posts to the
-              ledger itself.
+              {t(
+                locale,
+                "Do not record this again below — check it here and it posts to the ledger itself."
+              )}
             </p>
             <Link
               href={`/app/finance/verify#${submissions[0].submissionNumber}`}
               className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-lg bg-warning px-3 py-1.5 text-xs font-semibold text-warning-foreground transition-colors hover:bg-warning/90"
             >
-              Verify it
+              {t(locale, "Verify it")}
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </>
         ) : (
           <p className="text-xs text-muted-foreground">
-            With Finance now. Nothing is settled and no pickup note can be
-            issued until they check it — this is what to tell the customer if
-            they ring.
+            {t(
+              locale,
+              "With Finance now. Nothing is settled and no pickup note can be issued until they check it — this is what to tell the customer if they ring."
+            )}
           </p>
         )}
       </footer>

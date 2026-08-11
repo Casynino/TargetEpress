@@ -8,6 +8,7 @@ import { ProfileHeader } from "@/components/app/profile-header";
 import { Button } from "@/components/ui/button";
 import { DEPARTMENT_LABELS, ROLE_LABELS } from "@/lib/constants";
 import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import {
   dailyActivity,
@@ -18,6 +19,7 @@ import {
   profileStats,
 } from "@/lib/profile";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Employee" };
 
@@ -42,6 +44,7 @@ export default async function EmployeeProfilePage({
   params: Promise<{ id: string }>;
 }) {
   await requirePermission("user.manage");
+  const locale = await viewerLocale();
   const { id } = await params;
 
   const person = await prisma.user.findUnique({
@@ -88,7 +91,7 @@ export default async function EmployeeProfilePage({
         <Button asChild variant="ghost" size="sm">
           <Link href="/app/admin/users">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            All staff
+            {t(locale, "All staff")}
           </Link>
         </Button>
       </div>
@@ -122,7 +125,9 @@ export default async function EmployeeProfilePage({
           { label: "Batches worked on", value: stats.batchesTouched },
         ].map((item) => (
           <div key={item.label} className="panel p-5">
-            <p className="text-xs text-muted-foreground">{item.label}</p>
+            <p className="text-xs text-muted-foreground">
+              {t(locale, item.label)}
+            </p>
             <p className="mt-1.5 font-display text-2xl font-bold tabular">
               {item.value}
             </p>
@@ -134,26 +139,28 @@ export default async function EmployeeProfilePage({
         <div className="space-y-6">
           <section className="panel">
             <div className="border-b px-5 py-4">
-              <h2 className="font-display font-semibold">Last two weeks</h2>
+              <h2 className="font-display font-semibold">
+                {t(locale, "Last two weeks")}
+              </h2>
               <p className="text-xs text-muted-foreground">
-                Shipments registered per day
+                {t(locale, "Shipments registered per day")}
               </p>
             </div>
             <div className="p-5">
               <ActivityBars
                 points={daily.map((d) => ({ label: d.label, value: d.shipments }))}
-                unit="shipments"
+                unit={t(locale, "shipments")}
               />
             </div>
           </section>
 
           <section className="panel">
             <h2 className="border-b px-5 py-4 font-display font-semibold">
-              Audit history
+              {t(locale, "Audit history")}
             </h2>
             {activity.length === 0 ? (
               <p className="p-5 text-sm text-muted-foreground">
-                Nothing recorded against this account.
+                {t(locale, "Nothing recorded against this account.")}
               </p>
             ) : (
               <ol className="divide-y">
@@ -181,7 +188,7 @@ export default async function EmployeeProfilePage({
           <section className="panel">
             <h2 className="flex items-center gap-2 border-b px-5 py-4 font-display font-semibold">
               <ShieldAlert className="h-4 w-4" />
-              Oversight
+              {t(locale, "Oversight")}
             </h2>
             <dl className="divide-y">
               {[
@@ -189,13 +196,13 @@ export default async function EmployeeProfilePage({
                   label: "Last sign-in",
                   value: person.lastLoginAt
                     ? formatDateTime(person.lastLoginAt)
-                    : "Never",
+                    : t(locale, "Never"),
                 },
                 {
                   label: "Last active",
                   value: person.lastActiveAt
                     ? formatRelative(person.lastActiveAt)
-                    : "Never",
+                    : t(locale, "Never"),
                 },
                 { label: "Edits made", value: String(edits) },
                 {
@@ -204,16 +211,21 @@ export default async function EmployeeProfilePage({
                 },
                 {
                   label: "Account created by",
-                  value: person.createdBy?.name ?? "System",
+                  value: person.createdBy?.name ?? t(locale, "System"),
                 },
                 {
                   label: "Emergency contact",
-                  value: person.emergencyContact ?? "Not given",
+                  value: person.emergencyContact ?? t(locale, "Not given"),
                 },
-                { label: "Phone", value: person.phone ?? "Not given" },
+                {
+                  label: "Phone",
+                  value: person.phone ?? t(locale, "Not given"),
+                },
               ].map((item) => (
                 <div key={item.label} className="px-5 py-3">
-                  <dt className="text-xs text-muted-foreground">{item.label}</dt>
+                  <dt className="text-xs text-muted-foreground">
+                    {t(locale, item.label)}
+                  </dt>
                   <dd className="mt-0.5 text-sm font-medium">{item.value}</dd>
                 </div>
               ))}
@@ -222,11 +234,11 @@ export default async function EmployeeProfilePage({
 
           <section className="panel">
             <h2 className="border-b px-5 py-4 font-display font-semibold">
-              Sign-in history
+              {t(locale, "Sign-in history")}
             </h2>
             {logins.length === 0 ? (
               <p className="p-5 text-sm text-muted-foreground">
-                No sign-ins recorded yet.
+                {t(locale, "No sign-ins recorded yet.")}
               </p>
             ) : (
               <ul className="divide-y text-sm">
@@ -238,7 +250,9 @@ export default async function EmployeeProfilePage({
                           login.ok ? "text-foreground" : "font-medium text-destructive"
                         }
                       >
-                        {login.ok ? "Signed in" : "Failed attempt"}
+                        {login.ok
+                          ? t(locale, "Signed in")
+                          : t(locale, "Failed attempt")}
                       </span>
                       <span className="text-xs text-muted-foreground tabular">
                         {login.atLabel}
@@ -256,11 +270,11 @@ export default async function EmployeeProfilePage({
 
           <section className="panel">
             <h2 className="border-b px-5 py-4 font-display font-semibold">
-              Batches
+              {t(locale, "Batches")}
             </h2>
             {batches.length === 0 ? (
               <p className="p-5 text-sm text-muted-foreground">
-                Has not put cargo on a batch.
+                {t(locale, "Has not put cargo on a batch.")}
               </p>
             ) : (
               <ul className="divide-y">

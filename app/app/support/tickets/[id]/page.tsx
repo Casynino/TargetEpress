@@ -7,10 +7,15 @@ import { PageHeader } from "@/components/app/page-header";
 import { TicketNoteForm, TicketWorkflow } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Ticket" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await viewerLocale();
+  return { title: t(locale, "Ticket") };
+}
 
 export default async function TicketPage({
   params,
@@ -19,6 +24,7 @@ export default async function TicketPage({
 }) {
   await requirePermission("ticket.manage");
   const { id } = await params;
+  const locale = await viewerLocale();
 
   const [ticket, staff] = await Promise.all([
     prisma.supportTicket.findUnique({
@@ -26,7 +32,11 @@ export default async function TicketPage({
       include: {
         customer: { select: { id: true, code: true, name: true, phone: true } },
         shipment: {
-          select: { trackingNumber: true, status: true, description: true },
+          select: {
+            trackingNumber: true,
+            status: true,
+            ...selectText("description"),
+          },
         },
         openedBy: { select: { name: true } },
         assignedTo: { select: { name: true } },
@@ -52,19 +62,21 @@ export default async function TicketPage({
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        All tickets
+        {t(locale, "All tickets")}
       </Link>
 
       <PageHeader
         title={ticket.subject}
-        description={`${ticket.ticketNumber} · opened ${formatDateTime(ticket.createdAt)}${
-          ticket.openedBy ? ` by ${ticket.openedBy.name}` : ""
+        description={`${ticket.ticketNumber} · ${t(locale, "opened")} ${formatDateTime(ticket.createdAt)}${
+          ticket.openedBy ? ` ${t(locale, "by")} ${ticket.openedBy.name}` : ""
         }`}
         actions={
           <>
-            <Badge variant="outline">{ticket.priority.toLowerCase()}</Badge>
             <Badge variant="outline">
-              {ticket.status.replace(/_/g, " ").toLowerCase()}
+              {t(locale, ticket.priority.toLowerCase())}
+            </Badge>
+            <Badge variant="outline">
+              {t(locale, ticket.status.replace(/_/g, " ").toLowerCase())}
             </Badge>
           </>
         }
@@ -74,16 +86,16 @@ export default async function TicketPage({
         <div className="space-y-6">
           <section className="rounded-xl border bg-card p-5 shadow-soft">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              What the customer said
+              {t(locale, "What the customer said")}
             </h2>
             <p className="mt-3 whitespace-pre-wrap text-sm">{ticket.body}</p>
           </section>
 
           <section className="rounded-xl border bg-card shadow-soft">
             <header className="border-b p-4">
-              <h2 className="font-semibold">Internal notes</h2>
+              <h2 className="font-semibold">{t(locale, "Internal notes")}</h2>
               <p className="text-sm text-muted-foreground">
-                Working notes for staff. Never shown to the customer.
+                {t(locale, "Working notes for staff. Never shown to the customer.")}
               </p>
             </header>
             <ul className="divide-y">
@@ -91,13 +103,14 @@ export default async function TicketPage({
                 <li key={note.id} className="p-4">
                   <p className="whitespace-pre-wrap text-sm">{note.body}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {note.author?.name ?? "Someone"} · {formatDateTime(note.createdAt)}
+                    {note.author?.name ?? t(locale, "Someone")} ·{" "}
+                    {formatDateTime(note.createdAt)}
                   </p>
                 </li>
               ))}
               {ticket.notes.length === 0 ? (
                 <li className="p-4 text-sm text-muted-foreground">
-                  Nothing written down yet.
+                  {t(locale, "Nothing written down yet.")}
                 </li>
               ) : null}
             </ul>
@@ -109,12 +122,12 @@ export default async function TicketPage({
           {ticket.resolution ? (
             <section className="rounded-xl border border-success/30 bg-success/5 p-5">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-success">
-                Resolution
+                {t(locale, "Resolution")}
               </h2>
               <p className="mt-2 whitespace-pre-wrap text-sm">{ticket.resolution}</p>
               {ticket.resolvedAt ? (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Closed {formatDateTime(ticket.resolvedAt)}
+                  {t(locale, "Closed")} {formatDateTime(ticket.resolvedAt)}
                 </p>
               ) : null}
             </section>
@@ -123,7 +136,7 @@ export default async function TicketPage({
 
         <div className="space-y-6">
           <section className="rounded-xl border bg-card p-5 shadow-soft">
-            <h2 className="mb-3 font-semibold">Who this is about</h2>
+            <h2 className="mb-3 font-semibold">{t(locale, "Who this is about")}</h2>
             {ticket.customer ? (
               <Link
                 href={`/app/customers/${ticket.customer.id}`}
@@ -140,12 +153,14 @@ export default async function TicketPage({
               </Link>
             ) : (
               <div className="rounded-lg border p-3 text-sm">
-                <p className="font-medium">{ticket.contactName ?? "Unknown caller"}</p>
+                <p className="font-medium">
+                  {ticket.contactName ?? t(locale, "Unknown caller")}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  {ticket.contactPhone ?? "No number taken"}
+                  {ticket.contactPhone ?? t(locale, "No number taken")}
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Not a customer on our books yet.
+                  {t(locale, "Not a customer on our books yet.")}
                 </p>
               </div>
             )}
@@ -159,7 +174,7 @@ export default async function TicketPage({
                 <div className="min-w-0">
                   <p className="font-mono text-sm">{ticket.shipment.trackingNumber}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {ticket.shipment.description}
+                    {cargoText(locale, ticket.shipment, "description")}
                   </p>
                 </div>
               </Link>
@@ -167,7 +182,7 @@ export default async function TicketPage({
           </section>
 
           <section className="rounded-xl border bg-card p-5 shadow-soft">
-            <h2 className="mb-4 font-semibold">Move it forward</h2>
+            <h2 className="mb-4 font-semibold">{t(locale, "Move it forward")}</h2>
             <TicketWorkflow
               ticket={{
                 id: ticket.id,

@@ -20,9 +20,11 @@ import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
-import { viewerLocale } from "@/lib/viewer";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Batch" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Batch") };
+}
 
 const ROUTE_LABEL: Record<string, string> = {
   GUANGZHOU: "Guangzhou Batch",
@@ -133,8 +135,12 @@ export default async function LoadingTablePage({
   return (
     <>
       <PageHeader
-        title={ROUTE_LABEL[batch.origin] ?? batch.batchNumber}
-        description={`${ROUTE_CATEGORY[batch.origin]} waiting in China for the ${ORIGIN_LABELS[batch.origin]} flight. This table is permanent — it empties when you dispatch it, then fills again.`}
+        title={
+          ROUTE_LABEL[batch.origin]
+            ? t(locale, ROUTE_LABEL[batch.origin])
+            : batch.batchNumber
+        }
+        description={`${t(locale, ROUTE_CATEGORY[batch.origin])} ${t(locale, "waiting in China for the")} ${t(locale, ORIGIN_LABELS[batch.origin])} ${t(locale, "flight.")} ${t(locale, "This table is permanent — it empties when you dispatch it, then fills again.")}`}
         actions={
           <>
             <Button asChild variant="outline" size="sm">
@@ -187,10 +193,14 @@ export default async function LoadingTablePage({
         <KpiCard
           delay={3}
           label={t(locale, "Oldest piece")}
-          value={daysWaiting === 0 ? t(locale, "Today") : `${daysWaiting} days`}
+          value={
+            daysWaiting === 0
+              ? t(locale, "Today")
+              : `${daysWaiting} ${t(locale, "days")}`
+          }
           hint={
             oldest
-              ? `Received ${oldest.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`
+              ? `${t(locale, "Received")} ${oldest.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`
               : t(locale, "Nothing waiting")
           }
           icon={Clock}
@@ -203,8 +213,14 @@ export default async function LoadingTablePage({
           <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
           <div className="min-w-0">
             <p className="font-medium">
-              {misrouted.length} piece{misrouted.length === 1 ? "" : "s"} on this
-              table belong{misrouted.length === 1 ? "s" : ""} on the other one
+              {misrouted.length}{" "}
+              {t(locale, misrouted.length === 1 ? "piece" : "pieces")}{" "}
+              {t(
+                locale,
+                misrouted.length === 1
+                  ? "on this table belongs on the other one"
+                  : "on this table belong on the other one"
+              )}
             </p>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {t(
@@ -222,7 +238,7 @@ export default async function LoadingTablePage({
                     {shipment.trackingNumber}
                   </Link>
                   <span className="ml-2 text-muted-foreground">
-                    {shipment.description} —{" "}
+                    {cargoText(locale, shipment, "description")} —{" "}
                     {t(locale, CATEGORY_LABELS[shipment.cargoCategory])}
                   </span>
                 </li>
@@ -250,8 +266,8 @@ export default async function LoadingTablePage({
             {t(locale, "On this table")}
           </h2>
           <p className="text-xs tabular-nums text-muted-foreground">
-            {waiting.length} piece(s) · {totalPackages} package(s) ·{" "}
-            {totalWeight.toFixed(1)} kg
+            {waiting.length} {t(locale, "piece(s)")} · {totalPackages}{" "}
+            {t(locale, "package(s)")} · {totalWeight.toFixed(1)} kg
           </p>
         </div>
 
@@ -275,7 +291,7 @@ export default async function LoadingTablePage({
                 customerName: shipment.customer.name,
                 description: cargoLabel(
                   shipment.cargoType?.name,
-                  shipment.description
+                  cargoText(locale, shipment, "description")
                 ),
                 weightKg: toNumber(shipment.weightKg),
                 packages: shipment.packages,
@@ -287,7 +303,10 @@ export default async function LoadingTablePage({
                 category: shipment.cargoCategory,
                 verification:
                   verificationByShipment.get(shipment.id)?.result ?? null,
-                statusLabel: SHIPMENT_STATUS_META[shipment.status].label,
+                statusLabel: t(
+                  locale,
+                  SHIPMENT_STATUS_META[shipment.status].label
+                ),
                 receivedBy: shipment.createdBy?.name ?? null,
                 receivedLabel: formatDate(shipment.registeredAt),
                 receivedAt: shipment.registeredAt.toISOString(),

@@ -5,8 +5,10 @@ import type { ReceiverRelationship } from "@prisma/client";
 import { Camera, CameraOff } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
+import { useLocale, useT } from "@/components/app/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime, formatWeight } from "@/lib/format";
+import { pickText, type Locale } from "@/lib/locale";
 
 /**
  * Who collected it, in the words the release counter used.
@@ -26,6 +28,9 @@ export type DeliveryHistoryRow = {
   releasedAt: string;
   trackingNumber: string;
   description: string;
+  /** The renderings of `description`, so Dar never reads the Chinese original. */
+  descriptionEn?: string | null;
+  descriptionZh?: string | null;
   packagesLabel: string;
   weightKg: number;
   customerId: string;
@@ -51,11 +56,26 @@ export type DeliveryHistoryRow = {
  * all on the row rather than a click away. Expanding a row shows the ID number
  * and the note, which is what gets read out when a customer disputes a pickup.
  */
+/**
+ * The cargo description as this reader should see it.
+ *
+ * Falls through to whatever the server sent when no rendering came with it, so
+ * a handover line is never blank.
+ */
+function cargoDescription(locale: Locale, row: DeliveryHistoryRow) {
+  return pickText(locale, row.description, {
+    en: row.descriptionEn,
+    zh: row.descriptionZh,
+  });
+}
+
 export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
+  const t = useT();
+  const locale = useLocale();
   const columns: Column<DeliveryHistoryRow>[] = [
     {
       id: "releasedAt",
-      header: "Handed over",
+      header: t("Handed over"),
       sortValue: (row) => new Date(row.releasedAt),
       cell: (row) => (
         <span className="text-sm tabular">{formatDateTime(row.releasedAt)}</span>
@@ -63,7 +83,7 @@ export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
     },
     {
       id: "trackingNumber",
-      header: "Cargo",
+      header: t("Cargo"),
       sortValue: (row) => row.trackingNumber,
       cell: (row) => (
         <div className="min-w-0">
@@ -74,14 +94,14 @@ export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
             {row.trackingNumber}
           </Link>
           <p className="max-w-[220px] truncate text-xs text-muted-foreground">
-            {row.description}
+            {cargoDescription(locale, row)}
           </p>
         </div>
       ),
     },
     {
       id: "customer",
-      header: "Customer",
+      header: t("Customer"),
       hideBelow: "lg",
       sortValue: (row) => row.customerName,
       cell: (row) => (
@@ -93,14 +113,14 @@ export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
             {row.customerName}
           </Link>
           <p className="truncate text-xs text-muted-foreground tabular">
-            {row.customerPhone ?? "No phone recorded"}
+            {row.customerPhone ?? t("No phone recorded")}
           </p>
         </div>
       ),
     },
     {
       id: "receiver",
-      header: "Collected by",
+      header: t("Collected by"),
       sortValue: (row) => row.receiverName,
       cell: (row) => (
         <div className="min-w-0">
@@ -110,7 +130,7 @@ export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
           </p>
           {row.relationship !== "SELF" ? (
             <Badge variant="warning" className="mt-1 text-[10px]">
-              {RELATIONSHIP_LABELS[row.relationship]}
+              {t(RELATIONSHIP_LABELS[row.relationship])}
             </Badge>
           ) : null}
         </div>
@@ -118,20 +138,20 @@ export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
     },
     {
       id: "releasedBy",
-      header: "Released by",
+      header: t("Released by"),
       hideBelow: "md",
       sortValue: (row) => row.releasedByName,
       cell: (row) => (
         <span className="text-sm">
           {row.releasedByName ?? (
-            <span className="text-muted-foreground">Account removed</span>
+            <span className="text-muted-foreground">{t("Account removed")}</span>
           )}
         </span>
       ),
     },
     {
       id: "proof",
-      header: "Proof",
+      header: t("Proof"),
       align: "center",
       sortValue: (row) => row.photos.length,
       cell: (row) =>
@@ -143,13 +163,13 @@ export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
         ) : (
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <CameraOff className="h-3.5 w-3.5" />
-            none
+            {t("none")}
           </span>
         ),
     },
     {
       id: "pickupNote",
-      header: "Pickup note",
+      header: t("Pickup note"),
       hideBelow: "xl",
       sortValue: (row) => row.pickupNoteNumber,
       cell: (row) => (
@@ -163,19 +183,19 @@ export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
   const filters: TableFilter<DeliveryHistoryRow>[] = [
     {
       id: "relationship",
-      label: "Collected by",
+      label: t("Collected by"),
       options: Object.entries(RELATIONSHIP_LABELS).map(([value, label]) => ({
         value,
-        label,
+        label: t(label),
       })),
       match: (row, value) => row.relationship === value,
     },
     {
       id: "proof",
-      label: "Handover photo",
+      label: t("Handover photo"),
       options: [
-        { value: "with", label: "Photo on file" },
-        { value: "without", label: "No photo" },
+        { value: "with", label: t("Photo on file") },
+        { value: "without", label: t("No photo") },
       ],
       match: (row, value) =>
         value === "with" ? row.photos.length > 0 : row.photos.length === 0,
@@ -198,11 +218,13 @@ export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
           row.pickupNoteNumber,
         ].join(" ")
       }
-      searchPlaceholder="Tracking number, customer, receiver or pickup note…"
+      searchPlaceholder={t(
+        "Tracking number, customer, receiver or pickup note…"
+      )}
       filters={filters}
       initialSort={{ columnId: "releasedAt", direction: "desc" }}
-      emptyTitle="No handovers match"
-      emptyDescription="Try a different search, or clear the filters."
+      emptyTitle={t("No handovers match")}
+      emptyDescription={t("Try a different search, or clear the filters.")}
       renderExpanded={(row) => <DeliveryDetail row={row} />}
       renderCard={(row) => (
         <div className="panel space-y-2 p-4">
@@ -219,10 +241,11 @@ export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
           </div>
           <p className="truncate text-sm">{row.customerName}</p>
           <p className="text-xs text-muted-foreground">
-            Collected by {row.receiverName} · {row.receiverPhone}
+            {t("Collected by")} {row.receiverName} · {row.receiverPhone}
           </p>
           <p className="text-xs text-muted-foreground">
-            Released by {row.releasedByName ?? "an account since removed"}
+            {t("Released by")}{" "}
+            {row.releasedByName ?? t("an account since removed")}
           </p>
           <DeliveryPhotos photos={row.photos} />
         </div>
@@ -232,47 +255,54 @@ export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
 }
 
 function DeliveryDetail({ row }: { row: DeliveryHistoryRow }) {
+  const t = useT();
+  const locale = useLocale();
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
       <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        <Field label="Cargo">
-          {row.description}
+        <Field label={t("Cargo")}>
+          {cargoDescription(locale, row)}
           <span className="mt-0.5 block text-xs text-muted-foreground tabular">
             {row.packagesLabel} · {formatWeight(row.weightKg)}
-            {row.batchNumber ? ` · batch ${row.batchNumber}` : ""}
+            {row.batchNumber ? ` · ${t("batch")} ${row.batchNumber}` : ""}
           </span>
         </Field>
-        <Field label="Pickup note">
+        <Field label={t("Pickup note")}>
           <span className="font-mono tabular">{row.pickupNoteNumber}</span>
           <span className="mt-0.5 block text-xs text-muted-foreground tabular">
-            Issued {formatDateTime(row.pickupNoteIssuedAt)}
+            {t("Issued")} {formatDateTime(row.pickupNoteIssuedAt)}
           </span>
         </Field>
-        <Field label="Collected by">
+        <Field label={t("Collected by")}>
           {row.receiverName}
           <span className="mt-0.5 block text-xs text-muted-foreground tabular">
-            {row.receiverPhone} · {RELATIONSHIP_LABELS[row.relationship]}
+            {row.receiverPhone} · {t(RELATIONSHIP_LABELS[row.relationship])}
           </span>
         </Field>
-        <Field label="ID recorded">
+        <Field label={t("ID recorded")}>
           {row.receiverIdNumber ? (
             <span className="font-mono tabular">{row.receiverIdNumber}</span>
           ) : (
             <span className="text-muted-foreground">
-              {row.relationship === "SELF" ? "Not required" : "None recorded"}
+              {row.relationship === "SELF"
+                ? t("Not required")
+                : t("None recorded")}
             </span>
           )}
         </Field>
-        <Field label="Released by">
+        <Field label={t("Released by")}>
           {row.releasedByName ?? (
-            <span className="text-muted-foreground">Account since removed</span>
+            <span className="text-muted-foreground">
+              {t("Account since removed")}
+            </span>
           )}
           <span className="mt-0.5 block text-xs text-muted-foreground tabular">
             {formatDateTime(row.releasedAt)}
           </span>
         </Field>
         {row.note ? (
-          <Field label="Counter note">
+          <Field label={t("Counter note")}>
             <span className="text-muted-foreground">{row.note}</span>
           </Field>
         ) : null}
@@ -280,7 +310,7 @@ function DeliveryDetail({ row }: { row: DeliveryHistoryRow }) {
 
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Handover photo
+          {t("Handover photo")}
         </p>
         <DeliveryPhotos photos={row.photos} />
       </div>
@@ -300,12 +330,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function DeliveryPhotos({ photos }: { photos: DeliveryHistoryRow["photos"] }) {
+  const t = useT();
+
   if (photos.length === 0) {
     return (
       <p className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-4 text-xs text-muted-foreground">
         <CameraOff className="h-4 w-4 shrink-0" />
-        No handover photo on record. Releases now require one; this predates that
-        rule.
+        {t(
+          "No handover photo on record. Releases now require one; this predates that rule."
+        )}
       </p>
     );
   }
@@ -325,7 +358,7 @@ function DeliveryPhotos({ photos }: { photos: DeliveryHistoryRow["photos"] }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={photo.url}
-              alt={photo.caption ?? "Cargo being handed over"}
+              alt={photo.caption ?? t("Cargo being handed over")}
               className="aspect-square w-full object-cover transition-transform group-hover:scale-[1.03]"
               loading="lazy"
             />

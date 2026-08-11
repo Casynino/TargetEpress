@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, CameraOff, Keyboard } from "lucide-react";
 
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -20,6 +21,7 @@ export function QrScanner({
   onResult: (value: string) => void;
   label?: string;
 }) {
+  const t = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
   const [active, setActive] = useState(false);
@@ -73,11 +75,11 @@ export function QrScanner({
         {!active ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-muted text-center">
             <Camera className="h-8 w-8 text-muted-foreground/60" />
-            <p className="px-6 text-sm text-muted-foreground">{label}</p>
+            <p className="px-6 text-sm text-muted-foreground">{t(label)}</p>
             {/* Tapped for every consignment, all day, on a phone held in one
               hand — 36px was too small for the control this screen turns on. */}
           <Button type="button" variant="brand" className="h-11" onClick={start}>
-              Start camera
+              {t("Start camera")}
             </Button>
           </div>
         ) : (
@@ -92,7 +94,7 @@ export function QrScanner({
               onClick={stop}
             >
               <CameraOff className="mr-1.5 h-4 w-4" />
-              Stop
+              {t("Stop")}
             </Button>
           </>
         )}
@@ -100,7 +102,7 @@ export function QrScanner({
 
       {error ? (
         <p className="rounded-md border border-warning/30 bg-warning/5 p-3 text-xs text-warning">
-          {error}
+          {t(error)}
         </p>
       ) : null}
 
@@ -110,7 +112,7 @@ export function QrScanner({
           className="flex items-center gap-1.5 text-xs text-muted-foreground"
         >
           <Keyboard className="h-3.5 w-3.5" />
-          Or type / paste the code
+          {t("Or type / paste the code")}
         </label>
         <div className="flex gap-2">
           <Input
@@ -131,7 +133,7 @@ export function QrScanner({
             variant="outline"
             onClick={() => manual.trim() && onResult(manual.trim())}
           >
-            Use
+            {t("Use")}
           </Button>
         </div>
       </div>

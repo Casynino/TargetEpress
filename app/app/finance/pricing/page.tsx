@@ -23,13 +23,17 @@ import { Badge } from "@/components/ui/badge";
 import { CATEGORY_LABELS } from "@/lib/cargo";
 import { formatDateTime, formatRelative, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Pricing & configuration" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Pricing & configuration") };
+}
 
 /**
  * Pricing & Configuration — the one place the business decides what it charges.
@@ -47,6 +51,7 @@ export const metadata: Metadata = { title: "Pricing & configuration" };
  */
 export default async function PricingConfigurationPage() {
   const user = await requirePermission("pricing.view");
+  const locale = await viewerLocale();
   const canManage = can(user.role, "pricing.manage");
   const canSetRate = can(user.role, "fx.manage");
 
@@ -155,47 +160,49 @@ export default async function PricingConfigurationPage() {
   const cards = [
     {
       icon: ArrowLeftRight,
-      label: "Exchange rate",
+      label: t(locale, "Exchange rate"),
       value: rate
         ? `1 USD = ${toNumber(rate.rate).toLocaleString()} TZS`
-        : "Not set",
+        : t(locale, "Not set"),
       sub: liveRate
-        ? `Set ${formatRelative(liveRate.effectiveFrom)}`
-        : "Every invoice needs one",
+        ? `${t(locale, "Set")} ${formatRelative(liveRate.effectiveFrom)}`
+        : t(locale, "Every invoice needs one"),
       tone: rate ? "text-brand" : "text-destructive",
     },
     {
       icon: Layers,
-      label: "Active categories",
+      label: t(locale, "Active categories"),
       value: String(activeCategories),
-      sub: `of ${Object.keys(CATEGORY_LABELS).length} priced`,
+      sub: `${t(locale, "of")} ${Object.keys(CATEGORY_LABELS).length} ${t(locale, "priced")}`,
       tone: "text-foreground",
     },
     {
       icon: Boxes,
-      label: "Products configured",
+      label: t(locale, "Products configured"),
       value: String(productRows.filter((p) => p.active).length),
       sub: unpriced.length
-        ? `${unpriced.length} with no price`
-        : "All priced",
+        ? `${unpriced.length} ${t(locale, "with no price")}`
+        : t(locale, "All priced"),
       tone: unpriced.length ? "text-warning" : "text-success",
     },
     {
       icon: Clock,
-      label: "Last price change",
+      label: t(locale, "Last price change"),
       value: lastPriceChange
         ? formatRelative(lastPriceChange.effectiveFrom)
-        : "Never",
+        : t(locale, "Never"),
       sub: lastPriceChange
         ? formatDateTime(lastPriceChange.effectiveFrom)
-        : "No rule published yet",
+        : t(locale, "No rule published yet"),
       tone: "text-foreground",
     },
     {
       icon: UserCog,
-      label: "Rate last set by",
+      label: t(locale, "Rate last set by"),
       value: liveRate?.setBy?.name ?? "—",
-      sub: liveRate ? formatDateTime(liveRate.effectiveFrom) : "No rate on record",
+      sub: liveRate
+        ? formatDateTime(liveRate.effectiveFrom)
+        : t(locale, "No rate on record"),
       tone: "text-foreground",
     },
   ];
@@ -211,8 +218,10 @@ export default async function PricingConfigurationPage() {
 
       {!canManage ? (
         <p className="mb-6 rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          You can read the rate book and the exchange rate here. Changing them is
-          Finance&rsquo;s, so nothing on this page is editable for you.
+          {t(
+            locale,
+            "You can read the rate book and the exchange rate here. Changing them is Finance’s, so nothing on this page is editable for you."
+          )}
         </p>
       ) : null}
 
@@ -236,13 +245,15 @@ export default async function PricingConfigurationPage() {
           <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
           <div className="min-w-0">
             <p className="font-medium">
-              {unpriced.length} product{unpriced.length === 1 ? "" : "s"} cannot be
-              quoted
+              {unpriced.length}{" "}
+              {t(locale, unpriced.length === 1 ? "product" : "products")}{" "}
+              {t(locale, "cannot be quoted")}
             </p>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Cargo registered against these reaches Finance with no price.
-              Give it a price, or archive it if the business does not carry it —
-              either clears this.
+              {t(
+                locale,
+                "Cargo registered against these reaches Finance with no price. Give it a price, or archive it if the business does not carry it — either clears this."
+              )}
             </p>
             {/* Each one is the fix, not a label of the problem: it opens the
                 publish form with that product already chosen. */}
@@ -254,7 +265,7 @@ export default async function PricingConfigurationPage() {
                   scroll={false}
                   className="focus-ring rounded-full border border-warning/40 px-3 py-1 text-xs font-medium transition-colors hover:bg-warning/10"
                 >
-                  Set a price for {product.name} →
+                  {t(locale, "Set a price for")} {product.name} →
                 </Link>
               ))}
             </div>
@@ -273,10 +284,12 @@ export default async function PricingConfigurationPage() {
               and the one most likely to be changed on any given morning. */}
           <section className="rounded-xl border bg-card shadow-soft">
             <div className="border-b px-5 py-4">
-              <h2 className="font-semibold">Exchange rate</h2>
+              <h2 className="font-semibold">{t(locale, "Exchange rate")}</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Applied to every invoice raised from now on. Invoices already
-                issued keep the rate they were raised at.
+                {t(
+                  locale,
+                  "Applied to every invoice raised from now on. Invoices already issued keep the rate they were raised at."
+                )}
               </p>
             </div>
             <div className="p-5">
@@ -286,7 +299,7 @@ export default async function PricingConfigurationPage() {
                 <p className="font-display text-2xl font-bold tabular-nums">
                   {rate
                     ? `1 USD = ${toNumber(rate.rate).toLocaleString()} TZS`
-                    : "Not set"}
+                    : t(locale, "Not set")}
                 </p>
               )}
             </div>
@@ -294,7 +307,7 @@ export default async function PricingConfigurationPage() {
             {rateHistory.length > 1 ? (
               <div className="border-t">
                 <p className="px-5 pt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Previous rates
+                  {t(locale, "Previous rates")}
                 </p>
                 <ul className="divide-y px-5 pb-4 pt-2">
                   {rateHistory.slice(1).map((entry) => (
@@ -323,11 +336,11 @@ export default async function PricingConfigurationPage() {
           <section className="rounded-xl border bg-card shadow-soft">
             <h2 className="flex items-center gap-2 border-b px-5 py-4 font-semibold">
               <History className="h-4 w-4 text-muted-foreground" />
-              Configuration history
+              {t(locale, "Configuration history")}
             </h2>
             {lastChanges.length === 0 ? (
               <p className="p-5 text-sm text-muted-foreground">
-                Nothing has been changed yet.
+                {t(locale, "Nothing has been changed yet.")}
               </p>
             ) : (
               <ul className="divide-y">
@@ -335,7 +348,7 @@ export default async function PricingConfigurationPage() {
                   <li key={entry.id} className="px-5 py-3">
                     <p className="text-sm">{entry.summary}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {entry.actor?.name ?? "System"} ·{" "}
+                      {entry.actor?.name ?? t(locale, "System")} ·{" "}
                       {formatRelative(entry.createdAt)}
                     </p>
                   </li>

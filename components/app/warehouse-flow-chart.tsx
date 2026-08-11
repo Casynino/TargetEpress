@@ -1,4 +1,6 @@
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { viewerLocale } from "@/lib/viewer";
 
 export type FlowWeek = { label: string; received: number; released: number };
 
@@ -13,7 +15,7 @@ export type FlowWeek = { label: string; received: number; released: number };
  * Server component — the bars are CSS, the readout is a `title` and a hover
  * label, so a full quarter of history ships no JavaScript.
  */
-export function WarehouseFlowChart({
+export async function WarehouseFlowChart({
   weeks,
   height = 180,
   className,
@@ -22,6 +24,7 @@ export function WarehouseFlowChart({
   height?: number;
   className?: string;
 }) {
+  const locale = await viewerLocale();
   const max = Math.max(...weeks.flatMap((w) => [w.received, w.released]), 1);
   const lastIndex = weeks.length - 1;
 
@@ -33,14 +36,14 @@ export function WarehouseFlowChart({
             className="h-2.5 w-2.5 rounded-[3px]"
             style={{ background: "hsl(var(--chart-1))" }}
           />
-          Checked in
+          {t(locale, "Checked in")}
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span
             className="h-2.5 w-2.5 rounded-[3px]"
             style={{ background: "hsl(var(--chart-5))" }}
           />
-          Released
+          {t(locale, "Released")}
         </span>
       </div>
 
@@ -51,7 +54,7 @@ export function WarehouseFlowChart({
         aria-label={weeks
           .map(
             (w) =>
-              `week of ${w.label}: ${w.received} checked in, ${w.released} released`
+              `${t(locale, "week of")} ${w.label}: ${w.received} ${t(locale, "checked in")}, ${w.released} ${t(locale, "released")}`
           )
           .join("; ")}
       >
@@ -59,7 +62,7 @@ export function WarehouseFlowChart({
           <div
             key={week.label}
             className="group flex h-full flex-1 flex-col justify-end"
-            title={`Week of ${week.label} — ${week.received} checked in, ${week.released} released`}
+            title={`${t(locale, "Week of")} ${week.label} — ${week.received} ${t(locale, "checked in")}, ${week.released} ${t(locale, "released")}`}
           >
             <span className="pointer-events-none mb-1 text-center font-mono text-[10px] tabular text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
               {week.received}/{week.released}

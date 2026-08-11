@@ -8,10 +8,14 @@ import { SourcingWorkflow } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Sourcing request" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Sourcing request") };
+}
 
 const TYPE_LABEL: Record<string, string> = {
   FIND_SUPPLIER: "Find a supplier",
@@ -28,6 +32,7 @@ export default async function SourcingRequestPage({
 }) {
   await requirePermission("sourcing.manage");
   const { id } = await params;
+  const locale = await viewerLocale();
 
   const request = await prisma.sourcingRequest.findUnique({
     where: { id },
@@ -47,19 +52,22 @@ export default async function SourcingRequestPage({
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        All requests
+        {t(locale, "All requests")}
       </Link>
 
       <PageHeader
         title={request.product}
-        description={`${request.requestNumber} · ${
+        description={`${request.requestNumber} · ${t(
+          locale,
           TYPE_LABEL[request.type] ?? request.type
-        } · opened ${formatDateTime(request.createdAt)}`}
+        )} · ${t(locale, "opened")} ${formatDateTime(request.createdAt)}`}
         actions={
           <>
-            <Badge variant="outline">{request.priority.toLowerCase()}</Badge>
             <Badge variant="outline">
-              {request.status.replace(/_/g, " ").toLowerCase()}
+              {t(locale, request.priority.toLowerCase())}
+            </Badge>
+            <Badge variant="outline">
+              {t(locale, request.status.replace(/_/g, " ").toLowerCase())}
             </Badge>
           </>
         }
@@ -69,26 +77,34 @@ export default async function SourcingRequestPage({
         <div className="space-y-6">
           <section className="rounded-xl border bg-card p-5 shadow-soft">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              What they asked for
+              {t(locale, "What they asked for")}
             </h2>
             <p className="mt-3 whitespace-pre-wrap text-sm">{request.description}</p>
             <dl className="mt-4 grid gap-4 border-t pt-4 sm:grid-cols-3">
               <div>
-                <dt className="text-xs text-muted-foreground">Category</dt>
+                <dt className="text-xs text-muted-foreground">
+                  {t(locale, "Category")}
+                </dt>
                 <dd className="mt-0.5 text-sm font-medium">
-                  {request.category ?? "Not given"}
+                  {request.category ?? t(locale, "Not given")}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Budget</dt>
+                <dt className="text-xs text-muted-foreground">
+                  {t(locale, "Budget")}
+                </dt>
                 <dd className="mt-0.5 text-sm font-medium">
-                  {request.budgetUsd ? formatUsd(toNumber(request.budgetUsd)) : "Open"}
+                  {request.budgetUsd
+                    ? formatUsd(toNumber(request.budgetUsd))
+                    : t(locale, "Open")}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Handled by</dt>
+                <dt className="text-xs text-muted-foreground">
+                  {t(locale, "Handled by")}
+                </dt>
                 <dd className="mt-0.5 text-sm font-medium">
-                  {request.assignedTo?.name ?? "Unassigned"}
+                  {request.assignedTo?.name ?? t(locale, "Unassigned")}
                 </dd>
               </div>
             </dl>
@@ -97,7 +113,7 @@ export default async function SourcingRequestPage({
           {request.findings ? (
             <section className="rounded-xl border border-success/30 bg-success/5 p-5">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-success">
-                What we found
+                {t(locale, "What we found")}
               </h2>
               <p className="mt-2 whitespace-pre-wrap text-sm">{request.findings}</p>
             </section>
@@ -106,7 +122,7 @@ export default async function SourcingRequestPage({
 
         <div className="space-y-6">
           <section className="rounded-xl border bg-card p-5 shadow-soft">
-            <h2 className="mb-3 font-semibold">Customer</h2>
+            <h2 className="mb-3 font-semibold">{t(locale, "Customer")}</h2>
             {request.customer ? (
               <Link
                 href={`/app/customers/${request.customer.id}`}
@@ -123,22 +139,24 @@ export default async function SourcingRequestPage({
               </Link>
             ) : (
               <div className="rounded-lg border p-3 text-sm">
-                <p className="font-medium">{request.contactName ?? "Unknown"}</p>
+                <p className="font-medium">
+                  {request.contactName ?? t(locale, "Unknown")}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  {request.contactPhone ?? "No number taken"}
+                  {request.contactPhone ?? t(locale, "No number taken")}
                 </p>
               </div>
             )}
             <p className="mt-3 text-xs text-muted-foreground">
               <Link href="/app/support/markets" className="text-brand hover:underline">
-                Browse the China markets directory
+                {t(locale, "Browse the China markets directory")}
               </Link>{" "}
-              to point them at the right place.
+              {t(locale, "to point them at the right place.")}
             </p>
           </section>
 
           <section className="rounded-xl border bg-card p-5 shadow-soft">
-            <h2 className="mb-4 font-semibold">Move it forward</h2>
+            <h2 className="mb-4 font-semibold">{t(locale, "Move it forward")}</h2>
             <SourcingWorkflow
               request={{
                 id: request.id,

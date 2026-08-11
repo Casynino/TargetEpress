@@ -21,9 +21,11 @@ import { cargoLabel } from "@/lib/cargo";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
-import { viewerLocale } from "@/lib/viewer";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Batch manifest" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Batch manifest") };
+}
 
 /** What each batch carries, stated once at the top of the document. */
 const CATEGORY_FOR_ROUTE: Record<string, string> = {
@@ -99,8 +101,11 @@ export default async function ManifestPage({
     <div className="mx-auto max-w-4xl">
       <div className="no-print">
         <PageHeader
-          title="Batch manifest"
-          description="Print this and check the cargo against it, line by line."
+          title={t(locale, "Batch manifest")}
+          description={t(
+            locale,
+            "Print this and check the cargo against it, line by line."
+          )}
           actions={
             <>
               <Button asChild variant="ghost" size="sm">
@@ -124,9 +129,12 @@ export default async function ManifestPage({
                 {batch.batchNumber}
               </p>
               <p>
-                {ORIGIN_LABELS[batch.origin]} — {t(locale, "Dar es Salaam")}
+                {t(locale, ORIGIN_LABELS[batch.origin])} —{" "}
+                {t(locale, "Dar es Salaam")}
               </p>
-              <p>Printed {formatDateTime(new Date())}</p>
+              <p>
+                {t(locale, "Printed")} {formatDateTime(new Date())}
+              </p>
             </>
           }
         />
@@ -134,7 +142,7 @@ export default async function ManifestPage({
         <dl className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
             { label: "Batch number", value: batch.batchNumber },
-            { label: "Origin", value: ORIGIN_LABELS[batch.origin] },
+            { label: "Origin", value: t(locale, ORIGIN_LABELS[batch.origin]) },
             {
               label: "Airline / flight",
               value: batch.airline
@@ -210,7 +218,12 @@ export default async function ManifestPage({
                   {shipment.customer.phone ?? "—"}
                 </td>
                 <td className="py-2 pr-2">
-                  {cargoLabel(shipment.cargoType?.name, shipment.description)}
+                  {cargoLabel(
+                    shipment.cargoType
+                      ? t(locale, shipment.cargoType.name)
+                      : null,
+                    cargoText(locale, shipment, "description")
+                  )}
                 </td>
                 <td className="py-2 pr-2 text-right tabular">
                   {(() => {
@@ -239,7 +252,9 @@ export default async function ManifestPage({
                   {shipment.exceptions.length > 0 ? (
                     <span className="font-semibold">
                       {shipment.exceptions
-                        .map((e) => EXCEPTION_TYPE_LABELS[e.type] ?? e.type)
+                        .map((e) =>
+                          t(locale, EXCEPTION_TYPE_LABELS[e.type] ?? e.type)
+                        )
                         .join(", ")}
                     </span>
                   ) : (

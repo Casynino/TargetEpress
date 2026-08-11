@@ -2,7 +2,9 @@ import Image from "next/image";
 
 import { BrandMark } from "@/components/brand-mark";
 import { COMPANY } from "@/lib/constants";
+import { t } from "@/lib/i18n";
 import { SLIP_MM } from "@/lib/print";
+import { viewerLocale } from "@/lib/viewer";
 
 export type PickupSlipData = {
   /** The pickup code the customer quotes and the counter scans: PN-2026-000123. */
@@ -44,7 +46,8 @@ const OFFICE = COMPANY.offices[0];
  * lines: the release is captured on a phone with a photograph now, so a
  * signature on paper recorded nothing the system did not already hold better.
  */
-export function PickupSlip({ data }: { data: PickupSlipData }) {
+export async function PickupSlip({ data }: { data: PickupSlipData }) {
+  const locale = await viewerLocale();
   const spent = data.status !== "ACTIVE";
 
   return (
@@ -74,7 +77,7 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
               className="font-semibold uppercase text-black/60"
               style={{ fontSize: "6pt", letterSpacing: "0.18em", marginTop: "0.8mm" }}
             >
-              Pickup note
+              {t(locale, "Pickup note")}
             </p>
           </div>
         </div>
@@ -92,7 +95,7 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
             className="font-semibold uppercase text-black/55"
             style={{ fontSize: "6pt", letterSpacing: "0.14em" }}
           >
-            Issued
+            {t(locale, "Issued")}
           </p>
           <p className="font-mono font-bold tabular" style={{ fontSize: "9.5pt", marginTop: "1mm" }}>
             {data.issuedOn}
@@ -106,7 +109,9 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
                 color: data.status === "USED" ? "#117447" : "#D81E2A",
               }}
             >
-              {data.status === "USED" ? "Collected" : "Cancelled"}
+              {data.status === "USED"
+                ? t(locale, "Collected")
+                : t(locale, "Cancelled")}
             </p>
           ) : null}
         </div>
@@ -132,7 +137,7 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
         */}
         <Image
           src={data.qr}
-          alt={`Pickup QR for ${data.trackingNumber}`}
+          alt={`${t(locale, "Pickup QR for")} ${data.trackingNumber}`}
           width={640}
           height={640}
           style={{
@@ -148,7 +153,7 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
       {/* The two numbers a person is asked for at the counter. */}
       <div className="flex shrink-0 items-end justify-between" style={{ gap: "3mm" }}>
         <div className="min-w-0">
-          <FieldLabel>Tracking number</FieldLabel>
+          <FieldLabel>{t(locale, "Tracking number")}</FieldLabel>
           <p
             className="font-mono font-bold leading-none tabular"
             style={{ fontSize: "15pt", marginTop: "0.8mm" }}
@@ -157,7 +162,7 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
           </p>
         </div>
         <div className="min-w-0 text-right">
-          <FieldLabel>Pickup code</FieldLabel>
+          <FieldLabel>{t(locale, "Pickup code")}</FieldLabel>
           <p
             className="font-mono font-bold leading-none tabular"
             style={{ fontSize: "10pt", marginTop: "0.8mm" }}
@@ -175,12 +180,12 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
           {data.customerName}
         </p>
         <p className="shrink-0 font-mono tabular text-black/70" style={{ fontSize: "8pt" }}>
-          {data.customerPhone ?? "No phone"}
+          {data.customerPhone ?? t(locale, "No phone")}
         </p>
       </div>
 
       <div className="shrink-0" style={{ marginTop: "1.8mm" }}>
-        <FieldLabel>Cargo</FieldLabel>
+        <FieldLabel>{t(locale, "Cargo")}</FieldLabel>
         <p
           className="leading-snug"
           style={{
@@ -201,9 +206,9 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
         style={{ gap: "2mm", marginTop: "1.8mm", paddingTop: "1.6mm", paddingBottom: "1.6mm" }}
       >
         {[
-          { label: "Weight", value: data.weightLabel },
-          { label: "Quantity", value: data.packagesLabel },
-          { label: "Invoice", value: data.invoiceNumber ?? "—" },
+          { label: t(locale, "Weight"), value: data.weightLabel },
+          { label: t(locale, "Quantity"), value: data.packagesLabel },
+          { label: t(locale, "Invoice"), value: data.invoiceNumber ?? "—" },
         ].map((item) => (
           <div key={item.label} className="min-w-0">
             <dt
@@ -247,7 +252,7 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
 
       {/* Where to come. The one office, in the owner's own wording. */}
       <div className="shrink-0" style={{ marginTop: "1.8mm" }}>
-        <FieldLabel>Collect from</FieldLabel>
+        <FieldLabel>{t(locale, "Collect from")}</FieldLabel>
         {OFFICE.lines.map((line) => (
           <p key={line} className="leading-snug" style={{ fontSize: "7.5pt" }}>
             {line}
@@ -260,7 +265,7 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
         style={{ paddingTop: "2mm", marginTop: "1.8mm" }}
       >
         <p className="leading-snug text-black/70" style={{ fontSize: "6.8pt" }}>
-          Valid once. Anyone collecting for you brings their own ID.
+          {t(locale, "Valid once. Anyone collecting for you brings their own ID.")}
         </p>
         <p
           className="font-mono tabular text-black/80"

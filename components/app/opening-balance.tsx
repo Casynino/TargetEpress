@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Check, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
@@ -30,6 +31,7 @@ export function OpeningBalanceForm({
   accounts: { id: string; name: string; currency: string }[];
 }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
   const [state, action] = useActionState<ActionResult, FormData>(
     setOpeningBalance,
@@ -48,7 +50,7 @@ export function OpeningBalanceForm({
         onClick={() => setOpen(true)}
         className="focus-ring mt-2 rounded-lg border border-warning/40 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-warning/10"
       >
-        Set the opening balances →
+        {t("Set the opening balances →")}
       </button>
     );
   }
@@ -57,7 +59,7 @@ export function OpeningBalanceForm({
     <form action={action} className="mt-3 flex flex-wrap items-end gap-3">
       <div className="space-y-1">
         <Label htmlFor="openingAccount" className="text-[11px]">
-          Account
+          {t("Account")}
         </Label>
         <NativeSelect
           id="openingAccount"
@@ -76,7 +78,7 @@ export function OpeningBalanceForm({
 
       <div className="space-y-1">
         <Label htmlFor="openingAmount" className="text-[11px]">
-          What was in it {symbol ? `(${symbol})` : ""}
+          {t("What was in it")} {symbol ? `(${symbol})` : ""}
         </Label>
         <MoneyInput
           id="openingAmount"
@@ -88,7 +90,8 @@ export function OpeningBalanceForm({
 
       <div className="space-y-1">
         <Label htmlFor="openingAsOf" className="text-[11px]">
-          As at <span className="text-muted-foreground">(blank = today)</span>
+          {t("As at")}{" "}
+          <span className="text-muted-foreground">{t("(blank = today)")}</span>
         </Label>
         <Input
           id="openingAsOf"
@@ -99,15 +102,15 @@ export function OpeningBalanceForm({
         />
       </div>
 
-      <SubmitButton variant="brand" size="sm" pendingLabel="Saving…">
+      <SubmitButton variant="brand" size="sm" pendingLabel={t("Saving…")}>
         <Check className="mr-1.5 h-3.5 w-3.5" />
-        Set it
+        {t("Set it")}
       </SubmitButton>
       <button
         type="button"
         onClick={() => setOpen(false)}
         className="focus-ring rounded-md p-1.5 text-muted-foreground hover:text-foreground"
-        aria-label="Cancel"
+        aria-label={t("Cancel")}
       >
         <X className="h-4 w-4" />
       </button>
@@ -115,9 +118,9 @@ export function OpeningBalanceForm({
       <div className="w-full">
         <FormError state={state} />
         <p className="mt-1 text-[11px] text-muted-foreground">
-          Recorded as the first movement on the account, not as a stored total —
-          so the balance still comes from adding up the ledger, and this figure
-          is visible in the register like any other.
+          {t(
+            "Recorded as the first movement on the account, not as a stored total — so the balance still comes from adding up the ledger, and this figure is visible in the register like any other."
+          )}
         </p>
       </div>
     </form>

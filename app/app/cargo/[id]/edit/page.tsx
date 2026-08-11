@@ -16,7 +16,9 @@ import { requirePermission } from "@/lib/session";
 import { storageIsDurable } from "@/lib/storage";
 import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Edit cargo" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Edit cargo") };
+}
 
 /**
  * Fixing a record.
@@ -78,8 +80,11 @@ export default async function EditCargoPage({
   return (
     <>
       <PageHeader
-        title={`Edit ${cargo.trackingNumber}`}
-        description="Correct what was recorded. Every change is kept on the record."
+        title={`${t(locale, "Edit")} ${cargo.trackingNumber}`}
+        description={t(
+          locale,
+          "Correct what was recorded. Every change is kept on the record."
+        )}
         actions={
           <Button asChild variant="ghost" size="sm">
             <Link href={`/app/cargo/${cargo.trackingNumber}`}>

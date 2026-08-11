@@ -18,15 +18,20 @@ import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { activeAccounts } from "@/lib/accounts";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Payments from customers" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Payments from customers") };
+}
 
 export default async function PaymentsPage() {
   const user = await requirePermission("payment.record");
+  const locale = await viewerLocale();
 
   const monthStart = new Date();
   monthStart.setDate(1);
@@ -102,7 +107,7 @@ export default async function PaymentsPage() {
     <>
       <PageHeader
         title="Payments from customers"
-        description="Money in from customers only, with the receipt issued for it. Costs, transfers and anything leaving an account are on Money in &amp; out."
+        description="Money in from customers only, with the receipt issued for it. Costs, transfers and anything leaving an account are on Money in & out."
       />
 
       <FinanceNav tabs={financeTabs(user.role)} />
@@ -114,14 +119,14 @@ export default async function PaymentsPage() {
           rate={rate}
           icon={Banknote}
           tone="good"
-          count={`${monthAgg._count} payment${monthAgg._count === 1 ? "" : "s"}`}
+          count={`${monthAgg._count} ${t(locale, monthAgg._count === 1 ? "payment" : "payments")}`}
         />
         <MoneyTile
           label="Collected all time"
           usd={toNumber(allTime._sum.creditedAmount)}
           rate={rate}
           icon={HandCoins}
-          count={`${allTime._count} payment${allTime._count === 1 ? "" : "s"}`}
+          count={`${allTime._count} ${t(locale, allTime._count === 1 ? "payment" : "payments")}`}
         />
         <MoneyTile
           label="No account named"
@@ -131,7 +136,7 @@ export default async function PaymentsPage() {
           tone={unattributed._count > 0 ? "warn" : "good"}
           count={
             unattributed._count > 0
-              ? `${unattributed._count} payment${unattributed._count === 1 ? "" : "s"}`
+              ? `${unattributed._count} ${t(locale, unattributed._count === 1 ? "payment" : "payments")}`
               : undefined
           }
           hint={
@@ -150,12 +155,12 @@ export default async function PaymentsPage() {
           tone="brand"
           count={
             tenderedTotal > 0
-              ? `${inShillings?._count ?? 0} of ${tenderedTotal} payment${tenderedTotal === 1 ? "" : "s"}`
+              ? `${inShillings?._count ?? 0} ${t(locale, "of")} ${tenderedTotal} ${t(locale, tenderedTotal === 1 ? "payment" : "payments")}`
               : undefined
           }
           hint={
             byMethod[0]
-              ? `Mostly by ${PAYMENT_METHOD_LABELS[byMethod[0].method].toLowerCase()}`
+              ? `${t(locale, "Mostly by")} ${t(locale, PAYMENT_METHOD_LABELS[byMethod[0].method]).toLowerCase()}`
               : "The rest came in dollars"
           }
         />
@@ -165,13 +170,15 @@ export default async function PaymentsPage() {
           methods in use a card apiece left a ragged half-empty row. */}
       {byMethod.length > 1 ? (
         <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-muted-foreground">Also paid by</span>
+          <span className="text-muted-foreground">
+            {t(locale, "Also paid by")}
+          </span>
           {byMethod.slice(1).map((row) => (
             <span
               key={row.method}
               className="rounded-full border bg-card px-2.5 py-1 font-medium"
             >
-              {PAYMENT_METHOD_LABELS[row.method]}
+              {t(locale, PAYMENT_METHOD_LABELS[row.method])}
               <span className="ml-1.5 font-mono text-muted-foreground">
                 {formatMoney(
                   rate ? toNumber(row._sum.creditedAmount) * rate : toNumber(row._sum.creditedAmount),
@@ -186,8 +193,11 @@ export default async function PaymentsPage() {
       <div className="mt-6">
         {payments.length === 0 ? (
           <EmptyState
-            title="No payments yet"
-            description="Payments are recorded from a shipment's page once an invoice exists."
+            title={t(locale, "No payments yet")}
+            description={t(
+              locale,
+              "Payments are recorded from a shipment's page once an invoice exists."
+            )}
           />
         ) : (
           <>
@@ -222,7 +232,8 @@ export default async function PaymentsPage() {
                     {payment.creditedAmount !== null &&
                     payment.currency !== payment.invoice.currency ? (
                       <p className="text-[11px] text-muted-foreground">
-                        settled {formatUsd(toNumber(payment.creditedAmount))}
+                        {t(locale, "settled")}{" "}
+                        {formatUsd(toNumber(payment.creditedAmount))}
                       </p>
                     ) : null}
                   </div>
@@ -231,10 +242,10 @@ export default async function PaymentsPage() {
                 <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t pt-3 text-xs">
                   <div>
                     <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Method
+                      {t(locale, "Method")}
                     </dt>
                     <dd className="mt-0.5">
-                      {PAYMENT_METHOD_LABELS[payment.method]}
+                      {t(locale, PAYMENT_METHOD_LABELS[payment.method])}
                       {payment.reference ? (
                         <span className="block text-[11px] text-muted-foreground">
                           {payment.reference}
@@ -244,13 +255,13 @@ export default async function PaymentsPage() {
                   </div>
                   <div>
                     <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Received by
+                      {t(locale, "Received by")}
                     </dt>
                     <dd className="mt-0.5">{payment.receivedBy?.name ?? "—"}</dd>
                   </div>
                   <div>
                     <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      When
+                      {t(locale, "When")}
                     </dt>
                     <dd className="mt-0.5 text-muted-foreground">
                       {formatDateTime(payment.paidAt)}
@@ -258,14 +269,14 @@ export default async function PaymentsPage() {
                   </div>
                   <div>
                     <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Receipt
+                      {t(locale, "Receipt")}
                     </dt>
                     <dd className="mt-0.5">
                       <Link
                         href={`/app/finance/payments/${payment.id}`}
                         className="font-mono tabular hover:text-brand"
                       >
-                        {payment.receipt?.receiptNumber ?? "Open"}
+                        {payment.receipt?.receiptNumber ?? t(locale, "Open")}
                       </Link>
                     </dd>
                   </div>
@@ -274,7 +285,7 @@ export default async function PaymentsPage() {
                 {/* Attribution is an action, not a field — it gets the width. */}
                 <div className="mt-3 border-t pt-3">
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    Landed in
+                    {t(locale, "Landed in")}
                   </p>
                   <div className="mt-1">
                     {payment.account ? (
@@ -296,14 +307,26 @@ export default async function PaymentsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Receipt</TableHead>
-                  <TableHead>Shipment</TableHead>
-                  <TableHead className="hidden md:table-cell">Customer</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="hidden sm:table-cell">Method</TableHead>
-                  <TableHead className="hidden md:table-cell">Landed in</TableHead>
-                  <TableHead className="hidden lg:table-cell">Received by</TableHead>
-                  <TableHead className="hidden lg:table-cell">When</TableHead>
+                  <TableHead>{t(locale, "Receipt")}</TableHead>
+                  <TableHead>{t(locale, "Shipment")}</TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    {t(locale, "Customer")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t(locale, "Amount")}
+                  </TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    {t(locale, "Method")}
+                  </TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    {t(locale, "Landed in")}
+                  </TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    {t(locale, "Received by")}
+                  </TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    {t(locale, "When")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -314,7 +337,7 @@ export default async function PaymentsPage() {
                         href={`/app/finance/payments/${payment.id}`}
                         className="hover:text-brand"
                       >
-                        {payment.receipt?.receiptNumber ?? "Open"}
+                        {payment.receipt?.receiptNumber ?? t(locale, "Open")}
                       </Link>
                     </TableCell>
                     <TableCell>
@@ -337,12 +360,13 @@ export default async function PaymentsPage() {
                       {payment.creditedAmount !== null &&
                       payment.currency !== payment.invoice.currency ? (
                         <span className="block text-xs font-normal text-muted-foreground">
-                          settled {formatUsd(toNumber(payment.creditedAmount))}
+                          {t(locale, "settled")}{" "}
+                          {formatUsd(toNumber(payment.creditedAmount))}
                         </span>
                       ) : null}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-sm">
-                      {PAYMENT_METHOD_LABELS[payment.method]}
+                      {t(locale, PAYMENT_METHOD_LABELS[payment.method])}
                       {payment.reference ? (
                         <span className="block text-xs text-muted-foreground">
                           {payment.reference}

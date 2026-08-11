@@ -8,6 +8,7 @@ import {
   FormSuccess,
   SubmitButton,
 } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +44,7 @@ function accountLabel(account: TreasuryAccount) {
  * both sides of the books at once.
  */
 export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
+  const t = useT();
   const [state, action] = useActionState<
     ActionResult<{ transferNumber: string }>,
     FormData
@@ -61,11 +63,12 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
       <div className="border-b px-5 py-4">
         <h2 className="flex items-center gap-2 font-semibold">
           <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
-          Move money between accounts
+          {t("Move money between accounts")}
         </h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Banking the day&rsquo;s cash, topping up the tin, converting dollars.
-          Neither income nor a cost — just money changing shelves.
+          {t(
+            "Banking the day’s cash, topping up the tin, converting dollars. Neither income nor a cost — just money changing shelves."
+          )}
         </p>
       </div>
 
@@ -73,7 +76,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="fromAccountId" className="text-xs">
-              Out of
+              {t("Out of")}
             </Label>
             <NativeSelect
               id="fromAccountId"
@@ -91,7 +94,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="toAccountId" className="text-xs">
-              Into
+              {t("Into")}
             </Label>
             <NativeSelect
               id="toAccountId"
@@ -112,7 +115,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="amountOut" className="text-xs">
-              Amount leaving{" "}
+              {t("Amount leaving")}{" "}
               {fromAccount ? (
                 <span className="text-muted-foreground">
                   ({fromAccount.currency === "TZS" ? "TSh" : fromAccount.currency})
@@ -123,8 +126,8 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="fee" className="text-xs">
-              Bank charge{" "}
-              <span className="text-muted-foreground">(optional)</span>
+              {t("Bank charge")}{" "}
+              <span className="text-muted-foreground">{t("(optional)")}</span>
             </Label>
             <MoneyInput id="fee" name="fee" placeholder="0" />
           </div>
@@ -134,17 +137,17 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="transferRate" className="text-xs">
-                Rate used
+                {t("Rate used")}
               </Label>
               <MoneyInput
                 id="transferRate"
                 name="exchangeRate"
-                placeholder="e.g. 2700"
+                placeholder={t("e.g. 2700")}
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="amountIn" className="text-xs">
-                Amount that arrived{" "}
+                {t("Amount that arrived")}{" "}
                 {toAccount ? (
                   <span className="text-muted-foreground">
                     ({toAccount.currency})
@@ -154,16 +157,16 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
               <MoneyInput
                 id="amountIn"
                 name="amountIn"
-                placeholder="from the statement"
+                placeholder={t("from the statement")}
               />
             </div>
           </div>
         ) : (
           <div className="space-y-1.5">
             <Label htmlFor="amountIn" className="text-xs">
-              Amount that arrived{" "}
+              {t("Amount that arrived")}{" "}
               <span className="text-muted-foreground">
-                (blank = the amount above, less the charge)
+                {t("(blank = the amount above, less the charge)")}
               </span>
             </Label>
             <MoneyInput id="amountIn" name="amountIn" />
@@ -173,17 +176,21 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="transferReason" className="text-xs">
-              What for <span className="text-muted-foreground">(optional)</span>
+              {t("What for")}{" "}
+              <span className="text-muted-foreground">{t("(optional)")}</span>
             </Label>
             <Input
               id="transferReason"
               name="reason"
-              placeholder="Banked Friday's takings"
+              placeholder={t("Banked Friday's takings")}
             />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="transferDate" className="text-xs">
-              Date <span className="text-muted-foreground">(blank for today)</span>
+              {t("Date")}{" "}
+              <span className="text-muted-foreground">
+                {t("(blank for today)")}
+              </span>
             </Label>
             <Input
               id="transferDate"
@@ -197,11 +204,13 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
         <FormError state={state} />
         <FormSuccess
           message={
-            state.ok && state.data ? `Recorded ${state.data.transferNumber}` : null
+            state.ok && state.data
+              ? `${t("Recorded")} ${state.data.transferNumber}`
+              : null
           }
         />
         <SubmitButton size="sm" pendingLabel="Moving…">
-          Record the move
+          {t("Record the move")}
         </SubmitButton>
       </form>
     </section>
@@ -223,6 +232,7 @@ export function CashCountPanel({
   accounts: TreasuryAccount[];
   expected: Record<string, number>;
 }) {
+  const t = useT();
   const [state, action] = useActionState<
     ActionResult<{ variance: number }>,
     FormData
@@ -247,10 +257,12 @@ export function CashCountPanel({
       <div className="border-b px-5 py-4">
         <h2 className="flex items-center gap-2 font-semibold">
           <Calculator className="h-4 w-4 text-muted-foreground" />
-          Count the cash
+          {t("Count the cash")}
         </h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          What is physically in the tin, against what the ledger says should be.
+          {t(
+            "What is physically in the tin, against what the ledger says should be."
+          )}
         </p>
       </div>
 
@@ -258,7 +270,7 @@ export function CashCountPanel({
         {cash.length > 1 ? (
           <div className="space-y-1.5">
             <Label htmlFor="countAccount" className="text-xs">
-              Which tin
+              {t("Which tin")}
             </Label>
             <NativeSelect
               id="countAccount"
@@ -279,7 +291,7 @@ export function CashCountPanel({
 
         <div className="space-y-1.5">
           <Label htmlFor="countedAmount" className="text-xs">
-            Counted{" "}
+            {t("Counted")}{" "}
             {account ? (
               <span className="text-muted-foreground">
                 ({account.currency === "TZS" ? "TSh" : account.currency})
@@ -294,18 +306,19 @@ export function CashCountPanel({
             required
           />
           <p className="text-xs text-muted-foreground">
-            The ledger says {account?.currency === "TZS" ? "TSh" : account?.currency}{" "}
+            {t("The ledger says")}{" "}
+            {account?.currency === "TZS" ? "TSh" : account?.currency}{" "}
             {shouldBe.toLocaleString(undefined, { maximumFractionDigits: 2 })}
             {diff === null ? (
               "."
             ) : diff === 0 ? (
-              " — that matches."
+              <>{" "}{t("— that matches.")}</>
             ) : (
               <>
                 {" "}
-                — that is{" "}
+                {t("— that is")}{" "}
                 <span className={diff < 0 ? "text-destructive" : "text-warning"}>
-                  {diff < 0 ? "short" : "over"} by{" "}
+                  {diff < 0 ? t("short by") : t("over by")}{" "}
                   {Math.abs(diff).toLocaleString(undefined, {
                     maximumFractionDigits: 2,
                   })}
@@ -318,12 +331,13 @@ export function CashCountPanel({
 
         <div className="space-y-1.5">
           <Label htmlFor="countNote" className="text-xs">
-            Note <span className="text-muted-foreground">(optional)</span>
+            {t("Note")}{" "}
+            <span className="text-muted-foreground">{t("(optional)")}</span>
           </Label>
           <Input
             id="countNote"
             name="note"
-            placeholder="Anything that explains a difference"
+            placeholder={t("Anything that explains a difference")}
           />
         </div>
 
@@ -333,12 +347,12 @@ export function CashCountPanel({
             state.ok && state.data
               ? state.data.variance === 0
                 ? "Counted — it matches the ledger."
-                : `Counted — ${state.data.variance > 0 ? "over" : "short"} by ${Math.abs(state.data.variance).toLocaleString()}. Recorded as it stands; nothing was adjusted.`
+                : `${t("Counted —")} ${state.data.variance > 0 ? t("over by") : t("short by")} ${Math.abs(state.data.variance).toLocaleString()}. ${t("Recorded as it stands; nothing was adjusted.")}`
               : null
           }
         />
         <SubmitButton size="sm" variant="outline" pendingLabel="Recording…">
-          Record the count
+          {t("Record the count")}
         </SubmitButton>
       </form>
     </section>
@@ -364,6 +378,7 @@ export function TreasuryActions({
   accounts: TreasuryAccount[];
   expected: Record<string, number>;
 }) {
+  const t = useT();
   const [open, setOpen] = useState<"transfer" | "count" | null>(null);
   const hasCash = accounts.some((a) => a.kind === "CASH");
 
@@ -377,7 +392,7 @@ export function TreasuryActions({
           onClick={() => setOpen(open === "transfer" ? null : "transfer")}
         >
           <ArrowLeftRight className="mr-2 h-4 w-4" />
-          Move money between accounts
+          {t("Move money between accounts")}
         </Button>
         {hasCash ? (
           <Button
@@ -387,7 +402,7 @@ export function TreasuryActions({
             onClick={() => setOpen(open === "count" ? null : "count")}
           >
             <Calculator className="mr-2 h-4 w-4" />
-            Count the cash tin
+            {t("Count the cash tin")}
           </Button>
         ) : null}
         {open ? (
@@ -397,7 +412,7 @@ export function TreasuryActions({
             className="focus-ring ml-auto inline-flex items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" />
-            Close
+            {t("Close")}
           </button>
         ) : null}
       </div>

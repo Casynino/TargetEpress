@@ -13,6 +13,7 @@ import {
   type Column,
   type TableFilter,
 } from "@/components/app/data-table";
+import { useT } from "@/components/app/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -35,6 +36,11 @@ export type VerificationLine = {
   packagesTracked: number;
   packagesPresent: number;
   weightKg: number;
+  /**
+   * Already in the reader's language: the server parent resolves it with
+   * `cargoText(locale, shipment, "description")` before handing it down, so a
+   * Dar clerk never gets the Chinese original a Guangzhou packer typed.
+   */
   description: string;
   result: VerificationResult | null;
   note: string | null;
@@ -88,8 +94,12 @@ function waitTone(waitDays: number | null) {
   return "muted" as const;
 }
 
-function checkerSummary(checkers: VerificationBatchRow["checkers"]) {
-  if (checkers.length === 0) return "Nobody yet";
+/** Not a component, so the reader's `t` is handed in rather than hooked. */
+function checkerSummary(
+  checkers: VerificationBatchRow["checkers"],
+  t: (text: string) => string
+) {
+  if (checkers.length === 0) return t("Nobody yet");
   const shown = checkers.slice(0, 2).map((c) => c.name);
   const rest = checkers.length - shown.length;
   return rest > 0 ? `${shown.join(", ")} +${rest}` : shown.join(", ");
@@ -108,10 +118,12 @@ function checkerSummary(checkers: VerificationBatchRow["checkers"]) {
  * accident.
  */
 export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
+  const t = useT();
+
   const columns: Column<VerificationBatchRow>[] = [
     {
       id: "batchNumber",
-      header: "Batch",
+      header: t("Batch"),
       sortValue: (row) => row.batchNumber,
       cell: (row) => (
         <div className="min-w-0">
@@ -122,14 +134,14 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
             {row.batchNumber}
           </Link>
           <p className="text-xs text-muted-foreground">
-            {ORIGIN_LABELS[row.origin]}
+            {t(ORIGIN_LABELS[row.origin])}
           </p>
         </div>
       ),
     },
     {
       id: "landed",
-      header: "Landed",
+      header: t("Landed"),
       hideBelow: "md",
       sortValue: (row) => (row.arrivedAt ? new Date(row.arrivedAt) : null),
       cell: (row) => (
@@ -139,15 +151,15 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
             {row.waitDays === null
               ? "—"
               : row.waitDays === 0
-                ? "today"
-                : `${row.waitDays}d on the bench`}
+                ? t("today")
+                : `${row.waitDays}d ${t("on the bench")}`}
           </p>
         </div>
       ),
     },
     {
       id: "flight",
-      header: "Flight",
+      header: t("Flight"),
       hideBelow: "xl",
       defaultHidden: true,
       sortValue: (row) => `${row.airline ?? ""} ${row.flightNumber ?? ""}`,
@@ -165,13 +177,15 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
     },
     {
       id: "cargo",
-      header: "Cargo",
+      header: t("Cargo"),
       align: "right",
       hideBelow: "lg",
       sortValue: (row) => row.shipments,
       cell: (row) => (
         <div className="whitespace-nowrap">
-          <p className="text-sm font-medium tabular">{row.shipments} shpt</p>
+          <p className="text-sm font-medium tabular">
+            {row.shipments} {t("shpt")}
+          </p>
           <p className="text-xs text-muted-foreground tabular">
             {formatWeight(row.weightKg)}
           </p>
@@ -180,7 +194,7 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
     },
     {
       id: "progress",
-      header: "Checked off",
+      header: t("Checked off"),
       sortValue: (row) =>
         row.shipments === 0 ? 1 : row.checked / row.shipments,
       cell: (row) => {
@@ -189,7 +203,9 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
           <div className="min-w-[130px]">
             <div className="flex items-center justify-between gap-2 text-xs">
               <span className={done ? "text-success" : "text-muted-foreground"}>
-                {done ? "Ready to close off" : `${row.unchecked} left`}
+                {done
+                  ? t("Ready to close off")
+                  : `${row.unchecked} ${t("left")}`}
               </span>
               <span className="font-medium tabular">
                 {row.checked}/{row.shipments}
@@ -200,7 +216,7 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
               max={Math.max(1, row.shipments)}
               tone={done ? "success" : "warning"}
               className="mt-1.5"
-              label={`${row.batchNumber} verification progress`}
+              label={`${row.batchNumber} ${t("verification progress")}`}
             />
           </div>
         );
@@ -208,7 +224,7 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
     },
     {
       id: "boxes",
-      header: "Boxes present",
+      header: t("Boxes present"),
       align: "right",
       hideBelow: "xl",
       sortValue: (row) =>
@@ -231,7 +247,7 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
     },
     {
       id: "checkers",
-      header: "Checked by",
+      header: t("Checked by"),
       hideBelow: "xl",
       sortValue: (row) => row.checkers[0]?.name ?? "",
       cell: (row) => (
@@ -241,13 +257,13 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
             row.checkers.length === 0 && "text-muted-foreground"
           )}
         >
-          {checkerSummary(row.checkers)}
+          {checkerSummary(row.checkers, t)}
         </span>
       ),
     },
     {
       id: "flags",
-      header: "Flags",
+      header: t("Flags"),
       align: "center",
       sortValue: (row) => row.openFlags,
       cell: (row) =>
@@ -265,7 +281,7 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
     },
     {
       id: "wait",
-      header: "Waiting",
+      header: t("Waiting"),
       align: "right",
       defaultHidden: true,
       sortValue: (row) => row.waitDays ?? -1,
@@ -283,7 +299,7 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
       cell: (row) => (
         <Button asChild size="sm" variant={row.unchecked === 0 ? "brand" : "signal"}>
           <Link href={`/app/receive/${row.id}`}>
-            {row.unchecked === 0 ? "Close off" : "Check off"}
+            {row.unchecked === 0 ? t("Close off") : t("Check off")}
           </Link>
         </Button>
       ),
@@ -293,12 +309,12 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
   const filters: TableFilter<VerificationBatchRow>[] = [
     {
       id: "work",
-      label: "State",
+      label: t("State"),
       options: [
-        { value: "unchecked", label: "Still being checked" },
-        { value: "ready", label: "Ready to close off" },
-        { value: "untouched", label: "Not started" },
-        { value: "flagged", label: "Has open flags" },
+        { value: "unchecked", label: t("Still being checked") },
+        { value: "ready", label: t("Ready to close off") },
+        { value: "untouched", label: t("Not started") },
+        { value: "flagged", label: t("Has open flags") },
       ],
       match: (row, value) => {
         if (value === "unchecked") return row.unchecked > 0;
@@ -309,19 +325,19 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
     },
     {
       id: "origin",
-      label: "Origin",
+      label: t("Origin"),
       options: Object.entries(ORIGIN_LABELS).map(([value, label]) => ({
         value,
-        label,
+        label: t(label),
       })),
       match: (row, value) => row.origin === value,
     },
     {
       id: "age",
-      label: "On the bench",
+      label: t("On the bench"),
       options: [
-        { value: "today", label: "Landed today" },
-        { value: "overdue", label: "Two days or more" },
+        { value: "today", label: t("Landed today") },
+        { value: "overdue", label: t("Two days or more") },
       ],
       match: (row, value) =>
         value === "today"
@@ -346,11 +362,13 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
           ),
         ].join(" ")
       }
-      searchPlaceholder="Batch, flight, tracking number or customer…"
+      searchPlaceholder={t("Batch, flight, tracking number or customer…")}
       filters={filters}
       pageSize={15}
-      emptyTitle="The bench is clear"
-      emptyDescription="Nothing has landed that still needs checking against its manifest."
+      emptyTitle={t("The bench is clear")}
+      emptyDescription={t(
+        "Nothing has landed that still needs checking against its manifest."
+      )}
       renderExpanded={(row) => <BatchDetail row={row} />}
       renderCard={(row) => <BatchCard row={row} />}
     />
@@ -359,17 +377,19 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
 
 /** The manifest check-off for one batch, line by line. */
 function BatchDetail({ row }: { row: VerificationBatchRow }) {
+  const t = useT();
+
   return (
     <div className="space-y-4">
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Manifest check-off
+            {t("Manifest check-off")}
           </p>
           <p className="text-xs text-muted-foreground tabular">
-            {row.passed} checked in
-            {row.flagged > 0 ? ` · ${row.flagged} flagged` : ""}
-            {row.unchecked > 0 ? ` · ${row.unchecked} untouched` : ""}
+            {row.passed} {t("checked in")}
+            {row.flagged > 0 ? ` · ${row.flagged} ${t("flagged")}` : ""}
+            {row.unchecked > 0 ? ` · ${row.unchecked} ${t("untouched")}` : ""}
           </p>
         </div>
 
@@ -388,11 +408,11 @@ function BatchDetail({ row }: { row: VerificationBatchRow }) {
                     {line.trackingNumber}
                   </Link>
                   {line.result === "VERIFIED" ? (
-                    <Badge variant="success">Checked in</Badge>
+                    <Badge variant="success">{t("Checked in")}</Badge>
                   ) : line.result === "EXCEPTION" ? (
-                    <Badge variant="destructive">Flagged</Badge>
+                    <Badge variant="destructive">{t("Flagged")}</Badge>
                   ) : (
-                    <Badge variant="muted">Not checked</Badge>
+                    <Badge variant="muted">{t("Not checked")}</Badge>
                   )}
                   {/* Only meaningful once someone has looked: an unchecked
                       line has no boxes ticked simply because nobody has been
@@ -402,7 +422,8 @@ function BatchDetail({ row }: { row: VerificationBatchRow }) {
                   line.packagesPresent < line.packagesTracked ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-medium text-warning">
                       <Boxes className="h-3 w-3" />
-                      {line.packagesPresent}/{line.packagesTracked} boxes here
+                      {line.packagesPresent}/{line.packagesTracked}{" "}
+                      {t("boxes here")}
                     </span>
                   ) : null}
                 </div>
@@ -427,7 +448,7 @@ function BatchDetail({ row }: { row: VerificationBatchRow }) {
                     </p>
                   </>
                 ) : (
-                  <span className="text-muted-foreground">Waiting</span>
+                  <span className="text-muted-foreground">{t("Waiting")}</span>
                 )}
               </div>
             </li>
@@ -438,7 +459,7 @@ function BatchDetail({ row }: { row: VerificationBatchRow }) {
       {row.flags.length > 0 ? (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Raised during check-in
+            {t("Raised during check-in")}
           </p>
           <ul className="mt-2 space-y-2">
             {row.flags.map((flag) => (
@@ -451,7 +472,7 @@ function BatchDetail({ row }: { row: VerificationBatchRow }) {
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={flag.open ? "destructive" : "muted"}>
-                    {EXCEPTION_TYPE_LABELS[flag.type]}
+                    {t(EXCEPTION_TYPE_LABELS[flag.type])}
                   </Badge>
                   <Link
                     href={`/app/cargo/${flag.trackingNumber}`}
@@ -460,7 +481,9 @@ function BatchDetail({ row }: { row: VerificationBatchRow }) {
                     {flag.trackingNumber}
                   </Link>
                   {flag.open ? null : (
-                    <span className="text-[11px] text-success">Resolved</span>
+                    <span className="text-[11px] text-success">
+                      {t("Resolved")}
+                    </span>
                   )}
                 </div>
                 <p className="mt-1 text-xs">{flag.description}</p>
@@ -479,18 +502,18 @@ function BatchDetail({ row }: { row: VerificationBatchRow }) {
             {row.unchecked === 0 ? (
               <>
                 <CheckCheck className="mr-1.5 h-4 w-4" />
-                Close off {row.batchNumber}
+                {t("Close off")} {row.batchNumber}
               </>
             ) : (
               <>
                 <ClipboardCheck className="mr-1.5 h-4 w-4" />
-                Check off {row.unchecked} remaining
+                {t("Check off")} {row.unchecked} {t("remaining")}
               </>
             )}
           </Link>
         </Button>
         <Button asChild size="sm" variant="outline">
-          <Link href={`/app/batches/${row.id}/manifest`}>Manifest</Link>
+          <Link href={`/app/batches/${row.id}/manifest`}>{t("Manifest")}</Link>
         </Button>
       </div>
     </div>
@@ -499,6 +522,7 @@ function BatchDetail({ row }: { row: VerificationBatchRow }) {
 
 /** Phone layout. The table becomes this below `md`. */
 function BatchCard({ row }: { row: VerificationBatchRow }) {
+  const t = useT();
   const done = row.unchecked === 0;
   return (
     <div className="panel p-4">
@@ -511,7 +535,9 @@ function BatchCard({ row }: { row: VerificationBatchRow }) {
         </Link>
         <div className="flex items-center gap-2">
           {row.openFlags > 0 ? (
-            <Badge variant="destructive">{row.openFlags} flag(s)</Badge>
+            <Badge variant="destructive">
+              {row.openFlags} {t("flag(s)")}
+            </Badge>
           ) : null}
           {row.waitDays === null ? null : (
             <Badge variant={waitTone(row.waitDays)}>{row.waitDays}d</Badge>
@@ -520,20 +546,22 @@ function BatchCard({ row }: { row: VerificationBatchRow }) {
       </div>
 
       <p className="mt-1.5 text-xs text-muted-foreground">
-        {ORIGIN_LABELS[row.origin]}
-        {row.airline ? ` · ${row.airline} ${row.flightNumber ?? ""}` : ""} ·
-        landed {formatDate(row.arrivedAt)}
+        {t(ORIGIN_LABELS[row.origin])}
+        {row.airline ? ` · ${row.airline} ${row.flightNumber ?? ""}` : ""} ·{" "}
+        {t("landed")} {formatDate(row.arrivedAt)}
       </p>
       <p className="mt-1 text-xs text-muted-foreground tabular">
-        {row.shipments} shipment(s) · {formatWeight(row.weightKg)}
+        {row.shipments} {t("shipment(s)")} · {formatWeight(row.weightKg)}
         {row.packagesTracked > 0
-          ? ` · ${row.packagesPresent}/${row.packagesTracked} boxes here`
+          ? ` · ${row.packagesPresent}/${row.packagesTracked} ${t("boxes here")}`
           : ""}
       </p>
 
       <div className="mt-3 flex items-center justify-between text-xs">
         <span className={done ? "text-success" : "text-muted-foreground"}>
-          {done ? "Ready to close off" : `${row.unchecked} still to check`}
+          {done
+            ? t("Ready to close off")
+            : `${row.unchecked} ${t("still to check")}`}
         </span>
         <span className="font-medium tabular">
           {row.checked}/{row.shipments}
@@ -544,21 +572,21 @@ function BatchCard({ row }: { row: VerificationBatchRow }) {
         max={Math.max(1, row.shipments)}
         tone={done ? "success" : "warning"}
         className="mt-1.5"
-        label={`${row.batchNumber} verification progress`}
+        label={`${row.batchNumber} ${t("verification progress")}`}
       />
 
       <p className="mt-2 text-xs text-muted-foreground">
-        Checked by {checkerSummary(row.checkers)}
+        {t("Checked by")} {checkerSummary(row.checkers, t)}
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3">
         <Button asChild size="sm" variant={done ? "brand" : "signal"}>
           <Link href={`/app/receive/${row.id}`}>
-            {done ? "Close off" : "Check off cargo"}
+            {done ? t("Close off") : t("Check off cargo")}
           </Link>
         </Button>
         <Button asChild size="sm" variant="outline">
-          <Link href={`/app/batches/${row.id}/manifest`}>Manifest</Link>
+          <Link href={`/app/batches/${row.id}/manifest`}>{t("Manifest")}</Link>
         </Button>
       </div>
     </div>

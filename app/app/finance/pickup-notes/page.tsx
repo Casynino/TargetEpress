@@ -16,11 +16,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate, formatMoney, formatRelative } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Pickup notes" };
 
@@ -58,6 +60,7 @@ export default async function PickupNotesPage({
   // Reading the register is not issuing from it. Support answers "has my
   // note been issued?" all day and should not need Finance to look.
   const user = await requirePermission("pickupNote.view");
+  const locale = await viewerLocale();
   const { status, q } = await searchParams;
   const query = q?.trim();
 
@@ -90,7 +93,9 @@ export default async function PickupNotesPage({
       include: {
         customer: { select: { name: true, phone: true } },
         issuedBy: { select: { name: true } },
-        shipment: { select: { trackingNumber: true, description: true } },
+        shipment: {
+          select: { trackingNumber: true, ...selectText("description") },
+        },
       },
     }),
     prisma.pickupNote.groupBy({ by: ["status"], _count: true }),
@@ -112,8 +117,11 @@ export default async function PickupNotesPage({
   return (
     <>
       <PageHeader
-        title="Pickup notes"
-        description="The warehouse's authority to hand cargo over. Issued by Finance the moment a bill is settled — everyone else prints it and rings the customer."
+        title={t(locale, "Pickup notes")}
+        description={t(
+          locale,
+          "The warehouse's authority to hand cargo over. Issued by Finance the moment a bill is settled — everyone else prints it and rings the customer."
+        )}
       />
 
       <FinanceNav tabs={financeTabs(user.role)} />
@@ -130,7 +138,7 @@ export default async function PickupNotesPage({
                 : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
             }`}
           >
-            {filter.label}
+            {t(locale, filter.label)}
             <span
               className={`rounded-full px-1.5 text-[10px] font-bold ${
                 active === filter.key ? "bg-white/20" : "bg-muted"
@@ -149,7 +157,7 @@ export default async function PickupNotesPage({
           <Input
             name="q"
             defaultValue={query ?? ""}
-            placeholder="Note number, customer, phone or tracking number"
+            placeholder={t(locale, "Note number, customer, phone or tracking number")}
             className="h-11 pl-9"
           />
         </div>
@@ -158,22 +166,29 @@ export default async function PickupNotesPage({
       {active === "ACTIVE" && oldest ? (
         <p className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
           <Clock className="h-3.5 w-3.5 text-warning" />
-          Oldest has been waiting{" "}
+          {t(locale, "Oldest has been waiting")}{" "}
           <span className="font-medium text-foreground">
             {formatRelative(oldest)}
           </span>{" "}
-          — storage runs the whole time the cargo is on our floor.
+          {t(locale, "— storage runs the whole time the cargo is on our floor.")}
         </p>
       ) : null}
 
       {notes.length === 0 ? (
         <EmptyState
           icon={QrCode}
-          title={query ? `Nothing matches “${query}”` : "Nothing here"}
+          title={
+            query
+              ? `${t(locale, "Nothing matches")} “${query}”`
+              : t(locale, "Nothing here")
+          }
           description={
             query
-              ? "Try the tracking number, or a shorter search."
-              : "A note appears the moment Finance records the payment that settles a bill."
+              ? t(locale, "Try the tracking number, or a shorter search.")
+              : t(
+                  locale,
+                  "A note appears the moment Finance records the payment that settles a bill."
+                )
           }
         />
       ) : (
@@ -186,15 +201,15 @@ export default async function PickupNotesPage({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Note</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead className="hidden lg:table-cell">Cargo</TableHead>
-                <TableHead className="text-right">Paid</TableHead>
+                <TableHead>{t(locale, "Note")}</TableHead>
+                <TableHead>{t(locale, "Customer")}</TableHead>
+                <TableHead className="hidden lg:table-cell">{t(locale, "Cargo")}</TableHead>
+                <TableHead className="text-right">{t(locale, "Paid")}</TableHead>
                 <TableHead className="hidden sm:table-cell text-right">
-                  Waiting
+                  {t(locale, "Waiting")}
                 </TableHead>
-                <TableHead className="text-right">Reach them</TableHead>
-                <TableHead className="text-right">Note</TableHead>
+                <TableHead className="text-right">{t(locale, "Reach them")}</TableHead>
+                <TableHead className="text-right">{t(locale, "Note")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -225,8 +240,8 @@ export default async function PickupNotesPage({
                           className="text-[10px] font-normal"
                         >
                           {note.status === "ACTIVE"
-                            ? "not collected"
-                            : note.status.toLowerCase()}
+                            ? t(locale, "not collected")
+                            : t(locale, note.status.toLowerCase())}
                         </Badge>
                         <span className="truncate font-mono text-[11px] text-muted-foreground">
                           {note.customer.phone}
@@ -236,10 +251,10 @@ export default async function PickupNotesPage({
 
                     <TableCell className="hidden max-w-[16rem] py-2.5 lg:table-cell">
                       <span className="block truncate text-xs text-muted-foreground">
-                        {note.shipment.description}
+                        {cargoText(locale, note.shipment, "description")}
                       </span>
                       <span className="block text-[11px] text-muted-foreground/70">
-                        issued by {note.issuedBy?.name ?? "—"}
+                        {t(locale, "issued by")} {note.issuedBy?.name ?? "—"}
                       </span>
                     </TableCell>
 
@@ -266,7 +281,7 @@ export default async function PickupNotesPage({
                         <span className="inline-flex gap-1">
                           <a
                             href={`tel:${note.customer.phone}`}
-                            aria-label={`Call ${note.customer.name}`}
+                            aria-label={`${t(locale, "Call")} ${note.customer.name}`}
                             className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors hover:border-brand/40 hover:text-brand"
                           >
                             <Phone className="h-3.5 w-3.5" />
@@ -283,7 +298,7 @@ export default async function PickupNotesPage({
                         </span>
                       ) : (
                         <span className="text-[11px] text-muted-foreground">
-                          no phone
+                          {t(locale, "no phone")}
                         </span>
                       )}
                     </TableCell>
@@ -295,7 +310,7 @@ export default async function PickupNotesPage({
                           className="focus-ring inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition-colors hover:bg-brand/90"
                         >
                           <QrCode className="h-3.5 w-3.5" />
-                          Print
+                          {t(locale, "Print")}
                         </Link>
                         {/* Offered only to somebody who may actually do it.
                             This was shown to Customer Support, who hold

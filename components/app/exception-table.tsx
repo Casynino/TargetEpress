@@ -186,7 +186,7 @@ function ExceptionRow({
               }`}
             />
             <Badge variant={closed ? "muted" : "destructive"}>
-              {EXCEPTION_TYPE_LABELS[exception.type]}
+              {t(EXCEPTION_TYPE_LABELS[exception.type])}
             </Badge>
           </span>
         </td>
@@ -196,7 +196,7 @@ function ExceptionRow({
         <td className="whitespace-nowrap px-3 py-1.5">
           <span className="flex items-center gap-1.5">
             <Badge variant={EXCEPTION_STATUS_TONES[exception.status]}>
-              {EXCEPTION_STATUS_LABELS[exception.status]}
+              {t(EXCEPTION_STATUS_LABELS[exception.status])}
             </Badge>
             {exception.compensation && !exception.compensation.paidAt ? (
               <Coins
@@ -319,7 +319,7 @@ function CaseRecord({
                       : "warning"
                   }
                 >
-                  {DAMAGE_SEVERITY_LABELS[exception.severity]}
+                  {t(DAMAGE_SEVERITY_LABELS[exception.severity])}
                 </Badge>
               </p>
             ) : null}
@@ -364,7 +364,7 @@ function CaseRecord({
                       .filter(Boolean)
                       .join(" ") || t("flight not recorded")}
                     {exception.batch.arrivalDate
-                      ? ` · landed ${formatDate(exception.batch.arrivalDate)}`
+                      ? ` · ${t("landed")} ${formatDate(exception.batch.arrivalDate)}`
                       : ""}
                   </span>
                 </>
@@ -374,8 +374,8 @@ function CaseRecord({
             </Fact>
             <Fact label={t("Where the cargo is")}>
               {absent.length === 0
-                ? `Every ${unit.one} is in the Dar warehouse.`
-                : `${unit.one} ${absent.join(", ")} not accounted for.`}
+                ? `${t("Every")} ${t(unit.one)} ${t("is in the Dar warehouse.")}`
+                : `${t(unit.one)} ${absent.join(", ")} ${t("not accounted for.")}`}
             </Fact>
           </dl>
           </Panel>
@@ -385,7 +385,7 @@ function CaseRecord({
               decoration; labelled and with a key they read as a count. */}
           {shipment.packages.length > 0 ? (
             <Panel
-              title={`${unit.many} on the manifest`}
+              title={`${t(unit.many)} ${t("on the manifest")}`}
               aside={
                 <span className="flex items-center gap-3 text-[11px] text-muted-foreground">
                   <span className="flex items-center gap-1">
@@ -574,7 +574,7 @@ function PhotoStrip({
               target="_blank"
               rel="noreferrer"
               title={`${photo.caption ?? photo.kind} · ${formatDate(photo.createdAt)}${
-                photo.onCase ? " · attached to this case" : ""
+                photo.onCase ? ` ${t("· attached to this case")}` : ""
               }`}
               className="focus-ring block overflow-hidden rounded border"
             >
@@ -659,7 +659,7 @@ function CompensationPanel({
         ) : null}
         <Badge variant={comp.paidAt ? "success" : "warning"}>
           {comp.paidAt
-            ? `Paid ${formatDate(comp.paidAt)}`
+            ? `${t("Paid")} ${formatDate(comp.paidAt)}`
             : t("Payment pending")}
         </Badge>
         {comp.methodLabel ? (

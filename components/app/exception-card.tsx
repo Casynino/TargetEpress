@@ -27,6 +27,8 @@ import {
   PACKAGE_TYPE_LABELS,
 } from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 
 /**
  * One flagged consignment, as an investigator needs to read it.
@@ -154,9 +156,15 @@ export function daysOpen(raisedAt: Date, until: Date | null = null) {
 export function ExceptionCard({
   exception,
   canResolve,
+  locale,
 }: {
   exception: ExceptionCardData;
   canResolve: boolean;
+  /**
+   * Passed in rather than resolved here: this file is also imported by the
+   * client-side exception table, so it must never reach for `viewerLocale()`.
+   */
+  locale: Locale;
 }) {
   // "Open" is no longer one status. A case being worked, waiting on a customer
   // or approved for a payout is still unfinished, and reading `=== "OPEN"` here
@@ -196,7 +204,7 @@ export function ExceptionCard({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={open ? "destructive" : "muted"}>
-                {EXCEPTION_TYPE_LABELS[exception.type]}
+                {t(locale, EXCEPTION_TYPE_LABELS[exception.type])}
               </Badge>
               <Link
                 href={`/app/cargo/${shipment.trackingNumber}`}
@@ -210,8 +218,8 @@ export function ExceptionCard({
                 // for is the shortage you chase first.
                 <Badge variant="outline" className="text-xs">
                   {shipment.settled === "PAID"
-                    ? "Customer has paid"
-                    : "Part-paid"}
+                    ? t(locale, "Customer has paid")
+                    : t(locale, "Part-paid")}
                 </Badge>
               ) : null}
             </div>
@@ -231,9 +239,9 @@ export function ExceptionCard({
           >
             {open
               ? age === 0
-                ? "Today"
-                : `${age} day${age === 1 ? "" : "s"} open`
-              : "Closed"}
+                ? t(locale, "Today")
+                : `${age} ${t(locale, age === 1 ? "day open" : "days open")}`
+              : t(locale, "Closed")}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {formatDateTime(exception.raisedAt)}
@@ -243,17 +251,17 @@ export function ExceptionCard({
 
       {/* ---- Whose cargo, which flight, where the boxes are ------------ */}
       <div className="grid gap-px border-t bg-border sm:grid-cols-3">
-        <Field icon={User} label="Customer">
+        <Field icon={User} label={t(locale, "Customer")}>
           <p className="truncate text-sm font-medium">{shipment.customerName}</p>
           <p className="truncate text-xs text-muted-foreground">
-            {shipment.customerPhone ?? "no phone on file"}
+            {shipment.customerPhone ?? t(locale, "no phone on file")}
           </p>
           <p className="mt-1 truncate text-xs text-muted-foreground">
             {shipment.description}
           </p>
         </Field>
 
-        <Field icon={Plane} label="Arrived on">
+        <Field icon={Plane} label={t(locale, "Arrived on")}>
           {exception.batch ? (
             <>
               <Link
@@ -265,27 +273,27 @@ export function ExceptionCard({
               <p className="truncate text-xs text-muted-foreground">
                 {[exception.batch.airline, exception.batch.flightNumber]
                   .filter(Boolean)
-                  .join(" ") || "flight not recorded"}
+                  .join(" ") || t(locale, "flight not recorded")}
               </p>
               <p className="mt-1 truncate text-xs text-muted-foreground">
                 {exception.batch.waybillNumber
                   ? `AWB ${exception.batch.waybillNumber} · `
                   : ""}
-                landed {formatDate(exception.batch.arrivalDate)}
+                {t(locale, "landed")} {formatDate(exception.batch.arrivalDate)}
               </p>
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
-              No batch — flagged outside a flight.
+              {t(locale, "No batch — flagged outside a flight.")}
             </p>
           )}
         </Field>
 
-        <Field icon={Warehouse} label="Where the cargo is">
+        <Field icon={Warehouse} label={t(locale, "Where the cargo is")}>
           <p className="text-sm font-medium tabular">
             {total === 0
-              ? "No packages on record"
-              : `${onFloor} of ${total} ${total === 1 ? unit.one : unit.many} checked in at Dar`}
+              ? t(locale, "No packages on record")
+              : `${onFloor} ${t(locale, "of")} ${total} ${t(locale, total === 1 ? unit.one : unit.many)} ${t(locale, "checked in at Dar")}`}
           </p>
 
           {shipment.packages.length > 0 ? (
@@ -295,10 +303,10 @@ export function ExceptionCard({
                   key={pkg.sequence}
                   title={
                     pkg.deliveredAt
-                      ? `${unit.one} ${pkg.sequence} collected`
+                      ? `${t(locale, unit.one)} ${pkg.sequence} ${t(locale, "collected")}`
                       : pkg.receivedAt
-                        ? `${unit.one} ${pkg.sequence} checked in`
-                        : `${unit.one} ${pkg.sequence} not accounted for`
+                        ? `${t(locale, unit.one)} ${pkg.sequence} ${t(locale, "checked in")}`
+                        : `${t(locale, unit.one)} ${pkg.sequence} ${t(locale, "not accounted for")}`
                   }
                   className={`inline-flex h-6 min-w-6 items-center justify-center rounded border px-1.5 text-xs font-semibold tabular ${
                     pkg.deliveredAt
@@ -316,15 +324,18 @@ export function ExceptionCard({
 
           {absent.length > 0 ? (
             <p className="mt-1.5 text-xs text-destructive">
-              {absent.length === 1 ? unit.one : unit.many}{" "}
-              {absent.map((n) => `#${n}`).join(", ")} not accounted for
-              {onFloor > 0 ? " — the rest is in the warehouse." : "."}
+              {t(locale, absent.length === 1 ? unit.one : unit.many)}{" "}
+              {absent.map((n) => `#${n}`).join(", ")}{" "}
+              {t(locale, "not accounted for")}
+              {onFloor > 0
+                ? ` ${t(locale, "— the rest is in the warehouse.")}`
+                : "."}
             </p>
           ) : total > 0 ? (
             <p className="mt-1.5 text-xs text-muted-foreground">
               {collected > 0
-                ? `Every ${unit.one} arrived, ${collected} already collected.`
-                : `Every ${unit.one} is in the Dar warehouse.`}
+                ? `${t(locale, "Every")} ${t(locale, unit.one)} ${t(locale, "arrived,")} ${collected} ${t(locale, "already collected.")}`
+                : `${t(locale, "Every")} ${t(locale, unit.one)} ${t(locale, "is in the Dar warehouse.")}`}
             </p>
           ) : null}
 
@@ -333,8 +344,10 @@ export function ExceptionCard({
               paper. */}
           {shipment.status === "IN_TRANSIT" && onFloor > 0 ? (
             <p className="mt-1.5 text-xs text-warning">
-              Boxes are checked in but the shipment still reads In transit —
-              finish its check-in.
+              {t(
+                locale,
+                "Boxes are checked in but the shipment still reads In transit — finish its check-in."
+              )}
             </p>
           ) : null}
         </Field>
@@ -343,10 +356,10 @@ export function ExceptionCard({
       {/* ---- Who raised it, and how it gets closed --------------------- */}
       <div className="border-t px-4 py-3 sm:px-5">
         <p className="text-xs text-muted-foreground">
-          Raised by {exception.raisedByName ?? "—"} on{" "}
-          {formatDateTime(exception.raisedAt)}
+          {t(locale, "Raised by")} {exception.raisedByName ?? "—"}{" "}
+          {t(locale, "on")} {formatDateTime(exception.raisedAt)}
           {exception.resolvedAt
-            ? ` · closed by ${exception.resolvedByName ?? "—"} on ${formatDateTime(exception.resolvedAt)}`
+            ? ` · ${t(locale, "closed by")} ${exception.resolvedByName ?? "—"} ${t(locale, "on")} ${formatDateTime(exception.resolvedAt)}`
             : ""}
         </p>
 

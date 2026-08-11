@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
+import { useT } from "@/components/app/locale-provider";
 import { ReceiveBatchButton } from "@/components/app/receive-batch-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,10 +47,11 @@ function waitTone(row: ReceivingRow) {
  * one line high and carries its own progress and age.
  */
 export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
+  const t = useT();
   const columns: Column<ReceivingRow>[] = [
     {
       id: "batchNumber",
-      header: "Batch",
+      header: t("Batch"),
       sortValue: (row) => row.batchNumber,
       cell: (row) => (
         <div className="min-w-0">
@@ -64,14 +66,14 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
             {row.batchNumber}
           </Link>
           <p className="text-xs text-muted-foreground">
-            {ORIGIN_LABELS[row.origin]}
+            {t(ORIGIN_LABELS[row.origin])}
           </p>
         </div>
       ),
     },
     {
       id: "status",
-      header: "Where",
+      header: t("Where"),
       // Same ordering the server sorts by, so clicking the column and clicking
       // away land you back where you started.
       sortValue: (row) => STATUS_RANK[row.status] ?? 9,
@@ -93,16 +95,16 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
             <ClipboardCheck className="h-3 w-3" />
           )}
           {row.status === "ARRIVED"
-            ? "On the floor"
+            ? t("On the floor")
             : row.status === "IN_TRANSIT"
-              ? "In the air"
-              : BATCH_STATUS_META[row.status].label}
+              ? t("In the air")
+              : t(BATCH_STATUS_META[row.status].label)}
         </span>
       ),
     },
     {
       id: "flight",
-      header: "Flight",
+      header: t("Flight"),
       hideBelow: "lg",
       sortValue: (row) => `${row.airline ?? ""} ${row.flightNumber ?? ""}`,
       cell: (row) => (
@@ -119,7 +121,7 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
     },
     {
       id: "date",
-      header: "Departed / landed",
+      header: t("Departed / landed"),
       hideBelow: "md",
       sortValue: (row) =>
         row.arrivedAt
@@ -132,12 +134,12 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
           {row.arrivedAt ? (
             <>
               <p>{formatDate(row.arrivedAt)}</p>
-              <p className="text-xs text-muted-foreground">landed</p>
+              <p className="text-xs text-muted-foreground">{t("landed")}</p>
             </>
           ) : row.departureDate ? (
             <>
               <p>{formatDate(row.departureDate)}</p>
-              <p className="text-xs text-muted-foreground">departed</p>
+              <p className="text-xs text-muted-foreground">{t("departed")}</p>
             </>
           ) : (
             <span className="text-muted-foreground">—</span>
@@ -147,36 +149,42 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
     },
     {
       id: "cargo",
-      header: "Cargo",
+      header: t("Cargo"),
       align: "right",
       sortValue: (row) => row.shipments,
       cell: (row) => (
         <div className="whitespace-nowrap">
-          <p className="text-sm font-medium tabular">{row.shipments} shpt</p>
+          <p className="text-sm font-medium tabular">
+            {row.shipments} {t("shpt")}
+          </p>
           <p className="text-xs text-muted-foreground tabular">
             {/* The piece count came off the old Incoming Shipments page when
                 the two were merged. It is the number the floor counts against,
                 so it cannot be the thing that gets dropped. */}
-            {row.packages} pcs · {formatWeight(row.weightKg)}
+            {row.packages} {t("pcs")} · {formatWeight(row.weightKg)}
           </p>
         </div>
       ),
     },
     {
       id: "progress",
-      header: "Checked in",
+      header: t("Checked in"),
       sortValue: (row) =>
         row.shipments === 0 ? 0 : row.verified / row.shipments,
       cell: (row) => {
         if (row.status === "IN_TRANSIT") {
-          return <span className="text-xs text-muted-foreground">Not landed</span>;
+          return (
+            <span className="text-xs text-muted-foreground">
+              {t("Not landed")}
+            </span>
+          );
         }
         const done = row.unchecked === 0;
         return (
           <div className="min-w-[110px]">
             <div className="flex items-center justify-between gap-2 text-xs">
               <span className={done ? "text-success" : "text-muted-foreground"}>
-                {done ? "Complete" : `${row.unchecked} left`}
+                {done ? t("Complete") : `${row.unchecked} ${t("left")}`}
               </span>
               <span className="font-medium tabular">
                 {row.verified}/{row.shipments}
@@ -187,7 +195,7 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
               max={Math.max(1, row.shipments)}
               tone={done ? "success" : "warning"}
               className="mt-1.5"
-              label={`${row.batchNumber} check-in progress`}
+              label={`${row.batchNumber} ${t("check-in progress")}`}
             />
           </div>
         );
@@ -195,7 +203,7 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
     },
     {
       id: "boxes",
-      header: "Boxes present",
+      header: t("Boxes present"),
       align: "right",
       hideBelow: "lg",
       sortValue: (row) => row.packages - row.packagesPresent,
@@ -217,7 +225,7 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
     },
     {
       id: "checkedBy",
-      header: "Checked by",
+      header: t("Checked by"),
       hideBelow: "xl",
       sortValue: (row) => row.checkedBy[0] ?? "",
       cell: (row) =>
@@ -227,12 +235,12 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
             {row.checkedBy.length > 2 ? ` +${row.checkedBy.length - 2}` : ""}
           </span>
         ) : (
-          <span className="text-sm text-muted-foreground">Nobody yet</span>
+          <span className="text-sm text-muted-foreground">{t("Nobody yet")}</span>
         ),
     },
     {
       id: "wait",
-      header: "Waiting",
+      header: t("Waiting"),
       align: "right",
       sortValue: (row) => (row.status === "ARRIVED" ? (row.waitDays ?? 0) : -1),
       cell: (row) => {
@@ -242,14 +250,15 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
         const tone = waitTone(row);
         return (
           <Badge variant={tone === "muted" ? "muted" : tone}>
-            {row.waitDays}d
+            {row.waitDays}
+            {t("d")}
           </Badge>
         );
       },
     },
     {
       id: "exceptions",
-      header: "Flags",
+      header: t("Flags"),
       align: "center",
       defaultHidden: true,
       sortValue: (row) => row.exceptions,
@@ -278,14 +287,16 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
           {row.status === "ARRIVED" ? (
             <Button asChild size="sm" variant="signal">
               <Link href={`/app/receive/${row.id}`}>
-                {row.unchecked > 0 ? "Check in" : "Finish"}
+                {row.unchecked > 0 ? t("Check in") : t("Finish")}
               </Link>
             </Button>
           ) : null}
-          <Button asChild size="sm" variant="ghost" title="Print manifest">
+          <Button asChild size="sm" variant="ghost" title={t("Print manifest")}>
             <Link href={`/app/batches/${row.id}/manifest`}>
               <FileText className="h-4 w-4" />
-              <span className="sr-only">Manifest for {row.batchNumber}</span>
+              <span className="sr-only">
+                {t("Manifest for")} {row.batchNumber}
+              </span>
             </Link>
           </Button>
         </div>
@@ -296,22 +307,22 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
   const filters: TableFilter<ReceivingRow>[] = [
     {
       id: "status",
-      label: "Where",
+      label: t("Where"),
       options: [
-        { value: "ARRIVED", label: "On the floor" },
-        { value: "IN_TRANSIT", label: "In the air" },
-        { value: "VERIFIED", label: "Checked in" },
-        { value: "CLOSED", label: "Closed" },
+        { value: "ARRIVED", label: t("On the floor") },
+        { value: "IN_TRANSIT", label: t("In the air") },
+        { value: "VERIFIED", label: t("Checked in") },
+        { value: "CLOSED", label: t("Closed") },
       ],
       match: (row, value) => row.status === value,
     },
     {
       id: "work",
-      label: "Work outstanding",
+      label: t("Work outstanding"),
       options: [
-        { value: "unchecked", label: "Still to check in" },
-        { value: "done", label: "Nothing left" },
-        { value: "flagged", label: "Has exceptions" },
+        { value: "unchecked", label: t("Still to check in") },
+        { value: "done", label: t("Nothing left") },
+        { value: "flagged", label: t("Has exceptions") },
       ],
       match: (row, value) => {
         if (value === "unchecked") return row.status === "ARRIVED" && row.unchecked > 0;
@@ -321,10 +332,10 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
     },
     {
       id: "origin",
-      label: "Origin",
+      label: t("Origin"),
       options: Object.entries(ORIGIN_LABELS).map(([value, label]) => ({
         value,
-        label,
+        label: t(label),
       })),
       match: (row, value) => row.origin === value,
     },
@@ -343,11 +354,13 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
           row.waybillNumber ?? "",
         ].join(" ")
       }
-      searchPlaceholder="Batch, airline, flight or waybill…"
+      searchPlaceholder={t("Batch, airline, flight or waybill…")}
       filters={filters}
       pageSize={20}
-      emptyTitle="Nothing inbound"
-      emptyDescription="No batches are in the air or waiting to be checked in."
+      emptyTitle={t("Nothing inbound")}
+      emptyDescription={t(
+        "No batches are in the air or waiting to be checked in."
+      )}
       renderCard={(row) => (
         <div className="panel p-4">
           <div className="flex items-start justify-between gap-3">
@@ -364,7 +377,8 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
             <div className="flex items-center gap-2">
               {row.status === "ARRIVED" && row.waitDays !== null ? (
                 <Badge variant={waitTone(row) === "muted" ? "muted" : waitTone(row)}>
-                  {row.waitDays}d
+                  {row.waitDays}
+                  {t("d")}
                 </Badge>
               ) : null}
               <span
@@ -377,31 +391,31 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
                 )}
               >
                 {row.status === "ARRIVED"
-                  ? "On the floor"
+                  ? t("On the floor")
                   : row.status === "IN_TRANSIT"
-                    ? "In the air"
-                    : "Checked in"}
+                    ? t("In the air")
+                    : t("Checked in")}
               </span>
             </div>
           </div>
 
           <p className="mt-1.5 text-xs text-muted-foreground">
-            {ORIGIN_LABELS[row.origin]}
+            {t(ORIGIN_LABELS[row.origin])}
             {row.airline ? ` · ${row.airline} ${row.flightNumber ?? ""}` : ""}
           </p>
           <p className="mt-1 text-xs text-muted-foreground tabular">
-            {row.shipments} shipment(s) · {formatWeight(row.weightKg)}
+            {row.shipments} {t("shipment(s)")} · {formatWeight(row.weightKg)}
             {row.arrivedAt
-              ? ` · landed ${formatDate(row.arrivedAt)}`
+              ? ` · ${t("landed")} ${formatDate(row.arrivedAt)}`
               : row.departureDate
-                ? ` · departed ${formatDate(row.departureDate)}`
+                ? ` · ${t("departed")} ${formatDate(row.departureDate)}`
                 : ""}
           </p>
 
           {row.status !== "IN_TRANSIT" ? (
             <>
               <div className="mt-3 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Checked in</span>
+                <span className="text-muted-foreground">{t("Checked in")}</span>
                 <span className="font-medium tabular">
                   {row.verified}/{row.shipments}
                 </span>
@@ -411,7 +425,7 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
                 max={Math.max(1, row.shipments)}
                 tone={row.unchecked === 0 ? "success" : "warning"}
                 className="mt-1.5"
-                label={`${row.batchNumber} check-in progress`}
+                label={`${row.batchNumber} ${t("check-in progress")}`}
               />
             </>
           ) : null}
@@ -423,12 +437,16 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
             {row.status === "ARRIVED" ? (
               <Button asChild size="sm" variant="signal">
                 <Link href={`/app/receive/${row.id}`}>
-                  {row.unchecked > 0 ? "Check in cargo" : "Finish check-in"}
+                  {row.unchecked > 0
+                    ? t("Check in cargo")
+                    : t("Finish check-in")}
                 </Link>
               </Button>
             ) : null}
             <Button asChild size="sm" variant="outline">
-              <Link href={`/app/batches/${row.id}/manifest`}>Manifest</Link>
+              <Link href={`/app/batches/${row.id}/manifest`}>
+                {t("Manifest")}
+              </Link>
             </Button>
           </div>
         </div>

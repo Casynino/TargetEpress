@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,6 +84,7 @@ export type AccountChoice = {
  * so nobody is offered a button that will simply fail.
  */
 export function ShipmentActions(props: Props) {
+  const t = useT();
   const { role, status } = props;
 
   const canInvoice = can(role, "invoice.manage");
@@ -120,7 +122,9 @@ export function ShipmentActions(props: Props) {
 
   return (
     <section className="rounded-xl border bg-card shadow-soft">
-      <h2 className="border-b px-5 py-3.5 text-sm font-semibold">Actions</h2>
+      <h2 className="border-b px-5 py-3.5 text-sm font-semibold">
+        {t("Actions")}
+      </h2>
       <div className="divide-y">
         {/* Money first. Everything else on this panel is preparation for it,
             and a clerk with a customer at the counter should not have to read
@@ -130,17 +134,18 @@ export function ShipmentActions(props: Props) {
           <div className="border-l-2 border-brand bg-brand/5 p-5">
             <p className="flex items-center gap-2 font-medium">
               <Wallet className="h-5 w-5 text-brand" />
-              Customer paid?
+              {t("Customer paid?")}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Everything on this bill is already known. Add the reference they
-              sent and their receipt, and it goes to Finance to verify.
+              {t(
+                "Everything on this bill is already known. Add the reference they sent and their receipt, and it goes to Finance to verify."
+              )}
             </p>
             <Link
               href={`/app/collections/record/${props.invoiceId}`}
               className="focus-ring mt-3 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground transition-colors hover:bg-brand/90"
             >
-              Record their payment
+              {t("Record their payment")}
             </Link>
           </div>
         ) : null}
@@ -173,6 +178,7 @@ export function ShipmentActions(props: Props) {
  * a box will not understand why the figure moved.
  */
 function ConfirmPricePanel(props: Props) {
+  const t = useT();
   const [state, action] = useActionState<
     ActionResult<{ invoiceNumber: string; total: number }>,
     FormData
@@ -184,24 +190,23 @@ function ConfirmPricePanel(props: Props) {
         <input type="hidden" name="invoiceId" value={props.invoiceId ?? ""} />
         <p className="flex items-center gap-2 text-sm font-medium">
           <ReceiptText className="h-4 w-4 text-signal" />
-          Confirm the price
+          {t("Confirm the price")}
         </p>
         <p className="text-xs text-muted-foreground">
-          The system priced this from the rate book when the cargo was checked
-          in. Confirming re-works it out now — picking up storage days accrued
-          since, and today&apos;s exchange rate — and turns it into a real bill
-          that can be sent and paid.
+          {t(
+            "The system priced this from the rate book when the cargo was checked in. Confirming re-works it out now — picking up storage days accrued since, and today’s exchange rate — and turns it into a real bill that can be sent and paid."
+          )}
         </p>
         <FormError state={state} />
         <FormSuccess
           message={
             state.ok && state.data
-              ? `${state.data.invoiceNumber} confirmed — ${props.currency} ${state.data.total.toFixed(2)}`
+              ? `${state.data.invoiceNumber} ${t("confirmed")} — ${props.currency} ${state.data.total.toFixed(2)}`
               : null
           }
         />
         <SubmitButton variant="signal" size="sm" pendingLabel="Confirming…">
-          Confirm price
+          {t("Confirm price")}
         </SubmitButton>
       </form>
     </div>
@@ -217,6 +222,7 @@ function ConfirmPricePanel(props: Props) {
  * two figures end up disagreeing about the same cargo.
  */
 function InvoicePanel(props: Props) {
+  const t = useT();
   const [state, action] = useActionState<
     ActionResult<{ invoiceNumber: string; total: number }>,
     FormData
@@ -230,12 +236,14 @@ function InvoicePanel(props: Props) {
       <div className="p-5">
         <p className="flex items-center gap-2 text-sm font-medium">
           <FileText className="h-4 w-4 text-brand" />
-          Invoice {props.invoiceNumber}
+          {t("Invoice")} {props.invoiceNumber}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          {confirmed
-            ? "Confirmed. Send it to the customer, or open it to adjust anything before they pay."
-            : "Open it to change the freight, add a charge, apply a discount or move the exchange rate. Confirm the price above before sending it."}
+          {t(
+            confirmed
+              ? "Confirmed. Send it to the customer, or open it to adjust anything before they pay."
+              : "Open it to change the freight, add a charge, apply a discount or move the exchange rate. Confirm the price above before sending it."
+          )}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {/* Only on a confirmed price. A draft is the system's own working
@@ -245,7 +253,7 @@ function InvoicePanel(props: Props) {
               <Button asChild size="sm" variant="brand">
                 <a href={`/app/finance/invoices/${props.invoiceNumber}/pdf`}>
                   <Download className="mr-2 h-4 w-4" />
-                  Download
+                  {t("Download")}
                 </a>
               </Button>
               {props.customerWhatsapp ? (
@@ -256,7 +264,7 @@ function InvoicePanel(props: Props) {
                     rel="noopener noreferrer"
                   >
                     <MessageCircle className="mr-2 h-4 w-4" />
-                    Share
+                    {t("Share")}
                   </a>
                 </Button>
               ) : null}
@@ -264,7 +272,7 @@ function InvoicePanel(props: Props) {
           ) : null}
           <Button asChild size="sm" variant="outline">
             <Link href={`/app/finance/invoices/${props.invoiceNumber}`}>
-              Open invoice
+              {t("Open invoice")}
             </Link>
           </Button>
         </div>
@@ -281,11 +289,12 @@ function InvoicePanel(props: Props) {
         <input type="hidden" name="shipmentId" value={props.shipmentId} />
         <p className="flex items-center gap-2 text-sm font-medium">
           <FileText className="h-4 w-4 text-signal" />
-          Generate invoice
+          {t("Generate invoice")}
         </p>
         <p className="text-xs text-muted-foreground">
-          Prices from the cargo category, weight and the published rates, and
-          adds storage if the free days have run out.
+          {t(
+            "Prices from the cargo category, weight and the published rates, and adds storage if the free days have run out."
+          )}
         </p>
         <FormError state={state} />
         <FormSuccess
@@ -296,7 +305,7 @@ function InvoicePanel(props: Props) {
           }
         />
         <SubmitButton variant="signal" size="sm" pendingLabel="Pricing…">
-          Generate invoice
+          {t("Generate invoice")}
         </SubmitButton>
       </form>
     </div>
@@ -311,6 +320,7 @@ function InvoicePanel(props: Props) {
 const TODAY = new Date().toISOString().slice(0, 10);
 
 function PaymentPanel(props: Props) {
+  const t = useT();
   const settledOnLoad = props.outstanding !== null && props.outstanding <= 0;
   // Open unless there is nothing to take. A collapsed panel makes the main
   // job of this desk a thing you have to find first.
@@ -363,11 +373,11 @@ function PaymentPanel(props: Props) {
     currency === props.currency
       ? null
       : !rateUsable
-        ? `Set an exchange rate to take a payment in ${currency}.`
+        ? `${t("Set an exchange rate to take a payment in")} ${currency}.`
         : Number.isFinite(typed) && typed > 0
-          ? `${currency} ${typed.toLocaleString()} settles ${props.currency} ${(
+          ? `${currency} ${typed.toLocaleString()} ${t("settles")} ${props.currency} ${(
               currency === "TZS" ? typed / activeRate : typed * activeRate
-            ).toFixed(2)} at ${activeRate.toLocaleString()}.`
+            ).toFixed(2)} ${t("at")} ${activeRate.toLocaleString()}.`
           : null;
 
   // Agreeing a different rate changes what the same shillings are worth, so a
@@ -414,7 +424,7 @@ function PaymentPanel(props: Props) {
           className={settled ? "h-4 w-4 text-success" : "h-5 w-5 text-brand"}
         />
         <span className={settled ? "text-sm" : "text-base"}>
-          {settled ? "Settled in full" : "Record payment"}
+          {t(settled ? "Settled in full" : "Record payment")}
         </span>
         {!settled && props.outstanding !== null ? (
           <span className="ml-auto font-mono text-sm tabular-nums text-brand">
@@ -429,7 +439,7 @@ function PaymentPanel(props: Props) {
           <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
             <div className="space-y-1.5">
               <Label htmlFor="amount" className="text-xs">
-                Amount
+                {t("Amount")}
               </Label>
               {/* Cents matter. A bill of 39.15 part-paid with 39 leaves 0.15
                   outstanding, and a whole-number input made that last balance
@@ -444,7 +454,7 @@ function PaymentPanel(props: Props) {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="paymentCurrency" className="text-xs">
-                Paid in
+                {t("Paid in")}
               </Label>
               <NativeSelect
                 id="paymentCurrency"
@@ -461,7 +471,7 @@ function PaymentPanel(props: Props) {
           {currency !== props.currency ? (
             <div className="space-y-1.5">
               <Label htmlFor="paymentRate" className="text-xs">
-                Exchange rate{" "}
+                {t("Exchange rate")}{" "}
                 <span className="text-muted-foreground">
                   ({props.currency} → TZS)
                 </span>
@@ -473,15 +483,17 @@ function PaymentPanel(props: Props) {
                 onValueChange={setRate}
                 placeholder={
                   props.invoiceRate === null
-                    ? "e.g. 2700"
+                    ? t("e.g. 2700")
                     : String(props.invoiceRate)
                 }
                 required
               />
               <p className="text-xs text-muted-foreground">
                 {props.invoiceRate === null
-                  ? "This invoice carries no rate, so the one you agreed at the counter is the one that counts."
-                  : `The invoice was raised at ${props.invoiceRate.toLocaleString()}. Change it if you agreed a different rate — this payment is recorded at whatever you put here.`}
+                  ? t(
+                      "This invoice carries no rate, so the one you agreed at the counter is the one that counts."
+                    )
+                  : `${t("The invoice was raised at")} ${props.invoiceRate.toLocaleString()}. ${t("Change it if you agreed a different rate — this payment is recorded at whatever you put here.")}`}
               </p>
             </div>
           ) : null}
@@ -496,7 +508,8 @@ function PaymentPanel(props: Props) {
                     onClick={() => setAmount(String(clearing))}
                     className="font-medium text-brand underline-offset-2 hover:underline"
                   >
-                    {currency} {clearing!.toLocaleString()} clears the balance.
+                    {currency} {clearing!.toLocaleString()}{" "}
+                    {t("clears the balance.")}
                   </button>
                 </>
               ) : null}
@@ -504,7 +517,7 @@ function PaymentPanel(props: Props) {
           ) : null}
           <div className="space-y-1.5">
             <Label htmlFor="method" className="text-xs">
-              Method
+              {t("Method")}
             </Label>
             <NativeSelect
               id="method"
@@ -514,7 +527,7 @@ function PaymentPanel(props: Props) {
             >
               {enumOptions(PAYMENT_METHOD_LABELS).map((o) => (
                 <option key={o.value} value={o.value}>
-                  {o.label}
+                  {t(o.label)}
                 </option>
               ))}
             </NativeSelect>
@@ -529,11 +542,11 @@ function PaymentPanel(props: Props) {
           {eligibleAccounts.length > 0 ? (
             <div className="space-y-1.5">
               <Label htmlFor="accountId" className="text-xs">
-                Landed in{" "}
-                <span className="text-muted-foreground">(optional)</span>
+                {t("Landed in")}{" "}
+                <span className="text-muted-foreground">({t("optional")})</span>
               </Label>
               <NativeSelect id="accountId" name="accountId" defaultValue="">
-                <option value="">Not recorded</option>
+                <option value="">{t("Not recorded")}</option>
                 {eligibleAccounts.map((account) => (
                   <option key={account.id} value={account.id}>
                     {account.name}
@@ -542,15 +555,15 @@ function PaymentPanel(props: Props) {
                 ))}
               </NativeSelect>
               <p className="text-xs text-muted-foreground">
-                Which of our accounts this went into. Leave it if you are not
-                sure — it shows as unattributed until someone knows, which is
-                better than a guess that looks reconciled.
+                {t(
+                  "Which of our accounts this went into. Leave it if you are not sure — it shows as unattributed until someone knows, which is better than a guess that looks reconciled."
+                )}
               </p>
             </div>
           ) : null}
           <div className="space-y-1.5">
             <Label htmlFor="proof" className="text-xs">
-              Proof of payment
+              {t("Proof of payment")}
             </Label>
             <Input
               id="proof"
@@ -561,47 +574,53 @@ function PaymentPanel(props: Props) {
               className="file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
             />
             <p className="text-xs text-muted-foreground">
-              The M-Pesa screenshot, bank slip or transfer confirmation. This is
-              what settles an argument months later — a typed number is only a
-              claim that it happened.
+              {t(
+                "The M-Pesa screenshot, bank slip or transfer confirmation. This is what settles an argument months later — a typed number is only a claim that it happened."
+              )}
             </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="reference" className="text-xs">
-              Reference{" "}
-              <span className="text-muted-foreground">(optional)</span>
+              {t("Reference")}{" "}
+              <span className="text-muted-foreground">({t("optional")})</span>
             </Label>
             <Input
               id="reference"
               name="reference"
-              placeholder="M-Pesa ID, slip or cheque number"
+              placeholder={t("M-Pesa ID, slip or cheque number")}
             />
             <p className="text-xs text-muted-foreground">
-              Worth typing as well as attaching: it is what you search for when
-              matching this against a bank statement.
+              {t(
+                "Worth typing as well as attaching: it is what you search for when matching this against a bank statement."
+              )}
             </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="paidAt" className="text-xs">
-              Payment date{" "}
-              <span className="text-muted-foreground">(leave blank for today)</span>
+              {t("Payment date")}{" "}
+              <span className="text-muted-foreground">
+                ({t("leave blank for today")})
+              </span>
             </Label>
             <Input id="paidAt" name="paidAt" type="date" max={TODAY} />
             <p className="text-xs text-muted-foreground">
-              When the money moved, not when it was typed in. A Friday transfer
-              entered on Monday belongs to Friday, and the payments report
-              follows this date.
+              {t(
+                "When the money moved, not when it was typed in. A Friday transfer entered on Monday belongs to Friday, and the payments report follows this date."
+              )}
             </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="paymentNote" className="text-xs">
-              Notes <span className="text-muted-foreground">(optional)</span>
+              {t("Notes")}{" "}
+              <span className="text-muted-foreground">({t("optional")})</span>
             </Label>
             <Textarea
               id="paymentNote"
               name="note"
               rows={2}
-              placeholder="Anything the next person reading this receipt should know."
+              placeholder={t(
+                "Anything the next person reading this receipt should know."
+              )}
             />
           </div>
           <FormError state={state} />
@@ -609,17 +628,18 @@ function PaymentPanel(props: Props) {
             message={
               state.ok && state.data?.receiptNumber
                 ? state.data.pickupNoteNumber
-                  ? `Receipt ${state.data.receiptNumber} issued, and pickup note ${state.data.pickupNoteNumber} — this cargo is now cleared for collection.`
-                  : `Receipt ${state.data.receiptNumber} issued.`
+                  ? `${t("Receipt")} ${state.data.receiptNumber} ${t("issued, and pickup note")} ${state.data.pickupNoteNumber} — ${t("this cargo is now cleared for collection.")}`
+                  : `${t("Receipt")} ${state.data.receiptNumber} ${t("issued.")}`
                 : null
             }
           />
           <p className="text-xs text-muted-foreground">
-            Settling the balance in full also issues the pickup note and clears
-            the cargo for collection.
+            {t(
+              "Settling the balance in full also issues the pickup note and clears the cargo for collection."
+            )}
           </p>
           <SubmitButton variant="brand" size="sm" pendingLabel="Confirming…">
-            Confirm payment
+            {t("Confirm payment")}
           </SubmitButton>
         </form>
       ) : null}
@@ -628,6 +648,7 @@ function PaymentPanel(props: Props) {
 }
 
 function PickupNotePanel(props: Props) {
+  const t = useT();
   const [state, action] = useActionState<
     ActionResult<{ noteNumber: string }>,
     FormData
@@ -640,18 +661,20 @@ function PickupNotePanel(props: Props) {
       <div className="p-5">
         <p className="flex items-center gap-2 text-sm font-medium">
           <QrCode className="h-4 w-4 text-success" />
-          Pickup note {props.pickupNoteNumber}
+          {t("Pickup note")} {props.pickupNoteNumber}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          {props.pickupNoteStatus === "USED"
-            ? "Used — cargo collected."
-            : "Active — the customer can collect."}
+          {t(
+            props.pickupNoteStatus === "USED"
+              ? "Used — cargo collected."
+              : "Active — the customer can collect."
+          )}
         </p>
         {props.pickupNoteId ? (
           <Button asChild variant="outline" size="sm" className="mt-3">
             <Link href={`/app/finance/pickup-notes/${props.pickupNoteId}`}>
               <Printer className="mr-2 h-4 w-4" />
-              Open &amp; print
+              {t("Open & print")}
             </Link>
           </Button>
         ) : null}
@@ -666,11 +689,12 @@ function PickupNotePanel(props: Props) {
       <div className="p-5">
         <p className="flex items-center gap-2 text-sm font-medium">
           <QrCode className="h-4 w-4 text-muted-foreground" />
-          No pickup note yet
+          {t("No pickup note yet")}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Finance issues it once the invoice is settled in full. It will appear
-          here, ready to print.
+          {t(
+            "Finance issues it once the invoice is settled in full. It will appear here, ready to print."
+          )}
         </p>
       </div>
     );
@@ -687,18 +711,20 @@ function PickupNotePanel(props: Props) {
         <input type="hidden" name="shipmentId" value={props.shipmentId} />
         <p className="flex items-center gap-2 text-sm font-medium">
           <QrCode className="h-4 w-4 text-brand" />
-          Issue pickup note
+          {t("Issue pickup note")}
         </p>
         <p className="text-xs text-muted-foreground">
-          {blocked
-            ? "Available once the cargo is checked in at Dar and the invoice is settled in full."
-            : "This clears the cargo for release and notifies the warehouse."}
+          {t(
+            blocked
+              ? "Available once the cargo is checked in at Dar and the invoice is settled in full."
+              : "This clears the cargo for release and notifies the warehouse."
+          )}
         </p>
         <FormError state={state} />
         <FormSuccess
           message={
             state.ok && state.data?.noteNumber
-              ? `Pickup note ${state.data.noteNumber} issued.`
+              ? `${t("Pickup note")} ${state.data.noteNumber} ${t("issued.")}`
               : null
           }
         />
@@ -708,7 +734,7 @@ function PickupNotePanel(props: Props) {
           disabled={blocked}
           pendingLabel="Issuing…"
         >
-          Issue pickup note
+          {t("Issue pickup note")}
         </SubmitButton>
       </form>
     </div>
@@ -716,6 +742,7 @@ function PickupNotePanel(props: Props) {
 }
 
 function CancelPanel({ shipmentId }: { shipmentId: string }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [state, action] = useActionState<ActionResult, FormData>(cancelShipment, {
     ok: true,
@@ -729,7 +756,7 @@ function CancelPanel({ shipmentId }: { shipmentId: string }) {
         className="flex w-full items-center gap-2 text-sm font-medium text-destructive"
       >
         <Ban className="h-4 w-4" />
-        Cancel shipment
+        {t("Cancel shipment")}
       </button>
 
       {open ? (
@@ -737,14 +764,14 @@ function CancelPanel({ shipmentId }: { shipmentId: string }) {
           <input type="hidden" name="shipmentId" value={shipmentId} />
           <div className="space-y-1.5">
             <Label htmlFor="reason" className="text-xs">
-              Reason
+              {t("Reason")}
             </Label>
             <Textarea id="reason" name="reason" rows={2} required />
           </div>
           <FormError state={state} />
           <div className="flex gap-2">
             <SubmitButton variant="destructive" size="sm" pendingLabel="Cancelling…">
-              Confirm cancel
+              {t("Confirm cancel")}
             </SubmitButton>
             <Button
               type="button"
@@ -752,7 +779,7 @@ function CancelPanel({ shipmentId }: { shipmentId: string }) {
               size="sm"
               onClick={() => setOpen(false)}
             >
-              Keep it
+              {t("Keep it")}
             </Button>
           </div>
         </form>

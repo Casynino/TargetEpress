@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { activeAccounts } from "@/lib/accounts";
 import { submissionQueue } from "@/lib/collections";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import { viewerLocale } from "@/lib/viewer";
 
 /**
  * What Customer Support says customers have paid, waiting on Finance.
@@ -32,6 +34,7 @@ import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
  * reimplemented for this queue.
  */
 export async function VerifyQueue() {
+  const locale = await viewerLocale();
   const [rows, accounts] = await Promise.all([
     submissionQueue("PENDING"),
     activeAccounts(),
@@ -42,10 +45,14 @@ export async function VerifyQueue() {
   return (
     <>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-sm">
-        <p className="text-muted-foreground">{rows.length} waiting on you</p>
+        <p className="text-muted-foreground">
+          {rows.length} {t(locale, "waiting on you")}
+        </p>
         {rows.length > 0 ? (
           <p className="font-mono tabular-nums">
-            <span className="text-muted-foreground">Claimed </span>
+            <span className="text-muted-foreground">
+              {t(locale, "Claimed")}{" "}
+            </span>
             <span className="font-semibold">{total.toLocaleString("en-US")}</span>
           </p>
         ) : null}
@@ -53,8 +60,11 @@ export async function VerifyQueue() {
 
       {rows.length === 0 ? (
         <EmptyState
-          title="Nothing to verify"
-          description="Customer Support has not handed anything up that is still waiting."
+          title={t(locale, "Nothing to verify")}
+          description={t(
+            locale,
+            "Customer Support has not handed anything up that is still waiting."
+          )}
         />
       ) : (
         <ul className="space-y-3">
@@ -95,7 +105,8 @@ export async function VerifyQueue() {
                       {formatMoney(claimed, row.currency)}
                     </p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      owed {formatMoney(outstanding, row.invoice.currency)}
+                      {t(locale, "owed")}{" "}
+                      {formatMoney(outstanding, row.invoice.currency)}
                     </p>
                   </div>
                 </div>
@@ -104,10 +115,19 @@ export async function VerifyQueue() {
                   <div className="space-y-2">
                     <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-3">
                       {[
-                        { label: "Reference", value: row.reference ?? "none given" },
-                        { label: "Method", value: row.method.replace(/_/g, " ").toLowerCase() },
                         {
-                          label: "Submitted",
+                          label: t(locale, "Reference"),
+                          value: row.reference ?? t(locale, "none given"),
+                        },
+                        {
+                          label: t(locale, "Method"),
+                          value: t(
+                            locale,
+                            row.method.replace(/_/g, " ").toLowerCase()
+                          ),
+                        },
+                        {
+                          label: t(locale, "Submitted"),
                           value: `${row.submittedBy?.name ?? "—"} · ${formatDateTime(row.submittedAt)}`,
                         },
                       ].map((fact) => (
@@ -127,7 +147,10 @@ export async function VerifyQueue() {
                         variant="outline"
                         className="border-warning/40 font-normal text-warning"
                       >
-                        does not match the balance — check before agreeing
+                        {t(
+                          locale,
+                          "does not match the balance — check before agreeing"
+                        )}
                       </Badge>
                     ) : null}
                     {row.note ? (
@@ -137,7 +160,10 @@ export async function VerifyQueue() {
                     <ul className="flex flex-wrap gap-2 pt-1">
                       {row.proofs.length === 0 ? (
                         <li className="text-xs text-destructive">
-                          nothing attached — do not verify without evidence
+                          {t(
+                            locale,
+                            "nothing attached — do not verify without evidence"
+                          )}
                         </li>
                       ) : (
                         row.proofs.map((proof) => (
@@ -153,7 +179,7 @@ export async function VerifyQueue() {
                               ) : (
                                 <FileText className="h-3 w-3" />
                               )}
-                              {proof.filename ?? "Proof"}
+                              {proof.filename ?? t(locale, "Proof")}
                             </a>
                           </li>
                         ))

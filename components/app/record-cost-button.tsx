@@ -8,6 +8,7 @@ import {
   type ExpenseAccount,
   type QuickExpense,
 } from "@/components/app/expense-form";
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -29,6 +30,7 @@ export function RecordCostButton({
   thresholdUsd: number;
   rate: number | null;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   return (
@@ -39,7 +41,7 @@ export function RecordCostButton({
         onClick={() => setOpen(true)}
       >
         <Plus className="mr-2 h-4 w-4" />
-        Record a cost
+        {t("Record a cost")}
       </Button>
 
       {open ? (
@@ -47,7 +49,7 @@ export function RecordCostButton({
           className="fixed inset-0 z-50 overflow-y-auto bg-background/70 p-4 backdrop-blur-sm sm:p-8"
           role="dialog"
           aria-modal="true"
-          aria-label="Record a cost"
+          aria-label={t("Record a cost")}
           onClick={(e) => {
             if (e.target === e.currentTarget) setOpen(false);
           }}
@@ -60,7 +62,7 @@ export function RecordCostButton({
                 className="focus-ring inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent"
               >
                 <X className="h-3.5 w-3.5" />
-                Close
+                {t("Close")}
               </button>
             </div>
             <ExpenseForm

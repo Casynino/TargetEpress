@@ -9,8 +9,10 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { ROLE_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Audit log" };
 
@@ -22,6 +24,7 @@ export default async function AuditPage({
   searchParams: Promise<{ q?: string; entity?: string; page?: string }>;
 }) {
   await requirePermission("audit.view");
+  const locale = await viewerLocale();
   const { q, entity, page } = await searchParams;
 
   const currentPage = Math.max(1, Number(page ?? "1") || 1);
@@ -55,33 +58,36 @@ export default async function AuditPage({
   return (
     <>
       <PageHeader
-        title="Audit log"
-        description="Append-only. Every privileged action, who did it, and when."
+        title={t(locale, "Audit log")}
+        description={t(
+          locale,
+          "Append-only. Every privileged action, who did it, and when."
+        )}
       />
 
       <form className="mb-4 flex flex-col gap-2 sm:flex-row" action="/app/admin/audit">
         <Input
           name="q"
           defaultValue={q ?? ""}
-          placeholder="Search summary, action or user"
+          placeholder={t(locale, "Search summary, action or user")}
           className="flex-1"
         />
         <NativeSelect name="entity" defaultValue={entity ?? ""} className="sm:w-52">
-          <option value="">All records</option>
-          <option value="Shipment">Shipments</option>
-          <option value="Batch">Batches</option>
-          <option value="Invoice">Invoices</option>
-          <option value="Payment">Payments</option>
-          <option value="PickupNote">Pickup notes</option>
-          <option value="User">Staff</option>
+          <option value="">{t(locale, "All records")}</option>
+          <option value="Shipment">{t(locale, "Shipments")}</option>
+          <option value="Batch">{t(locale, "Batches")}</option>
+          <option value="Invoice">{t(locale, "Invoices")}</option>
+          <option value="Payment">{t(locale, "Payments")}</option>
+          <option value="PickupNote">{t(locale, "Pickup notes")}</option>
+          <option value="User">{t(locale, "Staff")}</option>
         </NativeSelect>
         <Button type="submit" variant="outline">
-          Filter
+          {t(locale, "Filter")}
         </Button>
       </form>
 
       {entries.length === 0 ? (
-        <EmptyState icon={History} title="Nothing logged yet" />
+        <EmptyState icon={History} title={t(locale, "Nothing logged yet")} />
       ) : (
         <ul className="divide-y rounded-xl border bg-card shadow-soft">
           {entries.map((entry) => (
@@ -94,8 +100,10 @@ export default async function AuditPage({
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 <span className="code-chip mr-2">{entry.action}</span>
-                {entry.actor?.name ?? entry.actorEmail ?? "System"}
-                {entry.actorRole ? ` · ${ROLE_LABELS[entry.actorRole]}` : ""}
+                {entry.actor?.name ?? entry.actorEmail ?? t(locale, "System")}
+                {entry.actorRole
+                  ? ` · ${t(locale, ROLE_LABELS[entry.actorRole])}`
+                  : ""}
               </p>
             </li>
           ))}
@@ -105,7 +113,8 @@ export default async function AuditPage({
       {pages > 1 ? (
         <div className="mt-4 flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
-            Page {currentPage} of {pages} · {total.toLocaleString()} entries
+            {t(locale, "Page")} {currentPage} {t(locale, "of")} {pages} ·{" "}
+            {total.toLocaleString()} {t(locale, "entries")}
           </span>
           <div className="flex gap-2">
             {currentPage > 1 ? (
@@ -117,7 +126,7 @@ export default async function AuditPage({
                     page: String(currentPage - 1),
                   })}`}
                 >
-                  Previous
+                  {t(locale, "Previous")}
                 </a>
               </Button>
             ) : null}
@@ -130,7 +139,7 @@ export default async function AuditPage({
                     page: String(currentPage + 1),
                   })}`}
                 >
-                  Next
+                  {t(locale, "Next")}
                 </a>
               </Button>
             ) : null}

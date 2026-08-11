@@ -184,7 +184,7 @@ async function darHeroChips(floor: FloorSnapshot): Promise<HeroChip[]> {
       value: String(floor.shipments),
       href: "/app/inventory",
       sub: checkedIn._count
-        ? `${checkedIn._count} checked in today`
+        ? `${checkedIn._count} ${t(locale, "checked in today")}`
         : t(locale, "Nothing checked in yet today"),
     },
     {
@@ -193,15 +193,21 @@ async function darHeroChips(floor: FloorSnapshot): Promise<HeroChip[]> {
       value: floor.packages.toLocaleString(),
       href: "/app/inventory",
       sub: shortBoxes
-        ? `${shortBoxes} short of the manifest`
-        : `All ${floor.declaredPackages.toLocaleString()} accounted for`,
+        ? `${shortBoxes} ${t(locale, "short of the manifest")}`
+        : `${t(locale, "All")} ${floor.declaredPackages.toLocaleString()} ${t(
+            locale,
+            "accounted for"
+          )}`,
     },
     {
       icon: Scale,
       label: t(locale, "Weight on the floor"),
       value: formatWeight(floor.weightKg),
       href: "/app/inventory",
-      sub: `${formatWeight(toNumber(checkedIn._sum.weightKg ?? 0))} checked in today`,
+      sub: `${formatWeight(toNumber(checkedIn._sum.weightKg ?? 0))} ${t(
+        locale,
+        "checked in today"
+      )}`,
     },
   ];
 }
@@ -325,7 +331,7 @@ export default async function DashboardPage() {
               </span>
             </div>
             <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight text-white">
-              Habari, {firstName}
+              {t(locale, "Habari,")} {firstName}
             </h1>
             <p className="mt-2 text-sm text-white/80">
               {user.role === "FINANCE"
@@ -449,7 +455,12 @@ async function ChinaDashboard({
       id: "no-photos",
       group: t(locale, "Registration"),
       severity: "critical" as const,
-      label: `${problems.noPhotos} consignment${problems.noPhotos === 1 ? "" : "s"} with no photograph`,
+      label: `${problems.noPhotos} ${t(
+        locale,
+        problems.noPhotos === 1
+          ? "consignment with no photograph"
+          : "consignments with no photograph"
+      )}`,
       detail: t(
         locale,
         "Nothing to show the customer if it arrives damaged, and nothing to argue with when they say it did."
@@ -461,7 +472,7 @@ async function ChinaDashboard({
       id: "unassigned",
       group: t(locale, "Loading"),
       severity: "critical" as const,
-      label: `${problems.unassigned} on no batch`,
+      label: `${problems.unassigned} ${t(locale, "on no batch")}`,
       detail: t(
         locale,
         "Registered and sitting loose. Cargo on no batch does not get on an aircraft."
@@ -473,7 +484,12 @@ async function ChinaDashboard({
       id: "stale-batches",
       group: t(locale, "Loading"),
       severity: "warning" as const,
-      label: `${problems.staleBatches} batch${problems.staleBatches === 1 ? "" : "es"} open more than ${problems.staleDays} days`,
+      label: `${problems.staleBatches} ${t(
+        locale,
+        problems.staleBatches === 1
+          ? "batch open more than"
+          : "batches open more than"
+      )} ${problems.staleDays} ${t(locale, "days")}`,
       detail: t(
         locale,
         "A batch left open stops being a batch and becomes a shelf. Seal it or fly it."
@@ -485,7 +501,9 @@ async function ChinaDashboard({
       id: "waiting",
       group: t(locale, "Waiting"),
       severity: "info" as const,
-      label: `${problems.waiting} waiting more than ${problems.staleDays} days`,
+      label: `${problems.waiting} ${t(locale, "waiting more than")} ${
+        problems.staleDays
+      } ${t(locale, "days")}`,
       detail: t(
         locale,
         "Booked in and still in Guangzhou. Every day here is a day the customer is counting."
@@ -496,7 +514,10 @@ async function ChinaDashboard({
   ].filter((job) => job.when) as AttnItem[];
 
   const chinaFormat = (n: number) =>
-    `${n.toLocaleString("en-US")} consignment${n === 1 ? "" : "s"}`;
+    `${n.toLocaleString("en-US")} ${t(
+      locale,
+      n === 1 ? "consignment" : "consignments"
+    )}`;
 
   // One array for the ring and its key, so the two cannot be relabelled apart.
   const chinaSlices = [
@@ -556,7 +577,10 @@ async function ChinaDashboard({
           delay={0}
           label={t(locale, "In China warehouse")}
           numeric={stats.readyToDepart}
-          hint={`${formatWeight(stats.stagedWeightKg)} waiting for a flight`}
+          hint={`${formatWeight(stats.stagedWeightKg)} ${t(
+            locale,
+            "waiting for a flight"
+          )}`}
           icon={Package}
           tone="warning"
           href="/app/cargo?status=READY_TO_DEPART"
@@ -653,11 +677,11 @@ async function ChinaDashboard({
               className="mt-3"
               segments={ageing.map((bucket) => ({
                 key: bucket.key,
-                label: bucket.label,
+                label: t(locale, bucket.label),
                 count: bucket.count,
                 value: bucket.packages,
               }))}
-              format={(n) => `${n} box${n === 1 ? "" : "es"}`}
+              format={(n) => `${n} ${t(locale, n === 1 ? "box" : "boxes")}`}
               unit={t(locale, "consignment")}
               empty={t(locale, "Nothing is waiting in Guangzhou.")}
             />
@@ -675,8 +699,8 @@ async function ChinaDashboard({
                 {t(locale, "Registration volume")}
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Shipments registered at the China desk, {volume.year} against{" "}
-                {volume.year - 1}
+                {t(locale, "Shipments registered at the China desk,")}{" "}
+                {volume.year} {t(locale, "against")} {volume.year - 1}
               </p>
             </div>
             <p className="font-display text-2xl font-bold tabular">
@@ -700,7 +724,10 @@ async function ChinaDashboard({
           slices={mix.slices}
           totalShipments={mix.totalShipments}
           totalWeightKg={mix.totalWeightKg}
-          periodLabel={`Received in the last ${mix.days} days`}
+          periodLabel={`${t(locale, "Received in the last")} ${mix.days} ${t(
+            locale,
+            "days"
+          )}`}
         />
         </div>
       </div>
@@ -754,7 +781,8 @@ async function ChinaDashboard({
                         </span>
                       </div>
                       <p className="mt-1.5 text-xs text-muted-foreground tabular">
-                        {batch.shipments.length} shipment(s) · {packages} package(s) ·{" "}
+                        {batch.shipments.length} {t(locale, "shipment(s)")} ·{" "}
+                        {packages} {t(locale, "package(s)")} ·{" "}
                         {formatWeight(weight)}
                       </p>
                       <Progress
@@ -763,7 +791,7 @@ async function ChinaDashboard({
                         tone={batch.status === "OPEN" ? "brand" : "warning"}
                         striped={batch.status === "OPEN"}
                         className="mt-3"
-                        label={`${batch.batchNumber} load`}
+                        label={`${batch.batchNumber} ${t(locale, "load")}`}
                       />
                     </Link>
                   </li>
@@ -964,10 +992,13 @@ async function DarDashboard({
   const locale = await viewerLocale();
 
   const exceptionParts = [
-    stats.missing ? `${stats.missing} missing` : null,
-    stats.damaged ? `${stats.damaged} damaged` : null,
+    stats.missing ? `${stats.missing} ${t(locale, "missing")}` : null,
+    stats.damaged ? `${stats.damaged} ${t(locale, "damaged")}` : null,
     stats.openExceptions - stats.missing - stats.damaged
-      ? `${stats.openExceptions - stats.missing - stats.damaged} other`
+      ? `${stats.openExceptions - stats.missing - stats.damaged} ${t(
+          locale,
+          "other"
+        )}`
       : null,
   ].filter(Boolean);
 
@@ -1013,7 +1044,12 @@ async function DarDashboard({
         id: "short-boxes",
         group: t(locale, "Receiving"),
         severity: "critical" as const,
-        label: `${shortBoxes} box${shortBoxes === 1 ? "" : "es"} short of the manifest`,
+        label: `${shortBoxes} ${t(
+          locale,
+          shortBoxes === 1
+            ? "box short of the manifest"
+            : "boxes short of the manifest"
+        )}`,
         detail: t(
           locale,
           "Checked in with fewer cartons than the Guangzhou paperwork claims — mis-scanned, or genuinely missing."
@@ -1025,23 +1061,28 @@ async function DarDashboard({
         id: "aging",
         group: t(locale, "Storage"),
         severity: "warning" as const,
-        label: `${floor.aging} past the free storage window`,
-        detail: `Standing more than ${STORAGE_POLICY.freeDays} days. Storage is being charged and the customer usually does not know.`,
+        label: `${floor.aging} ${t(locale, "past the free storage window")}`,
+        detail: `${t(locale, "Standing more than")} ${
+          STORAGE_POLICY.freeDays
+        } ${t(
+          locale,
+          "days. Storage is being charged and the customer usually does not know."
+        )}`,
         href: "/app/inventory",
-        value: `longest ${floor.longestHeldDays}d`,
+        value: `${t(locale, "longest")} ${floor.longestHeldDays}d`,
       },
       {
         when: stats.readyForPickup > 0,
         id: "ready",
         group: t(locale, "Pickup"),
         severity: "info" as const,
-        label: `${stats.readyForPickup} paid, not collected`,
+        label: `${stats.readyForPickup} ${t(locale, "paid, not collected")}`,
         detail: t(
           locale,
           "Cleared by Finance and still on our shelves. The customer can take these away today."
         ),
         href: "/app/pickup-queue",
-        value: `${stats.readyPackages} box(es)`,
+        value: `${stats.readyPackages} ${t(locale, "box(es)")}`,
       },
     ].filter((job) => job.when) as AttnItem[]),
   ];
@@ -1067,7 +1108,10 @@ async function DarDashboard({
   ];
 
   const floorFormat = (n: number) =>
-    `${n.toLocaleString("en-US")} consignment${n === 1 ? "" : "s"}`;
+    `${n.toLocaleString("en-US")} ${t(
+      locale,
+      n === 1 ? "consignment" : "consignments"
+    )}`;
 
   return (
     <div className="space-y-7">
@@ -1109,7 +1153,9 @@ async function DarDashboard({
           numeric={stats.incoming}
           hint={
             stats.batchesInAir
-              ? `${stats.batchesInAir} batch(es) · ${formatWeight(stats.incomingWeightKg)} in the air`
+              ? `${stats.batchesInAir} ${t(locale, "batch(es)")} · ${formatWeight(
+                  stats.incomingWeightKg
+                )} ${t(locale, "in the air")}`
               : t(locale, "Nothing in the air from China")
           }
           icon={Plane}
@@ -1122,7 +1168,10 @@ async function DarDashboard({
           numeric={stats.awaitingVerification}
           hint={
             stats.batchesOnFloor
-              ? `${stats.batchesOnFloor} batch(es) landed, not checked in`
+              ? `${stats.batchesOnFloor} ${t(
+                  locale,
+                  "batch(es) landed, not checked in"
+                )}`
               : t(locale, "Every landed batch is checked in")
           }
           icon={ClipboardCheck}
@@ -1135,8 +1184,13 @@ async function DarDashboard({
           numeric={stats.readyForPickup}
           hint={
             stats.readyForPickup
-              ? `${stats.readyPackages} box(es) paid for · ${stats.releasedToday} handed over today`
-              : `Nothing to collect · ${stats.releasedToday} handed over today`
+              ? `${stats.readyPackages} ${t(locale, "box(es) paid for")} · ${
+                  stats.releasedToday
+                } ${t(locale, "handed over today")}`
+              : `${t(locale, "Nothing to collect")} · ${stats.releasedToday} ${t(
+                  locale,
+                  "handed over today"
+                )}`
           }
           icon={Truck}
           tone="success"
@@ -1148,11 +1202,17 @@ async function DarDashboard({
         />
         <KpiCard
           delay={3}
-          label={`Held over ${STORAGE_POLICY.freeDays} days`}
+          label={`${t(locale, "Held over")} ${STORAGE_POLICY.freeDays} ${t(
+            locale,
+            "days"
+          )}`}
           numeric={floor.aging}
           hint={
             floor.longestHeldDays > 0
-              ? `Longest standing ${floor.longestHeldDays} day(s) · storage is charged after ${STORAGE_POLICY.freeDays}`
+              ? `${t(locale, "Longest standing")} ${floor.longestHeldDays} ${t(
+                  locale,
+                  "day(s) · storage is charged after"
+                )} ${STORAGE_POLICY.freeDays}`
               : t(locale, "Nothing has aged yet")
           }
           icon={Hourglass}
@@ -1266,11 +1326,11 @@ async function DarDashboard({
               // customers that represents.
               segments={ageing.map((b) => ({
                 key: b.key,
-                label: b.label,
+                label: t(locale, b.label),
                 count: b.count,
                 value: b.packages,
               }))}
-              format={(n) => `${n} box${n === 1 ? "" : "es"}`}
+              format={(n) => `${n} ${t(locale, n === 1 ? "box" : "boxes")}`}
               unit={t(locale, "consignment")}
               empty={t(locale, "Nothing is standing on the floor.")}
             />
@@ -1330,8 +1390,12 @@ async function DarDashboard({
                       <p className="mt-1.5 text-xs text-muted-foreground">
                         {batch.airline ?? "—"} {batch.flightNumber ?? ""} ·{" "}
                         {arrived
-                          ? `landed ${formatRelative(batch.arrivedAt)}`
-                          : `departed ${formatRelative(batch.departureDate)}`}
+                          ? `${t(locale, "landed")} ${formatRelative(
+                              batch.arrivedAt
+                            )}`
+                          : `${t(locale, "departed")} ${formatRelative(
+                              batch.departureDate
+                            )}`}
                       </p>
                       {arrived ? (
                         <>
@@ -1348,7 +1412,10 @@ async function DarDashboard({
                             max={total}
                             tone={checked === total ? "success" : "warning"}
                             className="mt-1.5"
-                            label={`${batch.batchNumber} check-in`}
+                            label={`${batch.batchNumber} ${t(
+                              locale,
+                              "check-in"
+                            )}`}
                           />
                         </>
                       ) : null}
@@ -1377,7 +1444,8 @@ async function DarDashboard({
             {t(locale, "Corridor performance")}
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Measured over the last {perf.sample} delivered shipment(s)
+            {t(locale, "Measured over the last")} {perf.sample}{" "}
+            {t(locale, "delivered shipment(s)")}
           </p>
           <dl className="mt-5 space-y-4">
             {[
@@ -1386,7 +1454,7 @@ async function DarDashboard({
                 value:
                   perf.avgFlightDays === null
                     ? "—"
-                    : `${perf.avgFlightDays.toFixed(1)} days`,
+                    : `${perf.avgFlightDays.toFixed(1)} ${t(locale, "days")}`,
                 note: t(locale, "Departure → checked in at Dar. Ours to control."),
                 icon: Plane,
               },
@@ -1395,7 +1463,7 @@ async function DarDashboard({
                 value:
                   perf.avgDwellDays === null
                     ? "—"
-                    : `${perf.avgDwellDays.toFixed(1)} days`,
+                    : `${perf.avgDwellDays.toFixed(1)} ${t(locale, "days")}`,
                 note: t(
                   locale,
                   "Arrival → collected. Depends on payment and the customer."
@@ -1584,7 +1652,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     {
       group: t(locale, "Pricing"),
       when: drafts._count > 0,
-      label: `${drafts._count} price${drafts._count === 1 ? "" : "s"} to confirm`,
+      label: `${drafts._count} ${t(
+        locale,
+        drafts._count === 1 ? "price to confirm" : "prices to confirm"
+      )}`,
       detail: t(
         locale,
         "Priced automatically at check-in. Nothing can be invoiced, and no cargo released, until you sign them off."
@@ -1597,7 +1668,12 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     {
       group: t(locale, "Payments"),
       when: unattributed._count > 0,
-      label: `${unattributed._count} payment${unattributed._count === 1 ? "" : "s"} with no account`,
+      label: `${unattributed._count} ${t(
+        locale,
+        unattributed._count === 1
+          ? "payment with no account"
+          : "payments with no account"
+      )}`,
       detail: t(
         locale,
         "Taken from the customer, but nobody said where it landed — so it sits in no account and no balance."
@@ -1610,7 +1686,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     {
       group: t(locale, "Collections"),
       when: unsettled > 0,
-      label: `${unsettled} bill${unsettled === 1 ? "" : "s"} unpaid`,
+      label: `${unsettled} ${t(
+        locale,
+        unsettled === 1 ? "bill unpaid" : "bills unpaid"
+      )}`,
       detail: t(
         locale,
         "Confirmed and sent to the customer. The money has not arrived."
@@ -1623,7 +1702,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     {
       group: t(locale, "Costs"),
       when: owedOut._count > 0,
-      label: `${owedOut._count} cost${owedOut._count === 1 ? "" : "s"} to pay out`,
+      label: `${owedOut._count} ${t(
+        locale,
+        owedOut._count === 1 ? "cost to pay out" : "costs to pay out"
+      )}`,
       detail: t(
         locale,
         "Recorded against the business, not yet disbursed from an account."
@@ -1636,7 +1718,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     {
       group: t(locale, "Pickup"),
       when: stats.activeNotes > 0,
-      label: `${stats.activeNotes} cleared, not collected`,
+      label: `${stats.activeNotes} ${t(locale, "cleared, not collected")}`,
       detail: t(
         locale,
         "Paid for and released. The cargo is still on our floor waiting for the customer to turn up."
@@ -1742,7 +1824,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           rate={rate}
           icon={Wallet}
           tone="good"
-          count={`${holding} of ${accountRows.length} accounts holding`}
+          count={`${holding} ${t(locale, "of")} ${accountRows.length} ${t(
+            locale,
+            "accounts holding"
+          )}`}
           hint={t(
             locale,
             "Every till and bank account, added up. Comes from the ledger, so it moves the moment money does."
@@ -1756,7 +1841,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           icon={Hourglass}
           tone="warn"
           emphasis={drafts._count > 0}
-          count={`${drafts._count} consignment${drafts._count === 1 ? "" : "s"}`}
+          count={`${drafts._count} ${t(
+            locale,
+            drafts._count === 1 ? "consignment" : "consignments"
+          )}`}
           hint={t(
             locale,
             "Sitting in the warehouse with a price nobody has confirmed. This is the biggest number on the page for a reason."
@@ -1772,7 +1860,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           count={
             unsettled === 0
               ? t(locale, "nothing outstanding")
-              : `${unsettled} bill${unsettled === 1 ? "" : "s"}`
+              : `${unsettled} ${t(locale, unsettled === 1 ? "bill" : "bills")}`
           }
           hint={
             unsettled === 0
@@ -1793,7 +1881,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           count={
             spent._count === 0
               ? t(locale, "no costs recorded yet")
-              : `${spent._count} payment${spent._count === 1 ? "" : "s"} out`
+              : `${spent._count} ${t(
+                  locale,
+                  spent._count === 1 ? "payment out" : "payments out"
+                )}`
           }
           hint={t(
             locale,
@@ -1934,7 +2025,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
               className="mt-3"
               segments={ageing.buckets.map((bucket) => ({
                 key: bucket.key,
-                label: bucket.label,
+                label: t(locale, bucket.label),
                 count: bucket.count,
                 value: bucket.usd,
               }))}
@@ -2238,10 +2329,10 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           rate={execRate}
           count={
             lastMonthRevenue > 0
-              ? `${thisMonthRevenue >= lastMonthRevenue ? "+" : ""}${delta(thisMonthRevenue, lastMonthRevenue)?.toFixed(0) ?? 0}% on last month`
+              ? `${thisMonthRevenue >= lastMonthRevenue ? "+" : ""}${delta(thisMonthRevenue, lastMonthRevenue)?.toFixed(0) ?? 0}% ${t(locale, "on last month")}`
               : t(locale, "first month with takings")
           }
-          hint={`${execTsh(stats.allTimeCollected)} all time`}
+          hint={`${execTsh(stats.allTimeCollected)} ${t(locale, "all time")}`}
           icon={Banknote}
           tone="good"
           trend={revenue.values}
@@ -2264,7 +2355,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           numeric={stats.deliveredThisMonth}
           ringPct={deliveredShare}
           ringLabel={t(locale, "Share of the month's cargo delivered")}
-          hint={`${stats.active} still moving`}
+          hint={`${stats.active} ${t(locale, "still moving")}`}
           icon={Truck}
           tone="brand"
         />
@@ -2274,7 +2365,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           value={perf.promiseRate === null ? "—" : `${perf.promiseRate.toFixed(0)}%`}
           ringPct={perf.promiseRate ?? 0}
           ringLabel={t(locale, "Promise adherence")}
-          hint={`Over ${perf.sample} delivered`}
+          hint={`${t(locale, "Over")} ${perf.sample} ${t(locale, "delivered")}`}
           icon={Timer}
           tone={
             perf.promiseRate === null
@@ -2370,7 +2461,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
               className="mt-3"
               segments={owed.buckets.map((bucket) => ({
                 key: bucket.key,
-                label: bucket.label,
+                label: t(locale, bucket.label),
                 count: bucket.count,
                 value: bucket.usd,
               }))}

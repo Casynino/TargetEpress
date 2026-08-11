@@ -20,7 +20,7 @@ import {
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { customerProfile } from "@/lib/support";
-import { viewerLocale } from "@/lib/viewer";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Customer" };
 
@@ -71,7 +71,9 @@ export default async function CustomerProfilePage({
     body: composeMessage(kind, {
       customerName: customer.name,
       trackingNumber: latestShipment?.trackingNumber ?? null,
-      description: latestShipment?.description ?? null,
+      description: latestShipment
+        ? cargoText(locale, latestShipment, "description")
+        : null,
       batchNumber: latestShipment?.batch?.batchNumber ?? null,
       invoiceNumber: latestShipment?.invoice?.invoiceNumber ?? null,
       amountUsd: latestShipment?.invoice
@@ -97,7 +99,9 @@ export default async function CustomerProfilePage({
       <PageHeader
         title={customer.name}
         description={`${customer.code}${customer.city ? ` · ${customer.city}` : ""}${
-          customer.createdAt ? ` · customer since ${formatDate(customer.createdAt)}` : ""
+          customer.createdAt
+            ? ` · ${t(locale, "customer since")} ${formatDate(customer.createdAt)}`
+            : ""
         }`}
         actions={
           customer.phone ? (
@@ -209,7 +213,7 @@ export default async function CustomerProfilePage({
                           {shipment.trackingNumber}
                         </Link>
                         <p className="mt-0.5 line-clamp-2 text-sm">
-                          {shipment.description}
+                          {cargoText(locale, shipment, "description")}
                         </p>
                         <p className="mt-0.5 text-[11px] text-muted-foreground">
                           {formatWeight(shipment.weightKg)} · {shipment.packages}{" "}
@@ -243,7 +247,7 @@ export default async function CustomerProfilePage({
                                 }`}
                               >
                                 {outstanding && outstanding > 0
-                                  ? `${formatUsd(outstanding)} owed`
+                                  ? `${formatUsd(outstanding)} ${t(locale, "owed")}`
                                   : t(locale, "paid")}
                               </span>
                             </div>
@@ -318,7 +322,7 @@ export default async function CustomerProfilePage({
                         </td>
                         <td className="p-3">
                           <div className="max-w-[14rem] truncate">
-                            {shipment.description}
+                            {cargoText(locale, shipment, "description")}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {formatWeight(shipment.weightKg)} · {shipment.packages}{" "}
@@ -346,7 +350,7 @@ export default async function CustomerProfilePage({
                                   }`}
                                 >
                                   {outstanding && outstanding > 0
-                                    ? `${formatUsd(outstanding)} owed`
+                                    ? `${formatUsd(outstanding)} ${t(locale, "owed")}`
                                     : t(locale, "paid")}
                                 </div>
                                 {!shipment.invoice.sentAt ? (
@@ -452,7 +456,7 @@ export default async function CustomerProfilePage({
                       </p>
                     </div>
                     <Badge variant="outline" className="text-[10px]">
-                      {note.status.toLowerCase()}
+                      {t(locale, note.status.toLowerCase())}
                     </Badge>
                   </li>
                 ))}
@@ -477,7 +481,8 @@ export default async function CustomerProfilePage({
                     >
                       <p className="truncate text-sm">{ticket.subject}</p>
                       <p className="font-mono text-[11px] text-muted-foreground">
-                        {ticket.ticketNumber} · {ticket.status.toLowerCase()}
+                        {ticket.ticketNumber} ·{" "}
+                        {t(locale, ticket.status.toLowerCase())}
                       </p>
                     </Link>
                   </li>
@@ -490,7 +495,8 @@ export default async function CustomerProfilePage({
                     >
                       <p className="truncate text-sm">{request.product}</p>
                       <p className="font-mono text-[11px] text-muted-foreground">
-                        {request.requestNumber} · {request.status.toLowerCase()}
+                        {request.requestNumber} ·{" "}
+                        {t(locale, request.status.toLowerCase())}
                       </p>
                     </Link>
                   </li>

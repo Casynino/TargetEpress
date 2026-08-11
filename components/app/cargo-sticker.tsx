@@ -3,12 +3,16 @@ import Image from "next/image";
 import { BrandMark } from "@/components/brand-mark";
 import { t } from "@/lib/i18n";
 import { LABEL_MM } from "@/lib/print";
-import { viewerLocale } from "@/lib/viewer";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export type StickerData = {
   trackingNumber: string;
   customerName: string;
   description: string;
+  /** The renderings of the description, when the page passed them through. */
+  descriptionEn?: string | null;
+  descriptionZh?: string | null;
+  descriptionLang?: string | null;
   packages: number;
   /** "3 cartons" — the count with its unit, never a bare number. */
   packagesLabel: string;
@@ -125,7 +129,7 @@ export async function CargoSticker({ data }: { data: StickerData }) {
       >
         <Image
           src={data.qr}
-          alt={`QR code for package ${data.packageRef}`}
+          alt={`${t(locale, "QR code for package")} ${data.packageRef}`}
           width={700}
           height={700}
           className="shrink-0"
@@ -152,7 +156,7 @@ export async function CargoSticker({ data }: { data: StickerData }) {
             overflow: "hidden",
           }}
         >
-          {data.description}
+          {cargoText(locale, data, "description")}
         </p>
       </div>
 

@@ -9,13 +9,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Staff" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await viewerLocale();
+  return { title: t(locale, "Staff") };
+}
 
 export default async function UsersPage() {
   const actor = await requirePermission("user.manage");
+  const locale = await viewerLocale();
 
   const users = await prisma.user.findMany({
     orderBy: [{ active: "desc" }, { name: "asc" }],
@@ -44,10 +50,16 @@ export default async function UsersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="hidden md:table-cell">Role</TableHead>
-                <TableHead className="hidden lg:table-cell">Last login</TableHead>
-                <TableHead className="text-right">Access</TableHead>
+                <TableHead>{t(locale, "Name")}</TableHead>
+                <TableHead className="hidden md:table-cell">
+                  {t(locale, "Role")}
+                </TableHead>
+                <TableHead className="hidden lg:table-cell">
+                  {t(locale, "Last login")}
+                </TableHead>
+                <TableHead className="text-right">
+                  {t(locale, "Access")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

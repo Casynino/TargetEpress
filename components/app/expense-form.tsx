@@ -8,6 +8,7 @@ import {
   FormSuccess,
   SubmitButton,
 } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,6 +65,7 @@ export function ExpenseForm({
   /** Rendered inside something that already decided it is open. */
   alwaysOpen?: boolean;
 }) {
+  const t = useT();
   const [state, action] = useActionState<
     ActionResult<{ expenseNumber: string }>,
     FormData
@@ -101,7 +103,7 @@ export function ExpenseForm({
     return (
       <Button variant="brand" className="rounded-lg" onClick={() => setOpen(true)}>
         <Plus className="mr-2 h-4 w-4" />
-        Record a cost
+        {t("Record a cost")}
       </Button>
     );
   }
@@ -109,13 +111,13 @@ export function ExpenseForm({
   return (
     <section className="overflow-hidden rounded-xl border bg-card shadow-soft">
       <div className="flex items-center justify-between gap-3 border-b px-5 py-3">
-        <h2 className="font-semibold">Record a cost</h2>
+        <h2 className="font-semibold">{t("Record a cost")}</h2>
         {alwaysOpen ? null : (
           <button
             type="button"
             onClick={() => setOpen(false)}
             className="focus-ring rounded-md p-1 text-muted-foreground hover:text-foreground"
-            aria-label="Close"
+            aria-label={t("Close")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -127,7 +129,7 @@ export function ExpenseForm({
         <div className="border-b bg-muted/30 px-5 py-3">
           <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
             <Zap className="h-3.5 w-3.5" />
-            The usual
+            {t("The usual")}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {quick.map((item) => (
@@ -141,7 +143,7 @@ export function ExpenseForm({
                     : "bg-card hover:bg-accent"
                 }`}
               >
-                {item.label}
+                {t(item.label)}
               </button>
             ))}
           </div>
@@ -152,21 +154,21 @@ export function ExpenseForm({
         <div className="grid gap-4 lg:grid-cols-12">
           <div className="space-y-1.5 lg:col-span-4">
             <Label htmlFor="description" className="text-xs">
-              What was it for
+              {t("What was it for")}
             </Label>
             <Input
               id="description"
               name="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Fuel, customs, a repair…"
+              placeholder={t("Fuel, customs, a repair…")}
               required
             />
           </div>
 
           <div className="space-y-1.5 lg:col-span-4">
             <Label htmlFor="expenseAmount" className="text-xs">
-              Amount
+              {t("Amount")}
             </Label>
             <div className="flex gap-2">
               <MoneyInput
@@ -178,7 +180,7 @@ export function ExpenseForm({
               />
               <NativeSelect
                 name="currency"
-                aria-label="Currency"
+                aria-label={t("Currency")}
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
                 className="w-[5.5rem] shrink-0"
@@ -191,10 +193,10 @@ export function ExpenseForm({
 
           <div className="space-y-1.5 lg:col-span-4">
             <Label htmlFor="expenseAccount" className="text-xs">
-              Paid from
+              {t("Paid from")}
             </Label>
             <NativeSelect id="expenseAccount" name="accountId" defaultValue="">
-              <option value="">Not paid yet</option>
+              <option value="">{t("Not paid yet")}</option>
               {eligible.map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name}
@@ -202,14 +204,15 @@ export function ExpenseForm({
               ))}
             </NativeSelect>
             <p className="text-[11px] text-muted-foreground">
-              Name it and the cost is paid in one step. Leave it and you choose
-              the account when you settle it.
+              {t(
+                "Name it and the cost is paid in one step. Leave it and you choose the account when you settle it."
+              )}
             </p>
           </div>
 
           <div className="space-y-1.5 lg:col-span-5">
             <Label htmlFor="category" className="text-xs">
-              Category
+              {t("Category")}
             </Label>
             <NativeSelect
               id="category"
@@ -219,7 +222,7 @@ export function ExpenseForm({
             >
               {categoryOptions.map((c) => (
                 <option key={c.value} value={c.value}>
-                  {c.label}
+                  {t(c.label)}
                 </option>
               ))}
             </NativeSelect>
@@ -230,7 +233,7 @@ export function ExpenseForm({
           <div className="space-y-1.5 lg:col-span-7">
             <Label htmlFor="receipt" className="flex items-center gap-1.5 text-xs">
               <Paperclip className="h-3.5 w-3.5" />
-              Receipt or photo
+              {t("Receipt or photo")}
             </Label>
             <Input
               id="receipt"
@@ -251,7 +254,9 @@ export function ExpenseForm({
               <ChevronDown
                 className={`h-3.5 w-3.5 transition-transform ${more ? "rotate-180" : ""}`}
               />
-              {more ? "Fewer details" : "Who was paid, which flight, what date"}
+              {more
+                ? t("Fewer details")
+                : t("Who was paid, which flight, what date")}
             </button>
           </div>
 
@@ -259,17 +264,21 @@ export function ExpenseForm({
             <>
               <div className="space-y-1.5 lg:col-span-4">
                 <Label htmlFor="vendor" className="text-xs">
-                  Paid to
+                  {t("Paid to")}
                 </Label>
-                <Input id="vendor" name="vendor" placeholder="Who received it" />
+                <Input
+                  id="vendor"
+                  name="vendor"
+                  placeholder={t("Who received it")}
+                />
               </div>
               {dispatches && dispatches.length > 0 ? (
                 <div className="space-y-1.5 lg:col-span-4">
                   <Label htmlFor="expenseBatch" className="text-xs">
-                    Against a dispatch
+                    {t("Against a dispatch")}
                   </Label>
                   <NativeSelect id="expenseBatch" name="batchId" defaultValue="">
-                    <option value="">Not one flight</option>
+                    <option value="">{t("Not one flight")}</option>
                     {dispatches.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.label}
@@ -280,7 +289,7 @@ export function ExpenseForm({
               ) : null}
               <div className="space-y-1.5 lg:col-span-4">
                 <Label htmlFor="incurredAt" className="text-xs">
-                  Date
+                  {t("Date")}
                 </Label>
                 <Input id="incurredAt" name="incurredAt" type="date" max={TODAY} />
               </div>
@@ -291,17 +300,19 @@ export function ExpenseForm({
         <FormError state={state} />
         <FormSuccess
           message={
-            state.ok && state.data ? `Recorded ${state.data.expenseNumber}` : null
+            state.ok && state.data
+              ? `${t("Recorded")} ${state.data.expenseNumber}`
+              : null
           }
         />
 
         <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-4">
-          <SubmitButton variant="brand" size="sm" pendingLabel="Recording…">
-            Record cost
+          <SubmitButton variant="brand" size="sm" pendingLabel={t("Recording…")}>
+            {t("Record cost")}
           </SubmitButton>
           <p className="text-xs text-muted-foreground">
-            Over {limit} waits for the CEO&rsquo;s approval before it can leave
-            an account.
+            {t("Over")} {limit}{" "}
+            {t("waits for the CEO's approval before it can leave an account.")}
           </p>
         </div>
       </form>

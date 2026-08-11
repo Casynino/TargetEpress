@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronRight, ImageOff, Lock, Plane, Warehouse } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
+import { useT } from "@/components/app/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ORIGIN_LABELS } from "@/lib/constants";
@@ -21,6 +22,11 @@ export type IncomingLine = {
   trackingNumber: string;
   customerName: string;
   customerPhone: string | null;
+  /**
+   * Already in the reader's language: the server parent resolves it with
+   * `cargoText(locale, shipment, "description")` before handing it down, so a
+   * Dar clerk never gets the Chinese original a Guangzhou packer typed.
+   */
   description: string;
   packagesLabel: string;
   weightLabel: string;
@@ -87,11 +93,13 @@ const STATUS_RANK: Record<IncomingRow["status"], number> = {
 const THUMBS = 4;
 
 function PhotoStrip({ line }: { line: IncomingLine }) {
+  const t = useT();
+
   if (line.photos.length === 0) {
     return (
       <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
         <ImageOff className="h-3.5 w-3.5" />
-        No China photo
+        {t("No China photo")}
       </span>
     );
   }
@@ -104,13 +112,19 @@ function PhotoStrip({ line }: { line: IncomingLine }) {
           href={photo.url}
           target="_blank"
           rel="noopener noreferrer"
-          title={photo.caption ?? `China photo for ${line.trackingNumber}`}
+          title={
+            photo.caption ??
+            `${t("China photo for")} ${line.trackingNumber}`
+          }
           className="focus-ring group block h-12 w-12 shrink-0 overflow-hidden rounded-md border"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={photo.url}
-            alt={photo.caption ?? `China photo for ${line.trackingNumber}`}
+            alt={
+              photo.caption ??
+              `${t("China photo for")} ${line.trackingNumber}`
+            }
             className="h-full w-full object-cover transition-transform group-hover:scale-110"
             loading="lazy"
           />
@@ -142,10 +156,12 @@ function PhotoStrip({ line }: { line: IncomingLine }) {
  * per-customer detail is one click away in the expanded manifest.
  */
 export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
+  const t = useT();
+
   const columns: Column<IncomingRow>[] = [
     {
       id: "shipment",
-      header: "Shipment",
+      header: t("Shipment"),
       sortValue: (row) => row.shipmentNumber,
       cell: (row) => (
         <div className="min-w-0">
@@ -161,25 +177,27 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
     },
     {
       id: "batch",
-      header: "Batch",
+      header: t("Batch"),
       hideBelow: "lg",
       sortValue: (row) => row.batchLabel,
       cell: (row) => (
         <div className="min-w-0">
           <p className="truncate text-sm">{row.batchLabel}</p>
           <p className="truncate font-mono text-xs text-muted-foreground tabular">
-            {row.waybillNumber ? `AWB ${row.waybillNumber}` : "No waybill"}
+            {row.waybillNumber ? `AWB ${row.waybillNumber}` : t("No waybill")}
           </p>
         </div>
       ),
     },
     {
       id: "status",
-      header: "Where",
+      header: t("Where"),
       sortValue: (row) => STATUS_RANK[row.status],
       cell: (row) => (
         <div className="min-w-0">
-          <Badge variant={STATUS_TONE[row.status]}>{STATUS_LABEL[row.status]}</Badge>
+          <Badge variant={STATUS_TONE[row.status]}>
+            {t(STATUS_LABEL[row.status])}
+          </Badge>
           {row.ageLabel ? (
             <p className="mt-1 text-xs text-muted-foreground tabular">
               {row.ageLabel}
@@ -190,7 +208,7 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
     },
     {
       id: "flight",
-      header: "Flight",
+      header: t("Flight"),
       hideBelow: "xl",
       sortValue: (row) => row.airline ?? "",
       cell: (row) => (
@@ -201,21 +219,22 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
     },
     {
       id: "cargo",
-      header: "Cargo",
+      header: t("Cargo"),
       align: "right",
       sortValue: (row) => row.cargoCount,
       cell: (row) => (
         <div>
           <p className="text-sm font-medium tabular">{row.cargoCount}</p>
           <p className="text-xs text-muted-foreground tabular">
-            {row.customerCount} customer{row.customerCount === 1 ? "" : "s"}
+            {row.customerCount}{" "}
+            {t(row.customerCount === 1 ? "customer" : "customers")}
           </p>
         </div>
       ),
     },
     {
       id: "packages",
-      header: "Packages",
+      header: t("Packages"),
       align: "right",
       hideBelow: "md",
       sortValue: (row) => row.packages,
@@ -223,7 +242,7 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
     },
     {
       id: "weight",
-      header: "Weight",
+      header: t("Weight"),
       align: "right",
       sortValue: (row) => row.weightKg,
       cell: (row) => (
@@ -232,20 +251,20 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
     },
     {
       id: "photos",
-      header: "China photos",
+      header: t("China photos"),
       align: "right",
       hideBelow: "xl",
       sortValue: (row) => row.photoCount,
       cell: (row) =>
         row.photoCount === 0 ? (
-          <span className="text-xs text-muted-foreground">None</span>
+          <span className="text-xs text-muted-foreground">{t("None")}</span>
         ) : (
           <span className="font-mono text-sm tabular">{row.photoCount}</span>
         ),
     },
     {
       id: "departed",
-      header: "Departed",
+      header: t("Departed"),
       hideBelow: "md",
       sortValue: (row) => row.sortAt,
       cell: (row) => (
@@ -256,7 +275,7 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
     },
     {
       id: "lands",
-      header: "Lands",
+      header: t("Lands"),
       sortValue: (row) => row.landsAt,
       cell: (row) => (
         <div className="min-w-0">
@@ -264,7 +283,7 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
             {row.status === "ARRIVED" ? row.arrivedLabel : row.expectedLabel}
           </p>
           <p className="text-xs text-muted-foreground">
-            {row.status === "ARRIVED" ? "Arrived" : "Expected"}
+            {row.status === "ARRIVED" ? t("Arrived") : t("Expected")}
           </p>
         </div>
       ),
@@ -274,28 +293,28 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
   const filters: TableFilter<IncomingRow>[] = [
     {
       id: "status",
-      label: "Where it is",
+      label: t("Where it is"),
       options: [
-        { value: "IN_TRANSIT", label: STATUS_LABEL.IN_TRANSIT },
-        { value: "ARRIVED", label: STATUS_LABEL.ARRIVED },
+        { value: "IN_TRANSIT", label: t(STATUS_LABEL.IN_TRANSIT) },
+        { value: "ARRIVED", label: t(STATUS_LABEL.ARRIVED) },
       ],
       match: (row, value) => row.status === value,
     },
     {
       id: "origin",
-      label: "Origin",
+      label: t("Origin"),
       options: Object.entries(ORIGIN_LABELS).map(([value, label]) => ({
         value,
-        label,
+        label: t(label),
       })),
       match: (row, value) => row.origin === value,
     },
     {
       id: "photos",
-      label: "China photos",
+      label: t("China photos"),
       options: [
-        { value: "some", label: "Has photos" },
-        { value: "none", label: "No photos" },
+        { value: "some", label: t("Has photos") },
+        { value: "none", label: t("No photos") },
       ],
       match: (row, value) =>
         value === "none" ? row.photoCount === 0 : row.photoCount > 0,
@@ -322,22 +341,26 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
           ),
         ].join(" ")
       }
-      searchPlaceholder="Shipment, waybill, flight, tracking number or customer…"
+      searchPlaceholder={t(
+        "Shipment, waybill, flight, tracking number or customer…"
+      )}
       filters={filters}
       initialSort={{ columnId: "departed", direction: "desc" }}
-      emptyTitle="Nothing inbound"
-      emptyDescription="No dispatch is in the air or waiting to be checked in."
+      emptyTitle={t("Nothing inbound")}
+      emptyDescription={t(
+        "No dispatch is in the air or waiting to be checked in."
+      )}
       renderExpanded={(row) => (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <Lock className="h-3.5 w-3.5" />
-              Manifest as registered in China · {row.cargoCount} piece
-              {row.cargoCount === 1 ? "" : "s"}
+              {t("Manifest as registered in China")} · {row.cargoCount}{" "}
+              {t(row.cargoCount === 1 ? "piece" : "pieces")}
             </p>
             <Button asChild size="sm" variant="outline">
               <Link href={`/app/shipments/${row.id}`}>
-                Open shipment
+                {t("Open shipment")}
                 <ChevronRight className="ml-1 h-3.5 w-3.5" />
               </Link>
             </Button>
@@ -365,7 +388,7 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
                   </div>
                   <p className="truncate text-sm">{line.customerName}</p>
                   <p className="truncate text-xs text-muted-foreground tabular">
-                    {line.customerPhone ?? "No phone recorded"}
+                    {line.customerPhone ?? t("No phone recorded")}
                   </p>
                   <p className="max-w-[36rem] truncate text-xs text-muted-foreground">
                     {line.description}
@@ -392,7 +415,9 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
             <span className="font-mono text-sm font-semibold tabular">
               {row.shipmentNumber}
             </span>
-            <Badge variant={STATUS_TONE[row.status]}>{STATUS_LABEL[row.status]}</Badge>
+            <Badge variant={STATUS_TONE[row.status]}>
+              {t(STATUS_LABEL[row.status])}
+            </Badge>
           </div>
           <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
             {row.status === "ARRIVED" ? (
@@ -403,8 +428,8 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
             {row.route}
           </p>
           <p className="mt-2 text-xs text-muted-foreground tabular">
-            {row.cargoCount} piece{row.cargoCount === 1 ? "" : "s"} · {row.packages} pkg ·{" "}
-            {formatWeight(row.weightKg)}
+            {row.cargoCount} {t(row.cargoCount === 1 ? "piece" : "pieces")} ·{" "}
+            {row.packages} {t("pkg")} · {formatWeight(row.weightKg)}
           </p>
           <p
             className={cn(
@@ -413,8 +438,8 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
             )}
           >
             {row.status === "ARRIVED"
-              ? `Arrived ${row.arrivedLabel}`
-              : `Expected ${row.expectedLabel}`}
+              ? `${t("Arrived")} ${row.arrivedLabel}`
+              : `${t("Expected")} ${row.expectedLabel}`}
             {row.ageLabel ? ` · ${row.ageLabel}` : ""}
           </p>
         </Link>

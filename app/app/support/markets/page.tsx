@@ -4,8 +4,10 @@ import { Clock, Info, MapPin, Plane } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "China markets" };
 
@@ -18,6 +20,7 @@ export const metadata: Metadata = { title: "China markets" };
  */
 export default async function MarketsPage() {
   await requirePermission("sourcing.manage");
+  const locale = await viewerLocale();
 
   const markets = await prisma.chinaMarket.findMany({
     where: { active: true },
@@ -34,10 +37,10 @@ export default async function MarketsPage() {
       <div className="mb-6 flex items-start gap-3 rounded-xl border bg-card p-4 text-sm shadow-soft">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <p className="text-muted-foreground">
-          The route matters as much as the market. Goods bought around Guangzhou
-          consolidate at our Guangzhou warehouse; electronics from Shenzhen fly
-          out of Hong Kong. Telling a customer the wrong one changes what they
-          pay.
+          {t(
+            locale,
+            "The route matters as much as the market. Goods bought around Guangzhou consolidate at our Guangzhou warehouse; electronics from Shenzhen fly out of Hong Kong. Telling a customer the wrong one changes what they pay."
+          )}
         </p>
       </div>
 
@@ -64,7 +67,9 @@ export default async function MarketsPage() {
                   }
                 >
                   <Plane className="mr-1 h-3 w-3" />
-                  {market.route === "HONG_KONG" ? "Hong Kong" : "Guangzhou"}
+                  {market.route === "HONG_KONG"
+                    ? t(locale, "Hong Kong")
+                    : t(locale, "Guangzhou")}
                 </Badge>
               </div>
               <p className="mt-3 text-sm font-medium text-brand">{market.bestFor}</p>
@@ -83,13 +88,15 @@ export default async function MarketsPage() {
                 </div>
                 <div className="flex items-start gap-2">
                   <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <dd className="text-muted-foreground">{market.hours ?? "Hours not recorded"}</dd>
+                  <dd className="text-muted-foreground">
+                    {market.hours ?? t(locale, "Hours not recorded")}
+                  </dd>
                 </div>
               </dl>
 
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  What they sell
+                  {t(locale, "What they sell")}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {market.products.map((product) => (
@@ -105,7 +112,7 @@ export default async function MarketsPage() {
 
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Tell the customer
+                  {t(locale, "Tell the customer")}
                 </p>
                 <ul className="space-y-1.5 text-sm text-muted-foreground">
                   {market.tips.map((tip) => (
@@ -128,9 +135,9 @@ export default async function MarketsPage() {
       </div>
 
       <p className="mt-6 text-sm text-muted-foreground">
-        A customer who wants us to do the buying for them becomes a{" "}
+        {t(locale, "A customer who wants us to do the buying for them becomes a")}{" "}
         <Link href="/app/support/sourcing" className="text-brand hover:underline">
-          sourcing request
+          {t(locale, "sourcing request")}
         </Link>
         .
       </p>

@@ -4,11 +4,15 @@ import { PageHeader } from "@/components/app/page-header";
 import { ReleaseWorkbench } from "@/components/app/release-workbench";
 import { resolveScan } from "@/lib/actions/scan";
 import { normaliseCode, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import { storageIsDurable } from "@/lib/storage";
+import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Release cargo" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Release cargo") };
+}
 
 /**
  * Where a scanned cargo label lands, and where the job finishes.
@@ -35,6 +39,7 @@ export default async function ReleasePage({
 }) {
   const { code, note, open } = await searchParams;
   await requirePermission("shipment.release");
+  const locale = await viewerLocale();
 
   /**
    * Three ways in, and the difference between them matters.
@@ -98,8 +103,11 @@ export default async function ReleasePage({
   return (
     <>
       <PageHeader
-        title="Release cargo"
-        description="Scan the box. Everything you need to hand it over is on this screen."
+        title={t(locale, "Release cargo")}
+        description={t(
+          locale,
+          "Scan the box. Everything you need to hand it over is on this screen."
+        )}
       />
 
       <ReleaseWorkbench

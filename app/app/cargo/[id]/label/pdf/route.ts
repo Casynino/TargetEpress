@@ -8,9 +8,11 @@ import {
 } from "@/lib/card-pdf";
 import { formatPackages } from "@/lib/constants";
 import { formatDate, formatWeight } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { packageQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
 /**
  * The labels for one shipment, as a file.
@@ -29,6 +31,7 @@ export async function GET(
   await requirePermission("label.print");
   const { id } = await params;
   const key = decodeURIComponent(id);
+  const locale = await viewerLocale();
 
   const shipment = await prisma.shipment.findUnique({
     where: key.startsWith("TX-")
@@ -36,7 +39,7 @@ export async function GET(
       : { id: key },
     select: {
       trackingNumber: true,
-      description: true,
+      ...selectText("description"),
       weightKg: true,
       packageType: true,
       registeredAt: true,
@@ -49,7 +52,10 @@ export async function GET(
   });
 
   if (!shipment) {
-    return NextResponse.json({ error: "Cargo not found." }, { status: 404 });
+    return NextResponse.json(
+      { error: t(locale, "Cargo not found.") },
+      { status: 404 }
+    );
   }
 
   const labels: LabelPdfInput[] = await Promise.all(
@@ -57,7 +63,7 @@ export async function GET(
       trackingNumber: shipment.trackingNumber,
       packageRef: pkg.reference,
       customerName: shipment.customer.name,
-      description: shipment.description,
+      description: cargoText(locale, shipment, "description"),
       weightLabel: formatWeight(shipment.weightKg),
       packagesLabel: formatPackages(
         shipment.packageList.length,

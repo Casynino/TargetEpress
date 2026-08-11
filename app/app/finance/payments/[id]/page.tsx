@@ -17,10 +17,14 @@ import { Badge } from "@/components/ui/badge";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Payment" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Payment") };
+}
 
 /** Bytes, in the units a person reads. */
 function fileSize(bytes: number) {
@@ -47,6 +51,7 @@ export default async function PaymentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const user = await requirePermission("payment.record");
+  const locale = await viewerLocale();
   const { id } = await params;
 
   const payment = await prisma.payment.findUnique({
@@ -69,7 +74,9 @@ export default async function PaymentDetailPage({
           amountPaid: true,
           status: true,
           customer: { select: { id: true, name: true, phone: true } },
-          shipment: { select: { trackingNumber: true, description: true } },
+          shipment: {
+            select: { trackingNumber: true, ...selectText("description") },
+          },
         },
       },
     },
@@ -84,15 +91,18 @@ export default async function PaymentDetailPage({
     toNumber(payment.invoice.total) - toNumber(payment.invoice.amountPaid);
 
   const facts: { label: string; value: React.ReactNode }[] = [
-    { label: "Method", value: PAYMENT_METHOD_LABELS[payment.method] },
     {
-      label: "Reference",
+      label: t(locale, "Method"),
+      value: t(locale, PAYMENT_METHOD_LABELS[payment.method]),
+    },
+    {
+      label: t(locale, "Reference"),
       value: payment.reference ?? (
-        <span className="text-muted-foreground">none given</span>
+        <span className="text-muted-foreground">{t(locale, "none given")}</span>
       ),
     },
     {
-      label: "Landed in",
+      label: t(locale, "Landed in"),
       value: payment.account ? (
         <Link
           href={`/app/finance/accounts/${payment.account.id}`}
@@ -101,13 +111,13 @@ export default async function PaymentDetailPage({
           {payment.account.name}
         </Link>
       ) : (
-        <span className="text-warning">no account named</span>
+        <span className="text-warning">{t(locale, "no account named")}</span>
       ),
     },
-    { label: "Taken by", value: payment.receivedBy?.name ?? "—" },
-    { label: "When", value: formatDateTime(payment.paidAt) },
+    { label: t(locale, "Taken by"), value: payment.receivedBy?.name ?? "—" },
+    { label: t(locale, "When"), value: formatDateTime(payment.paidAt) },
     {
-      label: "Ledger line",
+      label: t(locale, "Ledger line"),
       value: payment.ledgerEntry ? (
         <Link
           href={`/app/finance/transactions?account=${payment.ledgerEntry.accountId}`}
@@ -116,7 +126,9 @@ export default async function PaymentDetailPage({
           {payment.ledgerEntry.entryNumber}
         </Link>
       ) : (
-        <span className="text-warning">none — no account was named</span>
+        <span className="text-warning">
+          {t(locale, "none — no account was named")}
+        </span>
       ),
     },
   ];
@@ -130,11 +142,11 @@ export default async function PaymentDetailPage({
         className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        The Ledger
+        {t(locale, "The Ledger")}
       </Link>
 
       <PageHeader
-        title={payment.receipt?.receiptNumber ?? "Payment"}
+        title={payment.receipt?.receiptNumber ?? t(locale, "Payment")}
         description={`${payment.invoice.customer.name} · ${payment.invoice.shipment.trackingNumber}`}
       />
 
@@ -145,23 +157,27 @@ export default async function PaymentDetailPage({
           <section className="rounded-2xl border bg-card p-6">
             <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               <Banknote className="h-4 w-4 text-success" />
-              Handed over
+              {t(locale, "Handed over")}
             </p>
             <p className="mt-2 font-display text-[36px] font-bold leading-none tracking-tight tabular-nums">
               {formatMoney(tendered, payment.currency)}
             </p>
             {converted && credited !== null ? (
               <p className="mt-2 text-sm text-muted-foreground">
-                Settled {formatUsd(credited)} against the bill
+                {t(locale, "Settled")} {formatUsd(credited)}{" "}
+                {t(locale, "against the bill")}
                 {payment.exchangeRate
-                  ? `, at ${toNumber(payment.exchangeRate).toLocaleString()} to the dollar`
+                  ? `, ${t(locale, "at")} ${toNumber(payment.exchangeRate).toLocaleString()} ${t(locale, "to the dollar")}`
                   : ""}
-                . The rate was frozen onto the invoice when it was raised, so
-                this figure cannot move later.
+                .{" "}
+                {t(
+                  locale,
+                  "The rate was frozen onto the invoice when it was raised, so this figure cannot move later."
+                )}
               </p>
             ) : (
               <p className="mt-2 text-sm text-muted-foreground">
-                Paid in the same currency the bill was raised in.
+                {t(locale, "Paid in the same currency the bill was raised in.")}
               </p>
             )}
 
@@ -187,20 +203,21 @@ export default async function PaymentDetailPage({
             <div className="flex items-center justify-between gap-3 border-b px-5 py-3.5">
               <h2 className="flex items-center gap-2 font-semibold">
                 <Paperclip className="h-4 w-4 text-muted-foreground" />
-                Proof of payment
+                {t(locale, "Proof of payment")}
               </h2>
               <span className="text-xs text-muted-foreground">
                 {payment.proofs.length === 0
-                  ? "nothing attached"
-                  : `${payment.proofs.length} file${payment.proofs.length === 1 ? "" : "s"}`}
+                  ? t(locale, "nothing attached")
+                  : `${payment.proofs.length} ${t(locale, payment.proofs.length === 1 ? "file" : "files")}`}
               </span>
             </div>
 
             {payment.proofs.length === 0 ? (
               <p className="px-5 py-6 text-sm text-muted-foreground">
-                No slip or screenshot was attached to this payment. The typed
-                reference is the only record that it happened — worth chasing
-                while the customer still has theirs.
+                {t(
+                  locale,
+                  "No slip or screenshot was attached to this payment. The typed reference is the only record that it happened — worth chasing while the customer still has theirs."
+                )}
               </p>
             ) : (
               <ul className="grid gap-3 p-5 sm:grid-cols-2">
@@ -218,7 +235,7 @@ export default async function PaymentDetailPage({
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img
                             src={proof.url}
-                            alt={proof.filename ?? "Proof of payment"}
+                            alt={proof.filename ?? t(locale, "Proof of payment")}
                             className="h-44 w-full bg-muted object-cover"
                           />
                         ) : (
@@ -228,7 +245,7 @@ export default async function PaymentDetailPage({
                         )}
                         <span className="block px-3 py-2">
                           <span className="block truncate text-xs font-medium">
-                            {proof.filename ?? "Attachment"}
+                            {proof.filename ?? t(locale, "Attachment")}
                           </span>
                           <span className="block text-[11px] text-muted-foreground">
                             {fileSize(proof.bytes)}
@@ -250,11 +267,11 @@ export default async function PaymentDetailPage({
           <section className="rounded-2xl border bg-card p-5">
             <h2 className="flex items-center gap-2 font-semibold">
               <Receipt className="h-4 w-4 text-muted-foreground" />
-              The bill
+              {t(locale, "The bill")}
             </h2>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">Invoice</dt>
+                <dt className="text-muted-foreground">{t(locale, "Invoice")}</dt>
                 <dd>
                   <Link
                     href={`/app/finance/invoices/${payment.invoice.id}`}
@@ -265,19 +282,21 @@ export default async function PaymentDetailPage({
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">Total</dt>
+                <dt className="text-muted-foreground">{t(locale, "Total")}</dt>
                 <dd className="font-mono tabular-nums">
                   {formatUsd(toNumber(payment.invoice.total))}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">Paid to date</dt>
+                <dt className="text-muted-foreground">
+                  {t(locale, "Paid to date")}
+                </dt>
                 <dd className="font-mono tabular-nums">
                   {formatUsd(toNumber(payment.invoice.amountPaid))}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-3 border-t pt-3">
-                <dt className="font-medium">Still owing</dt>
+                <dt className="font-medium">{t(locale, "Still owing")}</dt>
                 <dd
                   className={`font-mono font-semibold tabular-nums ${
                     owing > 0 ? "text-warning" : "text-success"
@@ -288,14 +307,14 @@ export default async function PaymentDetailPage({
               </div>
             </dl>
             <Badge variant="outline" className="mt-3 font-normal">
-              {payment.invoice.status.replace("_", " ").toLowerCase()}
+              {t(locale, payment.invoice.status.replace("_", " ").toLowerCase())}
             </Badge>
           </section>
 
           <section className="rounded-2xl border bg-card p-5">
             <h2 className="flex items-center gap-2 font-semibold">
               <User className="h-4 w-4 text-muted-foreground" />
-              Customer
+              {t(locale, "Customer")}
             </h2>
             <p className="mt-3 text-sm font-medium">
               <Link
@@ -311,7 +330,7 @@ export default async function PaymentDetailPage({
 
             <h2 className="mt-5 flex items-center gap-2 font-semibold">
               <Package className="h-4 w-4 text-muted-foreground" />
-              Cargo
+              {t(locale, "Cargo")}
             </h2>
             <p className="mt-3 text-sm">
               <Link
@@ -322,7 +341,7 @@ export default async function PaymentDetailPage({
               </Link>
             </p>
             <p className="text-xs text-muted-foreground">
-              {payment.invoice.shipment.description}
+              {cargoText(locale, payment.invoice.shipment, "description")}
             </p>
           </section>
 
@@ -330,18 +349,19 @@ export default async function PaymentDetailPage({
             <section className="rounded-2xl border border-warning/40 bg-warning/5 p-5">
               <h2 className="flex items-center gap-2 font-semibold">
                 <ArrowLeftRight className="h-4 w-4 text-warning" />
-                Not in an account
+                {t(locale, "Not in an account")}
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Nobody said where this money went, so it has no line in the
-                register and no account carries it. Say where it landed on the
-                payments list and it settles itself.
+                {t(
+                  locale,
+                  "Nobody said where this money went, so it has no line in the register and no account carries it. Say where it landed on the payments list and it settles itself."
+                )}
               </p>
               <Link
                 href="/app/finance/payments"
                 className="mt-3 inline-block text-xs font-medium text-brand hover:underline"
               >
-                Fix it on the register →
+                {t(locale, "Fix it on the register →")}
               </Link>
             </section>
           ) : null}

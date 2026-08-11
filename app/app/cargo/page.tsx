@@ -5,9 +5,11 @@ import { PageHeader } from "@/components/app/page-header";
 import { ShipmentsTable, type ShipmentRow } from "@/components/app/cargo-table";
 import { SHIPMENT_STATUS_META } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Shipments" };
 
@@ -25,6 +27,7 @@ export default async function ShipmentsPage({
   searchParams: Promise<{ status?: string; q?: string }>;
 }) {
   const user = await requirePermission("shipment.view");
+  const locale = await viewerLocale();
   const { status } = await searchParams;
 
   const statusFilter =
@@ -41,7 +44,7 @@ export default async function ShipmentsPage({
         id: true,
         trackingNumber: true,
         status: true,
-        description: true,
+        ...selectText("description"),
         goodsType: true,
         origin: true,
         packages: true,
@@ -67,7 +70,10 @@ export default async function ShipmentsPage({
     status: s.status,
     customerName: s.customer.name,
     customerPhone: s.customer.phone,
-    description: s.description,
+    // Resolved here, in the server parent: the table is a client component and
+    // cannot ask who is reading it. Guangzhou's Chinese becomes English for a
+    // Dar clerk, and stays Chinese for Guangzhou.
+    description: cargoText(locale, s, "description"),
     goodsType: s.goodsType,
     origin: s.origin,
     packages: s.packages,
@@ -85,18 +91,19 @@ export default async function ShipmentsPage({
   return (
     <>
       <PageHeader
-        title="Shipments"
+        title={t(locale, "Shipments")}
         description={
           statusFilter
-            ? `${total.toLocaleString()} ${SHIPMENT_STATUS_META[statusFilter].label.toLowerCase()}`
-            : `Every individual customer's cargo. ${total.toLocaleString()} on record — search here when you need to find one thing.`
+            ? `${total.toLocaleString()} ${t(locale, SHIPMENT_STATUS_META[statusFilter].label).toLowerCase()}`
+            : `${t(locale, "Every individual customer's cargo.")} ${total.toLocaleString()} ${t(locale, "on record — search here when you need to find one thing.")}`
         }
       />
 
       {total > WINDOW ? (
         <p className="mb-3 rounded-lg border border-info/30 bg-info/5 px-3 py-2 text-xs text-info">
-          Showing the {WINDOW.toLocaleString()} most recent of{" "}
-          {total.toLocaleString()}. Use a status filter to narrow the set.
+          {t(locale, "Showing the")} {WINDOW.toLocaleString()}{" "}
+          {t(locale, "most recent of")} {total.toLocaleString()}.{" "}
+          {t(locale, "Use a status filter to narrow the set.")}
         </p>
       ) : null}
 

@@ -19,9 +19,11 @@ import {
 import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Expenses" };
 
@@ -76,6 +78,7 @@ export default async function ExpensesPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const user = await requirePermission("expense.view");
+  const locale = await viewerLocale();
   const canRecord = can(user.role, "expense.record");
   const canApprove = can(user.role, "expense.approve");
 
@@ -190,8 +193,11 @@ export default async function ExpensesPage({
   return (
     <>
       <PageHeader
-        title="Expenses"
-        description="What the business spends, and what it has already paid. Costs are dated when they were incurred; the money is dated when it left."
+        title={t(locale, "Expenses")}
+        description={t(
+          locale,
+          "What the business spends, and what it has already paid. Costs are dated when they were incurred; the money is dated when it left."
+        )}
       />
 
       <FinanceNav tabs={financeTabs(user.role)} />
@@ -214,7 +220,7 @@ export default async function ExpensesPage({
                 : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
             }`}
           >
-            {p.label}
+            {t(locale, p.label)}
           </Link>
         ))}
       </div>
@@ -227,7 +233,7 @@ export default async function ExpensesPage({
           <div>
             <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               <ArrowUpRight className="h-4 w-4 text-warning" />
-              Spent · {periodLabel.toLowerCase()}
+              {t(locale, "Spent")} · {t(locale, periodLabel).toLowerCase()}
             </p>
             <p className="mt-2 font-display text-[36px] font-bold leading-none tracking-tight tabular-nums">
               {rate ? (
@@ -244,9 +250,14 @@ export default async function ExpensesPage({
               )}
             </p>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              {formatUsd(toNumber(paidThisMonth._sum.amountUsd))} on the invoice
-              rate · {paidThisMonth._count} cost
-              {paidThisMonth._count === 1 ? "" : "s"} actually paid
+              {formatUsd(toNumber(paidThisMonth._sum.amountUsd))}{" "}
+              {t(locale, "on the invoice rate")} · {paidThisMonth._count}{" "}
+              {t(
+                locale,
+                paidThisMonth._count === 1
+                  ? "cost actually paid"
+                  : "costs actually paid"
+              )}
             </p>
           </div>
 
@@ -254,7 +265,7 @@ export default async function ExpensesPage({
             <div>
               <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Clock className="h-3.5 w-3.5" />
-                Not yet paid
+                {t(locale, "Not yet paid")}
               </dt>
               <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
                 {rate
@@ -262,13 +273,13 @@ export default async function ExpensesPage({
                   : formatUsd(toNumber(outstanding._sum.amountUsd))}
               </dd>
               <p className="text-[11px] text-muted-foreground">
-                {outstanding._count} waiting
+                {outstanding._count} {t(locale, "waiting")}
               </p>
             </div>
             <div>
               <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <ShieldCheck className="h-3.5 w-3.5" />
-                Needs the CEO
+                {t(locale, "Needs the CEO")}
               </dt>
               <dd
                 className={`mt-0.5 font-display text-lg font-bold tabular-nums ${
@@ -278,11 +289,13 @@ export default async function ExpensesPage({
                 {awaitingApproval}
               </dd>
               <p className="text-[11px] text-muted-foreground">
-                over the limit
+                {t(locale, "over the limit")}
               </p>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">Biggest category</dt>
+              <dt className="text-xs text-muted-foreground">
+                {t(locale, "Biggest category")}
+              </dt>
               <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
                 {byCategory[0]
                   ? rate
@@ -292,8 +305,8 @@ export default async function ExpensesPage({
               </dd>
               <p className="text-[11px] text-muted-foreground">
                 {byCategory[0]
-                  ? CATEGORY_LABELS[byCategory[0].category]
-                  : "nothing paid yet"}
+                  ? t(locale, CATEGORY_LABELS[byCategory[0].category])
+                  : t(locale, "nothing paid yet")}
               </p>
             </div>
           </dl>
@@ -305,7 +318,7 @@ export default async function ExpensesPage({
           <ExpenseForm
             categories={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
               value,
-              label,
+              label: t(locale, label),
             }))}
             accounts={accountOptions}
             dispatches={dispatches.map((d) => ({
@@ -325,13 +338,16 @@ export default async function ExpensesPage({
             <EmptyState
               title={
                 period === "all"
-                  ? "No costs recorded yet"
-                  : `Nothing recorded ${periodLabel.toLowerCase()}`
+                  ? t(locale, "No costs recorded yet")
+                  : `${t(locale, "Nothing recorded")} ${t(locale, periodLabel).toLowerCase()}`
               }
               description={
                 period === "all"
-                  ? "Every cost recorded here becomes part of the profit figure — and one tied to a dispatch becomes part of that flight's."
-                  : "Try a wider period, or record the first one."
+                  ? t(
+                      locale,
+                      "Every cost recorded here becomes part of the profit figure — and one tied to a dispatch becomes part of that flight's."
+                    )
+                  : t(locale, "Try a wider period, or record the first one.")
               }
             />
           ) : (
@@ -349,7 +365,9 @@ export default async function ExpensesPage({
                               {expense.expenseNumber}
                             </span>
                             <span>·</span>
-                            <span>{CATEGORY_LABELS[expense.category]}</span>
+                            <span>
+                              {t(locale, CATEGORY_LABELS[expense.category])}
+                            </span>
                             {expense.vendor ? (
                               <>
                                 <span>·</span>
@@ -380,8 +398,8 @@ export default async function ExpensesPage({
                                 >
                                   <Paperclip className="h-3 w-3" />
                                   {expense.receipts.length === 1
-                                    ? "receipt"
-                                    : `${expense.receipts.length} receipts`}
+                                    ? t(locale, "receipt")
+                                    : `${expense.receipts.length} ${t(locale, "receipts")}`}
                                 </a>
                               </>
                             ) : null}
@@ -401,25 +419,27 @@ export default async function ExpensesPage({
                             variant="outline"
                             className={`mt-1 font-normal ${STATUS_TONE[expense.status]}`}
                           >
-                            {STATUS_LABEL[expense.status]}
+                            {t(locale, STATUS_LABEL[expense.status])}
                           </Badge>
                         </div>
                       </div>
 
                       {expense.status === "PAID" && expense.account ? (
                         <p className="mt-1.5 text-xs text-muted-foreground">
-                          Paid from {expense.account.name}
-                          {expense.paidAt ? ` on ${formatDate(expense.paidAt)}` : ""}
+                          {t(locale, "Paid from")} {expense.account.name}
+                          {expense.paidAt
+                            ? ` ${t(locale, "on")} ${formatDate(expense.paidAt)}`
+                            : ""}
                         </p>
                       ) : null}
                       {expense.status === "VOID" && expense.voidReason ? (
                         <p className="mt-1.5 text-xs text-muted-foreground">
-                          Cancelled: {expense.voidReason}
+                          {t(locale, "Cancelled:")} {expense.voidReason}
                         </p>
                       ) : null}
                       {expense.approvedBy ? (
                         <p className="mt-1.5 text-xs text-muted-foreground">
-                          Approved by {expense.approvedBy.name}
+                          {t(locale, "Approved by")} {expense.approvedBy.name}
                         </p>
                       ) : null}
 

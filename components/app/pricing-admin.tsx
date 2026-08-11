@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Archive, Plus, RotateCcw, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,18 +57,19 @@ const ROUTE_LABEL: Record<string, string> = {
   HONG_KONG: "Hong Kong",
 };
 
-function tierLabel(rule: AdminRule) {
-  if (rule.method === "FIXED_PER_ITEM") return "Any weight";
+/** Not a component, so the reader's `t` is handed in rather than hooked. */
+function tierLabel(rule: AdminRule, t: (text: string) => string) {
+  if (rule.method === "FIXED_PER_ITEM") return t("Any weight");
   const min = rule.minWeightKg ? `${Number(rule.minWeightKg)} kg` : null;
   const max = rule.maxWeightKg ? `${Number(rule.maxWeightKg)} kg` : null;
-  if (min && max) return `${min} – under ${max}`;
-  if (min) return `${min} and above`;
-  if (max) return `Under ${max}`;
-  return "All weights";
+  if (min && max) return `${min} – ${t("under")} ${max}`;
+  if (min) return `${min} ${t("and above")}`;
+  if (max) return `${t("Under")} ${max}`;
+  return t("All weights");
 }
 
-function priceLabel(rule: AdminRule) {
-  const unit = rule.method === "WEIGHT_BASED" ? "/kg" : " per item";
+function priceLabel(rule: AdminRule, t: (text: string) => string) {
+  const unit = rule.method === "WEIGHT_BASED" ? "/kg" : ` ${t("per item")}`;
   return `${rule.currency} ${Number(rule.price).toFixed(2)}${unit}`;
 }
 
@@ -80,6 +82,7 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
   const [draft, setDraft] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   /** Change a live price. A withdrawal and a fresh publication underneath. */
   const save = (rule: AdminRule) => {
@@ -125,22 +128,24 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
     <section className="rounded-xl border bg-card shadow-soft">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
         <div>
-          <h2 className="font-semibold">Published prices</h2>
+          <h2 className="font-semibold">{t("Published prices")}</h2>
           <p className="text-sm text-muted-foreground">
-            Every quote in the system comes from this table. Nothing is hardcoded.
+            {t(
+              "Every quote in the system comes from this table. Nothing is hardcoded."
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <NativeSelect
-            aria-label="Filter by category"
+            aria-label={t("Filter by category")}
             value={category}
             onChange={(event) => setCategory(event.target.value)}
             className="h-9 w-auto"
           >
-            <option value="ALL">All categories</option>
+            <option value="ALL">{t("All categories")}</option>
             {Object.entries(CATEGORY_LABEL).map(([value, label]) => (
               <option key={value} value={value}>
-                {label}
+                {t(label)}
               </option>
             ))}
           </NativeSelect>
@@ -150,14 +155,14 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
             size="sm"
             onClick={() => setShowWithdrawn((v) => !v)}
           >
-            {showWithdrawn ? "Hiding nothing" : "Show withdrawn"}
+            {showWithdrawn ? t("Hiding nothing") : t("Show withdrawn")}
           </Button>
         </div>
       </header>
 
       {error ? (
         <p role="alert" className="border-b bg-destructive/5 p-3 text-sm text-destructive">
-          {error}
+          {t(error)}
         </p>
       ) : null}
 
@@ -165,12 +170,12 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="p-3 font-medium">Applies to</th>
-              <th className="p-3 font-medium">Tier</th>
-              <th className="p-3 font-medium">Price</th>
-              <th className="hidden p-3 font-medium lg:table-cell">Floor</th>
-              <th className="hidden p-3 font-medium md:table-cell">Since</th>
-              <th className="p-3 text-right font-medium">Action</th>
+              <th className="p-3 font-medium">{t("Applies to")}</th>
+              <th className="p-3 font-medium">{t("Tier")}</th>
+              <th className="p-3 font-medium">{t("Price")}</th>
+              <th className="hidden p-3 font-medium lg:table-cell">{t("Floor")}</th>
+              <th className="hidden p-3 font-medium md:table-cell">{t("Since")}</th>
+              <th className="p-3 text-right font-medium">{t("Action")}</th>
             </tr>
           </thead>
           <tbody>
@@ -178,17 +183,18 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
               <tr key={rule.id} className="border-t align-top">
                 <td className="p-3">
                   <div className="font-medium">
-                    {rule.productName ?? `Every ${CATEGORY_LABEL[rule.category] ?? rule.category}`}
+                    {rule.productName ??
+                      `${t("Every")} ${t(CATEGORY_LABEL[rule.category] ?? rule.category)}`}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {CATEGORY_LABEL[rule.category] ?? rule.category}
-                    {rule.productName ? "" : " — catch-all"}
+                    {t(CATEGORY_LABEL[rule.category] ?? rule.category)}
+                    {rule.productName ? "" : ` — ${t("catch-all")}`}
                   </div>
                   {rule.notes ? (
                     <div className="mt-1 text-xs text-muted-foreground">{rule.notes}</div>
                   ) : null}
                 </td>
-                <td className="p-3 whitespace-nowrap">{tierLabel(rule)}</td>
+                <td className="p-3 whitespace-nowrap">{tierLabel(rule, t)}</td>
                 {/* The price is the thing people come here to change, so it is
                     editable where it is read. Saving withdraws this rule and
                     publishes a new one underneath, so the rate book can still
@@ -212,7 +218,7 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
                           if (e.key === "Escape") setEditing(null);
                         }}
                         className="focus-ring h-8 w-24 rounded-md border bg-background px-2 text-sm tabular-nums"
-                        aria-label="New price"
+                        aria-label={t("New price")}
                       />
                       <Button
                         type="button"
@@ -221,7 +227,7 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
                         disabled={pending}
                         onClick={() => save(rule)}
                       >
-                        Save
+                        {t("Save")}
                       </Button>
                       <Button
                         type="button"
@@ -229,7 +235,7 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
                         variant="ghost"
                         onClick={() => setEditing(null)}
                       >
-                        Cancel
+                        {t("Cancel")}
                       </Button>
                     </span>
                   ) : rule.active ? (
@@ -240,18 +246,22 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
                         setDraft(rule.price);
                       }}
                       className="focus-ring rounded-md px-1 underline decoration-dotted underline-offset-4 hover:text-brand"
-                      title="Change this price"
+                      title={t("Change this price")}
                     >
-                      {priceLabel(rule)}
+                      {priceLabel(rule, t)}
                     </button>
                   ) : (
-                    priceLabel(rule)
+                    priceLabel(rule, t)
                   )}
                 </td>
                 <td className="hidden p-3 text-xs text-muted-foreground lg:table-cell">
-                  {rule.minChargeableKg ? `min ${Number(rule.minChargeableKg)} kg` : null}
+                  {rule.minChargeableKg
+                    ? `${t("min")} ${Number(rule.minChargeableKg)} kg`
+                    : null}
                   {rule.minChargeableKg && rule.minCharge ? " · " : null}
-                  {rule.minCharge ? `min ${rule.currency} ${Number(rule.minCharge)}` : null}
+                  {rule.minCharge
+                    ? `${t("min")} ${rule.currency} ${Number(rule.minCharge)}`
+                    : null}
                   {!rule.minChargeableKg && !rule.minCharge ? "—" : null}
                 </td>
                 <td className="hidden p-3 whitespace-nowrap text-xs text-muted-foreground md:table-cell">
@@ -271,11 +281,11 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
                       onClick={() => withdraw(rule)}
                     >
                       <X className="mr-1 h-3.5 w-3.5" />
-                      Withdraw
+                      {t("Withdraw")}
                     </Button>
                   ) : (
                     <Badge variant="outline" className="text-muted-foreground">
-                      Withdrawn
+                      {t("Withdrawn")}
                     </Badge>
                   )}
                 </td>
@@ -284,7 +294,7 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
             {visible.length === 0 ? (
               <tr>
                 <td colSpan={6} className="p-6 text-center text-sm text-muted-foreground">
-                  No prices match that filter.
+                  {t("No prices match that filter.")}
                 </td>
               </tr>
             ) : null}
@@ -303,6 +313,7 @@ export function PublishPriceForm({ products }: { products: AdminProduct[] }) {
   const [method, setMethod] = useState("WEIGHT_BASED");
   const [productId, setProductId] = useState("");
   const [open, setOpen] = useState(false);
+  const t = useT();
 
   // Arriving from "this product cannot be quoted".
   //
@@ -330,9 +341,11 @@ export function PublishPriceForm({ products }: { products: AdminProduct[] }) {
     <section className="rounded-xl border bg-card shadow-soft">
       <header className="flex items-center justify-between gap-3 border-b p-4">
         <div>
-          <h2 className="font-semibold">Publish a price</h2>
+          <h2 className="font-semibold">{t("Publish a price")}</h2>
           <p className="text-sm text-muted-foreground">
-            Takes effect on the next quote. Invoices already raised keep theirs.
+            {t(
+              "Takes effect on the next quote. Invoices already raised keep theirs."
+            )}
           </p>
         </div>
         <Button
@@ -341,7 +354,14 @@ export function PublishPriceForm({ products }: { products: AdminProduct[] }) {
           size="sm"
           onClick={() => setOpen((v) => !v)}
         >
-          {open ? "Close" : <><Plus className="mr-1 h-4 w-4" />New price</>}
+          {open ? (
+            t("Close")
+          ) : (
+            <>
+              <Plus className="mr-1 h-4 w-4" />
+              {t("New price")}
+            </>
+          )}
         </Button>
       </header>
 
@@ -350,13 +370,13 @@ export function PublishPriceForm({ products }: { products: AdminProduct[] }) {
           <FormError state={state} />
           {state?.ok ? (
             <p className="rounded-md border border-success/30 bg-success/5 p-3 text-sm text-success">
-              Price published. It applies to every quote from now on.
+              {t("Price published. It applies to every quote from now on.")}
             </p>
           ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="rule-category">Cargo category</Label>
+              <Label htmlFor="rule-category">{t("Cargo category")}</Label>
               <NativeSelect
                 id="rule-category"
                 name="category"
@@ -368,27 +388,27 @@ export function PublishPriceForm({ products }: { products: AdminProduct[] }) {
               >
                 {Object.entries(CATEGORY_LABEL).map(([value, label]) => (
                   <option key={value} value={value}>
-                    {label}
+                    {t(label)}
                   </option>
                 ))}
               </NativeSelect>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="rule-method">How it is charged</Label>
+              <Label htmlFor="rule-method">{t("How it is charged")}</Label>
               <NativeSelect
                 id="rule-method"
                 name="method"
                 value={method}
                 onChange={(event) => setMethod(event.target.value)}
               >
-                <option value="WEIGHT_BASED">Per kilogram</option>
-                <option value="FIXED_PER_ITEM">Fixed price per item</option>
+                <option value="WEIGHT_BASED">{t("Per kilogram")}</option>
+                <option value="FIXED_PER_ITEM">{t("Fixed price per item")}</option>
               </NativeSelect>
             </div>
 
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="rule-product">Product</Label>
+              <Label htmlFor="rule-product">{t("Product")}</Label>
               <NativeSelect
                 id="rule-product"
                 name="cargoTypeId"
@@ -396,7 +416,8 @@ export function PublishPriceForm({ products }: { products: AdminProduct[] }) {
                 onChange={(event) => setProductId(event.target.value)}
               >
                 <option value="">
-                  Every {CATEGORY_LABEL[category]?.toLowerCase()} — catch-all
+                  {t("Every")} {t(CATEGORY_LABEL[category] ?? "").toLowerCase()}{" "}
+                  — {t("catch-all")}
                 </option>
                 {inCategory.map((product) => (
                   <option key={product.id} value={product.id}>
@@ -406,14 +427,17 @@ export function PublishPriceForm({ products }: { products: AdminProduct[] }) {
               </NativeSelect>
               <p className="text-xs text-muted-foreground">
                 {method === "FIXED_PER_ITEM"
-                  ? "A per-item price must name one product."
-                  : "A catch-all covers anything in the category without its own price."}
+                  ? t("A per-item price must name one product.")
+                  : t(
+                      "A catch-all covers anything in the category without its own price."
+                    )}
               </p>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="rule-price">
-                Price in USD {method === "WEIGHT_BASED" ? "per kg" : "per item"}
+                {t("Price in USD")}{" "}
+                {method === "WEIGHT_BASED" ? t("per kg") : t("per item")}
               </Label>
               <Input
                 id="rule-price"
@@ -428,31 +452,33 @@ export function PublishPriceForm({ products }: { products: AdminProduct[] }) {
               <>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="rule-min">From (kg)</Label>
+                    <Label htmlFor="rule-min">{t("From (kg)")}</Label>
                     <Input id="rule-min" name="minWeightKg" inputMode="decimal" placeholder="10" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="rule-max">Under (kg)</Label>
+                    <Label htmlFor="rule-max">{t("Under (kg)")}</Label>
                     <Input id="rule-max" name="maxWeightKg" inputMode="decimal" placeholder="—" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:col-span-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="rule-minkg">Minimum billable kg</Label>
+                    <Label htmlFor="rule-minkg">{t("Minimum billable kg")}</Label>
                     <Input
                       id="rule-minkg"
                       name="minChargeableKg"
                       inputMode="decimal"
-                      placeholder="optional"
+                      placeholder={t("optional")}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="rule-mincharge">Minimum charge (USD)</Label>
+                    <Label htmlFor="rule-mincharge">
+                      {t("Minimum charge (USD)")}
+                    </Label>
                     <Input
                       id="rule-mincharge"
                       name="minCharge"
                       inputMode="decimal"
-                      placeholder="optional"
+                      placeholder={t("optional")}
                     />
                   </div>
                 </div>
@@ -460,18 +486,24 @@ export function PublishPriceForm({ products }: { products: AdminProduct[] }) {
             ) : null}
 
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="rule-notes">Note (shown on the quote)</Label>
-              <Input id="rule-notes" name="notes" placeholder="e.g. 10 kg and above" />
+              <Label htmlFor="rule-notes">{t("Note (shown on the quote)")}</Label>
+              <Input
+                id="rule-notes"
+                name="notes"
+                placeholder={t("e.g. 10 kg and above")}
+              />
             </div>
           </div>
 
           <p className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
-            Publishing supersedes any live price covering the same product and
-            tier, so there is only ever one answer to &ldquo;what does this
-            cost&rdquo;. The old price stays readable for old invoices.
+            {t(
+              "Publishing supersedes any live price covering the same product and tier, so there is only ever one answer to “what does this cost”. The old price stays readable for old invoices."
+            )}
           </p>
 
-          <SubmitButton pendingLabel="Publishing…">Publish price</SubmitButton>
+          <SubmitButton pendingLabel="Publishing…">
+            {t("Publish price")}
+          </SubmitButton>
         </form>
       ) : null}
     </section>
@@ -485,6 +517,7 @@ export function ProductCatalogue({ products }: { products: AdminProduct[] }) {
   const [category, setCategory] = useState("NORMAL_GOODS");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   const toggle = (product: AdminProduct) => {
     setError(null);
@@ -503,23 +536,29 @@ export function ProductCatalogue({ products }: { products: AdminProduct[] }) {
   return (
     <section className="rounded-xl border bg-card shadow-soft">
       <header className="border-b p-4">
-        <h2 className="font-semibold">Products</h2>
+        <h2 className="font-semibold">{t("Products")}</h2>
         <p className="text-sm text-muted-foreground">
-          What the China desk can pick from, and what customers see in the
-          calculator. A product with no price still cannot be quoted.
+          {t(
+            "What the China desk can pick from, and what customers see in the calculator. A product with no price still cannot be quoted."
+          )}
         </p>
       </header>
 
       <form action={action} className="grid gap-3 border-b bg-muted/30 p-4 sm:grid-cols-[1fr_auto_auto_auto]">
         <div className="space-y-1.5">
           <Label htmlFor="product-name" className="text-xs">
-            Product name
+            {t("Product name")}
           </Label>
-          <Input id="product-name" name="name" placeholder="e.g. Drones" required />
+          <Input
+            id="product-name"
+            name="name"
+            placeholder={t("e.g. Drones")}
+            required
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="product-category" className="text-xs">
-            Category
+            {t("Category")}
           </Label>
           <NativeSelect
             id="product-category"
@@ -529,14 +568,14 @@ export function ProductCatalogue({ products }: { products: AdminProduct[] }) {
           >
             {Object.entries(CATEGORY_LABEL).map(([value, label]) => (
               <option key={value} value={value}>
-                {label}
+                {t(label)}
               </option>
             ))}
           </NativeSelect>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="product-route" className="text-xs">
-            Ships from
+            {t("Ships from")}
           </Label>
           <NativeSelect
             id="product-route"
@@ -544,19 +583,21 @@ export function ProductCatalogue({ products }: { products: AdminProduct[] }) {
             defaultValue={category === "NORMAL_GOODS" ? "GUANGZHOU" : "HONG_KONG"}
             key={category}
           >
-            <option value="GUANGZHOU">Guangzhou</option>
-            <option value="HONG_KONG">Hong Kong</option>
+            <option value="GUANGZHOU">{t("Guangzhou")}</option>
+            <option value="HONG_KONG">{t("Hong Kong")}</option>
           </NativeSelect>
         </div>
         <div className="flex items-end">
           <SubmitButton pendingLabel="Adding…" variant="secondary">
-            Add product
+            {t("Add product")}
           </SubmitButton>
         </div>
 
         <div className="sm:col-span-4">
           <Label htmlFor="product-keywords" className="text-xs">
-            Match words on packing lists (optional, comma separated — Chinese welcome)
+            {t(
+              "Match words on packing lists (optional, comma separated — Chinese welcome)"
+            )}
           </Label>
           <Textarea
             id="product-keywords"
@@ -574,7 +615,7 @@ export function ProductCatalogue({ products }: { products: AdminProduct[] }) {
 
       {error ? (
         <p role="alert" className="border-b bg-destructive/5 p-3 text-sm text-destructive">
-          {error}
+          {t(error)}
         </p>
       ) : null}
 
@@ -582,9 +623,9 @@ export function ProductCatalogue({ products }: { products: AdminProduct[] }) {
         {grouped.map((group) => (
           <div key={group.key} className="p-4">
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {group.label}
+              {t(group.label)}
               <span className="ml-2 font-normal normal-case tracking-normal">
-                {group.items.filter((i) => i.active).length} active
+                {group.items.filter((i) => i.active).length} {t("active")}
               </span>
             </h3>
             <div className="flex flex-wrap gap-2">
@@ -598,20 +639,20 @@ export function ProductCatalogue({ products }: { products: AdminProduct[] }) {
                   <span className={product.active ? "" : "line-through"}>{product.name}</span>
                   {product.route ? (
                     <span className="text-xs text-muted-foreground">
-                      {ROUTE_LABEL[product.route] ?? product.route}
+                      {t(ROUTE_LABEL[product.route] ?? product.route)}
                     </span>
                   ) : null}
                   {product.active && product.ruleCount === 0 ? (
                     <Badge variant="outline" className="border-warning/40 text-warning">
-                      no own price
+                      {t("no own price")}
                     </Badge>
                   ) : null}
                   <button
                     type="button"
                     disabled={pending}
                     onClick={() => toggle(product)}
-                    title={product.active ? "Archive" : "Restore"}
-                    aria-label={`${product.active ? "Archive" : "Restore"} ${product.name}`}
+                    title={t(product.active ? "Archive" : "Restore")}
+                    aria-label={`${t(product.active ? "Archive" : "Restore")} ${product.name}`}
                     className="text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
                   >
                     {product.active ? (
@@ -623,7 +664,9 @@ export function ProductCatalogue({ products }: { products: AdminProduct[] }) {
                 </div>
               ))}
               {group.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nothing here yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("Nothing here yet.")}
+                </p>
               ) : null}
             </div>
           </div>

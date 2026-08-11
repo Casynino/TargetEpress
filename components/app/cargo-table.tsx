@@ -155,7 +155,7 @@ export function ShipmentsTable({
       label: t("Status"),
       options: Object.entries(SHIPMENT_STATUS_META).map(([value, meta]) => ({
         value,
-        label: meta.label,
+        label: t(meta.label),
       })),
       match: (row, value) => row.status === value,
     },
@@ -164,7 +164,7 @@ export function ShipmentsTable({
       label: t("Origin"),
       options: Object.entries(ORIGIN_LABELS).map(([value, label]) => ({
         value,
-        label,
+        label: t(label),
       })),
       match: (row, value) => row.origin === value,
     },
@@ -173,7 +173,7 @@ export function ShipmentsTable({
       label: t("Goods type"),
       options: Object.entries(GOODS_TYPE_LABELS).map(([value, label]) => ({
         value,
-        label,
+        label: t(label),
       })),
       match: (row, value) => row.goodsType === value,
     },
@@ -236,7 +236,7 @@ export function ShipmentsTable({
                 .then(() =>
                   toast({
                     tone: "success",
-                    title: `${selected.length} tracking number(s) copied`,
+                    title: `${selected.length} ${t("tracking number(s) copied")}`,
                     description: t("Paste them wherever you need them."),
                   })
                 )
@@ -269,8 +269,8 @@ export function ShipmentsTable({
       renderExpanded={(row) => (
         <dl className="grid gap-4 sm:grid-cols-4">
           {[
-            { label: "Goods type", value: GOODS_TYPE_LABELS[row.goodsType] },
-            { label: "Origin", value: ORIGIN_LABELS[row.origin] },
+            { label: "Goods type", value: t(GOODS_TYPE_LABELS[row.goodsType]) },
+            { label: "Origin", value: t(ORIGIN_LABELS[row.origin]) },
             { label: "Packages", value: String(row.packages) },
             { label: "Weight", value: formatWeight(row.weightKg) },
             { label: "Batch", value: row.batchNumber ?? t("Not assigned") },

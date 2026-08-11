@@ -2,10 +2,14 @@ import type { Metadata } from "next";
 
 import { MarketsAdmin, type MarketRow } from "@/components/app/markets-admin";
 import { PageHeader } from "@/components/app/page-header";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "China markets" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "China markets") };
+}
 
 export default async function MarketsAdminPage() {
   await requirePermission("settings.manage");

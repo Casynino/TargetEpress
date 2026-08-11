@@ -27,9 +27,11 @@ import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
-import { viewerLocale } from "@/lib/viewer";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Shipment" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Shipment") };
+}
 
 /**
  * One dispatch, as a dashboard.
@@ -102,16 +104,19 @@ export default async function ShipmentPage({
     customerId: item.customer.id,
     customerName: item.customer.name,
     customerPhone: item.customer.phone,
-    description: cargoLabel(item.cargoType?.name, item.description),
+    description: cargoLabel(
+      item.cargoType?.name,
+      cargoText(locale, item, "description")
+    ),
     category: item.cargoCategory,
     weightKg: toNumber(item.weightKg),
     packages: item.packages,
     packagesLabel: formatPackagesShort(item.packages, item.packageType),
     status: item.status,
-    statusLabel: SHIPMENT_STATUS_META[item.status].label,
+    statusLabel: t(locale, SHIPMENT_STATUS_META[item.status].label),
     receivedLabel: formatDate(item.registeredAt),
-    problems: item.exceptions.map(
-      (exception) => EXCEPTION_TYPE_LABELS[exception.type] ?? exception.type
+    problems: item.exceptions.map((exception) =>
+      t(locale, EXCEPTION_TYPE_LABELS[exception.type] ?? exception.type)
     ),
     photos: item.photos,
     // Only fetched-and-mapped for desks that may see money; the prop is absent
@@ -162,7 +167,7 @@ export default async function ShipmentPage({
       id: "created",
       label: t(locale, "Dispatch created"),
       detail: dispatch.createdBy
-        ? `Raised by ${dispatch.createdBy.name}`
+        ? `${t(locale, "Raised by")} ${dispatch.createdBy.name}`
         : t(locale, "Raised in China"),
       at: formatDateTime(dispatch.createdAt),
       done: true,
@@ -265,7 +270,7 @@ export default async function ShipmentPage({
           ) : null}
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Users className="h-4 w-4" />
-            {customers} customer{customers === 1 ? "" : "s"}
+            {customers} {t(locale, customers === 1 ? "customer" : "customers")}
           </div>
         </div>
 

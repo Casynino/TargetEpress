@@ -19,12 +19,16 @@ import {
   PAYMENT_METHOD_LABELS,
 } from "@/lib/constants";
 import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Invoice" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Invoice") };
+}
 
 const money = (value: number, currency: string) =>
   `${currency} ${value.toLocaleString(undefined, {
@@ -38,6 +42,7 @@ export default async function InvoicePage({
   params: Promise<{ id: string }>;
 }) {
   const user = await requirePermission("finance.view");
+  const locale = await viewerLocale();
   const canEdit = can(user.role, "invoice.edit");
   const canDiscount = can(user.role, "invoice.discount");
   const canMessage = can(user.role, "message.send");
@@ -100,17 +105,21 @@ export default async function InvoicePage({
   // How the freight figure was reached, in one line. Assembled here because it
   // is the only part of the document that has to reach into the rate book.
   const freightNote = [
-    `${AIRPORT_LABELS[shipment.origin]} — Dar es Salaam`,
-    shipment.quotedMethod ? METHOD_LABELS[shipment.quotedMethod] : "Weight-based",
+    `${t(locale, AIRPORT_LABELS[shipment.origin])} — ${t(locale, "Dar es Salaam")}`,
+    shipment.quotedMethod
+      ? t(locale, METHOD_LABELS[shipment.quotedMethod])
+      : t(locale, "Weight-based"),
     shipment.quotedRate
       ? `${money(toNumber(shipment.quotedRate), currency)}${
-          shipment.quotedMethod === "FIXED_PER_ITEM" ? " each" : "/kg"
+          shipment.quotedMethod === "FIXED_PER_ITEM"
+            ? ` ${t(locale, "each")}`
+            : "/kg"
         }`
       : null,
     shipment.quotedMethod === "FIXED_PER_ITEM"
       ? `× ${formatPackages(shipment.packages, shipment.packageType)}`
       : shipment.chargeableKg
-        ? `× ${toNumber(shipment.chargeableKg).toFixed(2)} kg chargeable`
+        ? `× ${toNumber(shipment.chargeableKg).toFixed(2)} ${t(locale, "kg chargeable")}`
         : null,
   ]
     .filter(Boolean)
@@ -175,7 +184,7 @@ export default async function InvoicePage({
         <Button asChild variant="ghost" size="sm">
           <Link href={`/app/cargo/${shipment.trackingNumber}`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to shipment
+            {t(locale, "Back to shipment")}
           </Link>
         </Button>
         <div className="flex flex-wrap gap-2">
@@ -186,7 +195,7 @@ export default async function InvoicePage({
               rel="noopener noreferrer"
             >
               <MessageCircle className="mr-2 h-4 w-4" />
-              Send on WhatsApp
+              {t(locale, "Send on WhatsApp")}
             </a>
           </Button>
           {/* A real file, not a print dialog — the point is something that can
@@ -194,10 +203,10 @@ export default async function InvoicePage({
           <Button asChild variant="brand">
             <a href={`/app/finance/invoices/${invoice.invoiceNumber}/pdf`}>
               <Download className="mr-2 h-4 w-4" />
-              Download PDF
+              {t(locale, "Download PDF")}
             </a>
           </Button>
-          <PrintButton label="Print" />
+          <PrintButton label={t(locale, "Print")} />
         </div>
       </div>
 
@@ -239,12 +248,13 @@ export default async function InvoicePage({
         shipment={{
           trackingNumber: shipment.trackingNumber,
           batchNumber: shipment.batch?.batchNumber ?? null,
-          originLabel: AIRPORT_LABELS[shipment.origin],
-          description: shipment.description,
+          originLabel: t(locale, AIRPORT_LABELS[shipment.origin]),
+          description: cargoText(locale, shipment, "description"),
           weightLabel: formatWeight(shipment.weightKg),
           quantityLabel: formatPackages(shipment.packages, shipment.packageType),
           cargoLabel:
-            shipment.cargoType?.name ?? CATEGORY_LABELS[shipment.cargoCategory],
+            shipment.cargoType?.name ??
+            t(locale, CATEGORY_LABELS[shipment.cargoCategory]),
         }}
         freightNote={freightNote}
         currency={currency}
@@ -264,7 +274,7 @@ export default async function InvoicePage({
           id: payment.id,
           line: [
             payment.receipt?.receiptNumber,
-            PAYMENT_METHOD_LABELS[payment.method],
+            t(locale, PAYMENT_METHOD_LABELS[payment.method]),
             payment.reference,
             formatDate(payment.paidAt),
           ]
@@ -279,10 +289,14 @@ export default async function InvoicePage({
       />
       {canMessage ? (
         <section className="no-print mt-6 rounded-xl border bg-card p-5 shadow-soft">
-          <h2 className="mb-1 font-semibold">Send this invoice</h2>
+          <h2 className="mb-1 font-semibold">
+            {t(locale, "Send this invoice")}
+          </h2>
           <p className="mb-4 text-sm text-muted-foreground">
-            Open it in WhatsApp, then record it — recording marks the invoice as
-            sent, which is what the follow-up queue works from.
+            {t(
+              locale,
+              "Open it in WhatsApp, then record it — recording marks the invoice as sent, which is what the follow-up queue works from."
+            )}
           </p>
           <MessageComposer
             customerId={invoice.customerId}
@@ -300,11 +314,14 @@ export default async function InvoicePage({
               Object.keys(MESSAGE_KIND_LABELS) as (keyof typeof MESSAGE_KIND_LABELS)[]
             ).map((kind) => ({
               kind,
-              label: MESSAGE_KIND_LABELS[kind],
+              label: t(locale, MESSAGE_KIND_LABELS[kind]),
               body: composeMessage(kind, {
                 customerName: invoice.customer.name,
                 trackingNumber: shipment.trackingNumber,
-                description: shipment.description,
+                // The message goes to a Tanzanian customer in Swahili, so the
+                // cargo line follows the CUSTOMER, not whoever is composing it.
+                // A Guangzhou clerk sending this must not send 手机配件 to Dar.
+                description: cargoText("en", shipment, "description"),
                 invoiceNumber: invoice.invoiceNumber,
                 amountUsd: outstanding > 0 ? outstanding : toNumber(invoice.total),
                 amountLocal:

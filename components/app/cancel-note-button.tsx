@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cancelPickupNote } from "@/lib/actions/finance";
@@ -14,6 +15,7 @@ export function CancelNoteButton({ noteId }: { noteId: string }) {
     cancelPickupNote,
     { ok: true }
   );
+  const t = useT();
 
   if (!open) {
     return (
@@ -24,7 +26,7 @@ export function CancelNoteButton({ noteId }: { noteId: string }) {
         className="text-destructive"
         onClick={() => setOpen(true)}
       >
-        Cancel note
+        {t("Cancel note")}
       </Button>
     );
   }
@@ -32,11 +34,19 @@ export function CancelNoteButton({ noteId }: { noteId: string }) {
   return (
     <form action={action} className="w-full space-y-2">
       <input type="hidden" name="noteId" value={noteId} />
-      <Input name="reason" placeholder="Why is it being cancelled?" required />
+      <Input
+        name="reason"
+        placeholder={t("Why is it being cancelled?")}
+        required
+      />
       <FormError state={state} />
       <div className="flex gap-2">
-        <SubmitButton size="sm" variant="destructive" pendingLabel="Cancelling…">
-          Confirm
+        <SubmitButton
+          size="sm"
+          variant="destructive"
+          pendingLabel={t("Cancelling…")}
+        >
+          {t("Confirm")}
         </SubmitButton>
         <Button
           type="button"
@@ -44,7 +54,7 @@ export function CancelNoteButton({ noteId }: { noteId: string }) {
           variant="ghost"
           onClick={() => setOpen(false)}
         >
-          Keep
+          {t("Keep")}
         </Button>
       </div>
     </form>

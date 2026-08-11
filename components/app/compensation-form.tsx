@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { BadgeCheck } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
@@ -33,6 +34,7 @@ export function ApproveCompensationForm({
 }: {
   exceptionId: string;
 }) {
+  const t = useT();
   const [state, action] = useActionState(approveCompensation, undefined);
 
   return (
@@ -41,12 +43,14 @@ export function ApproveCompensationForm({
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           name="note"
-          placeholder="What is being approved, and why. e.g. total loss, customer compensated at declared value"
+          placeholder={t(
+            "What is being approved, and why. e.g. total loss, customer compensated at declared value"
+          )}
           required
         />
-        <SubmitButton size="default" variant="brand" pendingLabel="Approving…">
+        <SubmitButton size="default" variant="brand" pendingLabel={t("Approving…")}>
           <BadgeCheck className="mr-2 h-4 w-4" />
-          Approve compensation
+          {t("Approve compensation")}
         </SubmitButton>
       </div>
       <FormError state={state} />
@@ -79,6 +83,7 @@ export function RecordCompensationForm({
     note: string | null;
   } | null;
 }) {
+  const t = useT();
   const [state, action] = useActionState(recordCompensation, undefined);
 
   return (
@@ -87,7 +92,7 @@ export function RecordCompensationForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label htmlFor="compensation-amount">Amount</Label>
+          <Label htmlFor="compensation-amount">{t("Amount")}</Label>
           <MoneyInput
             id="compensation-amount"
             name="amount"
@@ -97,18 +102,18 @@ export function RecordCompensationForm({
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="compensation-currency">Currency</Label>
+          <Label htmlFor="compensation-currency">{t("Currency")}</Label>
           <NativeSelect
             id="compensation-currency"
             name="currency"
             defaultValue={defaults?.currency ?? "TZS"}
           >
-            <option value="TZS">TZS — Tanzanian shilling</option>
-            <option value="USD">USD — US dollar</option>
+            <option value="TZS">{t("TZS — Tanzanian shilling")}</option>
+            <option value="USD">{t("USD — US dollar")}</option>
           </NativeSelect>
         </div>
         <div className="space-y-1">
-          <Label htmlFor="compensation-paidAt">Payment date</Label>
+          <Label htmlFor="compensation-paidAt">{t("Payment date")}</Label>
           <Input
             id="compensation-paidAt"
             name="paidAt"
@@ -116,20 +121,20 @@ export function RecordCompensationForm({
             defaultValue={defaults?.paidAt ?? ""}
           />
           <p className="text-xs text-muted-foreground">
-            Leave empty until the money has actually gone out.
+            {t("Leave empty until the money has actually gone out.")}
           </p>
         </div>
         <div className="space-y-1">
-          <Label htmlFor="compensation-method">Payment method</Label>
+          <Label htmlFor="compensation-method">{t("Payment method")}</Label>
           <NativeSelect
             id="compensation-method"
             name="method"
             defaultValue={defaults?.method ?? ""}
           >
-            <option value="">Not paid yet</option>
+            <option value="">{t("Not paid yet")}</option>
             {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
-                {label}
+                {t(label)}
               </option>
             ))}
           </NativeSelect>
@@ -137,25 +142,27 @@ export function RecordCompensationForm({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="compensation-note">Notes</Label>
+        <Label htmlFor="compensation-note">{t("Notes")}</Label>
         <Textarea
           id="compensation-note"
           name="note"
           rows={3}
           defaultValue={defaults?.note ?? ""}
-          placeholder="Reference, who authorised it, anything an auditor will ask about."
+          placeholder={t(
+            "Reference, who authorised it, anything an auditor will ask about."
+          )}
         />
       </div>
 
       <FormError state={state} />
       {state?.ok ? (
         <p className="rounded-md border border-success/30 bg-success/5 p-2 text-xs text-success">
-          Saved against this investigation.
+          {t("Saved against this investigation.")}
         </p>
       ) : null}
 
-      <SubmitButton size="sm" variant="brand" pendingLabel="Saving…">
-        {defaults ? "Update compensation" : "Record compensation"}
+      <SubmitButton size="sm" variant="brand" pendingLabel={t("Saving…")}>
+        {defaults ? t("Update compensation") : t("Record compensation")}
       </SubmitButton>
     </form>
   );

@@ -31,9 +31,12 @@ import {
 import { prisma } from "@/lib/prisma";
 import { ROLE_PERMISSIONS, can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
-import { viewerLocale } from "@/lib/viewer";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
+import type { Locale } from "@/lib/locale";
 
-export const metadata: Metadata = { title: "Issues & Claims" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Issues & Claims") };
+}
 
 /**
  * The one place flagged cargo lands.
@@ -149,7 +152,7 @@ const EXCEPTION_INCLUDE = {
     select: {
       trackingNumber: true,
       status: true,
-      description: true,
+      ...selectText("description"),
       packages: true,
       packageType: true,
       customer: { select: { name: true, phone: true } },
@@ -180,7 +183,11 @@ type ExceptionRow = Prisma.ShipmentExceptionGetPayload<{
  * hidden with CSS is a figure that was sent to a warehouse phone, so the amount
  * is simply never built for anybody without `finance.view`.
  */
-function toRecord(row: ExceptionRow, canSeeMoney: boolean): InvestigationRecord {
+function toRecord(
+  row: ExceptionRow,
+  canSeeMoney: boolean,
+  locale: Locale
+): InvestigationRecord {
   const photos = row.shipment.photos.map((photo) => ({
     id: photo.id,
     url: photo.url,
@@ -224,7 +231,7 @@ function toRecord(row: ExceptionRow, canSeeMoney: boolean): InvestigationRecord 
             ? formatMoney(row.compensation.amount, row.compensation.currency)
             : null,
           methodLabel: row.compensation.method
-            ? PAYMENT_METHOD_LABELS[row.compensation.method]
+            ? t(locale, PAYMENT_METHOD_LABELS[row.compensation.method])
             : null,
           // Free text can quote a figure, so it travels with the figure.
           note: canSeeMoney ? row.compensation.note : null,
@@ -241,7 +248,7 @@ function toRecord(row: ExceptionRow, canSeeMoney: boolean): InvestigationRecord 
     shipment: {
       trackingNumber: row.shipment.trackingNumber,
       status: row.shipment.status,
-      description: row.shipment.description,
+      description: cargoText(locale, row.shipment, "description"),
       customerName: row.shipment.customer.name,
       customerPhone: row.shipment.customer.phone,
       packageType: row.shipment.packageType,
@@ -368,12 +375,14 @@ export default async function ExceptionsPage({
         : Promise.resolve([]),
     ]);
 
-  const records = rows.map((row) => toRecord(row, canSeeMoney));
-  const closedRecords = closedRows.map((row) => toRecord(row, canSeeMoney));
+  const records = rows.map((row) => toRecord(row, canSeeMoney, locale));
+  const closedRecords = closedRows.map((row) =>
+    toRecord(row, canSeeMoney, locale)
+  );
   const assignees = assigneeRows.map((person) => ({
     id: person.id,
     name: person.name,
-    roleLabel: ROLE_LABELS[person.role],
+    roleLabel: t(locale, ROLE_LABELS[person.role]),
   }));
 
   const countFor = (key: ExceptionGroupKey | "all") =>
@@ -409,8 +418,11 @@ export default async function ExceptionsPage({
   return (
     <>
       <PageHeader
-        title="Issues & Claims"
-        description="Every item flagged missing, damaged or wrong on arrival — held here, with the boxes it belongs to, until someone closes it out."
+        title={t(locale, "Issues & Claims")}
+        description={t(
+          locale,
+          "Every item flagged missing, damaged or wrong on arrival — held here, with the boxes it belongs to, until someone closes it out."
+        )}
       />
 
       <InvestigationCards
@@ -504,7 +516,7 @@ export default async function ExceptionsPage({
             title={
               group === "all"
                 ? tracking
-                  ? `Nothing on ${tracking}`
+                  ? `${t(locale, "Nothing on")} ${tracking}`
                   : t(locale, copy.emptyTitle)
                 : t(locale, "Nothing of this kind here")
             }

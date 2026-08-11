@@ -112,7 +112,7 @@ export function CustomerPicker({
         return;
       }
       if (!result.data) {
-        setSaveError("Saved, but the customer could not be read back.");
+        setSaveError(t(locale, "Saved, but the customer could not be read back."));
         return;
       }
       setReusedExisting(result.data.existing);
@@ -151,18 +151,25 @@ export function CustomerPicker({
             </p>
             <p className="mt-0.5 font-mono text-xs text-muted-foreground">
               {picked.code}
-              {picked.phone ? ` · ${picked.phone}` : " · no phone on file"}
+              {picked.phone
+                ? ` · ${picked.phone}`
+                : ` ${t(locale, "· no phone on file")}`}
               {picked.city ? ` · ${picked.city}` : ""}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {picked.shipments === 0
-                ? "No cargo shipped yet"
-                : `${picked.shipments} shipment${picked.shipments === 1 ? "" : "s"} with us`}
+                ? t(locale, "No cargo shipped yet")
+                : `${picked.shipments} ${t(
+                    locale,
+                    picked.shipments === 1 ? "shipment" : "shipments"
+                  )} ${t(locale, "with us")}`}
             </p>
             {reusedExisting ? (
               <p className="mt-1.5 text-xs text-warning">
-                That number was already on the books — this is the existing
-                customer, not a new one.
+                {t(
+                  locale,
+                  "That number was already on the books — this is the existing customer, not a new one."
+                )}
               </p>
             ) : null}
           </div>
@@ -176,7 +183,7 @@ export function CustomerPicker({
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-accent"
           >
             <X className="h-3.5 w-3.5" />
-            Change
+            {t(locale, "Change")}
           </button>
         </div>
       </div>
@@ -213,7 +220,7 @@ export function CustomerPicker({
       {mode === "search" ? (
         <div className="space-y-2">
           <Label htmlFor="customer-search">
-            Search by name, shipping mark, phone or customer ID
+            {t(locale, "Search by name, shipping mark, phone or customer ID")}
           </Label>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -222,7 +229,7 @@ export function CustomerPicker({
               ref={searchRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Mama Zainab, 0762 000 111 or CUS-000123"
+              placeholder={t(locale, "Mama Zainab, 0762 000 111 or CUS-000123")}
               className="pl-9"
               autoComplete="off"
             />
@@ -244,12 +251,17 @@ export function CustomerPicker({
                       <p className="font-medium">{customer.name}</p>
                       <p className="font-mono text-xs text-muted-foreground">
                         {customer.code}
-                        {customer.phone ? ` · ${customer.phone}` : " · no phone"}
+                        {customer.phone
+                          ? ` · ${customer.phone}`
+                          : ` ${t(locale, "· no phone")}`}
                       </p>
                     </div>
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      {customer.shipments} shipment
-                      {customer.shipments === 1 ? "" : "s"}
+                      {customer.shipments}{" "}
+                      {t(
+                        locale,
+                        customer.shipments === 1 ? "shipment" : "shipments"
+                      )}
                     </span>
                   </button>
                 </li>
@@ -260,7 +272,7 @@ export function CustomerPicker({
           {query.trim().length >= 2 && !searching && results.length === 0 ? (
             <div className="rounded-lg border border-dashed p-4 text-center">
               <p className="text-sm">
-                No customer matches &ldquo;{query.trim()}&rdquo;
+                {t(locale, "No customer matches")} &ldquo;{query.trim()}&rdquo;
               </p>
               <button
                 type="button"
@@ -274,15 +286,17 @@ export function CustomerPicker({
                 className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"
               >
                 <UserPlus className="h-3.5 w-3.5" />
-                Record them as a new customer
+                {t(locale, "Record them as a new customer")}
               </button>
             </div>
           ) : null}
 
           {query.trim().length < 2 ? (
             <p className="text-xs text-muted-foreground">
-              Start typing a name or number. Everyone the China desk has ever
-              registered cargo for is in here.
+              {t(
+                locale,
+                "Start typing a name or number. Everyone the China desk has ever registered cargo for is in here."
+              )}
             </p>
           ) : null}
         </div>
@@ -293,18 +307,20 @@ export function CustomerPicker({
               {/* "Shipping mark" is the term the trade actually uses — it is
                   what is painted on the packages in China and what the packing
                   list identifies the consignee by. */}
-              <Label htmlFor="new-name">Name or shipping mark</Label>
+              <Label htmlFor="new-name">
+                {t(locale, "Name or shipping mark")}
+              </Label>
               <Input
                 id="new-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Trader name or the mark on the packages"
+                placeholder={t(locale, "Trader name or the mark on the packages")}
                 autoComplete="off"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="new-phone">Phone number</Label>
+              <Label htmlFor="new-phone">{t(locale, "Phone number")}</Label>
               <Input
                 id="new-phone"
                 value={phone}
@@ -314,19 +330,21 @@ export function CustomerPicker({
                 autoComplete="off"
               />
               <p className="text-xs text-muted-foreground">
-                This is how the customer is identified — everything else can be
-                corrected later, this cannot be guessed.
+                {t(
+                  locale,
+                  "This is how the customer is identified — everything else can be corrected later, this cannot be guessed."
+                )}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="new-city">City in Tanzania</Label>
+              <Label htmlFor="new-city">{t(locale, "City in Tanzania")}</Label>
               <Input
                 id="new-city"
                 value={city}
                 onChange={(event) => setCity(event.target.value)}
                 list="tz-cities"
-                placeholder="Dar es Salaam"
+                placeholder={t(locale, "Dar es Salaam")}
               />
               <datalist id="tz-cities">
                 {TZ_CITIES.map((option) => (
@@ -349,19 +367,19 @@ export function CustomerPicker({
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving…
+                  {t(locale, "Saving…")}
                 </>
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  Save customer
+                  {t(locale, "Save customer")}
                 </>
               )}
             </Button>
             <p className="text-xs text-muted-foreground">
               {canSave
-                ? "Saves them to the book now, then continue with the cargo."
-                : "A name and a phone number are needed."}
+                ? t(locale, "Saves them to the book now, then continue with the cargo.")
+                : t(locale, "A name and a phone number are needed.")}
             </p>
           </div>
         </div>
@@ -369,7 +387,7 @@ export function CustomerPicker({
 
       {touched && !picked && mode === "search" ? (
         <p className="text-xs text-destructive">
-          Choose a customer, or switch to &ldquo;New customer&rdquo;.
+          {t(locale, "Choose a customer, or switch to “New customer”.")}
         </p>
       ) : null}
     </div>

@@ -69,9 +69,11 @@ export function ShipmentForm({
     return (
       <div className="panel p-8 text-center">
         <CheckCircle2 className="mx-auto h-10 w-10 animate-success-pop text-success" />
-        <h2 className="mt-4 font-display text-xl font-bold">Shipment registered</h2>
+        <h2 className="mt-4 font-display text-xl font-bold">
+          {t(locale, "Shipment registered")}
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Print the label and attach it to the cargo now.
+          {t(locale, "Print the label and attach it to the cargo now.")}
         </p>
         <p className="mt-4 font-mono text-2xl font-bold tabular">{created}</p>
 
@@ -79,9 +81,15 @@ export function ShipmentForm({
             confirmation has to close the loop. */}
         {state.ok && state.data?.batchNumber ? (
           <p className="mt-4 inline-flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-            <span className="text-muted-foreground">Waiting on the</span>
+            <span className="text-muted-foreground">
+              {t(locale, "Waiting on the")}
+            </span>
             <span className="font-medium">
-              {state.data.origin === "HONG_KONG" ? "Hong Kong" : "Guangzhou"} batch
+              {t(
+                locale,
+                state.data.origin === "HONG_KONG" ? "Hong Kong" : "Guangzhou"
+              )}{" "}
+              {t(locale, "batch")}
             </span>
           </p>
         ) : null}
@@ -91,19 +99,19 @@ export function ShipmentForm({
             href={`/app/cargo/${created}/label`}
             className="inline-flex h-10 items-center rounded-md bg-signal px-4 text-sm font-medium text-signal-foreground hover:bg-signal/90"
           >
-            Print QR label
+            {t(locale, "Print QR label")}
           </Link>
           <Link
             href={`/app/cargo/${created}`}
             className="inline-flex h-10 items-center rounded-md border px-4 text-sm hover:bg-muted"
           >
-            View shipment
+            {t(locale, "View shipment")}
           </Link>
           <a
             href="/app/cargo/new"
             className="inline-flex h-10 items-center rounded-md border px-4 text-sm hover:bg-muted"
           >
-            Register another
+            {t(locale, "Register another")}
           </a>
         </div>
       </div>
@@ -116,8 +124,10 @@ export function ShipmentForm({
       <section className="panel p-6">
         <h2 className="font-display font-semibold">{t(locale, "1. Customer")}</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Find them if we have shipped for them before. If not, record them once
-          and they are in the book from then on.
+          {t(
+            locale,
+            "Find them if we have shipped for them before. If not, record them once and they are in the book from then on."
+          )}
         </p>
 
         <div className="mt-5">
@@ -129,8 +139,10 @@ export function ShipmentForm({
       <section className="panel p-6">
         <h2 className="font-display font-semibold">{t(locale, "2. What is the cargo?")}</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          This is the only classification you make. The system works out the
-          airport and the price from it.
+          {t(
+            locale,
+            "This is the only classification you make. The system works out the airport and the price from it."
+          )}
         </p>
 
         <fieldset className="mt-5 grid gap-2">
@@ -173,7 +185,10 @@ export function ShipmentForm({
               {t(locale, `Departs ${AIRPORT_LABELS[route]}`)}
             </p>
             <p className="mt-0.5 text-muted-foreground">
-              Chosen automatically from the cargo category — you do not set this.
+              {t(
+                locale,
+                "Chosen automatically from the cargo category — you do not set this."
+              )}
             </p>
           </div>
         </div>
@@ -181,9 +196,9 @@ export function ShipmentForm({
         {types.length > 0 ? (
           <div className="mt-5 space-y-2">
             <Label htmlFor="cargoTypeId">
-              Which item?{" "}
+              {t(locale, "Which item?")}{" "}
               <span className="font-normal text-muted-foreground">
-                helps Finance price it correctly
+                {t(locale, "helps Finance price it correctly")}
               </span>
             </Label>
             <NativeSelect
@@ -192,7 +207,7 @@ export function ShipmentForm({
               value={cargoTypeId}
               onChange={(e) => setCargoTypeId(e.target.value)}
             >
-              <option value="">Not listed / mixed</option>
+              <option value="">{t(locale, "Not listed / mixed")}</option>
               {types.map((type) => (
                 <option key={type.id} value={type.id}>
                   {type.name}
@@ -202,8 +217,10 @@ export function ShipmentForm({
             {category === "ELECTRONICS" && !cargoTypeId ? (
               <p className="flex items-start gap-1.5 text-xs text-warning">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Electronics are priced per item. Without an item, Finance will
-                have to price this one by hand.
+                {t(
+                  locale,
+                  "Electronics are priced per item. Without an item, Finance will have to price this one by hand."
+                )}
               </p>
             ) : null}
           </div>
@@ -219,18 +236,24 @@ export function ShipmentForm({
             required
           />
           <p className="text-xs text-muted-foreground">
-            Your own words. This is what the customer sees when they track, and
-            what appears on the invoice.
+            {t(
+              locale,
+              "Your own words. This is what the customer sees when they track, and what appears on the invoice."
+            )}
           </p>
         </div>
       </section>
 
       {/* 3. Weigh and count */}
       <section className="panel p-6">
-        <h2 className="font-display font-semibold">3. Weigh and count</h2>
+        <h2 className="font-display font-semibold">
+          {t(locale, "3. Weigh and count")}
+        </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Weigh before you record. This weight is what the customer is billed on,
-          so it has to be right.
+          {t(
+            locale,
+            "Weigh before you record. This weight is what the customer is billed on, so it has to be right."
+          )}
         </p>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
@@ -271,18 +294,19 @@ export function ShipmentForm({
               defaultValue={category === "NORMAL_GOODS" ? "PACKAGE" : "PIECE"}
               key={category}
             >
-              <option value="CARTON">Cartons</option>
-              <option value="PIECE">Pieces</option>
+              <option value="CARTON">{t(locale, "Cartons")}</option>
+              <option value="PIECE">{t(locale, "Pieces")}</option>
               <option value="PACKAGE">{t(locale, "Packages")}</option>
-              <option value="BAG">Bags</option>
-              <option value="BOX">Boxes</option>
-              <option value="ENVELOPE">Envelopes</option>
-              <option value="OTHER">Other</option>
+              <option value="BAG">{t(locale, "Bags")}</option>
+              <option value="BOX">{t(locale, "Boxes")}</option>
+              <option value="ENVELOPE">{t(locale, "Envelopes")}</option>
+              <option value="OTHER">{t(locale, "Other")}</option>
             </NativeSelect>
             <p className="text-xs text-muted-foreground">
-              Recorded with the quantity and shown everywhere it appears. Cargo
-              on a per-item rate — a phone, a laptop, a camera — is always saved
-              as pieces, because that count is what the customer is charged for.
+              {t(
+                locale,
+                "Recorded with the quantity and shown everywhere it appears. Cargo on a per-item rate — a phone, a laptop, a camera — is always saved as pieces, because that count is what the customer is charged for."
+              )}
             </p>
           </div>
         </div>
@@ -291,11 +315,14 @@ export function ShipmentForm({
       {/* 4. Photograph */}
       <section className="panel p-6">
         <h2 className="font-display font-semibold">
-          4. Photograph the cargo <span className="text-signal">*</span>
+          {t(locale, "4. Photograph the cargo")}{" "}
+          <span className="text-signal">*</span>
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Required. This is the proof of what we received and the condition it
-          arrived in — it settles disputes months later.
+          {t(
+            locale,
+            "Required. This is the proof of what we received and the condition it arrived in — it settles disputes months later."
+          )}
         </p>
         <div className="mt-5">
           <PhotoCapture
@@ -311,24 +338,30 @@ export function ShipmentForm({
 
       {/* 5. Notes */}
       <section className="panel p-6">
-        <h2 className="font-display font-semibold">5. Notes</h2>
+        <h2 className="font-display font-semibold">{t(locale, "5. Notes")}</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          The batch is chosen for you from the cargo type — you never pick it.
+          {t(
+            locale,
+            "The batch is chosen for you from the cargo type — you never pick it."
+          )}
         </p>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="internalNotes">
-              Internal notes{" "}
+              {t(locale, "Internal notes")}{" "}
               <span className="font-normal text-muted-foreground">
-                never shown to the customer
+                {t(locale, "never shown to the customer")}
               </span>
             </Label>
             <Textarea
               id="internalNotes"
               name="internalNotes"
               rows={3}
-              placeholder="Supplier name, carton markings, anything the Dar team should know."
+              placeholder={t(
+                locale,
+                "Supplier name, carton markings, anything the Dar team should know."
+              )}
             />
           </div>
         </div>
@@ -338,13 +371,13 @@ export function ShipmentForm({
 
       <div className="flex flex-wrap gap-3">
         <SubmitButton variant="signal" pendingLabel="Registering…">
-          Register shipment
+          {t(locale, "Register shipment")}
         </SubmitButton>
         <Link
           href="/app/cargo"
           className="inline-flex h-10 items-center rounded-md border px-4 text-sm hover:bg-muted"
         >
-          Cancel
+          {t(locale, "Cancel")}
         </Link>
       </div>
     </form>

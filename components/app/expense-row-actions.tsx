@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
@@ -36,6 +37,7 @@ export function ExpenseRowActions({
   canApprove: boolean;
   needsApproval: boolean;
 }) {
+  const t = useT();
   const [voiding, setVoiding] = useState(false);
 
   const [approveState, approve] = useActionState<ActionResult, FormData>(
@@ -62,13 +64,13 @@ export function ExpenseRowActions({
           <form action={approve} className="flex items-center gap-2">
             <input type="hidden" name="expenseId" value={expenseId} />
             <SubmitButton size="sm" variant="signal" pendingLabel="Approving…">
-              Approve
+              {t("Approve")}
             </SubmitButton>
             <FormError state={approveState} />
           </form>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Waiting on the CEO&rsquo;s approval
+            {t("Waiting on the CEO’s approval")}
           </p>
         )
       ) : (
@@ -81,7 +83,7 @@ export function ExpenseRowActions({
             required
           >
             <option value="" disabled>
-              Paid from…
+              {t("Paid from…")}
             </option>
             {eligible.map((a) => (
               <option key={a.id} value={a.id}>
@@ -90,7 +92,7 @@ export function ExpenseRowActions({
             ))}
           </NativeSelect>
           <SubmitButton size="sm" pendingLabel="Paying…">
-            Mark paid
+            {t("Mark paid")}
           </SubmitButton>
           <FormError state={payState} />
         </form>
@@ -101,19 +103,19 @@ export function ExpenseRowActions({
           <input type="hidden" name="expenseId" value={expenseId} />
           <Input
             name="reason"
-            placeholder="Why is this being cancelled?"
+            placeholder={t("Why is this being cancelled?")}
             className="h-8 w-auto min-w-[12rem] text-xs"
             required
           />
           <SubmitButton size="sm" variant="destructive" pendingLabel="Cancelling…">
-            Confirm
+            {t("Confirm")}
           </SubmitButton>
           <button
             type="button"
             onClick={() => setVoiding(false)}
             className="text-xs text-muted-foreground hover:text-foreground"
           >
-            Keep it
+            {t("Keep it")}
           </button>
           <FormError state={voidState} />
         </form>
@@ -123,7 +125,7 @@ export function ExpenseRowActions({
           onClick={() => setVoiding(true)}
           className="text-xs text-muted-foreground hover:text-destructive"
         >
-          Cancel this cost
+          {t("Cancel this cost")}
         </button>
       )}
     </div>

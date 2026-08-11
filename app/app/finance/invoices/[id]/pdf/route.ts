@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 import { AIRPORT_LABELS, CATEGORY_LABELS } from "@/lib/cargo";
 import { accountsForInvoice } from "@/lib/company-settings";
 import { formatDate, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
 /**
  * The invoice as a downloadable file.
@@ -57,6 +59,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   await requirePermission("invoice.manage");
+  const locale = await viewerLocale();
   const { id } = await params;
   const key = decodeURIComponent(id);
 
@@ -89,7 +92,7 @@ export async function GET(
       shipment: {
         select: {
           trackingNumber: true,
-          description: true,
+          ...selectText("description"),
           weightKg: true,
           packages: true,
           packageType: true,
@@ -103,14 +106,19 @@ export async function GET(
   });
 
   if (!invoice) {
-    return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
+    return NextResponse.json(
+      { error: t(locale, "Invoice not found.") },
+      { status: 404 }
+    );
   }
 
   if (invoice.status === "DRAFT") {
     return NextResponse.json(
       {
-        error:
-          "This price has not been confirmed yet. Confirm it before downloading or sending the invoice.",
+        error: t(
+          locale,
+          "This price has not been confirmed yet. Confirm it before downloading or sending the invoice."
+        ),
       },
       { status: 409 }
     );
@@ -131,7 +139,9 @@ export async function GET(
 
     trackingNumber: invoice.shipment.trackingNumber,
     batchNumber: invoice.shipment.batch?.batchNumber ?? null,
-    description: invoice.shipment.description,
+    // The cargo description follows whoever is downloading it, not whoever
+    // typed it: Guangzhou registers 手机配件 and Dar gets it in English.
+    description: cargoText(locale, invoice.shipment, "description"),
     weightKg: toNumber(invoice.shipment.weightKg),
     packages: invoice.shipment.packages,
     packageType: invoice.shipment.packageType,

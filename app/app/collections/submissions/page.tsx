@@ -9,8 +9,10 @@ import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { submissionQueue } from "@/lib/collections";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Submissions" };
 
@@ -35,6 +37,7 @@ export default async function SubmissionsPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const user = await requirePermission("collections.view");
+  const locale = await viewerLocale();
   const { status } = await searchParams;
   const canVerify = can(user.role, "payment.verify");
 
@@ -51,11 +54,17 @@ export default async function SubmissionsPage({
   return (
     <>
       <PageHeader
-        title="Collection history"
+        title={t(locale, "Collection history")}
         description={
           canVerify
-            ? "What Customer Support has handed up, and what was decided. The customer's evidence stays attached to every one."
-            : "What this desk has handed to Finance, and what they decided. The customer's evidence stays attached to every one."
+            ? t(
+                locale,
+                "What Customer Support has handed up, and what was decided. The customer's evidence stays attached to every one."
+              )
+            : t(
+                locale,
+                "What this desk has handed to Finance, and what they decided. The customer's evidence stays attached to every one."
+              )
         }
       />
 
@@ -72,15 +81,15 @@ export default async function SubmissionsPage({
                 : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
             }`}
           >
-            {filter.label}
+            {t(locale, filter.label)}
           </Link>
         ))}
       </div>
 
       {rows.length === 0 ? (
         <EmptyState
-          title="Nothing here"
-          description="No submission matches that filter."
+          title={t(locale, "Nothing here")}
+          description={t(locale, "No submission matches that filter.")}
         />
       ) : (
         <ul className="space-y-3">
@@ -105,8 +114,8 @@ export default async function SubmissionsPage({
                       }
                     >
                       {row.status === "PENDING"
-                        ? "pending Finance verification"
-                        : row.status.toLowerCase()}
+                        ? t(locale, "pending Finance verification")
+                        : t(locale, row.status.toLowerCase())}
                     </Badge>
                   </p>
                   <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
@@ -130,24 +139,30 @@ export default async function SubmissionsPage({
                 <div className="space-y-1.5 text-xs">
                   {row.status === "VERIFIED" ? (
                     <p className="text-success">
-                      Verified by {row.reviewedBy?.name ?? "Finance"}
-                      {row.reviewedAt ? ` on ${formatDateTime(row.reviewedAt)}` : ""}
+                      {t(locale, "Verified by")}{" "}
+                      {row.reviewedBy?.name ?? t(locale, "Finance")}
+                      {row.reviewedAt
+                        ? ` ${t(locale, "on")} ${formatDateTime(row.reviewedAt)}`
+                        : ""}
                       {row.payment?.receipt
-                        ? ` — receipt ${row.payment.receipt.receiptNumber}`
+                        ? ` — ${t(locale, "receipt")} ${row.payment.receipt.receiptNumber}`
                         : ""}
                       .
                     </p>
                   ) : null}
                   {row.status === "REJECTED" ? (
                     <p className="text-destructive">
-                      Sent back by {row.reviewedBy?.name ?? "Finance"}:{" "}
-                      {row.rejectionReason ?? "no reason recorded"}
+                      {t(locale, "Sent back by")}{" "}
+                      {row.reviewedBy?.name ?? t(locale, "Finance")}:{" "}
+                      {row.rejectionReason ?? t(locale, "no reason recorded")}
                     </p>
                   ) : null}
                   {row.status === "PENDING" ? (
                     <p className="text-muted-foreground">
-                      Waiting on Finance. Nothing is settled and no pickup note
-                      exists until they agree.
+                      {t(
+                        locale,
+                        "Waiting on Finance. Nothing is settled and no pickup note exists until they agree."
+                      )}
                     </p>
                   ) : null}
                   {row.note ? (
@@ -160,7 +175,7 @@ export default async function SubmissionsPage({
                 <ul className="flex flex-wrap gap-2">
                   {row.proofs.length === 0 ? (
                     <li className="text-xs text-muted-foreground">
-                      no evidence attached
+                      {t(locale, "no evidence attached")}
                     </li>
                   ) : (
                     row.proofs.map((proof) => (
@@ -176,7 +191,7 @@ export default async function SubmissionsPage({
                           ) : (
                             <FileText className="h-3 w-3" />
                           )}
-                          {proof.filename ?? "Proof"}
+                          {proof.filename ?? t(locale, "Proof")}
                         </a>
                       </li>
                     ))

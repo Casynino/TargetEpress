@@ -48,8 +48,11 @@ export default async function RequestsPage() {
   return (
     <>
       <PageHeader
-        title="Requests from the website"
-        description={`${openBookings} booking(s) and ${openPickups} pickup(s) waiting for a call.`}
+        title={t(locale, "Requests from the website")}
+        description={`${openBookings} ${t(locale, "booking(s) and")} ${openPickups} ${t(
+          locale,
+          "pickup(s) waiting for a call."
+        )}`}
       />
 
       <div className="grid gap-6 xl:grid-cols-2">

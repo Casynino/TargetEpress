@@ -16,10 +16,14 @@ import {
 } from "@/lib/constants";
 import { ON_THE_FLOOR, weightOnFloor } from "@/lib/floor";
 import { formatDate, formatWeight, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Available cargo" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: t(await viewerLocale(), "Available cargo") };
+}
 
 const DAY_MS = 86_400_000;
 
@@ -43,6 +47,7 @@ const DAY_MS = 86_400_000;
  */
 export default async function InventoryPage() {
   await requirePermission("inventory.view");
+  const locale = await viewerLocale();
 
   const held = await prisma.shipment.findMany({
     // The one definition of "on the floor", shared with the dashboard so the
@@ -56,7 +61,7 @@ export default async function InventoryPage() {
       id: true,
       trackingNumber: true,
       status: true,
-      description: true,
+      ...selectText("description"),
       packages: true,
       packageType: true,
       weightKg: true,
@@ -93,7 +98,7 @@ export default async function InventoryPage() {
       status: shipment.status as InventoryRow["status"],
       customerName: shipment.customer.name,
       customerPhone: shipment.customer.phone,
-      description: shipment.description,
+      description: cargoText(locale, shipment, "description"),
       packages: shipment.packages,
       packageType: shipment.packageType,
       packagesPending: shipment.packageList.filter((pkg) => !pkg.receivedAt)
@@ -113,7 +118,9 @@ export default async function InventoryPage() {
       ),
       batchNumber: shipment.batch?.batchNumber ?? null,
       cartonRef: shipment.cartonRef,
-      arrivedLabel: shipment.arrivedAt ? formatDate(shipment.arrivedAt) : "Not recorded",
+      arrivedLabel: shipment.arrivedAt
+        ? formatDate(shipment.arrivedAt)
+        : t(locale, "Not recorded"),
       arrivedIso: shipment.arrivedAt ? shipment.arrivedAt.toISOString() : null,
       daysHeld: shipment.arrivedAt
         ? Math.max(0, Math.floor((now - shipment.arrivedAt.getTime()) / DAY_MS))
@@ -154,63 +161,66 @@ export default async function InventoryPage() {
       {rows.length === 0 ? (
         <EmptyState
           icon={Boxes}
-          title="The floor is clear"
-          description="Nothing is being held in Dar. Cargo appears here the moment it is checked in against a batch manifest."
+          title={t(locale, "The floor is clear")}
+          description={t(
+            locale,
+            "Nothing is being held in Dar. Cargo appears here the moment it is checked in against a batch manifest."
+          )}
         />
       ) : (
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <KpiCard
               delay={0}
-              label="Cargo held"
+              label={t(locale, "Cargo held")}
               numeric={rows.length}
-              hint={`${totalPackages.toLocaleString()} packages on the floor`}
+              hint={`${totalPackages.toLocaleString()} ${t(locale, "packages on the floor")}`}
               icon={Boxes}
               tone="brand"
             />
             <KpiCard
               delay={1}
-              label="Not yet paid for"
+              label={t(locale, "Not yet paid for")}
               numeric={unpaid.length}
               hint={
                 unpaid.length > 0
-                  ? "Stored, waiting on Finance"
-                  : "Everything held is cleared"
+                  ? t(locale, "Stored, waiting on Finance")
+                  : t(locale, "Everything held is cleared")
               }
               icon={Wallet}
               tone={unpaid.length > 0 ? "warning" : "success"}
             />
             <KpiCard
               delay={2}
-              label="Cleared for pickup"
+              label={t(locale, "Cleared for pickup")}
               numeric={cleared.length}
-              hint="Pickup note issued — collectable"
+              hint={t(locale, "Pickup note issued — collectable")}
               icon={PackageCheck}
               tone="success"
               ringPct={rows.length ? (cleared.length / rows.length) * 100 : 0}
-              ringLabel="Share of held cargo cleared"
+              ringLabel={t(locale, "Share of held cargo cleared")}
             />
             <KpiCard
               delay={3}
-              label={`Held over ${STORAGE_POLICY.freeDays} days`}
+              label={`${t(locale, "Held over")} ${STORAGE_POLICY.freeDays} ${t(locale, "days")}`}
               numeric={aging.length}
               hint={
                 longestHeld > 0
-                  ? `Longest sitting ${longestHeld} days`
-                  : "Nothing has aged yet"
+                  ? `${t(locale, "Longest sitting")} ${longestHeld} ${t(locale, "days")}`
+                  : t(locale, "Nothing has aged yet")
               }
               icon={Hourglass}
               tone={aging.length > 0 ? "danger" : "success"}
             />
             <KpiCard
               delay={4}
-              label="Weight on the floor"
+              label={t(locale, "Weight on the floor")}
               // formatWeight, not Math.round. The dashboard banner carries a
               // tile with this exact label and links straight here, so the two
               // must round the same way — otherwise one screen says 754.3 kg
               // and the next says 754 kg about the same stack of boxes.
               value={formatWeight(totalWeight)}
-              hint={`Across ${rows.length} shipment${rows.length === 1 ? "" : "s"}`}
+              hint={`${t(locale, "Across")} ${rows.length} ${t(locale, rows.length === 1 ? "shipment" : "shipments")}`}
               icon={Scale}
               tone="info"
             />
@@ -220,19 +230,19 @@ export default async function InventoryPage() {
 
           <p className="mt-6 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
             <PackageCheck className="h-4 w-4" />
-            Cargo that has landed but not been checked in yet is on{" "}
+            {t(locale, "Cargo that has landed but not been checked in yet is on")}{" "}
             <Link
               href="/app/receive"
               className="font-medium text-brand hover:underline"
             >
-              Receiving Dock
+              {t(locale, "Receiving Dock")}
             </Link>
-            . Cleared cargo is handed over from{" "}
+            . {t(locale, "Cleared cargo is handed over from")}{" "}
             <Link
               href="/app/release"
               className="font-medium text-brand hover:underline"
             >
-              the release counter
+              {t(locale, "the release counter")}
             </Link>
             .
           </p>

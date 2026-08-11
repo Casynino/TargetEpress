@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 
@@ -40,6 +41,7 @@ export function LedgerFilters({
   kinds: Option[];
   categories: Option[];
 }) {
+  const t = useT();
   const router = useRouter();
   const params = useSearchParams();
   const [term, setTerm] = useState(params.get("q") ?? "");
@@ -61,8 +63,8 @@ export function LedgerFilters({
   useEffect(() => {
     const current = params.get("q") ?? "";
     if (term === current) return;
-    const t = setTimeout(() => push({ q: term }), 350);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => push({ q: term }), 350);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term]);
 
@@ -84,45 +86,47 @@ export function LedgerFilters({
         <Input
           value={term}
           onChange={(e) => setTerm(e.target.value)}
-          placeholder="Customer, tracking number, receipt, M-Pesa code, cargo, vendor, account, person…"
+          placeholder={t(
+            "Customer, tracking number, receipt, M-Pesa code, cargo, vendor, account, person…"
+          )}
           className="pl-9"
-          aria-label="Search the ledger"
+          aria-label={t("Search the ledger")}
         />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
         <NativeSelect
-          aria-label="Type"
+          aria-label={t("Type")}
           value={value("kind")}
           onChange={(e) => push({ kind: e.target.value })}
           className="h-9 w-auto min-w-[9rem] text-sm"
         >
-          <option value="">All types</option>
+          <option value="">{t("All types")}</option>
           {kinds.map((k) => (
             <option key={k.value} value={k.value}>
-              {k.label}
+              {t(k.label)}
             </option>
           ))}
         </NativeSelect>
 
         <NativeSelect
-          aria-label="Direction"
+          aria-label={t("Direction")}
           value={value("direction")}
           onChange={(e) => push({ direction: e.target.value })}
           className="h-9 w-auto min-w-[8rem] text-sm"
         >
-          <option value="">In &amp; out</option>
-          <option value="IN">In only</option>
-          <option value="OUT">Out only</option>
+          <option value="">{t("In & out")}</option>
+          <option value="IN">{t("In only")}</option>
+          <option value="OUT">{t("Out only")}</option>
         </NativeSelect>
 
         <NativeSelect
-          aria-label="Account"
+          aria-label={t("Account")}
           value={value("account")}
           onChange={(e) => push({ account: e.target.value })}
           className="h-9 w-auto min-w-[10rem] text-sm"
         >
-          <option value="">All accounts</option>
+          <option value="">{t("All accounts")}</option>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
@@ -131,26 +135,26 @@ export function LedgerFilters({
         </NativeSelect>
 
         <NativeSelect
-          aria-label="Cost category"
+          aria-label={t("Cost category")}
           value={value("category")}
           onChange={(e) => push({ category: e.target.value })}
           className="h-9 w-auto min-w-[10rem] text-sm"
         >
-          <option value="">All categories</option>
+          <option value="">{t("All categories")}</option>
           {categories.map((c) => (
             <option key={c.value} value={c.value}>
-              {c.label}
+              {t(c.label)}
             </option>
           ))}
         </NativeSelect>
 
         <NativeSelect
-          aria-label="Recorded by"
+          aria-label={t("Recorded by")}
           value={value("person")}
           onChange={(e) => push({ person: e.target.value })}
           className="h-9 w-auto min-w-[9rem] text-sm"
         >
-          <option value="">Anyone</option>
+          <option value="">{t("Anyone")}</option>
           {people.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -159,14 +163,14 @@ export function LedgerFilters({
         </NativeSelect>
 
         <NativeSelect
-          aria-label="When"
+          aria-label={t("When")}
           value={value("period")}
           onChange={(e) => push({ period: e.target.value })}
           className="h-9 w-auto min-w-[9rem] text-sm"
         >
           {PERIODS.map((p) => (
             <option key={p.value} value={p.value}>
-              {p.label}
+              {t(p.label)}
             </option>
           ))}
         </NativeSelect>
@@ -181,7 +185,7 @@ export function LedgerFilters({
             className="focus-ring inline-flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" />
-            Clear
+            {t("Clear")}
           </button>
         ) : null}
       </div>

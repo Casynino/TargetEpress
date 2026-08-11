@@ -5,6 +5,7 @@ import type { ShipmentStatus } from "@prisma/client";
 import { AlertTriangle, ArrowRight, PackageCheck, ShieldCheck } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
+import { useT } from "@/components/app/locale-provider";
 import { ReportMissingCargoForm } from "@/components/app/missing-cargo-report";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -84,10 +85,12 @@ function waitTone(ms: number) {
  * authority; the warehouse's job is to match it against cargo and hand over.
  */
 export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
+  const t = useT();
+
   const columns: Column<PickupQueueRow>[] = [
     {
       id: "customer",
-      header: "Customer",
+      header: t("Customer"),
       sortValue: (row) => row.customerName,
       cell: (row) => (
         <div className="min-w-0">
@@ -98,14 +101,14 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
             {row.customerName}
           </Link>
           <div className="text-xs text-muted-foreground tabular">
-            {row.customerPhone ?? "no phone"}
+            {row.customerPhone ?? t("no phone")}
           </div>
         </div>
       ),
     },
     {
       id: "cargo",
-      header: "Cargo",
+      header: t("Cargo"),
       sortValue: (row) => row.trackingNumber,
       cell: (row) => (
         <div className="min-w-0">
@@ -123,7 +126,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
     },
     {
       id: "packages",
-      header: "Packages",
+      header: t("Packages"),
       sortValue: (row) => row.packagesReceived - row.packagesTotal,
       cell: (row) => (
         <div>
@@ -137,30 +140,30 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
             )}
           >
             {row.packagesTotal === 0
-              ? "no labels on file"
-              : `${row.packagesReceived} of ${row.packagesTotal} checked in`}
+              ? t("no labels on file")
+              : `${row.packagesReceived} ${t("of")} ${row.packagesTotal} ${t("checked in")}`}
           </p>
         </div>
       ),
     },
     {
       id: "note",
-      header: "Pickup note",
+      header: t("Pickup note"),
       sortValue: (row) => row.noteNumber,
       cell: (row) => (
         <div>
           <p className="font-mono text-xs font-medium tabular">{row.noteNumber}</p>
           <p className="text-[11px] text-muted-foreground tabular">
             {row.amountPaid !== undefined && row.currency
-              ? `paid ${formatMoney(row.amountPaid, row.currency)}`
-              : "payment confirmed"}
+              ? `${t("paid")} ${formatMoney(row.amountPaid, row.currency)}`
+              : t("payment confirmed")}
           </p>
         </div>
       ),
     },
     {
       id: "issued",
-      header: "Issued",
+      header: t("Issued"),
       hideBelow: "xl",
       sortValue: (row) => row.issuedAtMs,
       className: "text-xs text-muted-foreground",
@@ -168,7 +171,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
     },
     {
       id: "waiting",
-      header: "Waiting",
+      header: t("Waiting"),
       align: "right",
       sortValue: (row) => row.waitingMs,
       cell: (row) => (
@@ -178,7 +181,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
           </p>
           {row.storageDays > 0 ? (
             <p className="text-[11px] text-warning tabular">
-              +{row.storageDays} d storage
+              +{row.storageDays} {t("d storage")}
             </p>
           ) : null}
         </div>
@@ -186,14 +189,14 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
     },
     {
       id: "state",
-      header: "State",
+      header: t("State"),
       sortValue: (row) => (row.ready ? 0 : 1),
       cell: (row) =>
         row.ready ? (
-          <Badge variant="success">Ready</Badge>
+          <Badge variant="success">{t("Ready")}</Badge>
         ) : (
           <div className="flex flex-col items-start gap-1">
-            <Badge variant="warning">Held</Badge>
+            <Badge variant="warning">{t("Held")}</Badge>
             <span className="text-[11px] text-muted-foreground">
               {row.blockers[0]}
             </span>
@@ -212,7 +215,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
           className="rounded-lg"
         >
           <Link href={`/app/release?note=${encodeURIComponent(row.noteNumber)}`}>
-            Release
+            {t("Release")}
             <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
           </Link>
         </Button>
@@ -223,20 +226,20 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
   const filters: TableFilter<PickupQueueRow>[] = [
     {
       id: "state",
-      label: "State",
+      label: t("State"),
       options: [
-        { value: "ready", label: "Ready to release" },
-        { value: "held", label: "Held back" },
+        { value: "ready", label: t("Ready to release") },
+        { value: "held", label: t("Held back") },
       ],
       match: (row, value) => (value === "ready" ? row.ready : !row.ready),
     },
     {
       id: "waiting",
-      label: "Waiting",
+      label: t("Waiting"),
       options: [
-        { value: "today", label: "Issued today" },
-        { value: "2", label: "Over 2 days" },
-        { value: "7", label: "Over a week" },
+        { value: "today", label: t("Issued today") },
+        { value: "2", label: t("Over 2 days") },
+        { value: "7", label: t("Over a week") },
       ],
       match: (row, value) => {
         if (value === "today") return row.waitingMs < DAY;
@@ -245,10 +248,10 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
     },
     {
       id: "storage",
-      label: "Storage",
+      label: t("Storage"),
       options: [
-        { value: "charging", label: "Accruing charges" },
-        { value: "free", label: "Still free" },
+        { value: "charging", label: t("Accruing charges") },
+        { value: "free", label: t("Still free") },
       ],
       match: (row, value) =>
         value === "charging" ? row.storageDays > 0 : row.storageDays === 0,
@@ -271,14 +274,14 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
           row.description,
         ].join(" ")
       }
-      searchPlaceholder="Customer, phone, tracking or pickup note"
-      emptyTitle="Nothing matches"
-      emptyDescription="No cargo in the pickup queue matches those filters."
+      searchPlaceholder={t("Customer, phone, tracking or pickup note")}
+      emptyTitle={t("Nothing matches")}
+      emptyDescription={t("No cargo in the pickup queue matches those filters.")}
       renderExpanded={(row) => (
         <div className="grid gap-5 md:grid-cols-3">
           <div className="space-y-1.5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Cargo
+              {t("Cargo")}
             </p>
             <p className="text-sm">{row.description}</p>
             <p className="text-sm text-muted-foreground tabular">
@@ -289,36 +292,38 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
             </div>
             <p className="text-xs text-muted-foreground">
               {row.arrivedAtLabel
-                ? `Arrived in Dar ${row.arrivedAtLabel}`
-                : "No arrival recorded"}
+                ? `${t("Arrived in Dar")} ${row.arrivedAtLabel}`
+                : t("No arrival recorded")}
             </p>
           </div>
 
           <div className="space-y-1.5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Pickup note
+              {t("Pickup note")}
             </p>
             <p className="font-mono text-sm tabular">{row.noteNumber}</p>
             <p className="text-sm text-muted-foreground">
               {row.amountPaid !== undefined && row.currency
-                ? `${formatMoney(row.amountPaid, row.currency)} settled · `
-                : "Payment confirmed · "}
+                ? `${formatMoney(row.amountPaid, row.currency)} ${t("settled")} · `
+                : `${t("Payment confirmed")} · `}
               {row.issuedAtLabel}
             </p>
             <p className="text-xs text-muted-foreground">
-              Issued by {row.issuedByName ?? "Finance"}. Finance issues and
-              cancels pickup notes — the warehouse only matches it to cargo.
+              {t("Issued by")} {row.issuedByName ?? t("Finance")}.{" "}
+              {t(
+                "Finance issues and cancels pickup notes — the warehouse only matches it to cargo."
+              )}
             </p>
           </div>
 
           <div className="space-y-1.5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Release check
+              {t("Release check")}
             </p>
             {row.ready ? (
               <p className="flex items-center gap-2 text-sm text-success">
                 <ShieldCheck className="h-4 w-4 shrink-0" />
-                Every package is on the floor. Scan the note, then the box.
+                {t("Every package is on the floor. Scan the note, then the box.")}
               </p>
             ) : (
               <ul className="space-y-1">
@@ -335,10 +340,14 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
             )}
             <div className="flex flex-wrap gap-2 pt-2">
               <Button asChild variant="outline" size="sm" className="rounded-lg">
-                <Link href={`/app/cargo/${row.trackingNumber}`}>Open cargo</Link>
+                <Link href={`/app/cargo/${row.trackingNumber}`}>
+                  {t("Open cargo")}
+                </Link>
               </Button>
               <Button asChild variant="ghost" size="sm" className="rounded-lg">
-                <Link href={`/app/customers/${row.customerId}`}>Customer</Link>
+                <Link href={`/app/customers/${row.customerId}`}>
+                  {t("Customer")}
+                </Link>
               </Button>
             </div>
             {/*
@@ -364,14 +373,14 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
                 {row.trackingNumber} · {row.noteNumber}
               </p>
               <p className="mt-1 text-xs text-muted-foreground tabular">
-                {row.packagesShort} · {row.packagesReceived} of{" "}
-                {row.packagesTotal} checked in
+                {row.packagesShort} · {row.packagesReceived} {t("of")}{" "}
+                {row.packagesTotal} {t("checked in")}
               </p>
             </div>
             {row.ready ? (
-              <Badge variant="success">Ready</Badge>
+              <Badge variant="success">{t("Ready")}</Badge>
             ) : (
-              <Badge variant="warning">Held</Badge>
+              <Badge variant="warning">{t("Held")}</Badge>
             )}
           </div>
 
@@ -384,7 +393,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
 
           <div className="mt-3 flex items-center justify-between border-t pt-3">
             <span className={cn("text-xs tabular", waitTone(row.waitingMs))}>
-              waiting {row.waitingLabel}
+              {t("waiting")} {row.waitingLabel}
             </span>
             <Button
               asChild
@@ -394,7 +403,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
             >
               <Link href={`/app/release?note=${encodeURIComponent(row.noteNumber)}`}>
                 <PackageCheck className="mr-1.5 h-3.5 w-3.5" />
-                Release
+                {t("Release")}
               </Link>
             </Button>
           </div>

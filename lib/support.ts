@@ -9,6 +9,7 @@ import {
 } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
 /**
  * What the support desk needs to know, computed rather than stored.
@@ -49,6 +50,11 @@ export const FOLLOW_UP_FILTERS: { key: FollowUpFilter; label: string; hint: stri
 export type FollowUpRow = {
   shipmentId: string;
   trackingNumber: string;
+  /**
+   * Already in the language of whoever asked for the queue. Guangzhou types
+   * "手机配件" and the Dar desk reading this row gets "Mobile phone
+   * accessories" — resolved here so no screen has to remember to do it.
+   */
   description: string;
   status: string;
   customerId: string;
@@ -94,6 +100,8 @@ function daysBetween(from: Date, to = new Date()) {
  * means "3 of the first 50" is worse than no number.
  */
 export async function followUpQueue() {
+  // The cargo description follows the reader, not the person who typed it.
+  const locale = await viewerLocale();
   const shipments = await prisma.shipment.findMany({
     where: {
       status: { in: ["RECEIVED_AT_DAR", "READY_FOR_PICKUP"] },
@@ -102,7 +110,7 @@ export async function followUpQueue() {
     select: {
       id: true,
       trackingNumber: true,
-      description: true,
+      ...selectText("description"),
       status: true,
       arrivedAt: true,
       deliveredAt: true,
@@ -180,7 +188,7 @@ export async function followUpQueue() {
     return {
       shipmentId: shipment.id,
       trackingNumber: shipment.trackingNumber,
-      description: shipment.description,
+      description: cargoText(locale, shipment, "description"),
       status: shipment.status,
       customerId: shipment.customer.id,
       customerName: shipment.customer.name,
@@ -364,7 +372,7 @@ export async function searchShipments(query: string, take = 40) {
     select: {
       id: true,
       trackingNumber: true,
-      description: true,
+      ...selectText("description"),
       status: true,
       weightKg: true,
       packages: true,
@@ -397,7 +405,7 @@ export async function customerProfile(idOrCode: string) {
         select: {
           id: true,
           trackingNumber: true,
-          description: true,
+          ...selectText("description"),
           status: true,
           weightKg: true,
           packages: true,

@@ -6,11 +6,16 @@ import { BrandLockup } from "@/components/brand-mark";
 import { LoginForm } from "@/components/login-form";
 import { LoginSky } from "@/components/login-sky";
 import { COMPANY } from "@/lib/constants";
+import { t } from "@/lib/i18n";
+import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = {
-  title: "Staff sign in",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await viewerLocale();
+  return {
+    title: t(locale, "Staff sign in"),
+    robots: { index: false, follow: false },
+  };
+}
 
 /**
  * The first thing the company says to its own staff.
@@ -34,6 +39,7 @@ export default async function LoginPage({
   searchParams: Promise<{ callbackUrl?: string }>;
 }) {
   const { callbackUrl } = await searchParams;
+  const locale = await viewerLocale();
 
   return (
     <div className="relative isolate min-h-screen overflow-hidden bg-[#05070f] text-white">
@@ -49,7 +55,7 @@ export default async function LoginPage({
             className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-sm text-white/70 backdrop-blur-sm transition-colors hover:border-white/30 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to site
+            {t(locale, "Back to site")}
           </Link>
         </header>
 
@@ -65,22 +71,22 @@ export default async function LoginPage({
                   nobody can press. */}
               <span className="inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
                 <Plane className="h-3.5 w-3.5 text-signal" />
-                Guangzhou · Hong Kong · Dubai — Dar es Salaam
+                {t(locale, "Guangzhou · Hong Kong · Dubai — Dar es Salaam")}
               </span>
 
               <h1 className="mt-6 font-display text-[42px] font-bold leading-none tracking-tight">
-                Welcome on board
+                {t(locale, "Welcome on board")}
               </h1>
 
               {/* Three lines to the person signing in, not to a customer. The
                   claim about kilos belongs on the public site; this is the
                   screen a clerk opens at six in the morning. */}
               <p className="mt-5 max-w-md text-[15px] leading-relaxed text-white/70">
-                Every shipment has a journey.
+                {t(locale, "Every shipment has a journey.")}
                 <br />
-                Every detail matters.
+                {t(locale, "Every detail matters.")}
                 <br />
-                Every action keeps our customers moving forward.
+                {t(locale, "Every action keeps our customers moving forward.")}
               </p>
 
               <p className="mt-6 font-display text-lg font-bold tracking-tight text-white/90">
@@ -93,9 +99,12 @@ export default async function LoginPage({
 
               <dl className="mt-10 flex flex-wrap gap-x-10 gap-y-5">
                 {[
-                  { k: COMPANY.promiseDays + " days", v: "door to door" },
-                  { k: "2", v: "warehouses, one record" },
-                  { k: "1", v: "QR code per box" },
+                  {
+                    k: COMPANY.promiseDays + " " + t(locale, "days"),
+                    v: t(locale, "door to door"),
+                  },
+                  { k: "2", v: t(locale, "warehouses, one record") },
+                  { k: "1", v: t(locale, "QR code per box") },
                 ].map((stat) => (
                   <div key={stat.v}>
                     <dt className="font-display text-2xl font-bold tabular-nums">
@@ -119,14 +128,17 @@ export default async function LoginPage({
               <div className="relative rounded-3xl border border-white/10 bg-white/[0.06] p-7 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-8">
                 <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
                   <Lock className="h-3 w-3" />
-                  Staff access only
+                  {t(locale, "Staff access only")}
                 </span>
 
                 <h2 className="mt-4 font-display text-3xl font-bold tracking-tight">
-                  Sign in
+                  {t(locale, "Sign in")}
                 </h2>
                 <p className="mt-2 text-sm text-white/55">
-                  Your dashboard opens automatically based on your department.
+                  {t(
+                    locale,
+                    "Your dashboard opens automatically based on your department."
+                  )}
                 </p>
 
                 <div className="mt-7">
@@ -135,8 +147,10 @@ export default async function LoginPage({
 
                 <p className="mt-6 flex items-start gap-2 border-t border-white/10 pt-5 text-xs leading-relaxed text-white/45">
                   <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/35" />
-                  Lost your password? Ask the CEO to reset it — accounts are
-                  managed internally, and nobody else can issue one.
+                  {t(
+                    locale,
+                    "Lost your password? Ask the CEO to reset it — accounts are managed internally, and nobody else can issue one."
+                  )}
                 </p>
               </div>
             </div>

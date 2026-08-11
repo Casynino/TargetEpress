@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Pencil, X } from "lucide-react";
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
+import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
@@ -44,6 +45,7 @@ export function RowPriceEditor({
   /** invoice.discount — the same authority that may move a price down. */
   canOverride: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [state, action] = useActionState<ActionResult<{ total: number }>, FormData>(
     adjustInvoice,
@@ -68,7 +70,7 @@ export function RowPriceEditor({
         className="focus-ring inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"
       >
         <Pencil className="h-3 w-3" />
-        Edit
+        {t("Edit")}
       </button>
     );
   }
@@ -81,7 +83,7 @@ export function RowPriceEditor({
           type="button"
           onClick={() => setOpen(false)}
           className="focus-ring rounded p-0.5 text-muted-foreground hover:text-foreground"
-          aria-label="Close"
+          aria-label={t("Close")}
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -92,7 +94,7 @@ export function RowPriceEditor({
 
         <div className="space-y-1">
           <Label htmlFor={`freight-${invoiceId}`} className="text-[11px]">
-            Freight ({currency})
+            {t("Freight")} ({currency})
           </Label>
           <MoneyInput
             id={`freight-${invoiceId}`}
@@ -104,20 +106,20 @@ export function RowPriceEditor({
             className="h-8 text-sm"
           />
           <p className="text-[11px] text-muted-foreground">
-            Rate book says {currency} {rateBookFreight.toFixed(2)}. Leave blank
-            to use it.
+            {t("Rate book says")} {currency} {rateBookFreight.toFixed(2)}.{" "}
+            {t("Leave blank to use it.")}
           </p>
         </div>
 
         {freight.trim() !== "" && n(freight) !== rateBookFreight ? (
           <div className="space-y-1">
             <Label htmlFor={`why-${invoiceId}`} className="text-[11px]">
-              Why is it different?
+              {t("Why is it different?")}
             </Label>
             <Input
               id={`why-${invoiceId}`}
               name="freightOverrideReason"
-              placeholder="e.g. weight re-checked on the floor scale"
+              placeholder={t("e.g. weight re-checked on the floor scale")}
               required
               className="h-8 text-sm"
             />
@@ -127,7 +129,7 @@ export function RowPriceEditor({
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
             <Label htmlFor={`extra-${invoiceId}`} className="text-[11px]">
-              Extra charge
+              {t("Extra charge")}
             </Label>
             <MoneyInput
               id={`extra-${invoiceId}`}
@@ -140,7 +142,7 @@ export function RowPriceEditor({
           </div>
           <div className="space-y-1">
             <Label htmlFor={`off-${invoiceId}`} className="text-[11px]">
-              Discount
+              {t("Discount")}
             </Label>
             <MoneyInput
               id={`off-${invoiceId}`}
@@ -155,11 +157,11 @@ export function RowPriceEditor({
         </div>
 
         <p className="rounded border bg-muted/40 px-2 py-1.5 text-xs tabular-nums">
-          New total {currency} {preview.toFixed(2)}
+          {t("New total")} {currency} {preview.toFixed(2)}
           {storage > 0 ? (
             <span className="text-muted-foreground">
               {" "}
-              · includes {currency} {storage.toFixed(2)} storage
+              · {t("includes")} {currency} {storage.toFixed(2)} {t("storage")}
             </span>
           ) : null}
         </p>
@@ -168,13 +170,13 @@ export function RowPriceEditor({
         <FormSuccess
           message={
             state.ok && state.data
-              ? `Saved — ${currency} ${state.data.total.toFixed(2)}.`
+              ? `${t("Saved")} — ${currency} ${state.data.total.toFixed(2)}.`
               : null
           }
         />
 
-        <SubmitButton size="sm" variant="brand" pendingLabel="Saving…">
-          Save price
+        <SubmitButton size="sm" variant="brand" pendingLabel={t("Saving…")}>
+          {t("Save price")}
         </SubmitButton>
       </form>
     </div>

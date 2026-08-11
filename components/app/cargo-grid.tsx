@@ -31,6 +31,11 @@ export type CargoCell = {
   /** Sortable form of the same thing. */
   receivedAt: string;
   customerName: string;
+  /**
+   * Already in the reader's language: the batch page resolves it with
+   * `cargoText(locale, shipment, "description")` before handing it down, so a
+   * Dar clerk never gets the Chinese original a Guangzhou packer typed.
+   */
   description: string;
   weightKg: number;
   /**
@@ -120,7 +125,9 @@ function PhotoProof({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title={`View ${photos.length} photo${photos.length === 1 ? "" : "s"} of ${tracking}`}
+        title={`${t("View")} ${photos.length} ${t(
+          photos.length === 1 ? "photo" : "photos"
+        )} ${t("of")} ${tracking}`}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-brand transition-opacity hover:opacity-80"
       >
         <Paperclip className="h-3.5 w-3.5" />
@@ -175,7 +182,7 @@ function PhotoViewer({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`Photos for ${tracking}`}
+      aria-label={`${t("Photos for")} ${tracking}`}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
@@ -189,8 +196,8 @@ function PhotoViewer({
               {t("Proof of receipt")}
             </p>
             <p className="font-mono text-xs text-muted-foreground tabular">
-              {tracking} · {photos.length} photo
-              {photos.length === 1 ? "" : "s"}
+              {tracking} · {photos.length}{" "}
+              {t(photos.length === 1 ? "photo" : "photos")}
             </p>
           </div>
           <button
@@ -212,12 +219,12 @@ function PhotoViewer({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={photo.url}
-                alt={photo.caption ?? `Cargo photo for ${tracking}`}
+                alt={photo.caption ?? `${t("Cargo photo for")} ${tracking}`}
                 className="max-h-[55vh] w-full bg-muted object-contain"
               />
               <figcaption className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3">
                 <span className="min-w-0 text-xs text-muted-foreground">
-                  {photo.caption ?? `Photo ${index + 1}`}
+                  {photo.caption ?? `${t("Photo")} ${index + 1}`}
                 </span>
                 <a
                   href={photo.url}
@@ -396,18 +403,19 @@ export function CargoGrid({
 
       {query.trim() || filter !== "ALL" ? (
         <p className="mb-3 text-sm text-muted-foreground">
-          Showing <span className="font-medium text-foreground">{sorted.length}</span>{" "}
-          of {counts.total} pieces
+          {t("Showing")}{" "}
+          <span className="font-medium text-foreground">{sorted.length}</span>{" "}
+          {t("of")} {counts.total} {t("pieces")}
         </p>
       ) : counts.verified > 0 || counts.flagged > 0 ? (
         <p className="mb-3 text-sm text-muted-foreground">
-          {counts.verified} of {counts.total} checked in
-          {counts.flagged > 0 ? ` · ${counts.flagged} flagged` : ""} ·{" "}
-          {counts.packages} packages · {counts.weight.toFixed(1)} kg
+          {counts.verified} {t("of")} {counts.total} {t("checked in")}
+          {counts.flagged > 0 ? ` · ${counts.flagged} ${t("flagged")}` : ""} ·{" "}
+          {counts.packages} {t("packages")} · {counts.weight.toFixed(1)} kg
         </p>
       ) : (
         <p className="mb-3 text-sm text-muted-foreground">
-          {counts.packages} packages · {counts.weight.toFixed(1)} kg
+          {counts.packages} {t("packages")} · {counts.weight.toFixed(1)} kg
         </p>
       )}
 
@@ -606,8 +614,8 @@ export function CargoGrid({
                       >
                         <Link
                           href={`/app/cargo/${cell.trackingNumber}/label`}
-                          title={`Print sticker for ${cell.trackingNumber}`}
-                          aria-label={`Print sticker for ${cell.trackingNumber}`}
+                          title={`${t("Print sticker for")} ${cell.trackingNumber}`}
+                          aria-label={`${t("Print sticker for")} ${cell.trackingNumber}`}
                           className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                         >
                           <Printer className="h-3.5 w-3.5" />

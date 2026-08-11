@@ -9,12 +9,17 @@ import { BatchStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { formatDate, formatWeight, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { storageIsDurable } from "@/lib/storage";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Check in cargo" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await viewerLocale();
+  return { title: t(locale, "Check in cargo") };
+}
 
 export default async function VerifyBatchPage({
   params,
@@ -23,6 +28,7 @@ export default async function VerifyBatchPage({
 }) {
   const user = await requirePermission("batch.verify");
   const { id } = await params;
+  const locale = await viewerLocale();
 
   const batch = await prisma.batch.findUnique({
     where: { id },
@@ -68,21 +74,21 @@ export default async function VerifyBatchPage({
   return (
     <>
       <PageHeader
-        title={`Check in ${batch.batchNumber}`}
-        description={`${ORIGIN_LABELS[batch.origin]} · ${batch.airline ?? "—"} ${batch.flightNumber ?? ""} · arrived ${formatDate(batch.arrivalDate)}`}
+        title={`${t(locale, "Check in")} ${batch.batchNumber}`}
+        description={`${t(locale, ORIGIN_LABELS[batch.origin])} · ${batch.airline ?? "—"} ${batch.flightNumber ?? ""} · ${t(locale, "arrived")} ${formatDate(batch.arrivalDate)}`}
         actions={
           <>
             <BatchStatusBadge status={batch.status} />
             <Button asChild variant="outline" size="sm">
               <Link href={`/app/batches/${batch.id}/manifest`}>
                 <FileText className="mr-2 h-4 w-4" />
-                Manifest
+                {t(locale, "Manifest")}
               </Link>
             </Button>
             <Button asChild variant="ghost" size="sm">
               <Link href="/app/receive">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                {t(locale, "Back")}
               </Link>
             </Button>
           </>
@@ -113,11 +119,15 @@ export default async function VerifyBatchPage({
             })),
             photos: shipment.photos,
             weightKg: toNumber(shipment.weightKg),
-            description: shipment.description,
+            // Resolved here, so a Dar clerk never reads the Chinese the
+            // Guangzhou desk typed — and a Guangzhou packer never reads English.
+            description: cargoText(locale, shipment, "description"),
             goodsType: shipment.goodsType,
             origin: shipment.origin,
             cartonRef: shipment.cartonRef,
-            internalNote: showInternal ? shipment.internalNotes : null,
+            internalNote: showInternal
+              ? cargoText(locale, shipment, "internalNotes")
+              : null,
             status: shipment.status,
             verification: verification
               ? { result: verification.result, note: verification.note }

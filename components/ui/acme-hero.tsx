@@ -3,11 +3,13 @@
 import { FingerprintIcon, Menu, Moon, Sun } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { motion } from "motion/react";
 
 export function AcmeHero() {
+  const t = useT();
   return (
       <div className="container max-w-5xl mx-auto">
         <header className="relative pt-4">
@@ -21,25 +23,25 @@ export function AcmeHero() {
                   href="#"
                   className="text-sm text-muted-foreground/60 hover:text-foreground/80 transition-colors"
                 >
-                  Docs
+                  {t("Docs")}
                 </a>
                 <a
                   href="#"
                   className="text-sm text-muted-foreground/60 hover:text-foreground/80 transition-colors"
                 >
-                  Components
+                  {t("Components")}
                 </a>
                 <a
                   href="#"
                   className="text-sm text-muted-foreground/60 hover:text-foreground/80 transition-colors"
                 >
-                  Templates
+                  {t("Templates")}
                 </a>
                 <a
                   href="#"
                   className="text-sm text-muted-foreground/60 hover:text-foreground/80 transition-colors"
                 >
-                  Pricing
+                  {t("Pricing")}
                 </a>
               </div>
             </div>
@@ -47,17 +49,17 @@ export function AcmeHero() {
               <Button variant="ghost" size="icon" className="h-7 w-7">
                 <Sun className="h-[15px] w-[15px] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                 <Moon className="absolute h-[15px] w-[15px] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                <span className="sr-only">Toggle theme</span>
+                <span className="sr-only">{t("Toggle theme")}</span>
               </Button>
               <Separator orientation="vertical" className="h-6" />
               <Button
                 variant="ghost"
                 className="hidden md:inline-flex h-7 px-2 text-sm font-normal text-muted-foreground/60 hover:text-foreground/80"
               >
-                Sign in
+                {t("Sign in")}
               </Button>
               <Button className="hidden md:inline-flex h-7 rounded-full bg-foreground px-3 text-sm font-normal text-background hover:bg-foreground/90">
-                Get access
+                {t("Get access")}
               </Button>
               <Sheet>
                 <SheetTrigger asChild>
@@ -67,7 +69,7 @@ export function AcmeHero() {
                     className="h-7 w-7 md:hidden"
                   >
                     <Menu className="h-[15px] w-[15px]" />
-                    <span className="sr-only">Open menu</span>
+                    <span className="sr-only">{t("Open menu")}</span>
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-[240px] sm:w-[300px]">
@@ -76,34 +78,34 @@ export function AcmeHero() {
                       href="#"
                       className="text-sm text-muted-foreground/60 hover:text-foreground/80 transition-colors"
                     >
-                      Docs
+                      {t("Docs")}
                     </a>
                     <a
                       href="#"
                       className="text-sm text-muted-foreground/60 hover:text-foreground/80 transition-colors"
                     >
-                      Components
+                      {t("Components")}
                     </a>
                     <a
                       href="#"
                       className="text-sm text-muted-foreground/60 hover:text-foreground/80 transition-colors"
                     >
-                      Templates
+                      {t("Templates")}
                     </a>
                     <a
                       href="#"
                       className="text-sm text-muted-foreground/60 hover:text-foreground/80 transition-colors"
                     >
-                      Pricing
+                      {t("Pricing")}
                     </a>
                     <Button
                       variant="ghost"
                       className="justify-start h-7 px-2 text-sm font-normal text-muted-foreground/60 hover:text-foreground/80"
                     >
-                      Sign in
+                      {t("Sign in")}
                     </Button>
                     <Button className="h-7 rounded-full bg-foreground px-3 text-sm font-normal text-background hover:bg-foreground/90">
-                      Get access
+                      {t("Get access")}
                     </Button>
                   </nav>
                 </SheetContent>
@@ -126,7 +128,7 @@ export function AcmeHero() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.5 }}
               >
-                Websites, Redefined
+                {t("Websites, Redefined")}
               </motion.h1>
               <motion.p
                 className="mx-auto max-w-xl text-md sm:text-2xl text-muted-foreground"
@@ -134,12 +136,14 @@ export function AcmeHero() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.5 }}
               >
-                Ship your projects with{" "}
+                {t("Ship your projects with")}{" "}
                 <span className="font-semibold text-foreground">
-                  beautiful components
+                  {t("beautiful components")}
                 </span>{" "}
-                and{" "}
-                <span className="font-semibold text-foreground">templates</span>
+                {t("and")}{" "}
+                <span className="font-semibold text-foreground">
+                  {t("templates")}
+                </span>
               </motion.p>
               <motion.div
                 className="flex flex-col sm:flex-row gap-4"
@@ -148,7 +152,7 @@ export function AcmeHero() {
                 transition={{ delay: 0.4, duration: 0.5 }}
               >
                 <Button className="rounded-xl bg-foreground text-background hover:bg-foreground/90">
-                  Explore Components
+                  {t("Explore Components")}
                   <div className="ml-2 space-x-1 hidden sm:inline-flex">
                     <FingerprintIcon className="w-5 h-5" />
                   </div>
@@ -158,7 +162,7 @@ export function AcmeHero() {
                     <span className="w-5 h-5 text-xs rounded-sm border">⌘</span>
                     <span className="w-5 h-5 text-xs rounded-sm border">B</span>
                   </div>
-                  Buy Now
+                  {t("Buy Now")}
                 </Button>
               </motion.div>
 
@@ -173,14 +177,14 @@ export function AcmeHero() {
                     /w Tailwind CSS
                   </span>
                   <span className="text-muted-foreground/60">
-                    Components & Templates
+                    {t("Components & Templates")}
                   </span>
                   <span className="text-primary hover:text-primary/80 transition-colors">
                     /w Motion
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground/60">
-                  Built with the most popular utility-first CSS framework
+                  {t("Built with the most popular utility-first CSS framework")}
                 </p>
               </motion.div>
               <motion.div
@@ -193,12 +197,12 @@ export function AcmeHero() {
                   <div className="relative w-full rounded-3xl overflow-hidden border shadow-2xl">
                     <img
                       src="https://ui.shadcn.com/examples/dashboard-dark.png"
-                      alt="Dashboard Preview"
+                      alt={t("Dashboard Preview")}
                       className="w-full h-full object-center hidden dark:block rounded-3xl"
                     />
                     <img
                       src="https://ui.shadcn.com/examples/dashboard-light.png"
-                      alt="Dashboard Preview"
+                      alt={t("Dashboard Preview")}
                       className="w-full h-full object-center dark:hidden block rounded-3xl"
                     />
                   </div>
