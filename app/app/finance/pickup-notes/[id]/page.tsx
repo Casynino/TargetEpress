@@ -4,12 +4,12 @@ import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 
 import { PickupSlip, type PickupSlipData } from "@/components/app/pickup-slip";
-import { PrintFormatBar } from "@/components/app/print-format";
+import { PrintBar } from "@/components/app/print-bar";
 import { Button } from "@/components/ui/button";
 import { formatPackages } from "@/lib/constants";
 import { formatDate, formatMoney, formatWeight } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { printFormatFrom, SLIP_MM } from "@/lib/print";
+import { SLIP_MM } from "@/lib/print";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -18,17 +18,13 @@ export const metadata: Metadata = { title: "Pickup note" };
 
 export default async function PickupNotePage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ format?: string }>;
 }) {
   // Support prints the note Finance issued. Issuing one is pickupNote.issue
   // and is checked in the action, not here.
   const user = await requirePermission("pickupNote.view");
   const { id } = await params;
-  const { format: rawFormat } = await searchParams;
-  const format = printFormatFrom(rawFormat);
 
   const note = await prisma.pickupNote.findUnique({
     where: { id },
@@ -102,23 +98,17 @@ export default async function PickupNotePage({
         </Button>
       </div>
 
-      <PrintFormatBar
-        format={format}
+      <PrintBar
         item={SLIP_MM}
-        count={1}
-        noun="pickup note"
         printLabel="Print pickup note"
-        hint="Hand it to the customer — they bring it back to collect."
+        downloadHref={`/app/finance/pickup-notes/${id}/pdf`}
+        hint="Print it for the customer, or send them the file."
       />
 
       <div className="flex justify-center">
         <PickupSlip data={data} />
       </div>
 
-      <p className="no-print mt-4 text-center text-xs text-muted-foreground">
-        Print at 100% scale. {SLIP_MM.width}×{SLIP_MM.height}mm — a receipt, not
-        a document, so it survives a pocket and a walk across Kariakoo.
-      </p>
     </div>
   );
 }

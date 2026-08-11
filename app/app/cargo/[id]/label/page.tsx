@@ -4,13 +4,13 @@ import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 
 import { CargoSticker, type StickerData } from "@/components/app/cargo-sticker";
-import { PrintFormatBar } from "@/components/app/print-format";
+import { PrintBar } from "@/components/app/print-bar";
 import { Button } from "@/components/ui/button";
 import { formatPackages } from "@/lib/constants";
 import { formatDate, formatWeight } from "@/lib/format";
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { LABEL_MM, printFormatFrom } from "@/lib/print";
+import { LABEL_MM } from "@/lib/print";
 import { packageQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
 
@@ -25,11 +25,8 @@ export const metadata: Metadata = { title: "Cargo labels" };
  */
 export default async function LabelPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  /** Label printer or A4 sheet — see components/app/print-format.tsx. */
-  searchParams: Promise<{ format?: string }>;
 }) {
   // Not shipment.view. Every desk may look a box up; only the desk that packs
   // it may produce its sticker. ROUTE_PERMISSIONS cannot express this — it
@@ -37,8 +34,6 @@ export default async function LabelPage({
   // this guard is the whole gate rather than a second line behind middleware.
   const user = await requirePermission("label.print");
   const { id } = await params;
-  const { format: rawFormat } = await searchParams;
-  const format = printFormatFrom(rawFormat);
   const key = decodeURIComponent(id);
 
   const shipment = await prisma.shipment.findUnique({
@@ -83,9 +78,10 @@ export default async function LabelPage({
       registeredOn: formatDate(shipment.registeredAt),
       sequence: pkg.sequence,
       packageRef: pkg.reference,
-      // 700px into a 58mm square is ~306dpi, so the code stays crisp on a
-      // 203dpi thermal head and on a 600dpi laser alike.
-      qr: await packageQrDataUrl(pkg.qrToken, 700),
+      // 500px across a 58mm square is ~11 pixels per QR module — matched to
+      // what a 203dpi thermal head can actually lay down, and cheap enough that
+      // a batch of 150 labels renders in seconds rather than timing out.
+      qr: await packageQrDataUrl(pkg.qrToken, 500),
     }))
   );
 
@@ -100,37 +96,18 @@ export default async function LabelPage({
         </Button>
       </div>
 
-      <PrintFormatBar
-        format={format}
+      <PrintBar
         item={LABEL_MM}
-        count={stickers.length}
-        noun="label"
         printLabel={`Print ${stickers.length} label${stickers.length === 1 ? "" : "s"}`}
+        downloadHref={`/app/cargo/${shipment.trackingNumber}/label/pdf`}
         hint="One code per box — never copy a label onto two."
       />
 
-      {/*
-        No gap between labels in sheet mode: the grid is cut apart, and a gap
-        is stock that gets thrown away. On screen they are spaced so the run is
-        readable before it is committed to paper.
-      */}
-      <div
-        className={
-          format === "sheet"
-            ? "flex flex-wrap justify-center gap-4 print:gap-0"
-            : "flex flex-col items-center gap-4 print:gap-0"
-        }
-      >
+      <div className="flex flex-col items-center gap-4 print:gap-0">
         {stickers.map((sticker) => (
           <CargoSticker key={sticker.packageRef} data={sticker} />
         ))}
       </div>
-
-      <p className="no-print mt-4 text-center text-xs text-muted-foreground">
-        Print at 100% scale — any &ldquo;fit to page&rdquo; setting will shrink
-        the code and the label will no longer be {LABEL_MM.width}×
-        {LABEL_MM.height}mm.
-      </p>
     </div>
   );
 }

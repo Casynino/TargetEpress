@@ -4,12 +4,12 @@ import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 
 import { CargoSticker, type StickerData } from "@/components/app/cargo-sticker";
-import { PrintFormatBar } from "@/components/app/print-format";
+import { PrintBar } from "@/components/app/print-bar";
 import { Button } from "@/components/ui/button";
 import { formatPackages } from "@/lib/constants";
 import { formatDate, formatWeight } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { LABEL_MM, printFormatFrom } from "@/lib/print";
+import { LABEL_MM } from "@/lib/print";
 import { packageQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
 
@@ -30,7 +30,7 @@ export default async function BatchStickersPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ ids?: string; format?: string }>;
+  searchParams: Promise<{ ids?: string }>;
 }) {
   // The whole-batch sticker sheet. Same rule as a single label: the desk that
   // packs the cargo prints for it. /app/batches resolves to batch.view in
@@ -38,8 +38,7 @@ export default async function BatchStickersPage({
   // actually keeps them out.
   await requirePermission("label.print");
   const { id } = await params;
-  const { ids, format: rawFormat } = await searchParams;
-  const format = printFormatFrom(rawFormat);
+  const { ids } = await searchParams;
 
   const selected = (ids ?? "")
     .split(",")
@@ -78,7 +77,9 @@ export default async function BatchStickersPage({
         registeredOn: formatDate(item.registeredAt),
         sequence: pkg.sequence,
         packageRef: pkg.reference,
-        qr: await packageQrDataUrl(pkg.qrToken, 700),
+        // 500px per code: this page can hold 150 of them, and each one is a
+        // canvas render on the server before the page can answer at all.
+        qr: await packageQrDataUrl(pkg.qrToken, 500),
       }))
     )
   );
@@ -100,12 +101,13 @@ export default async function BatchStickersPage({
       </div>
 
       {stickers.length > 0 ? (
-        <PrintFormatBar
-          format={format}
+        <PrintBar
           item={LABEL_MM}
-          count={stickers.length}
-          noun="sticker"
           printLabel={`Print ${stickers.length} sticker${stickers.length === 1 ? "" : "s"}`}
+          downloadHref={`/app/batches/${batch.id}/stickers/pdf${
+            selected.length > 0 ? `?ids=${selected.join(",")}` : ""
+          }`}
+          hint="One code per box — never copy a label onto two."
         />
       ) : null}
 
@@ -117,13 +119,7 @@ export default async function BatchStickersPage({
           </p>
         </div>
       ) : (
-        <div
-          className={
-            format === "sheet"
-              ? "flex flex-wrap justify-center gap-4 print:gap-0"
-              : "flex flex-col items-center gap-4 print:gap-0"
-          }
-        >
+        <div className="flex flex-col items-center gap-4 print:gap-0">
           {stickers.map((sticker) => (
             <CargoSticker key={sticker.packageRef} data={sticker} />
           ))}
