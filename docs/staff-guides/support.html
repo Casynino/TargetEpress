@@ -1,0 +1,306 @@
+<meta charset="utf-8">
+<title>Target Express Air Cargo — The customer desk</title>
+<style>
+:root {
+  --ink:#0b1220; --ink-2:#0f1729; --panel:#131e35; --navy:#182a48; --line:#26344f;
+  --signal:#d81e2a; --paid:#22a86a; --owed:#e09612; --draft:#7c8ba5;
+  --fg:#eef2f8; --muted:#93a0b6;
+  /* PingFang trails each stack so the Guangzhou edition sets Chinese properly —
+     Avenir Next carries no CJK glyphs and would silently drop to a default. */
+  --display:"Avenir Next","Helvetica Neue","PingFang SC",sans-serif;
+  --narrow:"Avenir Next Condensed","Avenir Next","PingFang SC",sans-serif;
+  --body:"Helvetica Neue",Helvetica,"PingFang SC",sans-serif;
+  --mono:"Menlo","PingFang SC",monospace;
+}
+@page { size: A4 portrait; margin: 0; }
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--ink)}
+body{color:var(--fg);font-family:var(--body);-webkit-print-color-adjust:exact;print-color-adjust:exact;-webkit-font-smoothing:antialiased}
+
+.page{position:relative;width:210mm;height:296.6mm;overflow:hidden;padding:16mm 16mm 11mm;
+  background:var(--ink);display:flex;flex-direction:column;page-break-after:always;break-after:page}
+.page:last-of-type{page-break-after:auto;break-after:auto}
+.page::before{content:"";position:absolute;top:-50mm;right:-40mm;width:130mm;height:130mm;
+  background:radial-gradient(circle,rgba(24,42,72,.85) 0%,rgba(11,18,32,0) 70%);pointer-events:none}
+.page>*{position:relative}
+
+h1,h2{font-family:var(--display);font-weight:600;margin:0;letter-spacing:-.025em}
+h1{font-size:38pt;line-height:1.03}
+h2{font-size:20pt;line-height:1.12}
+h3{font-family:var(--display);font-weight:600;font-size:11.5pt;margin:0;letter-spacing:-.01em}
+p{margin:0;font-size:10.5pt;line-height:1.55;color:var(--muted)}
+p b{color:var(--fg);font-weight:500}
+
+.eyebrow{font-family:var(--narrow);font-size:9pt;font-weight:600;text-transform:uppercase;letter-spacing:.22em;color:var(--muted)}
+.label{font-family:var(--narrow);font-size:7.5pt;font-weight:600;text-transform:uppercase;letter-spacing:.16em;color:var(--muted)}
+.hairline{height:1px;background:var(--line)}
+.accent-rule{height:3pt;width:24mm;background:var(--signal);border-radius:2pt}
+
+.foot{margin-top:auto;padding-top:4mm;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline}
+.foot span{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.16em;text-transform:uppercase;color:#5d6c85}
+.head{display:flex;flex-direction:column;gap:2.5mm;margin-bottom:7mm}
+
+/* cover */
+.cover{gap:6mm}
+.cover>.accent-rule{margin-top:auto}
+.cover h1{font-size:46pt}
+.cover .lede{font-size:12pt;line-height:1.5}
+.route{display:flex;align-items:center;gap:3mm;font-family:var(--narrow);font-size:9pt;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.route .dash{flex:0 0 18mm;height:1px;background:var(--signal)}
+
+/* step page */
+.stepno{display:flex;align-items:baseline;gap:3mm;font-family:var(--display);font-weight:600}
+.stepno .n{font-size:30pt;line-height:1;letter-spacing:-.03em}
+.stepno .of{font-family:var(--narrow);font-size:8.5pt;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.stepno[data-state=draft] .n{color:var(--draft)}
+.stepno[data-state=owed] .n{color:var(--owed)}
+.stepno[data-state=paid] .n{color:var(--paid)}
+.stepno[data-state=plain] .n{color:var(--fg)}
+
+.body-copy{display:flex;flex-direction:column;gap:3.5mm}
+.where{font-family:var(--mono);font-size:8.5pt;color:var(--muted);padding:2mm 3mm;
+  border:1px solid var(--line);border-radius:2mm;background:var(--ink-2);align-self:flex-start}
+.where b{color:var(--fg);font-weight:400}
+.caution{display:flex;padding:3.5mm 4mm;border-radius:2mm;background:var(--ink-2);
+  border:1px solid var(--line);border-left:2pt solid var(--signal)}
+.caution p{font-size:9.5pt;line-height:1.5}
+.quote{border-left:2pt solid var(--line);padding-left:4mm;font-size:10pt;line-height:1.5;color:var(--fg);font-style:italic}
+.quote cite{display:block;font-style:normal;margin-top:1.5mm}
+
+/* rebuilt screens */
+/* The rebuilt screen anchors to the foot of the page like a plate, absorbing
+   all the slack itself — otherwise it and .foot both claim margin-top:auto and
+   the slack splits, leaving the screen adrift in the middle. */
+.screen{border:1px solid var(--line);border-radius:3mm;background:var(--ink-2);overflow:hidden;margin-top:auto}
+.screen+.foot{margin-top:0}
+.screen-bar{display:flex;align-items:center;gap:2mm;padding:2.6mm 4mm;background:var(--panel);border-bottom:1px solid var(--line)}
+.screen-bar .dot{width:2mm;height:2mm;border-radius:50%;background:#3a4a68}
+.screen-bar .name{font-family:var(--mono);font-size:7.5pt;color:var(--muted);margin-left:2mm}
+.screen-body{padding:4.5mm;display:flex;flex-direction:column;gap:3.5mm}
+.row{display:flex;justify-content:space-between;align-items:center;gap:4mm}
+.stack{display:flex;flex-direction:column;gap:.8mm;min-width:0}
+.value{font-family:var(--mono);font-size:9.5pt;font-variant-numeric:tabular-nums}
+.big{font-family:var(--display);font-weight:600;font-size:17pt;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
+.pill{display:inline-block;padding:1mm 2.6mm;border-radius:10mm;font-family:var(--narrow);font-size:8pt;
+  font-weight:600;letter-spacing:.08em;text-transform:uppercase;border:1px solid currentColor;white-space:nowrap}
+.pill.draft{color:var(--draft)} .pill.owed{color:var(--owed)} .pill.paid{color:var(--paid)}
+.pill.signal{color:var(--signal)} .pill.plain{color:var(--muted)}
+.btn{display:inline-block;padding:1.6mm 3.6mm;border-radius:1.8mm;font-family:var(--display);
+  font-size:8.5pt;font-weight:600;background:var(--navy);color:#fff;border:1px solid #24395e}
+.btn.go{background:var(--signal);border-color:var(--signal)}
+.btn.ghost{background:transparent;color:var(--muted);border-color:var(--line)}
+.qrow{display:flex;justify-content:space-between;align-items:center;gap:3mm;padding:2.6mm 3.4mm;
+  border:1px solid var(--line);border-radius:2mm;background:var(--ink);font-size:9pt}
+
+/* the vertical spine — portrait's natural shape for a sequence */
+/* Equal-height rows stretch the spine down the whole page whatever the step
+   count, and keep the rail unbroken — a row gap would dash the line. */
+.spine{display:grid;grid-template-columns:9mm 1fr;gap:0 6mm;flex:1;grid-auto-rows:1fr}
+.rail{position:relative;display:flex;justify-content:center}
+.rail::before{content:"";position:absolute;top:0;bottom:0;width:2pt;background:var(--seg,var(--line));opacity:.75}
+/* Every child here is a div, so :last-of-type would match the last text column,
+   never the last rail. Count from the end instead so the line stops at the
+   final badge rather than trailing off the page. */
+.rail:nth-last-child(2)::before{bottom:auto;height:9mm}
+.badge{position:relative;z-index:1;width:9mm;height:9mm;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-family:var(--display);font-weight:600;font-size:11pt;background:var(--ink-2);border:1.5pt solid var(--line)}
+.badge[data-state=draft]{border-color:var(--draft);color:var(--draft)}
+.badge[data-state=owed]{border-color:var(--owed);color:var(--owed)}
+.badge[data-state=paid]{border-color:var(--paid);color:var(--paid)}
+.badge[data-state=plain]{border-color:var(--navy);color:var(--fg)}
+.spine-item{padding-bottom:6mm;display:flex;flex-direction:column;gap:1.2mm}
+.spine-item h3{font-size:11pt}
+.spine-item p{font-size:9.5pt;line-height:1.45}
+
+/* cards + tables */
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:5mm}
+.cards.one{grid-template-columns:1fr}
+.card{padding:5mm;border-radius:3mm;background:var(--ink-2);border:1px solid var(--line);
+  display:flex;flex-direction:column;gap:2mm}
+.card p{font-size:9.5pt;line-height:1.5}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:3mm 3.4mm;border-bottom:1px solid var(--line);vertical-align:top;font-size:9.5pt}
+th{font-family:var(--narrow);font-size:7.5pt;text-transform:uppercase;letter-spacing:.16em;color:var(--muted)}
+td.k{font-family:var(--display);font-weight:600;color:var(--fg);width:48mm}
+td.m{color:var(--muted)}
+tr:last-child td{border-bottom:0}
+
+/* can / cannot */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:5mm}
+.list{display:flex;flex-direction:column;gap:2.4mm;padding-top:3mm;border-top:2pt solid var(--line)}
+.list.can{border-color:var(--paid)}
+.list.cannot{border-color:var(--signal)}
+.list p{font-size:9.5pt;line-height:1.45}
+.list .label{margin-bottom:1mm}
+</style>
+<section class="page cover">
+  <div class="accent-rule"></div>
+  <p class="eyebrow">Target Express Air Cargo &middot; Customer Care</p>
+  <h1>The customer desk</h1>
+  <p class="lede">You are the voice of this business. You answer where a customer's cargo is and what it costs, you chase what is owed, and you take their proof of payment upstairs. What you never do is decide that the money arrived — that is Finance, and the whole department is built around that one line.</p>
+  <div class="route"><span>The customer</span><span class="dash"></span><span>The business</span></div>
+  <div class="foot"><span>Staff guide</span><span>Customer Care</span></div>
+</section>
+<section class="page">
+  <div class="head"><p class="eyebrow">Before anything else</p><h2>What this desk is, and what it is not</h2></div>
+  <div class="cards one" style="margin-bottom:6mm">
+    <div class="card"><span class="label" style="color: var(--owed)">You may say</span><h3>“The customer says they have paid”</h3><p>You take the claim, attach their evidence, and hand it up to Finance. A submission moves no money: it writes nothing to the invoice, nothing to the ledger, nothing to any balance. <b>A claim is not money.</b></p></div><div class="card"><span class="label" style="color: var(--signal)">You may not say</span><h3>“The money arrived”</h3><p>Only Finance can. That single denial is why this desk can ring customers all day without ever being able to release cargo or move a figure — and why nobody can pressure you into doing it.</p></div>
+  </div>
+  <div class="split">
+    <div class="list can"><span class="label" style="color:var(--paid)">What you may do</span>
+      <p>See every consignment, its status and what the customer owes</p><p>Bill a customer, edit an invoice and send it to them</p><p>Chase what is owed, with a pre-written Swahili reminder on WhatsApp</p><p>Take a payment claim with the customer's evidence attached</p><p>Print a pickup note Finance has already issued</p><p>Open, work and close tickets, sourcing requests and customer calls</p><p>Quote from the rate book — the same one Finance bills from</p></div>
+    <div class="list cannot"><span class="label" style="color:var(--signal)">What you may not do</span>
+      <p>Say that money arrived — you record a claim, Finance rules on it</p><p>Verify your own submission, even in an emergency</p><p>Issue or cancel a pickup note, so never promise cargo is released</p><p>Give a discount, even while editing the same invoice</p><p>Open the company's own books — accounts, ledger, costs, profit</p><p>Touch the cargo: no registering, scanning, receiving or releasing</p></div>
+  </div>
+  <div class="foot"><span>The customer desk</span><span>02</span></div>
+</section>
+<section class="page">
+  <div class="head"><p class="eyebrow">The whole job on one page</p><h2>Your day, in eight moves</h2></div>
+  <div class="spine">
+    <div class="rail" style="--seg: var(--draft)">
+      <div class="badge" data-state="draft">1</div></div>
+    <div class="spine-item"><h3>Land on your desk</h3><p>You have no separate dashboard. /app/support is it.</p></div><div class="rail" style="--seg: var(--draft)">
+      <div class="badge" data-state="draft">2</div></div>
+    <div class="spine-item"><h3>Read what needs you</h3><p>One panel, already sorted by urgency. Work it top to bottom.</p></div><div class="rail" style="--seg: var(--owed)">
+      <div class="badge" data-state="owed">3</div></div>
+    <div class="spine-item"><h3>Clear the rejections first</h3><p>Anything Finance sent back is a customer waiting on you.</p></div><div class="rail" style="--seg: var(--owed)">
+      <div class="badge" data-state="owed">4</div></div>
+    <div class="spine-item"><h3>Work the call list</h3><p>Read the Next action column before you dial.</p></div><div class="rail" style="--seg: var(--owed)">
+      <div class="badge" data-state="owed">5</div></div>
+    <div class="spine-item"><h3>Ring or message them</h3><p>The Swahili reminder is already written. Quote the row.</p></div><div class="rail" style="--seg: var(--owed)">
+      <div class="badge" data-state="owed">6</div></div>
+    <div class="spine-item"><h3>Take their proof</h3><p>A reference on its own is not evidence. Attach the file.</p></div><div class="rail" style="--seg: var(--paid)">
+      <div class="badge" data-state="paid">7</div></div>
+    <div class="spine-item"><h3>Tell them to collect</h3><p>Only once the pickup note actually exists.</p></div><div class="rail" style="--seg: var(--paid)">
+      <div class="badge" data-state="paid">8</div></div>
+    <div class="spine-item"><h3>Work tickets and sourcing</h3><p>Every call becomes a record somebody else can pick up.</p></div>
+  </div>
+  <div class="foot"><span>The customer desk</span><span>03</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="draft"><span class="n">1</span><span class="of">Step 1 of 8</span></div>
+    <h2>Land on your desk</h2>
+    <p class="where">Sign in → you arrive at <b>/app/support</b></p>
+    
+    <p>Everyone signs in to the same door, and the system sends you straight here. <b>This page is your dashboard</b> — there is no second one to go looking for.</p><p>If you bookmarked a dashboard from another role it still works; it simply redirects back here.</p>
+    
+  </div>
+  <div class="screen"><div class="screen-bar"><span class="dot"></span><span class="name">Customer Care — your desk</span></div><div class="screen-body"><span class="label">Needs your attention</span><div class="qrow"><span>2 urgent tickets</span><span> <span class="pill signal">Urgent</span></span></div><div class="qrow"><span>9 customers to chase</span><span> <span class="pill owed">Call</span></span></div><div class="qrow"><span>1 payment Finance sent back</span><span> <span class="pill signal">Rejected</span></span></div><div class="qrow"><span>3 claims still with Finance</span><span> <span class="pill plain">Waiting</span></span></div></div></div>
+  <div class="foot"><span>Step 1 — Land on your desk</span><span>04</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="draft"><span class="n">2</span><span class="of">Step 2 of 8</span></div>
+    <h2>Read what needs you, top to bottom</h2>
+    <p class="where"><b>/app/support</b> → Needs your attention</p>
+    
+    <p>One fixed panel that builds itself from live counts, already in order of urgency: urgent tickets, customers to chase, payments Finance sent back, claims still waiting, cases parked on a customer.</p><p><b>Work it in the order it gives you.</b> It is sorted by how much the business loses if you do not.</p>
+    <div class="caution"><p>When it is empty it says so — <b>“Nothing is waiting on you. Every landed consignment is billed and no customer is owed a call.”</b> That is a real state, not a screen that failed to load.</p></div>
+  </div>
+  
+  <div class="foot"><span>Step 2 — Read what needs you, top to bottom</span><span>05</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="owed"><span class="n">3</span><span class="of">Step 3 of 8</span></div>
+    <h2>Clear what Finance sent back — first</h2>
+    <p class="where"><b>Collections</b> → Submissions → Rejected</p>
+    
+    <p>A rejection means a customer believes they have paid and the business disagrees. Nothing is more urgent than that.</p><p>Open each one, read the reason Finance had to write, ring the customer, and take a corrected claim.</p>
+    <div class="caution"><p><b>Nothing is deleted on a rejection.</b> The claim, the refusal and the customer's original evidence all stay on the record. Do not open a fresh claim to bury an old one — raise the corrected one against the same bill.</p></div>
+  </div>
+  <div class="screen"><div class="screen-bar"><span class="dot"></span><span class="name">Collections — Submissions · Rejected</span></div><div class="screen-body"><div class="row"><div class="stack"><span class="label">Customer</span><span class="value">Neema Kileo</span><span class="label">TX-000112 · INV-2026-000019</span></div><div class="stack"><span class="label">Claimed</span><span class="value" style="color: var(--signal)">USD 84.00</span></div></div><div class="hairline"></div><span class="label">Why Finance sent it back</span><div class="qrow" style="border-color: var(--signal)"><span>Proof shows a different account. Ask for the CRDB slip.</span><span></span></div></div></div>
+  <div class="foot"><span>Step 3 — Clear what Finance sent back — first</span><span>06</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="owed"><span class="n">4</span><span class="of">Step 4 of 8</span></div>
+    <h2>Work the call list</h2>
+    <p class="where"><b>Collections</b> → The call list</p>
+    
+    <p>Every consignment sitting in Dar that is already billed and not yet paid, with a phone number on the row.</p><p><b>Read the “Next action” column before you dial.</b> A row that says “Confirm the price” means the invoice is still a draft — the business has not agreed that figure yet.</p>
+    <div class="caution"><p><b>Never quote a draft.</b> A draft is the system's price, not a bill. Asking a customer for a figure this business has not yet agreed to is how a quote becomes an argument.</p></div>
+  </div>
+  <div class="screen"><div class="screen-bar"><span class="dot"></span><span class="name">Collections — The call list</span></div><div class="screen-body"><div class="qrow" style="border-color: var(--signal)"><span><span class="stack"><span>Grace Mwakalinga · +255 754 ···</span><span class="label">TX-000098 · 34 days · Next action: Ring them</span></span></span><span><span class="value" style="color: var(--signal)" >USD 208.00</span></span></div><div class="qrow" style="border-color: var(--draft)"><span><span class="stack"><span>Salum Rajabu · +255 712 ···</span><span class="label">TX-000101 · Next action: Confirm the price</span></span></span><span><span class="value" style="color: var(--draft)" >Draft</span></span></div></div></div>
+  <div class="foot"><span>Step 4 — Work the call list</span><span>07</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="owed"><span class="n">5</span><span class="of">Step 5 of 8</span></div>
+    <h2>Ring or message them</h2>
+    <p class="where"><b>Collections</b> → The call list → the WhatsApp icon</p>
+    
+    <p>The Swahili reminder is already composed for you: the customer's name, tracking number, goods, invoice number, weight, the amount in shillings and where to pay.</p><p><b>Quote the row, never the band total at the top.</b> The band converts at today's live rate and is an estimate; the row is the exact figure the customer was quoted.</p>
+    <div class="caution"><p>Every call you make should end up written down. A conversation nobody logged is a conversation the next person on this desk has to have all over again.</p></div>
+  </div>
+  
+  <div class="foot"><span>Step 5 — Ring or message them</span><span>08</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="owed"><span class="n">6</span><span class="of">Step 6 of 8</span></div>
+    <h2>Take their proof and hand it up</h2>
+    <p class="where"><b>Collections</b> → Record their payment</p>
+    
+    <p>When a customer says they have paid, open the payment icon on their row. Everything except the reference and the attachment is filled in for you.</p><p><b>You must attach evidence.</b> Finance cannot verify a reference on its own.</p>
+    <div class="caution"><p>An iPhone HEIC photo is refused with instructions, because Finance must be able to open it. Ask for a screenshot, or have them set Camera → Formats to <b>Most Compatible</b>. One pending claim per bill — a second is refused by name.</p></div>
+  </div>
+  <div class="screen"><div class="screen-bar"><span class="dot"></span><span class="name">Collections — Record their payment</span></div><div class="screen-body"><div class="row"><div class="stack"><span class="label">Invoice</span><span class="value">INV-2026-000021</span></div><div class="stack"><span class="label">Amount claimed</span><span class="value">USD 64.00</span></div><div class="stack"><span class="label">Method</span><span class="value">M-Pesa</span></div></div><div class="hairline"></div><div class="qrow" style="border-color: var(--plain)"><span>Reference number</span><span><span class="value" style="color: var(--plain)" >SFT4K29LMQ</span></span></div><div class="qrow"><span>Evidence attached</span><span><span class="value" >receipt.jpg</span> <span class="pill signal">Required</span></span></div><div class="row"><span class="label">Goes to Finance to be checked</span><span><span class="btn go" style="margin-left:2mm">Hand up to Finance</span></span></div></div></div>
+  <div class="foot"><span>Step 6 — Take their proof and hand it up</span><span>09</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="paid"><span class="n">7</span><span class="of">Step 7 of 8</span></div>
+    <h2>Tell them to collect — once it clears</h2>
+    <p class="where"><b>Collections</b> → Ready for pickup</p>
+    
+    <p>When Finance verifies, the payment is recorded, a receipt is numbered, the ledger is posted and — if the bill is settled — the pickup note is minted and the cargo flips to ready for pickup.</p><p>You can read, print and search notes. <b>You cannot issue one.</b></p>
+    <div class="caution"><p><b>Do not tell a customer their cargo is released until the note actually exists.</b> A customer sent to the warehouse too early is turned away at the counter, and it is your name they remember.</p></div>
+  </div>
+  
+  <div class="foot"><span>Step 7 — Tell them to collect — once it clears</span><span>10</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="paid"><span class="n">8</span><span class="of">Step 8 of 8</span></div>
+    <h2>Work the tickets and the sourcing board</h2>
+    <p class="where"><b>Tickets</b> · <b>Sourcing requests</b> · <b>Issues &amp; Claims</b></p>
+    
+    <p>Take calls, complaints and price enquiries as tickets. A customer link is optional — price enquiries arrive before people are customers — but a name or a phone number is required.</p><p>Move sourcing requests left to right: New → In progress → Waiting for customer → Supplier found → Completed.</p>
+    <div class="caution"><p>You cannot close a ticket without writing what you did, and you cannot mark a sourcing request found or completed without recording what you found. <b>Internal notes are never shown to the customer</b> — write freely.</p></div>
+  </div>
+  
+  <div class="foot"><span>Step 8 — Work the tickets and the sourcing board</span><span>11</span></div>
+</section>
+<section class="page">
+  <div class="head"><p class="eyebrow">Enforced by the system, not by memory</p><h2>Rules that protect you</h2></div>
+  <div class="cards">
+    <div class="card"><span class="label" style="color:var(--paid)">Money</span><h3>A claim is not money</h3><p>Your submission writes nothing to the invoice, the ledger or any balance. Only Finance's verification moves a figure — which is why nobody can lean on you to make cargo move.</p></div><div class="card"><span class="label" style="color:var(--paid)">Drafts</span><h3>You cannot collect against a draft</h3><p>A draft is the system's price, not a bill. Confirming is Finance's job; until they do, there is no figure to ask a customer for.</p></div><div class="card"><span class="label" style="color:var(--paid)">Duplicates</span><h3>One pending claim per invoice</h3><p>A second submission on the same bill is refused by name. Two claims is two people ringing the same customer and Finance checking the same money twice.</p></div><div class="card"><span class="label" style="color:var(--paid)">Every door</span><h3>Checked twice, always</h3><p>The route is checked before the page loads and every action re-checks before it writes. A button you should not see is not drawn — and would still refuse if it were.</p></div>
+  </div>
+  <div class="caution" style="margin-top:6mm"><p><b>None of this is aimed at you.</b> It is what lets one desk hold the customer relationship and the billing without ever being able to move the money — which protects you as much as it protects the business.</p></div>
+  <div class="foot"><span>The customer desk</span><span>12</span></div>
+</section>
+<section class="page">
+  <div class="head"><p class="eyebrow">What actually goes wrong</p><h2>Mistakes worth knowing about</h2></div>
+  <table><tr><th>The mistake</th><th>What it causes</th><th>Do this instead</th></tr>
+    <tr><td class="k" style="width:52mm">Quoting the band total at the top of the page</td><td class="m">You quote a live estimate; the customer pays a different figure and disputes it.</td><td class="m">Quote the amount on the customer's own row.</td></tr><tr><td class="k" style="width:52mm">Quoting a price that is still a draft</td><td class="m">You ask for a figure the business has not agreed. It may change.</td><td class="m">Wait for Finance to confirm the price.</td></tr><tr><td class="k" style="width:52mm">Recording a claim with only a reference number</td><td class="m">Finance cannot verify it and sends it back; the customer waits another day.</td><td class="m">Always attach the screenshot or slip.</td></tr><tr><td class="k" style="width:52mm">Opening a second claim when the first was rejected</td><td class="m">Two claims on one bill; the system refuses it and the record looks like a cover-up.</td><td class="m">Correct the claim against the same invoice.</td></tr><tr><td class="k" style="width:52mm">Telling a customer to collect before the note exists</td><td class="m">They travel to the warehouse and are turned away.</td><td class="m">Wait until the cargo shows ready for pickup.</td></tr><tr><td class="k" style="width:52mm">Closing a ticket with no resolution written</td><td class="m">The system refuses it — and the next person has no idea what happened.</td><td class="m">Write what you actually did.</td></tr>
+  </table>
+  <div class="foot"><span>The customer desk</span><span>13</span></div>
+</section>
+<section class="page">
+  <div class="head"><p class="eyebrow">The rest of your sidebar</p><h2>Where everything else lives</h2></div>
+  <table><tr><th>Screen</th><th>What it answers</th></tr>
+    <tr><td class="k">Search</td><td class="m">Any consignment, by tracking number, customer, phone or description.</td></tr><tr><td class="k">Customers</td><td class="m">The customer book — history, contact details and everything they have shipped.</td></tr><tr><td class="k">Shipments · Batches</td><td class="m">Where a consignment is, and which flight it came on.</td></tr><tr><td class="k">Collections</td><td class="m">What is owed, who to ring, what you have handed up and what came back.</td></tr><tr><td class="k">Pickup notes</td><td class="m">Notes Finance has issued. You print them; you do not create them.</td></tr><tr><td class="k">Price Configuration</td><td class="m">The rate book. Read a quote off this, never from memory.</td></tr><tr><td class="k">Tickets</td><td class="m">Calls, complaints and enquiries, with the resolution written down.</td></tr><tr><td class="k">Issues &amp; Claims</td><td class="m">Cargo under investigation. Ring the ones parked on the customer.</td></tr><tr><td class="k">Sourcing requests</td><td class="m">Customers asking us to find goods in China, on a board.</td></tr><tr><td class="k">China markets</td><td class="m">Which Guangzhou market sells what, so you can point them properly.</td></tr>
+  </table>
+  <div class="foot"><span>The customer desk</span><span>14</span></div>
+</section>
+<section class="page">
+  <div class="head"><p class="eyebrow">If you remember nothing else</p><h2>Three things carry this desk</h2></div>
+  <div class="cards one" style="gap:4mm">
+    <div class="card"><span class="label" style="color:var(--signal)">1</span><h3>Work the panel in its order</h3><p>It is already sorted by what costs the business most. Do not pick by eye.</p></div><div class="card"><span class="label" style="color:var(--signal)">2</span><h3>Never quote what is not agreed</h3><p>Not a draft, not a band total. Quote the customer's own row.</p></div><div class="card"><span class="label" style="color:var(--signal)">3</span><h3>Take the proof, not the promise</h3><p>A reference on its own comes straight back. Attach the file the first time.</p></div>
+  </div>
+  <p style="margin:6mm 0 8mm;font-size:11pt">You hold the relationship; Finance holds the money. Keeping those apart is what lets you be completely straight with a customer about everything except whether their payment has landed.</p>
+  <div class="foot"><span>Target Express Air Cargo · Customer Care</span><span>15</span></div>
+</section>

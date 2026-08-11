@@ -1,0 +1,306 @@
+<meta charset="utf-8">
+<title>Target Express Air Cargo — The Dar floor</title>
+<style>
+:root {
+  --ink:#0b1220; --ink-2:#0f1729; --panel:#131e35; --navy:#182a48; --line:#26344f;
+  --signal:#d81e2a; --paid:#22a86a; --owed:#e09612; --draft:#7c8ba5;
+  --fg:#eef2f8; --muted:#93a0b6;
+  /* PingFang trails each stack so the Guangzhou edition sets Chinese properly —
+     Avenir Next carries no CJK glyphs and would silently drop to a default. */
+  --display:"Avenir Next","Helvetica Neue","PingFang SC",sans-serif;
+  --narrow:"Avenir Next Condensed","Avenir Next","PingFang SC",sans-serif;
+  --body:"Helvetica Neue",Helvetica,"PingFang SC",sans-serif;
+  --mono:"Menlo","PingFang SC",monospace;
+}
+@page { size: A4 portrait; margin: 0; }
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--ink)}
+body{color:var(--fg);font-family:var(--body);-webkit-print-color-adjust:exact;print-color-adjust:exact;-webkit-font-smoothing:antialiased}
+
+.page{position:relative;width:210mm;height:296.6mm;overflow:hidden;padding:16mm 16mm 11mm;
+  background:var(--ink);display:flex;flex-direction:column;page-break-after:always;break-after:page}
+.page:last-of-type{page-break-after:auto;break-after:auto}
+.page::before{content:"";position:absolute;top:-50mm;right:-40mm;width:130mm;height:130mm;
+  background:radial-gradient(circle,rgba(24,42,72,.85) 0%,rgba(11,18,32,0) 70%);pointer-events:none}
+.page>*{position:relative}
+
+h1,h2{font-family:var(--display);font-weight:600;margin:0;letter-spacing:-.025em}
+h1{font-size:38pt;line-height:1.03}
+h2{font-size:20pt;line-height:1.12}
+h3{font-family:var(--display);font-weight:600;font-size:11.5pt;margin:0;letter-spacing:-.01em}
+p{margin:0;font-size:10.5pt;line-height:1.55;color:var(--muted)}
+p b{color:var(--fg);font-weight:500}
+
+.eyebrow{font-family:var(--narrow);font-size:9pt;font-weight:600;text-transform:uppercase;letter-spacing:.22em;color:var(--muted)}
+.label{font-family:var(--narrow);font-size:7.5pt;font-weight:600;text-transform:uppercase;letter-spacing:.16em;color:var(--muted)}
+.hairline{height:1px;background:var(--line)}
+.accent-rule{height:3pt;width:24mm;background:var(--signal);border-radius:2pt}
+
+.foot{margin-top:auto;padding-top:4mm;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline}
+.foot span{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.16em;text-transform:uppercase;color:#5d6c85}
+.head{display:flex;flex-direction:column;gap:2.5mm;margin-bottom:7mm}
+
+/* cover */
+.cover{gap:6mm}
+.cover>.accent-rule{margin-top:auto}
+.cover h1{font-size:46pt}
+.cover .lede{font-size:12pt;line-height:1.5}
+.route{display:flex;align-items:center;gap:3mm;font-family:var(--narrow);font-size:9pt;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.route .dash{flex:0 0 18mm;height:1px;background:var(--signal)}
+
+/* step page */
+.stepno{display:flex;align-items:baseline;gap:3mm;font-family:var(--display);font-weight:600}
+.stepno .n{font-size:30pt;line-height:1;letter-spacing:-.03em}
+.stepno .of{font-family:var(--narrow);font-size:8.5pt;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.stepno[data-state=draft] .n{color:var(--draft)}
+.stepno[data-state=owed] .n{color:var(--owed)}
+.stepno[data-state=paid] .n{color:var(--paid)}
+.stepno[data-state=plain] .n{color:var(--fg)}
+
+.body-copy{display:flex;flex-direction:column;gap:3.5mm}
+.where{font-family:var(--mono);font-size:8.5pt;color:var(--muted);padding:2mm 3mm;
+  border:1px solid var(--line);border-radius:2mm;background:var(--ink-2);align-self:flex-start}
+.where b{color:var(--fg);font-weight:400}
+.caution{display:flex;padding:3.5mm 4mm;border-radius:2mm;background:var(--ink-2);
+  border:1px solid var(--line);border-left:2pt solid var(--signal)}
+.caution p{font-size:9.5pt;line-height:1.5}
+.quote{border-left:2pt solid var(--line);padding-left:4mm;font-size:10pt;line-height:1.5;color:var(--fg);font-style:italic}
+.quote cite{display:block;font-style:normal;margin-top:1.5mm}
+
+/* rebuilt screens */
+/* The rebuilt screen anchors to the foot of the page like a plate, absorbing
+   all the slack itself — otherwise it and .foot both claim margin-top:auto and
+   the slack splits, leaving the screen adrift in the middle. */
+.screen{border:1px solid var(--line);border-radius:3mm;background:var(--ink-2);overflow:hidden;margin-top:auto}
+.screen+.foot{margin-top:0}
+.screen-bar{display:flex;align-items:center;gap:2mm;padding:2.6mm 4mm;background:var(--panel);border-bottom:1px solid var(--line)}
+.screen-bar .dot{width:2mm;height:2mm;border-radius:50%;background:#3a4a68}
+.screen-bar .name{font-family:var(--mono);font-size:7.5pt;color:var(--muted);margin-left:2mm}
+.screen-body{padding:4.5mm;display:flex;flex-direction:column;gap:3.5mm}
+.row{display:flex;justify-content:space-between;align-items:center;gap:4mm}
+.stack{display:flex;flex-direction:column;gap:.8mm;min-width:0}
+.value{font-family:var(--mono);font-size:9.5pt;font-variant-numeric:tabular-nums}
+.big{font-family:var(--display);font-weight:600;font-size:17pt;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
+.pill{display:inline-block;padding:1mm 2.6mm;border-radius:10mm;font-family:var(--narrow);font-size:8pt;
+  font-weight:600;letter-spacing:.08em;text-transform:uppercase;border:1px solid currentColor;white-space:nowrap}
+.pill.draft{color:var(--draft)} .pill.owed{color:var(--owed)} .pill.paid{color:var(--paid)}
+.pill.signal{color:var(--signal)} .pill.plain{color:var(--muted)}
+.btn{display:inline-block;padding:1.6mm 3.6mm;border-radius:1.8mm;font-family:var(--display);
+  font-size:8.5pt;font-weight:600;background:var(--navy);color:#fff;border:1px solid #24395e}
+.btn.go{background:var(--signal);border-color:var(--signal)}
+.btn.ghost{background:transparent;color:var(--muted);border-color:var(--line)}
+.qrow{display:flex;justify-content:space-between;align-items:center;gap:3mm;padding:2.6mm 3.4mm;
+  border:1px solid var(--line);border-radius:2mm;background:var(--ink);font-size:9pt}
+
+/* the vertical spine — portrait's natural shape for a sequence */
+/* Equal-height rows stretch the spine down the whole page whatever the step
+   count, and keep the rail unbroken — a row gap would dash the line. */
+.spine{display:grid;grid-template-columns:9mm 1fr;gap:0 6mm;flex:1;grid-auto-rows:1fr}
+.rail{position:relative;display:flex;justify-content:center}
+.rail::before{content:"";position:absolute;top:0;bottom:0;width:2pt;background:var(--seg,var(--line));opacity:.75}
+/* Every child here is a div, so :last-of-type would match the last text column,
+   never the last rail. Count from the end instead so the line stops at the
+   final badge rather than trailing off the page. */
+.rail:nth-last-child(2)::before{bottom:auto;height:9mm}
+.badge{position:relative;z-index:1;width:9mm;height:9mm;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-family:var(--display);font-weight:600;font-size:11pt;background:var(--ink-2);border:1.5pt solid var(--line)}
+.badge[data-state=draft]{border-color:var(--draft);color:var(--draft)}
+.badge[data-state=owed]{border-color:var(--owed);color:var(--owed)}
+.badge[data-state=paid]{border-color:var(--paid);color:var(--paid)}
+.badge[data-state=plain]{border-color:var(--navy);color:var(--fg)}
+.spine-item{padding-bottom:6mm;display:flex;flex-direction:column;gap:1.2mm}
+.spine-item h3{font-size:11pt}
+.spine-item p{font-size:9.5pt;line-height:1.45}
+
+/* cards + tables */
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:5mm}
+.cards.one{grid-template-columns:1fr}
+.card{padding:5mm;border-radius:3mm;background:var(--ink-2);border:1px solid var(--line);
+  display:flex;flex-direction:column;gap:2mm}
+.card p{font-size:9.5pt;line-height:1.5}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:3mm 3.4mm;border-bottom:1px solid var(--line);vertical-align:top;font-size:9.5pt}
+th{font-family:var(--narrow);font-size:7.5pt;text-transform:uppercase;letter-spacing:.16em;color:var(--muted)}
+td.k{font-family:var(--display);font-weight:600;color:var(--fg);width:48mm}
+td.m{color:var(--muted)}
+tr:last-child td{border-bottom:0}
+
+/* can / cannot */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:5mm}
+.list{display:flex;flex-direction:column;gap:2.4mm;padding-top:3mm;border-top:2pt solid var(--line)}
+.list.can{border-color:var(--paid)}
+.list.cannot{border-color:var(--signal)}
+.list p{font-size:9.5pt;line-height:1.45}
+.list .label{margin-bottom:1mm}
+</style>
+<section class="page cover">
+  <div class="accent-rule"></div>
+  <p class="eyebrow">Target Express Air Cargo &middot; Dar es Salaam Warehouse</p>
+  <h1>The Dar floor</h1>
+  <p class="lede">You take physical custody of everything this business flies. From the moment a flight lands until a customer walks out with their boxes, the cargo is yours. You never write the China record and you never touch money — you count, you hold, and you hand over against a note Finance issued.</p>
+  <div class="route"><span>The flight lands</span><span class="dash"></span><span>The customer collects</span></div>
+  <div class="foot"><span>Staff guide</span><span>Dar es Salaam Warehouse</span></div>
+</section>
+<section class="page">
+  <div class="head"><p class="eyebrow">Before anything else</p><h2>What this desk is, and what it is not</h2></div>
+  <div class="cards one" style="margin-bottom:6mm">
+    <div class="card"><span class="label" style="color: var(--owed)">Your word counts</span><h3>What arrived, and in what condition</h3><p>Your check-in is the only comparison anyone will ever make between what Guangzhou declared and what actually landed. Nobody audits it afterwards. <b>If you tick a box clean, it is clean.</b></p></div><div class="card"><span class="label" style="color: var(--signal)">Not your call</span><h3>Whether the cargo may leave</h3><p>That is answered by a pickup note Finance issued and by any open case on the cargo. You cannot see a price, issue a note, or override either. If there is no note, the answer is “check with Finance” — never a workaround.</p></div>
+  </div>
+  <div class="split">
+    <div class="list can"><span class="label" style="color:var(--paid)">What you may do</span>
+      <p>Mark a landed flight as arrived, and check it in against China's manifest</p><p>Rule on every consignment: received, missing, damaged, wrong item, wrong quantity, or hold</p><p>See the photographs Guangzhou took before the cargo flew</p><p>Scan a carton and release it to a customer against an active pickup note</p><p>Open an investigation when a box is not on the shelf</p><p>See what is on the floor and how long it has been standing</p></div>
+    <div class="list cannot"><span class="label" style="color:var(--signal)">What you may not do</span>
+      <p>Register cargo — the China record is Guangzhou's, and stays Guangzhou's</p><p>Print or reprint a cargo label; the sticker is made once, in Guangzhou</p><p>See any price, invoice or amount paid — the figures are never sent to your screen</p><p>Open, print, issue or cancel a pickup note — you scan it, Finance issues it</p><p>Open, seal or dispatch a batch — you receive them, you do not fly them</p><p>Approve a payout or a replacement on a claim — that is the CEO's</p></div>
+  </div>
+  <div class="foot"><span>The Dar floor</span><span>02</span></div>
+</section>
+<section class="page">
+  <div class="head"><p class="eyebrow">The whole job on one page</p><h2>Your day, in eight moves</h2></div>
+  <div class="spine">
+    <div class="rail" style="--seg: var(--draft)">
+      <div class="badge" data-state="draft">1</div></div>
+    <div class="spine-item"><h3>Read the floor</h3><p>Three chips and one panel tell you the whole morning.</p></div><div class="rail" style="--seg: var(--draft)">
+      <div class="badge" data-state="draft">2</div></div>
+    <div class="spine-item"><h3>Land the flight</h3><p>Mark the batch arrived. From here it is yours to check in.</p></div><div class="rail" style="--seg: var(--owed)">
+      <div class="badge" data-state="owed">3</div></div>
+    <div class="spine-item"><h3>Print the manifest</h3><p>Check boxes against paper, not against a screen you are holding.</p></div><div class="rail" style="--seg: var(--owed)">
+      <div class="badge" data-state="owed">4</div></div>
+    <div class="spine-item"><h3>Rule on every line</h3><p>Six outcomes. Damaged needs a severity and a photograph.</p></div><div class="rail" style="--seg: var(--owed)">
+      <div class="badge" data-state="owed">5</div></div>
+    <div class="spine-item"><h3>Close the batch off</h3><p>It refuses while anything is still unruled. That is the point.</p></div><div class="rail" style="--seg: var(--paid)">
+      <div class="badge" data-state="paid">6</div></div>
+    <div class="spine-item"><h3>Pre-check the queue</h3><p>Read the blockers before a customer is standing in front of you.</p></div><div class="rail" style="--seg: var(--paid)">
+      <div class="badge" data-state="paid">7</div></div>
+    <div class="spine-item"><h3>Release the cargo</h3><p>Scan the carton. Photograph the handover. Both are enforced.</p></div><div class="rail" style="--seg: var(--paid)">
+      <div class="badge" data-state="paid">8</div></div>
+    <div class="spine-item"><h3>When a box is missing</h3><p>Never mark it delivered. Write down where you looked.</p></div>
+  </div>
+  <div class="foot"><span>The Dar floor</span><span>03</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="draft"><span class="n">1</span><span class="of">Step 1 of 8</span></div>
+    <h2>Sign in and read the floor</h2>
+    <p class="where">Sign in → <b>Home</b></p>
+    
+    <p>Three chips across the banner — cargo in the warehouse, boxes on the floor, weight on the floor — and then <b>Needs your attention</b>, which is the morning's job list.</p><p>You see cargo and time. You do not see money, anywhere, by design.</p>
+    <div class="caution"><p>The boxes chip reads <b>“{n} short of the manifest”</b> when fewer cartons were ticked in than Guangzhou declared. <b>That number never fixes itself</b> — it is either a mis-scan or a genuinely missing box, and both need somebody to go and look.</p></div>
+  </div>
+  <div class="screen"><div class="screen-bar"><span class="dot"></span><span class="name">Home — the floor today</span></div><div class="screen-body"><div class="row"><div class="stack"><span class="label">Cargo in the warehouse</span><span class="big">146</span></div><div class="stack"><span class="label">Boxes on the floor</span><span class="big">389</span></div></div><div class="hairline"></div><span class="label">Needs your attention</span><div class="qrow"><span>Batch B-2026-013 has landed</span><span> <span class="pill owed">Receive</span></span></div><div class="qrow"><span>2 short of the manifest</span><span> <span class="pill signal">Count again</span></span></div><div class="qrow"><span>7 ready for collection today</span><span> <span class="pill paid">Release</span></span></div></div></div>
+  <div class="foot"><span>Step 1 — Sign in and read the floor</span><span>04</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="draft"><span class="n">2</span><span class="of">Step 2 of 8</span></div>
+    <h2>Land the flight</h2>
+    <p class="where"><b>Receiving Dock</b> → Mark as arrived</p>
+    
+    <p>Find the batch that has landed and mark it arrived. That stamps the arrival date and hands the batch to you to check in.</p><p>Only a batch actually in transit can be landed; anything else is refused.</p>
+    
+  </div>
+  
+  <div class="foot"><span>Step 2 — Land the flight</span><span>05</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="owed"><span class="n">3</span><span class="of">Step 3 of 8</span></div>
+    <h2>Print the manifest and open the bench</h2>
+    <p class="where"><b>Receiving Dock</b> → open the batch → Manifest</p>
+    
+    <p><b>Print it.</b> Check physical boxes against paper — not against a screen you are also trying to hold while counting.</p><p>Each row opens to show the photographs Guangzhou took, the declared weight and the declared carton count.</p>
+    <div class="caution"><p>Those China photographs are the only picture of what the box looked like <b>before</b> it flew. If a consignment has none, check the label and the packing list harder before you tick it clean — you have nothing to argue with later.</p></div>
+  </div>
+  
+  <div class="foot"><span>Step 3 — Print the manifest and open the bench</span><span>06</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="owed"><span class="n">4</span><span class="of">Step 4 of 8</span></div>
+    <h2>Rule on every line</h2>
+    <p class="where"><b>Receiving Dock</b> → open the batch</p>
+    
+    <p>If the flight is intact, press <b>All present &amp; undamaged</b> once. Otherwise rule on each row: received, missing, damaged, wrong item, wrong quantity, or hold for investigation.</p><p>Anything other than received opens a case automatically, and the right people are told.</p>
+    <div class="caution"><p><b>Damaged demands a severity and a photograph</b> — this is the only moment that picture can be taken. Once the box is on the shelf, nobody can prove whether it arrived that way or was dropped here.</p></div>
+  </div>
+  <div class="screen"><div class="screen-bar"><span class="dot"></span><span class="name">Check in B-2026-013</span></div><div class="screen-body"><div class="row"><div class="stack"><span class="label">Declared</span><span class="value">42 cartons</span></div><div class="stack"><span class="label">Ticked in</span><span class="value" style="color: var(--signal)">40</span></div><div class="stack"><span class="label">Still unruled</span><span class="value" style="color: var(--owed)">3</span></div></div><div class="hairline"></div><div class="qrow"><span>TX-000121 · 6 cartons</span><span> <span class="pill paid">Received</span></span></div><div class="qrow"><span><span class="stack"><span>TX-000124 · 2 cartons</span><span class="label">photo + severity required</span></span></span><span> <span class="pill signal">Damaged</span></span></div><div class="qrow"><span>TX-000126 · 1 carton</span><span> <span class="pill signal">Missing</span></span></div></div></div>
+  <div class="foot"><span>Step 4 — Rule on every line</span><span>07</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="owed"><span class="n">5</span><span class="of">Step 5 of 8</span></div>
+    <h2>Close the batch off</h2>
+    <p class="where"><b>Receiving Dock</b> → finish check-in</p>
+    
+    <p>Once every consignment on the batch has a ruling, finish the check-in. Only then is the flight closed.</p><p>Cargo you check in is priced automatically the moment the check-in commits — which is what lets Finance start billing.</p>
+    <div class="caution"><p>It refuses while anything is unruled: <b>“{n} shipment(s) still unchecked.”</b> That is not an obstacle — a customer cannot be invoiced until their cargo is checked in, so an unfinished batch is a customer nobody can bill.</p></div>
+  </div>
+  
+  <div class="foot"><span>Step 5 — Close the batch off</span><span>08</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="paid"><span class="n">6</span><span class="of">Step 6 of 8</span></div>
+    <h2>Pre-check the queue before customers arrive</h2>
+    <p class="where"><b>Pickup Queue</b></p>
+    
+    <p>Read the blockers on each row. They mirror, in the same order, the checks the release itself will run.</p><p>Doing this before the counter opens is the difference between a two-minute handover and an argument.</p>
+    <div class="caution"><p>A row can look perfectly paid and still be locked. <b>An open case holds the cargo whatever the money says</b> — a missing, damaged, wrong-item or quarantined box does not leave the building.</p></div>
+  </div>
+  
+  <div class="foot"><span>Step 6 — Pre-check the queue before customers arrive</span><span>09</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="paid"><span class="n">7</span><span class="of">Step 7 of 8</span></div>
+    <h2>Release the cargo</h2>
+    <p class="where"><b>Scan &amp; release</b> → scan the QR on the carton</p>
+    
+    <p>One scan. The screen opens with the customer, the cargo, whether it is paid, and the release form — everything on one page, nothing to go and fetch.</p><p>Fill in who is collecting, their phone, what they are to the customer, and their ID. Then photograph the handover.</p>
+    <div class="caution"><p><b>Six things must agree</b> before a release goes through, all re-checked together: an active pickup note, the note matching this cargo, no open case, every package checked in, the carton count complete, and the handover photograph. <b>A partial shipment is never released</b> — four boxes out of five is how a claim starts.</p></div>
+  </div>
+  <div class="screen"><div class="screen-bar"><span class="dot"></span><span class="name">Scan &amp; release — TX-000105</span></div><div class="screen-body"><div class="row"><div class="stack"><span class="label">Customer</span><span class="value">Japhet Lihanjala</span></div><div class="stack"><span class="label">Packages</span><span class="value">3 of 3</span></div><div class="stack"><span class="label">Payment</span><span class="value" style="color: var(--paid)">Settled</span></div></div><div class="hairline"></div><div class="qrow"><span>Pickup note PN-2026-000001</span><span> <span class="pill paid">Active</span></span></div><div class="qrow"><span>No open cases</span><span> <span class="pill paid">Clear</span></span></div><div class="qrow"><span>Handover photograph</span><span> <span class="pill signal">Required</span></span></div><div class="row"><span class="label">Records who collected, and when</span><span><span class="btn go" style="margin-left:2mm">Complete handover</span></span></div></div></div>
+  <div class="foot"><span>Step 7 — Release the cargo</span><span>10</span></div>
+</section>
+<section class="page">
+  <div class="body-copy" style="gap:4mm">
+    <div class="stepno" data-state="paid"><span class="n">8</span><span class="of">Step 8 of 8</span></div>
+    <h2>When the box is not on the shelf</h2>
+    <p class="where"><b>Scan &amp; release</b> → Unable to locate cargo</p>
+    
+    <p><b>Do not mark it delivered.</b> Press <b>Unable to locate cargo</b>, write where you looked, and confirm that you are stopping the pickup and opening an investigation.</p><p>Management and Customer Care are told immediately, and the customer's public tracking updates on its own.</p>
+    <div class="caution"><p><b>“Where did you look?” is the only thing the person searching tomorrow has to go on.</b> “Not found” helps nobody, and the system refuses answers that short. Name the shelf, the bay and the batch you checked.</p></div>
+  </div>
+  
+  <div class="foot"><span>Step 8 — When the box is not on the shelf</span><span>11</span></div>
+</section>
+<section class="page">
+  <div class="head"><p class="eyebrow">Enforced by the system, not by memory</p><h2>Rules that protect you</h2></div>
+  <div class="cards">
+    <div class="card"><span class="label" style="color:var(--paid)">Release</span><h3>Six checks, one transaction</h3><p>Note, cargo match, no open case, all packages in, full carton count, handover photo. They are re-checked together at the moment you press the button, not when the page loaded.</p></div><div class="card"><span class="label" style="color:var(--paid)">Partial handovers</span><h3>All the boxes, or none</h3><p>The system will not let you hand over part of a consignment and sort it out later. That is precisely how a dispute becomes a claim.</p></div><div class="card"><span class="label" style="color:var(--paid)">Open cases</span><h3>A case outranks the money</h3><p>Payment answers whether Finance cleared it. It does not answer whether the box may leave the building — an open case holds it either way.</p></div><div class="card"><span class="label" style="color:var(--paid)">Photographs</span><h3>Enforced on the server, not the form</h3><p>Damage photos at check-in and the handover photo at release cannot be skipped by any route. They are what settle a dispute months later.</p></div>
+  </div>
+  <div class="caution" style="margin-top:6mm"><p><b>Every one of these protects you personally.</b> When a customer says a box was short or damaged, the record shows what you counted, what you photographed and who signed for it.</p></div>
+  <div class="foot"><span>The Dar floor</span><span>12</span></div>
+</section>
+<section class="page">
+  <div class="head"><p class="eyebrow">What actually goes wrong</p><h2>Mistakes worth knowing about</h2></div>
+  <table><tr><th>The mistake</th><th>What it causes</th><th>Do this instead</th></tr>
+    <tr><td class="k" style="width:52mm">Ticking a whole flight clean without opening the rows</td><td class="m">A damaged box enters the warehouse as undamaged and becomes your problem.</td><td class="m">Open each row against the printed manifest.</td></tr><tr><td class="k" style="width:52mm">Marking damage without the photograph</td><td class="m">The system refuses — and without it there is no proof it flew that way.</td><td class="m">Photograph it on the bench, before it moves.</td></tr><tr><td class="k" style="width:52mm">Ignoring “short of the manifest”</td><td class="m">A missing box is discovered weeks later, when nobody can retrace it.</td><td class="m">Recount the same day and open a case if it is real.</td></tr><tr><td class="k" style="width:52mm">Handing over part of a consignment</td><td class="m">Refused by the system, and the customer leaves believing they got everything.</td><td class="m">Release all packages together, or none.</td></tr><tr><td class="k" style="width:52mm">Marking cargo delivered when it cannot be found</td><td class="m">The trail goes cold and the business carries the loss with no record.</td><td class="m">Press Unable to locate and write where you looked.</td></tr><tr><td class="k" style="width:52mm">Arguing with a customer about their bill</td><td class="m">You have no figures on screen, so you cannot be right.</td><td class="m">Send them to Finance; keep the counter moving.</td></tr>
+  </table>
+  <div class="foot"><span>The Dar floor</span><span>13</span></div>
+</section>
+<section class="page">
+  <div class="head"><p class="eyebrow">The rest of your sidebar</p><h2>Where everything else lives</h2></div>
+  <table><tr><th>Screen</th><th>What it answers</th></tr>
+    <tr><td class="k">Search</td><td class="m">Any consignment, by tracking number, customer or phone.</td></tr><tr><td class="k">Scan &amp; release</td><td class="m">One scan takes you to everything you need to hand cargo over.</td></tr><tr><td class="k">Pickup Queue</td><td class="m">Who may collect today, and what is blocking the rest.</td></tr><tr><td class="k">Receiving Dock</td><td class="m">Flights to land, and the bench where you check them in.</td></tr><tr><td class="k">Available Cargo</td><td class="m">What is on the floor now, and how long each piece has stood.</td></tr><tr><td class="k">Collected Cargo</td><td class="m">Every handover, with the receiver, the relationship and the photo.</td></tr><tr><td class="k">Issues &amp; Claims</td><td class="m">Cases on your floor. Move them along; the CEO approves payouts.</td></tr><tr><td class="k">Reports</td><td class="m">Throughput, how long each leg took, and who did the work.</td></tr>
+  </table>
+  <div class="foot"><span>The Dar floor</span><span>14</span></div>
+</section>
+<section class="page">
+  <div class="head"><p class="eyebrow">If you remember nothing else</p><h2>Three things carry this floor</h2></div>
+  <div class="cards one" style="gap:4mm">
+    <div class="card"><span class="label" style="color:var(--signal)">1</span><h3>Count against paper</h3><p>Print the manifest and rule on every line. Your check-in is the only comparison anyone makes.</p></div><div class="card"><span class="label" style="color:var(--signal)">2</span><h3>Photograph at the moment</h3><p>Damage on the bench, handover at the counter. Neither picture can be taken later.</p></div><div class="card"><span class="label" style="color:var(--signal)">3</span><h3>Never guess at a missing box</h3><p>Open the investigation and write where you looked. Tomorrow's search has nothing else.</p></div>
+  </div>
+  <p style="margin:6mm 0 8mm;font-size:11pt">You hold the cargo, not the money. That is why you can be completely straightforward with every customer at the counter — the figures are somebody else's to defend.</p>
+  <div class="foot"><span>Target Express Air Cargo · Dar es Salaam Warehouse</span><span>15</span></div>
+</section>

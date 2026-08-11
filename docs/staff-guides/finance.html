@@ -5,10 +5,12 @@
   --ink:#0b1220; --ink-2:#0f1729; --panel:#131e35; --navy:#182a48; --line:#26344f;
   --signal:#d81e2a; --paid:#22a86a; --owed:#e09612; --draft:#7c8ba5;
   --fg:#eef2f8; --muted:#93a0b6;
-  --display:"Avenir Next","Helvetica Neue",sans-serif;
-  --narrow:"Avenir Next Condensed","Avenir Next",sans-serif;
-  --body:"Helvetica Neue",Helvetica,sans-serif;
-  --mono:"Menlo",monospace;
+  /* PingFang trails each stack so the Guangzhou edition sets Chinese properly —
+     Avenir Next carries no CJK glyphs and would silently drop to a default. */
+  --display:"Avenir Next","Helvetica Neue","PingFang SC",sans-serif;
+  --narrow:"Avenir Next Condensed","Avenir Next","PingFang SC",sans-serif;
+  --body:"Helvetica Neue",Helvetica,"PingFang SC",sans-serif;
+  --mono:"Menlo","PingFang SC",monospace;
 }
 @page { size: A4 portrait; margin: 0; }
 *{box-sizing:border-box}
