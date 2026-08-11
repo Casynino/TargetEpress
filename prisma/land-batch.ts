@@ -150,6 +150,23 @@ async function main() {
       skipDuplicates: true,
     });
 
+    /*
+      Clear these two legs before writing them.
+
+      Re-running this is normal — a Neon transaction can time out partway
+      through pricing and the fix is to run it again — and there is no unique
+      constraint on history, so without this each re-run stacks another
+      "flew" and "checked in" onto every public timeline. Only the two legs
+      this script owns are removed; a real event recorded by a person is not
+      one of them.
+    */
+    await tx.shipmentStatusHistory.deleteMany({
+      where: {
+        shipmentId: { in: ids },
+        toStatus: { in: ["IN_TRANSIT", "RECEIVED_AT_DAR"] },
+      },
+    });
+
     // The public timeline reads off this, so both legs have to be on it.
     await tx.shipmentStatusHistory.createMany({
       data: [
