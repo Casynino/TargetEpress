@@ -4,13 +4,13 @@ import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 
 import { CargoSticker, type StickerData } from "@/components/app/cargo-sticker";
-import { PrintButton } from "@/components/app/print-button";
+import { PrintFormatBar } from "@/components/app/print-format";
 import { Button } from "@/components/ui/button";
-import { CATEGORY_LABELS } from "@/lib/cargo";
 import { formatPackages } from "@/lib/constants";
 import { formatDate, formatWeight } from "@/lib/format";
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
+import { LABEL_MM, printFormatFrom } from "@/lib/print";
 import { packageQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
 
@@ -25,8 +25,11 @@ export const metadata: Metadata = { title: "Cargo labels" };
  */
 export default async function LabelPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  /** Label printer or A4 sheet — see components/app/print-format.tsx. */
+  searchParams: Promise<{ format?: string }>;
 }) {
   // Not shipment.view. Every desk may look a box up; only the desk that packs
   // it may produce its sticker. ROUTE_PERMISSIONS cannot express this — it
@@ -34,6 +37,8 @@ export default async function LabelPage({
   // this guard is the whole gate rather than a second line behind middleware.
   const user = await requirePermission("label.print");
   const { id } = await params;
+  const { format: rawFormat } = await searchParams;
+  const format = printFormatFrom(rawFormat);
   const key = decodeURIComponent(id);
 
   const shipment = await prisma.shipment.findUnique({
@@ -68,11 +73,7 @@ export default async function LabelPage({
     shipment.packageList.map(async (pkg) => ({
       trackingNumber: shipment.trackingNumber,
       customerName: shipment.customer.name,
-      customerPhone: shipment.customer.phone,
-      customerCity: shipment.customer.city,
       description: shipment.description,
-      cargoTypeName: shipment.cargoType?.name ?? null,
-      categoryLabel: CATEGORY_LABELS[shipment.cargoCategory],
       packages: shipment.packageList.length,
       packagesLabel: formatPackages(
         shipment.packageList.length,
@@ -80,44 +81,55 @@ export default async function LabelPage({
       ),
       weightLabel: formatWeight(shipment.weightKg),
       registeredOn: formatDate(shipment.registeredAt),
-      origin: shipment.origin,
-      batchNumber: shipment.batch?.batchNumber ?? null,
       sequence: pkg.sequence,
       packageRef: pkg.reference,
-      qr: await packageQrDataUrl(pkg.qrToken, 170),
+      // 480px into a 38mm square is roughly 320dpi, so the code stays crisp on
+      // a 203dpi thermal head and on a 600dpi laser alike.
+      qr: await packageQrDataUrl(pkg.qrToken, 480),
     }))
   );
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Button asChild variant="ghost" size="sm">
-            <Link href={`/app/cargo/${shipment.trackingNumber}`}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to shipment
-            </Link>
-          </Button>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {stickers.length} label{stickers.length === 1 ? "" : "s"} —{" "}
-            {formatPackages(stickers.length, shipment.packageType)} in this
-            shipment, one code each.
-          </p>
-        </div>
-        <PrintButton
-          label={`Print ${stickers.length} label${stickers.length === 1 ? "" : "s"}`}
-        />
+    <div className="mx-auto max-w-3xl print:max-w-none">
+      <div className="no-print">
+        <Button asChild variant="ghost" size="sm">
+          <Link href={`/app/cargo/${shipment.trackingNumber}`}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to shipment
+          </Link>
+        </Button>
       </div>
 
-      <div className="space-y-6">
+      <PrintFormatBar
+        format={format}
+        item={LABEL_MM}
+        count={stickers.length}
+        noun="label"
+        printLabel={`Print ${stickers.length} label${stickers.length === 1 ? "" : "s"}`}
+        hint="One code per box — never copy a label onto two."
+      />
+
+      {/*
+        No gap between labels in sheet mode: the grid is cut apart, and a gap
+        is stock that gets thrown away. On screen they are spaced so the run is
+        readable before it is committed to paper.
+      */}
+      <div
+        className={
+          format === "sheet"
+            ? "flex flex-wrap justify-center gap-4 print:gap-0"
+            : "flex flex-col items-center gap-4 print:gap-0"
+        }
+      >
         {stickers.map((sticker) => (
           <CargoSticker key={sticker.packageRef} data={sticker} />
         ))}
       </div>
 
       <p className="no-print mt-4 text-center text-xs text-muted-foreground">
-        Print at 100% scale. Every package gets its own label — never copy one
-        label onto two boxes, or the warehouse cannot tell them apart.
+        Print at 100% scale — any &ldquo;fit to page&rdquo; setting will shrink
+        the code and the label will no longer be {LABEL_MM.width}×
+        {LABEL_MM.height}mm.
       </p>
     </div>
   );

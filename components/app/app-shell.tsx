@@ -130,7 +130,16 @@ export function AppShell({
       </aside>
 
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b bg-background px-4 lg:hidden">
+      {/*
+        Hidden on paper as well as on a desktop.
+
+        `lg:hidden` reads as "phones only", but a print page is about 794px
+        wide — narrower than the lg breakpoint — so a browser printing this
+        renders the phone chrome. On A4 that was a hamburger and a logo at the
+        top of the sheet; on a 100x70mm label page it is 3.7mm of a 70mm page,
+        which pushes the label off its own sticker.
+      */}
+      <div className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b bg-background px-4 lg:hidden print:hidden">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="h-9 w-9">
@@ -171,7 +180,18 @@ export function AppShell({
           <MainSiteLink />
           <NotificationBell unread={unreadNotifications} />
         </div>
-        <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8">{children}</div>
+        {/*
+          The reading container, and nothing to do with paper.
+
+          Its max-width and padding are for a screen. Left on for print they
+          eat ~13mm of an A4 page, which is enough to stop a second 100mm label
+          fitting on a row — so a sheet of eight silently prints as a column of
+          four with half the adhesive stock blank. The page decides its own
+          margins through @page; this must get out of the way.
+        */}
+        <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8 print:max-w-none print:p-0">
+          {children}
+        </div>
       </div>
     </div>
   );

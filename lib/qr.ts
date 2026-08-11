@@ -66,7 +66,19 @@ export function parseQrPayload(raw: string): ScannedCode | null {
 export async function qrDataUrl(payload: string, size = 240) {
   return QRCode.toDataURL(payload, {
     errorCorrectionLevel: "M",
-    margin: 1,
+    /*
+      Four modules of quiet zone, which is what the QR spec actually requires.
+      
+      It was 1. That is enough on a screen with white space all round it, and
+      not enough on a sticker where a printed border runs along the edge of the
+      code and, on an A4 sheet, the next label butts straight up against it —
+      a decoder that cannot find clean margin can fail to lock on at all.
+      
+      It costs almost nothing: a 37-module code inside a 42mm square goes from
+      1.08mm to 0.93mm per module, still twice the floor a 203dpi thermal head
+      needs.
+    */
+    margin: 4,
     width: size,
     color: { dark: "#0b1220ff", light: "#ffffffff" },
   });

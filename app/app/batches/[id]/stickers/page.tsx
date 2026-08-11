@@ -4,12 +4,12 @@ import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 
 import { CargoSticker, type StickerData } from "@/components/app/cargo-sticker";
-import { PrintButton } from "@/components/app/print-button";
+import { PrintFormatBar } from "@/components/app/print-format";
 import { Button } from "@/components/ui/button";
-import { CATEGORY_LABELS } from "@/lib/cargo";
 import { formatPackages } from "@/lib/constants";
 import { formatDate, formatWeight } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { LABEL_MM, printFormatFrom } from "@/lib/print";
 import { packageQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
 
@@ -30,7 +30,7 @@ export default async function BatchStickersPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ ids?: string }>;
+  searchParams: Promise<{ ids?: string; format?: string }>;
 }) {
   // The whole-batch sticker sheet. Same rule as a single label: the desk that
   // packs the cargo prints for it. /app/batches resolves to batch.view in
@@ -38,7 +38,8 @@ export default async function BatchStickersPage({
   // actually keeps them out.
   await requirePermission("label.print");
   const { id } = await params;
-  const { ids } = await searchParams;
+  const { ids, format: rawFormat } = await searchParams;
+  const format = printFormatFrom(rawFormat);
 
   const selected = (ids ?? "")
     .split(",")
@@ -58,9 +59,7 @@ export default async function BatchStickersPage({
     },
     orderBy: { registeredAt: "desc" },
     include: {
-      customer: { select: { name: true, phone: true, city: true } },
-      cargoType: { select: { name: true } },
-      batch: { select: { batchNumber: true } },
+      customer: { select: { name: true } },
       packageList: { orderBy: { sequence: "asc" } },
     },
   });
@@ -72,42 +71,43 @@ export default async function BatchStickersPage({
       item.packageList.map(async (pkg) => ({
         trackingNumber: item.trackingNumber,
         customerName: item.customer.name,
-        customerPhone: item.customer.phone,
-        customerCity: item.customer.city,
         description: item.description,
-        cargoTypeName: item.cargoType?.name ?? null,
-        categoryLabel: CATEGORY_LABELS[item.cargoCategory],
         packages: item.packageList.length,
         packagesLabel: formatPackages(item.packageList.length, item.packageType),
         weightLabel: formatWeight(item.weightKg),
         registeredOn: formatDate(item.registeredAt),
-        origin: item.origin,
-        batchNumber: item.batch?.batchNumber ?? null,
         sequence: pkg.sequence,
         packageRef: pkg.reference,
-        qr: await packageQrDataUrl(pkg.qrToken, 150),
+        qr: await packageQrDataUrl(pkg.qrToken, 480),
       }))
     )
   );
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Button asChild variant="ghost" size="sm">
-            <Link href={`/app/batches/${batch.id}`}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to batch
-            </Link>
-          </Button>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {stickers.length} sticker{stickers.length === 1 ? "" : "s"} — one per
-            package, for {cargo.length} shipment{cargo.length === 1 ? "" : "s"}
-            {selected.length > 0 ? " selected" : " on this table"}
-          </p>
-        </div>
-        <PrintButton label={`Print ${stickers.length} sticker${stickers.length === 1 ? "" : "s"}`} />
+    <div className="mx-auto max-w-3xl print:max-w-none">
+      <div className="no-print">
+        <Button asChild variant="ghost" size="sm">
+          <Link href={`/app/batches/${batch.id}`}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to batch
+          </Link>
+        </Button>
+        <p className="mt-1 text-sm text-muted-foreground">
+          One sticker per package, for {cargo.length} shipment
+          {cargo.length === 1 ? "" : "s"}
+          {selected.length > 0 ? " selected" : " on this table"}.
+        </p>
       </div>
+
+      {stickers.length > 0 ? (
+        <PrintFormatBar
+          format={format}
+          item={LABEL_MM}
+          count={stickers.length}
+          noun="sticker"
+          printLabel={`Print ${stickers.length} sticker${stickers.length === 1 ? "" : "s"}`}
+        />
+      ) : null}
 
       {stickers.length === 0 ? (
         <div className="rounded-xl border border-dashed p-12 text-center">
@@ -117,7 +117,13 @@ export default async function BatchStickersPage({
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div
+          className={
+            format === "sheet"
+              ? "flex flex-wrap justify-center gap-4 print:gap-0"
+              : "flex flex-col items-center gap-4 print:gap-0"
+          }
+        >
           {stickers.map((sticker) => (
             <CargoSticker key={sticker.packageRef} data={sticker} />
           ))}

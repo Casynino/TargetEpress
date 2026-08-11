@@ -248,16 +248,30 @@
       display: none !important;
     }
 
-    /* One sticker per page. A label split across a page boundary is a wasted
-       label and a reprint, which is exactly what bulk printing exists to avoid. */
+    /*
+      Never split a label across a page boundary — that is a wasted sticker and
+      a reprint, which is what bulk printing exists to avoid.
+
+      What is deliberately NOT here any more is `break-after: page`. With no
+      @page rule declared anywhere, that meant every sticker took a full sheet
+      of adhesive stock and left most of it blank; eight now fit an A4. The page
+      size is declared per print route instead — see lib/print.ts — because it
+      depends on whether the run is going to a label printer or a sheet.
+    */
     .sticker {
       break-inside: avoid;
-      break-after: page;
-      border-width: 1px !important;
     }
 
-    .sticker:last-child {
-      break-after: auto;
+    /*
+      A cut line has to be visible.
+
+      `.print-plain` fades every border to #d4d4d8 so an invoice does not print
+      a hard box round itself. On a sheet of labels that same border is the
+      line somebody puts a guillotine along, and pale grey is not a line. Ordered
+      after .print-plain so it wins.
+    */
+    .sticker.print-plain {
+      border-color: #4b5563 !important;
     }
 
     .print-plain {

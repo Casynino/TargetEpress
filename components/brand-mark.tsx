@@ -21,9 +21,12 @@ import { cn } from "@/lib/utils";
  */
 export function BrandMark({
   className,
+  style,
   tone = "theme",
 }: {
   className?: string;
+  /** For print, where the mark is sized in millimetres rather than in rems. */
+  style?: React.CSSProperties;
   /**
    * "theme" follows the tokens, which is what the app chrome needs.
    *
@@ -41,6 +44,7 @@ export function BrandMark({
       viewBox={EMBLEM_VIEWBOX}
       xmlns="http://www.w3.org/2000/svg"
       className={cn("h-9 w-auto", className)}
+      style={style}
       aria-hidden="true"
     >
       <path d={EMBLEM_GLOBE} fillRule="evenodd" className={globe} />

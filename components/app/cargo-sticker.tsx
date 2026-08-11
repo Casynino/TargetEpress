@@ -1,24 +1,19 @@
 import Image from "next/image";
 
 import { BrandMark } from "@/components/brand-mark";
-import { COMPANY, ORIGIN_LABELS } from "@/lib/constants";
+import { LABEL_MM } from "@/lib/print";
 
 export type StickerData = {
   trackingNumber: string;
   customerName: string;
-  customerPhone: string | null;
-  customerCity: string | null;
   description: string;
-  cargoTypeName: string | null;
-  categoryLabel: string;
   packages: number;
+  /** "3 cartons" — the count with its unit, never a bare number. */
   packagesLabel: string;
   weightLabel: string;
-  origin: string;
-  batchNumber: string | null;
   /** This package's position in the shipment — the "1" in "1 of 5". */
   sequence: number;
-  /** Printed under the tracking number: TX-2026-00125-P1. */
+  /** Printed under the tracking number: TX-000125-P1. */
   packageRef: string;
   /** When the box was booked in at the China counter, already formatted. */
   registeredOn: string;
@@ -27,127 +22,157 @@ export type StickerData = {
 };
 
 /**
- * The physical sticker that goes on one box.
+ * The sticker that goes on one box. 100 x 70mm, and it means it.
  *
- * One sticker per package, not per shipment. Five cartons of clothes get five
- * of these, each with its own QR, and the "1 of 5" in the corner is what tells
- * the Dar warehouse that four boxes on the floor is four boxes short of a
+ * One per package, not per shipment: five cartons of clothes get five of
+ * these, each with its own code, and the "3 / 5" in the corner is what tells
+ * the Dar warehouse that four boxes on the floor is one box short of a
  * complete delivery.
  *
- * Sized for a 4×6 thermal label. Everything on it is what a warehouse hand or a
- * customs officer needs while holding the box: the tracking number big enough to
- * read at arm's length, the consignee, and a QR that resolves the rest.
+ * It used to be laid out for a 4x6 thermal label and printed with no `@page`
+ * rule at all, so each one took a whole A4 sheet of adhesive stock — mostly
+ * blank. Eight now fit that sheet. What went is what a person holding the box
+ * does not read off it: the origin airport, the batch number, the cargo
+ * category and a paragraph of terms. All of it is one scan away, which is the
+ * entire point of the code taking up a third of the sticker.
  *
- * `break-inside: avoid` matters more than it looks — printing forty of these,
- * a sticker split across a page boundary is a wasted label and a reprint.
+ * Field names are 5.5pt rather than the 4.5pt this started at: about two
+ * millimetres of cap height, which is the floor for something read at arm's
+ * length in a warehouse rather than held up to a desk lamp.
+ *
+ * Sized in millimetres throughout. A label is a physical object; rems depend
+ * on a root font size that is a browser preference, and 42mm of QR is 42mm of
+ * QR on any printer that is honest about its scaling.
  */
 export function CargoSticker({ data }: { data: StickerData }) {
   return (
-    <article className="sticker print-plain break-inside-avoid rounded-xl border-2 bg-white p-6 text-black">
-      <header className="flex items-start justify-between border-b-2 border-black/80 pb-4">
-        <div className="flex items-center gap-2">
-          <BrandMark tone="paper" className="h-9 w-auto" />
-          <div>
-            <p className="font-display text-lg font-bold leading-none">
+    <article
+      className="sticker print-plain shrink-0 flex break-inside-avoid flex-col overflow-hidden border border-black/70 bg-white text-black"
+      style={{
+        width: `${LABEL_MM.width}mm`,
+        height: `${LABEL_MM.height}mm`,
+        padding: "3mm",
+      }}
+    >
+      {/* Brand, and which box of how many — the two things read from across a
+          loading bay before anyone picks the carton up. */}
+      <header
+        className="flex shrink-0 items-center justify-between border-b border-black/60"
+        style={{ paddingBottom: "1.6mm" }}
+      >
+        <div className="flex items-center" style={{ gap: "1.6mm" }}>
+          <BrandMark tone="paper" style={{ height: "6.5mm", width: "auto" }} />
+          <div className="leading-none">
+            <p className="font-display font-bold" style={{ fontSize: "8pt" }}>
               TARGET EXPRESS
             </p>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em]">
+            <p
+              className="font-semibold uppercase"
+              style={{ fontSize: "5.5pt", letterSpacing: "0.18em", marginTop: "0.6mm" }}
+            >
               Air Cargo
             </p>
           </div>
         </div>
-        <div className="text-right">
-          {/* Read from across the room: which box of how many. */}
-          <p className="font-display text-2xl font-bold leading-none tabular">
-            {data.sequence} <span className="text-base font-semibold">of</span>{" "}
-            {data.packages}
-          </p>
-          <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-black/60">
-            {data.packagesLabel}
-          </p>
-        </div>
+        <p
+          className="font-display font-bold leading-none tabular"
+          style={{ fontSize: "15pt" }}
+        >
+          {data.sequence}
+          <span style={{ fontSize: "9pt" }}> / {data.packages}</span>
+        </p>
       </header>
 
-      <div className="mt-5 flex gap-5">
+      <div className="flex min-h-0 flex-1 items-stretch" style={{ gap: "3mm", paddingTop: "2mm" }}>
+        {/*
+          The code, given the room it needs.
+
+          This is the only thing on the sticker a machine reads, and every
+          other field exists to be legible when the machine is not to hand — so
+          it takes the full height the rest of the label leaves rather than
+          sitting in a box with dead sticker underneath it. At 42mm a ~37-module
+          code prints better than a millimetre per module, which reads off a
+          phone camera at arm's length and survives a scuffed carton.
+        */}
         <Image
           src={data.qr}
           alt={`QR code for package ${data.packageRef}`}
-          width={150}
-          height={150}
-          className="shrink-0 border border-black/20"
+          width={300}
+          height={300}
+          className="shrink-0 self-start"
+          style={{ width: "42mm", height: "42mm" }}
           unoptimized
         />
 
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-black/60">
-            Tracking number
-          </p>
-          <p className="font-mono text-2xl font-bold tabular">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <p
+            className="font-mono font-bold leading-none tabular"
+            style={{ fontSize: "14.5pt" }}
+          >
             {data.trackingNumber}
           </p>
-          <p className="font-mono text-xs font-semibold tabular text-black/70">
+          <p
+            className="font-mono tabular text-black/70"
+            style={{ fontSize: "6.5pt", marginTop: "0.8mm" }}
+          >
             {data.packageRef}
           </p>
 
-          <p className="mt-4 text-[10px] font-semibold uppercase tracking-widest text-black/60">
-            Consignee
+          <p
+            className="truncate font-bold leading-tight"
+            style={{ fontSize: "9.5pt", marginTop: "2.2mm" }}
+          >
+            {data.customerName}
           </p>
-          <p className="text-base font-bold leading-tight">{data.customerName}</p>
-          <p className="font-mono text-sm tabular">
-            {data.customerPhone ?? "Phone not recorded"}
+
+          {/*
+            Two lines of contents and no more.
+
+            A description runs to whatever the China desk typed. Clamped, so a
+            long one pushes nothing off the bottom of a sticker that has a
+            fixed physical height and cannot grow.
+          */}
+          <p
+            className="leading-snug"
+            style={{
+              fontSize: "7pt",
+              marginTop: "1.2mm",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {data.description}
           </p>
-          {data.customerCity ? (
-            <p className="text-sm">{data.customerCity}, Tanzania</p>
-          ) : null}
         </div>
       </div>
 
-      <dl className="mt-5 grid grid-cols-4 gap-3 border-y border-black/20 py-4 text-center">
+      <dl
+        className="grid shrink-0 grid-cols-3 border-t border-black/60"
+        style={{ gap: "2mm", paddingTop: "1.6mm", marginTop: "1.6mm" }}
+      >
         {[
-          { label: "This package", value: `${data.sequence} / ${data.packages}` },
-          { label: "Shipment weight", value: data.weightLabel },
-          {
-            label: "Origin",
-            value:
-              ORIGIN_LABELS[data.origin as keyof typeof ORIGIN_LABELS] ?? data.origin,
-          },
-          { label: "Batch", value: data.batchNumber ?? "—" },
-          // The date the box entered our custody. A label with no date on it
-          // cannot settle an argument about how long something has been sitting
-          // in a warehouse, which is the argument these labels get used in.
+          { label: "Weight", value: data.weightLabel },
+          { label: "Quantity", value: data.packagesLabel },
           { label: "Registered", value: data.registeredOn },
         ].map((item) => (
-          <div key={item.label}>
-            <dt className="text-[9px] font-semibold uppercase tracking-widest text-black/60">
+          <div key={item.label} className="min-w-0">
+            <dt
+              className="font-semibold uppercase text-black/55"
+              style={{ fontSize: "5.5pt", letterSpacing: "0.14em" }}
+            >
               {item.label}
             </dt>
-            <dd className="mt-0.5 font-mono text-xs font-bold tabular">
+            <dd
+              className="truncate font-mono font-bold tabular"
+              style={{ fontSize: "7.5pt", marginTop: "0.4mm" }}
+            >
               {item.value}
             </dd>
           </div>
         ))}
       </dl>
-
-      <div className="mt-4">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-black/60">
-          Contents
-        </p>
-        <p className="text-sm font-medium">
-          {data.cargoTypeName ?? data.categoryLabel} — {data.description}
-        </p>
-      </div>
-
-      <footer className="mt-4 flex items-end justify-between gap-3 border-t border-black/20 pt-3 text-[9px] leading-snug">
-        <p className="max-w-[65%] text-black/70">
-          Do not remove this label. Cargo is released only against a valid pickup
-          note, and only when every package has arrived.
-        </p>
-        <p className="shrink-0 text-right text-black/70">
-          {COMPANY.phone}
-          <br />
-          {COMPANY.email}
-        </p>
-      </footer>
     </article>
   );
 }
