@@ -83,9 +83,9 @@ export default async function LabelPage({
       registeredOn: formatDate(shipment.registeredAt),
       sequence: pkg.sequence,
       packageRef: pkg.reference,
-      // 480px into a 38mm square is roughly 320dpi, so the code stays crisp on
-      // a 203dpi thermal head and on a 600dpi laser alike.
-      qr: await packageQrDataUrl(pkg.qrToken, 480),
+      // 700px into a 58mm square is ~306dpi, so the code stays crisp on a
+      // 203dpi thermal head and on a 600dpi laser alike.
+      qr: await packageQrDataUrl(pkg.qrToken, 700),
     }))
   );
 

@@ -58,9 +58,9 @@ export default async function PickupNotePage({
   // The note carries the SHIPMENT's QR — the same code the warehouse will scan
   // on the carton. One identity, both documents.
   //
-  // 420px into a 42mm square is about 254dpi — a 37-module code lands near a
-  // millimetre per module, which a phone camera locks onto immediately.
-  const qr = await shipmentQrDataUrl(note.shipment.qrToken, 420);
+  // 640px into a 54mm square is ~301dpi — a 45-module code (data plus quiet
+  // zone) lands at 1.2mm per module, which a phone locks onto instantly.
+  const qr = await shipmentQrDataUrl(note.shipment.qrToken, 640);
 
   const data: PickupSlipData = {
     noteNumber: note.noteNumber,

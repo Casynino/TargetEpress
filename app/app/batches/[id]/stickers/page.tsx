@@ -78,7 +78,7 @@ export default async function BatchStickersPage({
         registeredOn: formatDate(item.registeredAt),
         sequence: pkg.sequence,
         packageRef: pkg.reference,
-        qr: await packageQrDataUrl(pkg.qrToken, 480),
+        qr: await packageQrDataUrl(pkg.qrToken, 700),
       }))
     )
   );

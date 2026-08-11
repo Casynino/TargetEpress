@@ -12,16 +12,21 @@
  * eight boxes of cargo, eight sheets of adhesive paper, most of it blank.
  */
 
-/** A cargo sticker. Fits a carton, and tiles 2 x 4 on an A4 sheet exactly. */
-export const LABEL_MM = { width: 100, height: 70 } as const;
-
 /**
- * A pickup slip. Shorter than A6 (105 x 148) — the content genuinely ends
- * there, and a third of a slip left blank is a third of the paper wasted and a
- * document that looks unfinished. Four still fit an A4 sheet inside the
- * margins every desktop printer reserves at the paper edge.
+ * 10 x 15cm — a 4 x 6in card, one per print.
+ *
+ * The owner's size, and the one the whole courier trade runs on: it is what
+ * every thermal label roll and every fanfold box is cut to, so the stock is
+ * buyable anywhere and a printer does not have to be told about it.
+ *
+ * Both documents use it. A warehouse that stocks one media size and prints
+ * everything on it never runs the wrong roll, and the pickup slip a customer
+ * carries is then the same object as the sticker on their box.
  */
-export const SLIP_MM = { width: 100, height: 128 } as const;
+export const LABEL_MM = { width: 100, height: 150 } as const;
+
+/** The pickup slip prints on the same 10 x 15cm card as the labels. */
+export const SLIP_MM = LABEL_MM;
 
 /**
  * How the job is going to the printer.

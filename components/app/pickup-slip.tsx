@@ -26,26 +26,30 @@ export type PickupSlipData = {
 const OFFICE = COMPANY.offices[0];
 
 /**
- * The slip a customer carries to the warehouse. 100 x 128mm — pocket-sized.
+ * The slip a customer carries to the warehouse. 10 x 15cm, the same card as
+ * the cargo labels.
  *
  * This was an A4 document with signature rules, a payment ledger and a
  * paragraph of terms: a page of office stationery handed to somebody who is
  * going to fold it into a pocket, carry it across Kariakoo and hold it out at
- * a counter. Four of these now fit the sheet that carried one.
+ * a counter.
  *
- * What survived the cut is what the counter or the customer actually uses:
- * the code that opens the cargo, the numbers they will be asked for, what the
- * box is, whether it is paid, and where to come. The payment breakdown and the
- * two signature lines went — the release is captured on a phone with a
- * photograph, so a signature on paper recorded nothing the system did not
- * already hold better.
+ * It shares the label's media deliberately. A warehouse that stocks one size
+ * of card and prints everything on it never loads the wrong roll, and the slip
+ * in the customer's hand is then physically the same object as the sticker on
+ * their box — which matters, because the counter scans both and they have to
+ * agree.
+ *
+ * What did not survive the cut is the payment breakdown and the two signature
+ * lines: the release is captured on a phone with a photograph now, so a
+ * signature on paper recorded nothing the system did not already hold better.
  */
 export function PickupSlip({ data }: { data: PickupSlipData }) {
   const spent = data.status !== "ACTIVE";
 
   return (
     <article
-      className="sticker print-plain shrink-0 relative flex break-inside-avoid flex-col overflow-hidden border border-black/70 bg-white text-black"
+      className="sticker print-plain relative flex shrink-0 break-inside-avoid flex-col overflow-hidden border border-black/70 bg-white text-black"
       style={{
         width: `${SLIP_MM.width}mm`,
         height: `${SLIP_MM.height}mm`,
@@ -53,24 +57,24 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
       }}
     >
       {/* The brand rule, in the proportion the registered mark uses its inks. */}
-      <span aria-hidden className="absolute inset-x-0 top-0 bg-[#182A48]" style={{ height: "1.4mm" }} />
-      <span aria-hidden className="absolute left-0 top-0 bg-[#D81E2A]" style={{ height: "1.4mm", width: "26mm" }} />
+      <span aria-hidden className="absolute inset-x-0 top-0 bg-[#182A48]" style={{ height: "1.6mm" }} />
+      <span aria-hidden className="absolute left-0 top-0 bg-[#D81E2A]" style={{ height: "1.6mm", width: "26mm" }} />
 
       <header
-        className="flex shrink-0 items-start justify-between border-b border-black/60"
-        style={{ paddingTop: "1.6mm", paddingBottom: "2mm", gap: "2mm" }}
+        className="flex shrink-0 items-start justify-between border-b-2 border-black/70"
+        style={{ paddingTop: "1.8mm", paddingBottom: "2.2mm", gap: "2mm" }}
       >
-        <div className="flex items-center" style={{ gap: "1.8mm" }}>
-          <BrandMark tone="paper" style={{ height: "7.5mm", width: "auto" }} />
+        <div className="flex items-center" style={{ gap: "2mm" }}>
+          <BrandMark tone="paper" style={{ height: "8.5mm", width: "auto" }} />
           <div className="leading-none">
-            <p className="font-display font-bold" style={{ fontSize: "8.5pt" }}>
+            <p className="font-display font-bold" style={{ fontSize: "10pt" }}>
               TARGET EXPRESS
             </p>
             <p
               className="font-semibold uppercase text-black/60"
-              style={{ fontSize: "5.5pt", letterSpacing: "0.18em", marginTop: "0.6mm" }}
+              style={{ fontSize: "6pt", letterSpacing: "0.18em", marginTop: "0.8mm" }}
             >
-              Air Cargo
+              Pickup note
             </p>
           </div>
         </div>
@@ -81,105 +85,120 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
             These were one slot, so a collected or cancelled note printed
             "Collected" where the date had been and carried no issue date
             anywhere. That is the field somebody reaches for weeks later when a
-            storage charge is disputed, and the one state where the slip is
-            being argued over is exactly the state that dropped it.
-          */}
-          {/*
-            The status shares the label's line rather than taking one of its
-            own. Stacked, it grew the header by about four millimetres and
-            pushed the footer off a slip whose height is fixed — a spent note
-            printed short of its own contact details.
+            storage charge is disputed, and the one state where the slip gets
+            argued over is exactly the state that dropped it.
           */}
           <p
-            className="flex items-baseline justify-end gap-1.5 font-semibold uppercase text-black/55"
-            style={{ fontSize: "5.5pt", letterSpacing: "0.16em" }}
+            className="font-semibold uppercase text-black/55"
+            style={{ fontSize: "6pt", letterSpacing: "0.14em" }}
           >
-            {spent ? (
-              <span
-                className="font-display font-bold"
-                style={{
-                  fontSize: "7.5pt",
-                  letterSpacing: "0.04em",
-                  color: data.status === "USED" ? "#117447" : "#D81E2A",
-                }}
-              >
-                {data.status === "USED" ? "Collected" : "Cancelled"}
-              </span>
-            ) : null}
-            <span>Issued</span>
+            Issued
           </p>
-          <p className="font-mono font-bold tabular" style={{ fontSize: "8pt", marginTop: "1mm" }}>
+          <p className="font-mono font-bold tabular" style={{ fontSize: "9.5pt", marginTop: "1mm" }}>
             {data.issuedOn}
           </p>
+          {spent ? (
+            <p
+              className="font-display font-bold uppercase"
+              style={{
+                fontSize: "9pt",
+                marginTop: "1.2mm",
+                color: data.status === "USED" ? "#117447" : "#D81E2A",
+              }}
+            >
+              {data.status === "USED" ? "Collected" : "Cancelled"}
+            </p>
+          ) : null}
         </div>
       </header>
 
-      {/* The code, and the two numbers a person is asked for at the counter. */}
-      <div className="flex shrink-0 items-center" style={{ gap: "3mm", paddingTop: "2.5mm" }}>
+      {/*
+        The code, centred and given the middle of the card — the same shape the
+        cargo label uses, so a clerk scanning one after the other aims at the
+        same place twice.
+      */}
+      <div
+        className="flex min-h-0 flex-1 items-center justify-center"
+        style={{ paddingTop: "2.2mm", paddingBottom: "2mm" }}
+      >
+        {/*
+          Sized by the space left rather than by a number typed here.
+
+          A fixed 54mm square in a `shrink-0` image overflowed this row and
+          painted straight over the header and the tracking number — a flex
+          item that cannot shrink does not politely get smaller, it spills. The
+          height comes from the row, the width follows the square, and the cap
+          stops it ballooning on a slip whose text happens to be short.
+        */}
         <Image
           src={data.qr}
           alt={`Pickup QR for ${data.trackingNumber}`}
-          width={320}
-          height={320}
-          className="shrink-0"
-          /*
-            42mm, not 44. A collected or cancelled note carries a status word
-            the header of a live one does not, and at 44 that extra millimetre
-            tipped the slip half a millimetre past its own height and shaved the
-            footer. Two millimetres back here buys slack in every state; a
-            37-module code still prints at 0.93mm per module, which is twice
-            what a scanner needs.
-          */
-          style={{ width: "42mm", height: "42mm" }}
+          width={640}
+          height={640}
+          style={{
+            height: "100%",
+            width: "auto",
+            maxHeight: "46mm",
+            aspectRatio: "1 / 1",
+          }}
           unoptimized
         />
-        <div className="min-w-0 flex-1">
-          <Field label="Tracking number">
-            <p className="font-mono font-bold leading-none tabular" style={{ fontSize: "13pt" }}>
-              {data.trackingNumber}
-            </p>
-          </Field>
-          <div style={{ marginTop: "2.4mm" }}>
-            <Field label="Pickup code">
-              <p className="font-mono font-bold leading-none tabular" style={{ fontSize: "10pt" }}>
-                {data.noteNumber}
-              </p>
-            </Field>
-          </div>
-          <div style={{ marginTop: "2.4mm" }}>
-            <Field label="Customer">
-              <p className="truncate font-bold leading-tight" style={{ fontSize: "9pt" }}>
-                {data.customerName}
-              </p>
-              <p className="font-mono tabular text-black/70" style={{ fontSize: "6.5pt" }}>
-                {data.customerPhone ?? "No phone recorded"}
-              </p>
-            </Field>
-          </div>
+      </div>
+
+      {/* The two numbers a person is asked for at the counter. */}
+      <div className="flex shrink-0 items-end justify-between" style={{ gap: "3mm" }}>
+        <div className="min-w-0">
+          <FieldLabel>Tracking number</FieldLabel>
+          <p
+            className="font-mono font-bold leading-none tabular"
+            style={{ fontSize: "15pt", marginTop: "0.8mm" }}
+          >
+            {data.trackingNumber}
+          </p>
+        </div>
+        <div className="min-w-0 text-right">
+          <FieldLabel>Pickup code</FieldLabel>
+          <p
+            className="font-mono font-bold leading-none tabular"
+            style={{ fontSize: "10pt", marginTop: "0.8mm" }}
+          >
+            {data.noteNumber}
+          </p>
         </div>
       </div>
 
-      {/* What the box is. */}
-      <div style={{ marginTop: "2.5mm" }}>
-        <Field label="Cargo">
-          <p
-            className="leading-snug"
-            style={{
-              fontSize: "7.5pt",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
-            {data.description}
-          </p>
-        </Field>
+      <div
+        className="flex shrink-0 items-baseline justify-between"
+        style={{ marginTop: "1.8mm", gap: "3mm" }}
+      >
+        <p className="truncate font-bold leading-tight" style={{ fontSize: "11pt" }}>
+          {data.customerName}
+        </p>
+        <p className="shrink-0 font-mono tabular text-black/70" style={{ fontSize: "8pt" }}>
+          {data.customerPhone ?? "No phone"}
+        </p>
+      </div>
+
+      <div className="shrink-0" style={{ marginTop: "1.8mm" }}>
+        <FieldLabel>Cargo</FieldLabel>
+        <p
+          className="leading-snug"
+          style={{
+            fontSize: "8.5pt",
+            marginTop: "0.6mm",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {data.description}
+        </p>
       </div>
 
       <dl
-        className="grid shrink-0 grid-cols-3 border-y border-black/25"
-        style={{ gap: "2mm", marginTop: "2.5mm", paddingTop: "1.8mm", paddingBottom: "1.8mm" }}
+        className="grid shrink-0 grid-cols-3 border-y border-black/30"
+        style={{ gap: "2mm", marginTop: "1.8mm", paddingTop: "1.6mm", paddingBottom: "1.6mm" }}
       >
         {[
           { label: "Weight", value: data.weightLabel },
@@ -189,11 +208,14 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
           <div key={item.label} className="min-w-0">
             <dt
               className="font-semibold uppercase text-black/55"
-              style={{ fontSize: "5.5pt", letterSpacing: "0.14em" }}
+              style={{ fontSize: "6pt", letterSpacing: "0.12em" }}
             >
               {item.label}
             </dt>
-            <dd className="truncate font-mono font-bold tabular" style={{ fontSize: "7.5pt", marginTop: "0.4mm" }}>
+            <dd
+              className="truncate font-mono font-bold tabular"
+              style={{ fontSize: "9pt", marginTop: "0.5mm" }}
+            >
               {item.value}
             </dd>
           </div>
@@ -205,46 +227,44 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
         className="flex shrink-0 items-baseline justify-between"
         style={{
           gap: "2mm",
-          marginTop: "2.5mm",
-          padding: "1.8mm 2.4mm",
+          marginTop: "1.8mm",
+          padding: "1.6mm 2.6mm",
           backgroundColor: "rgba(17,116,71,0.12)",
         }}
       >
         <p
           className="font-display font-bold uppercase leading-none"
-          style={{ fontSize: "9pt", color: "#117447", letterSpacing: "0.04em" }}
+          style={{ fontSize: "10.5pt", color: "#117447", letterSpacing: "0.04em" }}
         >
           {data.paymentStatus}
         </p>
         {data.amountLabel ? (
-          <p className="font-mono font-bold tabular" style={{ fontSize: "9pt", color: "#117447" }}>
+          <p className="font-mono font-bold tabular" style={{ fontSize: "10pt", color: "#117447" }}>
             {data.amountLabel}
           </p>
         ) : null}
       </div>
 
       {/* Where to come. The one office, in the owner's own wording. */}
-      <div style={{ marginTop: "2.5mm" }}>
-        <Field label="Collect from">
-          {OFFICE.lines.map((line) => (
-            <p key={line} className="leading-snug" style={{ fontSize: "6.8pt" }}>
-              {line}
-            </p>
-          ))}
-        </Field>
+      <div className="shrink-0" style={{ marginTop: "1.8mm" }}>
+        <FieldLabel>Collect from</FieldLabel>
+        {OFFICE.lines.map((line) => (
+          <p key={line} className="leading-snug" style={{ fontSize: "7.5pt" }}>
+            {line}
+          </p>
+        ))}
       </div>
 
       <footer
-        className="mt-auto shrink-0 border-t border-black/25"
-        style={{ paddingTop: "1.8mm" }}
+        className="shrink-0 border-t border-black/30"
+        style={{ paddingTop: "2mm", marginTop: "1.8mm" }}
       >
-        <p className="leading-snug text-black/70" style={{ fontSize: "5.8pt" }}>
-          Bring this slip. Staff scan it and the code on your cargo — both must
-          match. Valid once. Anyone collecting for you must bring their own ID.
+        <p className="leading-snug text-black/70" style={{ fontSize: "6.8pt" }}>
+          Valid once. Anyone collecting for you brings their own ID.
         </p>
         <p
           className="font-mono tabular text-black/80"
-          style={{ fontSize: "6.2pt", marginTop: "1.2mm" }}
+          style={{ fontSize: "7pt", marginTop: "1mm" }}
         >
           {COMPANY.phone} · {COMPANY.phoneAlt} · {COMPANY.email}
         </p>
@@ -253,24 +273,13 @@ export function PickupSlip({ data }: { data: PickupSlipData }) {
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    // A plain paragraph, not <dt>: this is not inside a <dl>, and a definition
-    // term outside a definition list is markup that only looks like structure.
-    <div className="min-w-0">
-      <p
-        className="font-semibold uppercase text-black/55"
-        style={{ fontSize: "5.5pt", letterSpacing: "0.14em", marginBottom: "0.5mm" }}
-      >
-        {label}
-      </p>
-      <div>{children}</div>
-    </div>
+    <p
+      className="font-semibold uppercase text-black/55"
+      style={{ fontSize: "6pt", letterSpacing: "0.12em" }}
+    >
+      {children}
+    </p>
   );
 }
