@@ -242,7 +242,7 @@ export default async function DashboardPage() {
   const firstName = (me?.name ?? user.name).split(" ")[0];
 
 
-  const today = new Date().toLocaleDateString("en-GB", {
+  const today = new Date().toLocaleDateString(locale === "zh" ? "zh-CN" : "en-GB", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -2184,7 +2184,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     // The three the owner asks and nobody else can answer from one page:
     // where is all of it, how is each desk, and is the money keeping up.
     corridorPosition(),
-    currentRate().then((row) => deskPulse(row ? toNumber(row.rate) : null)),
+    currentRate().then((row) => deskPulse(row ? toNumber(row.rate) : null, locale)),
     currentRate().then((row) => ownerAttention(row ? toNumber(row.rate) : null)),
     cashFlowByMonth(),
     receivablesAgeing(),
@@ -2287,7 +2287,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           compared by opening four dashboards one at a time. */}
       <div>
         <SectionLabel>{t(locale, "Every desk, right now")}</SectionLabel>
-        <DeskPulsePanel desks={desks} />
+        <DeskPulsePanel desks={desks} locale={locale} />
       </div>
 
       {/* In transit, In Dar and Exceptions came out: the corridor ring below

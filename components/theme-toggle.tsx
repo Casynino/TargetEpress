@@ -4,9 +4,11 @@ import * as React from "react";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
+import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 
 export function ThemeToggle({ className }: { className?: string }) {
+  const t = useT();
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
@@ -27,8 +29,8 @@ export function ThemeToggle({ className }: { className?: string }) {
       <Moon className="absolute h-[18px] w-[18px] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
       <span className="sr-only">
         {mounted && resolvedTheme === "dark"
-          ? "Switch to light mode"
-          : "Switch to dark mode"}
+          ? t("Switch to light mode")
+          : t("Switch to dark mode")}
       </span>
     </Button>
   );

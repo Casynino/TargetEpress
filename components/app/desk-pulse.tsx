@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import type { DeskPulse } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +40,15 @@ const RULE: Record<DeskPulse["tone"], string> = {
  * fine. A desk with nothing wrong says so in as many words, because "no news"
  * and "I forgot to look" must not render the same.
  */
-export function DeskPulsePanel({ desks }: { desks: DeskPulse[] }) {
+export function DeskPulsePanel({
+  desks,
+  locale = "en",
+}: {
+  desks: DeskPulse[];
+  /** Every other string on these cards arrives already translated from
+      deskPulse(). This one is written here, so it needs the locale itself. */
+  locale?: Locale;
+}) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {desks.map((desk) => (
@@ -94,7 +104,7 @@ export function DeskPulsePanel({ desks }: { desks: DeskPulse[] }) {
             ) : (
               <>
                 <CheckCircle2 className="h-3 w-3 text-success" />
-                nothing wrong here
+                {t(locale, "nothing wrong here")}
               </>
             )}
           </p>

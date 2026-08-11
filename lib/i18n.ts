@@ -2923,6 +2923,18 @@ const ZH: Record<string, string> = {
   "“Scan this” opens the scanner with the code already resolved. “Copy” puts the raw QR payload on your clipboard so you can paste it into the release screen's manual field.":
     "“扫这个”会打开扫码页并直接带上该二维码。“复制”会把原始二维码内容复制到剪贴板，方便粘贴到放货页的手动输入栏。",
   "中文": "中文",
+  "Dar floor": "达市仓库",
+  "cleared and waiting to be collected": "票已放行待提",
+  "confirmed and still owed": "已确认，仍欠款",
+  "customers waiting on an answer": "客户等待答复",
+  "nothing wrong here": "一切正常",
+  "open case": "个未结案件",
+  "open cases": "个未结案件",
+  "open ticket": "个待处理工单",
+  "open tickets": "个待处理工单",
+  "registered, waiting to fly": "已登记，等待发运",
+  "standing": "在库待运",
+  "with no photograph": "票无照片",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

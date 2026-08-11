@@ -9,6 +9,8 @@ import {
 } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { chinaProblems, floorSnapshot } from "@/lib/floor";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 
 const MONTHS = [
@@ -352,7 +354,10 @@ export type DeskPulse = {
   tone: "brand" | "signal" | "success" | "warning" | "info";
 };
 
-export async function deskPulse(rate: number | null = null): Promise<DeskPulse[]> {
+export async function deskPulse(
+  rate: number | null = null,
+  locale: Locale = "en"
+): Promise<DeskPulse[]> {
   const [
     chinaStanding,
     chinaNoPhotos,
@@ -393,58 +398,66 @@ export async function deskPulse(rate: number | null = null): Promise<DeskPulse[]
   const owedUsd =
     toNumber(unpaidValue._sum.total ?? 0) - toNumber(unpaidValue._sum.amountPaid ?? 0);
 
+  // A sentence with a count in it can never be looked up whole — the number is
+  // baked in before anything sees the string. Composed from a translated
+  // fragment plus the figure, which is the only way these reach Chinese.
+  const count = (n: number, phrase: string) => `${n} ${t(locale, phrase)}`;
+
   return [
     {
       key: "china",
-      desk: "Guangzhou",
+      desk: t(locale, "Guangzhou"),
       href: "/app/shipments",
       headline: String(chinaStanding),
-      headlineLabel: "standing",
-      detail: "registered, waiting to fly",
+      headlineLabel: t(locale, "standing"),
+      detail: t(locale, "registered, waiting to fly"),
       problem:
         chinaNoPhotos > 0
-          ? `${chinaNoPhotos} with no photograph`
+          ? count(chinaNoPhotos, "with no photograph")
           : null,
       tone: "info",
     },
     {
       key: "dar",
-      desk: "Dar floor",
+      desk: t(locale, "Dar floor"),
       href: "/app/inventory",
       headline: String(darStanding),
-      headlineLabel: "on the floor",
-      detail: `${readyNotCollected} cleared and waiting to be collected`,
+      headlineLabel: t(locale, "on the floor"),
+      detail: count(readyNotCollected, "cleared and waiting to be collected"),
       problem:
         darAging > 0
-          ? `${darAging} past the free storage window`
+          ? count(darAging, "past the free storage window")
           : null,
       tone: "brand",
     },
     {
       key: "finance",
-      desk: "Finance",
+      desk: t(locale, "Finance"),
       href: "/app/finance",
       headline: String(unpaidCount),
-      headlineLabel: "bills unpaid",
-      detail: "confirmed and still owed",
+      headlineLabel: t(locale, unpaidCount === 1 ? "bill unpaid" : "bills unpaid"),
+      detail: t(locale, "confirmed and still owed"),
       // Shillings lead. The owner reads this the way the till does; the dollar
       // figure is what the invoice says and lives on the finance desk's page.
       problem:
         owedUsd > 0
           ? rate
-            ? `TSh ${Math.round(owedUsd * rate).toLocaleString("en-US")} outstanding`
-            : `USD ${owedUsd.toFixed(2)} outstanding`
+            ? `TSh ${Math.round(owedUsd * rate).toLocaleString("en-US")} ${t(locale, "outstanding")}`
+            : `USD ${owedUsd.toFixed(2)} ${t(locale, "outstanding")}`
           : null,
       tone: "warning",
     },
     {
       key: "support",
-      desk: "Support",
+      desk: t(locale, "Support"),
       href: "/app/support",
       headline: String(openTickets),
-      headlineLabel: "open tickets",
-      detail: "customers waiting on an answer",
-      problem: openCases > 0 ? `${openCases} open case${openCases === 1 ? "" : "s"}` : null,
+      headlineLabel: t(locale, openTickets === 1 ? "open ticket" : "open tickets"),
+      detail: t(locale, "customers waiting on an answer"),
+      problem:
+        openCases > 0
+          ? count(openCases, openCases === 1 ? "open case" : "open cases")
+          : null,
       tone: "signal",
     },
   ];

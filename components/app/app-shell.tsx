@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 import { LanguageSwitch } from "@/components/app/language-switch";
-import { LocaleProvider } from "@/components/app/locale-provider";
+import { LocaleProvider, useLocale } from "@/components/app/locale-provider";
 import { NotificationBell } from "@/components/app/notification-bell";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -158,7 +158,7 @@ export function AppShell({
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="h-9 w-9">
               <Menu className="h-5 w-5" />
-              <span className="sr-only">Open navigation</span>
+              <span className="sr-only">{t(user.locale, "Open navigation")}</span>
             </Button>
           </SheetTrigger>
           {/*
@@ -179,7 +179,7 @@ export function AppShell({
             side="left"
             className="flex h-[100dvh] w-[280px] max-w-[85vw] flex-col p-0"
           >
-            <SheetTitle className="sr-only">Navigation</SheetTitle>
+            <SheetTitle className="sr-only">{t(user.locale, "Navigation")}</SheetTitle>
             <div className="flex h-16 shrink-0 items-center border-b px-5">
               <BrandLockup />
             </div>
@@ -250,6 +250,7 @@ export function AppShell({
  * the department they left.
  */
 function MainSiteLink({ compact = false }: { compact?: boolean }) {
+  const locale = useLocale();
   return (
     <Button
       asChild
@@ -262,7 +263,7 @@ function MainSiteLink({ compact = false }: { compact?: boolean }) {
     >
       <Link href="/" title="Open the public website — you stay signed in">
         <Globe className="h-4 w-4" />
-        {compact ? <span className="sr-only">Main site</span> : "Main site"}
+        {compact ? <span className="sr-only">{t(locale, "Main site")}</span> : t(locale, "Main site")}
       </Link>
     </Button>
   );
