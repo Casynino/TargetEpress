@@ -2160,6 +2160,12 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
 // ---------------------------------------------------------------------------
 
 async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
+  // Before the Promise.all, not after it. deskPulse() inside that block reads
+  // `locale`, and a const referenced from a callback that runs first is a
+  // temporal dead zone — TypeScript allows it because the reference sits in a
+  // closure it cannot prove runs early, and the page then dies at runtime.
+  const locale = await viewerLocale();
+
   const [
     stats,
     volume,
@@ -2189,7 +2195,6 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     cashFlowByMonth(),
     receivablesAgeing(),
   ]);
-  const locale = await viewerLocale();
   const execRate = execRateRow ? toNumber(execRateRow.rate) : null;
   const execTsh = (usd: number) =>
     execRate
