@@ -60,7 +60,7 @@ export default async function SourcingRequestPage({
         description={`${request.requestNumber} · ${t(
           locale,
           TYPE_LABEL[request.type] ?? request.type
-        )} · ${t(locale, "opened")} ${formatDateTime(request.createdAt)}`}
+        )} · ${t(locale, "opened")} ${formatDateTime(request.createdAt, locale)}`}
         actions={
           <>
             <Badge variant="outline">

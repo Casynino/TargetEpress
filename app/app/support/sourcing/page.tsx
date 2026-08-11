@@ -135,7 +135,7 @@ export default async function SourcingPage() {
                         ) : null}
                       </div>
                       <p className="mt-2 font-mono text-[10px] text-muted-foreground">
-                        {request.requestNumber} · {formatDate(request.createdAt)}
+                        {request.requestNumber} · {formatDate(request.createdAt, locale)}
                       </p>
                     </Link>
                   </li>

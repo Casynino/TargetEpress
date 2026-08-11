@@ -114,7 +114,7 @@ export default async function ShipmentPage({
     packagesLabel: formatPackagesShort(item.packages, item.packageType),
     status: item.status,
     statusLabel: t(locale, SHIPMENT_STATUS_META[item.status].label),
-    receivedLabel: formatDate(item.registeredAt),
+    receivedLabel: formatDate(item.registeredAt, locale),
     problems: item.exceptions.map((exception) =>
       t(locale, EXCEPTION_TYPE_LABELS[exception.type] ?? exception.type)
     ),
@@ -169,7 +169,7 @@ export default async function ShipmentPage({
       detail: dispatch.createdBy
         ? `${t(locale, "Raised by")} ${dispatch.createdBy.name}`
         : t(locale, "Raised in China"),
-      at: formatDateTime(dispatch.createdAt),
+      at: formatDateTime(dispatch.createdAt, locale),
       done: true,
     },
     {
@@ -178,7 +178,7 @@ export default async function ShipmentPage({
       detail:
         [dispatch.airline, dispatch.flightNumber].filter(Boolean).join(" ") ||
         t(locale, "Flight not recorded"),
-      at: dispatch.departedAt ? formatDateTime(dispatch.departedAt) : "—",
+      at: dispatch.departedAt ? formatDateTime(dispatch.departedAt, locale) : "—",
       done: Boolean(dispatch.departedAt),
     },
     {
@@ -187,7 +187,7 @@ export default async function ShipmentPage({
       detail: dispatch.expectedArrival
         ? t(locale, "What Dar was told to expect")
         : t(locale, "No expected date recorded"),
-      at: dispatch.expectedArrival ? formatDate(dispatch.expectedArrival) : "—",
+      at: dispatch.expectedArrival ? formatDate(dispatch.expectedArrival, locale) : "—",
       done: Boolean(dispatch.expectedArrival),
     },
     {
@@ -196,7 +196,7 @@ export default async function ShipmentPage({
       detail: dispatch.arrivedAt
         ? t(locale, "Confirmed by the Dar warehouse")
         : t(locale, "Not yet confirmed"),
-      at: dispatch.arrivedAt ? formatDateTime(dispatch.arrivedAt) : "—",
+      at: dispatch.arrivedAt ? formatDateTime(dispatch.arrivedAt, locale) : "—",
       done: Boolean(dispatch.arrivedAt),
     },
     {
@@ -205,7 +205,7 @@ export default async function ShipmentPage({
       detail: dispatch.verifiedAt
         ? t(locale, "Every piece accounted for or flagged")
         : t(locale, "Check-in not finished"),
-      at: dispatch.verifiedAt ? formatDateTime(dispatch.verifiedAt) : "—",
+      at: dispatch.verifiedAt ? formatDateTime(dispatch.verifiedAt, locale) : "—",
       done: Boolean(dispatch.verifiedAt),
     },
   ];
@@ -279,9 +279,9 @@ export default async function ShipmentPage({
             { label: t(locale, "Cargo pieces"), value: String(cargo.length) },
             { label: t(locale, "Packages"), value: String(packages) },
             { label: t(locale, "Total weight"), value: `${weight.toFixed(1)} kg` },
-            { label: t(locale, "Departed"), value: formatDate(dispatch.departureDate) },
-            { label: t(locale, "Expected"), value: formatDate(dispatch.expectedArrival) },
-            { label: t(locale, "Arrived"), value: formatDate(dispatch.arrivalDate) },
+            { label: t(locale, "Departed"), value: formatDate(dispatch.departureDate, locale) },
+            { label: t(locale, "Expected"), value: formatDate(dispatch.expectedArrival, locale) },
+            { label: t(locale, "Arrived"), value: formatDate(dispatch.arrivalDate, locale) },
           ].map((stat) => (
             <div key={stat.label} className="bg-card p-4">
               <dt className="text-xs text-muted-foreground">{stat.label}</dt>

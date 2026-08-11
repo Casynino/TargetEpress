@@ -570,7 +570,7 @@ export default async function FinanceOverviewPage() {
                         </span>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell py-2.5 text-xs text-muted-foreground">
-                        {formatRelative(shipment.arrivedAt)}
+                        {formatRelative(shipment.arrivedAt, locale)}
                       </TableCell>
                       <TableCell className="py-2.5 text-right">
                         <span className="whitespace-nowrap font-mono text-sm font-semibold tabular-nums">

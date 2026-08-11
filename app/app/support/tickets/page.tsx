@@ -200,7 +200,7 @@ export default async function TicketsPage({
                 <span className="block">
                   {ticket.assignedTo?.name ?? t(locale, "Unassigned")}
                 </span>
-                <span className="block">{formatDateTime(ticket.createdAt)}</span>
+                <span className="block">{formatDateTime(ticket.createdAt, locale)}</span>
               </div>
             </div>
           </li>
@@ -273,7 +273,7 @@ export default async function TicketsPage({
                   {ticket.assignedTo?.name ?? t(locale, "Unassigned")}
                 </td>
                 <td className="hidden p-3 text-xs text-muted-foreground lg:table-cell">
-                  {formatDateTime(ticket.createdAt)}
+                  {formatDateTime(ticket.createdAt, locale)}
                 </td>
               </tr>
             ))}

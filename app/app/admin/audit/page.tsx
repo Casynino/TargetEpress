@@ -95,7 +95,7 @@ export default async function AuditPage({
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="text-sm">{entry.summary}</p>
                 <span className="font-mono text-xs text-muted-foreground tabular">
-                  {formatDateTime(entry.createdAt)}
+                  {formatDateTime(entry.createdAt, locale)}
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">

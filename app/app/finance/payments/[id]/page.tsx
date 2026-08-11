@@ -115,7 +115,7 @@ export default async function PaymentDetailPage({
       ),
     },
     { label: t(locale, "Taken by"), value: payment.receivedBy?.name ?? "—" },
-    { label: t(locale, "When"), value: formatDateTime(payment.paidAt) },
+    { label: t(locale, "When"), value: formatDateTime(payment.paidAt, locale) },
     {
       label: t(locale, "Ledger line"),
       value: payment.ledgerEntry ? (

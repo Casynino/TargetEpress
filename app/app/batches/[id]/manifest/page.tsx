@@ -133,7 +133,7 @@ export default async function ManifestPage({
                 {t(locale, "Dar es Salaam")}
               </p>
               <p>
-                {t(locale, "Printed")} {formatDateTime(new Date())}
+                {t(locale, "Printed")} {formatDateTime(new Date(), locale)}
               </p>
             </>
           }
@@ -156,8 +156,8 @@ export default async function ManifestPage({
                 : "—",
             },
             { label: "Waybill", value: batch.waybillNumber ?? "—" },
-            { label: "Departed", value: formatDate(batch.departureDate) },
-            { label: "Arrived", value: formatDate(batch.arrivalDate) },
+            { label: "Departed", value: formatDate(batch.departureDate, locale) },
+            { label: "Arrived", value: formatDate(batch.arrivalDate, locale) },
             { label: "Shipments", value: String(batch.shipments.length) },
             { label: "Total packages", value: unitBreakdown || "—" },
             { label: "Total weight", value: formatWeight(totalWeight) },
@@ -208,7 +208,7 @@ export default async function ManifestPage({
               <tr key={shipment.id} className="border-b border-black/15">
                 <td className="py-2 pr-2 tabular">{index + 1}</td>
                 <td className="whitespace-nowrap py-2 pr-2 tabular">
-                  {formatDate(shipment.registeredAt)}
+                  {formatDate(shipment.registeredAt, locale)}
                 </td>
                 <td className="py-2 pr-2 font-mono font-semibold tabular">
                   {shipment.trackingNumber}

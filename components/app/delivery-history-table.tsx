@@ -78,7 +78,7 @@ export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
       header: t("Handed over"),
       sortValue: (row) => new Date(row.releasedAt),
       cell: (row) => (
-        <span className="text-sm tabular">{formatDateTime(row.releasedAt)}</span>
+        <span className="text-sm tabular">{formatDateTime(row.releasedAt, locale)}</span>
       ),
     },
     {
@@ -236,7 +236,7 @@ export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
               {row.trackingNumber}
             </Link>
             <span className="text-xs text-muted-foreground tabular">
-              {formatDateTime(row.releasedAt)}
+              {formatDateTime(row.releasedAt, locale)}
             </span>
           </div>
           <p className="truncate text-sm">{row.customerName}</p>
@@ -271,7 +271,7 @@ function DeliveryDetail({ row }: { row: DeliveryHistoryRow }) {
         <Field label={t("Pickup note")}>
           <span className="font-mono tabular">{row.pickupNoteNumber}</span>
           <span className="mt-0.5 block text-xs text-muted-foreground tabular">
-            {t("Issued")} {formatDateTime(row.pickupNoteIssuedAt)}
+            {t("Issued")} {formatDateTime(row.pickupNoteIssuedAt, locale)}
           </span>
         </Field>
         <Field label={t("Collected by")}>
@@ -298,7 +298,7 @@ function DeliveryDetail({ row }: { row: DeliveryHistoryRow }) {
             </span>
           )}
           <span className="mt-0.5 block text-xs text-muted-foreground tabular">
-            {formatDateTime(row.releasedAt)}
+            {formatDateTime(row.releasedAt, locale)}
           </span>
         </Field>
         {row.note ? (

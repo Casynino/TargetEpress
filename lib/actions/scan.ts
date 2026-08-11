@@ -153,6 +153,11 @@ async function describe(
     receivedAt: Date | null;
   } | null
 ): Promise<ActionResult<ScanResult>> {
+  // Resolved once for the whole payload: the cargo description, the dates and
+  // the pickup-note date all have to come back in the same language, and
+  // viewerLocale is request-cached so asking here costs nothing extra.
+  const locale = await viewerLocale();
+
   const shipment = await prisma.shipment.findUnique({
     where: { id: shipmentId },
     select: {
@@ -221,7 +226,7 @@ async function describe(
 
   const noteActive = shipment.pickupNote?.status === "ACTIVE";
   const deliveredAtLabel = shipment.deliveredAt
-    ? formatDate(shipment.deliveredAt)
+    ? formatDate(shipment.deliveredAt, locale)
     : null;
 
   const canRelease =
@@ -383,10 +388,10 @@ async function describe(
       renderings beside it to show, and falls back to what was typed when there
       is no rendering for their language.
     */
-    description: cargoText(await viewerLocale(), shipment, "description"),
+    description: cargoText(locale, shipment, "description"),
     batchNumber: shipment.batch?.batchNumber ?? null,
     cartonRef: shipment.cartonRef,
-    arrivedAt: shipment.arrivedAt ? formatDate(shipment.arrivedAt) : null,
+    arrivedAt: shipment.arrivedAt ? formatDate(shipment.arrivedAt, locale) : null,
     deliveredAtLabel,
     verdict,
     finance:
@@ -405,7 +410,7 @@ async function describe(
           id: shipment.pickupNote.id,
           noteNumber: shipment.pickupNote.noteNumber,
           status: shipment.pickupNote.status,
-          issuedAt: formatDate(shipment.pickupNote.issuedAt),
+          issuedAt: formatDate(shipment.pickupNote.issuedAt, locale),
           ...(showMoney
             ? {
                 amountPaid: toNumber(shipment.pickupNote.amountPaid),

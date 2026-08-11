@@ -386,7 +386,7 @@ export default async function ShipmentDetailPage({
                           : t(locale, "Receiving")}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {formatDate(photo.createdAt)}
+                      {formatDate(photo.createdAt, locale)}
                       {showInternal && photo.uploadedBy
                         ? ` · ${photo.uploadedBy.name}`
                         : ""}
@@ -452,7 +452,7 @@ export default async function ShipmentDetailPage({
                         ) : null}
                         <span className="text-xs text-muted-foreground">
                           {t(locale, EXCEPTION_STATUS_LABELS[exception.status])} ·{" "}
-                          {formatDateTime(exception.raisedAt)}
+                          {formatDateTime(exception.raisedAt, locale)}
                         </span>
                       </div>
 
@@ -469,7 +469,7 @@ export default async function ShipmentDetailPage({
                               RESOLUTION_TYPE_LABELS[exception.resolutionType]
                             )}
                             {exception.resolvedAt
-                              ? ` · ${formatDate(exception.resolvedAt)}`
+                              ? ` · ${formatDate(exception.resolvedAt, locale)}`
                               : ""}
                           </p>
                           {exception.resolutionNote ? (
@@ -559,7 +559,7 @@ export default async function ShipmentDetailPage({
                       <p className="text-xs text-muted-foreground">
                         {payment.receipt?.receiptNumber} ·{" "}
                         {payment.receivedBy?.name ?? "—"} ·{" "}
-                        {formatDateTime(payment.paidAt)}
+                        {formatDateTime(payment.paidAt, locale)}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -624,7 +624,7 @@ export default async function ShipmentDetailPage({
                   },
                   {
                     label: t(locale, "Released at"),
-                    value: formatDateTime(shipment.delivery.releasedAt),
+                    value: formatDateTime(shipment.delivery.releasedAt, locale),
                   },
                 ].map((item) => (
                   <div key={item.label} className="bg-card p-4">
@@ -649,7 +649,7 @@ export default async function ShipmentDetailPage({
                   <div className="flex flex-wrap items-center gap-2">
                     <ShipmentStatusBadge status={entry.toStatus} />
                     <span className="text-xs text-muted-foreground">
-                      {formatDateTime(entry.createdAt)}
+                      {formatDateTime(entry.createdAt, locale)}
                       {entry.location ? ` · ${entry.location}` : ""}
                     </span>
                   </div>
@@ -762,7 +762,7 @@ export default async function ShipmentDetailPage({
           {showInternal ? (
             <p className="px-1 text-xs text-muted-foreground">
               {t(locale, "Registered by")} {shipment.createdBy?.name ?? "—"}{" "}
-              {t(locale, "on")} {formatDateTime(shipment.registeredAt)}.
+              {t(locale, "on")} {formatDateTime(shipment.registeredAt, locale)}.
             </p>
           ) : null}
 

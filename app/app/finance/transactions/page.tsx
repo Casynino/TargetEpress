@@ -457,7 +457,7 @@ export default async function LedgerPage({
                   </div>
 
                   <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
-                    <span>{formatDate(entry.occurredAt)}</span>
+                    <span>{formatDate(entry.occurredAt, locale)}</span>
                     <span aria-hidden>·</span>
                     <span className="truncate">{entry.account.name}</span>
                     {refs.map((ref) => (
@@ -580,7 +580,7 @@ export default async function LedgerPage({
                     className="group relative cursor-pointer transition-colors hover:bg-accent/40"
                   >
                     <TableCell className="whitespace-nowrap py-2.5 text-xs text-muted-foreground">
-                      {formatDate(entry.occurredAt)}
+                      {formatDate(entry.occurredAt, locale)}
                     </TableCell>
 
                     {/* A floor as well as a ceiling. The table scrolls sideways on a

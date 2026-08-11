@@ -318,7 +318,7 @@ export default async function AccountDetailPage({
                   >
                     {t(locale, ENTRY_LABEL[entry.kind] ?? entry.kind)}
                   </Badge>
-                  <span>{formatDateTime(entry.occurredAt)}</span>
+                  <span>{formatDateTime(entry.occurredAt, locale)}</span>
                   {related ? (
                     <span className="whitespace-nowrap font-mono text-muted-foreground/70">
                       {related}
@@ -396,7 +396,7 @@ export default async function AccountDetailPage({
                 return (
                   <TableRow key={entry.id}>
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {formatDateTime(entry.occurredAt)}
+                      {formatDateTime(entry.occurredAt, locale)}
                     </TableCell>
                     <TableCell>
                       <Badge

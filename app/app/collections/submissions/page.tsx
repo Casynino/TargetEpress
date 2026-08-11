@@ -130,7 +130,7 @@ export default async function SubmissionsPage({
                   </p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     {row.submittedBy?.name ?? "—"} ·{" "}
-                    {formatDateTime(row.submittedAt)}
+                    {formatDateTime(row.submittedAt, locale)}
                   </p>
                 </div>
               </div>
@@ -142,7 +142,7 @@ export default async function SubmissionsPage({
                       {t(locale, "Verified by")}{" "}
                       {row.reviewedBy?.name ?? t(locale, "Finance")}
                       {row.reviewedAt
-                        ? ` ${t(locale, "on")} ${formatDateTime(row.reviewedAt)}`
+                        ? ` ${t(locale, "on")} ${formatDateTime(row.reviewedAt, locale)}`
                         : ""}
                       {row.payment?.receipt
                         ? ` — ${t(locale, "receipt")} ${row.payment.receipt.receiptNumber}`

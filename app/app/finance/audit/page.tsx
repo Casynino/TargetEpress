@@ -127,7 +127,7 @@ export default async function FinanceAuditPage({
                   <p className="text-sm">{entry.summary}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {entry.actor?.name ?? entry.actorEmail ?? t(locale, "System")} ·{" "}
-                    {formatDateTime(entry.createdAt)}
+                    {formatDateTime(entry.createdAt, locale)}
                   </p>
                 </div>
                 <Badge variant="outline" className="shrink-0 font-normal">

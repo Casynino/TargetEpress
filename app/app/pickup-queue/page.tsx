@@ -159,7 +159,7 @@ export default async function PickupQueuePage() {
       ...(showMoney
         ? { amountPaid: toNumber(note.amountPaid), currency: note.currency }
         : {}),
-      issuedAtLabel: formatDateTime(note.issuedAt),
+      issuedAtLabel: formatDateTime(note.issuedAt, locale),
       issuedAtMs: note.issuedAt.getTime(),
       issuedByName: note.issuedBy?.name ?? null,
       waitingMs,
@@ -179,7 +179,7 @@ export default async function PickupQueuePage() {
       packagesTotal,
       missingPackages,
       shipmentStatus: shipment.status,
-      arrivedAtLabel: shipment.arrivedAt ? formatDate(shipment.arrivedAt) : null,
+      arrivedAtLabel: shipment.arrivedAt ? formatDate(shipment.arrivedAt, locale) : null,
       storageDays: storageDaysFor(shipment.arrivedAt, null, now),
       blockers,
       ready: blockers.length === 0,

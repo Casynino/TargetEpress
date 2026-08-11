@@ -528,7 +528,7 @@ export default async function WarehouseReportsPage({
                     </TableCell>
                     <TableCell className="text-sm">{row.customerName}</TableCell>
                     <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">
-                      {formatDate(row.arrivedAt)}
+                      {formatDate(row.arrivedAt, locale)}
                     </TableCell>
                     <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
                       {formatPackages(row.packages, row.packageType)}

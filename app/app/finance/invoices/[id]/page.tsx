@@ -235,9 +235,9 @@ export default async function InvoicePage({
 
       <InvoiceDocument
         invoiceNumber={invoice.invoiceNumber}
-        issuedOn={formatDate(invoice.issuedAt)}
-        dueOn={invoice.dueDate ? formatDate(invoice.dueDate) : null}
-        issuedAtLabel={formatDateTime(invoice.issuedAt)}
+        issuedOn={formatDate(invoice.issuedAt, locale)}
+        dueOn={invoice.dueDate ? formatDate(invoice.dueDate, locale) : null}
+        issuedAtLabel={formatDateTime(invoice.issuedAt, locale)}
         issuedByName={invoice.issuedBy?.name ?? null}
         customer={{
           name: invoice.customer.name,
@@ -276,7 +276,7 @@ export default async function InvoicePage({
             payment.receipt?.receiptNumber,
             t(locale, PAYMENT_METHOD_LABELS[payment.method]),
             payment.reference,
-            formatDate(payment.paidAt),
+            formatDate(payment.paidAt, locale),
           ]
             .filter(Boolean)
             .join(" · "),

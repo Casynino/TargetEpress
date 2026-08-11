@@ -151,7 +151,7 @@ export default async function EditCargoPage({
               {history.map((entry) => (
                 <li key={entry.id} className="px-5 py-3">
                   <p className="text-xs text-muted-foreground">
-                    {entry.actorName} · {formatDateTime(entry.createdAt)}
+                    {entry.actorName} · {formatDateTime(entry.createdAt, locale)}
                   </p>
                   <p className="mt-1 text-sm">
                     <span className="font-medium">{t(locale, entry.label)}</span>{" "}

@@ -129,8 +129,8 @@ export async function GET(
 
   const pdf = renderInvoicePdf({
     invoiceNumber: invoice.invoiceNumber,
-    issuedOn: formatDate(invoice.issuedAt),
-    dueOn: invoice.dueDate ? formatDate(invoice.dueDate) : null,
+    issuedOn: formatDate(invoice.issuedAt, locale),
+    dueOn: invoice.dueDate ? formatDate(invoice.dueDate, locale) : null,
     status: invoice.status,
 
     customerName: invoice.customer.name,

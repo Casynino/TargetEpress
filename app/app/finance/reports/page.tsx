@@ -239,7 +239,7 @@ export default async function FinanceReportsPage({
                       </Link>
                       <p className="text-xs text-muted-foreground">
                         {batch.departedAt
-                          ? `${t(locale, "flew")} ${formatDate(batch.departedAt)}`
+                          ? `${t(locale, "flew")} ${formatDate(batch.departedAt, locale)}`
                           : t(locale, "not departed")}
                         {" · "}
                         {formatUsd(batch.revenue)} {t(locale, "in")}

@@ -64,7 +64,7 @@ export default async function PickupNotePage({
   const data: PickupSlipData = {
     noteNumber: note.noteNumber,
     status: note.status,
-    issuedOn: formatDate(note.issuedAt),
+    issuedOn: formatDate(note.issuedAt, locale),
     trackingNumber: note.shipment.trackingNumber,
     customerName: note.customer.name,
     customerPhone: note.customer.phone,

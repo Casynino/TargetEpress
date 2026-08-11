@@ -170,7 +170,7 @@ export default async function SupportSearchPage({
                         {shipment.trackingNumber}
                       </Link>
                       <div className="text-[11px] text-muted-foreground">
-                        {formatDate(shipment.arrivedAt)}
+                        {formatDate(shipment.arrivedAt, locale)}
                       </div>
                     </td>
                     <td className="p-3">

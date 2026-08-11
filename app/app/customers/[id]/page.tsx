@@ -100,7 +100,7 @@ export default async function CustomerProfilePage({
         title={customer.name}
         description={`${customer.code}${customer.city ? ` · ${customer.city}` : ""}${
           customer.createdAt
-            ? ` · ${t(locale, "customer since")} ${formatDate(customer.createdAt)}`
+            ? ` · ${t(locale, "customer since")} ${formatDate(customer.createdAt, locale)}`
             : ""
         }`}
         actions={
@@ -225,7 +225,7 @@ export default async function CustomerProfilePage({
                     </div>
 
                     <p className="mt-2 text-[11px] text-muted-foreground">
-                      {t(locale, "Registered")} {formatDate(shipment.registeredAt)}
+                      {t(locale, "Registered")} {formatDate(shipment.registeredAt, locale)}
                     </p>
 
                     {showMoney ? (
@@ -385,7 +385,7 @@ export default async function CustomerProfilePage({
                           </td>
                         ) : null}
                         <td className="hidden p-3 text-xs text-muted-foreground lg:table-cell">
-                          {formatDate(shipment.registeredAt)}
+                          {formatDate(shipment.registeredAt, locale)}
                         </td>
                       </tr>
                     );
@@ -422,7 +422,7 @@ export default async function CustomerProfilePage({
                     </Badge>
                     <span className="text-xs text-muted-foreground">
                       {t(locale, CHANNEL_LABELS[message.channel] ?? message.channel)} ·{" "}
-                      {formatDateTime(message.sentAt)}
+                      {formatDateTime(message.sentAt, locale)}
                       {message.sentBy ? ` · ${message.sentBy.name}` : ""}
                       {message.shipment ? ` · ${message.shipment.trackingNumber}` : ""}
                     </span>
@@ -452,7 +452,7 @@ export default async function CustomerProfilePage({
                     <div>
                       <p className="font-mono text-xs">{note.noteNumber}</p>
                       <p className="text-xs text-muted-foreground">
-                        {note.shipment.trackingNumber} · {formatDate(note.issuedAt)}
+                        {note.shipment.trackingNumber} · {formatDate(note.issuedAt, locale)}
                       </p>
                     </div>
                     <Badge variant="outline" className="text-[10px]">

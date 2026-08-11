@@ -1,5 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { format, formatDistanceToNowStrict } from "date-fns";
+import { zhCN } from "date-fns/locale";
+
+import type { Locale } from "@/lib/locale";
 
 type Numeric = number | string | Prisma.Decimal | null | undefined;
 
@@ -48,19 +51,51 @@ export function formatWeight(value: Numeric) {
   })} kg`;
 }
 
-export function formatDate(value: Date | string | null | undefined) {
-  if (!value) return "—";
-  return format(new Date(value), "dd MMM yyyy");
+/**
+ * Dates in the reader's language.
+ *
+ * A screen can be entirely Chinese and still say "12 Jul 2026" and "3 hours
+ * ago", because a date is formatted rather than written and never passes
+ * through the dictionary. date-fns carries the month names and the relative
+ * phrasing, so the locale only has to reach this far.
+ *
+ * The parameter is optional and defaults to English: sixty-odd call sites
+ * format a date, most of them in components with no reason to know about
+ * language, and a required argument would have been a rename disguised as a
+ * translation. Callers that know the reader pass it; the rest keep working.
+ */
+function dfns(locale: Locale) {
+  return locale === "zh" ? { locale: zhCN } : undefined;
 }
 
-export function formatDateTime(value: Date | string | null | undefined) {
+export function formatDate(
+  value: Date | string | null | undefined,
+  locale: Locale = "en"
+) {
   if (!value) return "—";
-  return format(new Date(value), "dd MMM yyyy, HH:mm");
+  return format(new Date(value), locale === "zh" ? "yyyy年M月d日" : "dd MMM yyyy", dfns(locale));
 }
 
-export function formatRelative(value: Date | string | null | undefined) {
+export function formatDateTime(
+  value: Date | string | null | undefined,
+  locale: Locale = "en"
+) {
   if (!value) return "—";
-  return `${formatDistanceToNowStrict(new Date(value))} ago`;
+  return format(
+    new Date(value),
+    locale === "zh" ? "yyyy年M月d日 HH:mm" : "dd MMM yyyy, HH:mm",
+    dfns(locale)
+  );
+}
+
+export function formatRelative(
+  value: Date | string | null | undefined,
+  locale: Locale = "en"
+) {
+  if (!value) return "—";
+  const distance = formatDistanceToNowStrict(new Date(value), dfns(locale));
+  // Chinese puts the "ago" in front — 3 小时前, not 3 小时 前.
+  return locale === "zh" ? `${distance}前` : `${distance} ago`;
 }
 
 /**

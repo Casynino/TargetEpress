@@ -80,7 +80,7 @@ export default async function LabelPage({
         shipment.packageType
       ),
       weightLabel: formatWeight(shipment.weightKg),
-      registeredOn: formatDate(shipment.registeredAt),
+      registeredOn: formatDate(shipment.registeredAt, locale),
       sequence: pkg.sequence,
       packageRef: pkg.reference,
       // 500px across a 58mm square is ~11 pixels per QR module — matched to

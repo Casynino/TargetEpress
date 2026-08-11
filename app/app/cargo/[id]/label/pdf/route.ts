@@ -69,7 +69,7 @@ export async function GET(
         shipment.packageList.length,
         shipment.packageType
       ),
-      registeredOn: formatDate(shipment.registeredAt),
+      registeredOn: formatDate(shipment.registeredAt, locale),
       sequence: pkg.sequence,
       packages: shipment.packageList.length,
       // 500px across a 58mm square is ~11 pixels per QR module — matched to

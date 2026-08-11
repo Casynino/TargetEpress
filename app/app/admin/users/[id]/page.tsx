@@ -105,10 +105,10 @@ export default async function EmployeeProfilePage({
           roleLabel: ROLE_LABELS[person.role],
           rankLabel: person.rank ? RANK_LABELS[person.rank] : null,
           photoUrl: person.photoUrl,
-          joinedLabel: formatDate(person.joinedAt),
+          joinedLabel: formatDate(person.joinedAt, locale),
           online: isOnline(person.lastActiveAt),
           lastSeenLabel: person.lastActiveAt
-            ? formatRelative(person.lastActiveAt)
+            ? formatRelative(person.lastActiveAt, locale)
             : null,
           status: person.status,
         }}
@@ -195,13 +195,13 @@ export default async function EmployeeProfilePage({
                 {
                   label: "Last sign-in",
                   value: person.lastLoginAt
-                    ? formatDateTime(person.lastLoginAt)
+                    ? formatDateTime(person.lastLoginAt, locale)
                     : t(locale, "Never"),
                 },
                 {
                   label: "Last active",
                   value: person.lastActiveAt
-                    ? formatRelative(person.lastActiveAt)
+                    ? formatRelative(person.lastActiveAt, locale)
                     : t(locale, "Never"),
                 },
                 { label: "Edits made", value: String(edits) },

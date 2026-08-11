@@ -631,7 +631,7 @@ export default async function SupportHome() {
                       <p className="text-xs text-muted-foreground">
                         <span className="font-mono">{ticket.ticketNumber}</span> ·{" "}
                         {ticket.customer?.name ?? ticket.contactName ?? t(locale, "Unknown caller")}{" "}
-                        · {formatDateTime(ticket.createdAt)}
+                        · {formatDateTime(ticket.createdAt, locale)}
                       </p>
                     </div>
                     <Badge

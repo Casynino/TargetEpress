@@ -121,7 +121,7 @@ export default async function RequestsPage() {
                     ) : null}
                     {booking.wantedBy ? (
                       <span>
-                        {t(locale, "Wanted by")} {formatDate(booking.wantedBy)}
+                        {t(locale, "Wanted by")} {formatDate(booking.wantedBy, locale)}
                       </span>
                     ) : null}
                   </dl>
@@ -133,7 +133,7 @@ export default async function RequestsPage() {
                   ) : null}
 
                   <p className="mt-2 text-[11px] text-muted-foreground">
-                    {formatRelative(booking.createdAt)}
+                    {formatRelative(booking.createdAt, locale)}
                     {booking.handledBy ? ` · ${booking.handledBy.name}` : ""}
                   </p>
                 </li>
@@ -216,7 +216,7 @@ export default async function RequestsPage() {
                     ) : null}
                     {pickup.preferredAt ? (
                       <span>
-                        {t(locale, "Prefers")} {formatDate(pickup.preferredAt)}
+                        {t(locale, "Prefers")} {formatDate(pickup.preferredAt, locale)}
                       </span>
                     ) : null}
                   </dl>
@@ -228,7 +228,7 @@ export default async function RequestsPage() {
                   ) : null}
 
                   <p className="mt-2 text-[11px] text-muted-foreground">
-                    {formatRelative(pickup.createdAt)}
+                    {formatRelative(pickup.createdAt, locale)}
                     {pickup.handledBy ? ` · ${pickup.handledBy.name}` : ""}
                   </p>
                 </li>

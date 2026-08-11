@@ -119,7 +119,7 @@ export default async function InventoryPage() {
       batchNumber: shipment.batch?.batchNumber ?? null,
       cartonRef: shipment.cartonRef,
       arrivedLabel: shipment.arrivedAt
-        ? formatDate(shipment.arrivedAt)
+        ? formatDate(shipment.arrivedAt, locale)
         : t(locale, "Not recorded"),
       arrivedIso: shipment.arrivedAt ? shipment.arrivedAt.toISOString() : null,
       daysHeld: shipment.arrivedAt
@@ -128,7 +128,7 @@ export default async function InventoryPage() {
       openExceptions: shipment.exceptions.length,
       paid,
       pickupNoteNumber: paid ? (note?.noteNumber ?? null) : null,
-      clearedLabel: paid && note ? formatDate(note.issuedAt) : null,
+      clearedLabel: paid && note ? formatDate(note.issuedAt, locale) : null,
     };
   });
 

@@ -85,9 +85,9 @@ export default async function MyProfilePage() {
           roleLabel: ROLE_LABELS[me.role],
           rankLabel: me.rank ? RANK_LABELS[me.rank] : null,
           photoUrl: me.photoUrl,
-          joinedLabel: formatDate(me.joinedAt),
+          joinedLabel: formatDate(me.joinedAt, locale),
           online: isOnline(me.lastActiveAt),
-          lastSeenLabel: me.lastActiveAt ? formatRelative(me.lastActiveAt) : null,
+          lastSeenLabel: me.lastActiveAt ? formatRelative(me.lastActiveAt, locale) : null,
           status: me.status,
         }}
         actions={
@@ -140,7 +140,7 @@ export default async function MyProfilePage() {
             <div className="border-b px-5 py-4">
               <h2 className="font-display font-semibold">{t(locale, "All time")}</h2>
               <p className="text-xs text-muted-foreground">
-                Since {formatDate(me.joinedAt)}
+                Since {formatDate(me.joinedAt, locale)}
               </p>
             </div>
             <dl className="grid gap-px bg-border sm:grid-cols-3">

@@ -375,7 +375,7 @@ export default async function ExpensesPage({
                               </>
                             ) : null}
                             <span>·</span>
-                            <span>{formatDate(expense.incurredAt)}</span>
+                            <span>{formatDate(expense.incurredAt, locale)}</span>
                             {expense.batch ? (
                               <>
                                 <span>·</span>
@@ -428,7 +428,7 @@ export default async function ExpensesPage({
                         <p className="mt-1.5 text-xs text-muted-foreground">
                           {t(locale, "Paid from")} {expense.account.name}
                           {expense.paidAt
-                            ? ` ${t(locale, "on")} ${formatDate(expense.paidAt)}`
+                            ? ` ${t(locale, "on")} ${formatDate(expense.paidAt, locale)}`
                             : ""}
                         </p>
                       ) : null}

@@ -278,7 +278,7 @@ export default async function CollectionsHome() {
                         {formatMoney(toNumber(row.amount), row.currency)}
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        {formatRelative(row.submittedAt)}
+                        {formatRelative(row.submittedAt, locale)}
                       </p>
                     </div>
                   </Link>

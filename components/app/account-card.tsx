@@ -166,7 +166,7 @@ export async function AccountCard({
             <span className="ml-auto text-[11px] text-muted-foreground">
               {entries}{" "}
               {entries === 1 ? t(locale, "movement") : t(locale, "movements")}
-              {lastMovedAt ? ` · ${formatRelative(lastMovedAt)}` : ""}
+              {lastMovedAt ? ` · ${formatRelative(lastMovedAt, locale)}` : ""}
             </span>
           </div>
         ) : (

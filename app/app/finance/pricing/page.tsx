@@ -165,7 +165,7 @@ export default async function PricingConfigurationPage() {
         ? `1 USD = ${toNumber(rate.rate).toLocaleString()} TZS`
         : t(locale, "Not set"),
       sub: liveRate
-        ? `${t(locale, "Set")} ${formatRelative(liveRate.effectiveFrom)}`
+        ? `${t(locale, "Set")} ${formatRelative(liveRate.effectiveFrom, locale)}`
         : t(locale, "Every invoice needs one"),
       tone: rate ? "text-brand" : "text-destructive",
     },
@@ -189,10 +189,10 @@ export default async function PricingConfigurationPage() {
       icon: Clock,
       label: t(locale, "Last price change"),
       value: lastPriceChange
-        ? formatRelative(lastPriceChange.effectiveFrom)
+        ? formatRelative(lastPriceChange.effectiveFrom, locale)
         : t(locale, "Never"),
       sub: lastPriceChange
-        ? formatDateTime(lastPriceChange.effectiveFrom)
+        ? formatDateTime(lastPriceChange.effectiveFrom, locale)
         : t(locale, "No rule published yet"),
       tone: "text-foreground",
     },
@@ -201,7 +201,7 @@ export default async function PricingConfigurationPage() {
       label: t(locale, "Rate last set by"),
       value: liveRate?.setBy?.name ?? "—",
       sub: liveRate
-        ? formatDateTime(liveRate.effectiveFrom)
+        ? formatDateTime(liveRate.effectiveFrom, locale)
         : t(locale, "No rate on record"),
       tone: "text-foreground",
     },
@@ -320,7 +320,7 @@ export default async function PricingConfigurationPage() {
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {entry.setBy?.name ?? "—"} ·{" "}
-                        {formatRelative(entry.effectiveFrom)}
+                        {formatRelative(entry.effectiveFrom, locale)}
                       </span>
                     </li>
                   ))}
@@ -349,7 +349,7 @@ export default async function PricingConfigurationPage() {
                     <p className="text-sm">{entry.summary}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {entry.actor?.name ?? t(locale, "System")} ·{" "}
-                      {formatRelative(entry.createdAt)}
+                      {formatRelative(entry.createdAt, locale)}
                     </p>
                   </li>
                 ))}

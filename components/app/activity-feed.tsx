@@ -115,8 +115,8 @@ export async function ActivityFeed({
                   <p className="text-sm leading-snug">{entry.summary}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {showActor
-                      ? `${entry.actorName ?? t(locale, "System")} · ${formatRelative(entry.createdAt)}`
-                      : formatRelative(entry.createdAt)}
+                      ? `${entry.actorName ?? t(locale, "System")} · ${formatRelative(entry.createdAt, locale)}`
+                      : formatRelative(entry.createdAt, locale)}
                   </p>
                 </div>
               </li>

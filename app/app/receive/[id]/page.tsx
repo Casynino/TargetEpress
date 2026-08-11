@@ -75,7 +75,7 @@ export default async function VerifyBatchPage({
     <>
       <PageHeader
         title={`${t(locale, "Check in")} ${batch.batchNumber}`}
-        description={`${t(locale, ORIGIN_LABELS[batch.origin])} · ${batch.airline ?? "—"} ${batch.flightNumber ?? ""} · ${t(locale, "arrived")} ${formatDate(batch.arrivalDate)}`}
+        description={`${t(locale, ORIGIN_LABELS[batch.origin])} · ${batch.airline ?? "—"} ${batch.flightNumber ?? ""} · ${t(locale, "arrived")} ${formatDate(batch.arrivalDate, locale)}`}
         actions={
           <>
             <BatchStatusBadge status={batch.status} />

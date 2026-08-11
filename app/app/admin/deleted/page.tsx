@@ -98,7 +98,7 @@ export default async function DeletedRecordsPage() {
                   {t(locale, "Deleted by")}{" "}
                   {cargo.deletedBy?.name ??
                     t(locale, "someone no longer on the system")}
-                  {cargo.deletedAt ? ` · ${formatDateTime(cargo.deletedAt)}` : ""}
+                  {cargo.deletedAt ? ` · ${formatDateTime(cargo.deletedAt, locale)}` : ""}
                 </p>
               </div>
 

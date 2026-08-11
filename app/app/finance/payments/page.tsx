@@ -264,7 +264,7 @@ export default async function PaymentsPage() {
                       {t(locale, "When")}
                     </dt>
                     <dd className="mt-0.5 text-muted-foreground">
-                      {formatDateTime(payment.paidAt)}
+                      {formatDateTime(payment.paidAt, locale)}
                     </dd>
                   </div>
                   <div>
@@ -391,7 +391,7 @@ export default async function PaymentsPage() {
                       {payment.receivedBy?.name ?? "—"}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                      {formatDateTime(payment.paidAt)}
+                      {formatDateTime(payment.paidAt, locale)}
                     </TableCell>
                   </TableRow>
                 ))}

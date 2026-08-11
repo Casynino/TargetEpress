@@ -70,7 +70,7 @@ export async function PendingSubmissionNotice({
                 {s.submittedByName ?? t(locale, "Customer Support")}
               </span>{" "}
               <span className="text-muted-foreground">
-                {formatRelative(s.submittedAt)}
+                {formatRelative(s.submittedAt, locale)}
               </span>
             </p>
 

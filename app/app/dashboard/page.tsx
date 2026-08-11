@@ -777,7 +777,7 @@ async function ChinaDashboard({
                             ? t(locale, "Loading")
                             : t(locale, "Sealed")}{" "}
                           ·{" "}
-                          {formatRelative(batch.createdAt)}
+                          {formatRelative(batch.createdAt, locale)}
                         </span>
                       </div>
                       <p className="mt-1.5 text-xs text-muted-foreground tabular">
@@ -1392,10 +1392,10 @@ async function DarDashboard({
                         {arrived
                           ? `${t(locale, "landed")} ${formatRelative(
                               batch.arrivedAt
-                            )}`
+                            , locale)}`
                           : `${t(locale, "departed")} ${formatRelative(
                               batch.departureDate
-                            )}`}
+                            , locale)}`}
                       </p>
                       {arrived ? (
                         <>
@@ -2138,7 +2138,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                           )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap py-2.5 text-right text-xs text-muted-foreground">
-                          {formatRelative(shipment.arrivedAt)}
+                          {formatRelative(shipment.arrivedAt, locale)}
                         </TableCell>
                       </TableRow>
                     );
@@ -2546,7 +2546,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
                     {shipment.trackingNumber}
                   </Link>
                   <span className="text-xs text-muted-foreground">
-                    {formatRelative(shipment.arrivedAt)}
+                    {formatRelative(shipment.arrivedAt, locale)}
                   </span>
                 </li>
               ))

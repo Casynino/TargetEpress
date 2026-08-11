@@ -67,7 +67,7 @@ export default async function TicketPage({
 
       <PageHeader
         title={ticket.subject}
-        description={`${ticket.ticketNumber} · ${t(locale, "opened")} ${formatDateTime(ticket.createdAt)}${
+        description={`${ticket.ticketNumber} · ${t(locale, "opened")} ${formatDateTime(ticket.createdAt, locale)}${
           ticket.openedBy ? ` ${t(locale, "by")} ${ticket.openedBy.name}` : ""
         }`}
         actions={
@@ -104,7 +104,7 @@ export default async function TicketPage({
                   <p className="whitespace-pre-wrap text-sm">{note.body}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {note.author?.name ?? t(locale, "Someone")} ·{" "}
-                    {formatDateTime(note.createdAt)}
+                    {formatDateTime(note.createdAt, locale)}
                   </p>
                 </li>
               ))}
@@ -127,7 +127,7 @@ export default async function TicketPage({
               <p className="mt-2 whitespace-pre-wrap text-sm">{ticket.resolution}</p>
               {ticket.resolvedAt ? (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {t(locale, "Closed")} {formatDateTime(ticket.resolvedAt)}
+                  {t(locale, "Closed")} {formatDateTime(ticket.resolvedAt, locale)}
                 </p>
               ) : null}
             </section>

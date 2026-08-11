@@ -77,7 +77,7 @@ export default async function BatchStickersPage({
         packages: item.packageList.length,
         packagesLabel: formatPackages(item.packageList.length, item.packageType),
         weightLabel: formatWeight(item.weightKg),
-        registeredOn: formatDate(item.registeredAt),
+        registeredOn: formatDate(item.registeredAt, locale),
         sequence: pkg.sequence,
         packageRef: pkg.reference,
         // 500px per code: this page can hold 150 of them, and each one is a

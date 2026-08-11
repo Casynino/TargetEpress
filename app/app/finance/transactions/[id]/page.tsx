@@ -100,11 +100,11 @@ export default async function LedgerEntryPage({
         </Link>
       ),
     },
-    { label: "When the money moved", value: formatDateTime(entry.occurredAt) },
+    { label: "When the money moved", value: formatDateTime(entry.occurredAt, locale) },
     { label: "Recorded by", value: entry.recordedBy?.name ?? "—" },
     {
       label: "Written",
-      value: formatDateTime(entry.createdAt),
+      value: formatDateTime(entry.createdAt, locale),
     },
   ];
 
@@ -121,7 +121,7 @@ export default async function LedgerEntryPage({
       { label: "Paid to", value: entry.expense.vendor ?? "—" },
       {
         label: "Cost incurred",
-        value: formatDateTime(entry.expense.incurredAt),
+        value: formatDateTime(entry.expense.incurredAt, locale),
       }
     );
     if (entry.expense.batch) {

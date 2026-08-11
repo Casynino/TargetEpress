@@ -310,7 +310,7 @@ export default async function AccountsPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {count.countedBy?.name ?? "—"} ·{" "}
-                      {formatRelative(count.countedAt)}
+                      {formatRelative(count.countedAt, locale)}
                       {count.note ? ` · ${count.note}` : ""}
                     </p>
                   </div>

@@ -308,7 +308,7 @@ export default async function LoadingTablePage({
                   SHIPMENT_STATUS_META[shipment.status].label
                 ),
                 receivedBy: shipment.createdBy?.name ?? null,
-                receivedLabel: formatDate(shipment.registeredAt),
+                receivedLabel: formatDate(shipment.registeredAt, locale),
                 receivedAt: shipment.registeredAt.toISOString(),
                 photos: shipment.photos,
               }))}

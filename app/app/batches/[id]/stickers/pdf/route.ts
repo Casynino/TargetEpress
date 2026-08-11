@@ -97,7 +97,7 @@ export async function GET(
           item.packageList.length,
           item.packageType
         ),
-        registeredOn: formatDate(item.registeredAt),
+        registeredOn: formatDate(item.registeredAt, locale),
         sequence: pkg.sequence,
         packages: item.packageList.length,
         qr: await packageQrDataUrl(pkg.qrToken, 500),

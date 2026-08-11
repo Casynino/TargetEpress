@@ -128,7 +128,7 @@ export async function VerifyQueue() {
                         },
                         {
                           label: t(locale, "Submitted"),
-                          value: `${row.submittedBy?.name ?? "—"} · ${formatDateTime(row.submittedAt)}`,
+                          value: `${row.submittedBy?.name ?? "—"} · ${formatDateTime(row.submittedAt, locale)}`,
                         },
                       ].map((fact) => (
                         <div key={fact.label}>

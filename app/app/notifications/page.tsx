@@ -82,7 +82,7 @@ export default async function NotificationsPage() {
                     </p>
                   ) : null}
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    {formatRelative(row.createdAt)}
+                    {formatRelative(row.createdAt, locale)}
                   </p>
                 </div>
                 {row.href ? (

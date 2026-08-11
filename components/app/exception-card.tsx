@@ -244,7 +244,7 @@ export function ExceptionCard({
               : t(locale, "Closed")}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {formatDateTime(exception.raisedAt)}
+            {formatDateTime(exception.raisedAt, locale)}
           </p>
         </div>
       </div>
@@ -279,7 +279,7 @@ export function ExceptionCard({
                 {exception.batch.waybillNumber
                   ? `AWB ${exception.batch.waybillNumber} · `
                   : ""}
-                {t(locale, "landed")} {formatDate(exception.batch.arrivalDate)}
+                {t(locale, "landed")} {formatDate(exception.batch.arrivalDate, locale)}
               </p>
             </>
           ) : (
@@ -357,9 +357,9 @@ export function ExceptionCard({
       <div className="border-t px-4 py-3 sm:px-5">
         <p className="text-xs text-muted-foreground">
           {t(locale, "Raised by")} {exception.raisedByName ?? "—"}{" "}
-          {t(locale, "on")} {formatDateTime(exception.raisedAt)}
+          {t(locale, "on")} {formatDateTime(exception.raisedAt, locale)}
           {exception.resolvedAt
-            ? ` · ${t(locale, "closed by")} ${exception.resolvedByName ?? "—"} ${t(locale, "on")} ${formatDateTime(exception.resolvedAt)}`
+            ? ` · ${t(locale, "closed by")} ${exception.resolvedByName ?? "—"} ${t(locale, "on")} ${formatDateTime(exception.resolvedAt, locale)}`
             : ""}
         </p>
 

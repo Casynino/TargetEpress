@@ -133,11 +133,11 @@ export default async function ShipmentsPage() {
     waybillNumber: dispatch.waybillNumber,
     airline: dispatch.airline,
     flightNumber: dispatch.flightNumber,
-    departedLabel: dispatch.departureDate ? formatDate(dispatch.departureDate) : null,
+    departedLabel: dispatch.departureDate ? formatDate(dispatch.departureDate, locale) : null,
     expectedLabel: dispatch.expectedArrival
-      ? formatDate(dispatch.expectedArrival)
+      ? formatDate(dispatch.expectedArrival, locale)
       : null,
-    arrivedLabel: dispatch.arrivalDate ? formatDate(dispatch.arrivalDate) : null,
+    arrivedLabel: dispatch.arrivalDate ? formatDate(dispatch.arrivalDate, locale) : null,
     flagged: dispatch.shipments.filter((c) => c.exceptions.length > 0).length,
     money: showMoney ? moneyFor(dispatch.shipments) : null,
   }));

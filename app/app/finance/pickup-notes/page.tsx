@@ -168,7 +168,7 @@ export default async function PickupNotesPage({
           <Clock className="h-3.5 w-3.5 text-warning" />
           {t(locale, "Oldest has been waiting")}{" "}
           <span className="font-medium text-foreground">
-            {formatRelative(oldest)}
+            {formatRelative(oldest, locale)}
           </span>{" "}
           {t(locale, "— storage runs the whole time the cargo is on our floor.")}
         </p>
@@ -265,11 +265,11 @@ export default async function PickupNotesPage({
                     <TableCell className="hidden whitespace-nowrap py-2.5 text-right text-xs sm:table-cell">
                       {waiting ? (
                         <span className="font-medium text-warning">
-                          {formatRelative(note.issuedAt)}
+                          {formatRelative(note.issuedAt, locale)}
                         </span>
                       ) : (
                         <span className="text-muted-foreground">
-                          {formatDate(note.issuedAt)}
+                          {formatDate(note.issuedAt, locale)}
                         </span>
                       )}
                     </TableCell>
