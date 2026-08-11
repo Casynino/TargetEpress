@@ -125,7 +125,10 @@ export function AppShell({
             <BrandLockup />
           </Link>
         </div>
-        <NavList sections={sections} className="flex-1 overflow-y-auto p-3" />
+        <NavList
+          sections={sections}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
+        />
         <UserPanel user={user} unread={unreadNotifications} />
       </aside>
 
@@ -147,14 +150,36 @@ export function AppShell({
               <span className="sr-only">Open navigation</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-[270px] p-0">
+          {/*
+            A column, the same way the desktop sidebar is one.
+
+            This was three blocks stacked in a plain div: a header, the whole
+            nav at its natural height, and the user panel after it. With eight
+            groups in an admin menu that is taller than a phone, so the nav ran
+            off the bottom of the sheet and took Sign out with it — visible on
+            no portal, on any phone, and worst on the roles with the most rows.
+
+            `100dvh`, not `h-full`. A mobile browser's layout viewport includes
+            the strip behind its own collapsing address bar and toolbar, so a
+            sheet sized to it puts its last 60-odd pixels underneath the
+            browser chrome. The dynamic unit tracks what is actually on screen.
+          */}
+          <SheetContent
+            side="left"
+            className="flex h-[100dvh] w-[280px] max-w-[85vw] flex-col p-0"
+          >
             <SheetTitle className="sr-only">Navigation</SheetTitle>
-            <div className="flex h-16 items-center border-b px-5">
+            <div className="flex h-16 shrink-0 items-center border-b px-5">
               <BrandLockup />
             </div>
+            {/*
+              `overscroll-contain` so reaching the end of the menu does not
+              start scrolling the page behind the sheet — which on a phone
+              reads as the whole app sliding around under your thumb.
+            */}
             <NavList
               sections={sections}
-              className="p-3"
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
               onNavigate={() => setMobileOpen(false)}
             />
             <UserPanel user={user} unread={unreadNotifications} />
@@ -305,7 +330,10 @@ function NavList({
                     href={item.href}
                     onClick={onNavigate}
                     className={cn(
-                      "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
+                      // min-h-11 on a phone: 36px rows are a miss-tap away
+                      // from each other, and this menu is used one-handed on a
+                      // warehouse floor. Desktop keeps the tighter rhythm.
+                      "flex min-h-11 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors lg:min-h-0",
                       active
                         ? "bg-brand/10 font-medium text-brand"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -333,12 +361,21 @@ function UserPanel({
   unread?: number;
 }) {
   return (
-    <div className="border-t p-3">
+    /*
+      Never scrolls away, and never sits under a phone's home indicator.
+
+      `shrink-0` is what keeps it on screen when the menu above it is long —
+      without it a flex column hands the panel's height to the nav and pushes
+      Sign out past the bottom edge. The safe-area padding is the difference
+      between a button you can press and one that is technically visible
+      underneath the gesture bar.
+    */
+    <div className="shrink-0 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       {/* The whole block is a link to the profile — the photo is the obvious
           thing to press for "my stuff", and it is where people reach first. */}
       <Link
         href="/app/profile"
-        className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent"
+        className="flex min-h-11 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent"
       >
         <span className="relative shrink-0">
           {user.photoUrl ? (
@@ -374,10 +411,18 @@ function UserPanel({
       </div>
       <Separator className="my-2" />
       <form action={logoutAction}>
+        {/*
+          Outlined rather than a ghost.
+
+          A muted ghost button at the bottom of a dark sheet is a row of grey
+          text among other rows of grey text; the one control people go looking
+          for should not be the hardest one to find. Full width and h-11, which
+          is the floor for something pressed with a thumb.
+        */}
         <Button
           type="submit"
-          variant="ghost"
-          className="w-full justify-start gap-2.5 px-3 text-sm text-muted-foreground hover:text-foreground"
+          variant="outline"
+          className="h-11 w-full justify-start gap-2.5 px-3 text-sm"
         >
           <LogOut className="h-4 w-4" />
           Sign out
