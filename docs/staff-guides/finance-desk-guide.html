@@ -1,0 +1,770 @@
+<meta charset="utf-8">
+<title>Target Express — The money desk</title>
+
+<style>
+  /* =====================================================================
+     A4 landscape deck · Target Express Air Cargo · Finance onboarding
+     Palette taken from the product's own globals.css so the deck and the
+     software look like the same company.
+     ===================================================================== */
+
+  @page { size: A4 landscape; margin: 0; }
+
+  :root {
+    --ink:     #0b1220;
+    --ink-2:   #0f1729;
+    --panel:   #131e35;
+    --navy:    #182a48;
+    --line:    #26344f;
+    --signal:  #d81e2a;
+    --paid:    #22a86a;
+    --owed:    #e09612;
+    --draft:   #7c8ba5;
+    --fg:      #eef2f8;
+    --muted:   #93a0b6;
+
+    --display: "Avenir Next", "Helvetica Neue", sans-serif;
+    --narrow:  "Avenir Next Condensed", "Avenir Next", sans-serif;
+    --body:    "Helvetica Neue", Helvetica, sans-serif;
+    --mono:    "Menlo", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; padding: 0; background: var(--ink); }
+
+  body {
+    color: var(--fg);
+    font-family: var(--body);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .slide {
+    position: relative;
+    width: 297mm;
+    height: 209.7mm;          /* a hair under the sheet so Chrome adds no blank page */
+    overflow: hidden;
+    padding: 15mm 18mm 12mm;
+    background: var(--ink);
+    display: flex;
+    flex-direction: column;
+    page-break-after: always;
+    break-after: page;
+  }
+  .slide:last-of-type { page-break-after: auto; break-after: auto; }
+
+  /* A single soft light source, top-right — the only decoration in the deck. */
+  .slide::before {
+    content: "";
+    position: absolute;
+    top: -60mm; right: -50mm;
+    width: 170mm; height: 170mm;
+    background: radial-gradient(circle, rgba(24,42,72,0.85) 0%, rgba(11,18,32,0) 70%);
+    pointer-events: none;
+  }
+  .slide > * { position: relative; }
+
+  /* --- shared type ---------------------------------------------------- */
+  h1, h2 { font-family: var(--display); font-weight: 600; margin: 0; letter-spacing: -0.02em; }
+  h1 { font-size: 44pt; line-height: 1.02; }
+  h2 { font-size: 25pt; line-height: 1.1; }
+  h3 { font-family: var(--display); font-weight: 600; font-size: 12pt; margin: 0; letter-spacing: -0.01em; }
+  p  { margin: 0; font-size: 11pt; line-height: 1.55; color: var(--muted); }
+  p strong, p b { color: var(--fg); font-weight: 500; }
+
+  .eyebrow {
+    font-family: var(--narrow);
+    font-size: 9.5pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--muted);
+  }
+  .label {
+    font-family: var(--narrow);
+    font-size: 8pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  .hairline { height: 1px; background: var(--line); }
+  .accent-rule { height: 3pt; width: 26mm; background: var(--signal); border-radius: 2pt; }
+
+  /* --- slide furniture ------------------------------------------------ */
+  .foot {
+    margin-top: auto;
+    padding-top: 5mm;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .foot span { font-family: var(--narrow); font-size: 8pt; letter-spacing: 0.16em; text-transform: uppercase; color: #5d6c85; }
+
+  .head { display: flex; flex-direction: column; gap: 3mm; margin-bottom: 8mm; }
+
+  /* --- cover ----------------------------------------------------------- */
+  /* Two `auto` margins — one here, one on .foot — split the free space and
+     optically centre the cover block instead of stranding it at the top. */
+  .cover { gap: 7mm; }
+  .cover > .accent-rule { margin-top: auto; }
+  .cover h1 { font-size: 60pt; }
+  .cover .lede { font-size: 13pt; color: var(--muted); max-width: 150mm; line-height: 1.5; }
+  .route {
+    display: flex; align-items: center; gap: 4mm;
+    font-family: var(--narrow); font-size: 10pt; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .route .dash { flex: 0 0 24mm; height: 1px; background: var(--signal); }
+
+  /* --- two-column step slide ------------------------------------------ */
+  .cols { display: grid; grid-template-columns: 105mm 1fr; gap: 12mm; flex: 1; min-height: 0; }
+  .col-left  { display: flex; flex-direction: column; gap: 5mm; }
+  .col-right { display: flex; flex-direction: column; gap: 4mm; justify-content: center; min-width: 0; }
+
+  .stepno {
+    display: flex; align-items: baseline; gap: 3mm;
+    font-family: var(--display); font-weight: 600;
+  }
+  .stepno .n { font-size: 34pt; line-height: 1; letter-spacing: -0.03em; }
+  .stepno .of { font-family: var(--narrow); font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+  .stepno[data-state="draft"] .n { color: var(--draft); }
+  .stepno[data-state="owed"]  .n { color: var(--owed); }
+  .stepno[data-state="paid"]  .n { color: var(--paid); }
+
+  .where {
+    font-family: var(--mono); font-size: 8.5pt; color: var(--muted);
+    padding: 2mm 3mm; border: 1px solid var(--line); border-radius: 2mm;
+    background: var(--ink-2);
+  }
+  .where b { color: var(--fg); font-weight: 400; }
+
+  .caution {
+    display: flex; gap: 3mm; align-items: flex-start;
+    padding: 4mm; border-radius: 2mm;
+    background: var(--ink-2); border: 1px solid var(--line);
+    border-left: 2pt solid var(--signal);
+  }
+  .caution p { font-size: 9.5pt; line-height: 1.5; }
+
+  .quote {
+    border-left: 2pt solid var(--line);
+    padding-left: 4mm;
+    font-size: 10pt; line-height: 1.5;
+    color: var(--fg);
+    font-style: italic;
+  }
+  .quote cite { display: block; font-style: normal; margin-top: 1.5mm; }
+
+  /* --- screen recreations ---------------------------------------------
+     Rebuilt rather than screenshotted: sharp at print resolution and
+     legible when this is projected.
+     ------------------------------------------------------------------- */
+  .screen { border: 1px solid var(--line); border-radius: 3mm; background: var(--ink-2); overflow: hidden; }
+  .screen-bar {
+    display: flex; align-items: center; gap: 2mm;
+    padding: 3mm 4mm; background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  .screen-bar .dot { width: 2mm; height: 2mm; border-radius: 50%; background: #3a4a68; }
+  .screen-bar .name { font-family: var(--mono); font-size: 8pt; color: var(--muted); margin-left: 2mm; }
+  .screen-body { padding: 5mm; display: flex; flex-direction: column; gap: 4mm; }
+
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 5mm; }
+  .stack { display: flex; flex-direction: column; gap: 1mm; min-width: 0; }
+  .value { font-family: var(--mono); font-size: 10pt; font-variant-numeric: tabular-nums; }
+  .big {
+    font-family: var(--display); font-weight: 600; font-size: 20pt;
+    letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1;
+  }
+
+  .pill {
+    display: inline-block; padding: 1.2mm 3mm; border-radius: 10mm;
+    font-family: var(--narrow); font-size: 8.5pt; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    border: 1px solid currentColor; white-space: nowrap;
+  }
+  .pill.draft { color: var(--draft); }
+  .pill.owed  { color: var(--owed); }
+  .pill.paid  { color: var(--paid); }
+
+  .btn {
+    display: inline-block; padding: 1.8mm 4mm; border-radius: 1.8mm;
+    font-family: var(--display); font-size: 9pt; font-weight: 600;
+    background: var(--navy); color: #fff; border: 1px solid #24395e;
+  }
+  .btn.go   { background: var(--signal); border-color: var(--signal); }
+  .btn.ghost{ background: transparent; color: var(--muted); border-color: var(--line); }
+
+  .qrow {
+    display: flex; justify-content: space-between; align-items: center; gap: 4mm;
+    padding: 3mm 4mm; border: 1px solid var(--line); border-radius: 2mm; background: var(--ink);
+    font-size: 9.5pt;
+  }
+
+  /* --- the map slide --------------------------------------------------- */
+  /* Three bands — track, stations, key — pushed apart so the slide is filled
+     and the track stays tied to the heading rather than floating mid-page. */
+  .map { display: flex; flex-direction: column; justify-content: space-between; flex: 1; gap: 7mm; padding-bottom: 4mm; }
+  /* Track and badges stay welded together — the badges must read as stations
+     sitting on the line, not as a rule with unrelated columns beneath it. */
+  .timeline { display: flex; flex-direction: column; gap: 5mm; }
+  .track { position: relative; height: 3pt; border-radius: 2pt;
+           background: linear-gradient(to right, var(--draft) 0%, var(--draft) 22%, var(--owed) 34%, var(--owed) 56%, var(--paid) 68%, var(--paid) 100%); }
+  .stations { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5mm; }
+  .station { display: flex; flex-direction: column; gap: 2.5mm; }
+  .station .badge {
+    width: 9mm; height: 9mm; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--display); font-weight: 600; font-size: 12pt;
+    background: var(--ink-2); border: 1.5pt solid var(--line);
+  }
+  .station[data-state="draft"] .badge { border-color: var(--draft); color: var(--draft); }
+  .station[data-state="owed"]  .badge { border-color: var(--owed);  color: var(--owed); }
+  .station[data-state="paid"]  .badge { border-color: var(--paid);  color: var(--paid); }
+  .station h3 { font-size: 11pt; }
+  .station p { font-size: 9pt; line-height: 1.45; }
+
+  .states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm; }
+  .state-key { display: flex; flex-direction: column; gap: 1.5mm; padding-top: 3mm; border-top: 2pt solid var(--line); }
+  .state-key.draft { border-color: var(--draft); }
+  .state-key.owed  { border-color: var(--owed); }
+  .state-key.paid  { border-color: var(--paid); }
+  .state-key p { font-size: 9pt; }
+
+  /* --- card grids ------------------------------------------------------ */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; flex: 1; align-content: center; }
+  .grid-4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5mm; flex: 1; align-content: center; }
+  .card {
+    padding: 6mm; border-radius: 3mm; background: var(--ink-2);
+    border: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 2.5mm;
+  }
+  .card .label { color: var(--paid); }
+  .card p { font-size: 10pt; }
+
+  /* --- reference table -------------------------------------------------- */
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 4.6mm 4mm; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 9.5pt; }
+  th { font-family: var(--narrow); font-size: 8pt; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); }
+  td:first-child { font-family: var(--display); font-weight: 600; color: var(--fg); white-space: nowrap; width: 62mm; }
+  td:last-child { color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+
+  /* --- closing ---------------------------------------------------------- */
+  .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8mm; flex: 1; align-content: center; }
+  .three .card { gap: 3mm; }
+  .three .n {
+    font-family: var(--display); font-weight: 600; font-size: 30pt; line-height: 1;
+    letter-spacing: -0.03em; color: var(--signal);
+  }
+  .three h3 { font-size: 14pt; }
+</style>
+
+<!-- ============================ 1 · COVER ============================ -->
+<section class="slide cover">
+  <div class="accent-rule"></div>
+  <p class="eyebrow">Target Express Air Cargo · Finance</p>
+  <h1>The money desk</h1>
+  <p class="lede">
+    Everything this business is owed passes through your screen, and no cargo
+    leaves the Dar warehouse until you say it has been paid for.
+    This is what to do when you sign in — in the order to do it.
+  </p>
+  <div class="route">
+    <span>Guangzhou</span><span class="dash"></span><span>Dar es Salaam</span>
+  </div>
+  <div class="foot"><span>Staff guide</span><span>Finance department</span></div>
+</section>
+
+<!-- ======================= 2 · WHAT THIS DESK IS ===================== -->
+<section class="slide">
+  <div class="head">
+    <p class="eyebrow">Before anything else</p>
+    <h2>Two things only you can do</h2>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <span class="label" style="color: var(--owed)">Authority one</span>
+      <h3>Say that money has actually arrived</h3>
+      <p>
+        Customer Care can take a customer's word and upload their proof. They
+        cannot mark it received. Until Finance agrees, the money does not exist
+        as far as this system is concerned.
+      </p>
+    </div>
+    <div class="card">
+      <span class="label" style="color: var(--paid)">Authority two</span>
+      <h3>Free cargo from the warehouse</h3>
+      <p>
+        The Dar counter cannot hand over boxes without a pickup note, and only
+        Finance can issue one. When you issue it, cargo moves. When you do not,
+        it stays.
+      </p>
+    </div>
+  </div>
+  <div class="caution" style="margin-top: 6mm">
+    <p>
+      <b>Everything else on your menu exists to explain a number after somebody asks about it.</b>
+      Accounts, the ledger, expenses and reports are not daily work — they are
+      where you go when the CEO asks where a figure came from.
+    </p>
+  </div>
+  <div class="foot"><span>The money desk</span><span>02</span></div>
+</section>
+
+<!-- ========================= 3 · THE DAY MAP ========================= -->
+<section class="slide">
+  <div class="head">
+    <p class="eyebrow">The whole job on one page</p>
+    <h2>Your day, in six moves</h2>
+  </div>
+  <div class="map">
+   <div class="timeline">
+    <div class="track"></div>
+    <div class="stations">
+      <div class="station" data-state="draft">
+        <div class="badge">1</div><h3>Read Home</h3>
+        <p>The system has already written your to-do list.</p>
+      </div>
+      <div class="station" data-state="draft">
+        <div class="badge">2</div><h3>Confirm the price</h3>
+        <p>Turn the system's draft figure into a real bill.</p>
+      </div>
+      <div class="station" data-state="owed">
+        <div class="badge">3</div><h3>Verify payments</h3>
+        <p>Check what Customer Care says it collected.</p>
+      </div>
+      <div class="station" data-state="owed">
+        <div class="badge">4</div><h3>Record payments</h3>
+        <p>Money paid straight to you, into a named account.</p>
+      </div>
+      <div class="station" data-state="paid">
+        <div class="badge">5</div><h3>Issue the note</h3>
+        <p>The warehouse's authority to hand the cargo over.</p>
+      </div>
+      <div class="station" data-state="paid">
+        <div class="badge">6</div><h3>Chase the rest</h3>
+        <p>Work down Collections, oldest debt first.</p>
+      </div>
+     </div>
+    </div>
+    <div class="states">
+      <div class="state-key draft">
+        <span class="label" style="color: var(--draft)">Nothing owed yet</span>
+        <p>A draft is the system's working figure. Nobody has been asked for it.</p>
+      </div>
+      <div class="state-key owed">
+        <span class="label" style="color: var(--owed)">Owed</span>
+        <p>A confirmed invoice. The customer owes it and the cargo is locked.</p>
+      </div>
+      <div class="state-key paid">
+        <span class="label" style="color: var(--paid)">Settled</span>
+        <p>Verified money against the invoice. Only now can the boxes move.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>The money desk</span><span>03</span></div>
+</section>
+
+<!-- ============================ 4 · STEP 1 =========================== -->
+<section class="slide">
+  <div class="cols">
+    <div class="col-left">
+      <div class="stepno" data-state="draft"><span class="n">1</span><span class="of">Step one of six</span></div>
+      <h2>Read what needs you</h2>
+      <p class="where">Sign in <b>→</b> Home <b>→</b> Needs your attention</p>
+      <p>
+        Your to-do list, written by the system rather than by you. Prices waiting
+        to be confirmed, payments waiting to be checked, cargo that has sat too
+        long. Start here every morning.
+      </p>
+      <p>
+        <b>If this panel is empty, the desk is clear</b> — you do not need to go
+        hunting through the other screens to be sure.
+      </p>
+      <div class="caution">
+        <p>
+          Finance sees the money, not the boxes. Your Home screen opens on
+          <b>The money · right now</b>, while a warehouse hand signing in at the
+          same moment sees cargo and no figures at all.
+        </p>
+      </div>
+    </div>
+    <div class="col-right">
+      <div class="screen">
+        <div class="screen-bar"><span class="dot"></span><span class="name">Home — Habari, Aziza</span></div>
+        <div class="screen-body">
+          <span class="label">The money · right now</span>
+          <div class="row">
+            <div class="stack">
+              <span class="label">Owed to us</span>
+              <span class="big" style="color: var(--owed)">TSh 25,409,700</span>
+            </div>
+            <div class="stack">
+              <span class="label">Collected today</span>
+              <span class="big" style="color: var(--paid)">TSh 510,300</span>
+            </div>
+          </div>
+          <div class="hairline"></div>
+          <span class="label">Needs your attention</span>
+          <div class="qrow"><span>3 prices waiting to be confirmed</span><span class="pill draft">Draft</span></div>
+          <div class="qrow"><span>2 payments claimed by Customer Care</span><span class="pill owed">Verify</span></div>
+          <div class="qrow"><span>1 consignment held 21 days</span><span class="pill owed">Chase</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Step 1 — Read what needs you</span><span>04</span></div>
+</section>
+
+<!-- ============================ 5 · STEP 2 =========================== -->
+<section class="slide">
+  <div class="cols">
+    <div class="col-left">
+      <div class="stepno" data-state="draft"><span class="n">2</span><span class="of">Step two of six</span></div>
+      <h2>Confirm the price</h2>
+      <p class="where">Batches <b>→</b> open the batch <b>→</b> Confirm prices</p>
+      <p>
+        When cargo lands in Dar the system prices it automatically and files it
+        as a <b>draft</b>. A draft is a working figure — nobody has been asked
+        for it and nobody owes it yet.
+      </p>
+      <p>
+        Confirming is what turns it into a real bill. Use <b>Confirm all prices</b>
+        to clear a whole batch at once.
+      </p>
+      <div class="caution">
+        <p>
+          Confirming <b>recalculates</b>. It counts the storage days up to today
+          and freezes the exchange rate at that moment — so a bill confirmed
+          three weeks late correctly charges three weeks of storage.
+          <b>Never leave drafts sitting.</b>
+        </p>
+      </div>
+    </div>
+    <div class="col-right">
+      <div class="screen">
+        <div class="screen-bar"><span class="dot"></span><span class="name">Batch B-2026-014 — Guangzhou → Dar</span></div>
+        <div class="screen-body">
+          <div class="row">
+            <div class="stack"><span class="label">Consignments</span><span class="value">18</span></div>
+            <div class="stack"><span class="label">Priced, not confirmed</span><span class="value" style="color: var(--draft)">3</span></div>
+            <div class="stack"><span class="label">Batch value</span><span class="value">USD 4,812.40</span></div>
+          </div>
+          <div class="hairline"></div>
+          <div class="qrow">
+            <span class="num">TX-000105 · 24.5 kg</span>
+            <span><span class="value" style="margin-right:3mm">USD 39.15</span><span class="pill draft">Draft</span></span>
+          </div>
+          <div class="qrow">
+            <span class="num">TX-000106 · 8.0 kg</span>
+            <span><span class="value" style="margin-right:3mm">USD 14.40</span><span class="pill draft">Draft</span></span>
+          </div>
+          <div class="row">
+            <span class="label">Clears every draft in this batch</span>
+            <span class="btn go">Confirm all prices</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Step 2 — Confirm the price</span><span>05</span></div>
+</section>
+
+<!-- ============================ 6 · STEP 3 =========================== -->
+<section class="slide">
+  <div class="cols">
+    <div class="col-left">
+      <div class="stepno" data-state="owed"><span class="n">3</span><span class="of">Step three of six</span></div>
+      <h2>Verify what Customer Care collected</h2>
+      <p class="where">Finance <b>→</b> Verify payments</p>
+      <p class="quote">
+        “Claims Customer Support has collected from customers. Nothing is settled
+        and no cargo is released until you agree.”
+        <cite class="label">— the screen's own words</cite>
+      </p>
+      <p>
+        Open the claim, check the proof against the account the money should have
+        landed in, then <b>Verify</b> or <b>Reject</b>. Rejecting sends it back
+        with your reason; it does not delete anything.
+      </p>
+      <div class="caution">
+        <p>
+          Do not verify from the amount alone. <b>Match the proof to the account</b> —
+          a screenshot showing the right figure paid into the wrong account is the
+          most common way money goes missing.
+        </p>
+      </div>
+    </div>
+    <div class="col-right">
+      <div class="screen">
+        <div class="screen-bar"><span class="dot"></span><span class="name">Finance — Verify payments</span></div>
+        <div class="screen-body">
+          <div class="row">
+            <div class="stack">
+              <span class="label">Customer</span>
+              <span class="value">Japhet Lihanjala</span>
+              <span class="label">TX-000105 · INV-2026-000002</span>
+            </div>
+            <div class="stack" style="text-align: right">
+              <span class="label">Claimed</span>
+              <span class="big">USD 39.15</span>
+            </div>
+          </div>
+          <div class="hairline"></div>
+          <div class="row">
+            <div class="stack"><span class="label">Into account</span><span class="value">CRDB · Main</span></div>
+            <div class="stack"><span class="label">Recorded by</span><span class="value">Customer Care</span></div>
+            <div class="stack"><span class="label">Proof</span><span class="value">1 file</span></div>
+          </div>
+          <div class="row">
+            <span class="pill owed">Awaiting your check</span>
+            <span><span class="btn ghost" style="margin-right:2mm">Reject</span><span class="btn go">Verify payment</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Step 3 — Verify payments</span><span>06</span></div>
+</section>
+
+<!-- ============================ 7 · STEP 4 =========================== -->
+<section class="slide">
+  <div class="cols">
+    <div class="col-left">
+      <div class="stepno" data-state="owed"><span class="n">4</span><span class="of">Step four of six</span></div>
+      <h2>Record money paid straight to you</h2>
+      <p class="where">Finance <b>→</b> Payments from customers</p>
+      <p>
+        Cash at the counter, a bank transfer, mobile money, a cheque — if it came
+        to you rather than through Customer Care, record it here. A receipt is
+        issued automatically.
+      </p>
+      <p>
+        <b>Always name the account it landed in.</b> Every figure on the Accounts
+        page is worked out from these entries, so an unnamed account is a figure
+        that will never reconcile.
+      </p>
+      <div class="caution">
+        <p>
+          The system <b>refuses an overpayment</b> rather than quietly creating a
+          credit nobody asked for, and refuses a payment dated before its invoice
+          existed. If it says no, the numbers disagree — check them.
+        </p>
+      </div>
+    </div>
+    <div class="col-right">
+      <div class="screen">
+        <div class="screen-bar"><span class="dot"></span><span class="name">Finance — Payments from customers</span></div>
+        <div class="screen-body">
+          <div class="row">
+            <div class="stack"><span class="label">Invoice</span><span class="value">INV-2026-000007</span></div>
+            <div class="stack"><span class="label">Balance due</span><span class="value" style="color: var(--owed)">USD 112.00</span></div>
+          </div>
+          <div class="hairline"></div>
+          <div class="row">
+            <div class="stack"><span class="label">Amount received</span><span class="big">USD 112.00</span></div>
+            <div class="stack"><span class="label">Method</span><span class="value">Mobile money</span></div>
+          </div>
+          <div class="row">
+            <div class="stack"><span class="label">Into which account</span><span class="value">M-Pesa · Business</span></div>
+            <span class="btn go">Record payment</span>
+          </div>
+          <div class="qrow" style="border-color: var(--paid)">
+            <span>Receipt RCT-2026-000041 issued</span><span class="pill paid">Paid in full</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Step 4 — Record payments</span><span>07</span></div>
+</section>
+
+<!-- ============================ 8 · STEP 5 =========================== -->
+<section class="slide">
+  <div class="cols">
+    <div class="col-left">
+      <div class="stepno" data-state="paid"><span class="n">5</span><span class="of">Step five of six</span></div>
+      <h2>Issue the pickup note</h2>
+      <p class="where">Finance <b>→</b> Pickup notes</p>
+      <p class="quote">
+        “The warehouse's authority to hand cargo over. Issued by Finance the
+        moment a bill is settled — everyone else prints it and rings the customer.”
+        <cite class="label">— the screen's own words</cite>
+      </p>
+      <p>
+        This is the most important thing this desk does. Until the note exists,
+        the Dar counter <b>physically cannot</b> release the boxes — it scans the
+        carton and the screen refuses.
+      </p>
+      <div class="caution">
+        <p>
+          Issue it the moment an invoice settles. A customer standing at the
+          counter with money already paid, waiting on a note nobody issued, is
+          the one failure they will remember.
+        </p>
+      </div>
+    </div>
+    <div class="col-right">
+      <div class="screen">
+        <div class="screen-bar"><span class="dot"></span><span class="name">Finance — Pickup notes</span></div>
+        <div class="screen-body">
+          <div class="row">
+            <div class="stack">
+              <span class="value">PN-2026-000001</span>
+              <span class="label">TX-000105 · Japhet Lihanjala · 3 packages</span>
+            </div>
+            <span class="pill paid">Paid in full · Active</span>
+          </div>
+          <div class="hairline"></div>
+          <div class="row">
+            <span class="label">Print it, or send the customer the file</span>
+            <span><span class="btn ghost" style="margin-right:2mm">Download PDF</span><span class="btn">Print</span></span>
+          </div>
+          <div class="qrow" style="border-color: var(--paid)">
+            <span>Dar warehouse can now scan and release</span>
+            <span class="pill paid">Cleared</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Step 5 — Issue the pickup note</span><span>08</span></div>
+</section>
+
+<!-- ============================ 9 · STEP 6 =========================== -->
+<section class="slide">
+  <div class="cols">
+    <div class="col-left">
+      <div class="stepno" data-state="paid"><span class="n">6</span><span class="of">Step six of six</span></div>
+      <h2>Chase what is still owed</h2>
+      <p class="where">Collections</p>
+      <p>
+        Everything unpaid, oldest first, with a phone number beside it. Work down
+        the list from the top — the oldest debt is the one least likely to ever
+        be collected.
+      </p>
+      <p>
+        What you and Customer Care have already collected shows here too, so
+        <b>two people never ring the same customer twice</b> about the same box.
+      </p>
+      <div class="caution">
+        <p>
+          Cargo under investigation appears here as well. <b>Do not chase payment
+          on a consignment the warehouse is still looking for</b> — check
+          Issues &amp; Claims first.
+        </p>
+      </div>
+    </div>
+    <div class="col-right">
+      <div class="screen">
+        <div class="screen-bar"><span class="dot"></span><span class="name">Collections</span></div>
+        <div class="screen-body">
+          <div class="row">
+            <div class="stack"><span class="label">Total outstanding</span><span class="big" style="color: var(--owed)">TSh 25,409,700</span></div>
+            <div class="stack"><span class="label">Over 30 days</span><span class="big" style="color: var(--signal)">TSh 3,120,000</span></div>
+          </div>
+          <div class="hairline"></div>
+          <div class="qrow">
+            <span class="stack"><span>Grace Mwakalinga · +255 754 ···</span><span class="label">TX-000098 · 34 days</span></span>
+            <span class="value" style="color: var(--signal)">USD 208.00</span>
+          </div>
+          <div class="qrow">
+            <span class="stack"><span>Salum Rajabu · +255 712 ···</span><span class="label">TX-000101 · 12 days</span></span>
+            <span class="value" style="color: var(--owed)">USD 76.50</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Step 6 — Chase what is owed</span><span>09</span></div>
+</section>
+
+<!-- ========================== 10 · THE RULES ========================= -->
+<section class="slide">
+  <div class="head">
+    <p class="eyebrow">Enforced by the system, not by memory</p>
+    <h2>Rules that protect you</h2>
+  </div>
+  <div class="grid-4">
+    <div class="card">
+      <span class="label">Cargo</span>
+      <h3>Unpaid cargo cannot be released</h3>
+      <p>The counter checks the pickup note, the package, the investigation status and the carton count — all four, every single time.</p>
+    </div>
+    <div class="card">
+      <span class="label">Invoices</span>
+      <h3>A paid invoice cannot be edited</h3>
+      <p>Once any money has landed against it, it is closed to changes. Correct it before the first payment, or raise the difference separately.</p>
+    </div>
+    <div class="card">
+      <span class="label">Balances</span>
+      <h3>No balance is ever typed</h3>
+      <p>Every figure on Accounts is derived from recorded movements, so the books cannot quietly drift away from the record.</p>
+    </div>
+    <div class="card">
+      <span class="label">The audit trail</span>
+      <h3>Nothing can be erased</h3>
+      <p>Every money action carries your name and the time. It is append-only — it cannot be edited or deleted by you, or by the CEO.</p>
+    </div>
+  </div>
+  <div class="caution" style="margin-top: 6mm">
+    <p><b>If one of these stops you, it has just prevented something expensive.</b> Do not look for a way around it — find out why the numbers disagree.</p>
+  </div>
+  <div class="foot"><span>The money desk</span><span>10</span></div>
+</section>
+
+<!-- ========================= 11 · THE REST ========================== -->
+<section class="slide">
+  <div class="head">
+    <p class="eyebrow">Tabs across the top of the General ledger screen</p>
+    <h2>The rest of your menu</h2>
+  </div>
+  <table>
+    <tr><th>Screen</th><th>What it answers</th></tr>
+    <tr><td>General ledger</td><td>What the business is holding, what is owed to it, and what has moved.</td></tr>
+    <tr><td>Accounts</td><td>Where the company's money sits. Every figure derived from the ledger — nothing typed.</td></tr>
+    <tr><td>The Ledger</td><td>Every movement of money, with its account, who recorded it, and a running balance.</td></tr>
+    <tr><td>Expenses</td><td>What the business spends. Costs dated when incurred; the money dated when it left.</td></tr>
+    <tr><td>Pricing &amp; configuration</td><td>The rate book. Change a figure here and cargo, invoices, tracking and reports all follow.</td></tr>
+    <tr><td>Audit</td><td>Every money action on the system, who did it and when. Append-only.</td></tr>
+    <tr><td>Shipments · Batches</td><td>The cargo behind the money, for when a figure needs explaining.</td></tr>
+    <tr><td>Issues &amp; Claims</td><td>Cargo under investigation. Never settle a claim against a box still being looked for.</td></tr>
+  </table>
+  <div class="foot"><span>The money desk</span><span>11</span></div>
+</section>
+
+<!-- ========================== 12 · CLOSING ========================== -->
+<section class="slide">
+  <div class="head">
+    <p class="eyebrow">If you remember nothing else</p>
+    <h2>Three moves are the whole job</h2>
+  </div>
+  <div class="three">
+    <div class="card">
+      <span class="n">1</span>
+      <h3>Confirm the price</h3>
+      <p>A draft owes nobody anything. Confirm it and the business is owed money.</p>
+    </div>
+    <div class="card">
+      <span class="n">2</span>
+      <h3>Verify the payment</h3>
+      <p>Match the proof to the account. Until you agree, the money does not exist.</p>
+    </div>
+    <div class="card">
+      <span class="n">3</span>
+      <h3>Issue the note</h3>
+      <p>The moment the bill is settled. Until it exists, the cargo cannot move.</p>
+    </div>
+  </div>
+  <p style="margin: 6mm 0 9mm; font-size: 11.5pt">
+    In that order, every day. Everything else on your menu is there to explain a
+    number after somebody asks about it.
+  </p>
+  <div class="foot"><span>Target Express Air Cargo · Finance</span><span>12</span></div>
+</section>
