@@ -1,6 +1,15 @@
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { viewerLocale } from "@/lib/viewer";
 
-export function PageHeader({
+/**
+ * The title bar on every screen, in the reader's language.
+ *
+ * Async and resolving the locale itself rather than taking it as a prop:
+ * fifty-eight pages render this, and threading a locale through every one of
+ * them would be fifty-eight chances to forget. A server component can just ask.
+ */
+export async function PageHeader({
   title,
   description,
   actions,
@@ -11,6 +20,7 @@ export function PageHeader({
   actions?: React.ReactNode;
   className?: string;
 }) {
+  const locale = await viewerLocale();
   return (
     <div
       className={cn(
@@ -20,10 +30,12 @@ export function PageHeader({
     >
       <div className="min-w-0">
         <h1 className="font-display text-2xl font-bold tracking-tight">
-          {title}
+          {t(locale, title)}
         </h1>
         {description ? (
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t(locale, description)}
+          </p>
         ) : null}
       </div>
       {actions ? (

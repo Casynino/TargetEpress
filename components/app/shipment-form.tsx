@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { createShipment, type ShipmentCreated } from "@/lib/actions/shipments";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import type { ActionResult } from "@/lib/actions/types";
 import {
   AIRPORT_LABELS,
@@ -42,9 +44,12 @@ type CargoTypeOption = { id: string; name: string };
  *    read-only, so cargo cannot be sent to the wrong hub by a mis-click.
  */
 export function ShipmentForm({
+  locale = "en",
   typesByCategory,
   photosDurable,
 }: {
+  /** The reader's language. Passed in: a client component cannot ask. */
+  locale?: Locale;
   typesByCategory: Record<string, CargoTypeOption[]>;
   photosDurable: boolean;
 }) {
@@ -109,27 +114,27 @@ export function ShipmentForm({
     <form action={formAction} className="space-y-6">
       {/* 1. Customer */}
       <section className="panel p-6">
-        <h2 className="font-display font-semibold">1. Customer</h2>
+        <h2 className="font-display font-semibold">{t(locale, "1. Customer")}</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Find them if we have shipped for them before. If not, record them once
           and they are in the book from then on.
         </p>
 
         <div className="mt-5">
-          <CustomerPicker />
+          <CustomerPicker locale={locale} />
         </div>
       </section>
 
       {/* 2. What the cargo is */}
       <section className="panel p-6">
-        <h2 className="font-display font-semibold">2. What is the cargo?</h2>
+        <h2 className="font-display font-semibold">{t(locale, "2. What is the cargo?")}</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           This is the only classification you make. The system works out the
           airport and the price from it.
         </p>
 
         <fieldset className="mt-5 grid gap-2">
-          <legend className="sr-only">Cargo category</legend>
+          <legend className="sr-only">{t(locale, "Cargo category")}</legend>
           {CATEGORIES.map((option) => {
             const active = category === option;
             return (
@@ -149,10 +154,10 @@ export function ShipmentForm({
                 />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">
-                    {CATEGORY_LABELS[option]}
+                    {t(locale, CATEGORY_LABELS[option])}
                   </span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">
-                    {CATEGORY_EXAMPLES[option]}
+                    {t(locale, CATEGORY_EXAMPLES[option])}
                   </span>
                 </span>
               </label>
@@ -165,7 +170,7 @@ export function ShipmentForm({
           <Plane className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
           <div className="text-xs">
             <p className="font-medium">
-              Departs {AIRPORT_LABELS[route]}
+              {t(locale, `Departs ${AIRPORT_LABELS[route]}`)}
             </p>
             <p className="mt-0.5 text-muted-foreground">
               Chosen automatically from the cargo category — you do not set this.
@@ -205,11 +210,11 @@ export function ShipmentForm({
         ) : null}
 
         <div className="mt-5 space-y-2">
-          <Label htmlFor="description">Description</Label>
+          <Label htmlFor="description">{t(locale, "Description")}</Label>
           <Input
             id="description"
             name="description"
-            placeholder="What is actually in the boxes"
+            placeholder={t(locale, "What is actually in the boxes")}
             autoComplete="off"
             required
           />
@@ -230,7 +235,7 @@ export function ShipmentForm({
 
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="weightKg">Weight (kg)</Label>
+            <Label htmlFor="weightKg">{t(locale, "Weight (kg)")}</Label>
             <Input
               id="weightKg"
               name="weightKg"
@@ -244,7 +249,7 @@ export function ShipmentForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="packages">How many</Label>
+            <Label htmlFor="packages">{t(locale, "How many")}</Label>
             <Input
               id="packages"
               name="packages"
@@ -258,7 +263,7 @@ export function ShipmentForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="packageType">Counted as</Label>
+            <Label htmlFor="packageType">{t(locale, "Counted as")}</Label>
             <NativeSelect
               id="packageType"
               name="packageType"
@@ -268,7 +273,7 @@ export function ShipmentForm({
             >
               <option value="CARTON">Cartons</option>
               <option value="PIECE">Pieces</option>
-              <option value="PACKAGE">Packages</option>
+              <option value="PACKAGE">{t(locale, "Packages")}</option>
               <option value="BAG">Bags</option>
               <option value="BOX">Boxes</option>
               <option value="ENVELOPE">Envelopes</option>
@@ -297,7 +302,7 @@ export function ShipmentForm({
             name="photos"
             required
             max={4}
-            label="Receiving photos"
+            label={t(locale, "Receiving photos")}
             hint="One is enough, but photograph any damage separately."
             durable={photosDurable}
           />

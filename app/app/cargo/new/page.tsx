@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentForm } from "@/components/app/shipment-form";
+import { viewerLocale } from "@/lib/viewer";
 import { prisma } from "@/lib/prisma";
 import { cargoTypesByCategory } from "@/lib/pricing";
 import { requirePermission } from "@/lib/session";
@@ -30,6 +31,7 @@ export default async function NewShipmentPage() {
         description="Record what arrived. The system works out the route, the batch and the price."
       />
       <ShipmentForm
+        locale={await viewerLocale()}
         typesByCategory={typesByCategory}
         photosDurable={storageIsDurable()}
       />

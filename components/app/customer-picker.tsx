@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createCustomer } from "@/lib/actions/customers";
 import { TZ_CITIES } from "@/lib/constants";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 
 export type PickedCustomer = {
   id: string;
@@ -31,9 +33,12 @@ export type PickedCustomer = {
  */
 export function CustomerPicker({
   onPick,
+  locale = "en",
 }: {
   /** Notifies the parent form so it can clear itself between registrations. */
   onPick?: (customer: PickedCustomer | null) => void;
+  /** The reader's language, passed down — a client component cannot ask. */
+  locale?: Locale;
 }) {
   const [mode, setMode] = useState<"search" | "new">("search");
   const [query, setQuery] = useState("");
@@ -185,8 +190,8 @@ export function CustomerPicker({
       <div className="flex rounded-lg border p-1">
         {(
           [
-            { key: "search", label: "Find a customer", Icon: Search },
-            { key: "new", label: "New customer", Icon: UserPlus },
+            { key: "search", label: t(locale, "Find a customer"), Icon: Search },
+            { key: "new", label: t(locale, "New customer"), Icon: UserPlus },
           ] as const
         ).map(({ key, label, Icon }) => (
           <button

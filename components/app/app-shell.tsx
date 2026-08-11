@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/sheet";
 import { logoutAction } from "@/lib/actions/auth";
 import { ROLE_LABELS } from "@/lib/constants";
+import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import type { NavSection } from "@/lib/nav";
 import { cn } from "@/lib/utils";
@@ -131,6 +132,7 @@ export function AppShell({
         </div>
         <NavList
           sections={sections}
+          locale={user.locale}
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
         />
         <UserPanel user={user} unread={unreadNotifications} />
@@ -183,6 +185,7 @@ export function AppShell({
             */}
             <NavList
               sections={sections}
+              locale={user.locale}
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
               onNavigate={() => setMobileOpen(false)}
             />
@@ -261,10 +264,13 @@ function MainSiteLink({ compact = false }: { compact?: boolean }) {
 
 function NavList({
   sections,
+  locale,
   className,
   onNavigate,
 }: {
   sections: NavSection[];
+  /** Nav labels live in lib/nav.ts as English; this renders them for the reader. */
+  locale: Locale;
   className?: string;
   onNavigate?: () => void;
 }) {
@@ -313,7 +319,7 @@ function NavList({
               )}
             >
               <GroupIcon className="h-3.5 w-3.5 shrink-0" />
-              {section.group.label}
+              {t(locale, section.group.label)}
             </p>
           ) : null}
           <ul
@@ -344,7 +350,7 @@ function NavList({
                     )}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
-                    {item.label}
+                    {t(locale, item.label)}
                   </Link>
                 </li>
               );
@@ -437,7 +443,7 @@ function UserPanel({
           className="h-11 w-full justify-start gap-2.5 px-3 text-sm"
         >
           <LogOut className="h-4 w-4" />
-          Sign out
+          {t(user.locale, "Sign out")}
         </Button>
       </form>
     </div>
