@@ -20,6 +20,7 @@ import {
 import { assignToLoadingTable } from "@/lib/batching";
 import { quote } from "@/lib/pricing";
 import { prisma, type TxClient } from "@/lib/prisma";
+import { translateText, translationColumns } from "@/lib/translate";
 import { filesFrom, putImages } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -195,6 +196,22 @@ export async function createShipment(
           ? "PIECE"
           : input.packageType;
 
+      /*
+        Both languages, worked out before the row is written.
+
+        The Guangzhou desk types in whichever language it thinks in; Dar,
+        Finance and Support read English. Neither should translate anything by
+        hand, and the original is never replaced — these only add columns
+        beside it.
+
+        Never fatal: an unknown word, or a translation service that is slow or
+        down, leaves the rendering null and every screen falls back to what was
+        typed. Registering cargo does not wait on a third party with a customer
+        at the counter.
+      */
+      const describedAs = await translateText(input.description, { learn: true, tx });
+      const notedAs = await translateText(input.internalNotes, { tx });
+
       const shipment = await tx.shipment.create({
         data: {
           trackingNumber: await nextTrackingNumber(tx),
@@ -203,12 +220,14 @@ export async function createShipment(
           cargoCategory: input.cargoCategory,
           cargoTypeId: input.cargoTypeId,
           goodsType: input.goodsType,
+          ...translationColumns("description", describedAs),
           description: input.description,
           packages: input.packages,
           packageType,
           weightKg: input.weightKg,
           volumeCbm: input.volumeCbm ?? null,
           origin,
+          ...translationColumns("internalNotes", notedAs),
           internalNotes: input.internalNotes || null,
           batchId: assignment.batchId,
           status: "READY_TO_DEPART",
@@ -318,17 +337,24 @@ export async function updateShipment(
         );
       }
 
+      // Edited text is re-rendered. A stale translation of a description that
+      // has since been corrected is worse than none — it reads as authoritative.
+      const editedDescription = await translateText(input.description, { learn: true, tx });
+      const editedNotes = await translateText(input.internalNotes, { tx });
+
       await tx.shipment.update({
         where: { id },
         data: {
           cargoCategory: input.cargoCategory,
           cargoTypeId: input.cargoTypeId,
           goodsType: input.goodsType,
+          ...translationColumns("description", editedDescription),
           description: input.description,
           packages: input.packages,
           weightKg: input.weightKg,
           volumeCbm: input.volumeCbm ?? null,
           origin: routeFor(input.cargoCategory),
+          ...translationColumns("internalNotes", editedNotes),
           internalNotes: input.internalNotes || null,
         },
       });

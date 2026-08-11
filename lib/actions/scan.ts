@@ -7,6 +7,7 @@ import { findPickupLock, pickupLockMessage } from "@/lib/pickup-lock";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 import {
   fail,
   ok,
@@ -165,7 +166,7 @@ async function describe(
       status: true,
       packages: true,
       weightKg: true,
-      description: true,
+      ...selectText("description"),
       cartonRef: true,
       arrivedAt: true,
       deliveredAt: true,
@@ -374,7 +375,15 @@ async function describe(
       label: progress.label,
       complete: progress.complete,
     },
-    description: shipment.description,
+    /*
+      The description as this reader reads it.
+
+      Guangzhou types "配件"; a Dar clerk holding the box sees "Accessories".
+      The original is untouched in the row — this only chooses which of the
+      renderings beside it to show, and falls back to what was typed when there
+      is no rendering for their language.
+    */
+    description: cargoText(await viewerLocale(), shipment, "description"),
     batchNumber: shipment.batch?.batchNumber ?? null,
     cartonRef: shipment.cartonRef,
     arrivedAt: shipment.arrivedAt ? formatDate(shipment.arrivedAt) : null,

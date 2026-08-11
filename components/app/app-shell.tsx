@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { LanguageSwitch } from "@/components/app/language-switch";
 import { NotificationBell } from "@/components/app/notification-bell";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -56,6 +57,7 @@ import {
 } from "@/components/ui/sheet";
 import { logoutAction } from "@/lib/actions/auth";
 import { ROLE_LABELS } from "@/lib/constants";
+import type { Locale } from "@/lib/locale";
 import type { NavSection } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
@@ -100,6 +102,8 @@ type ShellUser = {
   email: string;
   role: keyof typeof ROLE_LABELS;
   photoUrl?: string | null;
+  /** Which language this person reads the system in. */
+  locale: Locale;
 };
 
 export function AppShell({
@@ -406,7 +410,15 @@ function UserPanel({
           </p>
         </div>
       </Link>
-      <div className="flex justify-end px-2">
+      {/*
+        Beside the theme toggle, because it is the same kind of thing: how this
+        person wants to read the screen. Offered to everyone — the Guangzhou
+        desk needs it, and a Tanzanian manager checking what the China team
+        actually typed needs it just as much. English is the default for every
+        account, so nobody who does not want this ever meets it.
+      */}
+      <div className="flex items-center justify-between gap-2 px-2 py-1">
+        <LanguageSwitch current={user.locale} />
         <ThemeToggle className="hidden h-8 w-8 lg:inline-flex" />
       </div>
       <Separator className="my-2" />

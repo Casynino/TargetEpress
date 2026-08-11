@@ -305,6 +305,7 @@ model User {
   /// Touched on every authenticated page load, so "online" means something.
   lastActiveAt      DateTime?
 
+  verifiedTerms   CargoTerm[]
   logins          LoginEvent[]
   notifications   Notification[]
   handledBookings BookingRequest[] @relation("BookingHandledBy")
@@ -493,14 +494,33 @@ model Shipment {
   cargoTypeId   String?
   cargoType     CargoType?    @relation(fields: [cargoTypeId], references: [id], onDelete: SetNull)
 
-  goodsType   GoodsType
-  description String
-  packages    Int
+  goodsType       GoodsType
+  /**
+   * What the Guangzhou desk typed, in whatever language they typed it.
+   * This column is never rewritten by a translation. It is the record of what
+   * a person actually entered, and the moment a machine is allowed to edit it
+   * in place the original is gone and nobody can check the translation against
+   * anything. The English and Chinese renderings live beside it.
+   */
+  description     String
+  /**
+   * The same text in each language, filled in when it can be — from the
+   * glossary first, a translator second, a human correction last. Null means
+   * "we do not have this language for this text", and the reader falls back to
+   * the original rather than seeing a blank field.
+   */
+  descriptionEn   String?
+  descriptionZh   String?
+  /**
+   * Which language `description` is in: "en", "zh", or null when unclear.
+   */
+  descriptionLang String?
+  packages        Int
   /// What `packages` counts. Defaults to package, which is what most cargo
   /// arrives as.
-  packageType PackageType @default(PACKAGE)
-  weightKg    Decimal     @db.Decimal(10, 3)
-  volumeCbm   Decimal?    @db.Decimal(10, 4)
+  packageType     PackageType @default(PACKAGE)
+  weightKg        Decimal     @db.Decimal(10, 3)
+  volumeCbm       Decimal?    @db.Decimal(10, 4)
 
   /// Departure airport. Derived from cargoCategory — never chosen by hand — and
   /// must match the batch this shipment joins.
@@ -541,7 +561,10 @@ model Shipment {
   cartonRef String?
 
   /// Internal only — never rendered on the public tracking page.
-  internalNotes String?
+  internalNotes     String?
+  internalNotesEn   String?
+  internalNotesZh   String?
+  internalNotesLang String?
 
   /// Soft delete. Deleted cargo disappears from every normal view, but the row,
   /// its photos and its history all survive — someone removing a duplicate must
@@ -1407,6 +1430,59 @@ model CustomerMessage {
 /// correct opening hours or add a market without a deploy — but the shape stays
 /// tight: products and tips are ordered string lists, not free-form HTML, so
 /// nobody can paste markup into a public page.
+/**
+ * The cargo vocabulary, in both languages.
+ * This exists because the words this business actually ships are a small,
+ * repeating set — 130 consignments produced 101 distinct descriptions and the
+ * commonest one appears sixteen times. A glossary of a few hundred terms
+ * therefore covers almost everything the Guangzhou desk will ever type, which
+ * means most cargo needs no translation service at all: no per-call latency at
+ * the registration counter, no bill, and — the part that matters — the same
+ * Chinese word renders as the same English word every single time.
+ * A machine translator cannot promise that. It will say "Accessories" one week
+ * and "Fittings" the next for 配件, and a warehouse cannot search or reconcile
+ * across a vocabulary that drifts.
+ * Seeded from the company's own history: staff had been hand-typing pairs like
+ * "Accessories (配件)" into the description field, which yielded 88 verified
+ * terms before a single one had to be invented.
+ */
+model CargoTerm {
+  id String @id @default(cuid())
+
+  /// The Chinese term, normalised and unique — the key both directions use.
+  zh String @unique
+  /// Its English rendering.
+  en String
+
+  /// Where this pairing came from, so a machine guess is never mistaken for a
+  /// human decision and can be reviewed later.
+  source       TermSource @default(SEEDED)
+  /// Set when a person has confirmed the pairing. Unverified machine output is
+  /// still used, but it is visibly marked and listed for review.
+  verifiedAt   DateTime?
+  verifiedById String?
+  verifiedBy   User?      @relation(fields: [verifiedById], references: [id], onDelete: SetNull)
+
+  /// How often this term has been matched. Drives the review queue: an unverified
+  /// term appearing on fifty consignments is worth a human minute.
+  timesUsed Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([source])
+  @@index([timesUsed])
+}
+
+enum TermSource {
+  /// Extracted from cargo the company had already described in both languages.
+  SEEDED
+  /// Typed by a member of staff.
+  STAFF
+  /// Returned by a translation service.
+  MACHINE
+}
+
 model ChinaMarket {
   id   String @id @default(cuid())
   slug String @unique

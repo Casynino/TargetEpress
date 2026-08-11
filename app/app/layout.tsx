@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AppShell } from "@/components/app/app-shell";
+import { localeOf } from "@/lib/locale";
 import { navForRole } from "@/lib/nav";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
@@ -25,7 +26,7 @@ export default async function AppLayout({
   const [me, unread] = await Promise.all([
     prisma.user.findUnique({
       where: { id: user.id },
-      select: { name: true, photoUrl: true },
+      select: { name: true, photoUrl: true, preferredLanguage: true },
     }),
     prisma.notification.count({ where: { userId: user.id, readAt: null } }),
   ]);
@@ -47,6 +48,7 @@ export default async function AppLayout({
         email: user.email,
         role: user.role,
         photoUrl: me?.photoUrl ?? null,
+        locale: localeOf(me?.preferredLanguage),
       }}
       unreadNotifications={unread}
     >
