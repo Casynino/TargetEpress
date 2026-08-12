@@ -102,7 +102,7 @@ export default async function DeletedRecordsPage() {
                 </p>
               </div>
 
-              <dl className="mt-4 grid gap-3 border-t pt-4 text-sm sm:grid-cols-3 lg:grid-cols-6">
+              <dl className="mt-4 grid grid-cols-1 gap-3 border-t pt-4 text-sm sm:grid-cols-3 lg:grid-cols-6">
                 {[
                   {
                     label: "Cargo",

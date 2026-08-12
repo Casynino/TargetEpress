@@ -59,7 +59,7 @@ export default function WarehousesPage() {
 
       <section className="section relative isolate">
         <SectionBackdrop variant="aurora" />
-        <div className="container grid gap-6 lg:grid-cols-2">
+        <div className="container grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Reveal className="group flex flex-col overflow-hidden rounded-2xl border bg-card shadow-soft transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-gold/50 hover:shadow-lift motion-reduce:transition-none motion-reduce:hover:translate-y-0">
             <div className="relative h-52 overflow-hidden sm:h-60">
               <Image
@@ -193,7 +193,7 @@ export default function WarehousesPage() {
             The same four things, to every piece, every time.
           </p>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {HANDLING.map((item, index) => (
               <Reveal
                 key={item.title}

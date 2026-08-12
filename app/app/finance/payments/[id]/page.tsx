@@ -150,7 +150,7 @@ export default async function PaymentDetailPage({
         description={`${payment.invoice.customer.name} · ${payment.invoice.shipment.trackingNumber}`}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_1fr]">
         <div className="space-y-6">
           {/* What was actually handed over, and what it settled. Both, because
               the customer counted one of them and the bill moved by the other. */}
@@ -181,7 +181,7 @@ export default async function PaymentDetailPage({
               </p>
             )}
 
-            <dl className="mt-5 grid gap-x-6 gap-y-4 border-t pt-4 sm:grid-cols-2">
+            <dl className="mt-5 grid grid-cols-1 gap-x-6 gap-y-4 border-t pt-4 sm:grid-cols-2">
               {facts.map((fact) => (
                 <div key={fact.label}>
                   <dt className="text-xs text-muted-foreground">{fact.label}</dt>
@@ -220,7 +220,7 @@ export default async function PaymentDetailPage({
                 )}
               </p>
             ) : (
-              <ul className="grid gap-3 p-5 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2">
                 {payment.proofs.map((proof) => {
                   const isImage = proof.contentType.startsWith("image/");
                   return (

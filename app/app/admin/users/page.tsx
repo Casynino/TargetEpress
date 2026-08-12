@@ -45,7 +45,7 @@ export default async function UsersPage() {
         description="Create accounts, move people between departments, and switch access off the moment someone leaves."
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="rounded-xl border bg-card shadow-soft">
           <Table>
             <TableHeader>

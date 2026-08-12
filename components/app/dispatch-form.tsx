@@ -49,7 +49,7 @@ export function DispatchForm({
           <span className="font-mono font-semibold">{state.data.dispatchNumber}</span>.
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
-          {t("The")} {routeLabel}{" "}
+          {routeLabel}{" "}
           {t("is empty again and ready for the next cargo.")}
         </p>
       </div>
@@ -108,7 +108,7 @@ export function DispatchForm({
           <input type="hidden" name="batchId" value={batchId} />
           <FormError state={state} />
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="waybillNumber">{t("Waybill number")}</Label>
               <Input
@@ -182,7 +182,7 @@ export function DispatchForm({
           <p className="rounded-md border border-warning/30 bg-warning/5 p-3 text-sm text-warning">
             {t("This moves all")} {cargoCount}{" "}
             {t(cargoCount === 1 ? "piece" : "pieces")}{" "}
-            {t("onto the flight and cannot be undone.")} {t("The")} {routeLabel}{" "}
+            {t("onto the flight and cannot be undone.")} {routeLabel}{" "}
             {t("then starts empty.")}
           </p>
 

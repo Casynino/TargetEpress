@@ -44,7 +44,7 @@ export default function BookPage() {
         title={<>Tell us it is coming.<br />We will do the rest.</>}
         body="No account, no deposit, nothing charged. Send us the details and we will reply with where to deliver your cargo in Guangzhou and what it will cost once we have weighed it."
       >
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {STEPS.map((step, index) => (
             <div key={step.title} className="glass-dark rounded-2xl p-5">
               <div className="flex items-center gap-3">
@@ -66,7 +66,7 @@ export default function BookPage() {
       <section className="relative isolate bg-[hsl(var(--ink))] pb-20 text-white sm:pb-28">
         <SectionBackdrop variant="stars" />
 
-        <div className="container relative grid gap-10 lg:grid-cols-[1.15fr_1fr]">
+        <div className="container relative grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.15fr)_1fr]">
           <div className="glass-dark rounded-3xl p-6 shadow-lift sm:p-8">
             <h2 className="rule-gold font-display text-2xl font-bold">Your booking</h2>
             <p className="mt-1.5 text-sm text-white/60">

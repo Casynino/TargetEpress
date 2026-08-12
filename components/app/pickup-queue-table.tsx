@@ -278,7 +278,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
       emptyTitle={t("Nothing matches")}
       emptyDescription={t("No cargo in the pickup queue matches those filters.")}
       renderExpanded={(row) => (
-        <div className="grid gap-5 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
           <div className="space-y-1.5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {t("Cargo")}

@@ -250,7 +250,7 @@ export function ExceptionCard({
       </div>
 
       {/* ---- Whose cargo, which flight, where the boxes are ------------ */}
-      <div className="grid gap-px border-t bg-border sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-px border-t bg-border sm:grid-cols-3">
         <Field icon={User} label={t(locale, "Customer")}>
           <p className="truncate text-sm font-medium">{shipment.customerName}</p>
           <p className="truncate text-xs text-muted-foreground">

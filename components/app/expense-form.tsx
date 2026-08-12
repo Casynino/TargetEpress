@@ -151,7 +151,7 @@ export function ExpenseForm({
       ) : null}
 
       <form action={action} className="p-5">
-        <div className="grid gap-4 lg:grid-cols-12">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
           <div className="space-y-1.5 lg:col-span-4">
             <Label htmlFor="description" className="text-xs">
               {t("What was it for")}

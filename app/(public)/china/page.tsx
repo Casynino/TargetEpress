@@ -107,7 +107,7 @@ export default function ChinaPage() {
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                   电话 / Phone — China office
                 </p>
-                <ul className="mt-2 grid gap-2 sm:grid-cols-3">
+                <ul className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
                   {COMPANY.chinaOffice.phones.map((phone) => (
                     <li key={phone}>
                       <a
@@ -161,7 +161,7 @@ export default function ChinaPage() {
               phone number on the boxes, we cannot tell whose cargo it is.
             </p>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
               {MARKINGS.map(({ icon: Icon, title, body }) => (
                 <div
                   key={title}
@@ -211,7 +211,7 @@ export default function ChinaPage() {
               ask us <span className="font-medium">before</span> your supplier
               ships:
             </p>
-            <ul className="mt-3 grid gap-1.5 text-sm text-muted-foreground sm:grid-cols-2">
+            <ul className="mt-3 grid grid-cols-1 gap-1.5 text-sm text-muted-foreground sm:grid-cols-2">
               {[
                 "Betri zinazosafirishwa peke yake (loose batteries)",
                 "Vitu vinavyoweza kuwaka au kulipuka",
@@ -236,7 +236,7 @@ export default function ChinaPage() {
         title="Ofisi zetu Tanzania"
         body="Hapa ndipo unachukua mzigo wako baada ya kufika."
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {COMPANY.offices.map((office) => (
             <div
               key={office.id}

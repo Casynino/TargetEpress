@@ -73,14 +73,14 @@ export default async function SourcingRequestPage({
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
           <section className="rounded-xl border bg-card p-5 shadow-soft">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               {t(locale, "What they asked for")}
             </h2>
             <p className="mt-3 whitespace-pre-wrap text-sm">{request.description}</p>
-            <dl className="mt-4 grid gap-4 border-t pt-4 sm:grid-cols-3">
+            <dl className="mt-4 grid grid-cols-1 gap-4 border-t pt-4 sm:grid-cols-3">
               <div>
                 <dt className="text-xs text-muted-foreground">
                   {t(locale, "Category")}

@@ -92,7 +92,7 @@ export default async function SourcingPage() {
         <NewSourcingForm customers={customers} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         {columns.map((column) => {
           const items = requests.filter((request) => request.status === column.key);
           return (

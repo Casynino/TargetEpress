@@ -386,7 +386,7 @@ export default async function SupportHome() {
         <SectionLabel action={{ href: "/app/customers", label: t(locale, "All customers") }}>
           {t(locale, "The desk · today")}
         </SectionLabel>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
             label={t(locale, "Customers")}
             numeric={overview.customers}
@@ -435,7 +435,7 @@ export default async function SupportHome() {
             desk use. Two answer "what is stuck, and for how long"; the third
             answers the one a count can never show, which is whether this desk
             is keeping up at all. */}
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <section className="panel p-4">
             <h3 className="text-sm font-semibold">{t(locale, "What the queue is made of")}</h3>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -549,7 +549,7 @@ export default async function SupportHome() {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
           {/* Follow-up */}
           <section className="rounded-xl border bg-card shadow-soft">

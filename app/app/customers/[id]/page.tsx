@@ -128,7 +128,7 @@ export default async function CustomerProfilePage({
       />
 
       {/* Headline numbers */}
-      <dl className="mb-6 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3 lg:grid-cols-5">
+      <dl className="mb-6 grid grid-cols-1 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3 lg:grid-cols-5">
         {[
           { label: t(locale, "Total shipments"), value: String(stats.total) },
           { label: t(locale, "Active"), value: String(stats.active) },
@@ -174,7 +174,7 @@ export default async function CustomerProfilePage({
         ))}
       </dl>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-6">
           {/* Shipments */}
           <section className="rounded-xl border bg-card shadow-soft">
@@ -441,7 +441,7 @@ export default async function CustomerProfilePage({
           </section>
 
           {/* Pickups, tickets, requests */}
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <section className="rounded-xl border bg-card shadow-soft">
               <header className="border-b p-4">
                 <h2 className="font-semibold">{t(locale, "Pickup history")}</h2>

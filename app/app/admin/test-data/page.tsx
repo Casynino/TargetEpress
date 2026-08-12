@@ -266,7 +266,7 @@ export default async function TestDataPage() {
         <h2 className="mb-4 font-display text-lg font-semibold">
           {t(locale, "Try these, in this order")}
         </h2>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {scenarios.map(({ icon: Icon, role, title, steps }) => (
             <div key={title} className="panel p-5">
               <div className="flex items-center gap-2.5">
@@ -401,7 +401,7 @@ export default async function TestDataPage() {
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Customers */}
         <section>
           <h2 className="mb-1 font-display text-lg font-semibold">

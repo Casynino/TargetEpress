@@ -46,7 +46,7 @@ export default function ContactPage() {
         <SectionBackdrop variant="aurora" />
 
         <div className="container">
-          <div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-3">
+          <div className="mx-auto grid grid-cols-1 max-w-5xl gap-5 md:grid-cols-3">
             {[
               {
                 icon: MessageCircle,
@@ -194,7 +194,7 @@ export default function ContactPage() {
               <p className="mt-2 text-sm text-white/70">
                 {COMPANY.chinaOffice.addressEn} · {COMPANY.chinaOffice.rooms}
               </p>
-              <ul className="mt-4 grid gap-2 border-t border-white/15 pt-4 sm:grid-cols-3">
+              <ul className="mt-4 grid grid-cols-1 gap-2 border-t border-white/15 pt-4 sm:grid-cols-3">
                 {COMPANY.chinaOffice.phones.map((phone) => (
                   <li key={phone}>
                     <a

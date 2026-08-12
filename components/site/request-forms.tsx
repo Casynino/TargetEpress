@@ -79,7 +79,7 @@ export function BookingForm() {
     <form action={action} className="space-y-5">
       <Error state={state} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className={labelClass} htmlFor="b-name">
             Your name
@@ -127,7 +127,7 @@ export function BookingForm() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <label className={labelClass} htmlFor="b-category">
             Type of goods
@@ -162,7 +162,7 @@ export function BookingForm() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className={labelClass} htmlFor="b-origin">
             Sending from
@@ -238,7 +238,7 @@ export function PickupForm() {
     <form action={action} className="space-y-5">
       <Error state={state} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className={labelClass} htmlFor="p-name">
             Your name
@@ -274,7 +274,7 @@ export function PickupForm() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className={labelClass} htmlFor="p-city">
             City
@@ -313,7 +313,7 @@ export function PickupForm() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <label className={labelClass} htmlFor="p-weight">
             Weight (kg) <span className="text-white/40">approx</span>

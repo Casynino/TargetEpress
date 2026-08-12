@@ -135,7 +135,7 @@ export default async function SubmissionsPage({
                 </div>
               </div>
 
-              <div className="grid gap-4 px-5 py-3.5 sm:grid-cols-[1fr_auto]">
+              <div className="grid grid-cols-1 gap-4 px-5 py-3.5 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <div className="space-y-1.5 text-xs">
                   {row.status === "VERIFIED" ? (
                     <p className="text-success">

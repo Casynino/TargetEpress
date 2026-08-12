@@ -172,7 +172,7 @@ export default function HomePage() {
         <SectionBackdrop variant="aurora" />
         <div className="container">
           <Reveal>
-          <div className="grid items-center gap-12 lg:grid-cols-2">
+          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
             <div>
               <p className="text-sm font-bold uppercase tracking-wider text-signal">
                 Address ya China
@@ -272,7 +272,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {SERVICES.map(({ icon: Icon, title, titleEn, body }) => (
               <div
                 key={title}
@@ -310,7 +310,7 @@ export default function HomePage() {
             </h2>
           </div>
 
-          <ol className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <ol className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {STEPS.map(({ icon: Icon, title, body }, index) => (
               <li
                 key={title}
@@ -338,7 +338,7 @@ export default function HomePage() {
       <section className="section relative isolate">
         <SectionBackdrop variant="aurora" />
         <div className="container">
-          <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.1fr_0.minmax(0,9fr)]">
             <div className="relative order-2 overflow-hidden rounded-2xl border shadow-lift lg:order-1">
               <Image
                 src="https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1200&q=70"
@@ -479,7 +479,7 @@ export default function HomePage() {
       <section className="section relative isolate">
         <SectionBackdrop variant="stars" />
         <div className="container">
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="overflow-hidden rounded-2xl border bg-card shadow-soft">
               <Image
                 src="https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?auto=format&fit=crop&w=1000&q=70"

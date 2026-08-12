@@ -269,7 +269,7 @@ export default async function AccountsPage() {
           — a card — with the institution and its mark at the top, the balance
           as the object of the surface, and the account number set the way it
           is read aloud and checked against a statement. */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {ordered.map((row) => (
           <AccountCard
             key={row.account.id}

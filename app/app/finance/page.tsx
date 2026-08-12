@@ -496,7 +496,7 @@ export default async function FinanceOverviewPage() {
              be compared down a column because nothing shared a column.
              One line per row now, aligned, and the badge that was true of
              everything is said once in the subtitle. */}
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
         <section className="overflow-hidden rounded-xl border bg-card">
           <div className="flex items-center justify-between gap-3 border-b px-5 py-3.5">
             <div className="min-w-0">

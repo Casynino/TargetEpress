@@ -88,7 +88,7 @@ export function Hero() {
       />
 
       <div className="container relative z-10 pb-16 pt-28 sm:pb-20 sm:pt-32 lg:pb-28 lg:pt-36">
-        <div className="grid items-center gap-12 lg:grid-cols-[1.02fr_minmax(0,0.98fr)] lg:gap-8 xl:gap-14">
+        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.02fr_minmax(0,0.98fr)] lg:gap-8 xl:gap-14">
           {/* Left — the promise, and the three things a visitor can do */}
           <div>
             <span className="rise inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-gold">
@@ -170,7 +170,7 @@ export function Hero() {
               ))}
             </div>
 
-            <ul className="rise rise-4 mt-9 grid gap-x-8 gap-y-3 border-t border-white/10 pt-7 sm:grid-cols-2">
+            <ul className="rise rise-4 mt-9 grid grid-cols-1 gap-x-8 gap-y-3 border-t border-white/10 pt-7 sm:grid-cols-2">
               {[
                 { icon: Warehouse, label: "Our own warehouse in Guangzhou" },
                 { icon: ShieldCheck, label: "QR-verified collection" },

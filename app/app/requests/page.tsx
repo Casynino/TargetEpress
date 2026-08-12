@@ -55,7 +55,7 @@ export default async function RequestsPage() {
         )}`}
       />
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <section className="panel">
           <div className="flex items-center justify-between border-b px-5 py-4">
             <h2 className="flex items-center gap-2 font-display font-semibold">

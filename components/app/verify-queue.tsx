@@ -111,9 +111,9 @@ export async function VerifyQueue() {
                   </div>
                 </div>
 
-                <div className="grid gap-4 px-5 py-4 lg:grid-cols-[1fr_auto]">
+                <div className="grid grid-cols-1 gap-4 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_auto]">
                   <div className="space-y-2">
-                    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-3">
+                    <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3">
                       {[
                         {
                           label: t(locale, "Reference"),

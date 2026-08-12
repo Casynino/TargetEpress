@@ -186,7 +186,7 @@ export default async function WarehouseReportsPage({
       {/* ---------------------------------------------------------------- */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Throughput · last {window}</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label={t(locale, "Cargo checked in")}
             value={throughput.shipmentsCheckedIn}
@@ -261,7 +261,7 @@ export default async function WarehouseReportsPage({
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      <section className="mt-8 grid gap-6 lg:grid-cols-2">
+      <section className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="panel">
           <h2 className="flex items-center gap-2 border-b px-5 py-4 font-display font-semibold">
             <Timer className="h-4 w-4" />
@@ -682,7 +682,7 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label={t(locale, "Registered")}
           numeric={registered._count}
@@ -721,7 +721,7 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
         />
       </div>
 
-      <div className="mt-7 grid gap-4 lg:grid-cols-3">
+      <div className="mt-7 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <section className="panel p-4">
           <h3 className="text-sm font-semibold">
             {t(locale, "What is standing now")}

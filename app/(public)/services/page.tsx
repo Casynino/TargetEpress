@@ -161,7 +161,7 @@ export default function ServicesPage() {
 
           <Reveal
             delay={90}
-            className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
+            className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
           >
             {SERVICES.map((service) => (
               <MediaCard key={service.title} {...service} />

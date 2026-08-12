@@ -575,7 +575,7 @@ async function ChinaDashboard({
         >
           {t(locale, "The desk · right now")}
         </SectionLabel>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           delay={0}
           label={t(locale, "In China warehouse")}
@@ -617,7 +617,7 @@ async function ChinaDashboard({
         >
           {t(locale, "The desk, in shape")}
         </SectionLabel>
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <section className="panel p-4">
             <h3 className="text-sm font-semibold">
               {t(locale, "What is in Guangzhou")}
@@ -694,7 +694,7 @@ async function ChinaDashboard({
 
       <div>
         <SectionLabel>{t(locale, "Volume & mix")}</SectionLabel>
-        <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_1fr]">
         <section className="panel p-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -741,7 +741,7 @@ async function ChinaDashboard({
         >
           {t(locale, "Batches on the floor")}
         </SectionLabel>
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section className="panel p-5">
           <h2 className="font-display font-semibold">
             {t(locale, "Batches on the floor")}
@@ -1150,7 +1150,7 @@ async function DarDashboard({
         >
           {t(locale, "The floor · right now")}
         </SectionLabel>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           delay={0}
           label={t(locale, "Incoming shipments")}
@@ -1250,7 +1250,7 @@ async function DarDashboard({
             stretched to the height of two stacked cards beside it and stood
             almost empty — the chart band was taller than the work it was
             meant to sit under. */}
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <section className="panel p-4">
             <h3 className="text-sm font-semibold">
               {t(locale, "What is on the floor")}
@@ -1439,7 +1439,7 @@ async function DarDashboard({
           stays away until then, leaving the activity feed the full width. */}
       <div
         className={
-          perf.sample > 0 ? "grid gap-6 lg:grid-cols-[1fr_1.4fr]" : "grid gap-6"
+          perf.sample > 0 ? "grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.minmax(0,4fr)]" : "grid gap-6"
         }
       >
         {perf.sample > 0 ? (
@@ -1823,7 +1823,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
         >
           {t(locale, "The money · right now")}
         </SectionLabel>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MoneyTile
           label={t(locale, "Cash available")}
           usd={cashUsd}
@@ -1920,7 +1920,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           {t(locale, "The money, in shape")}
         </SectionLabel>
 
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {/* The account list becomes the key to a ring rather than a panel of
               its own. Proportioned by each account's dollar figure — the same
               basis "Cash available" is computed on, so no new conversion is
@@ -2319,7 +2319,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
         >
           {t(locale, "Business health · right now")}
         </SectionLabel>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/*
           Shillings lead here too.
 
@@ -2397,7 +2397,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
         >
           {t(locale, "The corridor, right now")}
         </SectionLabel>
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <section className="panel p-4">
             <h3 className="text-sm font-semibold">
               {t(locale, "Where the cargo is")}
@@ -2531,7 +2531,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
             payments, against the costs they have to cover — one series where
             there were two charts, and the one that could never answer whether
             any of it was kept. */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section className="panel p-5">
           <h2 className="font-display font-semibold">
             {t(locale, "Unpaid in warehouse")}

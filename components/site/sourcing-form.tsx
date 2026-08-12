@@ -49,7 +49,7 @@ export function SourcingForm() {
         <input id="company" name="company" tabIndex={-1} autoComplete="off" />
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="name">Jina lako / Your name</Label>
           <Input id="name" name="name" required autoComplete="name" />

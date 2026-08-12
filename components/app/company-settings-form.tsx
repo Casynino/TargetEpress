@@ -84,7 +84,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
         <ul className="mt-4 space-y-3">
           {settings.accounts.map((account, index) => (
             <li key={index} className="rounded-xl border bg-muted/20 p-4">
-              <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1.2fr_auto_auto]">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.4fr)_1fr_1.2fr_auto_auto]">
                 <div className="space-y-1">
                   <Label className="text-[11px]">
                     {t("Label the customer sees")}
@@ -175,7 +175,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
         </ul>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {(["dar", "china"] as const).map((which) => (
           <section key={which} className="panel p-5">
             <h2 className="font-display font-semibold">
@@ -186,7 +186,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                 "One line per line of the address, as it would be written on an envelope."
               )}
             </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_1fr_auto]">
               <div className="space-y-1">
                 <Label className="text-[11px]">{t("City")}</Label>
                 <Input
@@ -231,7 +231,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
 
       <section className="panel p-5">
         <h2 className="font-display font-semibold">{t("Contact")}</h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {(
             [
               ["phone", "Phone"],

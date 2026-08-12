@@ -100,7 +100,7 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
               </p>
             ) : null}
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="name">{t("Market name")}</Label>
                 <Input id="name" name="name" defaultValue={editing?.name} required />
@@ -228,7 +228,7 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
         </p>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {markets.map((market) => (
           <article
             key={market.id}

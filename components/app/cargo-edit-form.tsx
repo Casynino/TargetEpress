@@ -65,7 +65,7 @@ export function CargoEditForm({
         <h2 className="border-b px-5 py-4 font-display font-semibold">
           {t("Customer")}
         </h2>
-        <div className="grid gap-4 p-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="customerName">{t("Name")}</Label>
             <Input
@@ -155,7 +155,7 @@ export function CargoEditForm({
             )}
           </p>
         </div>
-        <div className="grid gap-4 p-5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label htmlFor="weightKg">{t("Weight (kg)")}</Label>
             <Input

@@ -150,7 +150,7 @@ export async function InvoiceDocument({
       />
 
       {/* Who it is for, and what it is for. */}
-      <div className="mt-6 grid gap-6 sm:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
         <DocumentField label={t(locale, "Billed to")}>
           <p className="text-base font-bold">{customer.name}</p>
           <p className="font-mono text-sm tabular">
@@ -296,7 +296,7 @@ export async function InvoiceDocument({
         dollar figure stays directly underneath, with the rate this invoice
         was locked at — it is the reference, not the ask.
       */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-[1fr_260px]">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_260px]">
         <dl className="space-y-1.5 self-end text-sm">
           <div className="flex justify-between gap-4">
             <dt className="text-black/60">{t(locale, "Total")}</dt>
@@ -383,7 +383,7 @@ export async function InvoiceDocument({
             </p>
           </div>
 
-          <div className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
             {/* The accounts THIS invoice was issued with. Reading today's
                 settings would reprint numbers the customer was never given —
                 see accountsForInvoice. */}

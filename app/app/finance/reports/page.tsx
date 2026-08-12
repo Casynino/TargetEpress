@@ -119,7 +119,7 @@ export default async function FinanceReportsPage({
         </p>
       </section>
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section className="rounded-xl border bg-card p-5 shadow-soft">
           <h2 className="font-semibold">
             {t(locale, "Did the work make money")}
@@ -162,7 +162,7 @@ export default async function FinanceReportsPage({
         </section>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section className="rounded-xl border bg-card shadow-soft">
           <h2 className="border-b px-5 py-4 font-semibold">
             {t(locale, "Where the money went")}

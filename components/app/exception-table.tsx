@@ -301,7 +301,7 @@ function CaseRecord({
     // halfway down and left a column of empty grey beside a dense form; the
     // case and what was done about it deserve the same room.
     <div className="space-y-3 pt-3">
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         {/* ---- The case ------------------------------------------------ */}
         <div className="space-y-3">
           <Panel title={t("Reported issue")}>
@@ -326,7 +326,7 @@ function CaseRecord({
           </Panel>
 
           <Panel title={t("The case")}>
-          <dl className="grid gap-x-6 gap-y-3 text-xs sm:grid-cols-2">
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-xs sm:grid-cols-2">
             <Fact label={t("Reported by")}>
               {exception.raisedByName ?? "—"}
               <span className="block text-muted-foreground">
@@ -427,7 +427,7 @@ function CaseRecord({
               decided by comparing what China photographed against what came
               off the plane. */}
           <Panel title={t("Evidence")}>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <PhotoStrip
                 title={t("Photographed in China")}
                 photos={exception.chinaPhotos}

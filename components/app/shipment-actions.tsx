@@ -436,7 +436,7 @@ function PaymentPanel(props: Props) {
       {open && !settled ? (
         <form action={action} className="mt-4 space-y-3">
           <input type="hidden" name="invoiceId" value={props.invoiceId ?? ""} />
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
             <div className="space-y-1.5">
               <Label htmlFor="amount" className="text-xs">
                 {t("Amount")}

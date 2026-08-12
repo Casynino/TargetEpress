@@ -240,7 +240,7 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
           </span>
         </div>
 
-        <dl className="grid gap-px bg-border sm:grid-cols-4">
+        <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-4">
           {[
             { label: "Origin", value: result.origin },
             { label: "Shipments in batch", value: String(result.shipmentCount) },
@@ -300,7 +300,7 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
         />
       ) : null}
 
-      <dl className="grid gap-px bg-border sm:grid-cols-3 lg:grid-cols-4">
+      <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-3 lg:grid-cols-4">
         {[
           { label: "Cargo", value: result.description },
           { label: "Shipper", value: result.customerInitials },
@@ -658,7 +658,7 @@ function ChargePanel({
       {!settled ? (
         <div className="mt-4 rounded-lg border bg-muted/20 p-4">
           <p className="text-sm font-semibold">Njia za malipo</p>
-          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+          <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {PAYMENT_METHODS.map((method) => (
               <li key={method.number} className="rounded-lg border bg-card p-3">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">

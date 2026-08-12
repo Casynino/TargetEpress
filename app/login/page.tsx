@@ -60,7 +60,7 @@ export default async function LoginPage({
         </header>
 
         <main className="flex flex-1 items-center px-6 py-10 sm:px-10">
-          <div className="mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1fr_minmax(360px,420px)]">
+          <div className="mx-auto grid grid-cols-1 w-full max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
             {/* The claim, on the side the routes are flying through. Hidden on
                 a phone: the form is why anybody opened this page, and it should
                 not start below the fold. */}

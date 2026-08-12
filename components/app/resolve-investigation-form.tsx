@@ -75,7 +75,7 @@ export function ResolveInvestigationForm({
 
       <div className="space-y-2">
         <p className="text-xs font-medium">{t("What happened?")}</p>
-        <div className="grid gap-1.5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
           {ORDER.map((option) => (
             <label
               key={option}
@@ -123,7 +123,7 @@ export function ResolveInvestigationForm({
       ) : null}
 
       {type === "WEIGHT_CORRECTED" ? (
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label htmlFor={`was-${exceptionId}`} className="text-xs">
               {t("Previous weight (kg)")}

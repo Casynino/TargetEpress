@@ -172,7 +172,7 @@ export default async function ArticlePage({
           <h2 className="rule-gold font-display text-xl font-bold">
             Keep reading
           </h2>
-          <div className="mt-6 grid gap-5 sm:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
             {others.map((other) => (
               <MediaCard
                 key={other.slug}

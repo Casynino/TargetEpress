@@ -274,7 +274,7 @@ export default async function ShipmentPage({
           </div>
         </div>
 
-        <dl className="grid gap-px bg-border sm:grid-cols-3 lg:grid-cols-6">
+        <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-3 lg:grid-cols-6">
           {[
             { label: t(locale, "Cargo pieces"), value: String(cargo.length) },
             { label: t(locale, "Packages"), value: String(packages) },

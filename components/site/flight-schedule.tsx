@@ -22,7 +22,7 @@ export function FlightSchedule({
     date.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
 
   return (
-    <div className={cn("grid gap-4 sm:grid-cols-3", className)}>
+    <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-3", className)}>
       {flights.map((flight) => {
         const tone = flightTone(flight);
         return (

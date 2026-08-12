@@ -71,7 +71,7 @@ export default async function PublicMarketsPage() {
       <section className="section relative isolate">
         <SectionBackdrop variant="stars" />
         <div className="container">
-          <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-2">
+          <div className="mx-auto grid grid-cols-1 max-w-6xl gap-6 lg:grid-cols-2">
             {markets.map((market, index) => (
               <Reveal key={market.id} className="h-full" delay={(index % 2) * 80}>
                 <article

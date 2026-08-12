@@ -114,7 +114,7 @@ export default async function EmployeeProfilePage({
         }}
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: "Shipments registered", value: stats.totalShipments },
           {
@@ -135,7 +135,7 @@ export default async function EmployeeProfilePage({
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
           <section className="panel">
             <div className="border-b px-5 py-4">

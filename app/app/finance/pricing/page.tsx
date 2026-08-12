@@ -225,7 +225,7 @@ export default async function PricingConfigurationPage() {
         </p>
       ) : null}
 
-      <dl className="mb-6 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 lg:grid-cols-5">
+      <dl className="mb-6 grid grid-cols-1 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 lg:grid-cols-5">
         {cards.map((card) => (
           <div key={card.label} className="bg-card p-4">
             <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -273,7 +273,7 @@ export default async function PricingConfigurationPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="space-y-6">
           <RateBook rules={ruleRows} />
           <ProductCatalogue products={productRows} />

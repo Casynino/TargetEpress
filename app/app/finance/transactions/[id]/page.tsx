@@ -191,7 +191,7 @@ export default async function LedgerEntryPage({
         description={`${t(locale, KIND_LABEL[entry.kind] ?? entry.kind)} · ${entry.account.name}`}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_1fr]">
         <section className="rounded-2xl border bg-card p-6">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
             {inbound ? t(locale, "Money in") : t(locale, "Money out")}
@@ -213,7 +213,7 @@ export default async function LedgerEntryPage({
             </p>
           )}
 
-          <dl className="mt-6 grid gap-x-6 gap-y-4 border-t pt-5 sm:grid-cols-2">
+          <dl className="mt-6 grid grid-cols-1 gap-x-6 gap-y-4 border-t pt-5 sm:grid-cols-2">
             {facts.map((fact) => (
               <div key={fact.label}>
                 <dt className="text-xs text-muted-foreground">

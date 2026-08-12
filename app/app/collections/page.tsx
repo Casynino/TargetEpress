@@ -152,7 +152,7 @@ export default async function CollectionsHome() {
         <SectionLabel action={{ href: "/app/collections/follow-up", label: t(locale, "The call list") }}>
           {t(locale, "What customers owe")}
         </SectionLabel>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MoneyTile
             label={t(locale, "Outstanding")}
             usd={stats.outstandingUsd}
@@ -220,7 +220,7 @@ export default async function CollectionsHome() {
         </div>
       </div>
 
-      <div className="mt-7 grid gap-6 xl:grid-cols-[1.3fr_1fr]">
+      <div className="mt-7 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.3fr)_1fr]">
         <section className="panel overflow-hidden">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5">
             <div>

@@ -66,7 +66,7 @@ export default function LearnPage() {
               <h2 className="rule-gold font-display text-2xl font-bold tracking-tight">
                 {category}
               </h2>
-              <div className="mt-6 grid gap-5 md:grid-cols-2">
+              <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
                 {articles.map((article, cardIndex) => (
                   <Reveal key={article.slug} delay={cardIndex * 60}>
                     <MediaCard

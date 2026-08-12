@@ -77,7 +77,7 @@ export function PersonalDetailsForm({ profile }: { profile: EditableProfile }) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="name">{t("Your name")}</Label>
           <Input
@@ -156,7 +156,7 @@ export function PasswordForm() {
         <Label htmlFor="current">{t("Current password")}</Label>
         <Input id="current" name="current" type="password" required />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="next">{t("New password")}</Label>
           <Input

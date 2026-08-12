@@ -71,7 +71,7 @@ export default function SourcingServicePage() {
       <section className="section relative isolate">
         <SectionBackdrop variant="aurora" />
         <div className="container">
-          <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1fr_420px]">
+          <div className="mx-auto grid grid-cols-1 max-w-6xl gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
         <div className="order-2 lg:order-1">
           <h2 className="font-display text-2xl font-bold tracking-tight">
             How it works

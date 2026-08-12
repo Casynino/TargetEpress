@@ -69,7 +69,7 @@ export default async function BatchesPage() {
         description="The two loading tables. Cargo waiting to leave China, and nothing else."
       />
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {tables.map((table) => {
           const weight = table.shipments.reduce(
             (sum, cargo) => sum + toNumber(cargo.weightKg),

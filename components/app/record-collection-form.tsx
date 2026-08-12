@@ -102,7 +102,7 @@ export function RecordCollectionForm({
 
       {/* Already known. Shown so the desk can check they are on the right
           record, never retyped. */}
-      <dl className="grid gap-x-6 gap-y-3 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-3 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
         {[
           { label: "Customer", value: customerName },
           { label: "Cargo", value: `${trackingNumber} · ${goods}` },
@@ -123,7 +123,7 @@ export function RecordCollectionForm({
         ))}
       </dl>
 
-      <div className="grid gap-4 sm:grid-cols-[1fr_auto_1fr]">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto_1fr]">
         <div className="space-y-1.5">
           <Label htmlFor="collectionAmount" className="text-xs">
             {t("What the customer sent")}

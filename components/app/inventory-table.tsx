@@ -366,7 +366,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
         emptyTitle="No cargo matches"
         emptyDescription="Try a different search, or clear the filters."
         renderExpanded={(row) => (
-          <dl className="grid gap-4 sm:grid-cols-4">
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             {[
               { label: "Cargo", value: row.description },
               {

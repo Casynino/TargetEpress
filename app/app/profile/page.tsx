@@ -101,7 +101,7 @@ export default async function MyProfilePage() {
       />
 
       {/* Today first. It is the only number anyone checks more than once. */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Tile
           icon={Package}
           label={t(locale, "Today's cargo")}
@@ -132,7 +132,7 @@ export default async function MyProfilePage() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-6">
           {/* Everything since day one, kept together and out of the way of the
               numbers that change hourly. */}
@@ -143,7 +143,7 @@ export default async function MyProfilePage() {
                 Since {formatDate(me.joinedAt, locale)}
               </p>
             </div>
-            <dl className="grid gap-px bg-border sm:grid-cols-3">
+            <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-3">
               {[
                 {
                   label: t(locale, "Shipments registered"),

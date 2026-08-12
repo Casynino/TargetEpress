@@ -121,7 +121,7 @@ export default function PricingPage() {
             price list would.
           </p>
 
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+          <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
             {BASIS.map((item, index) => (
               <Reveal
                 key={item.title}
@@ -163,7 +163,7 @@ export default function PricingPage() {
 
       <section className="section relative isolate border-y bg-muted/30">
         <SectionBackdrop variant="stars" />
-        <div className="container grid gap-10 lg:grid-cols-2">
+        <div className="container grid grid-cols-1 gap-10 lg:grid-cols-2">
           <div>
             <h2 className="rule-gold font-display text-3xl font-bold tracking-tight">
               What moves the number

@@ -148,7 +148,7 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
         </p>
       </div>
 
-      <dl className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
         {tiles.map((tile) => (
           <div key={tile.label} className="bg-card p-4">
             <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">

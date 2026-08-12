@@ -213,7 +213,7 @@ export default async function AccountDetailPage({
         </p>
       ) : null}
 
-      <dl className="mb-6 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3">
+      <dl className="mb-6 grid grid-cols-1 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3">
         <div className="bg-card p-4">
           <dt className="text-sm text-muted-foreground">{t(locale, "Balance")}</dt>
           <dd className="mt-1 font-display text-2xl font-bold tabular-nums">

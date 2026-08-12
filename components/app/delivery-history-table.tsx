@@ -259,8 +259,8 @@ function DeliveryDetail({ row }: { row: DeliveryHistoryRow }) {
   const locale = useLocale();
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
-      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.minmax(0,1fr)]">
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
         <Field label={t("Cargo")}>
           {cargoDescription(locale, row)}
           <span className="mt-0.5 block text-xs text-muted-foreground tabular">

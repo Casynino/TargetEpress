@@ -44,7 +44,7 @@ export default async function MarketsPage() {
         </p>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {markets.map((market) => (
           <article
             key={market.id}

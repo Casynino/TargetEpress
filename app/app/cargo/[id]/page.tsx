@@ -220,14 +220,14 @@ export default async function ShipmentDetailPage({
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           {/* Cargo */}
           <section className="rounded-xl border bg-card shadow-soft">
             <h2 className="border-b px-5 py-4 font-display font-semibold">
               {t(locale, "Cargo")}
             </h2>
-            <dl className="grid gap-px bg-border sm:grid-cols-3">
+            <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-3">
               {[
                 {
                   label: t(locale, "Goods type"),
@@ -597,7 +597,7 @@ export default async function ShipmentDetailPage({
                 <Truck className="h-4 w-4" />
                 {t(locale, "Delivery record")}
               </h2>
-              <dl className="grid gap-px bg-border sm:grid-cols-3">
+              <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-3">
                 {[
                   {
                     label: t(locale, "Received by"),

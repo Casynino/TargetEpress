@@ -374,7 +374,7 @@ export function PublishPriceForm({ products }: { products: AdminProduct[] }) {
             </p>
           ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="rule-category">{t("Cargo category")}</Label>
               <NativeSelect
@@ -544,7 +544,7 @@ export function ProductCatalogue({ products }: { products: AdminProduct[] }) {
         </p>
       </header>
 
-      <form action={action} className="grid gap-3 border-b bg-muted/30 p-4 sm:grid-cols-[1fr_auto_auto_auto]">
+      <form action={action} className="grid grid-cols-1 gap-3 border-b bg-muted/30 p-4 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
         <div className="space-y-1.5">
           <Label htmlFor="product-name" className="text-xs">
             {t("Product name")}

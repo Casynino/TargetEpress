@@ -156,7 +156,10 @@ export function AppShell({
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b bg-background px-4 lg:hidden print:hidden">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9">
+            {/* 44x44, not 36x36. This is the control every warehouse phone
+                presses first, and 36 is below the size a thumb hits reliably
+                while the other hand is holding a box. */}
+            <Button variant="ghost" size="icon" className="h-11 w-11">
               <Menu className="h-5 w-5" />
               <span className="sr-only">{t(user.locale, "Open navigation")}</span>
             </Button>
@@ -205,7 +208,7 @@ export function AppShell({
         <div className="flex items-center gap-1">
           <MainSiteLink compact />
           <NotificationBell unread={unreadNotifications} />
-          <ThemeToggle className="h-9 w-9" />
+          <ThemeToggle className="h-11 w-11" />
         </div>
       </div>
 
@@ -258,7 +261,7 @@ function MainSiteLink({ compact = false }: { compact?: boolean }) {
       size={compact ? "icon" : "sm"}
       className={cn(
         "text-muted-foreground hover:text-foreground",
-        compact ? "h-9 w-9" : "gap-2 px-2.5"
+        compact ? "h-11 w-11" : "gap-2 px-2.5"
       )}
     >
       <Link href="/" title="Open the public website — you stay signed in">

@@ -112,7 +112,7 @@ export default async function PaymentsPage() {
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MoneyTile
           label="Collected this month"
           usd={toNumber(monthAgg._sum.creditedAmount)}

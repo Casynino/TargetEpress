@@ -322,7 +322,7 @@ export function CargoGrid({
     <div>
       {/* Finding one customer in a busy batch is the common task, so search
           leads and the filters sit under it. */}
-      <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+      <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

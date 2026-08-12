@@ -267,7 +267,7 @@ export function ShipmentsTable({
         </>
       )}
       renderExpanded={(row) => (
-        <dl className="grid gap-4 sm:grid-cols-4">
+        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           {[
             { label: "Goods type", value: t(GOODS_TYPE_LABELS[row.goodsType]) },
             { label: "Origin", value: t(ORIGIN_LABELS[row.origin]) },

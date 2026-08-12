@@ -73,7 +73,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
       </div>
 
       <form action={action} className="space-y-3 p-5">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="fromAccountId" className="text-xs">
               {t("Out of")}
@@ -112,7 +112,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="amountOut" className="text-xs">
               {t("Amount leaving")}{" "}
@@ -134,7 +134,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
         </div>
 
         {converting ? (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="transferRate" className="text-xs">
                 {t("Rate used")}
@@ -173,7 +173,7 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
           </div>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="transferReason" className="text-xs">
               {t("What for")}{" "}

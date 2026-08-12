@@ -81,7 +81,7 @@ export default async function RecordCollectionPage({
 
       <CollectionsNav canVerify={can(user.role, "payment.verify")} />
 
-      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.5fr)_1fr]">
         <section className="panel p-6">
           {invoice.status === "DRAFT" ? (
             <p className="rounded-lg border border-warning/40 bg-warning/5 p-4 text-sm text-warning">

@@ -199,7 +199,7 @@ export function NewTicketForm({
           </p>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <ContactFields customers={customers} presetCustomerId={presetCustomerId} />
 
           <div className="space-y-1.5">
@@ -299,7 +299,7 @@ export function TicketWorkflow({
       <input type="hidden" name="ticketId" value={ticket.id} />
       <FormError state={state} />
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor="status">{t("Status")}</Label>
           <NativeSelect
@@ -422,7 +422,7 @@ export function NewSourcingForm({
           </p>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <ContactFields customers={customers} presetCustomerId={presetCustomerId} />
 
           <div className="space-y-1.5">
@@ -518,7 +518,7 @@ export function SourcingWorkflow({
       <input type="hidden" name="requestId" value={request.id} />
       <FormError state={state} />
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="sourcing-status">{t("Status")}</Label>
           <NativeSelect

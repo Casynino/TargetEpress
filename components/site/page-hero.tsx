@@ -101,7 +101,7 @@ export function PageHero({
       <div
         className={cn(
           "container relative",
-          aside && "grid gap-12 lg:grid-cols-[1fr_1.05fr] lg:items-center"
+          aside && "grid grid-cols-1 gap-12 lg:grid-cols-[1fr_1.minmax(0,05fr)] lg:items-center"
         )}
       >
         <div className="rise">
