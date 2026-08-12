@@ -263,7 +263,7 @@ export function DataTable<T>({
               variant={activeFilterCount ? "secondary" : "outline"}
               size="sm"
               onClick={() => setShowFilters((v) => !v)}
-              className="h-10"
+              className="h-11"
             >
               <SlidersHorizontal className="mr-2 h-4 w-4" />
               {t("Filters")}
@@ -277,7 +277,7 @@ export function DataTable<T>({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="h-10">
+              <Button type="button" variant="outline" size="sm" className="h-11">
                 <Columns3 className="mr-2 h-4 w-4" />
                 {t("Columns")}
               </Button>

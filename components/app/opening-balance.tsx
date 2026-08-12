@@ -83,7 +83,7 @@ export function OpeningBalanceForm({
         <MoneyInput
           id="openingAmount"
           name="amount"
-          className="h-10 w-44"
+          className="h-11 w-44"
           required
         />
       </div>

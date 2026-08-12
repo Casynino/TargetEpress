@@ -217,7 +217,7 @@ export function ShipmentsTable({
       emptyDescription={t("Try a different search, or clear the filters.")}
       toolbar={
         canCreate ? (
-          <Button asChild variant="signal" size="sm" className="h-10">
+          <Button asChild variant="signal" size="sm" className="h-11">
             <Link href="/app/cargo/new">{t("Receive cargo")}</Link>
           </Button>
         ) : null

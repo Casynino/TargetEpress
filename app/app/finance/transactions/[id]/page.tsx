@@ -277,7 +277,7 @@ export default async function LedgerEntryPage({
                           />
                         ) : (
                           <span className="flex h-40 w-full items-center justify-center bg-muted">
-                            <FileText className="h-10 w-10 text-muted-foreground" />
+                            <FileText className="h-11 w-10 text-muted-foreground" />
                           </span>
                         )}
                         <span className="block px-3 py-2">

@@ -260,7 +260,7 @@ export function BatchesTable({
       emptyDescription={t("Open a batch to start grouping cargo for a flight.")}
       toolbar={
         canCreate ? (
-          <Button asChild variant="signal" size="sm" className="h-10">
+          <Button asChild variant="signal" size="sm" className="h-11">
             <Link href="/app/batches/new">{t("Open batch")}</Link>
           </Button>
         ) : null

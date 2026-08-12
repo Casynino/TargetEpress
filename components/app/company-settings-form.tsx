@@ -93,7 +93,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                     value={account.label}
                     onChange={(e) => setAccount(index, { label: e.target.value })}
                     placeholder="MIX BY YAS — LIPA NUMBER"
-                    className="h-10"
+                    className="h-11"
                   />
                 </div>
                 <div className="space-y-1">
@@ -111,7 +111,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                     onChange={(e) =>
                       setAccount(index, { accountName: e.target.value })
                     }
-                    className="h-10"
+                    className="h-11"
                   />
                 </div>
                 <div className="space-y-1">
@@ -123,7 +123,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                         kind: e.target.value as "MOBILE" | "BANK",
                       })
                     }
-                    className="h-10 w-[7rem]"
+                    className="h-11 w-[7rem]"
                   >
                     <option value="MOBILE">{t("Mobile")}</option>
                     <option value="BANK">{t("Bank")}</option>
@@ -141,7 +141,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                           | undefined,
                       })
                     }
-                    className="h-10 w-[6rem]"
+                    className="h-11 w-[6rem]"
                   >
                     <option value="">—</option>
                     <option value="TZS">TZS</option>
@@ -192,7 +192,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                 <Input
                   value={settings[which].city}
                   onChange={(e) => setOffice(which, { city: e.target.value })}
-                  className="h-10"
+                  className="h-11"
                 />
               </div>
               <div className="space-y-1">
@@ -200,7 +200,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                 <Input
                   value={settings[which].country}
                   onChange={(e) => setOffice(which, { country: e.target.value })}
-                  className="h-10"
+                  className="h-11"
                 />
               </div>
               <div className="space-y-1">
@@ -208,7 +208,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                 <Input
                   value={settings[which].flag}
                   onChange={(e) => setOffice(which, { flag: e.target.value })}
-                  className="h-10 w-[4.5rem] text-center"
+                  className="h-11 w-[4.5rem] text-center"
                 />
               </div>
             </div>
@@ -250,7 +250,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                     contact: { ...s.contact, [key]: e.target.value },
                   }))
                 }
-                className="h-10"
+                className="h-11"
               />
             </div>
           ))}

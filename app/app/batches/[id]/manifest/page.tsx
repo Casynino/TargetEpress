@@ -283,13 +283,13 @@ export default async function ManifestPage({
 
         <div className="mt-10 grid grid-cols-2 gap-10 text-xs">
           <div>
-            <div className="h-10 border-b border-black/50" />
+            <div className="h-11 border-b border-black/50" />
             <p className="mt-1.5 text-black/60">
               {t(locale, "Checked by (name & signature)")}
             </p>
           </div>
           <div>
-            <div className="h-10 border-b border-black/50" />
+            <div className="h-11 border-b border-black/50" />
             <p className="mt-1.5 text-black/60">{t(locale, "Date & time")}</p>
           </div>
         </div>
