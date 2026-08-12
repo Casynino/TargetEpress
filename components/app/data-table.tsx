@@ -338,7 +338,7 @@ export function DataTable<T>({
                         [filter.id]: e.target.value,
                       }))
                     }
-                    className="h-9"
+                    className="h-11"
                   >
                     <option value="">{t("All")}</option>
                     {filter.options.map((option) => (
