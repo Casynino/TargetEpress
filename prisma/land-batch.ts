@@ -94,8 +94,24 @@ async function main() {
   if (!dar) throw new Error("No Dar warehouse or admin account to attribute this to.");
 
   const packages = batch.shipments.flatMap((s) => s.packageList);
-  const departedAt = day(arg("departed"), new Date(Date.now() - 5 * 864e5));
-  const arrivedAt = day(arg("arrived"), new Date(Date.now() - 3 * 864e5));
+
+  /*
+    Both dates are required.
+
+    They used to default to "five days ago" and "three days ago", which is fine
+    on a first run and quietly destructive on a second: re-running this to
+    finish a batch whose pricing had timed out rewrote two real flights'
+    departure and arrival dates to a made-up week. Every storage day is counted
+    from arrivedAt, so an invented arrival silently re-bills the customer.
+  */
+  if (!arg("departed") || !arg("arrived")) {
+    throw new Error(
+      "--departed and --arrived are required (YYYY-MM-DD). They set the dates " +
+      "storage is billed from, so this will not guess them."
+    );
+  }
+  const departedAt = day(arg("departed"), new Date());
+  const arrivedAt = day(arg("arrived"), new Date());
 
   console.log(`${batch.batchNumber} · ${batch.origin} · now ${batch.status}`);
   console.log(`  ${batch.shipments.length} consignment(s), ${packages.length} package(s)`);

@@ -84,6 +84,18 @@ async function main() {
   // ---------------------------------------------------------- normal goods
   for (const product of NORMAL_GOODS) await upsertProduct(product, order++);
 
+  /*
+    Nothing flies for less than one kilo's worth of freight.
+
+    A 0.1 kg parcel billed at its scale weight came to USD 1.35 to move a box
+    from Guangzhou to Dar, which does not cover handling it, let alone flying
+    it. Every weight-based rate now bills a minimum of 1 kg, which is the
+    freight industry's normal floor, and the quote says so in as many words:
+    "Priced on this route's minimum billable weight of 1 kg."
+
+    Set on the rule rather than in the engine, so it stays a published rate the
+    CEO can see and change, not a constant buried in the pricing code.
+  */
   // Tiers are data, so the engine needs no special case for "under ten kilos".
   await addRule({
     category: "NORMAL_GOODS",
@@ -91,6 +103,7 @@ async function main() {
     method: "WEIGHT_BASED",
     price: new Prisma.Decimal(13.5),
     currency: USD,
+    minChargeableKg: new Prisma.Decimal(1),
     maxWeightKg: new Prisma.Decimal(10),
     notes: "Under 10 kg.",
   });
@@ -100,6 +113,7 @@ async function main() {
     method: "WEIGHT_BASED",
     price: new Prisma.Decimal(12.5),
     currency: USD,
+    minChargeableKg: new Prisma.Decimal(1),
     minWeightKg: new Prisma.Decimal(10),
     notes: "10 kg and above.",
   });
@@ -116,6 +130,7 @@ async function main() {
     method: "WEIGHT_BASED",
     price: new Prisma.Decimal(13.5),
     currency: USD,
+    minChargeableKg: new Prisma.Decimal(1),
     notes: "All weights.",
   });
 
@@ -129,6 +144,7 @@ async function main() {
       method: "FIXED_PER_ITEM",
       price: new Prisma.Decimal(product.price!),
       currency: USD,
+    minChargeableKg: new Prisma.Decimal(1),
       notes: "Per item, any weight.",
     });
   }
