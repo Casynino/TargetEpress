@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Boxes, PackageX, TriangleAlert } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
+import { useT } from "@/components/app/locale-provider";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,8 +82,9 @@ function isAging(row: InventoryRow) {
 }
 
 function DaysHeld({ row }: { row: InventoryRow }) {
+  const t = useT();
   if (row.daysHeld === null) {
-    return <span className="text-xs text-muted-foreground">Not recorded</span>;
+    return <span className="text-xs text-muted-foreground">{t("Not recorded")}</span>;
   }
   return (
     <span
@@ -92,8 +94,8 @@ function DaysHeld({ row }: { row: InventoryRow }) {
       )}
     >
       {row.daysHeld === 0
-        ? "Today"
-        : `${row.daysHeld} day${row.daysHeld === 1 ? "" : "s"}`}
+        ? t("Today")
+        : `${row.daysHeld} ${t(row.daysHeld === 1 ? "day" : "days")}`}
     </span>
   );
 }
@@ -102,14 +104,16 @@ function DaysHeld({ row }: { row: InventoryRow }) {
  * Payment state as the floor sees it: cleared or not cleared, never an amount.
  */
 function PaymentBadge({ row }: { row: InventoryRow }) {
+  const t = useT();
   return row.paid ? (
-    <Badge variant="success">Paid — cleared</Badge>
+    <Badge variant="success">{t("Paid — cleared")}</Badge>
   ) : (
-    <Badge variant="warning">Not yet paid</Badge>
+    <Badge variant="warning">{t("Not yet paid")}</Badge>
   );
 }
 
 export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
+  const t = useT();
   const [segment, setSegment] = React.useState<Segment>("all");
 
   const counts = React.useMemo(
@@ -129,7 +133,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
   const columns: Column<InventoryRow>[] = [
     {
       id: "trackingNumber",
-      header: "Tracking",
+      header: t("Tracking"),
       sortValue: (row) => row.trackingNumber,
       cell: (row) => (
         <div className="min-w-0">
@@ -149,7 +153,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
     },
     {
       id: "customer",
-      header: "Customer",
+      header: t("Customer"),
       sortValue: (row) => row.customerName,
       cell: (row) => (
         <div className="min-w-0">
@@ -162,7 +166,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
     },
     {
       id: "packages",
-      header: "Packages",
+      header: t("Packages"),
       align: "right",
       sortValue: (row) => row.packages,
       cell: (row) => (
@@ -180,7 +184,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
     },
     {
       id: "weight",
-      header: "Weight",
+      header: t("Weight"),
       align: "right",
       hideBelow: "lg",
       sortValue: (row) => row.weightKg,
@@ -192,7 +196,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
     },
     {
       id: "arrived",
-      header: "Arrived",
+      header: t("Arrived"),
       hideBelow: "lg",
       sortValue: (row) => (row.arrivedIso ? new Date(row.arrivedIso) : null),
       cell: (row) => (
@@ -203,7 +207,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
     },
     {
       id: "daysHeld",
-      header: "Days held",
+      header: t("Days held"),
       align: "right",
       // Sorting by the number, not the printed words, keeps "Today" first.
       sortValue: (row) => row.daysHeld ?? -1,
@@ -211,13 +215,13 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
     },
     {
       id: "payment",
-      header: "Payment",
+      header: t("Payment"),
       sortValue: (row) => (row.paid ? 1 : 0),
       cell: (row) => <PaymentBadge row={row} />,
     },
     {
       id: "status",
-      header: "Status",
+      header: t("Status"),
       hideBelow: "xl",
       defaultHidden: true,
       sortValue: (row) => row.status,
@@ -225,7 +229,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
     },
     {
       id: "batch",
-      header: "Batch",
+      header: t("Batch"),
       hideBelow: "xl",
       defaultHidden: true,
       sortValue: (row) => row.batchNumber,
@@ -237,7 +241,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
     },
     {
       id: "condition",
-      header: "Condition",
+      header: t("Condition"),
       hideBelow: "xl",
       sortValue: (row) => row.openExceptions + (row.packagesPending > 0 ? 1 : 0),
       cell: (row) =>
@@ -252,7 +256,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
             Short
           </span>
         ) : (
-          <span className="text-xs text-muted-foreground">Clean</span>
+          <span className="text-xs text-muted-foreground">{t("Clean")}</span>
         ),
     },
   ];
@@ -260,9 +264,9 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
   const filters: TableFilter<InventoryRow>[] = [
     {
       id: "aging",
-      label: "How long held",
+      label: t("How long held"),
       options: [
-        { value: "fresh", label: "3 days or less" },
+        { value: "fresh", label: t("3 days or less") },
         { value: "week", label: `4–${STORAGE_POLICY.freeDays} days` },
         { value: "aging", label: `Over ${STORAGE_POLICY.freeDays} days` },
       ],
@@ -276,11 +280,11 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
     },
     {
       id: "condition",
-      label: "Condition",
+      label: t("Condition"),
       options: [
-        { value: "exception", label: "Open exception" },
-        { value: "short", label: "Packages not checked in" },
-        { value: "clean", label: "Clean" },
+        { value: "exception", label: t("Open exception") },
+        { value: "short", label: t("Packages not checked in") },
+        { value: "clean", label: t("Clean") },
       ],
       match: (row, value) => {
         if (value === "exception") return row.openExceptions > 0;
@@ -290,7 +294,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
     },
     {
       id: "batch",
-      label: "Arrived on batch",
+      label: t("Arrived on batch"),
       options: Array.from(
         new Set(rows.map((row) => row.batchNumber).filter(Boolean) as string[])
       )
@@ -309,7 +313,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
       <div className="flex flex-col gap-2">
         <div
           role="group"
-          aria-label="Inventory segment"
+          aria-label={t("Inventory segment")}
           className="flex flex-wrap items-center gap-2"
         >
           {SEGMENTS.map((option) => {
@@ -327,7 +331,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
                     : "border-border text-muted-foreground hover:text-foreground"
                 )}
               >
-                {option.label}
+                {t(option.label)}
                 <span
                   className={cn(
                     "rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular",
@@ -368,20 +372,20 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
         renderExpanded={(row) => (
           <dl className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             {[
-              { label: "Cargo", value: row.description },
+              { label: t("Cargo"), value: row.description },
               {
-                label: "Packages",
+                label: t("Packages"),
                 value:
                   row.packagesPending > 0
                     ? `${formatPackagesShort(row.packages, row.packageType)} · ${row.packagesPending} not checked in`
                     : `${formatPackagesShort(row.packages, row.packageType)} · all checked in`,
               },
-              { label: "Weight", value: formatWeight(row.weightKg) },
-              { label: "Arrived", value: row.arrivedLabel },
-              { label: "Arrived on batch", value: row.batchNumber ?? "Not recorded" },
-              { label: "China carton", value: row.cartonRef ?? "Not recorded" },
+              { label: t("Weight"), value: formatWeight(row.weightKg) },
+              { label: t("Arrived"), value: row.arrivedLabel },
+              { label: t("Arrived on batch"), value: row.batchNumber ?? "Not recorded" },
+              { label: t("China carton"), value: row.cartonRef ?? "Not recorded" },
               {
-                label: "Payment",
+                label: t("Payment"),
                 // Cleared or not cleared. Never an amount — the floor does not
                 // see prices.
                 value: row.paid
@@ -389,7 +393,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
                   : "Not yet paid for",
               },
               {
-                label: "Cleared on",
+                label: t("Cleared on"),
                 value: row.clearedLabel ?? "—",
               },
             ].map((item) => (
@@ -400,7 +404,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
             ))}
             <div className="flex flex-wrap gap-2 sm:col-span-4">
               <Button asChild size="sm" variant="outline">
-                <Link href={`/app/cargo/${row.trackingNumber}`}>Open cargo</Link>
+                <Link href={`/app/cargo/${row.trackingNumber}`}>{t("Open cargo")}</Link>
               </Button>
               {row.paid ? (
                 <Button asChild size="sm" variant="signal">

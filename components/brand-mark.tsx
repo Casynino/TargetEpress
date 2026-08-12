@@ -83,7 +83,7 @@ export function BrandLockup({
           Target
         </span>
         {subtitle ? (
-          <span className="mt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
+          <span className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
             Express Air Cargo
           </span>
         ) : null}

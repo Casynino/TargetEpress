@@ -3182,6 +3182,17 @@ const ZH: Record<string, string> = {
   "was cancelled. Restore the cargo record before closing this case.": "已被取消。结案前请先恢复该货物记录。",
   "was cleared for collection but has not come in.": "已可提货但客户一直没来。",
   "was used on": "使用于",
+  "3 days or less": "3 天以内",
+  "Arrived on batch": "随批次到达",
+  "China carton": "中国纸箱",
+  "Clean": "完好",
+  "Cleared on": "放行日期",
+  "Condition": "状态",
+  "How long held": "在仓时长",
+  "Inventory segment": "库存分类",
+  "Open exception": "未结异常",
+  "Packages not checked in": "未核收件数",
+  "Paid — cleared": "已付款——可放行",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

@@ -191,7 +191,13 @@ for (const vp of VIEWPORTS) {
   const failed = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 160)); });
   page.on("pageerror", (e) => errors.push(`pageerror: ${String(e).slice(0, 160)}`));
-  page.on("requestfailed", (r) => failed.push(`${r.failure()?.errorText} ${r.url().slice(0, 90)}`));
+  page.on("requestfailed", (r) => {
+    const why = r.failure()?.errorText ?? "";
+    // Next.js cancels in-flight RSC prefetches on navigation. Reporting those
+    // as failures buried the real ones under twenty lines of noise per page.
+    if (why === "net::ERR_ABORTED" && r.url().includes("_rsc=")) return;
+    failed.push(`${why} ${r.url().slice(0, 90)}`);
+  });
   page.on("response", (r) => {
     if (r.status() >= 400 && !r.url().includes("favicon")) failed.push(`${r.status()} ${r.url().slice(0, 90)}`);
   });
