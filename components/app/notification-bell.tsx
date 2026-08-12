@@ -21,7 +21,7 @@ export function NotificationBell({ unread }: { unread: number }) {
           ? "Notifications"
           : `Notifications, ${unread} unread`
       }
-      className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      className="relative inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
     >
       <Bell className="h-[18px] w-[18px]" />
       {unread > 0 ? (

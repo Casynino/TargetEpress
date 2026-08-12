@@ -53,7 +53,7 @@ export function FinanceNav({ tabs }: { tabs: FinanceTab[] }) {
             href={tab.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "focus-ring shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+              "focus-ring inline-flex shrink-0 items-center rounded-full border px-4 py-2.5 text-sm font-medium transition-colors",
               active
                 ? "border-brand bg-brand text-brand-foreground"
                 : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"

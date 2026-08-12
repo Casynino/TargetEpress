@@ -201,7 +201,8 @@ export function AppShell({
           </SheetContent>
         </Sheet>
 
-        <Link href="/app/dashboard">
+        {/* The logo is a link home, so it is a tap target like any other. */}
+        <Link href="/app/dashboard" className="flex min-h-11 items-center">
           <BrandLockup subtitle={false} />
         </Link>
 
