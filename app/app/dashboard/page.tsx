@@ -405,6 +405,11 @@ async function ChinaDashboard({
   role: "CHINA_WAREHOUSE" | "ADMIN";
   userId: string;
 }) {
+  // Read before the Promise.all below, whose callbacks pass it on. TypeScript
+  // cannot see that ordering, so getting it wrong fails at runtime rather than
+  // at build — which is how the CEO dashboard went down earlier.
+  const locale = await viewerLocale();
+
   const [
     stats,
     volume,
@@ -420,7 +425,7 @@ async function ChinaDashboard({
     chinaStats(),
     monthlyVolume(),
     batchUtilisation(),
-    cargoMix(30),
+    cargoMix(30, locale),
     recentActivity(8, userId),
     prisma.batch.findMany({
       where: { status: { in: ["OPEN", "READY_TO_DEPART"] } },
@@ -439,8 +444,6 @@ async function ChinaDashboard({
     chinaFlowByDay(14),
     chinaProblems(),
   ]);
-
-  const locale = await viewerLocale();
 
   /**
    * What is wrong on this floor, in the words of the desk that registers cargo.
@@ -963,10 +966,13 @@ async function DarDashboard({
   userId: string;
   floor: FloorSnapshot;
 }) {
+  // Before the Promise.all, for the same reason as the other dashboards.
+  const locale = await viewerLocale();
+
   const [stats, alerts, activity, perf, incoming, composition, ageing, throughput] =
     await Promise.all([
     darFloorStats(),
-    attentionItems(role),
+    attentionItems(role, locale),
     recentActivity(8, userId),
     corridorPerformance(),
     prisma.batch.findMany({
@@ -988,8 +994,6 @@ async function DarDashboard({
     floorAgeing(),
     floorFlowByDay(14),
   ]);
-
-  const locale = await viewerLocale();
 
   const exceptionParts = [
     stats.missing ? `${stats.missing} ${t(locale, "missing")}` : null,
@@ -1540,6 +1544,9 @@ async function DarDashboard({
  * shillings, and this desk counts shillings.
  */
 async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
+  // Before the Promise.all, for the same reason as the other dashboards.
+  const locale = await viewerLocale();
+
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -1564,7 +1571,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     // answer: how old is what we are owed, and are we keeping any of it.
     receivablesAgeing(),
     cashFlowByMonth(),
-    attentionItems(role),
+    attentionItems(role, locale),
     monthlyRevenue(),
     currentRate(),
     activeAccounts(),
@@ -1594,7 +1601,6 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     }),
   ]);
 
-  const locale = await viewerLocale();
   const rate = rateRow ? toNumber(rateRow.rate) : null;
   const tsh = (usd: number) =>
     rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : formatUsd(usd);
@@ -2191,7 +2197,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     // where is all of it, how is each desk, and is the money keeping up.
     corridorPosition(),
     currentRate().then((row) => deskPulse(row ? toNumber(row.rate) : null, locale)),
-    currentRate().then((row) => ownerAttention(row ? toNumber(row.rate) : null)),
+    currentRate().then((row) => ownerAttention(row ? toNumber(row.rate) : null, locale)),
     cashFlowByMonth(),
     receivablesAgeing(),
   ]);

@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 
 import { recordAudit } from "@/lib/audit";
+import { t } from "@/lib/i18n";
 import { packageProgress, resolveScannedCode } from "@/lib/packages";
 import { findPickupLock, pickupLockMessage } from "@/lib/pickup-lock";
 import { prisma } from "@/lib/prisma";
 import { filesFrom, putImages } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { firstError, releaseSchema } from "@/lib/validation";
 
@@ -18,22 +20,30 @@ import { firstError, releaseSchema } from "@/lib/validation";
  * Finance issued, and the QR physically on the carton. Matching them here — in
  * one transaction, against the database rather than the operator's memory — is
  * the whole point of the QR system.
+ *
+ * Every refusal below is read by the clerk standing at the counter, so it comes
+ * back in the language that clerk works in. The locale is resolved from the
+ * signed-in user rather than passed in: React calls a form action with
+ * (previous state, FormData) and nothing else. What is written to the database
+ * — the delivery note, the status history line, the audit summary — stays in
+ * English, because both floors read those rows afterwards.
  */
 export async function releaseShipment(
   _prev: ActionResult<{ trackingNumber: string }> | undefined,
   formData: FormData
 ): Promise<ActionResult<{ trackingNumber: string }>> {
+  const locale = await viewerLocale();
   let user: SessionUser;
   try {
     user = await authorize("shipment.release");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   const parsed = releaseSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
-  if (!parsed.success) return fail(firstError(parsed.error));
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
   const input = parsed.data;
 
   /**
@@ -47,10 +57,10 @@ export async function releaseShipment(
     ? await resolveScannedCode(input.shipmentQr)
     : null;
   if (input.shipmentQr && !scanned) {
-    return fail("That code is not a Target Express label.");
+    return fail(t(locale, "That code is not a Target Express label."));
   }
   if (!scanned && !input.pickupNoteId) {
-    return fail("Scan the cargo label to confirm.");
+    return fail(t(locale, "Scan the cargo label to confirm."));
   }
 
   // Proof of handover. Required before anything leaves the building, and
@@ -58,7 +68,10 @@ export async function releaseShipment(
   const photoFiles = filesFrom(formData, "photos");
   if (photoFiles.length === 0) {
     return fail(
-      "Take a photo of the cargo being handed over before completing the release."
+      t(
+        locale,
+        "Take a photo of the cargo being handed over before completing the release."
+      )
     );
   }
 
@@ -66,7 +79,7 @@ export async function releaseShipment(
   try {
     uploaded = await putImages(photoFiles, "delivery");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   try {
@@ -115,16 +128,21 @@ export async function releaseShipment(
         // Said in the counter's terms: the cargo is real and in front of them,
         // what is missing is Finance's clearance to hand it over.
         throw new Error(
-          "No pickup note is open for this cargo. Finance issues one once the invoice is settled — check the payment first."
+          t(
+            locale,
+            "No pickup note is open for this cargo. Finance issues one once the invoice is settled — check the payment first."
+          )
         );
       }
       if (note.status === "USED") {
         throw new Error(
-          `${note.noteNumber} has already been used. This cargo was collected.`
+          `${note.noteNumber} ${t(locale, "has already been used. This cargo was collected.")}`
         );
       }
       if (note.status === "CANCELLED") {
-        throw new Error(`${note.noteNumber} was cancelled by Finance.`);
+        throw new Error(
+          `${note.noteNumber} ${t(locale, "was cancelled by Finance.")}`
+        );
       }
 
       // The scanned carton must belong to the exact shipment on the note. A
@@ -132,11 +150,11 @@ export async function releaseShipment(
       // boxes is enough to identify the consignment.
       if (scanned && note.shipment.id !== scanned.shipmentId) {
         throw new Error(
-          `The scanned cargo is not the one on this pickup note (${note.shipment.trackingNumber}). Do not release it.`
+          `${t(locale, "The scanned cargo is not the one on this pickup note")} (${note.shipment.trackingNumber})${t(locale, ". Do not release it.")}`
         );
       }
       if (note.shipment.status !== "READY_FOR_PICKUP") {
-        throw new Error("This shipment is not cleared for release.");
+        throw new Error(t(locale, "This shipment is not cleared for release."));
       }
 
       // The investigation lock, and it is checked here rather than only in the
@@ -149,7 +167,7 @@ export async function releaseShipment(
       // CARGO_FOUND or is closed; nobody has to remember to unlock anything.
       const lock = await findPickupLock(tx, note.shipment.id);
       if (lock) {
-        throw new Error(pickupLockMessage(lock, note.shipment.trackingNumber));
+        throw new Error(pickupLockMessage(lock, note.shipment.trackingNumber, locale));
       }
 
       // Everything the customer paid for has to be on the floor. Handing over
@@ -158,10 +176,15 @@ export async function releaseShipment(
       const progress = packageProgress(
         note.shipment.packageList,
         note.shipment.packageType
-      );
+      , locale);
       if (!progress.complete) {
+        // Built from fragments with the counts between them, because "3 of 5"
+        // and the sentence around it do not sit in the same order in Chinese.
+        // The boxes are named the way the sticker names them — TX-000125-P2 is
+        // "P2" on the label — so the list itself needs no translation.
+        const missing = progress.missing.map((n) => `P${n}`).join(", ");
         throw new Error(
-          `Only ${progress.received} of ${progress.total} packages have been checked in — ${progress.missing.map((n) => `package ${n}`).join(", ")} still missing. Do not release a partial shipment.`
+          `${t(locale, "Only")} ${progress.received}/${progress.total} ${t(locale, "packages have been checked in. Still missing:")} ${missing}${t(locale, ". Do not release a partial shipment.")}`
         );
       }
 
@@ -262,6 +285,6 @@ export async function releaseShipment(
     revalidatePath("/app/dashboard");
     return ok({ trackingNumber });
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 }

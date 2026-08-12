@@ -4,6 +4,8 @@ import type { CargoCategory, Origin, PricingMethod } from "@prisma/client";
 
 import { routeFor } from "@/lib/cargo";
 import { toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -107,7 +109,10 @@ async function resolveRule(input: QuoteInput) {
   return categoryWide[0] ?? null;
 }
 
-export async function quote(input: QuoteInput): Promise<Quote> {
+export async function quote(
+  input: QuoteInput,
+  locale: Locale = "en"
+): Promise<Quote> {
   // A product may name its own airport — an LCD panel is normal goods out of
   // Guangzhou, a laptop is electronics out of Hong Kong. Falls back to the
   // category default when the product does not say.
@@ -132,8 +137,10 @@ export async function quote(input: QuoteInput): Promise<Quote> {
       ok: false,
       reason: "no-rule",
       route,
-      message:
-        "No active rate covers that cargo yet. Ask the CEO to publish one, or message us for a quote.",
+      message: t(
+        locale,
+        "No active rate covers that cargo yet. Ask the CEO to publish one, or message us for a quote."
+      ),
     };
   }
 
@@ -145,9 +152,9 @@ export async function quote(input: QuoteInput): Promise<Quote> {
 
   if (rule.method === "FIXED_PER_ITEM") {
     total = rate * quantity;
-    basis = `Fixed price per item — weight does not change the charge.`;
+    basis = t(locale, "Fixed price per item — weight does not change the charge.");
     lines.push({
-      label: rule.cargoType?.name ?? "Fixed price",
+      label: rule.cargoType?.name ?? t(locale, "Fixed price"),
       detail: `${quantity} × ${rule.currency} ${rate.toLocaleString()}`,
       amount: total,
     });
@@ -157,17 +164,20 @@ export async function quote(input: QuoteInput): Promise<Quote> {
     const minKg = rule.minChargeableKg === null ? 0 : toNumber(rule.minChargeableKg);
 
     chargeableWeightKg = actualWeightKg;
-    basis = "Priced on the scale weight of your cargo.";
+    basis = t(locale, "Priced on the scale weight of your cargo.");
 
     if (minKg > chargeableWeightKg) {
       chargeableWeightKg = minKg;
-      basis = `Priced on this route's minimum billable weight of ${minKg} kg.`;
+      // Composed, not looked up: the figure is inside the sentence, so the
+      // number sits between two translated fragments rather than inside a key
+      // no dictionary could ever match.
+      basis = `${t(locale, "Priced on this route's minimum billable weight of")} ${minKg} ${t(locale, "kg.")}`;
     }
 
     total = chargeableWeightKg * rate;
     lines.push({
-      label: "Air freight",
-      detail: `${chargeableWeightKg.toFixed(2)} kg × ${rule.currency} ${rate.toLocaleString()}/kg`,
+      label: t(locale, "Air freight"),
+      detail: `${chargeableWeightKg.toFixed(2)} ${t(locale, "kg")} × ${rule.currency} ${rate.toLocaleString()}/${t(locale, "kg")}`,
       amount: total,
     });
   }
@@ -175,8 +185,8 @@ export async function quote(input: QuoteInput): Promise<Quote> {
   const minCharge = rule.minCharge === null ? 0 : toNumber(rule.minCharge);
   if (minCharge > total) {
     lines.push({
-      label: "Minimum charge adjustment",
-      detail: `This rate has a floor of ${rule.currency} ${minCharge.toLocaleString()}`,
+      label: t(locale, "Minimum charge adjustment"),
+      detail: `${t(locale, "This rate has a floor of")} ${rule.currency} ${minCharge.toLocaleString()}`,
       amount: minCharge - total,
     });
     total = minCharge;

@@ -3,6 +3,7 @@ import "server-only";
 import { STORAGE_POLICY, storageDaysFor } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { currentRateValue, toLocal } from "@/lib/fx";
+import type { Locale } from "@/lib/locale";
 import { quote } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 
@@ -69,7 +70,10 @@ export type BatchFinance = {
   outstandingUsd: number;
 };
 
-export async function batchFinance(batchId: string): Promise<BatchFinance> {
+export async function batchFinance(
+  batchId: string,
+  locale: Locale = "en"
+): Promise<BatchFinance> {
   const cargo = await prisma.shipment.findMany({
     where: { batchId, deletedAt: null },
     select: {
@@ -148,12 +152,17 @@ export async function batchFinance(batchId: string): Promise<BatchFinance> {
   // independent, so this is one round of concurrent reads rather than a walk.
   const estimates = await Promise.all(
     needsEstimate.map(async (piece) => {
-      const priced = await quote({
-        category: piece.cargoCategory,
-        cargoTypeId: piece.cargoTypeId,
-        weightKg: toNumber(piece.weightKg),
-        quantity: piece.packages,
-      });
+      // The reason a piece cannot be priced is read by Finance on the batch
+      // band, so it is asked for in the reader's language.
+      const priced = await quote(
+        {
+          category: piece.cargoCategory,
+          cargoTypeId: piece.cargoTypeId,
+          weightKg: toNumber(piece.weightKg),
+          quantity: piece.packages,
+        },
+        locale
+      );
       if (!priced.ok) {
         return {
           trackingNumber: piece.trackingNumber,

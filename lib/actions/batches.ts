@@ -28,10 +28,13 @@ import {
   categoryFitsRoute,
   routeFor,
 } from "@/lib/cargo";
+import { t } from "@/lib/i18n";
 import { nextBatchNumber } from "@/lib/ids";
 import { nextDispatchNumber } from "@/lib/ids";
+import type { Locale } from "@/lib/locale";
 import { prisma, type TxClient } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { batchSchema, departureSchema, firstError } from "@/lib/validation";
 
@@ -39,6 +42,8 @@ export async function createBatch(
   _prev: ActionResult<{ id: string; batchNumber: string }> | undefined,
   formData: FormData
 ): Promise<ActionResult<{ id: string; batchNumber: string }>> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("batch.create");
@@ -49,7 +54,9 @@ export async function createBatch(
   const parsed = batchSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
-  if (!parsed.success) return fail(firstError(parsed.error));
+  // The shared schemas are written in English; their messages are rendered
+  // here, where we know who is reading them.
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
 
   try {
     const batch = await prisma.$transaction(async (tx) => {
@@ -87,6 +94,8 @@ export async function setShipmentBatch(
   _prev: ActionResult | undefined,
   formData: FormData
 ): Promise<ActionResult> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("batch.manage");
@@ -96,7 +105,7 @@ export async function setShipmentBatch(
 
   const shipmentId = String(formData.get("shipmentId") ?? "");
   const batchId = String(formData.get("batchId") ?? "");
-  if (!shipmentId) return fail("Missing shipment.");
+  if (!shipmentId) return fail(t(locale, "Missing shipment."));
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -110,13 +119,15 @@ export async function setShipmentBatch(
           batch: { select: { id: true, status: true, batchNumber: true } },
         },
       });
-      if (!shipment) throw new Error("Shipment not found.");
+      if (!shipment) throw new Error(t(locale, "Shipment not found."));
       if (shipment.status !== "READY_TO_DEPART") {
-        throw new Error("Only cargo still in China can change batch.");
+        throw new Error(
+          t(locale, "Only cargo still in China can change batch.")
+        );
       }
       if (shipment.batch && shipment.batch.status !== "OPEN") {
         throw new Error(
-          `${shipment.trackingNumber} is already sealed into ${shipment.batch.batchNumber}.`
+          `${shipment.trackingNumber} ${t(locale, "is already sealed into batch")} ${shipment.batch.batchNumber}.`
         );
       }
 
@@ -125,17 +136,21 @@ export async function setShipmentBatch(
           where: { id: batchId },
           select: { id: true, status: true, batchNumber: true, origin: true },
         });
-        if (!batch) throw new Error("Batch not found.");
+        if (!batch) throw new Error(t(locale, "Batch not found."));
         if (batch.status !== "OPEN") {
-          throw new Error("That batch is sealed and cannot take more cargo.");
+          throw new Error(
+            t(locale, "That batch is sealed and cannot take more cargo.")
+          );
         }
 
         // Route guard. Electronics and liquids fly Hong Kong; normal goods fly
         // Guangzhou. Mixing them would put cargo on a flight from an airport it
         // is not sitting in, so this is refused rather than warned about.
         if (!categoryFitsRoute(shipment.cargoCategory, batch.origin)) {
+          // Composed rather than written out, so the airport names land in a
+          // position that reads correctly in both languages.
           throw new Error(
-            `${shipment.trackingNumber} is ${CATEGORY_LABELS[shipment.cargoCategory].toLowerCase()}, which flies from ${AIRPORT_LABELS[routeFor(shipment.cargoCategory)]}. ${batch.batchNumber} departs ${AIRPORT_LABELS[batch.origin]}.`
+            `${shipment.trackingNumber}: ${CATEGORY_LABELS[shipment.cargoCategory].toLowerCase()}${t(locale, ", which flies from")} ${AIRPORT_LABELS[routeFor(shipment.cargoCategory)]}. ${batch.batchNumber} ${t(locale, "departs from")} ${AIRPORT_LABELS[batch.origin]}.`
           );
         }
 
@@ -186,6 +201,8 @@ export async function sealBatch(
   _prev: ActionResult | undefined,
   formData: FormData
 ): Promise<ActionResult> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("batch.manage");
@@ -194,7 +211,7 @@ export async function sealBatch(
   }
 
   const batchId = String(formData.get("batchId") ?? "");
-  if (!batchId) return fail("Missing batch.");
+  if (!batchId) return fail(t(locale, "Missing batch."));
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -207,10 +224,12 @@ export async function sealBatch(
           _count: { select: { shipments: true } },
         },
       });
-      if (!batch) throw new Error("Batch not found.");
-      if (batch.status !== "OPEN") throw new Error("This batch is already sealed.");
+      if (!batch) throw new Error(t(locale, "Batch not found."));
+      if (batch.status !== "OPEN") {
+        throw new Error(t(locale, "This batch is already sealed."));
+      }
       if (batch._count.shipments === 0) {
-        throw new Error("Add at least one shipment before sealing.");
+        throw new Error(t(locale, "Add at least one shipment before sealing."));
       }
 
       await tx.batch.update({
@@ -246,6 +265,8 @@ export async function departBatch(
   _prev: ActionResult | undefined,
   formData: FormData
 ): Promise<ActionResult> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("shipment.depart");
@@ -256,12 +277,12 @@ export async function departBatch(
   const parsed = departureSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
-  if (!parsed.success) return fail(firstError(parsed.error));
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
   const input = parsed.data;
 
   const departureDate = new Date(input.departureDate);
   if (Number.isNaN(departureDate.getTime())) {
-    return fail("Departure date is not valid.");
+    return fail(t(locale, "Departure date is not valid."));
   }
 
   try {
@@ -278,12 +299,14 @@ export async function departBatch(
           },
         },
       });
-      if (!batch) throw new Error("Batch not found.");
+      if (!batch) throw new Error(t(locale, "Batch not found."));
       if (batch.status === "IN_TRANSIT" || batch.status === "ARRIVED") {
-        throw new Error("This batch has already departed.");
+        throw new Error(t(locale, "This batch has already departed."));
       }
       if (batch.shipments.length === 0) {
-        throw new Error("There is no cargo in this batch ready to depart.");
+        throw new Error(
+          t(locale, "There is no cargo in this batch ready to depart.")
+        );
       }
 
       const now = new Date();
@@ -342,15 +365,28 @@ export async function departBatch(
 }
 
 
-const dispatchSchema = z.object({
-  batchId: z.string().trim().min(1, "Missing loading table."),
-  waybillNumber: z.string().trim().min(3, "The waybill number is required.").max(40),
-  airline: z.string().trim().min(2, "Which airline is carrying it?").max(80),
-  flightNumber: z.string().trim().max(20).optional(),
-  departureDate: z.string().trim().min(1, "When does it leave?"),
-  expectedArrival: z.string().trim().optional(),
-  notes: z.string().trim().max(1000).optional(),
-});
+/**
+ * Built per request: the messages belong to whoever is filling the form in, and
+ * a schema evaluated once at import time can only hold one language.
+ */
+const dispatchSchemaFor = (locale: Locale) =>
+  z.object({
+    batchId: z.string().trim().min(1, t(locale, "Missing loading table.")),
+    waybillNumber: z
+      .string()
+      .trim()
+      .min(3, t(locale, "The waybill number is required."))
+      .max(40),
+    airline: z
+      .string()
+      .trim()
+      .min(2, t(locale, "Which airline is carrying it?"))
+      .max(80),
+    flightNumber: z.string().trim().max(20).optional(),
+    departureDate: z.string().trim().min(1, t(locale, "When does it leave?")),
+    expectedArrival: z.string().trim().optional(),
+    notes: z.string().trim().max(1000).optional(),
+  });
 
 /**
  * Sends a loading table on its way.
@@ -367,6 +403,8 @@ export async function dispatchLoadingTable(
   _prev: ActionResult<{ dispatchNumber: string; cargo: number }> | undefined,
   formData: FormData
 ): Promise<ActionResult<{ dispatchNumber: string; cargo: number }>> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("shipment.depart");
@@ -374,25 +412,25 @@ export async function dispatchLoadingTable(
     return fail(toActionError(error));
   }
 
-  const parsed = dispatchSchema.safeParse(
+  const parsed = dispatchSchemaFor(locale).safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
-  if (!parsed.success) return fail(firstError(parsed.error));
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
   const input = parsed.data;
 
   const departureDate = new Date(input.departureDate);
   if (Number.isNaN(departureDate.getTime())) {
-    return fail("That departure date is not valid.");
+    return fail(t(locale, "That departure date is not valid."));
   }
 
   const expectedArrival = input.expectedArrival
     ? new Date(input.expectedArrival)
     : null;
   if (expectedArrival && Number.isNaN(expectedArrival.getTime())) {
-    return fail("That expected arrival date is not valid.");
+    return fail(t(locale, "That expected arrival date is not valid."));
   }
   if (expectedArrival && expectedArrival < departureDate) {
-    return fail("The cargo cannot arrive before it leaves.");
+    return fail(t(locale, "The cargo cannot arrive before it leaves."));
   }
 
   try {
@@ -410,12 +448,16 @@ export async function dispatchLoadingTable(
         },
       });
 
-      if (!table) throw new Error("That loading table no longer exists.");
+      if (!table) {
+        throw new Error(t(locale, "That loading table no longer exists."));
+      }
       if (!table.permanent) {
-        throw new Error("Only a loading table can be dispatched.");
+        throw new Error(t(locale, "Only a loading table can be dispatched."));
       }
       if (table.shipments.length === 0) {
-        throw new Error("There is no cargo on this table to dispatch.");
+        throw new Error(
+          t(locale, "There is no cargo on this table to dispatch.")
+        );
       }
 
       const dispatch = await tx.batch.create({
@@ -512,6 +554,8 @@ export async function receiveBatch(
   _prev: ActionResult | undefined,
   formData: FormData
 ): Promise<ActionResult> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("batch.receive");
@@ -520,7 +564,7 @@ export async function receiveBatch(
   }
 
   const batchId = String(formData.get("batchId") ?? "");
-  if (!batchId) return fail("Missing batch.");
+  if (!batchId) return fail(t(locale, "Missing batch."));
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -528,9 +572,11 @@ export async function receiveBatch(
         where: { id: batchId },
         select: { id: true, status: true, batchNumber: true },
       });
-      if (!batch) throw new Error("Batch not found.");
+      if (!batch) throw new Error(t(locale, "Batch not found."));
       if (batch.status !== "IN_TRANSIT") {
-        throw new Error("Only a batch in transit can be marked as arrived.");
+        throw new Error(
+          t(locale, "Only a batch in transit can be marked as arrived.")
+        );
       }
 
       const now = new Date();
@@ -768,6 +814,8 @@ export async function verifyShipment(
   _prev: ActionResult | undefined,
   formData: FormData
 ): Promise<ActionResult> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("batch.verify");
@@ -792,7 +840,7 @@ export async function verifyShipment(
     .map((value) => value.trim())
     .filter(Boolean);
 
-  if (!batchId || !shipmentId) return fail("Missing shipment.");
+  if (!batchId || !shipmentId) return fail(t(locale, "Missing shipment."));
 
   // Which of the six the clerk chose, and what kind of case that opens.
   //

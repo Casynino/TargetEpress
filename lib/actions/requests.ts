@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { normalisePhone } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { nextBookingReference, nextPickupReference } from "@/lib/ids";
+import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 
@@ -90,15 +92,23 @@ const bookingSchema = z.object({
     .transform((v) => (v?.length ? v : null)),
 });
 
+/**
+ * The schema carries its messages in English and they are rendered here, on the
+ * way out. The dictionary is keyed by the English sentence, so a rule keeps one
+ * message in one place and the reader still gets it in their own language.
+ */
 export async function submitBooking(
   _prev: ActionResult<{ reference: string }> | undefined,
-  formData: FormData
+  formData: FormData,
+  locale: Locale = "en"
 ): Promise<ActionResult<{ reference: string }>> {
   const parsed = bookingSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
   if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Please check the form.");
+    return fail(
+      t(locale, parsed.error.issues[0]?.message ?? "Please check the form.")
+    );
   }
   const input = parsed.data;
 
@@ -128,7 +138,7 @@ export async function submitBooking(
     revalidatePath("/app/requests");
     return ok({ reference: created.reference });
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 }
 
@@ -183,13 +193,16 @@ const pickupSchema = z.object({
 
 export async function submitPickup(
   _prev: ActionResult<{ reference: string }> | undefined,
-  formData: FormData
+  formData: FormData,
+  locale: Locale = "en"
 ): Promise<ActionResult<{ reference: string }>> {
   const parsed = pickupSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
   if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Please check the form.");
+    return fail(
+      t(locale, parsed.error.issues[0]?.message ?? "Please check the form.")
+    );
   }
   const input = parsed.data;
 
@@ -218,6 +231,6 @@ export async function submitPickup(
     revalidatePath("/app/requests");
     return ok({ reference: created.reference });
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 }

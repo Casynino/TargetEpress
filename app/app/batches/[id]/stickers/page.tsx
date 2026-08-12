@@ -75,7 +75,7 @@ export default async function BatchStickersPage({
         customerName: item.customer.name,
         description: item.description,
         packages: item.packageList.length,
-        packagesLabel: formatPackages(item.packageList.length, item.packageType),
+        packagesLabel: formatPackages(item.packageList.length, item.packageType, locale),
         weightLabel: formatWeight(item.weightKg),
         registeredOn: formatDate(item.registeredAt, locale),
         sequence: pkg.sequence,

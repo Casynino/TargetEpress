@@ -13,6 +13,9 @@ import type {
   ShipmentStatus,
 } from "@prisma/client";
 
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+
 /**
  * Single source of truth for every label the UI renders. Warehouse staff type
  * as little as possible — everything selectable comes from these lists.
@@ -245,10 +248,16 @@ export const PACKAGE_TYPE_LABELS: Record<string, { one: string; many: string }> 
   OTHER: { one: "package", many: "packages" },
 };
 
-/** e.g. "3 cartons", "1 piece". A count is never shown without its unit. */
-export function formatPackages(count: number, type: string) {
+/**
+ * e.g. "3 cartons", "1 piece". A count is never shown without its unit.
+ *
+ * The number stays outside the translation and the unit goes through it —
+ * "3 纸箱" reads the same way round in both languages, and a dictionary keyed
+ * by the finished sentence could never match a string carrying a count.
+ */
+export function formatPackages(count: number, type: string, locale: Locale = "en") {
   const label = PACKAGE_TYPE_LABELS[type] ?? PACKAGE_TYPE_LABELS.OTHER;
-  return `${count} ${count === 1 ? label.one : label.many}`;
+  return `${count} ${t(locale, count === 1 ? label.one : label.many)}`;
 }
 
 /** Short form for dense columns: "3 ctn", "20 pcs". Still never a bare number. */
@@ -262,8 +271,12 @@ export const PACKAGE_TYPE_SHORT: Record<string, string> = {
   OTHER: "unit",
 };
 
-export function formatPackagesShort(count: number, type: string) {
-  return `${count} ${PACKAGE_TYPE_SHORT[type] ?? PACKAGE_TYPE_SHORT.OTHER}`;
+export function formatPackagesShort(
+  count: number,
+  type: string,
+  locale: Locale = "en"
+) {
+  return `${count} ${t(locale, PACKAGE_TYPE_SHORT[type] ?? PACKAGE_TYPE_SHORT.OTHER)}`;
 }
 
 /**
@@ -291,6 +304,16 @@ export const STORAGE_POLICY = {
     "Thank you for choosing Target Express Air Cargo.",
   ],
 } as const;
+
+/**
+ * The storage terms in the reader's language, for an invoice or a pickup note.
+ *
+ * The English stays in `STORAGE_POLICY.text` because that is what the keys are;
+ * this renders those same four lines for whoever is holding the document.
+ */
+export function storagePolicyText(locale: Locale = "en"): string[] {
+  return STORAGE_POLICY.text.map((line) => t(locale, line));
+}
 
 /**
  * Chargeable storage days for a shipment sitting in the Dar warehouse.
@@ -612,11 +635,18 @@ export const TZ_CITIES = [
   "Iringa",
 ] as const;
 
+/**
+ * A label map as dropdown options, in the reader's language.
+ *
+ * The value is the enum and never moves; only the label is translated, so a
+ * Chinese desk picking "手机配件" still submits PHONE_ACCESSORIES.
+ */
 export function enumOptions<T extends string>(
-  labels: Record<T, string>
+  labels: Record<T, string>,
+  locale: Locale = "en"
 ): { value: T; label: string }[] {
   return (Object.keys(labels) as T[]).map((value) => ({
     value,
-    label: labels[value],
+    label: t(locale, labels[value]),
   }));
 }

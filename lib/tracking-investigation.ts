@@ -2,6 +2,8 @@ import "server-only";
 
 import type { ExceptionStatus, ExceptionType, Prisma } from "@prisma/client";
 
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import {
   PICKUP_LOCKING_STATUSES,
   PICKUP_LOCKING_TYPES,
@@ -155,9 +157,14 @@ function earliest(rows: PublicTrackingCase[]): string | null {
  *
  * Pure and synchronous so the shipment query can select the cases inline and so
  * this can be unit-checked against rows nobody had to create in the database.
+ *
+ * `locale` is last and defaults to English so the public tracking page — which
+ * has always been English — is unchanged by adding it. A staff screen that
+ * renders the same derived hold passes the reader's language and gets Chinese.
  */
 export function derivePublicInvestigation(
-  cases: PublicTrackingCase[]
+  cases: PublicTrackingCase[],
+  locale: Locale = "en"
 ): PublicInvestigation | null {
   // Unfinished, and of a kind that means the cargo is not available. Exactly
   // the set the counter refuses to release — same function, same answer.
@@ -174,23 +181,23 @@ export function derivePublicInvestigation(
     return state === "COMPENSATION_IN_PROGRESS"
       ? {
           state,
-          label: "Compensation in progress",
-          location: "With our claims team",
-          note:
-            "We have agreed how to put this right and your claim is being " +
-            "processed. There is nothing to collect in the meantime — we will " +
-            "contact you with the outcome.",
+          label: t(locale, "Compensation in progress"),
+          location: t(locale, "With our claims team"),
+          note: t(
+            locale,
+            "We have agreed how to put this right and your claim is being processed. There is nothing to collect in the meantime — we will contact you with the outcome."
+          ),
           since: earliest(holding),
           blocksCollection: true,
         }
       : {
           state,
-          label: "Under investigation",
-          location: "Held by our team",
-          note:
-            "This shipment is on hold while our team checks a problem with " +
-            "the cargo, so it cannot be collected yet. We are working on it " +
-            "and will contact you as soon as it is settled.",
+          label: t(locale, "Under investigation"),
+          location: t(locale, "Held by our team"),
+          note: t(
+            locale,
+            "This shipment is on hold while our team checks a problem with the cargo, so it cannot be collected yet. We are working on it and will contact you as soon as it is settled."
+          ),
           since: earliest(holding),
           blocksCollection: true,
         };
@@ -203,11 +210,12 @@ export function derivePublicInvestigation(
   if (owed.length > 0) {
     return {
       state: "COMPENSATION_IN_PROGRESS",
-      label: "Compensation in progress",
-      location: "With our claims team",
-      note:
-        "A claim on this shipment is being processed. We will contact you " +
-        "with the outcome.",
+      label: t(locale, "Compensation in progress"),
+      location: t(locale, "With our claims team"),
+      note: t(
+        locale,
+        "A claim on this shipment is being processed. We will contact you with the outcome."
+      ),
       since: earliest(owed),
       blocksCollection: false,
     };
@@ -223,11 +231,12 @@ export function derivePublicInvestigation(
  * public page on one round trip.
  */
 export async function publicInvestigationForShipment(
-  shipmentId: string
+  shipmentId: string,
+  locale: Locale = "en"
 ): Promise<PublicInvestigation | null> {
   const cases = await prisma.shipmentException.findMany({
     where: { shipmentId, ...PUBLIC_TRACKING_CASE_WHERE },
     select: PUBLIC_TRACKING_CASE_SELECT,
   });
-  return derivePublicInvestigation(cases);
+  return derivePublicInvestigation(cases, locale);
 }

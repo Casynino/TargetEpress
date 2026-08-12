@@ -21,7 +21,7 @@ export const metadata: Metadata = { title: "My batches" };
 export default async function MyBatchesPage() {
   const me = await requireUser();
   const locale = await viewerLocale();
-  const batches = await myBatches(me.id);
+  const batches = await myBatches(me.id, locale);
 
   const totals = batches.reduce(
     (acc, b) => ({

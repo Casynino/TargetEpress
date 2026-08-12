@@ -2935,6 +2935,15 @@ const ZH: Record<string, string> = {
   "registered, waiting to fly": "已登记，等待发运",
   "standing": "在库待运",
   "with no photograph": "票无照片",
+  "A phone number we can reach you on, please.": "请留一个能联系到您的电话号码。",
+  "More than": "超过",
+  "Please give us your name.": "请填写您的姓名。",
+  "Tell us roughly what you are sending.": "请大致说明您要寄什么货。",
+  "That email does not look right.": "这个邮箱地址不正确。",
+  "Unknown status.": "状态无效。",
+  "What is being collected?": "要取的是什么货？",
+  "Where should the driver go? A street and a building.": "司机去哪里取货？请填写街道和楼号。",
+  "Which city?": "哪个城市？",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

@@ -107,11 +107,11 @@ export default async function ShipmentPage({
     description: cargoLabel(
       item.cargoType?.name,
       cargoText(locale, item, "description")
-    ),
+    , locale),
     category: item.cargoCategory,
     weightKg: toNumber(item.weightKg),
     packages: item.packages,
-    packagesLabel: formatPackagesShort(item.packages, item.packageType),
+    packagesLabel: formatPackagesShort(item.packages, item.packageType, locale),
     status: item.status,
     statusLabel: t(locale, SHIPMENT_STATUS_META[item.status].label),
     receivedLabel: formatDate(item.registeredAt, locale),
@@ -151,7 +151,7 @@ export default async function ShipmentPage({
   // Only fetched for desks that may see money — the warehouse opens this page
   // too, and a figure never queried cannot leak through a prop.
   const finance = can(user.role, "finance.view")
-    ? await batchFinance(dispatch.id)
+    ? await batchFinance(dispatch.id, locale)
     : null;
   const canConfirm = can(user.role, "invoice.manage");
 

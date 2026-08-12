@@ -96,7 +96,7 @@ export async function GET(
         packagesLabel: formatPackages(
           item.packageList.length,
           item.packageType
-        ),
+        , locale),
         registeredOn: formatDate(item.registeredAt, locale),
         sequence: pkg.sequence,
         packages: item.packageList.length,

@@ -117,7 +117,7 @@ export default async function InvoicePage({
         }`
       : null,
     shipment.quotedMethod === "FIXED_PER_ITEM"
-      ? `× ${formatPackages(shipment.packages, shipment.packageType)}`
+      ? `× ${formatPackages(shipment.packages, shipment.packageType, locale)}`
       : shipment.chargeableKg
         ? `× ${toNumber(shipment.chargeableKg).toFixed(2)} ${t(locale, "kg chargeable")}`
         : null,
@@ -150,7 +150,7 @@ export default async function InvoicePage({
     `*Shipment:* ${shipment.trackingNumber}`,
     ``,
     `*Cargo:* ${CATEGORY_LABELS[shipment.cargoCategory]}${shipment.cargoType ? ` (${shipment.cargoType.name})` : ""}`,
-    `*Weight:* ${formatWeight(shipment.weightKg)} · ${formatPackages(shipment.packages, shipment.packageType)}`,
+    `*Weight:* ${formatWeight(shipment.weightKg)} · ${formatPackages(shipment.packages, shipment.packageType, locale)}`,
     ``,
     `*Total:* ${money(toNumber(invoice.total), currency)}` +
       (totalLocal === null ? "" : ` / ${formatLocal(totalLocal, localCurrency)}`),
@@ -251,7 +251,7 @@ export default async function InvoicePage({
           originLabel: t(locale, AIRPORT_LABELS[shipment.origin]),
           description: cargoText(locale, shipment, "description"),
           weightLabel: formatWeight(shipment.weightKg),
-          quantityLabel: formatPackages(shipment.packages, shipment.packageType),
+          quantityLabel: formatPackages(shipment.packages, shipment.packageType, locale),
           cargoLabel:
             shipment.cargoType?.name ??
             t(locale, CATEGORY_LABELS[shipment.cargoCategory]),

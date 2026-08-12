@@ -5,6 +5,8 @@ import {
   EXCEPTION_STATUS_LABELS,
   EXCEPTION_TYPE_LABELS,
 } from "@/lib/constants";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import type { TxClient } from "@/lib/prisma";
 
 /**
@@ -183,10 +185,19 @@ export function caseReference(exceptionId: string) {
  * What the operator at the counter is told. Names the case, because "release
  * refused" with no reason is how somebody talks themselves into overriding it.
  */
-export function pickupLockMessage(lock: PickupLock, trackingNumber: string) {
+export function pickupLockMessage(
+  lock: PickupLock,
+  trackingNumber: string,
+  locale: Locale = "en"
+) {
+  // The tracking number and the case reference are data and stay put; every
+  // word around them goes through the dictionary, so the sentence reads in one
+  // language rather than two. The brackets close in the reader's punctuation.
+  const closer = locale === "zh" ? "）。" : ").";
+  const comma = locale === "zh" ? "，" : ", ";
   return (
-    `${trackingNumber} is under investigation — ${EXCEPTION_TYPE_LABELS[lock.type]}, ` +
-    `currently "${EXCEPTION_STATUS_LABELS[lock.status]}" (case ${caseReference(lock.id)}). ` +
-    `Do not hand this cargo over. The case has to be closed in Issues & Claims first.`
+    `${trackingNumber} ${t(locale, "is under investigation —")} ${t(locale, EXCEPTION_TYPE_LABELS[lock.type])}${comma}` +
+    `${t(locale, "currently")} "${t(locale, EXCEPTION_STATUS_LABELS[lock.status])}" ${t(locale, "(case")} ${caseReference(lock.id)}${closer} ` +
+    `${t(locale, "Do not hand this cargo over. The case has to be closed in Issues & Claims first.")}`
   );
 }

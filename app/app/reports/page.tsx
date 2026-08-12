@@ -531,7 +531,7 @@ export default async function WarehouseReportsPage({
                       {formatDate(row.arrivedAt, locale)}
                     </TableCell>
                     <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
-                      {formatPackages(row.packages, row.packageType)}
+                      {formatPackages(row.packages, row.packageType, locale)}
                     </TableCell>
                     <TableCell>
                       <ShipmentStatusBadge status={row.status} />

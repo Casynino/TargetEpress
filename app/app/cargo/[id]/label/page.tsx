@@ -78,7 +78,7 @@ export default async function LabelPage({
       packagesLabel: formatPackages(
         shipment.packageList.length,
         shipment.packageType
-      ),
+      , locale),
       weightLabel: formatWeight(shipment.weightKg),
       registeredOn: formatDate(shipment.registeredAt, locale),
       sequence: pkg.sequence,

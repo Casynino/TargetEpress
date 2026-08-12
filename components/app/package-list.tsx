@@ -49,7 +49,7 @@ export async function PackageList({
         </h2>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground tabular">
-            {received} of {formatPackages(packages.length, packageType)} checked
+            {received} of {formatPackages(packages.length, packageType, locale)} checked
             in
           </span>
           {canPrint ? (

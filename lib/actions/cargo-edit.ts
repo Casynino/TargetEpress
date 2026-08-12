@@ -6,11 +6,14 @@ import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { PACKAGE_TYPE_LABELS } from "@/lib/constants";
 import { normalisePhone } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { packageReference } from "@/lib/ids";
 import { generateQrToken } from "@/lib/ids";
+import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
 import { filesFrom, putImages } from "@/lib/storage";
+import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 
 /**
@@ -28,9 +31,10 @@ import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types"
  * that actually gets asked six weeks later.
  */
 
-const editSchema = z.object({
+const editSchemaFor = (locale: Locale) =>
+  z.object({
   shipmentId: z.string().trim().min(1),
-  customerName: z.string().trim().min(2, "The customer needs a name."),
+  customerName: z.string().trim().min(2, t(locale, "The customer needs a name.")),
   customerPhone: z
     .string()
     .trim()
@@ -41,15 +45,17 @@ const editSchema = z.object({
     .trim()
     .optional()
     .transform((v) => (v?.length ? v : null)),
-  description: z.string().trim().min(2, "Say what is in the boxes."),
+  description: z.string().trim().min(2, t(locale, "Say what is in the boxes.")),
   weightKg: z.coerce
     .number()
-    .positive("Weight must be more than zero — it is what the customer pays on.")
+    .positive(
+      t(locale, "Weight must be more than zero — it is what the customer pays on.")
+    )
     .max(5000),
   packages: z.coerce
     .number()
     .int()
-    .min(1, "There is at least one package.")
+    .min(1, t(locale, "There is at least one package."))
     .max(999),
   packageType: z.enum([
     "CARTON",
@@ -68,7 +74,14 @@ const editSchema = z.object({
     .transform((v) => (v?.length ? v : null)),
 });
 
-/** Fields the warehouse may change, in the words the screen uses. */
+/**
+ * Fields the warehouse may change, in the words the screen uses.
+ *
+ * Kept in English here and translated where it is read. The same label is
+ * written into the audit trail and shown on the change history, and a record
+ * stamped in whichever language the person editing happened to be reading is a
+ * record the other half of the company cannot search.
+ */
 const LABELS: Record<string, string> = {
   customerName: "Customer",
   customerPhone: "Phone",
@@ -84,6 +97,8 @@ export async function updateCargo(
   _prev: ActionResult<{ trackingNumber: string }> | undefined,
   formData: FormData
 ): Promise<ActionResult<{ trackingNumber: string }>> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("shipment.edit");
@@ -91,11 +106,11 @@ export async function updateCargo(
     return fail(toActionError(error));
   }
 
-  const parsed = editSchema.safeParse(
+  const parsed = editSchemaFor(locale).safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
   if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Check the details.");
+    return fail(parsed.error.issues[0]?.message ?? t(locale, "Check the details."));
   }
   const input = parsed.data;
 
@@ -117,7 +132,7 @@ export async function updateCargo(
         packageList: { select: { sequence: true }, orderBy: { sequence: "asc" } },
       },
     });
-    if (!before) return fail("That cargo no longer exists.");
+    if (!before) return fail(t(locale, "That cargo no longer exists."));
 
     // The window. An admin can still correct a record after it has flown —
     // sometimes a weight genuinely was recorded wrong — but a warehouse cannot,
@@ -125,7 +140,7 @@ export async function updateCargo(
     const stillInChina = before.status === "READY_TO_DEPART";
     if (!stillInChina && !(await canPurge(user))) {
       return fail(
-        "This cargo has already left China. Ask management to correct it."
+        t(locale, "This cargo has already left China. Ask management to correct it.")
       );
     }
 
@@ -163,7 +178,7 @@ export async function updateCargo(
     const uploaded = photoFiles.length > 0 ? await putImages(photoFiles, "cargo") : [];
 
     if (changes.length === 0 && uploaded.length === 0) {
-      return fail("Nothing was changed.");
+      return fail(t(locale, "Nothing was changed."));
     }
 
     await prisma.$transaction(async (tx) => {
@@ -277,8 +292,9 @@ async function canPurge(user: SessionUser) {
   return can(user.role, "shipment.purge");
 }
 
-/** The change history for one shipment, newest first. */
+/** The change history for one shipment, newest first, in the reader's language. */
 export async function cargoHistory(shipmentId: string) {
+  const locale = await viewerLocale();
   const rows = await prisma.fieldChange.findMany({
     where: { entity: "Shipment", entityId: shipmentId },
     orderBy: { createdAt: "desc" },
@@ -286,10 +302,10 @@ export async function cargoHistory(shipmentId: string) {
   });
   return rows.map((row) => ({
     id: row.id,
-    label: LABELS[row.field] ?? row.field,
+    label: t(locale, LABELS[row.field] ?? row.field),
     before: humanise(row.field, row.before),
     after: humanise(row.field, row.after),
-    actorName: row.actorName ?? "Unknown",
+    actorName: row.actorName ?? t(locale, "Unknown"),
     createdAt: row.createdAt,
   }));
 }

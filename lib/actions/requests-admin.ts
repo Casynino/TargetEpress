@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { recordAudit } from "@/lib/audit";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 import { authorize } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -24,13 +26,14 @@ const ALLOWED = [
 export async function setRequestStatus(
   kind: "booking" | "pickup",
   id: string,
-  status: string
+  status: string,
+  locale: Locale = "en"
 ): Promise<ActionResult> {
   try {
     const user = await authorize("shipment.create");
 
     if (!ALLOWED.includes(status as (typeof ALLOWED)[number])) {
-      return fail("Unknown status.");
+      return fail(t(locale, "Unknown status."));
     }
     const next = status as (typeof ALLOWED)[number];
     const handled = { handledById: user.id, handledAt: new Date() };
@@ -59,6 +62,6 @@ export async function setRequestStatus(
     revalidatePath("/app/requests");
     return ok();
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 }

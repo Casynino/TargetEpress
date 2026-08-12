@@ -21,12 +21,14 @@ import {
 } from "@/lib/constants";
 import { desksHolding } from "@/lib/exception-audience";
 import { formatDate } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { nextPickupNoteNumber } from "@/lib/ids";
 import { REPORTED_CARGO_ABSENT, restoredStatus } from "@/lib/investigations";
 import { notify } from "@/lib/notify";
 import { prisma, type TxClient } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { firstError } from "@/lib/validation";
 
@@ -129,6 +131,15 @@ const cargoFoundSchema = z.object({
  * Held by `exception.investigate` — the Dar floor, Support and the CEO. It is
  * not a close: the case ends at CARGO_FOUND, which is terminal for the
  * investigation but is not the CEO's sign-off on a payout.
+ *
+ * Every message that comes back out of here lands in a form the operator is
+ * looking at, so it is rendered in the language they read. The locale comes
+ * from `viewerLocale`, not from a parameter: a form action is invoked by React
+ * with (previous state, FormData) and nothing else, so there is no argument to
+ * pass one through. What is deliberately NOT translated is anything written to
+ * the database — timeline notes, audit summaries, notification bodies. Those
+ * rows are read by both floors, and translating them at write time would store
+ * the writer's language and show it to everybody else.
  */
 export async function markCargoFound(
   _prev:
@@ -136,17 +147,18 @@ export async function markCargoFound(
     | undefined,
   formData: FormData
 ): Promise<ActionResult<{ trackingNumber: string; status: ShipmentStatus }>> {
+  const locale = await viewerLocale();
   let user: SessionUser;
   try {
     user = await authorize("exception.investigate");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   const parsed = cargoFoundSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
-  if (!parsed.success) return fail(firstError(parsed.error));
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
   const input = parsed.data;
 
   try {
@@ -186,7 +198,7 @@ export async function markCargoFound(
           },
         },
       });
-      if (!exception) throw new Error("Investigation not found.");
+      if (!exception) throw new Error(t(locale, "Investigation not found."));
 
       const shipment = exception.shipment;
 
@@ -195,20 +207,20 @@ export async function markCargoFound(
       // line and a second timeline entry for one physical event.
       if (TERMINAL.includes(exception.status)) {
         throw new Error(
-          "This case is already finished. Nothing further to record on it."
+          t(locale, "This case is already finished. Nothing further to record on it.")
         );
       }
       if (shipment.deletedAt) {
-        throw new Error("That cargo record has been deleted.");
+        throw new Error(t(locale, "That cargo record has been deleted."));
       }
       if (shipment.status === "DELIVERED") {
         throw new Error(
-          `${shipment.trackingNumber} has already been handed over. Finding cargo against a delivered shipment needs the CEO.`
+          `${shipment.trackingNumber} ${t(locale, "has already been handed over. Finding cargo against a delivered shipment needs the CEO.")}`
         );
       }
       if (shipment.status === "CANCELLED") {
         throw new Error(
-          `${shipment.trackingNumber} was cancelled. Restore the cargo record before closing this case.`
+          `${shipment.trackingNumber} ${t(locale, "was cancelled. Restore the cargo record before closing this case.")}`
         );
       }
 
@@ -442,7 +454,7 @@ export async function markCargoFound(
     revalidatePath("/app/dashboard");
     return ok({ trackingNumber: result.trackingNumber, status: result.status });
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 }
 
@@ -472,17 +484,18 @@ export async function approveCompensation(
   _prev: ActionResult | undefined,
   formData: FormData
 ): Promise<ActionResult> {
+  const locale = await viewerLocale();
   let user: SessionUser;
   try {
     user = await authorize("exception.approve");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   const parsed = approvalSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
-  if (!parsed.success) return fail(firstError(parsed.error));
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
   const input = parsed.data;
 
   try {
@@ -498,12 +511,14 @@ export async function approveCompensation(
           shipment: { select: { id: true, trackingNumber: true } },
         },
       });
-      if (!exception) throw new Error("Investigation not found.");
+      if (!exception) throw new Error(t(locale, "Investigation not found."));
       if (TERMINAL.includes(exception.status)) {
-        throw new Error("This case is finished. Reopen it before approving a payout.");
+        throw new Error(
+          t(locale, "This case is finished. Reopen it before approving a payout.")
+        );
       }
       if (exception.status === "COMPENSATION_APPROVED") {
-        throw new Error("Compensation is already approved on this case.");
+        throw new Error(t(locale, "Compensation is already approved on this case."));
       }
 
       await tx.shipmentException.update({
@@ -560,7 +575,7 @@ export async function approveCompensation(
     revalidatePath("/app/dashboard");
     return ok();
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 }
 
@@ -647,17 +662,18 @@ export async function recordCompensation(
   _prev: ActionResult | undefined,
   formData: FormData
 ): Promise<ActionResult> {
+  const locale = await viewerLocale();
   let user: SessionUser;
   try {
     user = await authorize("exception.compensate");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   const parsed = compensationSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
-  if (!parsed.success) return fail(firstError(parsed.error));
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
   const input = parsed.data;
 
   try {
@@ -682,7 +698,7 @@ export async function recordCompensation(
           },
         },
       });
-      if (!exception) throw new Error("Investigation not found.");
+      if (!exception) throw new Error(t(locale, "Investigation not found."));
 
       const existing = exception.compensation;
 
@@ -692,7 +708,10 @@ export async function recordCompensation(
       // a second approval round.
       if (!existing && exception.status !== "COMPENSATION_APPROVED") {
         throw new Error(
-          "Compensation has not been approved on this case yet. The CEO approves the payout before Finance records it."
+          t(
+            locale,
+            "Compensation has not been approved on this case yet. The CEO approves the payout before Finance records it."
+          )
         );
       }
 
@@ -796,7 +815,7 @@ export async function recordCompensation(
     revalidatePath("/app/dashboard");
     return ok();
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 }
 
@@ -831,6 +850,26 @@ const FIELD_LABELS: Record<string, string> = {
   damageOutcome: "how the damage was settled",
 };
 
+/**
+ * The same three fields, as whole sentences rather than as a noun dropped into
+ * one.
+ *
+ * `Enter ${label}.` only works in a language that puts the verb first. Written
+ * out in full, each message is one dictionary key and reads correctly in
+ * Chinese as well; the label map above stays for a field nobody has written a
+ * sentence for yet.
+ */
+const FIELD_REQUIRED_MESSAGES: Record<string, string> = {
+  weightWasKg: "Enter the previous weight.",
+  weightNowKg: "Enter the actual weight.",
+  damageOutcome: "Enter how the damage was settled.",
+};
+
+const FIELD_NUMBER_MESSAGES: Record<string, string> = {
+  weightWasKg: "The previous weight must be a number in kilograms.",
+  weightNowKg: "The actual weight must be a number in kilograms.",
+};
+
 const isResolutionType = (v: string): v is ResolutionType =>
   Object.prototype.hasOwnProperty.call(REQUIRED_BY_TYPE, v);
 
@@ -850,11 +889,12 @@ export async function resolveInvestigation(
   _prev: ActionResult | undefined,
   formData: FormData
 ): Promise<ActionResult> {
+  const locale = await viewerLocale();
   let user: SessionUser;
   try {
     user = await authorize("exception.close");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   const exceptionId = String(formData.get("exceptionId") ?? "");
@@ -862,31 +902,54 @@ export async function resolveInvestigation(
   const note = String(formData.get("resolutionNote") ?? "").trim();
   const confirmed = formData.get("confirm") === "yes";
 
-  if (!exceptionId) return fail("Missing case.");
-  if (!rawType) return fail("Choose what happened before closing the case.");
-  if (!isResolutionType(rawType)) return fail("That is not a resolution type.");
+  if (!exceptionId) return fail(t(locale, "Missing case."));
+  if (!rawType) {
+    return fail(t(locale, "Choose what happened before closing the case."));
+  }
+  if (!isResolutionType(rawType)) {
+    return fail(t(locale, "That is not a resolution type."));
+  }
   // Cargo Found is the one outcome that closes without an explanation. Every
   // other outcome closes a case that cost somebody something, and a year from
   // now the only record of why will be this sentence.
   if (RESOLUTION_NOTE_REQUIRED.includes(rawType) && note.length < 10) {
+    // The outcome sits in the middle of the sentence in both languages, so it
+    // is interpolated between two fragments rather than baked into one key.
+    // `.toLowerCase()` after `t` is a no-op on Chinese and still lowercases the
+    // English label — the dictionary is keyed on the capitalised label.
+    const outcome = t(locale, RESOLUTION_TYPE_LABELS[rawType]).toLowerCase();
     return fail(
-      `Say what happened and how it was solved — ${RESOLUTION_TYPE_LABELS[
-        rawType
-      ].toLowerCase()} cannot be filed without it.`
+      `${t(locale, "Say what happened and how it was solved —")} ${outcome} ${t(locale, "cannot be filed without it.")}`
     );
   }
-  if (!confirmed) return fail("Tick the confirmation before closing the case.");
+  if (!confirmed) {
+    return fail(t(locale, "Tick the confirmation before closing the case."));
+  }
 
   const detail: Record<string, unknown> = {};
   for (const field of REQUIRED_BY_TYPE[rawType]) {
     const raw = String(formData.get(field) ?? "").trim();
-    if (!raw) return fail(`Enter ${FIELD_LABELS[field] ?? field}.`);
+    if (!raw) {
+      return fail(
+        t(
+          locale,
+          FIELD_REQUIRED_MESSAGES[field] ??
+            `Enter ${FIELD_LABELS[field] ?? field}.`
+        )
+      );
+    }
 
     if (DECIMAL_FIELDS.has(field)) {
       // Decimal from the string, never parseFloat. A weight that goes through a
       // float is a weight that can print 22.999999999999996 on an invoice.
       if (!/^\d+(\.\d+)?$/.test(raw)) {
-        return fail(`${FIELD_LABELS[field]} must be a number in kilograms.`);
+        return fail(
+          t(
+            locale,
+            FIELD_NUMBER_MESSAGES[field] ??
+              `${FIELD_LABELS[field]} must be a number in kilograms.`
+          )
+        );
       }
       detail[field] = new Prisma.Decimal(raw);
     } else {
@@ -916,9 +979,9 @@ export async function resolveInvestigation(
           compensation: { select: { id: true } },
         },
       });
-      if (!existing) throw new Error("Case not found.");
+      if (!existing) throw new Error(t(locale, "Case not found."));
       if (EXCEPTION_TERMINAL_STATUSES.includes(existing.status as never)) {
-        throw new Error("This case is already closed.");
+        throw new Error(t(locale, "This case is already closed."));
       }
 
       // The owner's CANNOT list: the warehouse may close a case it solved, but
@@ -927,7 +990,10 @@ export async function resolveInvestigation(
       // so the rule lives here.
       if (existing.compensation && !can(user.role, "exception.compensate")) {
         throw new Error(
-          "This case has a compensation attached. Only Finance or the CEO can close it."
+          t(
+            locale,
+            "This case has a compensation attached. Only Finance or the CEO can close it."
+          )
         );
       }
 
@@ -974,6 +1040,6 @@ export async function resolveInvestigation(
     revalidatePath("/app/dashboard");
     return ok();
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 }

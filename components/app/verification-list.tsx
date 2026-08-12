@@ -344,10 +344,10 @@ function VerificationRow({
           {short > 0 && shipment.verification ? (
             <span className="font-semibold text-warning">
               {shipment.packages - short} {t("of")}{" "}
-              {formatPackagesShort(shipment.packages, shipment.packageType)}
+              {formatPackagesShort(shipment.packages, shipment.packageType, locale)}
             </span>
           ) : (
-            formatPackagesShort(shipment.packages, shipment.packageType)
+            formatPackagesShort(shipment.packages, shipment.packageType, locale)
           )}
         </td>
 
@@ -490,7 +490,7 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
   const facts = [
     {
       label: t("Counted as"),
-      value: formatPackages(shipment.packages, shipment.packageType),
+      value: formatPackages(shipment.packages, shipment.packageType, locale),
     },
     { label: t("Declared weight"), value: formatWeight(shipment.weightKg) },
     { label: t("Goods"), value: t(GOODS_TYPE_LABELS[shipment.goodsType]) },
@@ -568,7 +568,7 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
           <p className="text-xs font-medium">
             {shipment.packageList.filter((pkg) => pkg.received).length}{" "}
             {t("of")}{" "}
-            {formatPackages(shipment.packageList.length, shipment.packageType)}{" "}
+            {formatPackages(shipment.packageList.length, shipment.packageType, locale)}{" "}
             {t("checked in")}
           </p>
           <ul className="mt-2 divide-y rounded-lg border">

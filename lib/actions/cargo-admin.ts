@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 
 /**
@@ -21,6 +23,12 @@ import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types"
  * A restore is the same operation backwards, and is equally audited.
  */
 
+/**
+ * The English in this schema is the dictionary key, not the final wording. A
+ * server action is called by a form and cannot be handed the reader's language
+ * as an argument, so every message here is translated where it is returned,
+ * against the locale read off the session.
+ */
 const deleteSchema = z.object({
   shipmentId: z.string().trim().min(1, "Missing cargo."),
   reason: z
@@ -34,6 +42,7 @@ export async function deleteCargo(
   _prev: ActionResult<{ trackingNumber: string }> | undefined,
   formData: FormData
 ): Promise<ActionResult<{ trackingNumber: string }>> {
+  const locale = await viewerLocale();
   let user: SessionUser;
   try {
     // The warehouse deletes its own mistakes — a duplicate registration is
@@ -41,14 +50,16 @@ export async function deleteCargo(
     // the manifest all week. Nothing is destroyed by this; see below.
     user = await authorize("shipment.delete");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   const parsed = deleteSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
   if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Check the details.");
+    return fail(
+      t(locale, parsed.error.issues[0]?.message ?? "Check the details.")
+    );
   }
   const input = parsed.data;
 
@@ -67,14 +78,14 @@ export async function deleteCargo(
         _count: { select: { photos: true } },
       },
     });
-    if (!cargo) return fail("That cargo no longer exists.");
-    if (cargo.deletedAt) return fail("That cargo is already deleted.");
+    if (!cargo) return fail(t(locale, "That cargo no longer exists."));
+    if (cargo.deletedAt) return fail(t(locale, "That cargo is already deleted."));
 
     // Once cargo has flown it is on a printed manifest and in a customs file.
     // Management can still remove it; a warehouse cannot.
     if (cargo.status !== "READY_TO_DEPART" && !can(user.role, "shipment.purge")) {
       return fail(
-        "This cargo has already left China. Ask management to remove it."
+        t(locale, "This cargo has already left China. Ask management to remove it.")
       );
     }
 
@@ -82,8 +93,10 @@ export async function deleteCargo(
     // typo. Refusing here is safer than leaving a paid invoice pointing at a
     // record that has vanished from every screen.
     if (cargo.invoice && Number(cargo.invoice.amountPaid) > 0) {
+      // The invoice number is data and stays put; the sentence around it is
+      // composed from a translated fragment.
       return fail(
-        `${cargo.invoice.invoiceNumber} has money against it. Void the invoice through Finance first.`
+        `${cargo.invoice.invoiceNumber} ${t(locale, "has money against it. Void the invoice through Finance first.")}`
       );
     }
 
@@ -125,20 +138,21 @@ export async function deleteCargo(
     revalidatePath("/app/admin/deleted");
     return ok({ trackingNumber: cargo.trackingNumber });
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 }
 
 export async function restoreCargo(
   shipmentId: string
 ): Promise<ActionResult<{ trackingNumber: string }>> {
+  const locale = await viewerLocale();
   let user: SessionUser;
   try {
     // Restoring is management's call, not the warehouse's — putting a record
     // back onto a batch that has since flown is how a manifest stops matching.
     user = await authorize("shipment.cancel");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   try {
@@ -146,8 +160,8 @@ export async function restoreCargo(
       where: { id: shipmentId },
       select: { id: true, trackingNumber: true, deletedAt: true },
     });
-    if (!cargo) return fail("That cargo no longer exists.");
-    if (!cargo.deletedAt) return fail("That cargo is not deleted.");
+    if (!cargo) return fail(t(locale, "That cargo no longer exists."));
+    if (!cargo.deletedAt) return fail(t(locale, "That cargo is not deleted."));
 
     await prisma.$transaction(async (tx) => {
       await tx.shipment.update({
@@ -171,7 +185,7 @@ export async function restoreCargo(
     revalidatePath("/app/admin/deleted");
     return ok({ trackingNumber: cargo.trackingNumber });
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 }
 
@@ -192,16 +206,17 @@ export async function purgeCargo(
   _prev: ActionResult<{ trackingNumber: string }> | undefined,
   formData: FormData
 ): Promise<ActionResult<{ trackingNumber: string }>> {
+  const locale = await viewerLocale();
   let user: SessionUser;
   try {
     user = await authorize("shipment.purge");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   const shipmentId = String(formData.get("shipmentId") ?? "");
   const typed = String(formData.get("confirm") ?? "").trim().toUpperCase();
-  if (!shipmentId) return fail("Missing cargo.");
+  if (!shipmentId) return fail(t(locale, "Missing cargo."));
 
   try {
     const cargo = await prisma.shipment.findUnique({
@@ -215,26 +230,32 @@ export async function purgeCargo(
         _count: { select: { photos: true, packageList: true } },
       },
     });
-    if (!cargo) return fail("That cargo no longer exists.");
+    if (!cargo) return fail(t(locale, "That cargo no longer exists."));
 
     if (!cargo.deletedAt) {
       return fail(
-        "Delete it first. Permanent removal only applies to records already in Deleted records."
+        t(
+          locale,
+          "Delete it first. Permanent removal only applies to records already in Deleted records."
+        )
       );
     }
     if (typed !== cargo.trackingNumber) {
       return fail(
-        `Type ${cargo.trackingNumber} exactly to confirm. Nothing has been removed.`
+        `${t(locale, "Type")} ${cargo.trackingNumber} ${t(locale, "exactly to confirm. Nothing has been removed.")}`
       );
     }
     if (cargo.invoice) {
       return fail(
-        `${cargo.invoice.invoiceNumber} is raised against this cargo. Void the invoice through Finance first.`
+        `${cargo.invoice.invoiceNumber} ${t(locale, "is raised against this cargo. Void the invoice through Finance first.")}`
       );
     }
     if (cargo.batch && !cargo.batch.permanent) {
       return fail(
-        "This cargo is on a dispatched flight. It has to stay on the record for that manifest."
+        t(
+          locale,
+          "This cargo is on a dispatched flight. It has to stay on the record for that manifest."
+        )
       );
     }
 
@@ -264,6 +285,6 @@ export async function purgeCargo(
     revalidatePath("/app/admin/deleted");
     return ok({ trackingNumber: cargo.trackingNumber });
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 }

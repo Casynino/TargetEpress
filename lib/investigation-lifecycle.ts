@@ -5,6 +5,8 @@ import type {
 } from "@prisma/client";
 
 import type { ExceptionCardData } from "@/components/app/exception-card";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import type { Permission } from "@/lib/rbac";
 
 /**
@@ -252,6 +254,26 @@ export function stepTo(
   return LIFECYCLE_STEPS[from].find((step) => step.to === to) ?? null;
 }
 
+/**
+ * The steps out of a status, in the language the reader works in.
+ *
+ * LIFECYCLE_STEPS above holds the English, and that English doubles as the
+ * dictionary key. The machinery — which target status, which permission, which
+ * action performs it — stays one table; only the two words on the button and
+ * the line under it change per reader, so a Chinese warehouse and a Dar desk
+ * cannot end up with different sets of buttons.
+ */
+export function lifecycleSteps(
+  status: ExceptionStatus,
+  locale: Locale = "en"
+): LifecycleStep[] {
+  return (LIFECYCLE_STEPS[status] ?? []).map((step) => ({
+    ...step,
+    label: t(locale, step.label),
+    hint: t(locale, step.hint),
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // Timeline
 // ---------------------------------------------------------------------------
@@ -271,8 +293,11 @@ const EVENT_LABELS: Record<string, string> = {
   closed: "Case closed",
 };
 
-export function eventLabel(action: string) {
-  return EVENT_LABELS[action] ?? action.replace(/[._]/g, " ");
+export function eventLabel(action: string, locale: Locale = "en") {
+  const label = EVENT_LABELS[action];
+  // The fallback is the raw machine string tidied up. Nothing to translate —
+  // an action code nobody has named yet has no wording to render.
+  return label ? t(locale, label) : action.replace(/[._]/g, " ");
 }
 
 // ---------------------------------------------------------------------------

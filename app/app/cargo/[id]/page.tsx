@@ -235,7 +235,7 @@ export default async function ShipmentDetailPage({
                 },
                 {
                   label: t(locale, "Counted as"),
-                  value: formatPackages(shipment.packages, shipment.packageType),
+                  value: formatPackages(shipment.packages, shipment.packageType, locale),
                 },
                 { label: t(locale, "Weight"), value: formatWeight(shipment.weightKg) },
                 {

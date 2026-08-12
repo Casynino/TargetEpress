@@ -6,8 +6,11 @@ import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 
 /**
@@ -26,53 +29,74 @@ const CATEGORY = z.enum(["NORMAL_GOODS", "ELECTRONICS", "LIQUID_SPECIAL"]);
 const METHOD = z.enum(["WEIGHT_BASED", "FIXED_PER_ITEM"]);
 const ROUTE = z.enum(["GUANGZHOU", "HONG_KONG"]);
 
-const optionalNumber = z
-  .string()
-  .trim()
-  .optional()
-  .transform((v) => (v && v.length > 0 ? Number(v) : null))
-  .refine((v) => v === null || (Number.isFinite(v) && v >= 0), "That number is not valid.");
+/*
+ * The schemas are built per request rather than once at module load, because
+ * every message in them is read by whoever is typing into the form. A schema
+ * frozen at import time can only ever refuse in one language.
+ */
 
-const productSchema = z.object({
-  name: z.string().trim().min(2, "Give the product a name."),
-  category: CATEGORY,
-  route: ROUTE,
-  keywords: z.string().trim().optional(),
-});
+const optionalNumber = (locale: Locale) =>
+  z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? Number(v) : null))
+    .refine(
+      (v) => v === null || (Number.isFinite(v) && v >= 0),
+      t(locale, "That number is not valid.")
+    );
 
-const ruleSchema = z
-  .object({
+const productSchema = (locale: Locale) =>
+  z.object({
+    name: z.string().trim().min(2, t(locale, "Give the product a name.")),
     category: CATEGORY,
-    cargoTypeId: z
-      .string()
-      .trim()
-      .optional()
-      .transform((v) => (v && v.length > 0 ? v : null)),
-    method: METHOD,
-    price: z
-      .string()
-      .trim()
-      .min(1, "Enter the price.")
-      .refine((v) => !Number.isNaN(Number(v)), "The price must be a number.")
-      .transform(Number)
-      .refine((v) => v > 0, "The price must be greater than zero."),
-    minWeightKg: optionalNumber,
-    maxWeightKg: optionalNumber,
-    minChargeableKg: optionalNumber,
-    minCharge: optionalNumber,
-    notes: z.string().trim().optional(),
-  })
-  .refine(
-    (v) =>
-      v.minWeightKg === null ||
-      v.maxWeightKg === null ||
-      v.maxWeightKg > v.minWeightKg,
-    { message: "The tier's upper bound must be above its lower bound.", path: ["maxWeightKg"] }
-  )
-  .refine((v) => v.method === "WEIGHT_BASED" || v.cargoTypeId !== null, {
-    message: "A fixed per-item price has to name the product it applies to.",
-    path: ["cargoTypeId"],
+    route: ROUTE,
+    keywords: z.string().trim().optional(),
   });
+
+const ruleSchema = (locale: Locale) =>
+  z
+    .object({
+      category: CATEGORY,
+      cargoTypeId: z
+        .string()
+        .trim()
+        .optional()
+        .transform((v) => (v && v.length > 0 ? v : null)),
+      method: METHOD,
+      price: z
+        .string()
+        .trim()
+        .min(1, t(locale, "Enter the price."))
+        .refine(
+          (v) => !Number.isNaN(Number(v)),
+          t(locale, "The price must be a number.")
+        )
+        .transform(Number)
+        .refine((v) => v > 0, t(locale, "The price must be greater than zero.")),
+      minWeightKg: optionalNumber(locale),
+      maxWeightKg: optionalNumber(locale),
+      minChargeableKg: optionalNumber(locale),
+      minCharge: optionalNumber(locale),
+      notes: z.string().trim().optional(),
+    })
+    .refine(
+      (v) =>
+        v.minWeightKg === null ||
+        v.maxWeightKg === null ||
+        v.maxWeightKg > v.minWeightKg,
+      {
+        message: t(locale, "The tier's upper bound must be above its lower bound."),
+        path: ["maxWeightKg"],
+      }
+    )
+    .refine((v) => v.method === "WEIGHT_BASED" || v.cargoTypeId !== null, {
+      message: t(
+        locale,
+        "A fixed per-item price has to name the product it applies to."
+      ),
+      path: ["cargoTypeId"],
+    });
 
 async function actor(): Promise<SessionUser> {
   return authorize("pricing.manage");
@@ -83,6 +107,9 @@ export async function createProduct(
   _prev: ActionResult<{ id: string }> | undefined,
   formData: FormData
 ): Promise<ActionResult<{ id: string }>> {
+  // viewerLocale is request-cached, so asking here costs nothing extra.
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await actor();
@@ -90,11 +117,13 @@ export async function createProduct(
     return fail(toActionError(error));
   }
 
-  const parsed = productSchema.safeParse(
+  const parsed = productSchema(locale).safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
   if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Check the product details.");
+    return fail(
+      parsed.error.issues[0]?.message ?? t(locale, "Check the product details.")
+    );
   }
   const input = parsed.data;
 
@@ -108,7 +137,9 @@ export async function createProduct(
 
     if (clash) {
       if (clash.active) {
-        return fail(`"${input.name}" already exists in that category.`);
+        return fail(
+          `"${input.name}" ${t(locale, "already exists in that category.")}`
+        );
       }
       // Reviving an archived product keeps its history rather than making a twin.
       await prisma.cargoType.update({
@@ -166,6 +197,8 @@ export async function setProductActive(
   productId: string,
   active: boolean
 ): Promise<ActionResult<{ active: boolean }>> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await actor();
@@ -178,7 +211,7 @@ export async function setProductActive(
       where: { id: productId },
       select: { name: true, category: true },
     });
-    if (!product) return fail("That product no longer exists.");
+    if (!product) return fail(t(locale, "That product no longer exists."));
 
     await prisma.$transaction(async (tx) => {
       await tx.cargoType.update({ where: { id: productId }, data: { active } });
@@ -225,6 +258,8 @@ export async function publishRule(
   _prev: ActionResult<{ id: string }> | undefined,
   formData: FormData
 ): Promise<ActionResult<{ id: string }>> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await actor();
@@ -232,11 +267,13 @@ export async function publishRule(
     return fail(toActionError(error));
   }
 
-  const parsed = ruleSchema.safeParse(
+  const parsed = ruleSchema(locale).safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
   if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Check the price details.");
+    return fail(
+      parsed.error.issues[0]?.message ?? t(locale, "Check the price details.")
+    );
   }
   const input = parsed.data;
 
@@ -246,10 +283,12 @@ export async function publishRule(
         where: { id: input.cargoTypeId },
         select: { category: true, active: true },
       });
-      if (!product) return fail("That product no longer exists.");
-      if (!product.active) return fail("That product is archived. Restore it first.");
+      if (!product) return fail(t(locale, "That product no longer exists."));
+      if (!product.active) {
+        return fail(t(locale, "That product is archived. Restore it first."));
+      }
       if (product.category !== input.category) {
-        return fail("The product belongs to a different cargo category.");
+        return fail(t(locale, "The product belongs to a different cargo category."));
       }
     }
 
@@ -320,6 +359,8 @@ export async function publishRule(
 export async function withdrawRule(
   ruleId: string
 ): Promise<ActionResult<{ id: string }>> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await actor();
@@ -337,8 +378,8 @@ export async function withdrawRule(
         cargoType: { select: { name: true } },
       },
     });
-    if (!rule) return fail("That price no longer exists.");
-    if (!rule.active) return fail("That price is already withdrawn.");
+    if (!rule) return fail(t(locale, "That price no longer exists."));
+    if (!rule.active) return fail(t(locale, "That price is already withdrawn."));
 
     await prisma.$transaction(async (tx) => {
       await tx.pricingRule.update({ where: { id: ruleId }, data: { active: false } });

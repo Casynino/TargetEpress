@@ -69,9 +69,9 @@ export default async function MyProfilePage() {
 
   const [stats, activity, batches, daily] = await Promise.all([
     profileStats(me.id),
-    profileActivity(me.id, 12),
-    myBatches(me.id),
-    dailyActivity(me.id, 14),
+    profileActivity(me.id, 12, locale),
+    myBatches(me.id, locale),
+    dailyActivity(me.id, 14, locale),
   ]);
 
   return (

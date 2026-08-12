@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { cargoLabel } from "@/lib/cargo";
 import { PACKAGE_TYPE_LABELS, SHIPMENT_STATUS_META } from "@/lib/constants";
 import { formatDate, formatDateTime, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 
 /**
  * Everything a warehouse employee's profile shows.
@@ -109,7 +111,8 @@ export type ActivityEntry = {
  */
 export async function profileActivity(
   userId: string,
-  take = 25
+  take = 25,
+  locale: Locale = "en"
 ): Promise<ActivityEntry[]> {
   const rows = await prisma.auditLog.findMany({
     where: { actorId: userId },
@@ -136,7 +139,8 @@ export async function profileActivity(
         meta?.trackingNumber ??
         (row.entity === "Shipment" ? row.entityId : null) ??
         null,
-      dateLabel: formatDate(row.createdAt),
+      dateLabel: formatDate(row.createdAt, locale),
+      // 24-hour clock, which reads the same in both languages.
       timeLabel: row.createdAt.toLocaleTimeString("en-GB", {
         hour: "2-digit",
         minute: "2-digit",
@@ -159,7 +163,8 @@ export type MyShipmentRow = {
 
 export async function myShipments(
   userId: string,
-  take = 200
+  take = 200,
+  locale: Locale = "en"
 ): Promise<MyShipmentRow[]> {
   const rows = await prisma.shipment.findMany({
     where: { createdById: userId },
@@ -188,10 +193,12 @@ export async function myShipments(
       customerName: row.customer.name,
       item: cargoLabel(row.cargoType?.name, row.description),
       weightKg: toNumber(row.weightKg),
-      packagesLabel: `${row.packages} ${row.packages === 1 ? unit.one : unit.many}`,
-      statusLabel: SHIPMENT_STATUS_META[row.status].label,
+      // The count is put back in front of a translated unit; a count and its
+      // unit joined before the lookup could never be found in a dictionary.
+      packagesLabel: `${row.packages} ${t(locale, row.packages === 1 ? unit.one : unit.many)}`,
+      statusLabel: t(locale, SHIPMENT_STATUS_META[row.status].label),
       status: row.status,
-      registeredLabel: formatDate(row.registeredAt),
+      registeredLabel: formatDate(row.registeredAt, locale),
     };
   });
 }
@@ -213,7 +220,10 @@ export type MyBatchRow = {
  * "Registered by you: 34" is the number that matters — a batch of 86 pieces
  * says nothing about the person looking at it.
  */
-export async function myBatches(userId: string): Promise<MyBatchRow[]> {
+export async function myBatches(
+  userId: string,
+  locale: Locale = "en"
+): Promise<MyBatchRow[]> {
   const grouped = await prisma.shipment.groupBy({
     by: ["batchId"],
     where: { createdById: userId, batchId: { not: null } },
@@ -243,8 +253,8 @@ export async function myBatches(userId: string): Promise<MyBatchRow[]> {
         batchNumber: batch.batchNumber,
         permanent: batch.permanent,
         statusLabel: batch.permanent
-          ? "Loading in China"
-          : BATCH_STATUS_WORDS[batch.status] ?? batch.status,
+          ? t(locale, "Loading in China")
+          : batchStatusWord(locale, batch.status),
         shipments: group._count,
         weightKg: toNumber(group._sum.weightKg ?? 0),
         packages: group._sum.packages ?? 0,
@@ -267,6 +277,21 @@ const BATCH_STATUS_WORDS: Record<string, string> = {
   CLOSED: "Closed",
 };
 
+/**
+ * One batch status, in the reader's language.
+ *
+ * "Loading" is handled here rather than through the dictionary. The interface
+ * already renders the English word "Loading" as its own spinner state, and a
+ * dictionary keyed by English string can only hold one Chinese rendering per
+ * key — putting this word through it would label a batch taking cargo as a
+ * page that has not finished loading.
+ */
+function batchStatusWord(locale: Locale, status: string) {
+  const word = BATCH_STATUS_WORDS[status] ?? status;
+  if (word === "Loading") return locale === "zh" ? "装货中" : "Loading";
+  return t(locale, word);
+}
+
 export type DailyPoint = { label: string; shipments: number; weightKg: number };
 
 /**
@@ -277,7 +302,8 @@ export type DailyPoint = { label: string; shipments: number; weightKg: number };
  */
 export async function dailyActivity(
   userId: string,
-  days = 14
+  days = 14,
+  locale: Locale = "en"
 ): Promise<DailyPoint[]> {
   const from = daysAgo(days - 1);
   const rows = await prisma.shipment.findMany({
@@ -298,8 +324,10 @@ export async function dailyActivity(
     bucket.weightKg += toNumber(row.weightKg);
   }
 
+  // A bar's own date label. Chinese reads 8月11日, English 11 Aug — the same
+  // two fields in the other order, which the platform formatter already knows.
   return [...buckets.entries()].map(([iso, value]) => ({
-    label: new Date(iso).toLocaleDateString("en-GB", {
+    label: new Date(iso).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-GB", {
       day: "numeric",
       month: "short",
     }),
@@ -314,7 +342,11 @@ function key(date: Date) {
 }
 
 /** Sign-in history, for the admin's view of an account. */
-export async function loginHistory(userId: string, take = 20) {
+export async function loginHistory(
+  userId: string,
+  take = 20,
+  locale: Locale = "en"
+) {
   const rows = await prisma.loginEvent.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
@@ -331,14 +363,16 @@ export async function loginHistory(userId: string, take = 20) {
     id: row.id,
     ok: row.ok,
     ipAddress: row.ipAddress,
-    device: shortDevice(row.userAgent),
-    atLabel: formatDateTime(row.createdAt),
+    device: shortDevice(row.userAgent, locale),
+    atLabel: formatDateTime(row.createdAt, locale),
   }));
 }
 
 /** A user agent string is unreadable; the browser and platform are enough. */
-function shortDevice(agent: string | null) {
-  if (!agent) return "Unknown device";
+function shortDevice(agent: string | null, locale: Locale = "en") {
+  if (!agent) return t(locale, "Unknown device");
+  // Product names stay as their makers spell them in both languages; only the
+  // two "we could not tell" words are ours.
   const platform = /android/i.test(agent)
     ? "Android"
     : /iphone|ipad/i.test(agent)
@@ -347,7 +381,7 @@ function shortDevice(agent: string | null) {
         ? "Windows"
         : /mac os/i.test(agent)
           ? "Mac"
-          : "Unknown";
+          : t(locale, "Unknown");
   const browser = /edg\//i.test(agent)
     ? "Edge"
     : /chrome/i.test(agent)
@@ -356,8 +390,10 @@ function shortDevice(agent: string | null) {
         ? "Safari"
         : /firefox/i.test(agent)
           ? "Firefox"
-          : "Browser";
-  return `${browser} on ${platform}`;
+          : t(locale, "Browser");
+  // Not a fragment lookup: Chinese puts the platform first and the browser
+  // last, so "X on Y" has no split that reads correctly in both.
+  return locale === "zh" ? `${platform} 上的 ${browser}` : `${browser} on ${platform}`;
 }
 
 /**

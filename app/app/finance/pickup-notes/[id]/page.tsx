@@ -73,7 +73,7 @@ export default async function PickupNotePage({
     packagesLabel: formatPackages(
       note.shipment.packages,
       note.shipment.packageType
-    ),
+    , locale),
     invoiceNumber: note.shipment.invoice?.invoiceNumber ?? null,
     paymentStatus: t(locale, "Paid in full"),
     /*

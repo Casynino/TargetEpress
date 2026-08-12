@@ -91,7 +91,7 @@ export default async function ManifestPage({
   }
   const unitBreakdown = [...byUnit.entries()]
     .sort((a, b) => b[1] - a[1])
-    .map(([type, count]) => formatPackagesShort(count, type))
+    .map(([type, count]) => formatPackagesShort(count, type, locale))
     .join(" · ");
 
   // Who took each piece in. A manifest that only totals the cargo answers "what
@@ -223,7 +223,7 @@ export default async function ManifestPage({
                       ? t(locale, shipment.cargoType.name)
                       : null,
                     cargoText(locale, shipment, "description")
-                  )}
+                  , locale)}
                 </td>
                 <td className="py-2 pr-2 text-right tabular">
                   {(() => {
@@ -237,10 +237,10 @@ export default async function ManifestPage({
                         {formatPackagesShort(
                           shipment.packages,
                           shipment.packageType
-                        )}
+                        , locale)}
                       </span>
                     ) : (
-                      formatPackagesShort(shipment.packages, shipment.packageType)
+                      formatPackagesShort(shipment.packages, shipment.packageType, locale)
                     );
                   })()}
                 </td>

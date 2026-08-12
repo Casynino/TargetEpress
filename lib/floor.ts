@@ -4,6 +4,8 @@ import type { Prisma } from "@prisma/client";
 
 import { EXCEPTION_OPEN_STATUSES, STORAGE_POLICY } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -171,7 +173,7 @@ export type FloorAgeBucket = {
   packages: number;
 };
 
-export async function floorAgeing(now = new Date()) {
+export async function floorAgeing(now = new Date(), locale: Locale = "en") {
   const rows = await prisma.shipment.findMany({
     // ON_THE_FLOOR is the one definition of "standing in the building" — a
     // second copy here is how two panels on one page end up disagreeing.
@@ -179,11 +181,29 @@ export async function floorAgeing(now = new Date()) {
     select: { arrivedAt: true, packages: true },
   });
 
+  // The day counts stay outside the translated fragments — "8–14 天" and
+  // "超过 14 天" put the number where Chinese wants it, and a bucket label
+  // carrying a computed number could never be looked up whole.
   const buckets: FloorAgeBucket[] = [
-    { key: "fresh", label: "Landed today or yesterday", count: 0, packages: 0 },
-    { key: "week", label: "2–7 days", count: 0, packages: 0 },
-    { key: "over", label: `8–${STORAGE_POLICY.freeDays * 2} days`, count: 0, packages: 0 },
-    { key: "stuck", label: `Over ${STORAGE_POLICY.freeDays * 2} days`, count: 0, packages: 0 },
+    {
+      key: "fresh",
+      label: t(locale, "Landed today or yesterday"),
+      count: 0,
+      packages: 0,
+    },
+    { key: "week", label: t(locale, "2–7 days"), count: 0, packages: 0 },
+    {
+      key: "over",
+      label: `8–${STORAGE_POLICY.freeDays * 2} ${t(locale, "days")}`,
+      count: 0,
+      packages: 0,
+    },
+    {
+      key: "stuck",
+      label: `${t(locale, "More than")} ${STORAGE_POLICY.freeDays * 2} ${t(locale, "days")}`,
+      count: 0,
+      packages: 0,
+    },
   ];
 
   for (const row of rows) {
@@ -341,17 +361,27 @@ export async function chinaComposition() {
 }
 
 /** How long each consignment has waited in Guangzhou since it was registered. */
-export async function chinaAgeing(now = new Date()) {
+export async function chinaAgeing(now = new Date(), locale: Locale = "en") {
   const rows = await prisma.shipment.findMany({
     where: IN_CHINA,
     select: { registeredAt: true, packages: true },
   });
 
   const buckets: FloorAgeBucket[] = [
-    { key: "fresh", label: "Registered today or yesterday", count: 0, packages: 0 },
-    { key: "week", label: "2–7 days", count: 0, packages: 0 },
-    { key: "over", label: "8–14 days", count: 0, packages: 0 },
-    { key: "stuck", label: "Over 14 days", count: 0, packages: 0 },
+    {
+      key: "fresh",
+      label: t(locale, "Registered today or yesterday"),
+      count: 0,
+      packages: 0,
+    },
+    { key: "week", label: t(locale, "2–7 days"), count: 0, packages: 0 },
+    { key: "over", label: `8–14 ${t(locale, "days")}`, count: 0, packages: 0 },
+    {
+      key: "stuck",
+      label: `${t(locale, "More than")} 14 ${t(locale, "days")}`,
+      count: 0,
+      packages: 0,
+    },
   ];
 
   for (const row of rows) {

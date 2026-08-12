@@ -167,7 +167,7 @@ export default async function LoadingTablePage({
           hint={
             byUnit.length > 0
               ? byUnit
-                  .map(([type, count]) => formatPackages(count, type))
+                  .map(([type, count]) => formatPackages(count, type, locale))
                   .join(" · ")
               : t(locale, "Nothing waiting")
           }
@@ -292,13 +292,13 @@ export default async function LoadingTablePage({
                 description: cargoLabel(
                   shipment.cargoType?.name,
                   cargoText(locale, shipment, "description")
-                ),
+                , locale),
                 weightKg: toNumber(shipment.weightKg),
                 packages: shipment.packages,
                 packagesLabel: formatPackagesShort(
                   shipment.packages,
                   shipment.packageType
-                ),
+                , locale),
                 status: shipment.status,
                 category: shipment.cargoCategory,
                 verification:

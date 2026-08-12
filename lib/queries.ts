@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import {
   BILLED_INVOICE_STATUSES,
   EXCEPTION_OPEN_STATUSES,
+  EXCEPTION_TYPE_LABELS,
   STORAGE_POLICY,
 } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
@@ -29,12 +30,24 @@ const MONTHS = [
 ];
 
 /**
+ * The month names down a chart axis, in the reader's language.
+ *
+ * Translated here rather than at the chart, because every caller of these
+ * series hands the labels straight to a component that draws them without
+ * reading them — a chart axis is the one place a stray English word survives
+ * for months without anybody filing it.
+ */
+function monthLabels(locale: Locale, upto: number) {
+  return MONTHS.slice(0, upto).map((month) => t(locale, month));
+}
+
+/**
  * Shipments registered per month, this year against last.
  *
  * Raw SQL because Prisma's groupBy cannot truncate a timestamp to a month, and
  * pulling every row into JS to bucket it would not survive real volume.
  */
-export async function monthlyVolume(now = new Date()) {
+export async function monthlyVolume(now = new Date(), locale: Locale = "en") {
   const year = now.getFullYear();
   const from = new Date(Date.UTC(year - 1, 0, 1));
 
@@ -66,7 +79,7 @@ export async function monthlyVolume(now = new Date()) {
   const upto = now.getMonth() + 1;
 
   return {
-    labels: MONTHS.slice(0, upto),
+    labels: monthLabels(locale, upto),
     current: current.slice(0, upto),
     previous: previous.slice(0, upto),
     total: current.reduce((sum, n) => sum + n, 0),
@@ -125,7 +138,7 @@ export async function corridorPerformance() {
  * expressed in the invoice's currency at the rate frozen onto that invoice,
  * which is the only figure that can honestly be summed across payments.
  */
-export async function monthlyRevenue(now = new Date()) {
+export async function monthlyRevenue(now = new Date(), locale: Locale = "en") {
   const year = now.getFullYear();
   const from = new Date(Date.UTC(year, 0, 1));
 
@@ -146,7 +159,7 @@ export async function monthlyRevenue(now = new Date()) {
 
   const upto = now.getMonth() + 1;
   return {
-    labels: MONTHS.slice(0, upto),
+    labels: monthLabels(locale, upto),
     values: values.slice(0, upto),
     currentIndex: now.getMonth(),
   };
@@ -181,7 +194,10 @@ export type AgeingBucket = {
   usd: number;
 };
 
-export async function receivablesAgeing(now = new Date()) {
+export async function receivablesAgeing(
+  now = new Date(),
+  locale: Locale = "en"
+) {
   const rows = await prisma.invoice.findMany({
     where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
     select: {
@@ -192,11 +208,27 @@ export async function receivablesAgeing(now = new Date()) {
     },
   });
 
+  // `key` is what the page switches on and never changes language; `label` is
+  // the only part of a bucket anybody reads.
   const buckets: AgeingBucket[] = [
-    { key: "current", label: "Billed this week", from: 0, to: 8, count: 0, usd: 0 },
-    { key: "week2", label: "8–14 days", from: 8, to: 15, count: 0, usd: 0 },
-    { key: "month", label: "15–30 days", from: 15, to: 31, count: 0, usd: 0 },
-    { key: "overdue", label: "Over 30 days", from: 31, to: null, count: 0, usd: 0 },
+    {
+      key: "current",
+      label: t(locale, "Billed this week"),
+      from: 0,
+      to: 8,
+      count: 0,
+      usd: 0,
+    },
+    { key: "week2", label: t(locale, "8–14 days"), from: 8, to: 15, count: 0, usd: 0 },
+    { key: "month", label: t(locale, "15–30 days"), from: 15, to: 31, count: 0, usd: 0 },
+    {
+      key: "overdue",
+      label: t(locale, "Over 30 days"),
+      from: 31,
+      to: null,
+      count: 0,
+      usd: 0,
+    },
   ];
 
   let oldestDays = 0;
@@ -247,7 +279,7 @@ export async function receivablesAgeing(now = new Date()) {
  * by the date they were incurred, voided ones excluded — the same basis the
  * ledger uses, so this chart and the register cannot disagree.
  */
-export async function cashFlowByMonth(now = new Date()) {
+export async function cashFlowByMonth(now = new Date(), locale: Locale = "en") {
   const year = now.getFullYear();
   const from = new Date(Date.UTC(year, 0, 1));
 
@@ -284,7 +316,7 @@ export async function cashFlowByMonth(now = new Date()) {
 
   const upto = now.getMonth() + 1;
   return {
-    labels: MONTHS.slice(0, upto),
+    labels: monthLabels(locale, upto),
     moneyIn: moneyIn.slice(0, upto),
     moneyOut: moneyOut.slice(0, upto),
     net: moneyIn.slice(0, upto).map((v, i) => v - moneyOut[i]),
@@ -490,7 +522,10 @@ export type OwnerAttn = {
   value?: string;
 };
 
-export async function ownerAttention(rate: number | null = null): Promise<OwnerAttn[]> {
+export async function ownerAttention(
+  rate: number | null = null,
+  locale: Locale = "en"
+): Promise<OwnerAttn[]> {
   const [china, floor, darProblems, finance, support] = await Promise.all([
     chinaProblems(),
     floorSnapshot(),
@@ -537,147 +572,183 @@ export async function ownerAttention(rate: number | null = null): Promise<OwnerA
     rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : `USD ${usd.toFixed(2)}`;
   const shortBoxes = floor.declaredPackages - floor.packages;
 
+  // Every label on this panel is a count and a phrase. The count is baked in
+  // before the dictionary could ever see the sentence, so the phrase is looked
+  // up on its own and the figure put back in front of it — the same trick
+  // deskPulse uses, and the only way these reach a Chinese reader.
+  const count = (n: number, phrase: string) => `${n} ${t(locale, phrase)}`;
+
   return [
     // ---- Guangzhou ----
     {
       when: china.noPhotos > 0,
       id: "cn-photos",
-      group: "Guangzhou",
+      group: t(locale, "Guangzhou"),
       severity: "critical" as const,
-      label: `${china.noPhotos} registered with no photograph`,
-      detail:
-        "Nothing to show a customer whose cargo arrives damaged, and nothing to argue with when they say it did.",
+      label: count(china.noPhotos, "registered with no photograph"),
+      detail: t(
+        locale,
+        "Nothing to show a customer whose cargo arrives damaged, and nothing to argue with when they say it did."
+      ),
       href: "/app/shipments",
     },
     {
       when: china.unassigned > 0,
       id: "cn-unassigned",
-      group: "Guangzhou",
+      group: t(locale, "Guangzhou"),
       severity: "critical" as const,
-      label: `${china.unassigned} on no batch`,
-      detail: "Registered and sitting loose. Cargo on no batch does not get on an aircraft.",
+      label: count(china.unassigned, "on no batch"),
+      detail: t(
+        locale,
+        "Registered and sitting loose. Cargo on no batch does not get on an aircraft."
+      ),
       href: "/app/batches",
     },
     {
       when: china.staleBatches > 0,
       id: "cn-batches",
-      group: "Guangzhou",
+      group: t(locale, "Guangzhou"),
       severity: "warning" as const,
-      label: `${china.staleBatches} batch(es) open more than ${china.staleDays} days`,
-      detail: "A batch left open stops being a batch and becomes a shelf.",
+      // Two figures in one sentence, so it splits twice.
+      label: `${china.staleBatches} ${t(locale, "batch(es) open more than")} ${china.staleDays} ${t(locale, "days")}`,
+      detail: t(
+        locale,
+        "A batch left open stops being a batch and becomes a shelf."
+      ),
       href: "/app/batches",
     },
     // ---- Dar floor ----
     {
       when: shortBoxes > 0,
       id: "dar-short",
-      group: "Dar floor",
+      group: t(locale, "Dar floor"),
       severity: "critical" as const,
-      label: `${shortBoxes} box(es) short of the manifest`,
-      detail: "Checked in with fewer cartons than the Guangzhou paperwork claims.",
+      label: count(shortBoxes, "box(es) short of the manifest"),
+      detail: t(
+        locale,
+        "Checked in with fewer cartons than the Guangzhou paperwork claims."
+      ),
       href: "/app/receive",
     },
     {
       when: darProblems.unfinishedBatches > 0,
       id: "dar-unfinished",
-      group: "Dar floor",
+      group: t(locale, "Dar floor"),
       severity: "warning" as const,
-      label: `${darProblems.unfinishedBatches} landed batch(es) not finished`,
-      detail: "The plane is down and the manifest is not fully ticked off.",
+      label: count(darProblems.unfinishedBatches, "landed batch(es) not finished"),
+      detail: t(
+        locale,
+        "The plane is down and the manifest is not fully ticked off."
+      ),
       href: "/app/receive",
     },
     {
       when: floor.aging > 0,
       id: "dar-aging",
-      group: "Dar floor",
+      group: t(locale, "Dar floor"),
       severity: "warning" as const,
-      label: `${floor.aging} past the free storage window`,
-      detail: `Standing more than ${STORAGE_POLICY.freeDays} days, and the customer usually does not know.`,
+      label: count(floor.aging, "past the free storage window"),
+      detail: `${t(locale, "Standing more than")} ${STORAGE_POLICY.freeDays} ${t(locale, "days, and the customer usually does not know.")}`,
       href: "/app/inventory",
-      value: `longest ${floor.longestHeldDays}d`,
+      value: `${t(locale, "longest")} ${floor.longestHeldDays}d`,
     },
     {
       when: darProblems.readyForPickup > 0,
       id: "dar-ready",
-      group: "Dar floor",
+      group: t(locale, "Dar floor"),
       severity: "info" as const,
-      label: `${darProblems.readyForPickup} paid, not collected`,
-      detail: "Cleared by Finance and still on our shelves.",
+      label: count(darProblems.readyForPickup, "paid, not collected"),
+      detail: t(locale, "Cleared by Finance and still on our shelves."),
       href: "/app/pickup-queue",
     },
     // ---- Finance ----
     {
       when: finance.drafts > 0,
       id: "fin-drafts",
-      group: "Finance",
+      group: t(locale, "Finance"),
       severity: "critical" as const,
-      label: `${finance.drafts} price(s) to confirm`,
-      detail: "Nothing can be invoiced, and no cargo released, until they are signed off.",
+      label: count(finance.drafts, "price(s) to confirm"),
+      detail: t(
+        locale,
+        "Nothing can be invoiced, and no cargo released, until they are signed off."
+      ),
       href: "/app/shipments",
     },
     {
       when: finance.unattributed > 0,
       id: "fin-unattributed",
-      group: "Finance",
+      group: t(locale, "Finance"),
       severity: "warning" as const,
-      label: `${finance.unattributed} payment(s) in no account`,
-      detail: "Money we hold that nobody has said where it landed.",
+      label: count(finance.unattributed, "payment(s) in no account"),
+      detail: t(locale, "Money we hold that nobody has said where it landed."),
       href: "/app/finance/payments",
     },
     {
       when: finance.unpaid > 0,
       id: "fin-unpaid",
-      group: "Finance",
+      group: t(locale, "Finance"),
       severity: "warning" as const,
-      label: `${finance.unpaid} bill(s) unpaid`,
-      detail: "Confirmed and sent to the customer. The money has not arrived.",
+      label: count(finance.unpaid, "bill(s) unpaid"),
+      detail: t(
+        locale,
+        "Confirmed and sent to the customer. The money has not arrived."
+      ),
       href: "/app/collections/follow-up",
       value: money(finance.owedUsd),
     },
     {
       when: support.pending > 0,
       id: "fin-verify",
-      group: "Finance",
+      group: t(locale, "Finance"),
       severity: "warning" as const,
-      label: `${support.pending} collection(s) to verify`,
-      detail: "Customer Support collected these at the counter and handed them up.",
+      label: count(support.pending, "collection(s) to verify"),
+      detail: t(
+        locale,
+        "Customer Support collected these at the counter and handed them up."
+      ),
       href: "/app/finance/verify",
     },
     // ---- Support ----
     {
       when: support.urgentTickets > 0,
       id: "sup-urgent",
-      group: "Support",
+      group: t(locale, "Support"),
       severity: "critical" as const,
-      label: `${support.urgentTickets} ticket(s) marked urgent`,
-      detail: "A customer is waiting on an answer somebody flagged as important.",
+      label: count(support.urgentTickets, "ticket(s) marked urgent"),
+      detail: t(
+        locale,
+        "A customer is waiting on an answer somebody flagged as important."
+      ),
       href: "/app/support/tickets?priority=high",
     },
     {
       when: support.rejected > 0,
       id: "sup-rejected",
-      group: "Support",
+      group: t(locale, "Support"),
       severity: "critical" as const,
-      label: `${support.rejected} payment(s) sent back by Finance`,
-      detail: "The customer was told their payment went through and it did not.",
+      label: count(support.rejected, "payment(s) sent back by Finance"),
+      detail: t(
+        locale,
+        "The customer was told their payment went through and it did not."
+      ),
       href: "/app/collections/submissions?status=REJECTED",
     },
     {
       when: support.openRequests > 0,
       id: "sup-sourcing",
-      group: "Support",
+      group: t(locale, "Support"),
       severity: "info" as const,
-      label: `${support.openRequests} sourcing request(s) open`,
-      detail: "Somebody asked us to find them something in China.",
+      label: count(support.openRequests, "sourcing request(s) open"),
+      detail: t(locale, "Somebody asked us to find them something in China."),
       href: "/app/support/sourcing",
     },
     {
       when: darProblems.openCases > 0,
       id: "cases",
-      group: "Cases",
+      group: t(locale, "Cases"),
       severity: "critical" as const,
-      label: `${darProblems.openCases} open case(s)`,
-      detail: "Cargo reported missing, damaged or wrong on arrival.",
+      label: count(darProblems.openCases, "open case(s)"),
+      detail: t(locale, "Cargo reported missing, damaged or wrong on arrival."),
       href: "/app/exceptions",
     },
   ].filter((row) => row.when) as OwnerAttn[];
@@ -1030,7 +1101,8 @@ const DAY = 86_400_000;
  * can actually act on — showing Finance a batch it cannot verify is noise.
  */
 export async function attentionItems(
-  role: "ADMIN" | "CHINA_WAREHOUSE" | "DAR_WAREHOUSE" | "FINANCE"
+  role: "ADMIN" | "CHINA_WAREHOUSE" | "DAR_WAREHOUSE" | "FINANCE",
+  locale: Locale = "en"
 ): Promise<AttentionItem[]> {
   const sees = {
     exceptions: role !== "CHINA_WAREHOUSE",
@@ -1143,9 +1215,12 @@ export async function attentionItems(
     items.push({
       id: `exc-${exception.id}`,
       severity: severe ? "critical" : "warning",
-      title: `${exception.type.replace(/_/g, " ").toLowerCase()} — ${exception.shipment.trackingNumber}`,
+      // The enum name was previously de-underscored and lowercased on the spot,
+      // which produces a phrase no dictionary can hold. The shared label map is
+      // the same wording the case screens use, and it translates.
+      title: `${t(locale, EXCEPTION_TYPE_LABELS[exception.type])} — ${exception.shipment.trackingNumber}`,
       detail: exception.description,
-      meta: `Open for ${ageDays(exception.raisedAt)} day(s)`,
+      meta: `${t(locale, "Open for")} ${ageDays(exception.raisedAt)} ${t(locale, "day(s)")}`,
       href: "/app/exceptions",
     });
   }
@@ -1156,9 +1231,9 @@ export async function attentionItems(
     items.push({
       id: `batch-${batch.id}`,
       severity: ageDays(batch.arrivedAt) >= 2 ? "critical" : "warning",
-      title: `${batch.batchNumber} not fully checked in`,
-      detail: `${remaining} of ${batch._count.shipments} shipment(s) still unverified against the manifest.`,
-      meta: `Landed ${ageDays(batch.arrivedAt)} day(s) ago`,
+      title: `${batch.batchNumber} ${t(locale, "not fully checked in")}`,
+      detail: `${remaining} ${t(locale, "of")} ${batch._count.shipments} ${t(locale, "shipment(s) still unverified against the manifest.")}`,
+      meta: `${t(locale, "Landed")} ${ageDays(batch.arrivedAt)} ${t(locale, "day(s) ago")}`,
       href: `/app/receive/${batch.id}`,
     });
   }
@@ -1167,9 +1242,9 @@ export async function attentionItems(
     items.push({
       id: `noinv-${shipment.id}`,
       severity: "warning",
-      title: `${shipment.trackingNumber} has no invoice`,
-      detail: `${shipment.customer.name}'s cargo is in the warehouse but has not been billed.`,
-      meta: `Waiting ${ageDays(shipment.arrivedAt)} day(s)`,
+      title: `${shipment.trackingNumber} ${t(locale, "has no invoice")}`,
+      detail: `${shipment.customer.name}${t(locale, "'s cargo is in the warehouse but has not been billed.")}`,
+      meta: `${t(locale, "Waiting")} ${ageDays(shipment.arrivedAt)} ${t(locale, "day(s)")}`,
       href: `/app/cargo/${shipment.trackingNumber}`,
     });
   }
@@ -1180,9 +1255,9 @@ export async function attentionItems(
     items.push({
       id: `unpaid-${shipment.id}`,
       severity: "critical",
-      title: `${shipment.trackingNumber} unpaid for ${ageDays(shipment.arrivedAt)} days`,
-      detail: `${shipment.customer.name} (${shipment.customer.phone}) owes ${shipment.invoice?.currency ?? "TZS"} ${outstanding.toLocaleString()}.`,
-      meta: "Occupying warehouse space",
+      title: `${shipment.trackingNumber} ${t(locale, "unpaid for")} ${ageDays(shipment.arrivedAt)} ${t(locale, "days")}`,
+      detail: `${shipment.customer.name} (${shipment.customer.phone}) ${t(locale, "owes")} ${shipment.invoice?.currency ?? "TZS"} ${outstanding.toLocaleString()}.`,
+      meta: t(locale, "Occupying warehouse space"),
       href: `/app/cargo/${shipment.trackingNumber}`,
     });
   }
@@ -1191,9 +1266,9 @@ export async function attentionItems(
     items.push({
       id: `note-${note.id}`,
       severity: "warning",
-      title: `${note.shipment.trackingNumber} paid but not collected`,
-      detail: `${note.customer.name} was cleared for collection but has not come in.`,
-      meta: `Pickup note issued ${ageDays(note.issuedAt)} day(s) ago`,
+      title: `${note.shipment.trackingNumber} ${t(locale, "paid but not collected")}`,
+      detail: `${note.customer.name} ${t(locale, "was cleared for collection but has not come in.")}`,
+      meta: `${t(locale, "Pickup note issued")} ${ageDays(note.issuedAt)} ${t(locale, "day(s) ago")}`,
       href: "/app/release",
     });
   }
@@ -1203,9 +1278,9 @@ export async function attentionItems(
     items.push({
       id: `open-${batch.id}`,
       severity: "info",
-      title: `${batch.batchNumber} still open`,
-      detail: `${batch._count.shipments} shipment(s) waiting in China. Seal it to get them on a flight.`,
-      meta: `Opened ${ageDays(batch.createdAt)} day(s) ago`,
+      title: `${batch.batchNumber} ${t(locale, "still open")}`,
+      detail: `${batch._count.shipments} ${t(locale, "shipment(s) waiting in China. Seal it to get them on a flight.")}`,
+      meta: `${t(locale, "Opened")} ${ageDays(batch.createdAt)} ${t(locale, "day(s) ago")}`,
       href: `/app/batches/${batch.id}`,
     });
   }
@@ -1274,7 +1349,7 @@ export async function agingInWarehouse(limit = 8) {
  * The tail is collapsed into "Other" at six slices — beyond that a donut is
  * decoration.
  */
-export async function cargoMix(days = 30) {
+export async function cargoMix(days = 30, locale: Locale = "en") {
   const since = new Date(Date.now() - days * 24 * 3600 * 1000);
 
   const rows = await prisma.shipment.findMany({
@@ -1288,7 +1363,9 @@ export async function cargoMix(days = 30) {
 
   const byItem = new Map<string, { shipments: number; weightKg: number }>();
   for (const row of rows) {
-    const key = row.cargoType?.name ?? "Not classified";
+    // A product name is the customer's own words and stays as registered; only
+    // the "no product chosen" bucket is ours to word.
+    const key = row.cargoType?.name ?? t(locale, "Not classified");
     const entry = byItem.get(key) ?? { shipments: 0, weightKg: 0 };
     entry.shipments += 1;
     entry.weightKg += toNumber(row.weightKg);
@@ -1304,7 +1381,7 @@ export async function cargoMix(days = 30) {
   const tail = sorted.slice(TOP);
   if (tail.length > 0) {
     head.push({
-      name: `Other (${tail.length} items)`,
+      name: `${t(locale, "Other")} (${tail.length} ${t(locale, "items")})`,
       shipments: tail.reduce((sum, item) => sum + item.shipments, 0),
       weightKg: tail.reduce((sum, item) => sum + item.weightKg, 0),
     });

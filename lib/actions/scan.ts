@@ -2,6 +2,7 @@
 
 import { SHIPMENT_STATUS_META } from "@/lib/constants";
 import { formatDate, toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { packageProgress, resolveScannedCode } from "@/lib/packages";
 import { findPickupLock, pickupLockMessage } from "@/lib/pickup-lock";
 import { prisma } from "@/lib/prisma";
@@ -101,18 +102,22 @@ export type ScanResult = {
 export async function resolveScanByNote(
   noteId: string
 ): Promise<ActionResult<ScanResult>> {
+  // Resolved before the permission check: a refusal is read by a person too,
+  // and viewerLocale is request-cached, so asking early costs nothing.
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("shipment.scan");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   const note = await prisma.pickupNote.findUnique({
     where: { id: noteId },
     select: { shipmentId: true },
   });
-  if (!note) return fail("That pickup note no longer exists.");
+  if (!note) return fail(t(locale, "That pickup note no longer exists."));
 
   return describe(user, note.shipmentId, null);
 }
@@ -130,15 +135,17 @@ export async function resolveScan(
    * Support are never in front of a box, China prints labels and never reads
    * them. Checking only for a session let all three read the answer anyway.
    */
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("shipment.scan");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   const target = await resolveScannedCode(rawCode);
-  if (!target) return fail("That is not a Target Express label.");
+  if (!target) return fail(t(locale, "That is not a Target Express label."));
 
   return describe(user, target.shipmentId, target.package ?? null);
 }
@@ -199,10 +206,14 @@ async function describe(
     },
   });
 
-  if (!shipment) return fail("No shipment matches that code.");
+  if (!shipment) return fail(t(locale, "No shipment matches that code."));
 
   const meta = SHIPMENT_STATUS_META[shipment.status];
-  const progress = packageProgress(shipment.packageList, shipment.packageType);
+  const progress = packageProgress(
+    shipment.packageList,
+    shipment.packageType,
+    locale
+  );
 
   const showMoney = can(user.role, "finance.view");
   const mayRelease = can(user.role, "shipment.release");
@@ -242,14 +253,20 @@ async function describe(
   if (shipment.status === "DELIVERED") {
     verdict = {
       tone: "warn",
-      headline: "Already collected",
-      detail: "This cargo has been released. It should not be in the warehouse.",
+      headline: t(locale, "Already collected"),
+      detail: t(
+        locale,
+        "This cargo has been released. It should not be in the warehouse."
+      ),
     };
   } else if (shipment.status === "CANCELLED") {
     verdict = {
       tone: "block",
-      headline: "Cancelled shipment",
-      detail: "Management voided this shipment. Do not move or release it.",
+      headline: t(locale, "Cancelled shipment"),
+      detail: t(
+        locale,
+        "Management voided this shipment. Do not move or release it."
+      ),
     };
   } else if (mayRelease) {
     // Warehouse staff at the counter get a yes/no, not a report. The order of
@@ -258,8 +275,8 @@ async function describe(
     if (lock) {
       verdict = {
         tone: "block",
-        headline: "Under investigation — do not release",
-        detail: pickupLockMessage(lock, shipment.trackingNumber),
+        headline: t(locale, "Under investigation — do not release"),
+        detail: pickupLockMessage(lock, shipment.trackingNumber, locale),
       };
     } else if (shipment.status !== "READY_FOR_PICKUP") {
       if (shipment.status === "RECEIVED_AT_DAR") {
@@ -270,18 +287,27 @@ async function describe(
         const settled = shipment.invoice?.status === "PAID";
         verdict = {
           tone: "block",
-          headline: settled ? "Paid — waiting for the note" : "Not paid yet",
-          detail: settled
-            ? "The invoice is settled but Finance has not issued the pickup note. Ask them to release it."
-            : !shipment.invoice
-              ? "This cargo has not been billed yet. Finance prices it before it can be collected."
-              : "The customer has not settled the invoice. They pay Finance first, and Finance issues the pickup note.",
+          headline: t(
+            locale,
+            settled ? "Paid — waiting for the note" : "Not paid yet"
+          ),
+          detail: t(
+            locale,
+            settled
+              ? "The invoice is settled but Finance has not issued the pickup note. Ask them to release it."
+              : !shipment.invoice
+                ? "This cargo has not been billed yet. Finance prices it before it can be collected."
+                : "The customer has not settled the invoice. They pay Finance first, and Finance issues the pickup note."
+          ),
         };
       } else {
         verdict = {
           tone: "warn",
-          headline: meta.label,
-          detail: "This cargo has not been checked in at the Dar warehouse yet.",
+          headline: t(locale, meta.label),
+          detail: t(
+            locale,
+            "This cargo has not been checked in at the Dar warehouse yet."
+          ),
         };
       }
     } else if (shipment.pickupNote?.status === "CANCELLED") {
@@ -290,15 +316,17 @@ async function describe(
       // the counter that the clerk cannot win.
       verdict = {
         tone: "block",
-        headline: "Pickup note cancelled",
-        detail: `Finance cancelled ${shipment.pickupNote.noteNumber}. Do not release this cargo — send the customer to Finance to find out why.`,
+        headline: t(locale, "Pickup note cancelled"),
+        detail: `${t(locale, "Finance cancelled")} ${shipment.pickupNote.noteNumber}. ${t(locale, "Do not release this cargo — send the customer to Finance to find out why.")}`,
       };
     } else if (!shipment.pickupNote) {
       verdict = {
         tone: "block",
-        headline: "No pickup note",
-        detail:
-          "Finance issues the pickup note once the invoice is settled. Send the customer to Finance; do not release without one.",
+        headline: t(locale, "No pickup note"),
+        detail: t(
+          locale,
+          "Finance issues the pickup note once the invoice is settled. Send the customer to Finance; do not release without one."
+        ),
       };
     } else if (shipment.pickupNote.status === "USED") {
       // A stop, not a caution. Somebody presenting cargo that has already been
@@ -307,51 +335,54 @@ async function describe(
       // wait-a-moment signal. This one has to feel different in the hand.
       verdict = {
         tone: "block",
-        headline: "Already collected — do not release",
-        detail: `Pickup note ${shipment.pickupNote.noteNumber} was used on ${deliveredAtLabel ?? "an earlier date"}. This cargo has left the warehouse. Send the customer to the office.`,
+        headline: t(locale, "Already collected — do not release"),
+        detail: `${t(locale, "Pickup note")} ${shipment.pickupNote.noteNumber} ${t(locale, "was used on")} ${deliveredAtLabel ?? t(locale, "an earlier date")}. ${t(locale, "This cargo has left the warehouse. Send the customer to the office.")}`,
       };
     } else if (!progress.complete) {
       // Paid, noted, and still short a box. Handing over four of five is how a
       // claim starts, so the counter is told before the customer is.
+      const boxes = progress.missing
+        .map((n) => `${t(locale, "Package")} ${n}`)
+        .join(locale === "zh" ? "、" : ", ");
       verdict = {
         tone: "block",
-        headline: `Only ${progress.received} of ${progress.total} here`,
-        detail: `${progress.missing.map((n) => `Package ${n}`).join(", ")} has not been checked in. Do not release a partial shipment.`,
+        headline: `${t(locale, "Only")} ${progress.received}/${progress.total} ${t(locale, "packages here")}`,
+        detail: `${boxes} ${t(locale, "has not been checked in. Do not release a partial shipment.")}`,
       };
     } else {
       verdict = {
         tone: "ok",
-        headline: "Cleared — hand it over",
-        detail: `Paid in full and pickup note ${shipment.pickupNote.noteNumber} is open. Check who is collecting, photograph the handover, release.`,
+        headline: t(locale, "Cleared — hand it over"),
+        detail: `${t(locale, "Paid in full and pickup note")} ${shipment.pickupNote.noteNumber} ${t(locale, "is open. Check who is collecting, photograph the handover, release.")}`,
       };
     }
   } else if (showMoney) {
     if (!shipment.invoice) {
       verdict = {
         tone: "warn",
-        headline: "No invoice raised",
-        detail: "This shipment has not been billed yet.",
+        headline: t(locale, "No invoice raised"),
+        detail: t(locale, "This shipment has not been billed yet."),
       };
     } else if (shipment.invoice.status === "PAID") {
       verdict = {
         tone: "ok",
-        headline: "Settled in full",
+        headline: t(locale, "Settled in full"),
         detail: shipment.pickupNote
-          ? `Pickup note ${shipment.pickupNote.noteNumber} (${shipment.pickupNote.status.toLowerCase()}).`
-          : "Ready for a pickup note once the cargo is checked in.",
+          ? `${t(locale, "Pickup note")} ${shipment.pickupNote.noteNumber} (${t(locale, shipment.pickupNote.status.toLowerCase())}).`
+          : t(locale, "Ready for a pickup note once the cargo is checked in."),
       };
     } else {
       verdict = {
         tone: "warn",
-        headline: `${shipment.invoice.currency} ${outstanding?.toLocaleString()} outstanding`,
-        detail: "Collect the balance before issuing a pickup note.",
+        headline: `${shipment.invoice.currency} ${outstanding?.toLocaleString()} ${t(locale, "outstanding")}`,
+        detail: t(locale, "Collect the balance before issuing a pickup note."),
       };
     }
   } else {
     verdict = {
       tone: "ok",
-      headline: meta.label,
-      detail: meta.description,
+      headline: t(locale, meta.label),
+      detail: t(locale, meta.description),
     };
   }
 
@@ -359,7 +390,7 @@ async function describe(
     shipmentId: shipment.id,
     trackingNumber: shipment.trackingNumber,
     status: shipment.status,
-    statusLabel: meta.label,
+    statusLabel: t(locale, meta.label),
     customerName: shipment.customer.name,
     customerPhone: can(user.role, "customer.view")
       ? shipment.customer.phone

@@ -73,10 +73,10 @@ export default async function EmployeeProfilePage({
   const [stats, activity, batches, daily, logins, edits, deletions] =
     await Promise.all([
       profileStats(person.id),
-      profileActivity(person.id, 20),
-      myBatches(person.id),
-      dailyActivity(person.id, 14),
-      loginHistory(person.id, 12),
+      profileActivity(person.id, 20, locale),
+      myBatches(person.id, locale),
+      dailyActivity(person.id, 14, locale),
+      loginHistory(person.id, 12, locale),
       prisma.auditLog.count({
         where: { actorId: person.id, action: { contains: "update" } },
       }),

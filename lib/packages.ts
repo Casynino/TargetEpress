@@ -3,6 +3,8 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { parseQrPayload } from "@/lib/qr";
 import { formatPackages } from "@/lib/constants";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
 
 /**
  * Packages: the physical half of a shipment.
@@ -107,7 +109,8 @@ export type PackageProgress = {
  */
 export function packageProgress(
   packages: { sequence: number; receivedAt: Date | null; deliveredAt: Date | null }[],
-  packageType: string
+  packageType: string,
+  locale: Locale = "en"
 ): PackageProgress {
   const total = packages.length;
   const received = packages.filter((p) => p.receivedAt).length;
@@ -123,6 +126,8 @@ export function packageProgress(
     delivered,
     missing,
     complete: total > 0 && missing.length === 0,
-    label: `${received} of ${formatPackages(total, packageType)} received`,
+    // The counts stay outside the dictionary and the unit goes through it, so
+    // "4/5 cartons received" and "4/5 纸箱 已核收" are the same sentence.
+    label: `${received}/${formatPackages(total, packageType, locale)} ${t(locale, "received")}`,
   };
 }

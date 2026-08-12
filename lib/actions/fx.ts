@@ -6,8 +6,10 @@ import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { BASE_CURRENCY, LOCAL_CURRENCY, currentRateValue } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 
 const schema = z.object({
@@ -36,18 +38,24 @@ export async function setExchangeRate(
   _prev: ActionResult<{ rate: number }> | undefined,
   formData: FormData
 ): Promise<ActionResult<{ rate: number }>> {
+  const locale = await viewerLocale();
   let user: SessionUser;
   try {
     user = await authorize("fx.manage");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   const parsed = schema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
   if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Check the rate.");
+    // The schema's messages are written in English and translated here, at the
+    // one point where they stop being a validation rule and become something a
+    // person reads.
+    return fail(
+      t(locale, parsed.error.issues[0]?.message ?? "Check the rate.")
+    );
   }
 
   const previous = await currentRateValue();
@@ -87,6 +95,6 @@ export async function setExchangeRate(
     revalidatePath("/calculator");
     return ok({ rate: parsed.data.rate });
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 }

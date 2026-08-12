@@ -1,5 +1,8 @@
 import type { CargoCategory, Origin, PricingMethod } from "@prisma/client";
 
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+
 /**
  * Cargo classification rules.
  *
@@ -27,12 +30,13 @@ import type { CargoCategory, Origin, PricingMethod } from "@prisma/client";
  */
 export function cargoLabel(
   itemName: string | null | undefined,
-  description: string | null | undefined
+  description: string | null | undefined,
+  locale: Locale = "en"
 ) {
   const item = itemName?.trim();
   const text = description?.trim();
 
-  if (!item) return text || "General cargo";
+  if (!item) return text || t(locale, "General cargo");
   if (!text) return item;
   // "Clothes (Clothes)" helps nobody.
   if (text.toLowerCase() === item.toLowerCase()) return item;

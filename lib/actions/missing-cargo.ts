@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 
 import { recordAudit } from "@/lib/audit";
+import { t } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { prisma, type TxClient } from "@/lib/prisma";
 import { caseReference, PICKUP_LOCKING_STATUSES } from "@/lib/pickup-lock";
 import { authorize, type SessionUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 
 /**
@@ -259,6 +261,8 @@ export async function reportUnableToLocate(
   _prev: ActionResult<LossResult> | undefined,
   formData: FormData
 ): Promise<ActionResult<LossResult>> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("shipment.release");
@@ -268,9 +272,11 @@ export async function reportUnableToLocate(
 
   const pickupNoteId = String(formData.get("pickupNoteId") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();
-  if (!pickupNoteId) return fail("Missing pickup note.");
+  if (!pickupNoteId) return fail(t(locale, "Missing pickup note."));
   if (note.length < MIN_NOTE) {
-    return fail("Say where you looked. This is what the search starts from.");
+    return fail(
+      t(locale, "Say where you looked. This is what the search starts from.")
+    );
   }
 
   try {
@@ -284,14 +290,16 @@ export async function reportUnableToLocate(
           shipment: { select: CARGO_SELECT },
         },
       });
-      if (!pickupNote) throw new Error("Pickup note not found.");
+      if (!pickupNote) throw new Error(t(locale, "Pickup note not found."));
       if (pickupNote.status === "USED") {
         throw new Error(
-          `${pickupNote.noteNumber} has already been used — this cargo was collected. If it left with the wrong person, raise that in Issues & Claims.`
+          `${pickupNote.noteNumber} ${t(locale, "has already been used — this cargo was collected. If it left with the wrong person, raise that in Issues & Claims.")}`
         );
       }
       if (pickupNote.status === "CANCELLED") {
-        throw new Error(`${pickupNote.noteNumber} was cancelled by Finance.`);
+        throw new Error(
+          `${pickupNote.noteNumber} ${t(locale, "was cancelled by Finance.")}`
+        );
       }
 
       const cargo: CargoRef = {
@@ -345,6 +353,8 @@ export async function reportMissingCargo(
   _prev: ActionResult<LossResult> | undefined,
   formData: FormData
 ): Promise<ActionResult<LossResult>> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("exception.raise");
@@ -355,9 +365,11 @@ export async function reportMissingCargo(
   const shipmentId = String(formData.get("shipmentId") ?? "").trim();
   const pickupNoteId = String(formData.get("pickupNoteId") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();
-  if (!shipmentId && !pickupNoteId) return fail("Missing cargo.");
+  if (!shipmentId && !pickupNoteId) return fail(t(locale, "Missing cargo."));
   if (note.length < MIN_NOTE) {
-    return fail("Say where you looked. This is what the search starts from.");
+    return fail(
+      t(locale, "Say where you looked. This is what the search starts from.")
+    );
   }
 
   try {
@@ -373,7 +385,7 @@ export async function reportMissingCargo(
               select: { shipment: { select: CARGO_SELECT } },
             })
           )?.shipment ?? null;
-      if (!shipment) throw new Error("Cargo not found.");
+      if (!shipment) throw new Error(t(locale, "Cargo not found."));
 
       const cargo: CargoRef = {
         id: shipment.id,

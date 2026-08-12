@@ -71,7 +71,7 @@ export async function GET(
     packagesLabel: formatPackages(
       note.shipment.packages,
       note.shipment.packageType
-    ),
+    , locale),
     invoiceNumber: note.shipment.invoice?.invoiceNumber ?? null,
     // Left in English on purpose: the card is drawn by jsPDF's WinAnsi
     // Helvetica, which drops CJK rather than substituting it, so a translated

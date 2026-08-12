@@ -68,7 +68,7 @@ export async function GET(
       packagesLabel: formatPackages(
         shipment.packageList.length,
         shipment.packageType
-      ),
+      , locale),
       registeredOn: formatDate(shipment.registeredAt, locale),
       sequence: pkg.sequence,
       packages: shipment.packageList.length,

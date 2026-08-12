@@ -97,7 +97,7 @@ export default async function DeliveryHistoryPage() {
     packagesLabel: formatPackages(
       record.shipment.packages,
       record.shipment.packageType
-    ),
+    , locale),
     weightKg: toNumber(record.shipment.weightKg),
     customerId: record.shipment.customer.id,
     customerName: record.shipment.customer.name,

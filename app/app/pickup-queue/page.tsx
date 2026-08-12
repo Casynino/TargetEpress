@@ -173,8 +173,8 @@ export default async function PickupQueuePage() {
       // English at the Dar counter, and stays Chinese in Guangzhou.
       description: cargoText(locale, shipment, "description"),
       weightKg: toNumber(shipment.weightKg),
-      packagesLabel: formatPackages(shipment.packages, shipment.packageType),
-      packagesShort: formatPackagesShort(shipment.packages, shipment.packageType),
+      packagesLabel: formatPackages(shipment.packages, shipment.packageType, locale),
+      packagesShort: formatPackagesShort(shipment.packages, shipment.packageType, locale),
       packagesReceived,
       packagesTotal,
       missingPackages,

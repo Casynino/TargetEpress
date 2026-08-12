@@ -11,11 +11,14 @@ import {
   EXPENSE_CATEGORIES as CATEGORIES,
 } from "@/lib/expenses";
 import { currentRateValue } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 import { nextExpenseNumber } from "@/lib/ids";
 import { postLedgerEntry } from "@/lib/ledger";
+import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { firstError } from "@/lib/validation";
 
@@ -51,16 +54,33 @@ const expenseSchema = z.object({
 });
 
 /** USD value of an amount, at the rate published today. */
-async function usdValue(amount: number, currency: string) {
+async function usdValue(amount: number, currency: string, locale: Locale = "en") {
   if (currency === "USD") return { usd: amount, rate: null as number | null };
   const rate = await currentRateValue();
   if (!rate) {
     throw new Error(
-      "No exchange rate is published, so a shilling cost cannot be valued in dollars. Publish one on Pricing & configuration first."
+      t(
+        locale,
+        "No exchange rate is published, so a shilling cost cannot be valued in dollars. Publish one on Pricing & configuration first."
+      )
     );
   }
   return { usd: Math.round((amount / rate) * 100) / 100, rate };
 }
+
+/**
+ * Why an expense cannot be approved, by the status it is already in.
+ *
+ * Keyed rather than interpolated: "EXP-1 is paid, so there is nothing to
+ * approve" cannot be composed in Chinese from an English shape without the
+ * status word landing in the wrong place, and a whole sentence per status is
+ * three dictionary entries instead of a broken one.
+ */
+const NOTHING_TO_APPROVE: Record<string, string> = {
+  APPROVED: "has already been approved, so there is nothing to approve.",
+  PAID: "has already been paid, so there is nothing to approve.",
+  VOID: "was cancelled, so there is nothing to approve.",
+};
 
 /**
  * Record a cost — and, when an account is named and the amount is under the
@@ -75,17 +95,21 @@ export async function recordExpense(
   _prev: ActionResult<{ expenseNumber: string }> | undefined,
   formData: FormData
 ): Promise<ActionResult<{ expenseNumber: string }>> {
+  // The reader's language, resolved before anything can fail: every message
+  // this action can return is read by the person who submitted the form.
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("expense.record");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   const parsed = expenseSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
-  if (!parsed.success) return fail(firstError(parsed.error));
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
   const input = parsed.data;
 
   // Uploaded before the transaction opens, exactly as payment proofs are: a
@@ -101,11 +125,11 @@ export async function recordExpense(
       })
     );
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   try {
-    const { usd, rate } = await usdValue(input.amount, input.currency);
+    const { usd, rate } = await usdValue(input.amount, input.currency, locale);
     const needsApproval = usd > APPROVAL_THRESHOLD_USD;
     const incurredAt = input.incurredAt ?? new Date();
 
@@ -122,13 +146,17 @@ export async function recordExpense(
           where: { id: input.accountId },
           select: { id: true, name: true, currency: true, active: true },
         });
-        if (!account) throw new Error("That account no longer exists.");
+        if (!account) {
+          throw new Error(t(locale, "That account no longer exists."));
+        }
         if (!account.active) {
-          throw new Error(`${account.name} has been archived.`);
+          throw new Error(`${account.name} ${t(locale, "has been archived.")}`);
         }
         if (account.currency !== input.currency) {
+          // The account name, both currency codes and the figure are data; the
+          // words between them are the only part that changes language.
           throw new Error(
-            `${account.name} is a ${account.currency} account, so ${input.currency} ${input.amount.toLocaleString()} cannot have left it.`
+            `${account.name} ${t(locale, "is a")} ${account.currency} ${t(locale, "account, so")} ${input.currency} ${input.amount.toLocaleString()} ${t(locale, "cannot have left it.")}`
           );
         }
       }
@@ -206,7 +234,7 @@ export async function recordExpense(
     revalidatePath("/app/finance/transactions");
     return ok({ expenseNumber });
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 }
 
@@ -215,23 +243,29 @@ export async function approveExpense(
   _prev: ActionResult | undefined,
   formData: FormData
 ): Promise<ActionResult> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("expense.approve");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   const id = String(formData.get("expenseId") ?? "");
-  if (!id) return fail("Missing expense.");
+  if (!id) return fail(t(locale, "Missing expense."));
 
   try {
     await prisma.$transaction(async (tx) => {
       const expense = await tx.expense.findUnique({ where: { id } });
-      if (!expense) throw new Error("Expense not found.");
+      if (!expense) throw new Error(t(locale, "Expense not found."));
       if (expense.status !== "PENDING") {
         throw new Error(
-          `${expense.expenseNumber} is ${expense.status.toLowerCase()}, so there is nothing to approve.`
+          `${expense.expenseNumber} ${t(
+            locale,
+            NOTHING_TO_APPROVE[expense.status] ??
+              "cannot be approved from its current status."
+          )}`
         );
       }
 

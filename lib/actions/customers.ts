@@ -5,9 +5,12 @@ import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { normalisePhone } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { nextCustomerCode } from "@/lib/ids";
+import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 
 export type SavedCustomer = {
@@ -21,25 +24,38 @@ export type SavedCustomer = {
   existing: boolean;
 };
 
-const schema = z.object({
-  name: z.string().trim().min(2, "Enter the name or shipping mark.").max(120),
-  phone: z
-    .string()
-    .trim()
-    .min(7, "A phone number is required.")
-    .max(30)
-    .regex(/^[\d+\s()-]+$/, "That does not look like a phone number."),
-  city: z.string().trim().max(120).optional(),
-  email: z
-    .string()
-    .trim()
-    .max(160)
-    .optional()
-    .refine(
-      (v) => !v || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v),
-      "That email address is not valid."
-    ),
-});
+/**
+ * Built per request rather than once at module load: the messages are read by
+ * whoever submitted the form, and a schema frozen at import time could only
+ * ever speak one language.
+ */
+const schemaFor = (locale: Locale) =>
+  z.object({
+    name: z
+      .string()
+      .trim()
+      .min(2, t(locale, "Enter the name or shipping mark."))
+      .max(120),
+    phone: z
+      .string()
+      .trim()
+      .min(7, t(locale, "A phone number is required."))
+      .max(30)
+      .regex(
+        /^[\d+\s()-]+$/,
+        t(locale, "That does not look like a phone number.")
+      ),
+    city: z.string().trim().max(120).optional(),
+    email: z
+      .string()
+      .trim()
+      .max(160)
+      .optional()
+      .refine(
+        (v) => !v || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v),
+        t(locale, "That email address is not valid.")
+      ),
+  });
 
 /**
  * Adds a customer to the book.
@@ -57,6 +73,8 @@ export async function createCustomer(
   _prev: ActionResult<SavedCustomer> | undefined,
   formData: FormData
 ): Promise<ActionResult<SavedCustomer>> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("customer.manage");
@@ -64,11 +82,13 @@ export async function createCustomer(
     return fail(toActionError(error));
   }
 
-  const parsed = schema.safeParse(
+  const parsed = schemaFor(locale).safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
   if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Check the customer details.");
+    return fail(
+      parsed.error.issues[0]?.message ?? t(locale, "Check the customer details.")
+    );
   }
   const input = parsed.data;
   const phone = normalisePhone(input.phone);
