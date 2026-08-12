@@ -117,24 +117,24 @@ export default async function SourcingPage() {
                           t(locale, "Unknown")}
                       </p>
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-xs">
                           {t(locale, TYPE_LABEL[request.type] ?? request.type)}
                         </Badge>
                         {request.budgetUsd ? (
-                          <Badge variant="outline" className="text-[10px]">
+                          <Badge variant="outline" className="text-xs">
                             {formatUsd(toNumber(request.budgetUsd))}
                           </Badge>
                         ) : null}
                         {request.priority === "HIGH" || request.priority === "URGENT" ? (
                           <Badge
                             variant="outline"
-                            className="border-warning/40 text-[10px] text-warning"
+                            className="border-warning/40 text-xs text-warning"
                           >
                             {t(locale, request.priority.toLowerCase())}
                           </Badge>
                         ) : null}
                       </div>
-                      <p className="mt-2 font-mono text-[10px] text-muted-foreground">
+                      <p className="mt-2 font-mono text-xs text-muted-foreground">
                         {request.requestNumber} · {formatDate(request.createdAt, locale)}
                       </p>
                     </Link>

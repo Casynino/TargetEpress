@@ -68,7 +68,7 @@ export default async function MyShipmentsPage() {
               <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                 {row.item}
               </p>
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {row.customerName} · {row.weightKg.toFixed(1)} kg ·{" "}
                 {row.packagesLabel} · {row.registeredLabel}
               </p>

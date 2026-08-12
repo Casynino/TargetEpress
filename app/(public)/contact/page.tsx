@@ -137,7 +137,7 @@ export default function ContactPage() {
                       aria-hidden
                       className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--ink)/0.92)] via-[hsl(var(--ink)/0.25)] to-transparent"
                     />
-                    <p className="absolute left-4 top-4 rounded-full border border-gold/40 bg-[hsl(var(--ink)/0.62)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gold backdrop-blur">
+                    <p className="absolute left-4 top-4 rounded-full border border-gold/40 bg-[hsl(var(--ink)/0.62)] px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-gold backdrop-blur">
                       {office.city}
                     </p>
                     <h3 className="absolute inset-x-4 bottom-3 flex items-center gap-2 font-display text-lg font-semibold text-white drop-shadow">

@@ -25,7 +25,7 @@ export function NotificationBell({ unread }: { unread: number }) {
     >
       <Bell className="h-[18px] w-[18px]" />
       {unread > 0 ? (
-        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-signal px-1 text-[10px] font-bold leading-none text-signal-foreground">
+        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-signal px-1 text-xs font-bold leading-none text-signal-foreground">
           {unread > 9 ? "9+" : unread}
         </span>
       ) : null}

@@ -273,7 +273,7 @@ export function ShipmentDetailTabs({
                       {line.problems.length > 0 ? (
                         <span
                           title={line.problems.join(", ")}
-                          className="ml-2 inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive"
+                          className="ml-2 inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-destructive"
                         >
                           <AlertTriangle className="h-3 w-3" />
                           {line.problems[0]}
@@ -324,7 +324,7 @@ export function ShipmentDetailTabs({
                                 or the desk signs off a list it believes was
                                 already agreed. */}
                             {!line.price.confirmed ? (
-                              <span className="rounded bg-signal/10 px-1.5 py-0.5 text-[10px] font-medium text-signal">
+                              <span className="rounded bg-signal/10 px-1.5 py-0.5 text-xs font-medium text-signal">
                                 {t("draft")}
                               </span>
                             ) : null}
@@ -354,7 +354,7 @@ export function ShipmentDetailTabs({
                               loading="lazy"
                             />
                             {line.photos.length > 1 ? (
-                              <span className="absolute bottom-0 right-0 rounded-tl bg-black/70 px-1 text-[9px] font-medium text-white">
+                              <span className="absolute bottom-0 right-0 rounded-tl bg-black/70 px-1 text-xs font-medium text-white">
                                 {line.photos.length}
                               </span>
                             ) : null}

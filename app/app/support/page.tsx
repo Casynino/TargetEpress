@@ -316,11 +316,11 @@ export default async function SupportHome() {
         />
         <div className="relative p-6">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
               {today}
             </span>
-            <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+            <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
               {t(locale, "Support desk")}
             </span>
           </div>
@@ -438,7 +438,7 @@ export default async function SupportHome() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <section className="panel p-4">
             <h3 className="text-sm font-semibold">{t(locale, "What the queue is made of")}</h3>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {t(locale, "Every consignment in Dar, by what is holding it")}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-5">
@@ -472,7 +472,7 @@ export default async function SupportHome() {
                             {slice.rows.length}
                           </span>
                           {money > 0 ? (
-                            <span className="block font-mono text-[10px] text-muted-foreground">
+                            <span className="block font-mono text-xs text-muted-foreground">
                               {rate
                                 ? `TSh ${Math.round(money * rate).toLocaleString("en-US")}`
                                 : formatUsd(money)}
@@ -521,11 +521,11 @@ export default async function SupportHome() {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold">{t(locale, "Opened and closed")}</h3>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {t(locale, "Tickets raised against tickets finished, a fortnight")}
                 </p>
               </div>
-              <p className="shrink-0 text-right text-[11px] text-muted-foreground">
+              <p className="shrink-0 text-right text-xs text-muted-foreground">
                 <span className="font-mono font-semibold text-success">
                   {ticketFlow.inCounts.reduce((a, b) => a + b, 0)}
                 </span>
@@ -655,7 +655,7 @@ export default async function SupportHome() {
         <div className="space-y-6">
           {/* Quick actions */}
           <div>
-            <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               {t(locale, "Quick actions")}
             </h2>
             <div className="grid gap-3">

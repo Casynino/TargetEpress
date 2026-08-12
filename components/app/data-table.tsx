@@ -268,7 +268,7 @@ export function DataTable<T>({
               <SlidersHorizontal className="mr-2 h-4 w-4" />
               {t("Filters")}
               {activeFilterCount ? (
-                <span className="ml-2 rounded-full bg-brand px-1.5 text-[10px] font-semibold text-brand-foreground tabular">
+                <span className="ml-2 rounded-full bg-brand px-1.5 text-xs font-semibold text-brand-foreground tabular">
                   {activeFilterCount}
                 </span>
               ) : null}

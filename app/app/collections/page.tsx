@@ -269,7 +269,7 @@ export default async function CollectionsHome() {
                       <p className="truncate text-sm font-medium">
                         {row.invoice.customer.name}
                       </p>
-                      <p className="truncate font-mono text-[11px] text-muted-foreground">
+                      <p className="truncate font-mono text-xs text-muted-foreground">
                         {row.submissionNumber} · {row.invoice.shipment.trackingNumber}
                       </p>
                     </div>
@@ -277,7 +277,7 @@ export default async function CollectionsHome() {
                       <p className="text-sm font-semibold tabular">
                         {formatMoney(toNumber(row.amount), row.currency)}
                       </p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {formatRelative(row.submittedAt, locale)}
                       </p>
                     </div>
@@ -324,7 +324,7 @@ export default async function CollectionsHome() {
                         : t(locale, row.status.toLowerCase())}
                     </Badge>
                   </div>
-                  <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
+                  <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
                     {row.submissionNumber} · {formatMoney(toNumber(row.amount), row.currency)}
                     {row.submittedBy ? ` · ${row.submittedBy.name}` : ""}
                   </p>

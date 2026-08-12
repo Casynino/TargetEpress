@@ -131,7 +131,7 @@ export function AgeingBar({
               </span>
 
               <span className="flex items-center justify-between gap-2 pl-4 sm:contents sm:pl-0">
-                <span className="shrink-0 text-[11px] text-muted-foreground">
+                <span className="shrink-0 text-xs text-muted-foreground">
                   {segment.count} {unit}
                   {segment.count === 1 ? "" : "s"}
                 </span>
@@ -140,13 +140,13 @@ export function AgeingBar({
                     // Wide enough for "TSh 25,458,300" on one line. At w-20 it
                     // wrapped, and a figure split across two lines is read as
                     // two figures.
-                    "shrink-0 whitespace-nowrap text-right font-mono text-[11px] tabular-nums sm:w-28",
+                    "shrink-0 whitespace-nowrap text-right font-mono text-xs tabular-nums sm:w-28",
                     empty ? "" : TEXT[i] ?? TEXT[TEXT.length - 1]
                   )}
                 >
                   {format(segment.value)}
                 </span>
-                <span className="w-8 shrink-0 text-right font-mono text-[10px] tabular-nums text-muted-foreground">
+                <span className="w-8 shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground">
                   {share >= 0.5 ? `${Math.round(share)}%` : "—"}
                 </span>
               </span>

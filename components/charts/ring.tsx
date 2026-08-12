@@ -71,7 +71,7 @@ export function Ring({
         />
       </svg>
       {children ? (
-        <span className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold tabular">
+        <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular">
           {children}
         </span>
       ) : null}

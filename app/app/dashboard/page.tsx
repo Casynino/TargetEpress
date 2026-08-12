@@ -322,11 +322,11 @@ export default async function DashboardPage() {
               length of the greeting above it. */}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
                 <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
                 {today}
               </span>
-              <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+              <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
                 {t(locale, ROLE_LABELS[user.role])}
               </span>
             </div>
@@ -622,7 +622,7 @@ async function ChinaDashboard({
             <h3 className="text-sm font-semibold">
               {t(locale, "What is in Guangzhou")}
             </h3>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {t(locale, "By what is holding each consignment")}
             </p>
             <div className="mt-3 flex justify-center">
@@ -643,11 +643,11 @@ async function ChinaDashboard({
                 <h3 className="text-sm font-semibold">
                   {t(locale, "In and out")}
                 </h3>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {t(locale, "Registered against flown, a fortnight")}
                 </p>
               </div>
-              <p className="shrink-0 text-right text-[11px] text-muted-foreground">
+              <p className="shrink-0 text-right text-xs text-muted-foreground">
                 <span className="font-mono font-semibold text-success">
                   {throughput.inCounts.reduce((x, y) => x + y, 0)}
                 </span>
@@ -673,7 +673,7 @@ async function ChinaDashboard({
             <h3 className="text-sm font-semibold">
               {t(locale, "How long it has waited")}
             </h3>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {t(locale, "From the day it was registered in Guangzhou")}
             </p>
             <AgeingBar
@@ -1255,7 +1255,7 @@ async function DarDashboard({
             <h3 className="text-sm font-semibold">
               {t(locale, "What is on the floor")}
             </h3>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {t(locale, "By what is holding each consignment")}
             </p>
             <div className="mt-3 flex justify-center">
@@ -1278,11 +1278,11 @@ async function DarDashboard({
                 <h3 className="text-sm font-semibold">
                   {t(locale, "In and out")}
                 </h3>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {t(locale, "Checked in against handed over, a fortnight")}
                 </p>
               </div>
-              <p className="shrink-0 text-right text-[11px] text-muted-foreground">
+              <p className="shrink-0 text-right text-xs text-muted-foreground">
                 <span className="font-mono font-semibold text-success">
                   {throughput.inCounts.reduce((a, b) => a + b, 0)}
                 </span>
@@ -1310,12 +1310,12 @@ async function DarDashboard({
                 <h3 className="text-sm font-semibold">
                   {t(locale, "How long it has stood")}
                 </h3>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {t(locale, "From the day it was checked in")}
                 </p>
               </div>
               {floor.longestHeldDays > 0 ? (
-                <p className="shrink-0 text-right text-[11px] text-muted-foreground">
+                <p className="shrink-0 text-right text-xs text-muted-foreground">
                   {t(locale, "longest")}{" "}
                   <span className="font-mono font-semibold text-foreground">
                     {floor.longestHeldDays}d
@@ -1382,8 +1382,8 @@ async function DarDashboard({
                         <span
                           className={
                             arrived
-                              ? "rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-semibold text-warning"
-                              : "rounded-full bg-info/10 px-2 py-0.5 text-[11px] font-semibold text-info"
+                              ? "rounded-full bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning"
+                              : "rounded-full bg-info/10 px-2 py-0.5 text-xs font-semibold text-info"
                           }
                         >
                           {arrived
@@ -1932,13 +1932,13 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                 <h3 className="text-sm font-semibold">
                   {t(locale, "Where the cash sits")}
                 </h3>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {holding} of {accountRows.length} accounts holding
                 </p>
               </div>
               <Link
                 href="/app/finance/accounts"
-                className="focus-ring shrink-0 rounded text-[11px] font-semibold text-brand hover:underline"
+                className="focus-ring shrink-0 rounded text-xs font-semibold text-brand hover:underline"
               >
                 {t(locale, "All")}
               </Link>
@@ -1985,12 +1985,12 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                 <h3 className="text-sm font-semibold">
                   {t(locale, "Money in and out")}
                 </h3>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {t(locale, "What arrived against what it cost, this year")}
                 </p>
               </div>
               <p
-                className={`shrink-0 text-right font-mono text-[11px] font-semibold ${
+                className={`shrink-0 text-right font-mono text-xs font-semibold ${
                   netThisMonth < 0 ? "text-signal" : "text-success"
                 }`}
               >
@@ -2014,12 +2014,12 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                 <h3 className="text-sm font-semibold">
                   {t(locale, "What we are owed, by age")}
                 </h3>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {t(locale, "From the day the bill became real")}
                 </p>
               </div>
               {ageing.oldestDays > 0 ? (
-                <p className="shrink-0 text-right text-[11px] text-muted-foreground">
+                <p className="shrink-0 text-right text-xs text-muted-foreground">
                   {t(locale, "oldest")}{" "}
                   <span className="font-mono font-semibold text-foreground">
                     {ageing.oldestDays}d
@@ -2109,7 +2109,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                           >
                             {shipment.trackingNumber}
                           </Link>
-                          <span className="block truncate text-[11px] text-muted-foreground sm:hidden">
+                          <span className="block truncate text-xs text-muted-foreground sm:hidden">
                             {shipment.customer.name}
                           </span>
                         </TableCell>
@@ -2117,7 +2117,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                           <span className="block truncate text-sm">
                             {shipment.customer.name}
                           </span>
-                          <span className="block font-mono text-[11px] text-muted-foreground">
+                          <span className="block font-mono text-xs text-muted-foreground">
                             {shipment.customer.phone}
                           </span>
                         </TableCell>
@@ -2132,7 +2132,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                                 {tsh(outstanding)}
                               </span>
                               <span
-                                className={`block text-[11px] ${
+                                className={`block text-xs ${
                                   draft ? "text-warning" : "text-muted-foreground"
                                 }`}
                               >
@@ -2402,7 +2402,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
             <h3 className="text-sm font-semibold">
               {t(locale, "Where the cargo is")}
             </h3>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {t(
                 locale,
                 "Everything the business is carrying, Guangzhou to the counter"
@@ -2426,12 +2426,12 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
                 <h3 className="text-sm font-semibold">
                   {t(locale, "Money in and out")}
                 </h3>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {t(locale, "What arrived against what it cost, this year")}
                 </p>
               </div>
               <p
-                className={`shrink-0 text-right font-mono text-[11px] font-semibold ${
+                className={`shrink-0 text-right font-mono text-xs font-semibold ${
                   netThisMonth < 0 ? "text-signal" : "text-success"
                 }`}
               >
@@ -2455,12 +2455,12 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
                 <h3 className="text-sm font-semibold">
                   {t(locale, "What we are owed, by age")}
                 </h3>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {t(locale, "From the day the bill became real")}
                 </p>
               </div>
               {owed.oldestDays > 0 ? (
-                <p className="shrink-0 text-right text-[11px] text-muted-foreground">
+                <p className="shrink-0 text-right text-xs text-muted-foreground">
                   {t(locale, "oldest")}{" "}
                   <span className="font-mono font-semibold text-foreground">
                     {owed.oldestDays}d

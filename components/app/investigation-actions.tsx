@@ -100,7 +100,7 @@ function AssignForm({
       <input type="hidden" name="exceptionId" value={exceptionId} />
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <label className="min-w-0 flex-1">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t("Carried by")}
           </span>
           <NativeSelect

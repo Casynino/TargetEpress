@@ -91,7 +91,7 @@ export async function WorkList({
                       <span className="block font-display text-lg font-bold leading-none tabular">
                         {tsh(item.usd)}
                       </span>
-                      <span className="mt-1 block font-mono text-[11px] text-muted-foreground">
+                      <span className="mt-1 block font-mono text-xs text-muted-foreground">
                         {formatUsd(item.usd)}
                       </span>
                     </>

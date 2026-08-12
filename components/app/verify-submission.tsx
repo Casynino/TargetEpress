@@ -68,7 +68,7 @@ export function VerifySubmission({
       <form action={verify} className="space-y-2 rounded-lg border bg-card p-3">
         <input type="hidden" name="submissionId" value={submissionId} />
         <div className="space-y-1">
-          <Label htmlFor={`account-${submissionId}`} className="text-[11px]">
+          <Label htmlFor={`account-${submissionId}`} className="text-xs">
             Where it landed
           </Label>
           {/* Finance names the account, never Support — that desk does not know
@@ -108,7 +108,7 @@ export function VerifySubmission({
     <form action={reject} className="space-y-2 rounded-lg border bg-card p-3">
       <input type="hidden" name="submissionId" value={submissionId} />
       <div className="space-y-1">
-        <Label htmlFor={`reason-${submissionId}`} className="text-[11px]">
+        <Label htmlFor={`reason-${submissionId}`} className="text-xs">
           Why — Support has to tell the customer something
         </Label>
         <Input

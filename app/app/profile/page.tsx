@@ -262,7 +262,7 @@ export default async function MyProfilePage() {
                       <p className="font-mono text-sm font-semibold tabular">
                         {batch.batchNumber}
                       </p>
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                         {t(locale, batch.statusLabel)}
                       </span>
                     </div>

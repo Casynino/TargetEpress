@@ -64,7 +64,7 @@ export async function WarehouseFlowChart({
             className="group flex h-full flex-1 flex-col justify-end"
             title={`${t(locale, "Week of")} ${week.label} — ${week.received} ${t(locale, "checked in")}, ${week.released} ${t(locale, "released")}`}
           >
-            <span className="pointer-events-none mb-1 text-center font-mono text-[10px] tabular text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+            <span className="pointer-events-none mb-1 text-center font-mono text-xs tabular text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
               {week.received}/{week.released}
             </span>
             <div className="flex h-full items-end justify-center gap-[3px]">
@@ -94,7 +94,7 @@ export async function WarehouseFlowChart({
           <span
             key={`${week.label}-label`}
             className={cn(
-              "flex-1 text-center text-[10px] tabular text-muted-foreground",
+              "flex-1 text-center text-xs tabular text-muted-foreground",
               i === lastIndex && "font-semibold text-foreground"
             )}
           >

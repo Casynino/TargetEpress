@@ -48,7 +48,7 @@ export function DualClock({
             <p
               className={cn(
                 "flex items-center gap-1.5 leading-none",
-                primary ? "text-[11px]" : "text-[10px]"
+                primary ? "text-xs" : "text-xs"
               )}
             >
               <span aria-hidden>{zone.flag}</span>
@@ -68,7 +68,7 @@ export function DualClock({
                   })
                 : "--:--"}
             </p>
-            <p className="mt-0.5 text-[10px] opacity-70">{zone.offset}</p>
+            <p className="mt-0.5 text-xs opacity-70">{zone.offset}</p>
           </div>
         );
       })}

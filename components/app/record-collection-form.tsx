@@ -115,7 +115,7 @@ export function RecordCollectionForm({
           },
         ].map((fact) => (
           <div key={fact.label}>
-            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">
               {t(fact.label)}
             </dt>
             <dd className="mt-0.5 text-sm font-medium">{fact.value}</dd>
@@ -188,7 +188,7 @@ export function RecordCollectionForm({
           className="h-11"
           required
         />
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {t(
             "The one thing that is not already in the system. Finance checks the money against this."
           )}

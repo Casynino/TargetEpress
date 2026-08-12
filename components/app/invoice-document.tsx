@@ -221,10 +221,10 @@ export async function InvoiceDocument({
       <table className="mt-6 w-full border-collapse text-sm">
         <thead>
           <tr className="bg-[#182A48] text-left text-white">
-            <th className="rounded-l-md py-2.5 pl-4 text-[9px] font-bold uppercase tracking-[0.18em]">
+            <th className="rounded-l-md py-2.5 pl-4 text-xs font-bold uppercase tracking-[0.18em]">
               {t(locale, "Description")}
             </th>
-            <th className="rounded-r-md py-2.5 pr-4 text-right text-[9px] font-bold uppercase tracking-[0.18em]">
+            <th className="rounded-r-md py-2.5 pr-4 text-right text-xs font-bold uppercase tracking-[0.18em]">
               {t(locale, "Amount")}
             </th>
           </tr>
@@ -233,7 +233,7 @@ export async function InvoiceDocument({
           <tr className="border-b border-black/15">
             <td className="py-2.5 pl-4">
               <p className="font-semibold">{t(locale, "Air freight")}</p>
-              <p className="text-[11px] text-black/55">{freightNote}</p>
+              <p className="text-xs text-black/55">{freightNote}</p>
             </td>
             <td className="py-2.5 pr-4 text-right font-mono tabular">
               {/* What was actually billed — the correction when Finance made
@@ -249,7 +249,7 @@ export async function InvoiceDocument({
             <tr className="border-b border-black/15">
               <td className="py-2.5 pl-4">
                 <p className="font-semibold">{t(locale, "Storage")}</p>
-                <p className="text-[11px] text-black/55">
+                <p className="text-xs text-black/55">
                   {storageDays} {t(locale, "chargeable day(s) beyond the")}{" "}
                   {STORAGE_POLICY.freeDays} {t(locale, "free days, at")}{" "}
                   {money(STORAGE_POLICY.perDayUsd, STORAGE_POLICY.currency)}
@@ -327,7 +327,7 @@ export async function InvoiceDocument({
             paidInFull ? "bg-[#117447]" : "bg-[#182A48]"
           }`}
         >
-          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/70">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/70">
             {t(locale, paidInFull ? "Paid in full" : "Amount due")}
           </p>
           <p className="mt-1.5 font-display text-[26px] font-bold leading-none tabular">
@@ -335,7 +335,7 @@ export async function InvoiceDocument({
               ? money(heroUsd, currency)
               : formatLocal(heroLocal, localCurrency)}
           </p>
-          <p className="mt-2 text-[11px] text-white/75">
+          <p className="mt-2 text-xs text-white/75">
             {heroLocal === null
               ? t(locale, "No exchange rate was locked on this invoice")
               : `${money(heroUsd, currency)} ${t(
@@ -347,7 +347,7 @@ export async function InvoiceDocument({
       </div>
 
       {payments.length > 0 ? (
-        <ul className="mt-4 space-y-0.5 border-t border-black/15 pt-3 text-[11px] text-black/70">
+        <ul className="mt-4 space-y-0.5 border-t border-black/15 pt-3 text-xs text-black/70">
           {payments.map((payment) => (
             <li key={payment.id} className="flex justify-between gap-4">
               <span>{payment.line}</span>
@@ -367,7 +367,7 @@ export async function InvoiceDocument({
       {paidInFull ? (
         <p className="mt-7 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#117447]/10 px-5 py-4 text-sm font-bold text-[#117447]">
           {t(locale, "Settled in full — asante kwa kutuamini.")}
-          <span className="text-[11px] font-medium text-black/55">
+          <span className="text-xs font-medium text-black/55">
             {t(locale, "No payment is outstanding on this invoice.")}
           </span>
         </p>
@@ -377,7 +377,7 @@ export async function InvoiceDocument({
             <h2 className="font-display text-sm font-bold uppercase tracking-wide text-[#182A48]">
               {t(locale, "How to pay")}
             </h2>
-            <p className="text-[11px] text-black/55">
+            <p className="text-xs text-black/55">
               {t(locale, "Quote")} <strong>{shipment.trackingNumber}</strong>{" "}
               {t(locale, "as the reference")}
             </p>
@@ -389,13 +389,13 @@ export async function InvoiceDocument({
                 see accountsForInvoice. */}
             {accounts.map((account) => (
               <div key={`${account.label}-${account.number}`}>
-                <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-black/50">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-black/50">
                   {account.label}
                 </p>
                 <p className="font-mono text-base font-bold tabular text-[#182A48]">
                   {account.number}
                 </p>
-                <p className="text-[10px] text-black/55">{account.accountName}</p>
+                <p className="text-xs text-black/55">{account.accountName}</p>
               </div>
             ))}
           </div>
@@ -404,7 +404,7 @@ export async function InvoiceDocument({
 
       <section className="mt-5">
         <DocumentField label={t(locale, "Storage policy")}>
-          <div className="space-y-1 text-[11px] leading-relaxed">
+          <div className="space-y-1 text-xs leading-relaxed">
             {STORAGE_POLICY.text.map((line) => (
               <p key={line}>{t(locale, line)}</p>
             ))}

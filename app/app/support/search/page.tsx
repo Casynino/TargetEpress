@@ -91,7 +91,7 @@ export default async function SupportSearchPage({
                     >
                       {shipment.customer.name}
                     </Link>
-                    <p className="font-mono text-[11px] text-muted-foreground">
+                    <p className="font-mono text-xs text-muted-foreground">
                       {shipment.customer.phone ?? "no phone"}
                     </p>
                   </div>
@@ -107,7 +107,7 @@ export default async function SupportSearchPage({
                 <p className="mt-0.5 line-clamp-2 text-sm">
                   {cargoText(locale, shipment, "description")}
                 </p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {formatWeight(shipment.weightKg)} · {shipment.packages} pkg ·{" "}
                   {shipment.origin === "GUANGZHOU" ? "Guangzhou" : "Hong Kong"}
                   {shipment.batch ? ` · ${shipment.batch.batchNumber}` : ""}
@@ -127,7 +127,7 @@ export default async function SupportSearchPage({
                     {shipment.invoice && !shipment.invoice.sentAt ? (
                       <Badge
                         variant="outline"
-                        className="border-warning/40 text-[10px] text-warning"
+                        className="border-warning/40 text-xs text-warning"
                       >
                         never sent
                       </Badge>
@@ -169,7 +169,7 @@ export default async function SupportSearchPage({
                       >
                         {shipment.trackingNumber}
                       </Link>
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         {formatDate(shipment.arrivedAt, locale)}
                       </div>
                     </td>
@@ -211,7 +211,7 @@ export default async function SupportSearchPage({
                         {shipment.invoice && !shipment.invoice.sentAt ? (
                           <Badge
                             variant="outline"
-                            className="mt-1 block w-fit border-warning/40 text-[10px] text-warning"
+                            className="mt-1 block w-fit border-warning/40 text-xs text-warning"
                           >
                             never sent
                           </Badge>

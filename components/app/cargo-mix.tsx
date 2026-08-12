@@ -147,7 +147,7 @@ export async function CargoMix({
             <span className="font-display text-2xl font-bold leading-none tabular">
               {totalShipments.toLocaleString()}
             </span>
-            <span className="mt-1 text-[11px] text-muted-foreground">
+            <span className="mt-1 text-xs text-muted-foreground">
               {t(locale, "shipments")}
             </span>
           </div>

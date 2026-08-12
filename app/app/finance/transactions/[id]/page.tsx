@@ -193,7 +193,7 @@ export default async function LedgerEntryPage({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_1fr]">
         <section className="rounded-2xl border bg-card p-6">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             {inbound ? t(locale, "Money in") : t(locale, "Money out")}
           </p>
           <p
@@ -284,7 +284,7 @@ export default async function LedgerEntryPage({
                           <span className="block truncate text-xs font-medium">
                             {receipt.filename ?? t(locale, "Attachment")}
                           </span>
-                          <span className="block text-[11px] text-muted-foreground">
+                          <span className="block text-xs text-muted-foreground">
                             {fileSize(receipt.bytes)}
                             {receipt.uploadedBy
                               ? ` · ${receipt.uploadedBy.name}`

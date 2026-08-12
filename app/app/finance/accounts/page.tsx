@@ -153,7 +153,7 @@ export default async function AccountsPage() {
               }))}
             />
           ) : (
-            <p className="mt-1.5 text-[11px] text-muted-foreground">
+            <p className="mt-1.5 text-xs text-muted-foreground">
               {t(
                 locale,
                 "Setting them is the CEO’s — it moves every total on this page."
@@ -168,7 +168,7 @@ export default async function AccountsPage() {
           number had moved to shillings. */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-6 rounded-2xl border bg-card p-6">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             {t(locale, "Across every account")}
           </p>
           <p className="mt-2 font-display text-[36px] font-bold leading-none tracking-tight tabular-nums">
@@ -254,7 +254,7 @@ export default async function AccountsPage() {
                 : formatUsd(unattributedUsd)}
             </span>
             {rate ? (
-              <span className="block font-mono text-[11px] text-muted-foreground">
+              <span className="block font-mono text-xs text-muted-foreground">
                 {formatUsd(unattributedUsd)}
               </span>
             ) : null}

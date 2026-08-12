@@ -485,7 +485,7 @@ function CargoFacts({
 
       <div className="space-y-3 border-t p-4 sm:p-6">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             {t("Contents")}
           </p>
           <p className="mt-0.5 text-sm">{target.description}</p>
@@ -527,7 +527,7 @@ function CargoFacts({
         */}
         {target.finance ? (
           <div className="rounded-xl border bg-muted/30 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               {t("Invoice")} {target.finance.invoiceNumber}
             </p>
             <dl className="mt-1 flex flex-wrap gap-x-6 gap-y-1 text-sm">
@@ -586,7 +586,7 @@ function CargoFacts({
           */
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-success/50 bg-success/10 px-4 py-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-success/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-success/80">
                 {t("Payment")}
               </p>
               <p className="font-display text-lg font-bold leading-tight text-success">
@@ -622,7 +622,7 @@ function Fact({
 }) {
   return (
     <div className="bg-card p-3 sm:p-4">
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+      <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </dt>
       <dd
@@ -638,7 +638,7 @@ function Fact({
         {value}
       </dd>
       {note ? (
-        <p className="mt-0.5 text-[11px] leading-tight text-destructive">
+        <p className="mt-0.5 text-xs leading-tight text-destructive">
           {note}
         </p>
       ) : null}

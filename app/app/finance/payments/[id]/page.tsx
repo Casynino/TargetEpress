@@ -155,7 +155,7 @@ export default async function PaymentDetailPage({
           {/* What was actually handed over, and what it settled. Both, because
               the customer counted one of them and the bill moved by the other. */}
           <section className="rounded-2xl border bg-card p-6">
-            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               <Banknote className="h-4 w-4 text-success" />
               {t(locale, "Handed over")}
             </p>
@@ -247,7 +247,7 @@ export default async function PaymentDetailPage({
                           <span className="block truncate text-xs font-medium">
                             {proof.filename ?? t(locale, "Attachment")}
                           </span>
-                          <span className="block text-[11px] text-muted-foreground">
+                          <span className="block text-xs text-muted-foreground">
                             {fileSize(proof.bytes)}
                             {proof.uploadedBy
                               ? ` · ${proof.uploadedBy.name}`

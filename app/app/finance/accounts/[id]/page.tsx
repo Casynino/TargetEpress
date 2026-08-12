@@ -184,7 +184,7 @@ export default async function AccountDetailPage({
           </div>
 
           <div className="text-right">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-brand-foreground/70">
+            <p className="text-xs font-semibold uppercase tracking-widest text-brand-foreground/70">
               {t(locale, "Balance")}
             </p>
             <p className="mt-1 font-display text-4xl font-bold tabular-nums">
@@ -291,7 +291,7 @@ export default async function AccountDetailPage({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{detail}</p>
-                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                    <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                       {entry.description}
                     </p>
                   </div>
@@ -307,10 +307,10 @@ export default async function AccountDetailPage({
                   </p>
                 </div>
 
-                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                   <Badge
                     variant="outline"
-                    className={`whitespace-nowrap px-1.5 py-0 text-[10px] font-normal ${
+                    className={`whitespace-nowrap px-1.5 py-0 text-xs font-normal ${
                       inbound
                         ? "border-success/40 text-success"
                         : "border-warning/40 text-warning"

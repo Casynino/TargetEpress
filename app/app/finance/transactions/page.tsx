@@ -432,7 +432,7 @@ export default async function LedgerPage({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{title}</p>
                       {purpose ? (
-                        <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                        <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                           {purpose}
                         </p>
                       ) : null}
@@ -450,13 +450,13 @@ export default async function LedgerPage({
                       </p>
                       {/* The balance under the movement, which is the pair a
                           register is actually read in. */}
-                      <p className="mt-0.5 font-mono text-[11px] tabular text-muted-foreground">
+                      <p className="mt-0.5 font-mono text-xs tabular text-muted-foreground">
                         {showBalance(runningById.get(entry.id) ?? 0)}
                       </p>
                     </div>
                   </div>
 
-                  <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+                  <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                     <span>{formatDate(entry.occurredAt, locale)}</span>
                     <span aria-hidden>·</span>
                     <span className="truncate">{entry.account.name}</span>
@@ -607,7 +607,7 @@ export default async function LedgerPage({
                           ceiling — enough for a long cargo description and
                           every code beneath it, without one wordy consignment
                           making a row five lines tall. */}
-                      <span className="mt-0.5 line-clamp-3 text-[11px] leading-relaxed text-muted-foreground">
+                      <span className="mt-0.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
                         {purpose ? <>{purpose} </> : null}
                         {refs.map((ref, i) => (
                           <span key={ref}>

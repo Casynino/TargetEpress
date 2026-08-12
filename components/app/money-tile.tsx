@@ -146,7 +146,7 @@ export async function MoneyTile({
           secondary. */}
       {rate ? (
         <div className="relative mt-2.5 flex items-baseline gap-1.5 rounded-lg bg-background/70 px-2.5 py-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t(locale, "on the invoice")}
           </span>
           <span className="font-mono text-xs font-semibold tabular-nums text-foreground">

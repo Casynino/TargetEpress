@@ -65,7 +65,7 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
             {row.trackingNumber}
           </Link>
           {row.fromLabel ? (
-            <Badge variant="brand" className="ml-2 align-middle text-[10px]">
+            <Badge variant="brand" className="ml-2 align-middle text-xs">
               <QrCode className="mr-1 h-3 w-3" />
               {t("scanned")}
             </Badge>
@@ -114,7 +114,7 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
         <div className="flex flex-wrap items-center gap-1.5">
           <ShipmentStatusBadge status={row.status} />
           {row.problems.map((problem) => (
-            <Badge key={problem} variant="destructive" className="text-[10px]">
+            <Badge key={problem} variant="destructive" className="text-xs">
               <AlertTriangle className="mr-1 h-3 w-3" />
               {problem}
             </Badge>
@@ -237,7 +237,7 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
           {row.problems.length > 0 ? (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {row.problems.map((problem) => (
-                <Badge key={problem} variant="destructive" className="text-[10px]">
+                <Badge key={problem} variant="destructive" className="text-xs">
                   <AlertTriangle className="mr-1 h-3 w-3" />
                   {problem}
                 </Badge>

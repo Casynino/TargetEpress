@@ -133,7 +133,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
           <p className="text-sm tabular">{row.packagesShort}</p>
           <p
             className={cn(
-              "text-[11px] tabular",
+              "text-xs tabular",
               row.missingPackages.length > 0 || row.packagesTotal === 0
                 ? "text-destructive"
                 : "text-muted-foreground"
@@ -153,7 +153,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
       cell: (row) => (
         <div>
           <p className="font-mono text-xs font-medium tabular">{row.noteNumber}</p>
-          <p className="text-[11px] text-muted-foreground tabular">
+          <p className="text-xs text-muted-foreground tabular">
             {row.amountPaid !== undefined && row.currency
               ? `${t("paid")} ${formatMoney(row.amountPaid, row.currency)}`
               : t("payment confirmed")}
@@ -180,7 +180,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
             {row.waitingLabel}
           </p>
           {row.storageDays > 0 ? (
-            <p className="text-[11px] text-warning tabular">
+            <p className="text-xs text-warning tabular">
               +{row.storageDays} {t("d storage")}
             </p>
           ) : null}
@@ -197,7 +197,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
         ) : (
           <div className="flex flex-col items-start gap-1">
             <Badge variant="warning">{t("Held")}</Badge>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {row.blockers[0]}
             </span>
           </div>
@@ -369,7 +369,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="font-medium">{row.customerName}</p>
-              <p className="font-mono text-[11px] text-muted-foreground">
+              <p className="font-mono text-xs text-muted-foreground">
                 {row.trackingNumber} · {row.noteNumber}
               </p>
               <p className="mt-1 text-xs text-muted-foreground tabular">

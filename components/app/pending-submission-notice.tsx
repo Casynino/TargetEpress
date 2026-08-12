@@ -74,7 +74,7 @@ export async function PendingSubmissionNotice({
               </span>
             </p>
 
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] text-muted-foreground">
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-muted-foreground">
               <span>{s.submissionNumber}</span>
               <span aria-hidden>·</span>
               <span>{t(locale, PAYMENT_METHOD_LABELS[s.method])}</span>

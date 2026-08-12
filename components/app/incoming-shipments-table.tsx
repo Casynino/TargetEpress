@@ -381,7 +381,7 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
                       {line.trackingNumber}
                     </Link>
                     {line.cartonRef ? (
-                      <span className="rounded border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                      <span className="rounded border px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
                         {line.cartonRef}
                       </span>
                     ) : null}

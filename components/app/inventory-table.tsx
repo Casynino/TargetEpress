@@ -144,7 +144,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
             {row.trackingNumber}
           </Link>
           {row.cartonRef ? (
-            <p className="truncate font-mono text-[11px] text-muted-foreground">
+            <p className="truncate font-mono text-xs text-muted-foreground">
               Carton {row.cartonRef}
             </p>
           ) : null}
@@ -175,7 +175,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
             {formatPackagesShort(row.packages, row.packageType)}
           </span>
           {row.packagesPending > 0 ? (
-            <p className="text-[11px] font-medium text-destructive tabular">
+            <p className="text-xs font-medium text-destructive tabular">
               {row.packagesPending} not checked in
             </p>
           ) : null}
@@ -334,7 +334,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
                 {t(option.label)}
                 <span
                   className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular",
+                    "rounded-full px-1.5 py-0.5 text-xs font-semibold tabular",
                     active
                       ? "bg-brand text-brand-foreground"
                       : "bg-muted text-muted-foreground"

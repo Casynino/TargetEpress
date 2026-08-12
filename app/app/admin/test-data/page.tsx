@@ -274,7 +274,7 @@ export default async function TestDataPage() {
                   <Icon className="h-4.5 w-4.5" />
                 </span>
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-signal">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-signal">
                     {role}
                   </p>
                   <h3 className="font-display font-semibold leading-tight">
@@ -285,7 +285,7 @@ export default async function TestDataPage() {
               <ol className="mt-4 space-y-2">
                 {steps.map((step, i) => (
                   <li key={i} className="flex gap-2.5 text-sm">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold tabular">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold tabular">
                       {i + 1}
                     </span>
                     <span className="text-muted-foreground">{step}</span>
@@ -359,7 +359,7 @@ export default async function TestDataPage() {
                     <TableCell>
                       <ShipmentStatusBadge status={s.status} />
                       {s.pickupNote?.status === "ACTIVE" ? (
-                        <p className="mt-1 text-[11px] text-success">
+                        <p className="mt-1 text-xs text-success">
                           {t(locale, "note")} {s.pickupNote.noteNumber}
                         </p>
                       ) : null}

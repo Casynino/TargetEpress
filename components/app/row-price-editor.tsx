@@ -93,7 +93,7 @@ export function RowPriceEditor({
         <input type="hidden" name="invoiceId" value={invoiceId} />
 
         <div className="space-y-1">
-          <Label htmlFor={`freight-${invoiceId}`} className="text-[11px]">
+          <Label htmlFor={`freight-${invoiceId}`} className="text-xs">
             {t("Freight")} ({currency})
           </Label>
           <MoneyInput
@@ -105,7 +105,7 @@ export function RowPriceEditor({
             disabled={!canOverride}
             className="h-8 text-sm"
           />
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {t("Rate book says")} {currency} {rateBookFreight.toFixed(2)}.{" "}
             {t("Leave blank to use it.")}
           </p>
@@ -113,7 +113,7 @@ export function RowPriceEditor({
 
         {freight.trim() !== "" && n(freight) !== rateBookFreight ? (
           <div className="space-y-1">
-            <Label htmlFor={`why-${invoiceId}`} className="text-[11px]">
+            <Label htmlFor={`why-${invoiceId}`} className="text-xs">
               {t("Why is it different?")}
             </Label>
             <Input
@@ -128,7 +128,7 @@ export function RowPriceEditor({
 
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <Label htmlFor={`extra-${invoiceId}`} className="text-[11px]">
+            <Label htmlFor={`extra-${invoiceId}`} className="text-xs">
               {t("Extra charge")}
             </Label>
             <MoneyInput
@@ -141,7 +141,7 @@ export function RowPriceEditor({
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor={`off-${invoiceId}`} className="text-[11px]">
+            <Label htmlFor={`off-${invoiceId}`} className="text-xs">
               {t("Discount")}
             </Label>
             <MoneyInput

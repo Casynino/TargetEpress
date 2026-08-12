@@ -87,7 +87,7 @@ export function LifecycleSteps({
 
   return (
     <div className="space-y-3 rounded-lg border bg-card p-3">
-      <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
         {t("What happens next")}
       </p>
 
@@ -139,7 +139,7 @@ export function LifecycleSteps({
                   <span className="block text-sm font-medium">
                     {t(step.label)}
                   </span>
-                  <span className="block text-[11px] leading-snug text-muted-foreground">
+                  <span className="block text-xs leading-snug text-muted-foreground">
                     {t(step.hint)}
                   </span>
                 </span>

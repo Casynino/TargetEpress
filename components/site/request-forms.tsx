@@ -39,7 +39,7 @@ function Done({
       <h3 className="mt-4 font-display text-2xl font-bold text-white">{title}</h3>
       <p className="mx-auto mt-2 max-w-md text-sm text-white/70">{body}</p>
       <p className="mt-5 inline-block rounded-xl border border-white/15 bg-white/5 px-5 py-3">
-        <span className="block text-[11px] uppercase tracking-widest text-white/50">
+        <span className="block text-xs uppercase tracking-widest text-white/50">
           Your reference
         </span>
         <span className="mt-1 block font-mono text-xl font-bold text-white">

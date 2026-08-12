@@ -162,7 +162,6 @@ function probe() {
   };
 }
 
-await rm(OUT, { recursive: true, force: true });
 await mkdir(OUT, { recursive: true });
 
 console.log(`auditing ${BASE}  (reading in ${LANG})\n`);

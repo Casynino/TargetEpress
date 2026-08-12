@@ -446,7 +446,7 @@ export default async function ShipmentDetailPage({
                           {t(locale, EXCEPTION_TYPE_LABELS[exception.type])}
                         </Badge>
                         {exception.severity ? (
-                          <Badge variant="muted" className="text-[10px]">
+                          <Badge variant="muted" className="text-xs">
                             {t(locale, DAMAGE_SEVERITY_LABELS[exception.severity])}
                           </Badge>
                         ) : null}

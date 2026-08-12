@@ -120,7 +120,7 @@ export function TrackingTimeline({ steps }: { steps: TimelineStep[] }) {
                 {step.current ? (
                   <span
                     className={cn(
-                      "ml-2 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                      "ml-2 rounded-full px-2 py-0.5 text-xs font-semibold",
                       step.tone === "hold"
                         ? "bg-warning/10 text-warning"
                         : "bg-brand/10 text-brand"

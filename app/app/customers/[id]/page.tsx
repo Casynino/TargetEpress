@@ -166,7 +166,7 @@ export default async function CustomerProfilePage({
             {/* The invoice's own figure, underneath. Present so a clerk can
                 match what they are saying against the bill that was sent. */}
             {"hint" in item && item.hint ? (
-              <p className="font-mono text-[11px] text-muted-foreground">
+              <p className="font-mono text-xs text-muted-foreground">
                 {item.hint as string}
               </p>
             ) : null}
@@ -215,7 +215,7 @@ export default async function CustomerProfilePage({
                         <p className="mt-0.5 line-clamp-2 text-sm">
                           {cargoText(locale, shipment, "description")}
                         </p>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        <p className="mt-0.5 text-xs text-muted-foreground">
                           {formatWeight(shipment.weightKg)} · {shipment.packages}{" "}
                           {t(locale, "pkg")}
                           {shipment.batch ? ` · ${shipment.batch.batchNumber}` : ""}
@@ -224,7 +224,7 @@ export default async function CustomerProfilePage({
                       <ShipmentStatusBadge status={shipment.status} />
                     </div>
 
-                    <p className="mt-2 text-[11px] text-muted-foreground">
+                    <p className="mt-2 text-xs text-muted-foreground">
                       {t(locale, "Registered")} {formatDate(shipment.registeredAt, locale)}
                     </p>
 
@@ -261,7 +261,7 @@ export default async function CustomerProfilePage({
                                     ? `/app/cargo/${shipment.trackingNumber}`
                                     : `/app/collections/record/${shipment.invoice.id}`
                                 }
-                                className="focus-ring inline-flex items-center rounded-full bg-brand px-3 py-1.5 text-[11px] font-semibold text-brand-foreground"
+                                className="focus-ring inline-flex items-center rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground"
                               >
                                 {t(locale, "Record payment")}
                               </Link>
@@ -315,7 +315,7 @@ export default async function CustomerProfilePage({
                             {shipment.trackingNumber}
                           </Link>
                           {shipment.batch ? (
-                            <div className="text-[11px] text-muted-foreground">
+                            <div className="text-xs text-muted-foreground">
                               {shipment.batch.batchNumber}
                             </div>
                           ) : null}
@@ -356,7 +356,7 @@ export default async function CustomerProfilePage({
                                 {!shipment.invoice.sentAt ? (
                                   <Badge
                                     variant="outline"
-                                    className="mt-1 border-warning/40 text-[10px] text-warning"
+                                    className="mt-1 border-warning/40 text-xs text-warning"
                                   >
                                     {t(locale, "never sent")}
                                   </Badge>
@@ -371,7 +371,7 @@ export default async function CustomerProfilePage({
                                         ? `/app/cargo/${shipment.trackingNumber}`
                                         : `/app/collections/record/${shipment.invoice.id}`
                                     }
-                                    className="focus-ring mt-1.5 inline-flex items-center rounded-full bg-brand px-2.5 py-1 text-[10px] font-semibold text-brand-foreground transition-colors hover:bg-brand/90"
+                                    className="focus-ring mt-1.5 inline-flex items-center rounded-full bg-brand px-2.5 py-1 text-xs font-semibold text-brand-foreground transition-colors hover:bg-brand/90"
                                   >
                                     {t(locale, "Record payment")}
                                   </Link>
@@ -417,7 +417,7 @@ export default async function CustomerProfilePage({
               {customer.messages.map((message) => (
                 <li key={message.id} className="p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge variant="outline" className="text-xs">
                       {t(locale, MESSAGE_KIND_LABELS[message.kind] ?? message.kind)}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
@@ -455,7 +455,7 @@ export default async function CustomerProfilePage({
                         {note.shipment.trackingNumber} · {formatDate(note.issuedAt, locale)}
                       </p>
                     </div>
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge variant="outline" className="text-xs">
                       {t(locale, note.status.toLowerCase())}
                     </Badge>
                   </li>
@@ -480,7 +480,7 @@ export default async function CustomerProfilePage({
                       className="block p-3 transition-colors hover:bg-accent/40"
                     >
                       <p className="truncate text-sm">{ticket.subject}</p>
-                      <p className="font-mono text-[11px] text-muted-foreground">
+                      <p className="font-mono text-xs text-muted-foreground">
                         {ticket.ticketNumber} ·{" "}
                         {t(locale, ticket.status.toLowerCase())}
                       </p>
@@ -494,7 +494,7 @@ export default async function CustomerProfilePage({
                       className="block p-3 transition-colors hover:bg-accent/40"
                     >
                       <p className="truncate text-sm">{request.product}</p>
-                      <p className="font-mono text-[11px] text-muted-foreground">
+                      <p className="font-mono text-xs text-muted-foreground">
                         {request.requestNumber} ·{" "}
                         {t(locale, request.status.toLowerCase())}
                       </p>

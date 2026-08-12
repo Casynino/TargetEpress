@@ -140,7 +140,7 @@ export default async function PickupNotesPage({
           >
             {t(locale, filter.label)}
             <span
-              className={`rounded-full px-1.5 text-[10px] font-bold ${
+              className={`rounded-full px-1.5 text-xs font-bold ${
                 active === filter.key ? "bg-white/20" : "bg-muted"
               }`}
             >
@@ -224,7 +224,7 @@ export default async function PickupNotesPage({
                       </span>
                       <Link
                         href={`/app/cargo/${note.shipment.trackingNumber}`}
-                        className="block font-mono text-[11px] text-muted-foreground tabular hover:text-brand"
+                        className="block font-mono text-xs text-muted-foreground tabular hover:text-brand"
                       >
                         {note.shipment.trackingNumber}
                       </Link>
@@ -237,13 +237,13 @@ export default async function PickupNotesPage({
                       <span className="flex items-center gap-1.5">
                         <Badge
                           variant={TONE[note.status]}
-                          className="text-[10px] font-normal"
+                          className="text-xs font-normal"
                         >
                           {note.status === "ACTIVE"
                             ? t(locale, "not collected")
                             : t(locale, note.status.toLowerCase())}
                         </Badge>
-                        <span className="truncate font-mono text-[11px] text-muted-foreground">
+                        <span className="truncate font-mono text-xs text-muted-foreground">
                           {note.customer.phone}
                         </span>
                       </span>
@@ -253,7 +253,7 @@ export default async function PickupNotesPage({
                       <span className="block truncate text-xs text-muted-foreground">
                         {cargoText(locale, note.shipment, "description")}
                       </span>
-                      <span className="block text-[11px] text-muted-foreground/70">
+                      <span className="block text-xs text-muted-foreground/70">
                         {t(locale, "issued by")} {note.issuedBy?.name ?? "—"}
                       </span>
                     </TableCell>
@@ -297,7 +297,7 @@ export default async function PickupNotesPage({
                           </a>
                         </span>
                       ) : (
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           {t(locale, "no phone")}
                         </span>
                       )}

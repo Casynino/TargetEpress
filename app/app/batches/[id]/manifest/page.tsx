@@ -163,7 +163,7 @@ export default async function ManifestPage({
             { label: "Total weight", value: formatWeight(totalWeight) },
           ].map((item) => (
             <div key={item.label}>
-              <dt className="text-[9px] font-semibold uppercase tracking-widest text-black/55">
+              <dt className="text-xs font-semibold uppercase tracking-widest text-black/55">
                 {t(locale, item.label)}
               </dt>
               <dd className="mt-0.5 font-mono text-xs font-bold tabular">
@@ -173,12 +173,12 @@ export default async function ManifestPage({
           ))}
         </dl>
 
-        <table className="mt-7 w-full border-collapse text-[11px]">
+        <table className="mt-7 w-full border-collapse text-xs">
           <thead>
             {/* The same navy band the invoice puts over its charges. Two
                 documents from two desks should look like they came from one
                 company. */}
-            <tr className="bg-[#182A48] text-left text-[10px] uppercase tracking-[0.08em] text-white">
+            <tr className="bg-[#182A48] text-left text-xs uppercase tracking-[0.08em] text-white">
               <th className="rounded-l-md py-2 pl-2.5 pr-2 font-semibold">#</th>
               <th className="py-2 pr-2 font-semibold">{t(locale, "Received")}</th>
               <th className="py-2 pr-2 font-semibold">{t(locale, "Tracking")}</th>
@@ -281,7 +281,7 @@ export default async function ManifestPage({
           </tfoot>
         </table>
 
-        <div className="mt-10 grid grid-cols-2 gap-10 text-[11px]">
+        <div className="mt-10 grid grid-cols-2 gap-10 text-xs">
           <div>
             <div className="h-10 border-b border-black/50" />
             <p className="mt-1.5 text-black/60">

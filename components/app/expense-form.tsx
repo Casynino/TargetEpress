@@ -127,7 +127,7 @@ export function ExpenseForm({
       {/* The usual suspects, one tap each. */}
       {quick.length > 0 ? (
         <div className="border-b bg-muted/30 px-5 py-3">
-          <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             <Zap className="h-3.5 w-3.5" />
             {t("The usual")}
           </p>
@@ -203,7 +203,7 @@ export function ExpenseForm({
                 </option>
               ))}
             </NativeSelect>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {t(
                 "Name it and the cost is paid in one step. Leave it and you choose the account when you settle it."
               )}

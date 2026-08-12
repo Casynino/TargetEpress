@@ -231,7 +231,7 @@ export default async function PaymentsPage() {
                     </p>
                     {payment.creditedAmount !== null &&
                     payment.currency !== payment.invoice.currency ? (
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {t(locale, "settled")}{" "}
                         {formatUsd(toNumber(payment.creditedAmount))}
                       </p>
@@ -241,26 +241,26 @@ export default async function PaymentsPage() {
 
                 <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t pt-3 text-xs">
                   <div>
-                    <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                       {t(locale, "Method")}
                     </dt>
                     <dd className="mt-0.5">
                       {t(locale, PAYMENT_METHOD_LABELS[payment.method])}
                       {payment.reference ? (
-                        <span className="block text-[11px] text-muted-foreground">
+                        <span className="block text-xs text-muted-foreground">
                           {payment.reference}
                         </span>
                       ) : null}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                       {t(locale, "Received by")}
                     </dt>
                     <dd className="mt-0.5">{payment.receivedBy?.name ?? "—"}</dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                       {t(locale, "When")}
                     </dt>
                     <dd className="mt-0.5 text-muted-foreground">
@@ -268,7 +268,7 @@ export default async function PaymentsPage() {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                       {t(locale, "Receipt")}
                     </dt>
                     <dd className="mt-0.5">
@@ -284,7 +284,7 @@ export default async function PaymentsPage() {
 
                 {/* Attribution is an action, not a field — it gets the width. */}
                 <div className="mt-3 border-t pt-3">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
                     {t(locale, "Landed in")}
                   </p>
                   <div className="mt-1">

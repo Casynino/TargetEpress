@@ -129,7 +129,7 @@ export function DeliveryHistoryTable({ rows }: { rows: DeliveryHistoryRow[] }) {
             {row.receiverPhone}
           </p>
           {row.relationship !== "SELF" ? (
-            <Badge variant="warning" className="mt-1 text-[10px]">
+            <Badge variant="warning" className="mt-1 text-xs">
               {t(RELATIONSHIP_LABELS[row.relationship])}
             </Badge>
           ) : null}

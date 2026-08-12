@@ -51,7 +51,7 @@ export function ActivityBars({
       </div>
 
       {/* Only the ends are labelled. Fourteen rotated dates is noise. */}
-      <div className="mt-2 flex justify-between text-[11px] text-muted-foreground">
+      <div className="mt-2 flex justify-between text-xs text-muted-foreground">
         <span>{points[0]?.label}</span>
         <span>{points[points.length - 1]?.label}</span>
       </div>

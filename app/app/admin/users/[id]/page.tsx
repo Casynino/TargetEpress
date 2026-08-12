@@ -172,7 +172,7 @@ export default async function EmployeeProfilePage({
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm">{entry.summary}</p>
-                      <p className="font-mono text-[11px] text-muted-foreground">
+                      <p className="font-mono text-xs text-muted-foreground">
                         {entry.action}
                       </p>
                     </div>

@@ -390,7 +390,7 @@ function Field({
 }) {
   return (
     <div className="min-w-0 bg-card px-4 py-3 sm:px-5">
-      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </p>

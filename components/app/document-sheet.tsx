@@ -84,13 +84,13 @@ export function DocumentHeader({
     <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-[#182A48] pb-5">
       <div>
         <BrandLogo className="h-14 w-auto" />
-        <p className="mt-2.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#182A48]">
+        <p className="mt-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-[#182A48]">
           {title}
         </p>
       </div>
       <div className="text-right">
         {badge ? <div className="mb-2 flex justify-end">{badge}</div> : null}
-        <div className="text-[11px] leading-relaxed">{meta}</div>
+        <div className="text-xs leading-relaxed">{meta}</div>
       </div>
     </header>
   );
@@ -122,7 +122,7 @@ export function DocumentStamp({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md border-2 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em]",
+        "inline-flex items-center rounded-md border-2 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em]",
         TONE[tone]
       )}
     >
@@ -143,7 +143,7 @@ export function DocumentField({
 }) {
   return (
     <div className={className}>
-      <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/50">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-black/50">
         {label}
       </p>
       <div className="mt-0.5">{children}</div>
@@ -165,7 +165,7 @@ export function DocumentFacts({
     <dl className="mt-6 grid grid-cols-2 gap-4 rounded-lg bg-black/[0.035] px-5 py-4 sm:grid-cols-4">
       {items.map((item) => (
         <div key={item.label}>
-          <dt className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/50">
+          <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-black/50">
             {item.label}
           </dt>
           <dd className="mt-0.5 text-[13px] font-bold">{item.value}</dd>
@@ -177,10 +177,10 @@ export function DocumentFacts({
 
 export function DocumentFooter({ children }: { children?: ReactNode }) {
   return (
-    <footer className="mt-7 border-t border-black/20 pt-3 text-[10px] leading-relaxed text-black/60">
+    <footer className="mt-7 border-t border-black/20 pt-3 text-xs leading-relaxed text-black/60">
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
         <div>
-          <p className="text-[11px] font-bold text-[#182A48]">{COMPANY.name}</p>
+          <p className="text-xs font-bold text-[#182A48]">{COMPANY.name}</p>
           <p className="font-bold tracking-[0.08em] text-[#D81E2A]">
             KWETU MUDA NI MALI
           </p>

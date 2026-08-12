@@ -78,7 +78,7 @@ export default async function MyBatchesPage() {
                       : t(locale, "Still in China")}
                   </p>
                 </div>
-                <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                   {t(locale, batch.statusLabel)}
                 </span>
               </div>
@@ -99,7 +99,7 @@ export default async function MyBatchesPage() {
                   },
                 ].map((item) => (
                   <div key={item.label}>
-                    <dt className="text-[11px] text-muted-foreground">
+                    <dt className="text-xs text-muted-foreground">
                       {item.label}
                     </dt>
                     <dd className="mt-0.5 font-display text-base font-bold tabular">

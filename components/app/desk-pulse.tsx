@@ -68,7 +68,7 @@ export function DeskPulsePanel({
           />
 
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               {desk.desk}
             </p>
             <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
@@ -88,14 +88,14 @@ export function DeskPulsePanel({
             </span>
           </p>
 
-          <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+          <p className="mt-1 text-xs leading-snug text-muted-foreground">
             {desk.detail}
           </p>
 
           {/* The line that decides whether the number above matters. */}
           <p
             className={cn(
-              "mt-2.5 flex items-center gap-1.5 border-t pt-2.5 text-[11px] font-medium",
+              "mt-2.5 flex items-center gap-1.5 border-t pt-2.5 text-xs font-medium",
               desk.problem ? VALUE[desk.tone] : "text-muted-foreground"
             )}
           >

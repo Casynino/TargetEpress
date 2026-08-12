@@ -387,7 +387,7 @@ function CaseRecord({
             <Panel
               title={`${t(unit.many)} ${t("on the manifest")}`}
               aside={
-                <span className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <span className="h-2 w-2 rounded-sm bg-success/60" />
                     {t("here")}
@@ -446,7 +446,7 @@ function CaseRecord({
 
         {/* ---- What was done about it ---------------------------------- */}
         <div className="space-y-3">
-          <Panel title={t("Timeline")} aside={<span className="text-[11px] text-muted-foreground">{t("oldest first")}</span>}>
+          <Panel title={t("Timeline")} aside={<span className="text-xs text-muted-foreground">{t("oldest first")}</span>}>
             <InvestigationTimeline
               events={exception.events}
               openedAt={exception.raisedAt}
@@ -519,7 +519,7 @@ function Panel({
   return (
     <section className="rounded-lg border bg-card p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {title}
         </h4>
         {aside}
@@ -557,7 +557,7 @@ function PhotoStrip({
 
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </p>
       {photos.length === 0 ? (

@@ -726,7 +726,7 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
           <h3 className="text-sm font-semibold">
             {t(locale, "What is standing now")}
           </h3>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {t(locale, "By what is holding each consignment")}
           </p>
           <div className="mt-3 flex justify-center">
@@ -743,7 +743,7 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
 
         <section className="panel p-4">
           <h3 className="text-sm font-semibold">{t(locale, "In and out")}</h3>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {t(locale, "Registered against flown, by day")}
           </p>
           <FlowBars
@@ -762,7 +762,7 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
           <h3 className="text-sm font-semibold">
             {t(locale, "How long it has waited")}
           </h3>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {t(locale, "From the day it was registered")}
           </p>
           <AgeingBar

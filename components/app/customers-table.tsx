@@ -51,7 +51,7 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
           >
             {row.name}
           </Link>
-          <div className="font-mono text-[11px] text-muted-foreground">{row.code}</div>
+          <div className="font-mono text-xs text-muted-foreground">{row.code}</div>
         </div>
       ),
     },
@@ -89,7 +89,7 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
         <div>
           <span className="font-medium">{row.shipments}</span>
           {row.activeShipments > 0 ? (
-            <div className="text-[11px] text-info">{row.activeShipments} active</div>
+            <div className="text-xs text-info">{row.activeShipments} active</div>
           ) : null}
         </div>
       ),
@@ -212,12 +212,12 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="font-medium">{row.name}</p>
-              <p className="font-mono text-[11px] text-muted-foreground">{row.code}</p>
+              <p className="font-mono text-xs text-muted-foreground">{row.code}</p>
               <p className="mt-1 font-mono text-xs">{row.phone ?? t("no phone")}</p>
             </div>
             <div className="text-right">
               <p className="text-sm font-medium tabular-nums">{row.shipments}</p>
-              <p className="text-[11px] text-muted-foreground">{t("shipments")}</p>
+              <p className="text-xs text-muted-foreground">{t("shipments")}</p>
             </div>
           </div>
           {(row.outstanding ?? 0) > 0 ? (

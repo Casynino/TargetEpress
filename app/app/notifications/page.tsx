@@ -81,7 +81,7 @@ export default async function NotificationsPage() {
                       {row.body}
                     </p>
                   ) : null}
-                  <p className="mt-1 text-[11px] text-muted-foreground">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {formatRelative(row.createdAt, locale)}
                   </p>
                 </div>

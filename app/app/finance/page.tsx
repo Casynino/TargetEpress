@@ -298,7 +298,7 @@ export default async function FinanceOverviewPage() {
              as actions, as a toolbar under the figures rather than a column
              competing with them. */}
       <section className="mb-6 rounded-2xl border bg-card p-6">
-        <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           <PiggyBank className="h-4 w-4 text-brand" />
           {seesCompanyMoney
             ? t(locale, "Cash available")
@@ -419,7 +419,7 @@ export default async function FinanceOverviewPage() {
       {/* ── The work. A list, not a card grid: each row is one job with the
              money attached and the door to go do it. */}
       <section className="mb-6 overflow-hidden rounded-xl border bg-card">
-        <h2 className="border-b px-5 py-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <h2 className="border-b px-5 py-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           {t(locale, "Needs you")}
         </h2>
         {jobs.length === 0 ? (
@@ -453,7 +453,7 @@ export default async function FinanceOverviewPage() {
                     <span className="block font-display text-lg font-bold tabular-nums">
                       {tsh(job.usd)}
                     </span>
-                    <span className="block font-mono text-[11px] text-muted-foreground">
+                    <span className="block font-mono text-xs text-muted-foreground">
                       {formatUsd(job.usd)}
                     </span>
                   </span>
@@ -470,7 +470,7 @@ export default async function FinanceOverviewPage() {
       {/* One line, because it is context for the money rather than a report of
           its own. Every figure above hangs off cargo that is somewhere. */}
       <section className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border bg-card px-5 py-4">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           {t(locale, "Where the cargo is")}
         </p>
         {wherever.map((item) => (
@@ -565,7 +565,7 @@ export default async function FinanceOverviewPage() {
                         <span className="block truncate text-sm">
                           {shipment.customer.name}
                         </span>
-                        <span className="block truncate font-mono text-[11px] text-muted-foreground">
+                        <span className="block truncate font-mono text-xs text-muted-foreground">
                           {shipment.customer.phone}
                         </span>
                       </TableCell>
@@ -588,7 +588,7 @@ export default async function FinanceOverviewPage() {
                           {owing === null ? "—" : tsh(owing)}
                         </span>
                         {owing !== null && rate ? (
-                          <span className="block font-mono text-[11px] tabular-nums text-muted-foreground">
+                          <span className="block font-mono text-xs tabular-nums text-muted-foreground">
                             {formatUsd(owing)}
                           </span>
                         ) : null}
@@ -636,7 +636,7 @@ export default async function FinanceOverviewPage() {
               <TableBody>
                 {recentPayments.map((payment) => (
                   <TableRow key={payment.id}>
-                    <TableCell className="py-2.5 font-mono text-[11px] tabular text-muted-foreground">
+                    <TableCell className="py-2.5 font-mono text-xs tabular text-muted-foreground">
                       {payment.receipt?.receiptNumber ?? "—"}
                     </TableCell>
                     <TableCell className="py-2.5">
@@ -661,12 +661,12 @@ export default async function FinanceOverviewPage() {
                       </span>
                       {payment.currency !== payment.invoice.currency &&
                       payment.creditedAmount !== null ? (
-                        <span className="block font-mono text-[11px] tabular-nums text-muted-foreground">
+                        <span className="block font-mono text-xs tabular-nums text-muted-foreground">
                           {t(locale, "settled")}{" "}
                           {formatUsd(toNumber(payment.creditedAmount))}
                         </span>
                       ) : (
-                        <span className="block text-[11px] capitalize text-muted-foreground">
+                        <span className="block text-xs capitalize text-muted-foreground">
                           {t(
                             locale,
                             payment.method.replace("_", " ").toLowerCase()

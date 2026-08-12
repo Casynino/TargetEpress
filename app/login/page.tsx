@@ -69,7 +69,7 @@ export default async function LoginPage({
                   is chrome doing the work that letter-spacing and a brighter
                   ink already do — and on a dark page it reads as a button
                   nobody can press. */}
-              <span className="inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
+              <span className="inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.22em] text-white/75">
                 <Plane className="h-3.5 w-3.5 text-signal" />
                 {t(locale, "Guangzhou · Hong Kong · Dubai — Dar es Salaam")}
               </span>
@@ -110,7 +110,7 @@ export default async function LoginPage({
                     <dt className="font-display text-2xl font-bold tabular-nums">
                       {stat.k}
                     </dt>
-                    <dd className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-white/45">
+                    <dd className="mt-0.5 text-xs uppercase tracking-[0.14em] text-white/45">
                       {stat.v}
                     </dd>
                   </div>
@@ -126,7 +126,7 @@ export default async function LoginPage({
                 className="absolute -inset-px rounded-3xl bg-gradient-to-b from-white/25 via-white/5 to-transparent"
               />
               <div className="relative rounded-3xl border border-white/10 bg-white/[0.06] p-7 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-8">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
                   <Lock className="h-3 w-3" />
                   {t(locale, "Staff access only")}
                 </span>
@@ -157,7 +157,7 @@ export default async function LoginPage({
           </div>
         </main>
 
-        <footer className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 p-6 text-[11px] leading-relaxed text-white/35 sm:px-10">
+        <footer className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 p-6 text-xs leading-relaxed text-white/35 sm:px-10">
           <p className="font-medium text-white/60">{COMPANY.name}</p>
           <div className="flex flex-wrap gap-x-8 gap-y-1">
             <p>🇨🇳 {COMPANY.chinaAddress}</p>

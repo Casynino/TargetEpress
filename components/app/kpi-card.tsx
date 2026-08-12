@@ -185,7 +185,7 @@ export function KpiCard({
             {delta !== undefined ? (
               <span
                 className={cn(
-                  "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular",
+                  "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold tabular",
                   deltaGood === null
                     ? "bg-muted text-muted-foreground"
                     : deltaGood

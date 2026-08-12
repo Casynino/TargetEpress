@@ -103,7 +103,7 @@ export async function WarehouseHero({
         */}
         <div className="flex flex-wrap items-start justify-between gap-5 sm:gap-6">
           <div className="w-full min-w-0 sm:w-auto sm:flex-1">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
               {t(locale, warehouseName)}
             </span>
@@ -158,7 +158,7 @@ export function FloorChips({ chips }: { chips: HeroChip[] }) {
       {chips.map((chip) => {
         const body = (
           <>
-            <dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <chip.icon className="h-3.5 w-3.5" />
               {chip.label}
             </dt>
@@ -166,7 +166,7 @@ export function FloorChips({ chips }: { chips: HeroChip[] }) {
               {chip.value}
             </dd>
             {chip.sub ? (
-              <p className="mt-0.5 text-[11px] tabular text-muted-foreground">
+              <p className="mt-0.5 text-xs tabular text-muted-foreground">
                 {chip.sub}
               </p>
             ) : null}

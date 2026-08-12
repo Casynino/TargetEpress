@@ -661,7 +661,7 @@ function ChargePanel({
           <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {PAYMENT_METHODS.map((method) => (
               <li key={method.number} className="rounded-lg border bg-card p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {method.label}
                 </p>
                 <p className="mt-0.5 font-mono text-base font-semibold tabular">

@@ -38,13 +38,13 @@ export function FlightSchedule({
             )}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-white/50">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-white/50">
                 <PlaneTakeoff className="h-3.5 w-3.5" />
                 Departure
               </span>
               <span
                 className={cn(
-                  "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                  "rounded-full px-2.5 py-1 text-xs font-semibold",
                   tone === "closed"
                     ? "bg-white/10 text-white/50"
                     : tone === "urgent"
@@ -62,7 +62,7 @@ export function FlightSchedule({
             <p className="mt-1 text-sm text-white/60">{fmt(flight.departsAt)}</p>
 
             <div className="mt-5 border-t border-white/10 pt-4">
-              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-white/50">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-white/50">
                 <CalendarClock className="h-3.5 w-3.5" />
                 Cargo accepted until
               </p>

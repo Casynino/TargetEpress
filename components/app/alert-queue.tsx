@@ -84,7 +84,7 @@ export function AlertQueue({
           ) : null}
         </div>
         {criticalCount > 0 ? (
-          <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive tabular">
+          <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive tabular">
             {criticalCount} critical
           </span>
         ) : null}
@@ -124,7 +124,7 @@ export function AlertQueue({
                     <p className="text-sm font-medium">{item.title}</p>
                     <span
                       className={cn(
-                        "rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                        "rounded-full px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide",
                         meta.badge
                       )}
                     >

@@ -151,7 +151,7 @@ export default async function FollowUpPage({
           <p className="font-display text-xl font-bold tabular-nums">
             {tsh(totalOutstanding)}
           </p>
-          <p className="font-mono text-[11px] text-muted-foreground">
+          <p className="font-mono text-xs text-muted-foreground">
             {formatUsd(totalOutstanding)} {t(locale, "on the invoices")}
           </p>
         </div>
@@ -162,7 +162,7 @@ export default async function FollowUpPage({
           <p className="font-display text-xl font-bold tabular-nums">
             {tsh(storageAtRisk)}
           </p>
-          <p className="font-mono text-[11px] text-muted-foreground">
+          <p className="font-mono text-xs text-muted-foreground">
             {formatUsd(storageAtRisk)}
           </p>
         </div>

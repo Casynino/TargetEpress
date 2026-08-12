@@ -161,7 +161,7 @@ export default async function TicketsPage({
             >
               {ticket.subject}
             </Link>
-            <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+            <p className="mt-0.5 font-mono text-xs text-muted-foreground">
               {ticket.ticketNumber}
               {ticket.shipment ? ` · ${ticket.shipment.trackingNumber}` : ""}
             </p>
@@ -173,7 +173,7 @@ export default async function TicketsPage({
               <Badge variant="outline" className={STATUS_TONE[ticket.status] ?? ""}>
                 {t(locale, ticket.status.replace(/_/g, " ").toLowerCase())}
               </Badge>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {t(locale, CATEGORY_LABEL[ticket.category] ?? ticket.category)}
               </span>
             </div>
@@ -192,11 +192,11 @@ export default async function TicketsPage({
                     {ticket.contactName ?? t(locale, "Unknown caller")}
                   </span>
                 )}
-                <span className="block font-mono text-[11px] text-muted-foreground">
+                <span className="block font-mono text-xs text-muted-foreground">
                   {ticket.customer?.phone ?? ticket.contactPhone ?? "—"}
                 </span>
               </div>
-              <div className="shrink-0 text-right text-[11px] text-muted-foreground">
+              <div className="shrink-0 text-right text-xs text-muted-foreground">
                 <span className="block">
                   {ticket.assignedTo?.name ?? t(locale, "Unassigned")}
                 </span>

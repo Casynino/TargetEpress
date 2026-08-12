@@ -89,7 +89,7 @@ export async function VerifyQueue() {
                     <p className="text-sm font-semibold">
                       {row.invoice.customer.name}
                     </p>
-                    <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
+                    <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
                       {row.submissionNumber} ·{" "}
                       <Link
                         href={`/app/cargo/${row.invoice.shipment.trackingNumber}`}
@@ -104,7 +104,7 @@ export async function VerifyQueue() {
                     <p className="font-display text-xl font-bold leading-none tabular">
                       {formatMoney(claimed, row.currency)}
                     </p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {t(locale, "owed")}{" "}
                       {formatMoney(outstanding, row.invoice.currency)}
                     </p>
@@ -132,7 +132,7 @@ export async function VerifyQueue() {
                         },
                       ].map((fact) => (
                         <div key={fact.label}>
-                          <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                          <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                             {fact.label}
                           </dt>
                           <dd className="mt-0.5 text-sm font-medium">
@@ -172,7 +172,7 @@ export async function VerifyQueue() {
                               href={proof.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="focus-ring inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:border-brand/40 hover:text-brand"
+                              className="focus-ring inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-brand/40 hover:text-brand"
                             >
                               {proof.contentType.startsWith("image/") ? (
                                 <Paperclip className="h-3 w-3" />

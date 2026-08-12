@@ -86,7 +86,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
             <li key={index} className="rounded-xl border bg-muted/20 p-4">
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.4fr)_1fr_1.2fr_auto_auto]">
                 <div className="space-y-1">
-                  <Label className="text-[11px]">
+                  <Label className="text-xs">
                     {t("Label the customer sees")}
                   </Label>
                   <Input
@@ -97,7 +97,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">{t("Number")}</Label>
+                  <Label className="text-xs">{t("Number")}</Label>
                   <Input
                     value={account.number}
                     onChange={(e) => setAccount(index, { number: e.target.value })}
@@ -105,7 +105,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">{t("Account name")}</Label>
+                  <Label className="text-xs">{t("Account name")}</Label>
                   <Input
                     value={account.accountName}
                     onChange={(e) =>
@@ -115,7 +115,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">{t("Kind")}</Label>
+                  <Label className="text-xs">{t("Kind")}</Label>
                   <NativeSelect
                     value={account.kind}
                     onChange={(e) =>
@@ -130,7 +130,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                   </NativeSelect>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">{t("Currency")}</Label>
+                  <Label className="text-xs">{t("Currency")}</Label>
                   <NativeSelect
                     value={account.currency ?? ""}
                     onChange={(e) =>
@@ -152,7 +152,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
 
               <div className="mt-2 flex items-center justify-between gap-3">
                 {/* What this becomes in a customer's WhatsApp, as it is typed. */}
-                <p className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">
+                <p className="min-w-0 truncate font-mono text-xs text-muted-foreground">
                   {account.label || "…"} · {account.number || "…"} ·{" "}
                   {account.accountName || "…"}
                 </p>
@@ -164,7 +164,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                       accounts: s.accounts.filter((_, i) => i !== index),
                     }))
                   }
-                  className="focus-ring inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-destructive"
+                  className="focus-ring inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   {t("Remove")}
@@ -188,7 +188,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
             </p>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_1fr_auto]">
               <div className="space-y-1">
-                <Label className="text-[11px]">{t("City")}</Label>
+                <Label className="text-xs">{t("City")}</Label>
                 <Input
                   value={settings[which].city}
                   onChange={(e) => setOffice(which, { city: e.target.value })}
@@ -196,7 +196,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px]">{t("Country")}</Label>
+                <Label className="text-xs">{t("Country")}</Label>
                 <Input
                   value={settings[which].country}
                   onChange={(e) => setOffice(which, { country: e.target.value })}
@@ -204,7 +204,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px]">{t("Flag")}</Label>
+                <Label className="text-xs">{t("Flag")}</Label>
                 <Input
                   value={settings[which].flag}
                   onChange={(e) => setOffice(which, { flag: e.target.value })}
@@ -213,7 +213,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
               </div>
             </div>
             <div className="mt-3 space-y-1">
-              <Label className="text-[11px]">{t("Address lines")}</Label>
+              <Label className="text-xs">{t("Address lines")}</Label>
               <textarea
                 value={settings[which].lines.join("\n")}
                 onChange={(e) =>
@@ -241,7 +241,7 @@ export function CompanySettingsForm({ initial }: { initial: CompanySettings }) {
             ] as const
           ).map(([key, label]) => (
             <div key={key} className="space-y-1">
-              <Label className="text-[11px]">{t(label)}</Label>
+              <Label className="text-xs">{t(label)}</Label>
               <Input
                 value={settings.contact[key]}
                 onChange={(e) =>

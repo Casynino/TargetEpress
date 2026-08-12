@@ -184,7 +184,7 @@ export function AreaChart({
               left: `${(hover / Math.max(1, labels.length - 1)) * 100}%`,
             }}
           >
-            <p className="text-[11px] font-medium text-muted-foreground">
+            <p className="text-xs font-medium text-muted-foreground">
               {labels[hover]}
             </p>
             <ul className="mt-1 space-y-0.5">
@@ -211,7 +211,7 @@ export function AreaChart({
       </div>
 
       {/* X axis */}
-      <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
+      <div className="mt-2 flex justify-between text-xs text-muted-foreground">
         {labels.map((label, i) => (
           <span
             key={`${label}-${i}`}

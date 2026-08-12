@@ -43,7 +43,7 @@ export function BarChart({
               className="group relative flex h-full flex-1 flex-col justify-end"
             >
               {/* Value on hover — keeps the chart clean until asked. */}
-              <span className="pointer-events-none absolute -top-1 left-1/2 z-10 -translate-x-1/2 rounded-md border bg-popover px-1.5 py-0.5 font-mono text-[10px] tabular opacity-0 shadow-soft transition-opacity group-hover:opacity-100">
+              <span className="pointer-events-none absolute -top-1 left-1/2 z-10 -translate-x-1/2 rounded-md border bg-popover px-1.5 py-0.5 font-mono text-xs tabular opacity-0 shadow-soft transition-opacity group-hover:opacity-100">
                 {formatValue(d.value)}
               </span>
               <div
@@ -64,7 +64,7 @@ export function BarChart({
         })}
       </div>
 
-      <div className="mt-2 flex justify-between gap-1.5 text-[10px] text-muted-foreground">
+      <div className="mt-2 flex justify-between gap-1.5 text-xs text-muted-foreground">
         {data.map((d, i) => (
           <span
             key={`${d.label}-label-${i}`}

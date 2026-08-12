@@ -86,7 +86,7 @@ export function FlowBars({
 
               <span
                 className={cn(
-                  "mt-1.5 truncate text-center text-[10px] uppercase tracking-wide",
+                  "mt-1.5 truncate text-center text-xs uppercase tracking-wide",
                   current
                     ? "font-semibold text-foreground"
                     : "text-muted-foreground"
@@ -99,7 +99,7 @@ export function FlowBars({
         })}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-success" aria-hidden />
           {legendIn}

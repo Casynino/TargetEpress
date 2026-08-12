@@ -118,7 +118,7 @@ export default async function SubmissionsPage({
                         : t(locale, row.status.toLowerCase())}
                     </Badge>
                   </p>
-                  <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
+                  <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
                     {row.submissionNumber} · {row.invoice.invoiceNumber} ·{" "}
                     {row.invoice.shipment.trackingNumber}
                     {row.reference ? ` · ${row.reference}` : ""}
@@ -128,7 +128,7 @@ export default async function SubmissionsPage({
                   <p className="font-display text-lg font-bold leading-none tabular">
                     {formatMoney(toNumber(row.amount), row.currency)}
                   </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {row.submittedBy?.name ?? "—"} ·{" "}
                     {formatDateTime(row.submittedAt, locale)}
                   </p>
@@ -184,7 +184,7 @@ export default async function SubmissionsPage({
                           href={proof.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="focus-ring inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:border-brand/40 hover:text-brand"
+                          className="focus-ring inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-brand/40 hover:text-brand"
                         >
                           {proof.contentType.startsWith("image/") ? (
                             <Paperclip className="h-3 w-3" />

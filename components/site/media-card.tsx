@@ -97,7 +97,7 @@ export function MediaCard({
           className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--ink)/0.92)] via-[hsl(var(--ink)/0.25)] to-transparent"
         />
         {eyebrow ? (
-          <span className="absolute left-4 top-4 rounded-full border border-gold/40 bg-[hsl(var(--ink)/0.62)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gold backdrop-blur">
+          <span className="absolute left-4 top-4 rounded-full border border-gold/40 bg-[hsl(var(--ink)/0.62)] px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-gold backdrop-blur">
             {eyebrow}
           </span>
         ) : null}

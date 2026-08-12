@@ -462,7 +462,7 @@ export function CargoGrid({
               {cell.description}
             </p>
 
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span className="font-mono tabular-nums">
                 {cell.weightKg.toFixed(1)} kg
               </span>
@@ -472,7 +472,7 @@ export function CargoGrid({
                 <span className="font-mono tabular-nums text-foreground">
                   {cell.price.currency} {cell.price.amount.toFixed(2)}
                   {!cell.price.confirmed ? (
-                    <span className="ml-1 rounded bg-signal/10 px-1 py-0.5 text-[10px] font-medium text-signal">
+                    <span className="ml-1 rounded bg-signal/10 px-1 py-0.5 text-xs font-medium text-signal">
                       {t("draft")}
                     </span>
                   ) : null}
@@ -574,7 +574,7 @@ export function CargoGrid({
                                 or a desk signs off a list it believes is
                                 already agreed. */}
                             {!cell.price.confirmed ? (
-                              <span className="ml-1.5 rounded bg-signal/10 px-1.5 py-0.5 text-[10px] font-medium text-signal">
+                              <span className="ml-1.5 rounded bg-signal/10 px-1.5 py-0.5 text-xs font-medium text-signal">
                                 {t("draft")}
                               </span>
                             ) : null}

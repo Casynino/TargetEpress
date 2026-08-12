@@ -231,7 +231,7 @@ export default async function ExpensesPage({
       <div className="mb-6 rounded-2xl border bg-card p-6">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
-            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               <ArrowUpRight className="h-4 w-4 text-warning" />
               {t(locale, "Spent")} · {t(locale, periodLabel).toLowerCase()}
             </p>
@@ -272,7 +272,7 @@ export default async function ExpensesPage({
                   ? `TSh ${Math.round(toNumber(outstanding._sum.amountUsd) * rate).toLocaleString("en-US")}`
                   : formatUsd(toNumber(outstanding._sum.amountUsd))}
               </dd>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {outstanding._count} {t(locale, "waiting")}
               </p>
             </div>
@@ -288,7 +288,7 @@ export default async function ExpensesPage({
               >
                 {awaitingApproval}
               </dd>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {t(locale, "over the limit")}
               </p>
             </div>
@@ -303,7 +303,7 @@ export default async function ExpensesPage({
                     : formatUsd(toNumber(byCategory[0]._sum.amountUsd))
                   : "—"}
               </dd>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {byCategory[0]
                   ? t(locale, CATEGORY_LABELS[byCategory[0].category])
                   : t(locale, "nothing paid yet")}

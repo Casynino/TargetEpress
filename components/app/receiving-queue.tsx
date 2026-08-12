@@ -80,7 +80,7 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
       cell: (row) => (
         <span
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+            "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold",
             row.status === "ARRIVED" && "bg-warning/10 text-warning",
             row.status === "IN_TRANSIT" && "bg-info/10 text-info",
             (row.status === "VERIFIED" || row.status === "CLOSED") &&
@@ -383,7 +383,7 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
               ) : null}
               <span
                 className={cn(
-                  "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                  "rounded-full px-2 py-0.5 text-xs font-semibold",
                   row.status === "ARRIVED" && "bg-warning/10 text-warning",
                   row.status === "IN_TRANSIT" && "bg-info/10 text-info",
                   (row.status === "VERIFIED" || row.status === "CLOSED") &&

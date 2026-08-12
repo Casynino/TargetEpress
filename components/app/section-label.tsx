@@ -27,10 +27,10 @@ export function SectionLabel({
 }) {
   return (
     <div className="mb-3 flex items-baseline justify-between gap-3">
-      <h2 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+      <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {children}
         {count !== undefined && count > 0 ? (
-          <span className="rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold leading-none text-warning">
+          <span className="rounded-full bg-warning/15 px-1.5 py-0.5 text-xs font-bold leading-none text-warning">
             {count}
           </span>
         ) : null}

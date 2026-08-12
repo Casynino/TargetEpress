@@ -58,7 +58,7 @@ export function OpeningBalanceForm({
   return (
     <form action={action} className="mt-3 flex flex-wrap items-end gap-3">
       <div className="space-y-1">
-        <Label htmlFor="openingAccount" className="text-[11px]">
+        <Label htmlFor="openingAccount" className="text-xs">
           {t("Account")}
         </Label>
         <NativeSelect
@@ -77,7 +77,7 @@ export function OpeningBalanceForm({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="openingAmount" className="text-[11px]">
+        <Label htmlFor="openingAmount" className="text-xs">
           {t("What was in it")} {symbol ? `(${symbol})` : ""}
         </Label>
         <MoneyInput
@@ -89,7 +89,7 @@ export function OpeningBalanceForm({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="openingAsOf" className="text-[11px]">
+        <Label htmlFor="openingAsOf" className="text-xs">
           {t("As at")}{" "}
           <span className="text-muted-foreground">{t("(blank = today)")}</span>
         </Label>
@@ -117,7 +117,7 @@ export function OpeningBalanceForm({
 
       <div className="w-full">
         <FormError state={state} />
-        <p className="mt-1 text-[11px] text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground">
           {t(
             "Recorded as the first movement on the account, not as a stored total — so the balance still comes from adding up the ledger, and this figure is visible in the register like any other."
           )}

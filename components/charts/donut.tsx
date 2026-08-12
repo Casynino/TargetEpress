@@ -131,7 +131,7 @@ export function Donut({
           {label}
         </span>
         {caption ? (
-          <span className="mt-1 max-w-[70%] text-[10px] leading-tight text-muted-foreground">
+          <span className="mt-1 max-w-[70%] text-xs leading-tight text-muted-foreground">
             {caption}
           </span>
         ) : null}

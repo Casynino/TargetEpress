@@ -120,12 +120,12 @@ export async function AccountCard({
           </span>
           <div className="min-w-0">
             <p className="truncate font-semibold leading-tight">{title}</p>
-            <p className="truncate text-[11px] text-muted-foreground">
+            <p className="truncate text-xs text-muted-foreground">
               {t(locale, KIND_LABEL[kind])}
             </p>
           </div>
         </div>
-        <span className="shrink-0 rounded-full border bg-background/60 px-2 py-0.5 font-mono text-[10px] font-semibold backdrop-blur">
+        <span className="shrink-0 rounded-full border bg-background/60 px-2 py-0.5 font-mono text-xs font-semibold backdrop-blur">
           {currency === "TZS" ? "TSh" : currency}
         </span>
       </div>
@@ -139,7 +139,7 @@ export async function AccountCard({
           {formatMoney(net, currency)}
         </p>
         {live && currency !== "USD" ? (
-          <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+          <p className="mt-1 font-mono text-xs text-muted-foreground">
             {formatUsd(netUsd)}
           </p>
         ) : null}
@@ -163,14 +163,14 @@ export async function AccountCard({
                 {formatMoney(outflow, currency)}
               </span>
             ) : null}
-            <span className="ml-auto text-[11px] text-muted-foreground">
+            <span className="ml-auto text-xs text-muted-foreground">
               {entries}{" "}
               {entries === 1 ? t(locale, "movement") : t(locale, "movements")}
               {lastMovedAt ? ` · ${formatRelative(lastMovedAt, locale)}` : ""}
             </span>
           </div>
         ) : (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {t(locale, "Nothing has moved through this account yet")}
           </p>
         )}

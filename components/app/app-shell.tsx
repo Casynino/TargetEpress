@@ -324,7 +324,7 @@ function NavList({
           {section.group && GroupIcon ? (
             <p
               className={cn(
-                "flex items-center gap-2 px-3 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors",
+                "flex items-center gap-2 px-3 pb-1.5 pt-1 text-xs font-semibold uppercase tracking-[0.12em] transition-colors",
                 inGroup ? "text-foreground" : "text-muted-foreground/70"
               )}
             >
@@ -413,7 +413,7 @@ function UserPanel({
           {unread > 0 ? (
             <span
               title={`${unread} unread notification(s)`}
-              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-brand-foreground"
+              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-xs font-bold text-brand-foreground"
             >
               {unread > 9 ? "9+" : unread}
             </span>

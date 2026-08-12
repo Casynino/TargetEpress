@@ -224,7 +224,7 @@ export function Hero() {
             {nextFlight ? (
               <div className="glass-dark absolute bottom-2 left-1/2 hidden w-[min(100%,320px)] -translate-x-1/2 items-center justify-between gap-3 rounded-2xl px-4 py-3 lg:flex">
                 <span className="min-w-0">
-                  <span className="block text-[11px] uppercase tracking-widest text-gold">
+                  <span className="block text-xs uppercase tracking-widest text-gold">
                     Ndege inayofuata
                   </span>
                   <span className="block text-sm font-semibold">
@@ -235,7 +235,7 @@ export function Hero() {
                     })}
                   </span>
                 </span>
-                <span className="shrink-0 rounded-full bg-signal px-2.5 py-1 text-[11px] font-bold text-signal-foreground">
+                <span className="shrink-0 rounded-full bg-signal px-2.5 py-1 text-xs font-bold text-signal-foreground">
                   {countdownLabel(nextFlight)}
                 </span>
               </div>
@@ -247,7 +247,7 @@ export function Hero() {
           {nextFlight ? (
             <div className="rise rise-4 flex items-center justify-between gap-3 rounded-xl border border-signal/25 bg-signal/10 px-4 py-3 lg:hidden">
               <span className="min-w-0">
-                <span className="block text-[11px] uppercase tracking-widest text-white/50">
+                <span className="block text-xs uppercase tracking-widest text-white/50">
                   Ndege inayofuata
                 </span>
                 <span className="block text-sm font-semibold">
@@ -258,7 +258,7 @@ export function Hero() {
                   })}
                 </span>
               </span>
-              <span className="shrink-0 rounded-full bg-signal px-2.5 py-1 text-[11px] font-bold text-signal-foreground">
+              <span className="shrink-0 rounded-full bg-signal px-2.5 py-1 text-xs font-bold text-signal-foreground">
                 {countdownLabel(nextFlight)}
               </span>
             </div>

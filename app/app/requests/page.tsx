@@ -132,7 +132,7 @@ export default async function RequestsPage() {
                     </p>
                   ) : null}
 
-                  <p className="mt-2 text-[11px] text-muted-foreground">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     {formatRelative(booking.createdAt, locale)}
                     {booking.handledBy ? ` · ${booking.handledBy.name}` : ""}
                   </p>
@@ -227,7 +227,7 @@ export default async function RequestsPage() {
                     </p>
                   ) : null}
 
-                  <p className="mt-2 text-[11px] text-muted-foreground">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     {formatRelative(pickup.createdAt, locale)}
                     {pickup.handledBy ? ` · ${pickup.handledBy.name}` : ""}
                   </p>

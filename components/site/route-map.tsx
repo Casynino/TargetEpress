@@ -184,11 +184,11 @@ export function RouteMap() {
                   <span className="text-white/30">→</span>
                   <span className="text-white/55">Dar</span>
                   {lane.main ? (
-                    <span className="ml-auto text-[11px] font-semibold uppercase tracking-wider text-signal">
+                    <span className="ml-auto text-xs font-semibold uppercase tracking-wider text-signal">
                       We load here
                     </span>
                   ) : (
-                    <span className="ml-auto text-[11px] uppercase tracking-wider text-white/35">
+                    <span className="ml-auto text-xs uppercase tracking-wider text-white/35">
                       Transit hub
                     </span>
                   )}
@@ -334,7 +334,7 @@ export function RouteMap() {
                       x={x}
                       y={y + lane.dy + 15}
                       textAnchor={lane.anchor}
-                      className="fill-white/40 text-[11px]"
+                      className="fill-white/40 text-xs"
                     >
                       {lane.country}
                     </text>
@@ -374,7 +374,7 @@ export function RouteMap() {
                   x={DAR[0]}
                   y={DAR[1] + 57}
                   textAnchor="middle"
-                  className="fill-gold text-[11px] font-semibold uppercase tracking-[0.14em]"
+                  className="fill-gold text-xs font-semibold uppercase tracking-[0.14em]"
                 >
                   Tanzania
                 </text>

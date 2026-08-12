@@ -124,7 +124,7 @@ export function AttentionCenter({
                     onClick={() => setActive(group)}
                     aria-pressed={active === group}
                     className={cn(
-                      "focus-ring inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors",
+                      "focus-ring inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
                       active === group
                         ? "border-brand bg-brand text-brand-foreground"
                         : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -159,17 +159,17 @@ export function AttentionCenter({
                       <span className="block truncate text-[13px] font-semibold leading-tight">
                         {item.label}
                       </span>
-                      <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">
+                      <span className="mt-0.5 block truncate text-xs leading-tight text-muted-foreground">
                         {item.detail}
                       </span>
                     </span>
                     {item.value ? (
                       <span className="shrink-0 text-right leading-tight">
-                        <span className="block font-mono text-[11px] font-semibold tabular-nums">
+                        <span className="block font-mono text-xs font-semibold tabular-nums">
                           {item.value}
                         </span>
                         {item.valueSub ? (
-                          <span className="block font-mono text-[10px] tabular-nums text-muted-foreground">
+                          <span className="block font-mono text-xs tabular-nums text-muted-foreground">
                             {item.valueSub}
                           </span>
                         ) : null}
@@ -190,7 +190,7 @@ export function AttentionCenter({
           {/* Said out loud, because a scroll area with no edge showing looks
               like the whole list. */}
           {hidden > 0 ? (
-            <p className="flex items-center justify-center gap-1.5 border-t px-4 py-1.5 text-[11px] text-muted-foreground">
+            <p className="flex items-center justify-center gap-1.5 border-t px-4 py-1.5 text-xs text-muted-foreground">
               <ChevronDown className="h-3 w-3" />
               scroll for {hidden} more
             </p>
