@@ -1,0 +1,907 @@
+<meta charset="utf-8">
+<title>Finance — Target Express Staff Training Manual</title>
+<style>
+:root{
+  --ink:#0b1220; --ink-2:#0f1729; --panel:#131e35; --navy:#182a48; --line:#26344f;
+  --signal:#d81e2a; --paid:#22a86a; --owed:#e09612; --info:#3b82f6; --draft:#7c8ba5;
+  --fg:#eef2f8; --muted:#93a0b6; --dim:#5d6c85;
+  --paper:#ffffff; --paper-ink:#101828; --paper-muted:#5a6478; --paper-line:#e3e8ef;
+  --display:"Avenir Next","Helvetica Neue","PingFang SC",sans-serif;
+  --narrow:"Avenir Next Condensed","Avenir Next","PingFang SC",sans-serif;
+  --body:"Helvetica Neue",Helvetica,"PingFang SC",sans-serif;
+  --mono:"Menlo","PingFang SC",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--paper)}
+body{color:var(--paper-ink);font-family:var(--body);
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;-webkit-font-smoothing:antialiased}
+
+@page{size:A4 portrait;margin:0}
+
+.page{position:relative;width:210mm;height:296.6mm;overflow:hidden;
+  padding:17mm 16mm 13mm;background:var(--paper);display:flex;flex-direction:column;
+  page-break-after:always;break-after:page}
+.page:last-of-type{page-break-after:auto;break-after:auto}
+
+/* --- type ---------------------------------------------------------------- */
+h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;letter-spacing:-.02em}
+h1{font-size:34pt;line-height:1.04}
+h2{font-size:19pt;line-height:1.15}
+h3{font-size:12.5pt}
+p{margin:0;font-size:10pt;line-height:1.55}
+b{font-weight:600}
+
+.bi{display:flex;flex-direction:column;gap:1.2mm}
+.bi .en{color:var(--paper-ink)}
+.bi .alt{color:var(--paper-muted);font-size:9.5pt;line-height:1.5}
+.bi .alt.missing{color:var(--signal);font-style:italic}
+.bihead .en{display:block}
+.bihead .alt{display:block;font-size:.62em;font-weight:500;color:var(--paper-muted);margin-top:1mm}
+
+.eyebrow{font-family:var(--narrow);font-size:8.5pt;font-weight:600;text-transform:uppercase;
+  letter-spacing:.2em;color:var(--signal)}
+.label{font-family:var(--narrow);font-size:7.5pt;font-weight:600;text-transform:uppercase;
+  letter-spacing:.15em;color:var(--paper-muted)}
+.rule{height:3pt;width:22mm;background:var(--signal);border-radius:2pt}
+.hair{height:1px;background:var(--paper-line)}
+
+.head{display:flex;flex-direction:column;gap:2.5mm;margin-bottom:6mm}
+.foot{margin-top:auto;padding-top:4mm;border-top:1px solid var(--paper-line);
+  display:flex;justify-content:space-between;align-items:baseline}
+.foot span{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--paper-muted)}
+
+/* --- cover --------------------------------------------------------------- */
+.cover{background:var(--ink);color:var(--fg);padding:0;justify-content:flex-end}
+.cover::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(120% 80% at 78% 12%,rgba(24,42,72,.95) 0%,rgba(11,18,32,0) 62%)}
+.cover-art{position:absolute;top:0;right:0;width:150mm;height:150mm;opacity:.5}
+.cover-inner{position:relative;padding:0 18mm 20mm;display:flex;flex-direction:column;gap:6mm}
+.cover .brand{display:flex;align-items:center;gap:3mm;margin-bottom:auto;padding-top:18mm}
+.cover .brand-name{font-family:var(--display);font-weight:600;font-size:15pt;letter-spacing:-.01em}
+.cover .brand-name span{color:var(--signal)}
+.cover .brand-sub{font-family:var(--narrow);font-size:8pt;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--muted)}
+.cover h1{font-size:42pt;color:#fff}
+.cover .dept-alt{font-family:var(--display);font-size:24pt;color:var(--muted);margin-top:-2mm}
+.cover .kicker{font-family:var(--narrow);font-size:11pt;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--signal)}
+.cover .meta{display:flex;gap:8mm;padding-top:5mm;border-top:1px solid rgba(255,255,255,.14)}
+.cover .meta div{display:flex;flex-direction:column;gap:1mm}
+.cover .meta .k{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim)}
+.cover .meta .v{font-size:10pt;color:var(--fg)}
+
+/* --- section divider ----------------------------------------------------- */
+.divider{background:var(--navy);color:#fff;justify-content:center;gap:4mm}
+.divider .num{font-family:var(--display);font-weight:600;font-size:64pt;line-height:1;
+  color:rgba(255,255,255,.18)}
+.divider h1{color:#fff;font-size:30pt}
+.divider .alt{font-size:18pt;color:rgba(255,255,255,.7);font-family:var(--display)}
+.divider p{color:rgba(255,255,255,.75);max-width:120mm;margin-top:2mm}
+
+/* --- figures: the screenshot with numbered callouts ---------------------- */
+.figure{position:relative;border:1px solid var(--paper-line);border-radius:2.5mm;
+  overflow:hidden;background:#0b1220;margin:2mm 0}
+.figure img{display:block;width:100%;height:auto}
+.figure.crop{max-height:118mm}
+.figure.crop img{object-fit:cover;object-position:top}
+.pin{position:absolute;width:6.5mm;height:6.5mm;border-radius:50%;background:var(--signal);
+  color:#fff;font-family:var(--display);font-weight:600;font-size:9.5pt;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 2pt rgba(255,255,255,.9),0 1mm 2mm rgba(0,0,0,.35);
+  transform:translate(-50%,-50%)}
+.ring{position:absolute;border:2.2pt solid var(--signal);border-radius:2mm;
+  box-shadow:0 0 0 2pt rgba(216,30,42,.18)}
+.figcap{font-size:8.5pt;color:var(--paper-muted);margin-top:1.5mm;font-style:italic}
+
+/* the numbered key under a figure */
+.keys{display:flex;flex-direction:column;gap:2mm;margin-top:3mm}
+.key{display:grid;grid-template-columns:6.5mm 1fr;gap:3mm;align-items:start}
+.key .n{width:6.5mm;height:6.5mm;border-radius:50%;background:var(--signal);color:#fff;
+  font-family:var(--display);font-weight:600;font-size:9pt;display:flex;
+  align-items:center;justify-content:center}
+.key .body .t{font-weight:600;font-size:10pt}
+.key .body .t .alt{font-weight:500;color:var(--paper-muted)}
+.key .body p{font-size:9.5pt}
+
+/* --- callouts ------------------------------------------------------------ */
+.callout{display:grid;grid-template-columns:7mm 1fr;gap:3.5mm;padding:4mm;border-radius:2.5mm;
+  background:#f7f9fc;border:1px solid var(--paper-line);border-left:2.5pt solid var(--info)}
+.callout.warn{border-left-color:var(--owed);background:#fffaf0}
+.callout.stop{border-left-color:var(--signal);background:#fff5f5}
+.callout.tip{border-left-color:var(--paid);background:#f2fbf6}
+.callout .ico{font-family:var(--display);font-weight:600;font-size:13pt;color:var(--info);text-align:center}
+.callout.warn .ico{color:var(--owed)} .callout.stop .ico{color:var(--signal)} .callout.tip .ico{color:var(--paid)}
+.callout .k{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--paper-muted);margin-bottom:1mm}
+
+/* --- cards & tables ------------------------------------------------------ */
+.cards{display:grid;gap:4mm}
+.cards.two{grid-template-columns:1fr 1fr}
+.cards.three{grid-template-columns:repeat(3,1fr)}
+.card{padding:4.5mm;border-radius:2.5mm;background:#f7f9fc;border:1px solid var(--paper-line);
+  display:flex;flex-direction:column;gap:2mm}
+.card .label{color:var(--signal)}
+
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:2.8mm 3mm;border-bottom:1px solid var(--paper-line);
+  vertical-align:top;font-size:9.5pt}
+th{font-family:var(--narrow);font-size:7.5pt;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--paper-muted);background:#f7f9fc}
+td.k{font-weight:600;width:46mm}
+td .alt{display:block;color:var(--paper-muted);font-size:9pt}
+tr:last-child td{border-bottom:0}
+
+/* --- the workflow spine -------------------------------------------------- */
+.flow{display:flex;flex-direction:column;gap:0;flex:1;justify-content:center}
+.flow-step{display:grid;grid-template-columns:9mm 1fr;gap:0 4mm}
+.flow-rail{position:relative;display:flex;justify-content:center}
+.flow-rail::before{content:"";position:absolute;top:0;bottom:0;width:2pt;background:var(--seg,var(--paper-line))}
+.flow-step:last-child .flow-rail::before{bottom:auto;height:4.5mm}
+.flow-dot{position:relative;z-index:1;width:9mm;height:9mm;border-radius:50%;
+  background:#fff;border:2pt solid var(--seg,var(--paper-line));display:flex;
+  align-items:center;justify-content:center;font-family:var(--display);font-weight:600;font-size:9.5pt}
+.flow-body{padding:0 0 5mm 0}
+.flow-body .who{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--paper-muted)}
+.flow-body .what{font-weight:600;font-size:10.5pt;margin-top:.6mm}
+.flow-body .what .alt{font-weight:500;color:var(--paper-muted)}
+.flow-body p{font-size:9pt;color:var(--paper-muted);margin-top:.8mm}
+
+/* --- worked example ------------------------------------------------------ */
+.example-hd{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:4mm}
+.example-hd div{padding:3mm;border-radius:2mm;background:var(--ink);color:var(--fg)}
+.example-hd .k{font-family:var(--narrow);font-size:7pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted)}
+.example-hd .v{font-family:var(--mono);font-size:10.5pt;margin-top:1mm}
+
+.contents{display:flex;flex-direction:column;gap:0}
+.toc-row{display:grid;grid-template-columns:9mm 1fr auto;gap:3mm;padding:2.6mm 0;
+  border-bottom:1px solid var(--paper-line);align-items:baseline}
+.toc-row .n{font-family:var(--display);font-weight:600;color:var(--signal)}
+.toc-row .t{font-weight:600;font-size:10.5pt}
+.toc-row .t .alt{font-weight:500;color:var(--paper-muted)}
+.toc-row .pg{font-family:var(--mono);font-size:9pt;color:var(--paper-muted)}
+</style>
+<section class="page cover">
+  <svg class="cover-art" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="230" cy="150" r="120" stroke="#26344f" stroke-width="1"/>
+  <circle cx="230" cy="150" r="88" stroke="#26344f" stroke-width="1"/>
+  <circle cx="230" cy="150" r="56" stroke="#26344f" stroke-width="1"/>
+  <ellipse cx="230" cy="150" rx="120" ry="44" stroke="#26344f" stroke-width="1"/>
+  <ellipse cx="230" cy="150" rx="120" ry="86" stroke="#26344f" stroke-width="1"/>
+  <path d="M110 250 C170 205, 250 150, 350 92" stroke="#d81e2a" stroke-width="2"
+        stroke-linecap="round" stroke-dasharray="5 7"/>
+  <circle cx="110" cy="250" r="4.5" fill="#d81e2a"/>
+  <path d="M336 84 l22 8 -18 14 -2 -10 -12 -4z" fill="#d81e2a"/>
+</svg>
+  <div class="cover-inner">
+    <div class="brand">
+      <div>
+        <div class="brand-name"><span>Target</span> Express</div>
+        <div class="brand-sub">Air Cargo · China to Tanzania</div>
+      </div>
+    </div>
+    <div class="kicker">Staff Training Manual</div>
+    <h1>Finance</h1>
+    <div class="dept-alt">Fedha</div>
+    <div class="meta">
+      <div><span class="k">Version</span><span class="v">1.0</span></div>
+      <div><span class="k">Languages</span><span class="v">English · Kiswahili</span></div>
+      <div><span class="k">For</span><span class="v">Finance desk</span></div>
+      <div><span class="k">Issued</span><span class="v">August 2026</span></div>
+    </div>
+  </div>
+</section>
+<section class="page">
+  <div class="head"><div class="rule"></div>
+    <h2 class="bihead">
+    <span class="en">Contents</span>
+    <span class="alt">Yaliyomo</span>
+  </h2>
+  </div>
+  <div class="contents">
+    <div class="toc-row">
+      <span class="n">01</span>
+      <span class="t">Welcome to the money desk <span class="alt">Karibu kwenye kitengo cha fedha</span></span>
+      <span class="pg">03</span>
+    </div><div class="toc-row">
+      <span class="n">02</span>
+      <span class="t">Signing in <span class="alt">Kuingia kwenye mfumo</span></span>
+      <span class="pg">05</span>
+    </div><div class="toc-row">
+      <span class="n">03</span>
+      <span class="t">Your home screen <span class="alt">Ukurasa wako wa mwanzo</span></span>
+      <span class="pg">07</span>
+    </div><div class="toc-row">
+      <span class="n">04</span>
+      <span class="t">The sidebar, menu by menu <span class="alt">Menyu ya kando, moja baada ya nyingine</span></span>
+      <span class="pg">09</span>
+    </div><div class="toc-row">
+      <span class="n">05</span>
+      <span class="t">Every screen in detail <span class="alt">Kila ukurasa kwa kina</span></span>
+      <span class="pg">11</span>
+    </div><div class="toc-row">
+      <span class="n">06</span>
+      <span class="t">The complete journey <span class="alt">Safari kamili</span></span>
+      <span class="pg">17</span>
+    </div><div class="toc-row">
+      <span class="n">07</span>
+      <span class="t">A worked example <span class="alt">Mfano wa vitendo</span></span>
+      <span class="pg">19</span>
+    </div><div class="toc-row">
+      <span class="n">08</span>
+      <span class="t">When things go wrong <span class="alt">Mambo yanapoharibika</span></span>
+      <span class="pg">21</span>
+    </div><div class="toc-row">
+      <span class="n">09</span>
+      <span class="t">Working well <span class="alt">Kufanya kazi vizuri</span></span>
+      <span class="pg">23</span>
+    </div><div class="toc-row">
+      <span class="n">10</span>
+      <span class="t">Questions people ask <span class="alt">Maswali yanayoulizwa</span></span>
+      <span class="pg">25</span>
+    </div><div class="toc-row">
+      <span class="n">11</span>
+      <span class="t">Summary <span class="alt">Muhtasari</span></span>
+      <span class="pg">27</span>
+    </div>
+  </div>
+  <div class="foot"><span>Finance</span><span>Contents</span></div>
+</section>
+<section class="page divider">
+  <div class="num">01</div>
+  <h1>Welcome to the money desk</h1>
+  <div class="alt">Karibu kwenye kitengo cha fedha</div>
+  <p>Everything this business is owed passes through your screen, and no cargo leaves the warehouse until you say it has been paid for.</p>
+  <p>Kila deni la kampuni hii linapita kwenye skrini yako, na hakuna mzigo unaotoka ghalani hadi useme umelipiwa.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Mission</div>
+    <h2 class="bihead">
+    <span class="en">Two things only you can do</span>
+    <span class="alt">Mambo mawili unayoweza wewe pekee</span>
+  </h2>
+  </div>
+  <div class="cards two"><div class="card">
+          <span class="label">Authority one</span>
+          <h3>Say that money has arrived</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Kuthibitisha kuwa pesa imefika</h3>
+          <div class="bi ">
+    <p class="en">Customer Care can take a customer's word and upload their proof. They cannot mark it received. Until Finance agrees, the money does not exist as far as this system is concerned.</p>
+    <p class="alt">Huduma kwa Wateja wanaweza kupokea maelezo ya mteja na kupakia ushahidi wake. Hawawezi kuthibitisha kuwa imepokelewa. Hadi Fedha wakubali, pesa hiyo haipo kwa mujibu wa mfumo huu.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Authority two</span>
+          <h3>Free cargo from the warehouse</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Kuruhusu mzigo kutoka ghalani</h3>
+          <div class="bi ">
+    <p class="en">The counter cannot hand over boxes without a pickup note, and only Finance can issue one. When you issue it, cargo moves. When you do not, it stays.</p>
+    <p class="alt">Kaunta haiwezi kukabidhi mizigo bila hati ya kuchukua, na ni Fedha pekee wanaoweza kuitoa. Ukiitoa, mzigo unatoka. Usipoitoa, unabaki.</p>
+  </div>
+        </div></div>
+<div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">Tip</div>
+      <div class="bi ">
+    <p class="en"><b>Everything else on your menu exists to explain a number after somebody asks about it.</b> Accounts, the ledger, expenses and reports are not daily work — they are where you go when the CEO asks where a figure came from.</p>
+    <p class="alt"><b>Kila kitu kingine kwenye menyu yako kipo ili kueleza takwimu baada ya mtu kuuliza.</b> Akaunti, daftari, matumizi na ripoti si kazi ya kila siku — ni pale unapoenda Mkurugenzi anapouliza takwimu imetoka wapi.</p>
+  </div>
+    </div>
+  </div>
+<table><tr><th>Your day</th><th>What it means</th></tr>
+        <tr><td class="k">Read Home<span class="alt">Soma ukurasa wa mwanzo</span></td><td class="">The system has already written your to-do list.<span class="alt">Mfumo tayari umeandika orodha yako ya kazi.</span></td></tr><tr><td class="k">Confirm the price<span class="alt">Thibitisha bei</span></td><td class="">Turn the system's draft figure into a real bill.<span class="alt">Geuza takwimu ya rasimu kuwa ankara halisi.</span></td></tr><tr><td class="k">Verify payments<span class="alt">Thibitisha malipo</span></td><td class="">Check what Customer Care says it collected, against the proof.<span class="alt">Kagua walichosema Huduma kwa Wateja wamekusanya, dhidi ya ushahidi.</span></td></tr><tr><td class="k">Record payments<span class="alt">Andika malipo</span></td><td class="">Money paid straight to you, always into a named account.<span class="alt">Pesa iliyolipwa moja kwa moja kwako, daima kwenye akaunti iliyotajwa.</span></td></tr><tr><td class="k">Issue the pickup note<span class="alt">Toa hati ya kuchukua</span></td><td class="">The warehouse's authority to hand the cargo over.<span class="alt">Kibali cha ghala kukabidhi mzigo.</span></td></tr><tr><td class="k">Chase what is owed<span class="alt">Fuatilia madeni</span></td><td class="">Work down Collections, oldest debt first.<span class="alt">Fanyia kazi Ukusanyaji, ukianza na deni kongwe.</span></td></tr></table>
+  <div class="foot"><span>Two things only you can do</span><span>04</span></div>
+</section>
+<section class="page divider">
+  <div class="num">02</div>
+  <h1>Signing in</h1>
+  <div class="alt">Kuingia kwenye mfumo</div>
+  <p>One address, one account.</p>
+  <p>Anwani moja, akaunti moja.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Step 1</div>
+    <h2 class="bihead">
+    <span class="en">The login screen</span>
+    <span class="alt">Ukurasa wa kuingia</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">target-epress.vercel.app</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Type your work email and password. You land on the Finance home screen — the money, right now, and what needs you today.</p>
+    <p class="alt">Andika barua pepe yako ya kazi na nenosiri. Utafika kwenye ukurasa wa Fedha — hali ya pesa kwa sasa, na kinachohitaji uangalizi wako leo.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/finance/login.png" alt="">
+    <div class="pin" style="left:50%;top:44%">1</div><div class="pin" style="left:50%;top:57%">2</div><div class="pin" style="left:50%;top:70%">3</div>
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">Email <span class="alt">Barua pepe</span></div>
+        <div class="bi ">
+    <p class="en">e.g. finance@targetexpress.co.tz</p>
+    <p class="alt">mfano finance@targetexpress.co.tz</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Password <span class="alt">Nenosiri</span></div>
+        <div class="bi ">
+    <p class="en">Change it from Profile once you are in.</p>
+    <p class="alt">Ibadilishe kwenye Wasifu baada ya kuingia.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Sign in <span class="alt">Ingia</span></div>
+        <div class="bi ">
+    <p class="en">Straight to the Finance home.</p>
+    <p class="alt">Moja kwa moja hadi ukurasa wa Fedha.</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Never do this</div>
+      <div class="bi ">
+    <p class="en">Never share this account. It is the only one in the company that can say money arrived, and every verification carries your name permanently.</p>
+    <p class="alt">Usishirikishe akaunti hii kamwe. Ndiyo pekee kampuni nzima inayoweza kuthibitisha pesa imefika, na kila uthibitisho hubeba jina lako milele.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>The login screen</span><span>06</span></div>
+</section>
+<section class="page divider">
+  <div class="num">03</div>
+  <h1>Your home screen</h1>
+  <div class="alt">Ukurasa wako wa mwanzo</div>
+  <p>The money, right now.</p>
+  <p>Hali ya pesa, kwa sasa.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Dashboard</div>
+    <h2 class="bihead">
+    <span class="en">Home, section by section</span>
+    <span class="alt">Ukurasa wa mwanzo, sehemu kwa sehemu</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/dashboard</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Your to-do list, written by the system rather than by you. Prices waiting to be confirmed, payments waiting to be checked, cargo that has sat too long. If this panel is empty, the desk is clear.</p>
+    <p class="alt">Orodha yako ya kazi, imeandikwa na mfumo siyo na wewe. Bei zinazosubiri kuthibitishwa, malipo yanayosubiri kukaguliwa, mizigo iliyokaa muda mrefu. Paneli hii ikiwa tupu, kazi imekwisha.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/finance/home-hero.png" alt="">
+    <div class="pin" style="left:55%;top:16%">1</div><div class="pin" style="left:55%;top:30%">2</div><div class="pin" style="left:60%;top:58%">3</div><div class="pin" style="left:10%;top:40%">4</div>
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">The greeting banner <span class="alt">Kichwa cha ukurasa</span></div>
+        <div class="bi ">
+    <p class="en">Your name and the Finance badge.</p>
+    <p class="alt">Jina lako na alama ya kitengo cha Fedha.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">The money, right now <span class="alt">Hali ya pesa kwa sasa</span></div>
+        <div class="bi ">
+    <p class="en">Owed to us, and collected today. Shillings lead; the dollar figure is what the invoice says.</p>
+    <p class="alt">Tunachodai, na kilichokusanywa leo. Shilingi zinaongoza; kiasi cha dola ndicho kilicho kwenye ankara.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Needs your attention <span class="alt">Yanayohitaji uangalizi wako</span></div>
+        <div class="bi ">
+    <p class="en">Ordered by what costs the business most. Work it from the top.</p>
+    <p class="alt">Yamepangwa kwa hasara kubwa kwa kampuni. Anza kutoka juu.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">4</div>
+      <div class="body">
+        <div class="t">The sidebar <span class="alt">Menyu ya kando</span></div>
+        <div class="bi ">
+    <p class="en">Everything you can reach, grouped by the kind of work.</p>
+    <p class="alt">Kila ukurasa unaoweza kufikia, umepangwa kwa aina ya kazi.</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout warn">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Careful</div>
+      <div class="bi ">
+    <p class="en">Finance sees the money, not the boxes. A warehouse hand signing in at the same moment sees cargo and <b>no figures at all</b>.</p>
+    <p class="alt">Fedha wanaona pesa, siyo mizigo. Mfanyakazi wa ghala anayeingia wakati huo huo anaona mizigo na <b>hakuna takwimu za pesa kabisa</b>.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Home, section by section</span><span>08</span></div>
+</section>
+<section class="page divider">
+  <div class="num">04</div>
+  <h1>The sidebar, menu by menu</h1>
+  <div class="alt">Menyu ya kando, moja baada ya nyingine</div>
+  <p>Where everything lives.</p>
+  <p>Kila kitu kilipo.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Navigation</div>
+    <h2 class="bihead">
+    <span class="en">Every menu explained</span>
+    <span class="alt">Kila menyu imeelezwa</span>
+  </h2>
+  </div>
+  <table><tr><th>Menu</th><th>What it is, and when to use it</th></tr>
+        <tr><td class="k">General ledger<span class="alt">/app/finance</span></td><td class="">What the business is holding, what is owed to it, and what has moved.<span class="alt">Kampuni inashikilia nini, inadai nini, na nini kimehama.</span></td></tr><tr><td class="k">Verify payments<span class="alt">/app/finance/verify</span></td><td class="">Claims Customer Care has collected. Nothing settles until you agree.<span class="alt">Madai ya Huduma kwa Wateja kuwa wamekusanya. Hakuna kinachokamilika hadi ukubali.</span></td></tr><tr><td class="k">Payments<span class="alt">/app/finance/payments</span></td><td class="">Money in from customers, with the receipt issued for it.<span class="alt">Pesa zilizoingia kutoka kwa wateja, pamoja na risiti iliyotolewa.</span></td></tr><tr><td class="k">Pickup notes<span class="alt">/app/finance/pickup-notes</span></td><td class="">The warehouse's authority to hand cargo over. You issue; everyone else prints.<span class="alt">Kibali cha ghala kukabidhi mzigo. Wewe unatoa; wengine wanachapisha tu.</span></td></tr><tr><td class="k">Collections<span class="alt">/app/collections</span></td><td class="">What customers owe and who to ring, oldest first.<span class="alt">Wateja wanadaiwa nini na nani wa kupigiwa, wakianza wa zamani.</span></td></tr><tr><td class="k">Accounts<span class="alt">/app/finance/accounts</span></td><td class="">Where the company's money sits. Every figure derived, nothing typed.<span class="alt">Pesa za kampuni zilipo. Kila takwimu imehesabiwa, hakuna iliyoandikwa kwa mkono.</span></td></tr><tr><td class="k">The Ledger<span class="alt">/app/finance/transactions</span></td><td class="">Every movement of money, with a running balance.<span class="alt">Kila mwendo wa pesa, pamoja na salio linaloendelea.</span></td></tr><tr><td class="k">Expenses<span class="alt">/app/finance/expenses</span></td><td class="">What the business spends, and what it has already paid.<span class="alt">Kampuni inatumia nini, na imeshalipa nini.</span></td></tr><tr><td class="k">Pricing<span class="alt">/app/finance/pricing</span></td><td class="">The rate book. Change a figure here and the whole system follows.<span class="alt">Kitabu cha bei. Badilisha takwimu hapa na mfumo mzima unafuata.</span></td></tr><tr><td class="k">Audit<span class="alt">/app/finance/audit</span></td><td class="">Every money action, who did it and when. Append-only.<span class="alt">Kila kitendo cha pesa, nani alifanya na lini. Haiwezi kufutwa.</span></td></tr></table>
+  <div class="foot"><span>Every menu explained</span><span>10</span></div>
+</section>
+<section class="page divider">
+  <div class="num">05</div>
+  <h1>Every screen in detail</h1>
+  <div class="alt">Kila ukurasa kwa kina</div>
+  <p>The picture, every control, and why it is there.</p>
+  <p>Picha, kila kitufe, na sababu ya kuwepo kwake.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Nothing settles without you</div>
+    <h2 class="bihead">
+    <span class="en">Verify payments — the load-bearing screen</span>
+    <span class="alt">Thibitisha malipo — ukurasa muhimu zaidi</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/finance/verify</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Claims Customer Care has collected from customers. Open the claim, check the proof against the account the money should have landed in, then Verify or Reject. Rejecting sends it back with your reason; it does not delete anything.</p>
+    <p class="alt">Madai ya Huduma kwa Wateja kuwa wamekusanya kutoka kwa wateja. Fungua dai, kagua ushahidi dhidi ya akaunti pesa ilipopaswa kuingia, kisha Thibitisha au Kataa. Kukataa kunarudisha dai pamoja na sababu yako; hakuna kinachofutwa.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/finance/verify-payments-hero.png" alt="">
+    
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">The claimed amount <span class="alt">Kiasi kinachodaiwa</span></div>
+        <div class="bi ">
+    <p class="en">What the customer says they sent.</p>
+    <p class="alt">Kiasi mteja anachosema alituma.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Into which account <span class="alt">Kwenye akaunti gani</span></div>
+        <div class="bi ">
+    <p class="en">The account the money should have landed in. This is the field that matters most.</p>
+    <p class="alt">Akaunti pesa ilipopaswa kuingia. Hii ndiyo sehemu muhimu zaidi.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">The proof <span class="alt">Ushahidi</span></div>
+        <div class="bi ">
+    <p class="en">The screenshot or slip the customer sent. Open it — do not verify from the amount alone.</p>
+    <p class="alt">Picha au risiti mteja aliyotuma. Ifungue — usithibitishe kwa kuangalia kiasi pekee.</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Never do this</div>
+      <div class="bi ">
+    <p class="en"><b>Match the proof to the account.</b> A screenshot showing the right figure paid into the wrong account is the most common way money goes missing.</p>
+    <p class="alt"><b>Linganisha ushahidi na akaunti.</b> Picha inayoonyesha kiasi sahihi lakini kilipwa akaunti isiyo sahihi ndiyo njia ya kawaida pesa inavyopotea.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Verify payments — the load-bearing screen</span><span>12</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Cargo moves when you say so</div>
+    <h2 class="bihead">
+    <span class="en">Pickup notes — the most important thing you do</span>
+    <span class="alt">Hati za kuchukua — kazi yako muhimu zaidi</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/finance/pickup-notes</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Until the note exists, the counter physically cannot release the boxes — it scans the carton and the screen refuses. Issue it the moment an invoice settles.</p>
+    <p class="alt">Hadi hati itakapokuwepo, kaunta haiwezi kabisa kukabidhi mizigo — inaskani boksi na skrini inakataa. Itoe mara tu ankara inapolipwa.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/finance/pickup-notes-hero.png" alt="">
+    
+  </div>
+  
+  
+  <div class="callout warn">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Careful</div>
+      <div class="bi ">
+    <p class="en">A customer standing at the counter with money already paid, waiting on a note nobody issued, is the one failure they will remember.</p>
+    <p class="alt">Mteja aliyesimama kaunta akiwa amelipa, akisubiri hati ambayo hakuna aliyeitoa — hilo ndilo kosa atakalolikumbuka.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Pickup notes — the most important thing you do</span><span>13</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Oldest first</div>
+    <h2 class="bihead">
+    <span class="en">Collections — chasing what is owed</span>
+    <span class="alt">Ukusanyaji — kufuatilia madeni</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/collections</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Everything unpaid, oldest first, with a phone number beside it. The oldest debt is the one least likely to ever be collected, so work down from the top.</p>
+    <p class="alt">Kila kisicholipwa, kikianza cha zamani, na namba ya simu kando yake. Deni kongwe ndilo lenye nafasi ndogo zaidi ya kukusanywa, hivyo anza kutoka juu.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/finance/collections-hero.png" alt="">
+    
+  </div>
+  
+  
+  <div class="callout warn">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Careful</div>
+      <div class="bi ">
+    <p class="en">Cargo under investigation appears here too. <b>Do not chase payment on a consignment the warehouse is still looking for</b> — check Issues &amp; Claims first.</p>
+    <p class="alt">Mizigo iliyo kwenye uchunguzi pia inaonekana hapa. <b>Usifuatilie malipo ya mzigo ambao ghala bado wanautafuta</b> — kagua Matatizo na Madai kwanza.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Collections — chasing what is owed</span><span>14</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Where the money sits</div>
+    <h2 class="bihead">
+    <span class="en">Accounts &amp; the Ledger</span>
+    <span class="alt">Akaunti na Daftari</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/finance/accounts · /app/finance/transactions</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Accounts shows where the company's money sits; the Ledger shows every movement with a running balance. Every figure is derived from recorded movements — <b>nothing here is typed</b>, so the books cannot quietly drift away from the record.</p>
+    <p class="alt">Akaunti inaonyesha pesa za kampuni zilipo; Daftari linaonyesha kila mwendo pamoja na salio linaloendelea. Kila takwimu imehesabiwa kutoka miamala iliyorekodiwa — <b>hakuna iliyoandikwa kwa mkono</b>, hivyo vitabu haviwezi kutofautiana kimyakimya na kumbukumbu.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/finance/accounts-hero.png" alt="">
+    
+  </div>
+  
+  
+  
+  <div class="foot"><span>Accounts &amp; the Ledger</span><span>15</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">The rate book, and the record</div>
+    <h2 class="bihead">
+    <span class="en">Pricing &amp; Audit</span>
+    <span class="alt">Bei na Ukaguzi</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/finance/pricing · /app/finance/audit</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Every figure this business quotes comes from the Pricing page. Change it there and cargo, invoices, tracking and reports all follow. Audit is every money action on the system, append-only — nothing here can be edited or removed, including by the CEO.</p>
+    <p class="alt">Kila kiasi kampuni inachotaja kinatoka ukurasa wa Bei. Kibadilishe hapo na mizigo, ankara, ufuatiliaji na ripoti vyote vinafuata. Ukaguzi ni kila kitendo cha pesa kwenye mfumo, na huongezwa tu — hakuna kinachoweza kuhaririwa au kufutwa, hata na Mkurugenzi.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/finance/pricing-hero.png" alt="">
+    
+  </div>
+  
+  
+  <div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">Tip</div>
+      <div class="bi ">
+    <p class="en">The rate book carries a <b>1 kg minimum billable weight</b>. Anything lighter is charged as a kilo, and the quote tells the customer exactly that.</p>
+    <p class="alt">Kitabu cha bei kina <b>uzito wa chini wa kutozwa wa kilo 1</b>. Chochote chepesi zaidi hutozwa kama kilo moja, na nukuu inamweleza mteja hivyo hasa.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Pricing &amp; Audit</span><span>16</span></div>
+</section>
+<section class="page divider">
+  <div class="num">06</div>
+  <h1>The complete journey</h1>
+  <div class="alt">Safari kamili</div>
+  <p>Where your part sits in the whole chain.</p>
+  <p>Sehemu yako iko wapi kwenye mnyororo mzima.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">End to end</div>
+    <h2 class="bihead">
+    <span class="en">Fifteen steps, five departments</span>
+    <span class="alt">Hatua kumi na tano, vitengo vitano</span>
+  </h2>
+  </div>
+  <div class="flow"><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">1</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou</div>
+            <div class="what">Cargo registered and labelled <span class="alt">Mzigo unasajiliwa na kuwekewa lebo</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">2</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou</div>
+            <div class="what">Sealed and flown <span class="alt">Kundi linafungwa na kusafirishwa</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">3</div></div>
+          <div class="flow-body">
+            <div class="who">Dar floor</div>
+            <div class="what">Checked in against the manifest <span class="alt">Unakaguliwa kwa orodha ya mizigo</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">4</div></div>
+          <div class="flow-body">
+            <div class="who">System</div>
+            <div class="what">Priced automatically as a DRAFT <span class="alt">Unapangiwa bei kiotomatiki kama RASIMU</span></div>
+            <p>A draft owes nobody anything.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">5</div></div>
+          <div class="flow-body">
+            <div class="who">You</div>
+            <div class="what">Confirm the price <span class="alt">Thibitisha bei</span></div>
+            <p>Recalculates storage days and today's rate. Now it is a bill.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">6</div></div>
+          <div class="flow-body">
+            <div class="who">Customer Care</div>
+            <div class="what">Ring the customer <span class="alt">Mpigie mteja simu</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">7</div></div>
+          <div class="flow-body">
+            <div class="who">Customer</div>
+            <div class="what">Pays <span class="alt">Analipa</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">8</div></div>
+          <div class="flow-body">
+            <div class="who">Customer Care</div>
+            <div class="what">Submit the claim with proof <span class="alt">Wasilisha dai pamoja na ushahidi</span></div>
+            <p>A claim is not money.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--paid)">
+          <div class="flow-rail"><div class="flow-dot">9</div></div>
+          <div class="flow-body">
+            <div class="who">You</div>
+            <div class="what">Verify the payment <span class="alt">Thibitisha malipo</span></div>
+            <p>Receipt numbered, ledger posted.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--paid)">
+          <div class="flow-rail"><div class="flow-dot">10</div></div>
+          <div class="flow-body">
+            <div class="who">You</div>
+            <div class="what">Issue the pickup note <span class="alt">Toa hati ya kuchukua</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--paid)">
+          <div class="flow-rail"><div class="flow-dot">11</div></div>
+          <div class="flow-body">
+            <div class="who">Dar floor</div>
+            <div class="what">Scan · photograph · hand over <span class="alt">Skani · piga picha · kabidhi</span></div>
+            
+          </div>
+        </div></div>
+  <div class="foot"><span>Fifteen steps, five departments</span><span>18</span></div>
+</section>
+<section class="page divider">
+  <div class="num">07</div>
+  <h1>A worked example</h1>
+  <div class="alt">Mfano wa vitendo</div>
+  <p>One bill, from draft to collected.</p>
+  <p>Ankara moja, kutoka rasimu hadi kukusanywa.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Follow the money</div>
+    <h2 class="bihead">
+    <span class="en">TX-000042 · shoes for John Peter</span>
+    <span class="alt">TX-000042 · viatu vya John Peter</span>
+  </h2>
+  </div>
+  <div class="example-hd"><div><div class="k">Customer</div><div class="v">John Peter</div></div><div><div class="k">Tracking</div><div class="v">TX-000042</div></div><div><div class="k">Weight</div><div class="v">3.6 kg</div></div><div><div class="k">Freight</div><div class="v">USD 48.60</div></div></div>
+<table><tr><th>Stage</th><th>What you do</th></tr>
+        <tr><td class="k">Draft appears<span class="alt">Rasimu inatokea</span></td><td class="">Dar checks the cargo in. The system prices it: 3.6 kg × USD 13.50 = USD 48.60, as a DRAFT.<span class="alt">Dar wanakagua mzigo. Mfumo unapanga bei: kilo 3.6 × USD 13.50 = USD 48.60, kama RASIMU.</span></td></tr><tr><td class="k">You confirm<span class="alt">Unathibitisha</span></td><td class="">You press Confirm. Storage days are counted to today and the rate frozen. It becomes invoice INV-2026-000042, UNPAID.<span class="alt">Unabonyeza Thibitisha. Siku za uhifadhi zinahesabiwa hadi leo na kiwango kinagandishwa. Inakuwa ankara INV-2026-000042, HAIJALIPWA.</span></td></tr><tr><td class="k">Customer pays<span class="alt">Mteja analipa</span></td><td class="">John sends USD 48.60 by M-Pesa. Customer Care submits the claim with his screenshot.<span class="alt">John anatuma USD 48.60 kwa M-Pesa. Huduma kwa Wateja wanawasilisha dai pamoja na picha yake.</span></td></tr><tr><td class="k">You verify<span class="alt">Unathibitisha</span></td><td class="">You open the proof, match it to the M-Pesa account, and press Verify. A receipt is numbered and the ledger is posted.<span class="alt">Unafungua ushahidi, unaulinganisha na akaunti ya M-Pesa, na kubonyeza Thibitisha. Risiti inapewa namba na daftari linaandikwa.</span></td></tr><tr><td class="k">You issue the note<span class="alt">Unatoa hati</span></td><td class="">The bill is settled, so you issue PN-2026-000042. The cargo flips to Ready for pickup.<span class="alt">Ankara imelipwa, hivyo unatoa PN-2026-000042. Mzigo unakuwa Tayari kuchukuliwa.</span></td></tr><tr><td class="k">Collected<span class="alt">Umechukuliwa</span></td><td class="">John collects. Your part is done, and every step above is on the audit log with your name.<span class="alt">John anachukua. Kazi yako imekwisha, na kila hatua iko kwenye daftari la ukaguzi na jina lako.</span></td></tr></table>
+  <div class="foot"><span>TX-000042 · shoes for John Peter</span><span>20</span></div>
+</section>
+<section class="page divider">
+  <div class="num">08</div>
+  <h1>When things go wrong</h1>
+  <div class="alt">Mambo yanapoharibika</div>
+  <p>The mistakes that actually happen here.</p>
+  <p>Makosa yanayotokea hapa kweli.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Fix it this way</div>
+    <h2 class="bihead">
+    <span class="en">Common mistakes</span>
+    <span class="alt">Makosa ya kawaida</span>
+  </h2>
+  </div>
+  <table><tr><th>The mistake</th><th>What it causes</th><th>What to do</th></tr>
+        <tr><td class="k">Leaving prices as drafts for weeks<span class="alt">Kuacha bei kama rasimu kwa wiki</span></td><td class="">Storage days keep counting, so the customer is billed for a delay that was yours.<span class="alt">Siku za uhifadhi zinaendelea kuhesabiwa, hivyo mteja anatozwa kwa ucheleweshaji wako.</span></td><td class="">Confirm the batch the day it lands.<span class="alt">Thibitisha kundi siku linapofika.</span></td></tr><tr><td class="k">Verifying from the amount alone<span class="alt">Kuthibitisha kwa kuangalia kiasi pekee</span></td><td class="">Money credited against an account it never reached.<span class="alt">Pesa inahesabiwa kwenye akaunti ambayo haikuifikia.</span></td><td class="">Open the proof and match the receiving account.<span class="alt">Fungua ushahidi na ulinganishe akaunti iliyopokea.</span></td></tr><tr><td class="k">Forgetting to issue the pickup note<span class="alt">Kusahau kutoa hati ya kuchukua</span></td><td class="">A customer who has paid is turned away at the counter.<span class="alt">Mteja aliyelipa anarudishwa kaunta.</span></td><td class="">Issue it the moment the invoice settles.<span class="alt">Itoe mara tu ankara inapolipwa.</span></td></tr><tr><td class="k">Recording a payment without naming the account<span class="alt">Kuandika malipo bila kutaja akaunti</span></td><td class="">A figure no bank statement will ever match.<span class="alt">Takwimu ambayo hakuna taarifa ya benki itakayolingana nayo.</span></td><td class="">Always pick the receiving account.<span class="alt">Daima chagua akaunti iliyopokea.</span></td></tr><tr><td class="k">Chasing a customer whose cargo is under investigation<span class="alt">Kufuatilia mteja ambaye mzigo wake uko kwenye uchunguzi</span></td><td class="">You demand money for a box the warehouse cannot find.<span class="alt">Unadai pesa kwa boksi ambalo ghala haliwezi kulipata.</span></td><td class="">Check Issues &amp; Claims before ringing.<span class="alt">Kagua Matatizo na Madai kabla ya kupiga simu.</span></td></tr></table>
+  <div class="foot"><span>Common mistakes</span><span>22</span></div>
+</section>
+<section class="page divider">
+  <div class="num">09</div>
+  <h1>Working well</h1>
+  <div class="alt">Kufanya kazi vizuri</div>
+  <p>Habits that keep the books honest.</p>
+  <p>Tabia zinazoweka vitabu vikiwa sahihi.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Do it this way</div>
+    <h2 class="bihead">
+    <span class="en">Best practice</span>
+    <span class="alt">Mbinu bora</span>
+  </h2>
+  </div>
+  <div class="cards two"><div class="card">
+          <span class="label">Drafts</span>
+          <h3>Confirm the day it lands</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Thibitisha siku inapofika</h3>
+          <div class="bi ">
+    <p class="en">Confirming recalculates storage. A bill confirmed three weeks late charges three weeks of storage.</p>
+    <p class="alt">Kuthibitisha kunahesabu upya uhifadhi. Ankara iliyothibitishwa wiki tatu baadaye inatoza uhifadhi wa wiki tatu.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Proof</span>
+          <h3>Open every attachment</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Fungua kila kiambatisho</h3>
+          <div class="bi ">
+    <p class="en">The account matters more than the amount.</p>
+    <p class="alt">Akaunti ni muhimu zaidi kuliko kiasi.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Notes</span>
+          <h3>Issue the moment it settles</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Toa mara tu inapolipwa</h3>
+          <div class="bi ">
+    <p class="en">The customer may already be on their way to the counter.</p>
+    <p class="alt">Mteja anaweza kuwa tayari yuko njiani kuelekea kaunta.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Accounts</span>
+          <h3>Always name where it landed</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Daima taja pesa ilipoingia</h3>
+          <div class="bi ">
+    <p class="en">Every figure on Accounts is derived from these entries.</p>
+    <p class="alt">Kila takwimu kwenye Akaunti inatokana na maandishi haya.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Chasing</span>
+          <h3>Oldest first, always</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Kongwe kwanza, daima</h3>
+          <div class="bi ">
+    <p class="en">The oldest debt is the least likely to be collected.</p>
+    <p class="alt">Deni kongwe ndilo lenye nafasi ndogo ya kukusanywa.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Refusals</span>
+          <h3>A refusal is a warning</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Kukataliwa ni onyo</h3>
+          <div class="bi ">
+    <p class="en">If the system stops you, the numbers disagree. Do not look for a way around it.</p>
+    <p class="alt">Mfumo ukikuzuia, takwimu hazikubaliani. Usitafute njia ya kuzunguka.</p>
+  </div>
+        </div></div>
+  <div class="foot"><span>Best practice</span><span>24</span></div>
+</section>
+<section class="page divider">
+  <div class="num">10</div>
+  <h1>Questions people ask</h1>
+  <div class="alt">Maswali yanayoulizwa</div>
+  <p>The ones that come up in the first week.</p>
+  <p>Yale yanayojitokeza wiki ya kwanza.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">FAQ</div>
+    <h2 class="bihead">
+    <span class="en">Frequently asked</span>
+    <span class="alt">Maswali ya mara kwa mara</span>
+  </h2>
+  </div>
+  <table><tr><th>Question</th><th>Answer</th></tr>
+        <tr><td class="k">Can I edit an invoice after payment?<span class="alt">Naweza kuhariri ankara baada ya malipo?</span></td><td class="">No. Once any money has landed against it, it is closed to changes. Correct it before the first payment, or raise the difference separately.<span class="alt">Hapana. Pesa yoyote ikishaingia, haiwezi kubadilishwa. Irekebishe kabla ya malipo ya kwanza, au dai tofauti kivyake.</span></td></tr><tr><td class="k">The system refuses an overpayment.<span class="alt">Mfumo unakataa malipo ya ziada.</span></td><td class="">Correct. It refuses rather than quietly creating a credit nobody asked for. Check the numbers.<span class="alt">Ni sahihi. Unakataa badala ya kuunda salio ambalo hakuna aliyeliomba. Kagua takwimu.</span></td></tr><tr><td class="k">A customer paid in shillings but the invoice is in dollars.<span class="alt">Mteja alilipa kwa shilingi lakini ankara ni ya dola.</span></td><td class="">That is normal. The system converts at the rate frozen onto that invoice, so the figure can be re-explained months later.<span class="alt">Ni kawaida. Mfumo unabadilisha kwa kiwango kilichogandishwa kwenye ankara hiyo, ili takwimu ieleweke hata miezi baadaye.</span></td></tr><tr><td class="k">Can I cancel a pickup note?<span class="alt">Naweza kufuta hati ya kuchukua?</span></td><td class="">Yes, but only before the cargo is collected. After handover the record stands.<span class="alt">Ndiyo, lakini kabla mzigo haujachukuliwa. Baada ya makabidhiano kumbukumbu inabaki.</span></td></tr><tr><td class="k">Why can the warehouse not see the amount?<span class="alt">Kwa nini ghala hawaoni kiasi?</span></td><td class="">They get the payment fact, never the figure. The figure is yours to defend.<span class="alt">Wanapata taarifa kuwa imelipwa, siyo kiasi. Kiasi ni jukumu lako kukitetea.</span></td></tr></table>
+  <div class="foot"><span>Frequently asked</span><span>26</span></div>
+</section>
+<section class="page divider">
+  <div class="num">11</div>
+  <h1>Summary</h1>
+  <div class="alt">Muhtasari</div>
+  <p>Three moves are the whole job.</p>
+  <p>Hatua tatu ndizo kazi nzima.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Keep this one</div>
+    <h2 class="bihead">
+    <span class="en">The money desk in one page</span>
+    <span class="alt">Kitengo cha fedha kwa ukurasa mmoja</span>
+  </h2>
+  </div>
+  <div class="cards three"><div class="card">
+          <span class="label">1</span>
+          <h3>Confirm the price</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Thibitisha bei</h3>
+          <div class="bi ">
+    <p class="en">A draft owes nobody anything. Confirm it and the business is owed money.</p>
+    <p class="alt">Rasimu haimdai mtu. Ithibitishe na kampuni inakuwa inadai.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">2</span>
+          <h3>Verify the payment</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Thibitisha malipo</h3>
+          <div class="bi ">
+    <p class="en">Match the proof to the account. Until you agree, the money does not exist.</p>
+    <p class="alt">Linganisha ushahidi na akaunti. Hadi ukubali, pesa hiyo haipo.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">3</span>
+          <h3>Issue the note</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Toa hati</h3>
+          <div class="bi ">
+    <p class="en">The moment the bill is settled. Until it exists, the cargo cannot move.</p>
+    <p class="alt">Mara tu ankara inapolipwa. Hadi iwepo, mzigo hauwezi kutoka.</p>
+  </div>
+        </div></div>
+<div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">If you remember one sentence</div>
+      <div class="bi ">
+    <p class="en">In that order, every day. Everything else on your menu is there to explain a number after somebody asks about it.</p>
+    <p class="alt">Kwa mpangilio huo, kila siku. Kila kitu kingine kwenye menyu yako kipo ili kueleza takwimu baada ya mtu kuuliza.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>The money desk in one page</span><span>28</span></div>
+</section>
