@@ -32,12 +32,24 @@ function sources(dir, out = []) {
   return out;
 }
 
+/*
+  Both key forms.
+
+  Prettier's quoteProps:"as-needed" strips the quotes from any key that is a
+  valid JavaScript identifier, so "Registration": becomes Registration:. This
+  script used to match quoted keys only. One prettier run over the dictionary
+  therefore turned 535 live translations invisible, and the script cheerfully
+  reported them as untranslated — 385 strings that had a perfectly good Chinese
+  value the whole time. A checker that reports phantom failures gets ignored,
+  which is worse than not having one.
+*/
 const dictionary = readFileSync(join(ROOT, "lib/i18n.ts"), "utf8");
-const known = new Set(
-  [...dictionary.matchAll(/\n\s*"((?:[^"\\]|\\.)*)":/g)].map((m) =>
+const known = new Set([
+  ...[...dictionary.matchAll(/\n\s*"((?:[^"\\]|\\.)*)":/g)].map((m) =>
     m[1].replace(/\\"/g, '"')
-  )
-);
+  ),
+  ...[...dictionary.matchAll(/\n\s{2,}([A-Za-z_$][\w$]*):\s*["\n]/g)].map((m) => m[1]),
+]);
 
 // t(locale, "…") and the client hook's t("…"), on one line or wrapped.
 const CALLS = [
