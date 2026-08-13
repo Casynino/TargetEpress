@@ -4,7 +4,8 @@ import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
-import { useT } from "@/components/app/locale-provider";
+import { useLocale, useT } from "@/components/app/locale-provider";
+import { formatDate } from "@/lib/format";
 
 export type CustomerRow = {
   id: string;
@@ -20,13 +21,6 @@ export type CustomerRow = {
   lastShipmentAt: string | null;
 };
 
-const day = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-
 /**
  * The customer book.
  *
@@ -36,6 +30,10 @@ const day = (iso: string) =>
  */
 export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
   const t = useT();
+  const locale = useLocale();
+  // The customer book's two date columns. Both were a hard-coded en-GB short
+  // month, which is how "Aug" survived on a screen that is otherwise Chinese.
+  const day = (iso: string) => formatDate(iso, locale);
   const showMoney = rows.some((row) => row.outstanding !== undefined);
 
   const columns: Column<CustomerRow>[] = [
@@ -89,7 +87,14 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
         <div>
           <span className="font-medium">{row.shipments}</span>
           {row.activeShipments > 0 ? (
-            <div className="text-xs text-info">{row.activeShipments} active</div>
+            // "Active", not "active": the lowercase key already means "enabled"
+            // in the dictionary — an account switched on — and a count of
+            // shipments still in play is not that. Lowercased after the lookup,
+            // which leaves the English exactly as it was and is a no-op on
+            // Chinese.
+            <div className="text-xs text-info">
+              {row.activeShipments} {t("Active").toLowerCase()}
+            </div>
           ) : null}
         </div>
       ),

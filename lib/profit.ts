@@ -1,7 +1,8 @@
 import "server-only";
 
-import { toNumber } from "@/lib/format";
+import { formatMonthYear, toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
+import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -27,22 +28,27 @@ export type ProfitWindow = {
   label: string;
 };
 
-export function monthWindow(offset = 0): ProfitWindow {
+export function monthWindow(offset = 0, locale: Locale = "en"): ProfitWindow {
   const now = new Date();
   const from = new Date(now.getFullYear(), now.getMonth() - offset, 1);
   const to = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
   return {
     from,
     to,
-    label: from.toLocaleDateString("en-GB", { month: "long", year: "numeric" }),
+    // The period's name sits under the profit figure on the P&L, so it is the
+    // one label on that page that is a date rather than a phrase — and the
+    // reason a Chinese screen still said "August 2026".
+    label: formatMonthYear(from, locale),
   };
 }
 
-export function yearWindow(): ProfitWindow {
+export function yearWindow(locale: Locale = "en"): ProfitWindow {
   const now = new Date();
   const from = new Date(now.getFullYear(), 0, 1);
   const to = new Date(now.getFullYear() + 1, 0, 1);
-  return { from, to, label: String(now.getFullYear()) };
+  // A bare year is the same four digits either way; Chinese marks it as a year.
+  const label = locale === "zh" ? `${now.getFullYear()}年` : String(now.getFullYear());
+  return { from, to, label };
 }
 
 export async function profitAndLoss(window: ProfitWindow) {

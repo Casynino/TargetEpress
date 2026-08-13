@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FileText, Plane, Warehouse } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
-import { useT } from "@/components/app/locale-provider";
+import { useLocale, useT } from "@/components/app/locale-provider";
 import { BatchStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -55,6 +55,7 @@ export function BatchesTable({
   canCreate: boolean;
 }) {
   const t = useT();
+  const locale = useLocale();
   const columns: Column<BatchRow>[] = [
     {
       id: "batchNumber",
@@ -139,15 +140,15 @@ export function BatchesTable({
       cell: (row) => (
         <div className="min-w-0 whitespace-nowrap text-sm">
           {row.departureDate ? (
-            <p>{formatDate(row.departureDate)}</p>
+            <p>{formatDate(row.departureDate, locale)}</p>
           ) : (
             <p className="text-muted-foreground">
-              {t("opened")} {formatDate(row.createdAt)}
+              {t("opened")} {formatDate(row.createdAt, locale)}
             </p>
           )}
           {row.arrivalDate ? (
             <p className="text-xs text-muted-foreground">
-              {t("landed")} {formatDate(row.arrivalDate)}
+              {t("landed")} {formatDate(row.arrivalDate, locale)}
             </p>
           ) : null}
         </div>

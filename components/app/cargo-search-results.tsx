@@ -4,7 +4,7 @@ import Link from "next/link";
 import { AlertTriangle, ChevronRight, QrCode } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
-import { useT } from "@/components/app/locale-provider";
+import { useLocale, useT } from "@/components/app/locale-provider";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { ORIGIN_LABELS, SHIPMENT_STATUS_META } from "@/lib/constants";
@@ -49,6 +49,7 @@ export type CargoSearchRow = {
 
 export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
   const t = useT();
+  const locale = useLocale();
   const showMoney = rows.some((row) => row.owed !== undefined);
 
   const columns: Column<CargoSearchRow>[] = [
@@ -134,7 +135,7 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
           </p>
           {row.arrivedAt ? (
             <p className="text-xs text-muted-foreground tabular">
-              {t("Landed")} {formatDate(row.arrivedAt)}
+              {t("Landed")} {formatDate(row.arrivedAt, locale)}
             </p>
           ) : null}
         </div>

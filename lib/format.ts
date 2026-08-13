@@ -88,14 +88,64 @@ export function formatDateTime(
   );
 }
 
+/**
+ * "13 Aug" / "8月13日" — the short form a table column has room for.
+ *
+ * Its own function rather than a `toLocaleDateString("en-GB", …)` at the call
+ * site, which is what every one of these used to be. A hard-coded region tag
+ * is invisible to the dictionary and to anyone reading the diff, so a Chinese
+ * screen kept printing "Aug" long after the label beside it was translated.
+ */
+export function formatDayMonth(
+  value: Date | string | null | undefined,
+  locale: Locale = "en"
+) {
+  if (!value) return "—";
+  return format(new Date(value), locale === "zh" ? "M月d日" : "d MMM", dfns(locale));
+}
+
+/** "August 2026" / "2026年8月" — what a reporting period is called. */
+export function formatMonthYear(
+  value: Date | string | null | undefined,
+  locale: Locale = "en"
+) {
+  if (!value) return "—";
+  return format(
+    new Date(value),
+    locale === "zh" ? "yyyy年M月" : "MMMM yyyy",
+    dfns(locale)
+  );
+}
+
+/**
+ * "Thursday 13 August" / "8月13日 星期四" — the date in a greeting line.
+ *
+ * No year: this is the "today is" strip at the top of a desk's home screen,
+ * and nobody standing on a warehouse floor needs telling which year it is.
+ */
+export function formatWeekdayDate(
+  value: Date | string | null | undefined,
+  locale: Locale = "en"
+) {
+  if (!value) return "—";
+  return format(
+    new Date(value),
+    locale === "zh" ? "M月d日 EEEE" : "EEEE d MMMM",
+    dfns(locale)
+  );
+}
+
 export function formatRelative(
   value: Date | string | null | undefined,
   locale: Locale = "en"
 ) {
   if (!value) return "—";
   const distance = formatDistanceToNowStrict(new Date(value), dfns(locale));
-  // Chinese puts the "ago" in front — 3 小时前, not 3 小时 前.
-  return locale === "zh" ? `${distance}前` : `${distance} ago`;
+  // Chinese puts the "ago" on the end as a suffix — 3小时前 — and sets no space
+  // between a number and its unit, which date-fns leaves in ("3 小时").
+  return locale === "zh"
+    ? `${distance.replace(/(\d)\s+/g, "$1")}前`
+    : `${distance} ago`;
 }
 
 /**
@@ -132,4 +182,18 @@ export function normaliseCode(input: string) {
   if (tx) return `TX-${tx[1].padStart(6, "0")}`;
 
   return value;
+}
+
+/**
+ * Join a translated label to the value it introduces.
+ *
+ * The label carries its own punctuation, because the whole phrase has to be
+ * translated as a unit — "Recorded today:" becomes "今日登记：", not a translated
+ * word plus an ASCII colon. That leaves the separator language-dependent:
+ * English wants a space after its colon, Chinese does not. A full-width "："
+ * already includes its own trailing space inside the glyph, so adding another
+ * one opens a visible gap in the middle of the sentence.
+ */
+export function labelled(label: string, value: string | number): string {
+  return /[：、，。？！]$/.test(label) ? `${label}${value}` : `${label} ${value}`;
 }

@@ -10,7 +10,9 @@ import { defaultLocaleForRole } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
+import { t } from "@/lib/i18n";
 import { firstError, userSchema } from "@/lib/validation";
+import { viewerLocale } from "@/lib/viewer";
 
 export async function createUser(
   _prev: ActionResult | undefined,
@@ -32,7 +34,7 @@ export async function createUser(
 
   try {
     const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) return fail("A staff account already uses that email.");
+    if (existing) return fail(t(await viewerLocale(), "A staff account already uses that email."));
 
     if (input.employeeId) {
       const clash = await prisma.user.findUnique({
@@ -40,7 +42,16 @@ export async function createUser(
         select: { name: true },
       });
       if (clash) {
-        return fail(`Employee ID ${input.employeeId} already belongs to ${clash.name}.`);
+        // Built by interpolation, so it can never match a dictionary keyed on
+        // the finished sentence. The key carries the slots instead and the
+        // sentence is composed here, where each language can put the number
+        // and the name where its own grammar wants them.
+        const locale = await viewerLocale();
+        return fail(
+          t(locale, "Employee ID {id} already belongs to {name}.")
+            .replace("{id}", input.employeeId)
+            .replace("{name}", clash.name)
+        );
       }
     }
 
@@ -100,9 +111,9 @@ export async function setUserActive(
 
   const userId = String(formData.get("userId") ?? "");
   const active = String(formData.get("active") ?? "") === "true";
-  if (!userId) return fail("Missing staff member.");
+  if (!userId) return fail(t(await viewerLocale(), "Missing staff member."));
   // Locking yourself out would leave the company with no way back in.
-  if (userId === actor.id) return fail("You cannot deactivate your own account.");
+  if (userId === actor.id) return fail(t(await viewerLocale(), "You cannot deactivate your own account."));
 
   try {
     const user = await prisma.user.update({
@@ -142,8 +153,8 @@ export async function resetUserPassword(
 
   const userId = String(formData.get("userId") ?? "");
   const password = String(formData.get("password") ?? "");
-  if (!userId) return fail("Missing staff member.");
-  if (password.length < 8) return fail("Password must be at least 8 characters.");
+  if (!userId) return fail(t(await viewerLocale(), "Missing staff member."));
+  if (password.length < 8) return fail(t(await viewerLocale(), "Password must be at least 8 characters."));
 
   try {
     const user = await prisma.user.update({
@@ -180,8 +191,8 @@ export async function changeUserRole(
 
   const userId = String(formData.get("userId") ?? "");
   const role = String(formData.get("role") ?? "") as keyof typeof ROLE_LABELS;
-  if (!userId || !ROLE_LABELS[role]) return fail("Choose a valid role.");
-  if (userId === actor.id) return fail("You cannot change your own role.");
+  if (!userId || !ROLE_LABELS[role]) return fail(t(await viewerLocale(), "Choose a valid role."));
+  if (userId === actor.id) return fail(t(await viewerLocale(), "You cannot change your own role."));
 
   try {
     const user = await prisma.user.update({

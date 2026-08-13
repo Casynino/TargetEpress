@@ -14,6 +14,7 @@ import {
   type InvestigationEvent,
 } from "@/lib/investigation-lifecycle";
 import { formatDateTime } from "@/lib/format";
+import type { Locale } from "@/lib/locale";
 
 /**
  * The permanent record of what was done about a case.
@@ -44,11 +45,17 @@ export function InvestigationTimeline({
   events,
   openedAt,
   openedByName,
+  locale = "en",
 }: {
   /** Already oldest-first from the server. */
   events: InvestigationEvent[];
   openedAt: Date;
   openedByName: string | null;
+  /**
+   * Handed down rather than hooked: this file carries no "use client" of its
+   * own and is rendered from one that does, so a prop is the honest way in.
+   */
+  locale?: Locale;
 }) {
   // Cases raised before the timeline existed have no "opened" row. The moment
   // the case was raised is a fact the exception itself carries, so the log
@@ -84,7 +91,7 @@ export function InvestigationTimeline({
               <p className="text-xs font-medium">
                 {eventLabel(entry.action)}
                 <span className="ml-2 font-normal text-muted-foreground">
-                  {formatDateTime(entry.createdAt)}
+                  {formatDateTime(entry.createdAt, locale)}
                   {entry.actorName ? ` · ${entry.actorName}` : ""}
                 </span>
               </p>

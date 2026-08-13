@@ -83,6 +83,18 @@ export function BrandLockup({
           Target
         </span>
         {subtitle ? (
+          /*
+            Left in English on a Chinese screen, deliberately.
+
+            This line is not a description of the service, it is the second
+            half of the registered wordmark — the company is called Target
+            Express Air Cargo, it is what the artwork says, and it is what is
+            printed on the invoices and pickup notes customers already hold.
+            Setting it as 空运快递 in the sidebar would make the app's logo and
+            the company's paperwork disagree, which is worse than a Guangzhou
+            clerk reading three familiar English words under a mark they see
+            on every carton. Translate the interface; leave the name.
+          */
           <span className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-brand">
             Express Air Cargo
           </span>

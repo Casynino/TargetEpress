@@ -10,7 +10,9 @@ import {
 
 import { StatCard } from "@/components/app/stat-card";
 import type { ExceptionGroupKey } from "@/components/app/exception-card";
+import { t } from "@/lib/i18n";
 import type { InvestigationCounts, QueueSet } from "@/lib/investigation-queue";
+import { viewerLocale } from "@/lib/viewer";
 
 /**
  * The six cards the spec names, above the queue.
@@ -105,7 +107,7 @@ const CARDS: CardSpec[] = [
   },
 ];
 
-export function InvestigationCards({
+export async function InvestigationCards({
   counts,
   set,
   group,
@@ -116,6 +118,10 @@ export function InvestigationCards({
   group: ExceptionGroupKey | "all";
   tracking: string;
 }) {
+  // The card copy above lives in English so the spec stays readable at the
+  // definition; it is translated here, at the one place it is rendered.
+  const locale = await viewerLocale();
+
   const value: Record<CardKey, number> = {
     open: counts.open,
     missing: counts.missing,
@@ -147,9 +153,9 @@ export function InvestigationCards({
             }
           >
             <StatCard
-              label={card.label}
+              label={t(locale, card.label)}
               value={count}
-              hint={card.hint}
+              hint={t(locale, card.hint)}
               icon={card.icon}
               tone={count > 0 ? card.alertTone : "neutral"}
               href={search ? `/app/exceptions?${search}` : "/app/exceptions"}

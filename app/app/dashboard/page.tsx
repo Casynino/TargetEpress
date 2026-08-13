@@ -423,7 +423,7 @@ async function ChinaDashboard({
     problems,
   ] = await Promise.all([
     chinaStats(),
-    monthlyVolume(),
+    monthlyVolume(new Date(), locale),
     batchUtilisation(),
     cargoMix(30, locale),
     recentActivity(8, userId),
@@ -1570,9 +1570,9 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     // The two questions a single "collections by month" bar could never
     // answer: how old is what we are owed, and are we keeping any of it.
     receivablesAgeing(),
-    cashFlowByMonth(),
+    cashFlowByMonth(new Date(), locale),
     attentionItems(role, locale),
-    monthlyRevenue(),
+    monthlyRevenue(new Date(), locale),
     currentRate(),
     activeAccounts(),
     accountBalances(prisma),
@@ -1830,10 +1830,13 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
           rate={rate}
           icon={Wallet}
           tone="good"
-          count={`${holding} ${t(locale, "of")} ${accountRows.length} ${t(
-            locale,
-            "accounts holding"
-          )}`}
+          // One sentence carrying two figures, not three translated scraps
+          // glued in English order. Chinese states the total first — "of 6
+          // accounts, 2 are holding" — so a dictionary lookup on the bare word
+          // "of" produces something a mainland reader has to decode.
+          count={t(locale, "{n} of {total} accounts holding")
+            .replace("{n}", String(holding))
+            .replace("{total}", String(accountRows.length))}
           hint={t(
             locale,
             "Every till and bank account, added up. Comes from the ledger, so it moves the moment money does."
@@ -1933,7 +1936,9 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                   {t(locale, "Where the cash sits")}
                 </h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {holding} of {accountRows.length} accounts holding
+                  {t(locale, "{n} of {total} accounts holding")
+                    .replace("{n}", String(holding))
+                    .replace("{total}", String(accountRows.length))}
                 </p>
               </div>
               <Link
@@ -2187,8 +2192,8 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     owed,
   ] = await Promise.all([
     executiveStats(),
-    monthlyVolume(),
-    monthlyRevenue(),
+    monthlyVolume(new Date(), locale),
+    monthlyRevenue(new Date(), locale),
     corridorPerformance(),
     recentActivity(10),
     agingInWarehouse(5),
@@ -2198,7 +2203,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     corridorPosition(),
     currentRate().then((row) => deskPulse(row ? toNumber(row.rate) : null, locale)),
     currentRate().then((row) => ownerAttention(row ? toNumber(row.rate) : null, locale)),
-    cashFlowByMonth(),
+    cashFlowByMonth(new Date(), locale),
     receivablesAgeing(),
   ]);
   const execRate = execRateRow ? toNumber(execRateRow.rate) : null;
@@ -2496,7 +2501,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
                 {t(locale, "Shipment volume")}
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {volume.year} against {volume.year - 1}
+                {volume.year} {t(locale, "against")} {volume.year - 1}
               </p>
             </div>
             <div className="text-right">

@@ -13,7 +13,7 @@ import {
   type Column,
   type TableFilter,
 } from "@/components/app/data-table";
-import { useT } from "@/components/app/locale-provider";
+import { useLocale, useT } from "@/components/app/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -119,6 +119,7 @@ function checkerSummary(
  */
 export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
   const t = useT();
+  const locale = useLocale();
 
   const columns: Column<VerificationBatchRow>[] = [
     {
@@ -146,7 +147,7 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
       sortValue: (row) => (row.arrivedAt ? new Date(row.arrivedAt) : null),
       cell: (row) => (
         <div className="min-w-0 whitespace-nowrap text-sm">
-          <p>{formatDate(row.arrivedAt)}</p>
+          <p>{formatDate(row.arrivedAt, locale)}</p>
           <p className="text-xs text-muted-foreground">
             {row.waitDays === null
               ? "—"
@@ -378,6 +379,7 @@ export function VerificationQueue({ rows }: { rows: VerificationBatchRow[] }) {
 /** The manifest check-off for one batch, line by line. */
 function BatchDetail({ row }: { row: VerificationBatchRow }) {
   const t = useT();
+  const locale = useLocale();
 
   return (
     <div className="space-y-4">
@@ -444,7 +446,7 @@ function BatchDetail({ row }: { row: VerificationBatchRow }) {
                   <>
                     <p className="font-medium">{line.checkedBy}</p>
                     <p className="text-muted-foreground">
-                      {formatDateTime(line.checkedAt)}
+                      {formatDateTime(line.checkedAt, locale)}
                     </p>
                   </>
                 ) : (
@@ -488,7 +490,7 @@ function BatchDetail({ row }: { row: VerificationBatchRow }) {
                 </div>
                 <p className="mt-1 text-xs">{flag.description}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {flag.raisedBy ?? "—"} · {formatDateTime(flag.raisedAt)}
+                  {flag.raisedBy ?? "—"} · {formatDateTime(flag.raisedAt, locale)}
                 </p>
               </li>
             ))}
@@ -523,6 +525,7 @@ function BatchDetail({ row }: { row: VerificationBatchRow }) {
 /** Phone layout. The table becomes this below `md`. */
 function BatchCard({ row }: { row: VerificationBatchRow }) {
   const t = useT();
+  const locale = useLocale();
   const done = row.unchecked === 0;
   return (
     <div className="panel p-4">
@@ -548,7 +551,7 @@ function BatchCard({ row }: { row: VerificationBatchRow }) {
       <p className="mt-1.5 text-xs text-muted-foreground">
         {t(ORIGIN_LABELS[row.origin])}
         {row.airline ? ` · ${row.airline} ${row.flightNumber ?? ""}` : ""} ·{" "}
-        {t("landed")} {formatDate(row.arrivedAt)}
+        {t("landed")} {formatDate(row.arrivedAt, locale)}
       </p>
       <p className="mt-1 text-xs text-muted-foreground tabular">
         {row.shipments} {t("shipment(s)")} · {formatWeight(row.weightKg)}

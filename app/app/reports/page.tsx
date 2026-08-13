@@ -60,11 +60,28 @@ import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Reports" };
 
-/** Days need one decimal to be useful and no more to be honest. */
-function days(value: number | null): string {
+/**
+ * Days need one decimal to be useful and no more to be honest.
+ *
+ * The unit is carried in the reader's language: a figure and its unit are one
+ * phrase, and "3.4 days" under a Chinese heading is a figure nobody can read.
+ */
+function days(locale: Locale, value: number | null): string {
   if (value === null) return "—";
-  if (value < 1) return `${Math.round(value * 24)} hrs`;
-  return `${value.toFixed(1)} days`;
+  if (value < 1) return `${Math.round(value * 24)} ${t(locale, "hrs")}`;
+  return `${value.toFixed(1)} ${t(locale, "days")}`;
+}
+
+/**
+ * The period switch's own label, in the reader's language.
+ *
+ * Every counted sentence on this page hangs off it — "booked in over the 30
+ * days" and "近 30 天登记入库" are the same sentence with the window sitting in
+ * a different place, so each one is written out whole rather than glued
+ * together from translated halves.
+ */
+function windowLabel(locale: Locale, periodDays: number): string {
+  return t(locale, periodLabel(periodDays).toLowerCase());
 }
 
 /**
@@ -99,7 +116,7 @@ function TimingRow({
           <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>
         </div>
         <p className="font-display text-xl font-bold tabular">
-          {days(spread.average)}
+          {days(locale, spread.average)}
         </p>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -109,14 +126,15 @@ function TimingRow({
         ) : (
           <>
             <span className="tabular">
-              {t(locale, "median")} {days(spread.median)}
+              {t(locale, "median")} {days(locale, spread.median)}
             </span>
             <span className="tabular">
-              {t(locale, "longest")} {days(spread.longest)}
+              {t(locale, "longest")} {days(locale, spread.longest)}
             </span>
             <span className={cn("tabular", thin && "text-warning")}>
-              {spread.sample} measured
-              {thin ? " — too few to read as a trend" : ""}
+              {locale === "zh"
+                ? `样本 ${spread.sample} 票${thin ? "（太少，看不出趋势）" : ""}`
+                : `${spread.sample} measured${thin ? " — too few to read as a trend" : ""}`}
             </span>
           </>
         )}
@@ -149,8 +167,9 @@ export default async function WarehouseReportsPage({
   }
 
   const locale = await viewerLocale();
-  const report = await warehouseReport(periodDays);
-  const window = periodLabel(periodDays).toLowerCase();
+  const report = await warehouseReport(periodDays, locale);
+  const window = windowLabel(locale, periodDays);
+  const zh = locale === "zh";
 
   const { throughput, speed, quality, staff, holding } = report;
   const netChange = throughput.shipmentsCheckedIn - throughput.released;
@@ -185,12 +204,18 @@ export default async function WarehouseReportsPage({
 
       {/* ---------------------------------------------------------------- */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold">Throughput · last {window}</h2>
+        <h2 className="text-sm font-semibold">
+          {zh ? `吞吐量 · 近 ${window}` : `Throughput · last ${window}`}
+        </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label={t(locale, "Cargo checked in")}
             value={throughput.shipmentsCheckedIn}
-            hint={`${throughput.packagesCheckedIn.toLocaleString()} boxes · ${formatWeight(throughput.weightCheckedInKg)}`}
+            hint={
+              zh
+                ? `${throughput.packagesCheckedIn.toLocaleString()} 箱 · ${formatWeight(throughput.weightCheckedInKg)}`
+                : `${throughput.packagesCheckedIn.toLocaleString()} boxes · ${formatWeight(throughput.weightCheckedInKg)}`
+            }
             icon={PackageCheck}
             tone="brand"
           />
@@ -201,8 +226,12 @@ export default async function WarehouseReportsPage({
               netChange === 0
                 ? t(locale, "In and out balanced over the window")
                 : netChange > 0
-                  ? `${netChange} more in than out — the floor is filling`
-                  : `${Math.abs(netChange)} more out than in — backlog clearing`
+                  ? zh
+                    ? `入库比出库多 ${netChange} 票，在库量在上升`
+                    : `${netChange} more in than out — the floor is filling`
+                  : zh
+                    ? `出库比入库多 ${Math.abs(netChange)} 票，积压正在消化`
+                    : `${Math.abs(netChange)} more out than in — backlog clearing`
             }
             icon={Truck}
             tone="success"
@@ -210,7 +239,11 @@ export default async function WarehouseReportsPage({
           <StatCard
             label={t(locale, "Held in the warehouse")}
             value={holding.total}
-            hint={`${holding.awaitingPayment} awaiting payment · ${holding.readyForPickup} ready · ${formatWeight(holding.weightKg)}`}
+            hint={
+              zh
+                ? `${holding.awaitingPayment} 票待付款 · ${holding.readyForPickup} 票可提货 · ${formatWeight(holding.weightKg)}`
+                : `${holding.awaitingPayment} awaiting payment · ${holding.readyForPickup} ready · ${formatWeight(holding.weightKg)}`
+            }
             icon={Warehouse}
             tone={holding.total > 0 ? "info" : "neutral"}
             href="/app/inventory"
@@ -225,7 +258,9 @@ export default async function WarehouseReportsPage({
             hint={
               quality.checksTotal === 0
                 ? t(locale, "No cargo checked in this window")
-                : `${quality.checksFlagged} of ${quality.checksTotal} manifest checks flagged`
+                : zh
+                  ? `${quality.checksTotal} 次清单核对中有 ${quality.checksFlagged} 次报异常`
+                  : `${quality.checksFlagged} of ${quality.checksTotal} manifest checks flagged`
             }
             icon={AlertTriangle}
             tone={
@@ -245,7 +280,9 @@ export default async function WarehouseReportsPage({
               {t(locale, "Cargo received per week")}
             </h2>
             <p className="text-xs text-muted-foreground">
-              Last {FLOW_WEEKS} weeks, against what went out the door
+              {zh
+                ? `近 ${FLOW_WEEKS} 周，与同期出库量对照`
+                : `Last ${FLOW_WEEKS} weeks, against what went out the door`}
             </p>
           </div>
           <div className="p-5">
@@ -310,9 +347,13 @@ export default async function WarehouseReportsPage({
             />
           </div>
           <p className="border-t px-5 py-3 text-xs text-muted-foreground">
-            Measured on cargo collected in the last {window}. The three legs are
-            kept apart on purpose — a customer who takes a fortnight to collect
-            is not a slow warehouse.
+            {zh
+              ? `按近 ${window}已提走的货计算。`
+              : `Measured on cargo collected in the last ${window}. `}
+            {t(
+              locale,
+              "The three legs are kept apart on purpose — a customer who takes a fortnight to collect is not a slow warehouse."
+            )}
           </p>
         </div>
 
@@ -364,7 +405,11 @@ export default async function WarehouseReportsPage({
               <EmptyState
                 icon={ClipboardCheck}
                 title={t(locale, "Nothing flagged")}
-                description={`Every shipment checked in over the last ${window} matched its manifest.`}
+                description={
+                  zh
+                    ? `近 ${window}入库的每一票货都与清单相符。`
+                    : `Every shipment checked in over the last ${window} matched its manifest.`
+                }
               />
             </div>
           ) : (
@@ -379,7 +424,9 @@ export default async function WarehouseReportsPage({
                   </span>
                   <span className="flex items-center gap-2 text-sm text-muted-foreground tabular">
                     {row.open > 0 ? (
-                      <Badge variant="warning">{row.open} open</Badge>
+                      <Badge variant="warning">
+                        {zh ? `${row.open} 未处理` : `${row.open} open`}
+                      </Badge>
                     ) : null}
                     {row.total}
                   </span>
@@ -390,14 +437,24 @@ export default async function WarehouseReportsPage({
 
           <p className="border-t px-5 py-3 text-xs text-muted-foreground">
             {quality.shortPackages > 0 ? (
-              <>
-                <strong className="font-semibold text-foreground">
-                  {quality.shortPackages}
-                </strong>{" "}
-                {quality.shortPackages === 1 ? "box is" : "boxes are"} still
-                missing off cargo already on the floor — those shipments cannot
-                be released until they are found.{" "}
-              </>
+              zh ? (
+                <>
+                  已入库的货仍缺{" "}
+                  <strong className="font-semibold text-foreground">
+                    {quality.shortPackages}
+                  </strong>{" "}
+                  箱，找齐之前这些货不能放行。{" "}
+                </>
+              ) : (
+                <>
+                  <strong className="font-semibold text-foreground">
+                    {quality.shortPackages}
+                  </strong>{" "}
+                  {quality.shortPackages === 1 ? "box is" : "boxes are"} still
+                  missing off cargo already on the floor — those shipments
+                  cannot be released until they are found.{" "}
+                </>
+              )
             ) : (
               `${t(locale, "No cargo on the floor is short a box.")} `
             )}
@@ -464,9 +521,11 @@ export default async function WarehouseReportsPage({
             </Table>
           )}
           <p className="border-t px-5 py-3 text-xs text-muted-foreground">
-            Counted over the last {window}. Raising an exception is doing the job
-            properly, not a mark against anyone — a desk that never flags
-            anything is a desk that is not looking.
+            {zh ? `按近 ${window}统计。` : `Counted over the last ${window}. `}
+            {t(
+              locale,
+              "Raising an exception is doing the job properly, not a mark against anyone — a desk that never flags anything is a desk that is not looking."
+            )}
           </p>
         </div>
       </section>
@@ -628,12 +687,16 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
         where: { deletedAt: null, batch: { departureDate: { gte: since } } },
       }),
       chinaComposition(),
-      chinaAgeing(),
+      /* The age buckets carry a number and a unit ("8–14 days"), so they are
+         built in the reader's language rather than translated afterwards — a
+         flat dictionary cannot match a label that arrives already counted. */
+      chinaAgeing(new Date(), locale),
       chinaFlowByDay(Math.min(periodDays, 14)),
       chinaProblems(),
     ]);
 
-  const window = periodLabel(periodDays).toLowerCase();
+  const window = windowLabel(locale, periodDays);
+  const zh = locale === "zh";
   const photographed = composition.total - problems.noPhotos;
   const photoPct =
     composition.total > 0
@@ -646,7 +709,15 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
       value: composition.unassigned,
       tone: 3 as const,
     },
-    { label: "Loading", value: composition.loading, tone: 4 as const },
+    {
+      /* Not through the dictionary: it is keyed by English string and "Loading"
+         is already spoken for by the page's own spinner ("加载中"). A batch
+         taking cargo is 装货中, and labelling this slice "加载中" would tell a
+         Guangzhou desk its consignments are still downloading. */
+      label: zh ? "装货中" : "Loading",
+      value: composition.loading,
+      tone: 4 as const,
+    },
     {
       label: t(locale, "Sealed, ready to fly"),
       value: composition.sealed,
@@ -686,21 +757,25 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
         <KpiCard
           label={t(locale, "Registered")}
           numeric={registered._count}
-          hint={`booked in over the ${window}`}
+          hint={zh ? `近 ${window}登记入库` : `booked in over the ${window}`}
           icon={PackagePlus}
           tone="brand"
         />
         <KpiCard
           label={t(locale, "Flown")}
           numeric={flown}
-          hint={`left Guangzhou over the ${window}`}
+          hint={zh ? `近 ${window}从广州发出` : `left Guangzhou over the ${window}`}
           icon={Plane}
           tone="success"
         />
         <KpiCard
           label={t(locale, "Still standing")}
           numeric={composition.total}
-          hint={`${formatWeight(toNumber(registered._sum.weightKg ?? 0))} registered in this window`}
+          hint={
+            zh
+              ? `本期登记 ${formatWeight(toNumber(registered._sum.weightKg ?? 0))}`
+              : `${formatWeight(toNumber(registered._sum.weightKg ?? 0))} registered in this window`
+          }
           icon={Boxes}
           tone={composition.total > 0 ? "warning" : "success"}
         />
@@ -713,7 +788,9 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
           ringLabel={t(locale, "Photograph compliance")}
           hint={
             problems.noPhotos > 0
-              ? `${problems.noPhotos} standing with no photograph`
+              ? zh
+                ? `在库 ${problems.noPhotos} 票没有照片`
+                : `${problems.noPhotos} standing with no photograph`
               : t(locale, "every consignment has one")
           }
           icon={Camera}
@@ -752,7 +829,9 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
             valuesIn={throughput.inCounts}
             valuesOut={throughput.outCounts}
             currentIndex={throughput.currentIndex}
-            format={(n) => `${n} consignment${n === 1 ? "" : "s"}`}
+            format={(n) =>
+              zh ? `${n} 票货` : `${n} consignment${n === 1 ? "" : "s"}`
+            }
             legendIn={t(locale, "Registered")}
             legendOut={t(locale, "Flown")}
           />
@@ -769,11 +848,12 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
             className="mt-3"
             segments={ageing.map((bucket) => ({
               key: bucket.key,
-              label: t(locale, bucket.label),
+              /* Already in the reader's language — see the `chinaAgeing` call. */
+              label: bucket.label,
               count: bucket.count,
               value: bucket.packages,
             }))}
-            format={(n) => `${n} box${n === 1 ? "" : "es"}`}
+            format={(n) => (zh ? `${n} 箱` : `${n} box${n === 1 ? "" : "es"}`)}
             unit="consignment"
             empty={t(locale, "Nothing is waiting in Guangzhou.")}
           />

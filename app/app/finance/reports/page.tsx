@@ -40,10 +40,10 @@ export default async function FinanceReportsPage({
 
   const window =
     period === "last"
-      ? monthWindow(1)
+      ? monthWindow(1, locale)
       : period === "year"
-        ? yearWindow()
-        : monthWindow(0);
+        ? yearWindow(locale)
+        : monthWindow(0, locale);
 
   const [pl, dispatches] = await Promise.all([
     profitAndLoss(window),

@@ -145,7 +145,7 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
           </Link>
           {row.cartonRef ? (
             <p className="truncate font-mono text-xs text-muted-foreground">
-              Carton {row.cartonRef}
+              {t("Carton")} {row.cartonRef}
             </p>
           ) : null}
         </div>
@@ -435,7 +435,9 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
               <Boxes className="h-3.5 w-3.5" />
               {formatPackagesShort(row.packages, row.packageType)} ·{" "}
               {formatWeight(row.weightKg)}
-              {row.cartonRef ? ` · carton ${row.cartonRef}` : ""}
+              {/* The reference itself is a packing-list code (HK/26-13-6) and
+                  is never translated — only the word in front of it. */}
+              {row.cartonRef ? ` · ${t("carton")} ${row.cartonRef}` : ""}
             </p>
             <p className="mt-2 flex items-center gap-2 text-xs">
               <span className="text-muted-foreground">

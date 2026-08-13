@@ -15,7 +15,7 @@ import {
 import { InvestigationTimeline } from "@/components/app/investigation-timeline";
 import { RecordCompensationForm } from "@/components/app/compensation-form";
 import { LifecycleSteps } from "@/components/app/lifecycle-steps";
-import { useT } from "@/components/app/locale-provider";
+import { useLocale, useT } from "@/components/app/locale-provider";
 import { ResolveInvestigationForm } from "@/components/app/resolve-investigation-form";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -135,6 +135,7 @@ function ExceptionRow({
   closed: boolean;
 }) {
   const t = useT();
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const detailId = `case-${exception.id}`;
 
@@ -243,7 +244,7 @@ function ExceptionRow({
 
         <td className="whitespace-nowrap px-3 py-1.5 text-right tabular">
           {closed ? (
-            formatDate(exception.resolvedAt)
+            formatDate(exception.resolvedAt, locale)
           ) : (
             <span className={age >= 7 ? "font-semibold text-destructive" : ""}>
               {age === 0 ? t("today") : `${age}d`}
@@ -294,6 +295,7 @@ function CaseRecord({
   unit: { one: string; many: string };
 }) {
   const t = useT();
+  const locale = useLocale();
   const { shipment } = exception;
 
   return (
@@ -330,7 +332,7 @@ function CaseRecord({
             <Fact label={t("Reported by")}>
               {exception.raisedByName ?? "—"}
               <span className="block text-muted-foreground">
-                {formatDateTime(exception.raisedAt)}
+                {formatDateTime(exception.raisedAt, locale)}
               </span>
             </Fact>
             <Fact label={t("Carried by")}>
@@ -364,7 +366,7 @@ function CaseRecord({
                       .filter(Boolean)
                       .join(" ") || t("flight not recorded")}
                     {exception.batch.arrivalDate
-                      ? ` · ${t("landed")} ${formatDate(exception.batch.arrivalDate)}`
+                      ? ` · ${t("landed")} ${formatDate(exception.batch.arrivalDate, locale)}`
                       : ""}
                   </span>
                 </>
@@ -451,6 +453,7 @@ function CaseRecord({
               events={exception.events}
               openedAt={exception.raisedAt}
               openedByName={exception.raisedByName}
+              locale={locale}
             />
           </Panel>
 
@@ -459,7 +462,7 @@ function CaseRecord({
               <span className="font-medium">{t("Outcome:")} </span>
               {exception.resolutionNote}
               {exception.resolvedByName
-                ? ` — ${exception.resolvedByName}, ${formatDateTime(exception.resolvedAt)}`
+                ? ` — ${exception.resolvedByName}, ${formatDateTime(exception.resolvedAt, locale)}`
                 : ""}
             </p>
           ) : null}
@@ -554,6 +557,7 @@ function PhotoStrip({
   empty: string;
 }) {
   const t = useT();
+  const locale = useLocale();
 
   return (
     <div>
@@ -573,7 +577,7 @@ function PhotoStrip({
               href={photo.url}
               target="_blank"
               rel="noreferrer"
-              title={`${photo.caption ?? photo.kind} · ${formatDate(photo.createdAt)}${
+              title={`${photo.caption ?? photo.kind} · ${formatDate(photo.createdAt, locale)}${
                 photo.onCase ? ` ${t("· attached to this case")}` : ""
               }`}
               className="focus-ring block overflow-hidden rounded border"
@@ -616,6 +620,7 @@ function CompensationPanel({
   allow: InvestigationAllowances;
 }) {
   const t = useT();
+  const locale = useLocale();
   const comp = exception.compensation;
   const finished = (EXCEPTION_TERMINAL_STATUSES as readonly string[]).includes(
     exception.status
@@ -659,7 +664,7 @@ function CompensationPanel({
         ) : null}
         <Badge variant={comp.paidAt ? "success" : "warning"}>
           {comp.paidAt
-            ? `${t("Paid")} ${formatDate(comp.paidAt)}`
+            ? `${t("Paid")} ${formatDate(comp.paidAt, locale)}`
             : t("Payment pending")}
         </Badge>
         {comp.methodLabel ? (

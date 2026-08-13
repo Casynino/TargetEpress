@@ -118,11 +118,11 @@ export default async function EmployeeProfilePage({
         {[
           { label: "Shipments registered", value: stats.totalShipments },
           {
-            label: "Weight processed",
+            label: t(locale, "Weight processed"),
             value: `${stats.totalWeightKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg`,
           },
-          { label: "Labels printed", value: stats.labelsPrinted },
-          { label: "Batches worked on", value: stats.batchesTouched },
+          { label: t(locale, "Labels printed"), value: stats.labelsPrinted },
+          { label: t(locale, "Batches worked on"), value: stats.batchesTouched },
         ].map((item) => (
           <div key={item.label} className="panel p-5">
             <p className="text-xs text-muted-foreground">

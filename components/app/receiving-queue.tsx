@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
-import { useT } from "@/components/app/locale-provider";
+import { useLocale, useT } from "@/components/app/locale-provider";
 import { ReceiveBatchButton } from "@/components/app/receive-batch-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ function waitTone(row: ReceivingRow) {
  */
 export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
   const t = useT();
+  const locale = useLocale();
   const columns: Column<ReceivingRow>[] = [
     {
       id: "batchNumber",
@@ -133,12 +134,12 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
         <div className="min-w-0 text-sm">
           {row.arrivedAt ? (
             <>
-              <p>{formatDate(row.arrivedAt)}</p>
+              <p>{formatDate(row.arrivedAt, locale)}</p>
               <p className="text-xs text-muted-foreground">{t("landed")}</p>
             </>
           ) : row.departureDate ? (
             <>
-              <p>{formatDate(row.departureDate)}</p>
+              <p>{formatDate(row.departureDate, locale)}</p>
               <p className="text-xs text-muted-foreground">{t("departed")}</p>
             </>
           ) : (
@@ -406,9 +407,9 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
           <p className="mt-1 text-xs text-muted-foreground tabular">
             {row.shipments} {t("shipment(s)")} · {formatWeight(row.weightKg)}
             {row.arrivedAt
-              ? ` · ${t("landed")} ${formatDate(row.arrivedAt)}`
+              ? ` · ${t("landed")} ${formatDate(row.arrivedAt, locale)}`
               : row.departureDate
-                ? ` · ${t("departed")} ${formatDate(row.departureDate)}`
+                ? ` · ${t("departed")} ${formatDate(row.departureDate, locale)}`
                 : ""}
           </p>
 

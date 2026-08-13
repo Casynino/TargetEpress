@@ -3,7 +3,8 @@ import Link from "next/link";
 import { ArrowRight, Package, Plane } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
-import { toNumber } from "@/lib/format";
+import { BATCH_STATUS_META } from "@/lib/constants";
+import { formatDate, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -160,11 +161,7 @@ export default async function BatchesPage() {
                 {oldest ? (
                   <p className="mt-4 text-center text-xs text-muted-foreground">
                     {t(locale, "Oldest piece received")}{" "}
-                    {oldest.toLocaleDateString("en-GB", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {formatDate(oldest, locale)}
                   </p>
                 ) : null}
               </div>
@@ -211,7 +208,18 @@ export default async function BatchesPage() {
                   </span>
                   <span className="text-sm text-muted-foreground">
                     {dispatch._count.shipments} {t(locale, "pieces")} ·{" "}
-                    {dispatch.status.replace(/_/g, " ").toLowerCase()}
+                    {/*
+                      The shared status wording, not the enum spelled out.
+
+                      Prettifying the enum produced words — "verified",
+                      "arrived" — that no dictionary key owns, so this row was
+                      the one place a Chinese screen still said the state in
+                      English. The meta label is the phrase the badge on the
+                      batch already uses and is already translated; lowercasing
+                      after the lookup keeps the English reading as it did and
+                      does nothing to Chinese.
+                    */}
+                    {t(locale, BATCH_STATUS_META[dispatch.status].label).toLowerCase()}
                   </span>
                 </Link>
               </li>

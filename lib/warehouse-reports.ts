@@ -1,9 +1,10 @@
 import "server-only";
 
 import type { ExceptionType, PackageType, ShipmentStatus } from "@prisma/client";
-import { format, startOfWeek, subWeeks } from "date-fns";
+import { startOfWeek, subWeeks } from "date-fns";
 
-import { toNumber } from "@/lib/format";
+import { formatDayMonth, toNumber } from "@/lib/format";
+import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -91,12 +92,16 @@ export type WeekBucket = { label: string; received: number; released: number };
 export function bucketWeeks(
   now: Date,
   received: Date[],
-  released: Date[]
+  released: Date[],
+  locale: Locale = "en"
 ): WeekBucket[] {
   const first = startOfWeek(subWeeks(now, FLOW_WEEKS - 1), { weekStartsOn: 1 });
 
   const weeks: WeekBucket[] = Array.from({ length: FLOW_WEEKS }, (_, i) => ({
-    label: format(startOfWeek(subWeeks(now, FLOW_WEEKS - 1 - i), { weekStartsOn: 1 }), "d MMM"),
+    label: formatDayMonth(
+      startOfWeek(subWeeks(now, FLOW_WEEKS - 1 - i), { weekStartsOn: 1 }),
+      locale
+    ),
     received: 0,
     released: 0,
   }));
@@ -142,7 +147,7 @@ export type HeldRow = {
 
 export type WarehouseReport = Awaited<ReturnType<typeof warehouseReport>>;
 
-export async function warehouseReport(periodDays: number) {
+export async function warehouseReport(periodDays: number, locale: Locale = "en") {
   const now = new Date();
   const since = new Date(now.getTime() - periodDays * DAY_MS);
   const chartFrom = startOfWeek(subWeeks(now, FLOW_WEEKS - 1), {
@@ -287,7 +292,8 @@ export async function warehouseReport(periodDays: number) {
     receivedForChart
       .map((row) => row.arrivedAt)
       .filter((at): at is Date => at !== null),
-    releasedForChart.map((row) => row.releasedAt)
+    releasedForChart.map((row) => row.releasedAt),
+    locale
   );
 
   // --- Speed ---------------------------------------------------------------

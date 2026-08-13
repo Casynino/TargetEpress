@@ -253,8 +253,13 @@ export function PhotoCapture({
         <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 p-2.5 text-xs text-warning">
           <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>
+            {/* Addressed to the clerk holding the phone, not to whoever
+                configures the deployment. The environment variable that fixes
+                this is in the README, where the person who can set it will
+                look; naming it here told a warehouse in Dar to edit a Vercel
+                setting they have no access to. */}
             {t(
-              "Photos are being saved to this machine's disk. Set BLOB_READ_WRITE_TOKEN before deploying, or uploads will not survive."
+              "Photos are being saved to this machine only and may be lost. Tell the office before relying on them as proof."
             )}
           </span>
         </p>

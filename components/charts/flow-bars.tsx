@@ -1,4 +1,6 @@
+import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { viewerLocale } from "@/lib/viewer";
 
 /**
  * Money in against money out, month by month, around a shared baseline.
@@ -19,8 +21,15 @@ import { cn } from "@/lib/utils";
  * words, above the chart.
  *
  * Server-rendered divs: no SVG, no charting library, no JavaScript.
+ *
+ * It reads the viewer's language itself rather than taking a locale prop. Its
+ * own two words — the legend defaults and the scale note — were the last
+ * English left on four otherwise-Chinese panels, and every caller is a server
+ * component, so asking `viewerLocale()` here (memoised per request) fixes all
+ * of them without threading a prop through pages that never mention language.
+ * Strings a caller has already translated pass through `t()` unchanged.
  */
-export function FlowBars({
+export async function FlowBars({
   labels,
   valuesIn,
   valuesOut,
@@ -45,6 +54,7 @@ export function FlowBars({
 }) {
   // One scale for both directions, or the halves lie about each other.
   const peak = Math.max(...valuesIn, ...valuesOut, 1);
+  const locale = await viewerLocale();
 
   return (
     <div className={className}>
@@ -102,13 +112,13 @@ export function FlowBars({
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-success" aria-hidden />
-          {legendIn}
+          {t(locale, legendIn)}
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-signal" aria-hidden />
-          {legendOut}
+          {t(locale, legendOut)}
         </span>
-        <span className="ml-auto hidden sm:inline">One scale</span>
+        <span className="ml-auto hidden sm:inline">{t(locale, "One scale")}</span>
       </div>
     </div>
   );

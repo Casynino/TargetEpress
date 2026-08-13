@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import { CompanySettingsForm } from "@/components/app/company-settings-form";
 import { PageHeader } from "@/components/app/page-header";
 import { companySettings } from "@/lib/company-settings";
+import { t } from "@/lib/i18n";
 import { requirePermission } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Company settings" };
 
@@ -22,6 +24,7 @@ export const metadata: Metadata = { title: "Company settings" };
 export default async function CompanySettingsPage() {
   await requirePermission("settings.manage");
   const settings = await companySettings();
+  const locale = await viewerLocale();
 
   return (
     <>
@@ -31,10 +34,10 @@ export default async function CompanySettingsPage() {
       />
 
       <p className="mb-6 rounded-xl border border-warning/30 bg-warning/5 p-4 text-sm text-muted-foreground">
-        These appear on invoices, PDFs, WhatsApp messages and the public site
-        simultaneously. Invoices already raised are untouched — each one keeps
-        the accounts it was issued with, so an old bill still shows the numbers
-        the customer was actually given.
+        {t(
+          locale,
+          "These appear on invoices, PDFs, WhatsApp messages and the public site simultaneously. Invoices already raised are untouched — each one keeps the accounts it was issued with, so an old bill still shows the numbers the customer was actually given."
+        )}
       </p>
 
       <CompanySettingsForm initial={settings} />

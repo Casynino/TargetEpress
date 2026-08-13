@@ -5,6 +5,7 @@ import type { Role } from "@prisma/client";
 import { KeyRound, UserPlus } from "lucide-react";
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
+import { useLocale, useT } from "@/components/app/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,8 @@ export function UserRow({
   user: StaffUser;
   isSelf: boolean;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [showReset, setShowReset] = useState(false);
   const [activeState, activeAction] = useActionState<ActionResult, FormData>(
     setUserActive,
@@ -67,7 +70,9 @@ export function UserRow({
           >
             {user.name}
             {isSelf ? (
-              <span className="ml-2 text-xs text-muted-foreground">(you)</span>
+              <span className="ml-2 text-xs text-muted-foreground">
+                ({t("you")})
+              </span>
             ) : null}
           </Link>
           {user.employeeId ? (
@@ -83,7 +88,7 @@ export function UserRow({
 
         <TableCell className="hidden md:table-cell">
           {isSelf ? (
-            <Badge variant="brand">{ROLE_LABELS[user.role]}</Badge>
+            <Badge variant="brand">{t(ROLE_LABELS[user.role])}</Badge>
           ) : (
             <form action={roleAction} className="flex items-center gap-2">
               <input type="hidden" name="userId" value={user.id} />
@@ -92,21 +97,23 @@ export function UserRow({
                 defaultValue={user.role}
                 className="h-9 w-44 text-xs"
               >
-                {enumOptions(ROLE_LABELS).map((o) => (
+                {enumOptions(ROLE_LABELS, locale).map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
                 ))}
               </NativeSelect>
               <SubmitButton size="sm" variant="ghost" pendingLabel="…">
-                Save
+                {t("Save")}
               </SubmitButton>
             </form>
           )}
         </TableCell>
 
         <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
-          {user.lastLoginAt ? formatRelative(user.lastLoginAt) : "Never"}
+          {user.lastLoginAt
+            ? formatRelative(user.lastLoginAt, locale)
+            : t("Never")}
         </TableCell>
 
         <TableCell className="text-right">
@@ -116,7 +123,7 @@ export function UserRow({
               size="sm"
               variant="ghost"
               onClick={() => setShowReset((v) => !v)}
-              title="Reset password"
+              title={t("Reset password")}
             >
               <KeyRound className="h-4 w-4" />
             </Button>
@@ -133,7 +140,7 @@ export function UserRow({
                   variant={user.active ? "ghost" : "outline"}
                   pendingLabel="…"
                 >
-                  {user.active ? "Deactivate" : "Reactivate"}
+                  {user.active ? t("Deactivate") : t("Reactivate")}
                 </SubmitButton>
               </form>
             )}
@@ -148,19 +155,23 @@ export function UserRow({
               <input type="hidden" name="userId" value={user.id} />
               <div className="flex-1 space-y-1.5">
                 <Label htmlFor={`pw-${user.id}`} className="text-xs">
-                  New password for {user.name}
+                  {/* The name sits at the front of the Chinese sentence and at
+                      the back of the English one, so the whole label is one
+                      dictionary entry with the name slotted in, not two
+                      translated halves glued around it. */}
+                  {t("New password for {name}").replace("{name}", user.name)}
                 </Label>
                 <Input
                   id={`pw-${user.id}`}
                   name="password"
                   type="text"
                   minLength={8}
-                  placeholder="At least 8 characters"
+                  placeholder={t("At least 8 characters")}
                   required
                 />
               </div>
-              <SubmitButton size="default" variant="brand" pendingLabel="Saving…">
-                Set password
+              <SubmitButton size="default" variant="brand" pendingLabel={t("Saving…")}>
+                {t("Set password")}
               </SubmitButton>
             </form>
             <div className="mt-2 space-y-2">
@@ -176,6 +187,8 @@ export function UserRow({
 }
 
 export function NewUserForm() {
+  const t = useT();
+  const locale = useLocale();
   const [state, action] = useActionState<ActionResult, FormData>(createUser, {
     ok: true,
   });
@@ -185,11 +198,11 @@ export function NewUserForm() {
     <section className="h-fit rounded-xl border bg-card p-6 shadow-soft">
       <h2 className="flex items-center gap-2 font-display font-semibold">
         <UserPlus className="h-4 w-4 text-brand" />
-        Add a staff member
+        {t("Add a staff member")}
       </h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        They sign in with this email and password. Their dashboard is chosen by
-        their role.
+        {t("They sign in with this email and password.")}{" "}
+        {t("Their dashboard is chosen by their role.")}
       </p>
 
       <form
@@ -199,31 +212,31 @@ export function NewUserForm() {
       >
         <div className="space-y-1.5">
           <Label htmlFor="name" className="text-xs">
-            Full name
+            {t("Full name")}
           </Label>
           <Input id="name" name="name" required />
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="email" className="text-xs">
-            Work email
+            {t("Work email")}
           </Label>
           <Input id="email" name="email" type="email" required />
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="phone" className="text-xs">
-            Phone
+            {t("Phone")}
           </Label>
           <Input id="phone" name="phone" inputMode="tel" />
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="role" className="text-xs">
-            Role
+            {t("Role")}
           </Label>
           <NativeSelect id="role" name="role" defaultValue="CHINA_WAREHOUSE">
-            {enumOptions(ROLE_LABELS).map((o) => (
+            {enumOptions(ROLE_LABELS, locale).map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -234,7 +247,7 @@ export function NewUserForm() {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="employeeId" className="text-xs">
-              Employee ID
+              {t("Employee ID")}
             </Label>
             <Input
               id="employeeId"
@@ -245,21 +258,22 @@ export function NewUserForm() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="rank" className="text-xs">
-              Warehouse rank
+              {t("Warehouse rank")}
             </Label>
             <NativeSelect id="rank" name="rank" defaultValue="OPERATOR">
-              <option value="OPERATOR">Warehouse Operator</option>
-              <option value="MANAGER">Warehouse Manager</option>
+              <option value="OPERATOR">{t("Warehouse Operator")}</option>
+              <option value="MANAGER">{t("Warehouse Manager")}</option>
             </NativeSelect>
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          The ID cannot be changed later. Rank applies to warehouse staff only.
+          {t("The ID cannot be changed later.")}{" "}
+          {t("Rank applies to warehouse staff only.")}
         </p>
 
         <div className="space-y-1.5">
           <Label htmlFor="status" className="text-xs">
-            Status
+            {t("Status")}
           </Label>
           <NativeSelect id="status" name="status" defaultValue="ACTIVE">
             <option value="ACTIVE">Active</option>
@@ -270,28 +284,30 @@ export function NewUserForm() {
 
         <div className="space-y-1.5">
           <Label htmlFor="password" className="text-xs">
-            Temporary password
+            {t("Temporary password")}
           </Label>
           <Input
             id="password"
             name="password"
             type="text"
             minLength={8}
-            placeholder="At least 8 characters"
+            placeholder={t("At least 8 characters")}
             required
           />
           <p className="text-xs text-muted-foreground">
-            Give it to them in person and change it after their first sign-in.
+            {t(
+              "Give it to them in person and change it after their first sign-in."
+            )}
           </p>
         </div>
 
         <FormError state={state} />
         <FormSuccess
-          message={state.ok && created ? "Staff account created." : null}
+          message={state.ok && created ? t("Staff account created.") : null}
         />
 
-        <SubmitButton variant="brand" className="w-full" pendingLabel="Creating…">
-          Create account
+        <SubmitButton variant="brand" className="w-full" pendingLabel={t("Creating…")}>
+          {t("Create account")}
         </SubmitButton>
       </form>
     </section>

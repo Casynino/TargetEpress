@@ -41,8 +41,11 @@ export default async function UsersPage() {
   return (
     <>
       <PageHeader
-        title="Staff"
-        description="Create accounts, move people between departments, and switch access off the moment someone leaves."
+        title={t(locale, "Staff")}
+        description={t(
+          locale,
+          "Create accounts, move people between departments, and switch access off the moment someone leaves."
+        )}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">

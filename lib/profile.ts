@@ -259,7 +259,7 @@ export async function myBatches(
         weightKg: toNumber(group._sum.weightKg ?? 0),
         packages: group._sum.packages ?? 0,
         departedLabel: batch.departureDate
-          ? formatDate(batch.departureDate)
+          ? formatDate(batch.departureDate, locale)
           : null,
       };
     })

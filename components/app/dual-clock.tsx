@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { useT } from "@/components/app/locale-provider";
 import { cn } from "@/lib/utils";
 
 /**
@@ -28,6 +29,7 @@ export function DualClock({
   emphasis?: "CN" | "TZ";
   className?: string;
 }) {
+  const T = useT();
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -52,7 +54,7 @@ export function DualClock({
               )}
             >
               <span aria-hidden>{zone.flag}</span>
-              {zone.label}
+              {T(zone.label)}
             </p>
             <p
               className={cn(
@@ -68,7 +70,10 @@ export function DualClock({
                   })
                 : "--:--"}
             </p>
-            <p className="mt-0.5 text-xs opacity-70">{zone.offset}</p>
+            {/* The offset is a label, not a number: a Chinese reader knows
+                Guangzhou as 东八区, and "GMT+8" on a Chinese screen is the
+                same untranslated fragment as any other. */}
+            <p className="mt-0.5 text-xs opacity-70">{T(zone.offset)}</p>
           </div>
         );
       })}

@@ -198,11 +198,17 @@ export default async function ShipmentsPage() {
           icon={Warehouse}
           tone={pendingClearance > 0 ? "warning" : "success"}
         />
+        {/*
+          The hint reads "22 pieces landed". The count leads the phrase in both
+          languages — "22 件已到货" — so the whole predicate is one dictionary
+          entry with the number in front of it, rather than English word order
+          reassembled out of translated scraps.
+        */}
         <KpiCard
           delay={4}
           label={t(locale, "Weight in motion")}
           value={`${activeWeight.toFixed(0)} kg`}
-          hint={`${arrivedCargo} pieces landed`}
+          hint={`${arrivedCargo} ${t(locale, "pieces landed")}`}
           icon={Scale}
           tone="brand"
         />

@@ -423,7 +423,10 @@ function UserPanel({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{user.name}</p>
           <p className="truncate text-xs text-muted-foreground">
-            {ROLE_LABELS[user.role]}
+            {/* The role sits under the name on every screen in the product, so
+                an English one here undoes the Chinese everywhere else. The
+                English label stays the dictionary key. */}
+            {t(user.locale, ROLE_LABELS[user.role])}
           </p>
         </div>
       </Link>

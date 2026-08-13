@@ -22,7 +22,7 @@ import { FlowBars } from "@/components/charts/flow-bars";
 import { CargoSearch } from "@/components/app/cargo-search";
 import { QuickAction } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
-import { formatDateTime, toNumber } from "@/lib/format";
+import { formatDateTime, formatWeekdayDate, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -74,11 +74,7 @@ export default async function SupportHome() {
     select: { name: true },
   });
   const firstName = (me?.name ?? user.name).split(" ")[0];
-  const today = new Date().toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  const today = formatWeekdayDate(new Date(), locale);
 
   const [
     overview,

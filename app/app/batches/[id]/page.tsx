@@ -15,7 +15,7 @@ import {
   formatPackages,
   formatPackagesShort,
 } from "@/lib/constants";
-import { formatDate, toNumber } from "@/lib/format";
+import { formatDate, formatDayMonth, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -200,7 +200,7 @@ export default async function LoadingTablePage({
           }
           hint={
             oldest
-              ? `${t(locale, "Received")} ${oldest.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`
+              ? `${t(locale, "Received")} ${formatDayMonth(oldest, locale)}`
               : t(locale, "Nothing waiting")
           }
           icon={Clock}

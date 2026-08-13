@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
+import { auditActionLabel, auditSentence } from "@/lib/audit-humanise";
 import { ROLE_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -14,7 +15,10 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Audit log" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await viewerLocale();
+  return { title: t(locale, "Audit log") };
+}
 
 const PAGE_SIZE = 60;
 
@@ -93,13 +97,20 @@ export default async function AuditPage({
           {entries.map((entry) => (
             <li key={entry.id} className="px-5 py-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="text-sm">{entry.summary}</p>
+                <p className="text-sm">{auditSentence(locale, entry)}</p>
                 <span className="font-mono text-xs text-muted-foreground tabular">
                   {formatDateTime(entry.createdAt, locale)}
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                <span className="code-chip mr-2">{entry.action}</span>
+                {/* The event, named. Its raw code stays on hover, for whoever
+                    wants to paste it into the search box above. */}
+                <span
+                  title={entry.action}
+                  className="mr-2 inline-flex items-center rounded-md border bg-muted/60 px-2 py-0.5 text-xs"
+                >
+                  {auditActionLabel(locale, entry.action)}
+                </span>
                 {entry.actor?.name ?? entry.actorEmail ?? t(locale, "System")}
                 {entry.actorRole
                   ? ` · ${t(locale, ROLE_LABELS[entry.actorRole])}`

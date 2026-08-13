@@ -14,7 +14,7 @@ import { ActivityBars } from "@/components/app/activity-bars";
 import { ProfileHeader } from "@/components/app/profile-header";
 import { Button } from "@/components/ui/button";
 import { DEPARTMENT_LABELS, ROLE_LABELS } from "@/lib/constants";
-import { formatDate, formatRelative } from "@/lib/format";
+import { formatDate, labelled, formatRelative } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import {
@@ -100,19 +100,29 @@ export default async function MyProfilePage() {
         }
       />
 
-      {/* Today first. It is the only number anyone checks more than once. */}
+      {/* Today first. It is the only number anyone checks more than once.
+
+          The hints under each number are counted sentences, so they are built
+          as a translated opening followed by the figure. A dictionary keyed by
+          English string cannot match a sentence that already carries a number,
+          and Chinese puts the count where English puts it last — "今日登记：
+          12.5 公斤" — so the phrase has to be translated whole, not glued
+          together from translated English words. */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Tile
           icon={Package}
           label={t(locale, "Today's cargo")}
           value={String(stats.todayShipments)}
-          hint={`${stats.todayWeightKg.toFixed(1)} kg recorded today`}
+          hint={labelled(
+            t(locale, "Recorded today:"),
+            `${stats.todayWeightKg.toFixed(1)} ${t(locale, "kg")}`
+          )}
         />
         <Tile
           icon={Scale}
           label={t(locale, "This week")}
           value={String(stats.weekShipments)}
-          hint={`${stats.monthShipments} in the last 30 days`}
+          hint={labelled(t(locale, "In the last 30 days:"), stats.monthShipments)}
         />
         <Tile
           icon={Printer}
@@ -120,15 +130,14 @@ export default async function MyProfilePage() {
           value={String(stats.labelsPrinted)}
           hint={t(locale, "Sticker sheets you opened")}
         />
+        {/* One phrase for any count: Chinese has no plural to switch on, and
+            "Batches worked on: 1" reads as well as the singular sentence this
+            replaces. */}
         <Tile
           icon={Boxes}
           label={t(locale, "Active batch")}
           value={stats.activeBatch ?? "—"}
-          hint={
-            stats.batchesTouched === 1
-              ? t(locale, "1 batch worked on")
-              : `${stats.batchesTouched} batches worked on`
-          }
+          hint={labelled(t(locale, "Batches worked on:"), stats.batchesTouched)}
         />
       </div>
 
@@ -139,8 +148,11 @@ export default async function MyProfilePage() {
           <section className="panel">
             <div className="border-b px-5 py-4">
               <h2 className="font-display font-semibold">{t(locale, "All time")}</h2>
+              {/* Not the bare word "Since": the dictionary already spends that
+                  key on a rate's effective date ("生效日"), which would label
+                  someone's first day as the day a price came into force. */}
               <p className="text-xs text-muted-foreground">
-                Since {formatDate(me.joinedAt, locale)}
+                {t(locale, "Everything since")} {formatDate(me.joinedAt, locale)}
               </p>
             </div>
             <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-3">
@@ -153,7 +165,7 @@ export default async function MyProfilePage() {
                   label: t(locale, "Weight processed"),
                   value: `${stats.totalWeightKg.toLocaleString(undefined, {
                     maximumFractionDigits: 1,
-                  })} kg`,
+                  })} ${t(locale, "kg")}`,
                 },
                 {
                   label: t(locale, "Packages registered"),
@@ -271,7 +283,7 @@ export default async function MyProfilePage() {
                       <span className="font-medium text-foreground tabular">
                         {batch.shipments}
                       </span>{" "}
-                      · {batch.weightKg.toFixed(1)} kg
+                      · {batch.weightKg.toFixed(1)} {t(locale, "kg")}
                     </p>
                   </li>
                 ))}
@@ -287,12 +299,16 @@ export default async function MyProfilePage() {
               <ProfileLink
                 href="/app/profile/shipments"
                 title={t(locale, "My shipments")}
-                detail={`${stats.totalShipments} you registered`}
+                detail={`${t(locale, "Registered by you:")} ${
+                  stats.totalShipments
+                }`}
               />
               <ProfileLink
                 href="/app/profile/batches"
                 title={t(locale, "My batches")}
-                detail={`${stats.batchesTouched} you contributed to`}
+                detail={`${t(locale, "You contributed to:")} ${
+                  stats.batchesTouched
+                }`}
               />
               {/* The whole floor's activity sits beside your own — this page
                   is already the answer to "what has been happening". */}

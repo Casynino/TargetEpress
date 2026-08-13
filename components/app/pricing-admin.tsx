@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Archive, Plus, RotateCcw, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
-import { useT } from "@/components/app/locale-provider";
+import { useLocale, useT } from "@/components/app/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import {
   setProductActive,
   withdrawRule,
 } from "@/lib/actions/pricing";
+import { formatDate } from "@/lib/format";
 
 export type AdminProduct = {
   id: string;
@@ -83,6 +84,7 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const t = useT();
+  const locale = useLocale();
 
   /** Change a live price. A withdrawal and a fresh publication underneath. */
   const save = (rule: AdminRule) => {
@@ -265,11 +267,7 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
                   {!rule.minChargeableKg && !rule.minCharge ? "—" : null}
                 </td>
                 <td className="hidden p-3 whitespace-nowrap text-xs text-muted-foreground md:table-cell">
-                  {new Date(rule.effectiveFrom).toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
+                  {formatDate(rule.effectiveFrom, locale)}
                 </td>
                 <td className="p-3 text-right">
                   {rule.active ? (

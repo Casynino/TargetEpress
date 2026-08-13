@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Printer, QrCode } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
-import { useT } from "@/components/app/locale-provider";
+import { useLocale, useT } from "@/components/app/locale-provider";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -48,6 +48,7 @@ export function ShipmentsTable({
 }) {
   const { toast } = useToast();
   const t = useT();
+  const locale = useLocale();
 
   const columns: Column<ShipmentRow>[] = [
     {
@@ -143,7 +144,7 @@ export function ShipmentsTable({
       sortValue: (row) => new Date(row.registeredAt),
       cell: (row) => (
         <span className="text-sm text-muted-foreground tabular">
-          {formatDate(row.registeredAt)}
+          {formatDate(row.registeredAt, locale)}
         </span>
       ),
     },
@@ -274,7 +275,7 @@ export function ShipmentsTable({
             { label: "Packages", value: String(row.packages) },
             { label: "Weight", value: formatWeight(row.weightKg) },
             { label: "Batch", value: row.batchNumber ?? t("Not assigned") },
-            { label: "Registered", value: formatDate(row.registeredAt) },
+            { label: "Registered", value: formatDate(row.registeredAt, locale) },
             ...(showMoney
               ? [
                   {
