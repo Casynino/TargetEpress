@@ -39,6 +39,23 @@ function bi(pair, cls = "") {
   </div>`;
 }
 
+/**
+ * A short label in both languages, side by side: "Mission · Dhamira".
+ *
+ * Used for eyebrows, table headers, card labels and role names — anything too
+ * short to deserve its own stacked block. Same rule as everywhere else: a
+ * missing second language is shown, not hidden.
+ */
+function inline(pair) {
+  const [en, alt] = Array.isArray(pair) ? pair : [pair, null];
+  if (alt) return `${esc(en)} <span class="alt-inline">${esc(alt)}</span>`;
+  // A numeral or a bare symbol reads the same in every language, so flagging it
+  // as untranslated would be noise on the page and would train the reader to
+  // ignore the marker where it does matter.
+  if (/^[\d\W]+$/.test(String(en ?? ""))) return esc(en);
+  return `${esc(en)} <span class="alt-inline missing">[?]</span>`;
+}
+
 /** A bilingual heading, same rule. */
 function biHead(pair, tag = "h2") {
   const [en, alt] = Array.isArray(pair) ? pair : [pair, null];
@@ -83,6 +100,9 @@ b{font-weight:600}
 .bi .en{color:var(--paper-ink)}
 .bi .alt{color:var(--paper-muted);font-size:9.5pt;line-height:1.5}
 .bi .alt.missing{color:var(--signal);font-style:italic}
+.alt-inline{color:var(--paper-muted);font-weight:400}
+.alt-inline.missing{color:var(--signal);font-style:italic}
+th .alt-inline{color:var(--paper-muted)}
 .bihead .en{display:block}
 .bihead .alt{display:block;font-size:.62em;font-weight:500;color:var(--paper-muted);margin-top:1mm}
 
@@ -242,7 +262,13 @@ function figure(fig, dir) {
     <img src="${dir}/${esc(fig.shot)}.png" alt="">
     ${rings}${pins}
   </div>
-  ${fig.caption ? `<p class="figcap">${rich(Array.isArray(fig.caption) ? fig.caption[0] : fig.caption)}</p>` : ""}`;
+  ${
+    fig.caption
+      ? `<p class="figcap">${rich(Array.isArray(fig.caption) ? fig.caption[0] : fig.caption)}${
+          Array.isArray(fig.caption) && fig.caption[1] ? `<br>${rich(fig.caption[1])}` : ""
+        }</p>`
+      : ""
+  }`;
 }
 
 const keys = (items) =>
@@ -262,13 +288,26 @@ const keys = (items) =>
         )
         .join("")}</div>`;
 
+/**
+ * Default callout labels for the manual currently rendering.
+ *
+ * Set once per render rather than threaded through every call, because a
+ * callout is nested three levels deep in a block list and passing the whole
+ * manual down to reach four words would obscure what those functions do.
+ */
+let CALLOUT_LABELS = {};
+
 const callout = (c) =>
   !c
     ? ""
     : `<div class="callout ${c.kind ?? ""}">
     <div class="ico">${c.kind === "stop" ? "!" : c.kind === "warn" ? "!" : c.kind === "tip" ? "★" : "i"}</div>
     <div>
-      <div class="k">${esc(c.label ?? (c.kind === "stop" ? "Never do this" : c.kind === "warn" ? "Careful" : c.kind === "tip" ? "Tip" : "Note"))}</div>
+      <div class="k">${inline(
+        c.label ??
+          CALLOUT_LABELS[c.kind ?? "note"] ??
+          (c.kind === "stop" ? "Never do this" : c.kind === "warn" ? "Careful" : c.kind === "tip" ? "Tip" : "Note")
+      )}</div>
       ${bi(c.text)}
     </div>
   </div>`;
@@ -292,10 +331,10 @@ function coverPage(m) {
     <h1>${esc(m.department[0])}</h1>
     <div class="dept-alt">${esc(m.department[1] ?? "")}</div>
     <div class="meta">
-      <div><span class="k">Version</span><span class="v">${esc(m.version)}</span></div>
-      <div><span class="k">Languages</span><span class="v">${esc(m.languages)}</span></div>
-      <div><span class="k">For</span><span class="v">${esc(m.audience)}</span></div>
-      <div><span class="k">Issued</span><span class="v">${esc(m.issued)}</span></div>
+      <div><span class="k">${inline(m.labels?.version ?? "Version")}</span><span class="v">${esc(m.version)}</span></div>
+      <div><span class="k">${inline(m.labels?.languages ?? "Languages")}</span><span class="v">${esc(m.languages)}</span></div>
+      <div><span class="k">${inline(m.labels?.audience ?? "For")}</span><span class="v">${esc(m.audience)}</span></div>
+      <div><span class="k">${inline(m.labels?.issued ?? "Issued")}</span><span class="v">${esc(m.issued)}</span></div>
     </div>
   </div>
 </section>`;
@@ -335,7 +374,7 @@ function dividerPage(m, n, s) {
 function screenPage(m, dir, s, pageNo) {
   return `<section class="page">
   <div class="head">
-    <div class="eyebrow">${esc(s.eyebrow ?? "The screen")}</div>
+    <div class="eyebrow">${inline(s.eyebrow ?? "The screen")}</div>
     ${biHead(s.title, "h2")}
     ${s.route ? `<p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">${esc(s.route)}</p>` : ""}
   </div>
@@ -359,7 +398,7 @@ function prosePage(m, dir, p, pageNo) {
         return `<div class="cards ${b.columns === 3 ? "three" : "two"}">${b.items
           .map(
             (c) => `<div class="card">
-          <span class="label">${esc(c.label ?? "")}</span>
+          <span class="label">${c.label ? inline(c.label) : ""}</span>
           <h3>${esc(Array.isArray(c.title) ? c.title[0] : c.title)}</h3>
           ${Array.isArray(c.title) && c.title[1] ? `<h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">${esc(c.title[1])}</h3>` : ""}
           ${bi(c.body)}
@@ -367,7 +406,7 @@ function prosePage(m, dir, p, pageNo) {
           )
           .join("")}</div>`;
       if (b.type === "table")
-        return `<table><tr>${b.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>
+        return `<table><tr>${b.head.map((h) => `<th>${inline(h)}</th>`).join("")}</tr>
         ${b.rows
           .map(
             (r) =>
@@ -385,18 +424,24 @@ function prosePage(m, dir, p, pageNo) {
             (st, i) => `<div class="flow-step" style="--seg:${st.tone ? `var(--${st.tone})` : "var(--paper-line)"}">
           <div class="flow-rail"><div class="flow-dot">${i + 1}</div></div>
           <div class="flow-body">
-            <div class="who">${esc(st.who ?? "")}</div>
+            <div class="who">${st.who ? inline(st.who) : ""}</div>
             <div class="what">${esc(Array.isArray(st.what) ? st.what[0] : st.what)}${
               Array.isArray(st.what) && st.what[1] ? ` <span class="alt">${esc(st.what[1])}</span>` : ""
             }</div>
-            ${st.note ? `<p>${rich(Array.isArray(st.note) ? st.note[0] : st.note)}</p>` : ""}
+            ${
+              st.note
+                ? `<p>${rich(Array.isArray(st.note) ? st.note[0] : st.note)}${
+                    Array.isArray(st.note) && st.note[1] ? `<br>${rich(st.note[1])}` : ""
+                  }</p>`
+                : ""
+            }
           </div>
         </div>`
           )
           .join("")}</div>`;
       if (b.type === "example")
         return `<div class="example-hd">${b.fields
-          .map((f) => `<div><div class="k">${esc(f.k)}</div><div class="v">${esc(f.v)}</div></div>`)
+          .map((f) => `<div><div class="k">${inline(f.k)}</div><div class="v">${esc(f.v)}</div></div>`)
           .join("")}</div>`;
       return "";
     })
@@ -406,7 +451,7 @@ function prosePage(m, dir, p, pageNo) {
   ${
     p.title
       ? `<div class="head">
-    ${p.eyebrow ? `<div class="eyebrow">${esc(p.eyebrow)}</div>` : ""}
+    ${p.eyebrow ? `<div class="eyebrow">${inline(p.eyebrow)}</div>` : ""}
     ${biHead(p.title, "h2")}
   </div>`
       : ""
@@ -419,6 +464,7 @@ function prosePage(m, dir, p, pageNo) {
 /* ------------------------------------------------------------------ render */
 
 export function renderManual(m, shotsDir) {
+  CALLOUT_LABELS = m.callouts ?? {};
   const pages = [coverPage(m)];
   let n = 2;
 

@@ -6,10 +6,23 @@
 export default {
   department: ["Management", "管理层"],
   version: "1.0",
+  labels: {
+    version: ["Version", "版本"],
+    languages: ["Languages", "语言"],
+    audience: ["For", "适用对象"],
+    issued: ["Issued", "签发"],
+  },
   languages: "English · 简体中文",
   audience: "CEO and administrators",
   issued: "August 2026",
   contentsAlt: "目录",
+
+  callouts: {
+    stop: ["Never do this", "切勿这样做"],
+    warn: ["Careful", "注意"],
+    tip: ["Tip", "提示"],
+    note: ["Note", "说明"],
+  },
 
   sections: [
     {
@@ -21,7 +34,7 @@ export default {
       pages: [
         {
           title: ["What this chair is for", "这个岗位的职责"],
-          eyebrow: "Mission",
+          eyebrow: ["Mission", "使命"],
           blocks: [
             {
               type: "text",
@@ -35,7 +48,7 @@ export default {
               columns: 2,
               items: [
                 {
-                  label: "Yours alone",
+                  label: ["Yours alone", "只有你能做"],
                   title: ["The decisions with a cost attached", "带有成本的决定"],
                   body: [
                     "Compensation payouts, costs above the threshold, staff and their access, the prices customers are told, and permanent deletion. No other role holds any of these — not even Finance.",
@@ -43,7 +56,7 @@ export default {
                   ],
                 },
                 {
-                  label: "Deliberately split",
+                  label: ["Deliberately split", "刻意分开"],
                   title: ["Approving is never paying", "审批不等于付款"],
                   body: [
                     "You approve a payout; Finance disburses it. You approve a cost; Finance's payment is what actually moves money. *One desk deciding and paying is how money leaves a business quietly.*",
@@ -54,7 +67,7 @@ export default {
             },
             {
               type: "table",
-              head: ["Your day", "What it means"],
+              head: [["Your day", "你的一天"], ["What it means", "含义"]],
               rows: [
                 [["Land on the executive view", "进入管理层视图"], ["A dashboard no other role sees.", "其他角色看不到的仪表盘。"]],
                 [["Read what needs a decision", "看需要你决定的事"], ["Grouped by the desk that owns the fix, ranked by severity.", "按负责解决的岗位分组，按严重程度排序。"]],
@@ -68,14 +81,14 @@ export default {
         },
         {
           title: ["What you may and may not do", "你的权限范围"],
-          eyebrow: "Authority",
+          eyebrow: ["Authority", "权限"],
           blocks: [
             {
               type: "cards",
               columns: 2,
               items: [
                 {
-                  label: "You may",
+                  label: ["You may", "你可以"],
                   title: ["See everything, decide the rest", "看到全部，决定其余"],
                   body: [
                     "Every screen in the system · approve compensation and assign a case · approve any cost above the threshold · read the profit and loss (withheld even from Finance) · create staff, change roles, reset passwords, switch access off · restore a deleted consignment or erase one permanently · change the collection accounts, offices and numbers customers see.",
@@ -83,7 +96,7 @@ export default {
                   ],
                 },
                 {
-                  label: "You may not",
+                  label: ["You may not", "你不可以"],
                   title: ["Lock yourself out, or rewrite the record", "把自己锁在外面，或改写记录"],
                   body: [
                     "Deactivate your own account · change your own role · edit or delete anything in the audit log, including your own actions · approve a payout twice or on a finished case · erase a record that still has an invoice, or that flew on a dispatched batch · erase anything without typing its tracking number exactly.",
@@ -95,7 +108,7 @@ export default {
             {
               type: "callout",
               kind: "tip",
-              label: "Why the limits exist",
+              label: ["Why the limits exist", "为什么有这些限制"],
               text: [
                 "*These constraints exist because you are the one person nobody can overrule.* They are what make the record worth trusting when you are the one being asked to explain it.",
                 "*这些限制之所以存在，是因为你是唯一没有人能推翻的人。* 当有人要求你解释某个数字时，正是这些限制让记录值得信任。",
@@ -113,7 +126,7 @@ export default {
         {
           kind: "screen",
           title: ["The login screen", "登录界面"],
-          eyebrow: "Step 1",
+          eyebrow: ["Step 1", "第一步"],
           route: "target-epress.vercel.app",
           intro: [
             "Type your work email and password. You land on the executive dashboard — the only role that sees it. The language switch sits at the bottom of the sidebar; press 中文 and the whole system follows.",
@@ -122,7 +135,11 @@ export default {
           figure: {
             shot: "login",
             crop: true,
-            pins: [{ n: 1, x: 50, y: 44 }, { n: 2, x: 50, y: 57 }, { n: 3, x: 50, y: 70 }],
+            pins: [
+              { n: 1, x: 78, y: 48 },
+              { n: 2, x: 78, y: 58 },
+              { n: 3, x: 78, y: 65 },
+            ],
           },
           keys: [
             { n: 1, title: ["Email", "邮箱"], body: ["e.g. ceo@targetexpress.co.tz", "例如 ceo@targetexpress.co.tz"] },
@@ -147,7 +164,7 @@ export default {
         {
           kind: "screen",
           title: ["Home, section by section", "首页逐块讲解"],
-          eyebrow: "Dashboard",
+          eyebrow: ["Dashboard", "仪表盘"],
           route: "/app/dashboard",
           intro: [
             "This screen answers the three questions only this chair asks: where is all of it, how is each desk, and is the money keeping up.",
@@ -214,11 +231,11 @@ export default {
       pages: [
         {
           title: ["The screens only you can use", "只有你能使用的界面"],
-          eyebrow: "Navigation",
+          eyebrow: ["Navigation", "导航"],
           blocks: [
             {
               type: "table",
-              head: ["Menu", "What it is, and when to use it"],
+              head: [["Menu", "菜单"], ["What it is, and when to use it", "它是什么，何时使用"]],
               rows: [
                 [["Issues & Claims", "/app/exceptions"], ["Approving a payout and assigning a case. Yours alone.", "批准赔付和指派案件。只有你能做。"]],
                 [["Expenses", "/app/finance/expenses"], ["Signing off costs above the threshold before they can be paid.", "在支付前签批超额支出。"]],
@@ -244,7 +261,7 @@ export default {
         {
           kind: "screen",
           title: ["Issues & Claims — the decisions only you make", "问题与索赔——只有你能做的决定"],
-          eyebrow: "Approve, or assign",
+          eyebrow: ["Approve, or assign", "批准或指派"],
           route: "/app/exceptions",
           intro: [
             "Approve a payout, or assign a case to a named person. Both are yours alone — Customer Care and the warehouses can move a case along and gather evidence, but neither can decide it. Closing a case needs a resolution written down.",
@@ -267,7 +284,7 @@ export default {
         {
           kind: "screen",
           title: ["Profit & loss — the report withheld from Finance", "损益表——财务也看不到的报表"],
-          eyebrow: "What the business earned",
+          eyebrow: ["What the business earned", "公司赚了多少"],
           route: "/app/finance/reports",
           intro: [
             "Two bases side by side: what the work earned (bills raised and costs incurred) and what actually moved (money in and out). *They always disagree, and both are true.*",
@@ -285,7 +302,7 @@ export default {
         {
           kind: "screen",
           title: ["Staff — people and access", "员工——人员与权限"],
-          eyebrow: "Who can do what",
+          eyebrow: ["Who can do what", "谁能做什么"],
           route: "/app/admin/users",
           intro: [
             "Create an account, change someone's role, reset a password, or switch access off the moment someone leaves. Each name opens to their own record and activity.",
@@ -308,7 +325,7 @@ export default {
         {
           kind: "screen",
           title: ["Deleted records — restore or erase", "已删除记录——恢复或清除"],
-          eyebrow: "Nothing is destroyed by a delete",
+          eyebrow: ["Nothing is destroyed by a delete", "删除不会销毁数据"],
           route: "/app/admin/deleted",
           intro: [
             "Every soft-deleted consignment, with the reason, who deleted it, and its photographs preserved. An ordinary delete is a timestamp, a person and a reason — *nothing is destroyed*.",
@@ -326,7 +343,7 @@ export default {
         {
           kind: "screen",
           title: ["Company settings & Pricing", "公司设置与价格"],
-          eyebrow: "What customers are told",
+          eyebrow: ["What customers are told", "客户看到的信息"],
           route: "/app/admin/settings · /app/finance/pricing",
           intro: [
             "Collection accounts, the Tanzania and China office addresses, and the contact numbers. Pricing is the rate book every quote comes from — change a figure there and cargo, invoices, tracking and reports all follow.",
@@ -344,7 +361,7 @@ export default {
         {
           kind: "screen",
           title: ["Audit log — settling arguments", "审计日志——解决争议"],
-          eyebrow: "Append-only, including for you",
+          eyebrow: ["Append-only, including for you", "只增不改，对你也一样"],
           route: "/app/admin/audit",
           intro: [
             "Every privileged action, searchable by summary, action or user, and filterable to shipments, batches, invoices, payments, pickup notes or staff.",
@@ -368,27 +385,27 @@ export default {
       pages: [
         {
           title: ["Fifteen steps, five departments", "十五步，五个部门"],
-          eyebrow: "End to end",
+          eyebrow: ["End to end", "全流程"],
           blocks: [
             {
               type: "flow",
               steps: [
-                { who: "Customer 客户", what: ["Books on the website", "在官网下单"], tone: "draft" },
-                { who: "Guangzhou 广州", what: ["Weigh · photograph · register", "称重 · 拍照 · 登记"], tone: "draft" },
-                { who: "Guangzhou 广州", what: ["Print labels, one per box", "打印标签，每箱一张"], tone: "draft" },
-                { who: "Guangzhou 广州", what: ["Seal and dispatch", "封批发运"], tone: "draft" },
-                { who: "In the air 空运中", what: ["China → Tanzania", "中国 → 坦桑尼亚"], tone: "owed" },
-                { who: "Dar floor 达市仓", what: ["Land and check in the flight", "接收并核对航班"], tone: "owed" },
-                { who: "System 系统", what: ["Priced automatically as a draft", "自动计价为草稿"], tone: "owed" },
-                { who: "Finance 财务", what: ["Confirm the price → invoice", "确认价格 → 账单"], tone: "owed" },
-                { who: "Customer Care 客服", what: ["Chase the customer", "催收客户"], tone: "owed" },
-                { who: "Customer Care 客服", what: ["Submit the claim with proof", "提交带凭证的收款申报"], tone: "owed" },
-                { who: "Finance 财务", what: ["Verify · receipt · pickup note", "核实 · 收据 · 提货单"], tone: "paid" },
-                { who: "Dar floor 达市仓", what: ["Scan · photograph · hand over", "扫码 · 拍照 · 交货"], tone: "paid" },
-                { who: "You 你", what: ["Approve payouts and big costs", "批准赔付和大额支出"], tone: "info",
+                { who: ["Customer", "客户"], what: ["Books on the website", "在官网下单"], tone: "draft" },
+                { who: ["Guangzhou", "广州"], what: ["Weigh · photograph · register", "称重 · 拍照 · 登记"], tone: "draft" },
+                { who: ["Guangzhou", "广州"], what: ["Print labels, one per box", "打印标签，每箱一张"], tone: "draft" },
+                { who: ["Guangzhou", "广州"], what: ["Seal and dispatch", "封批发运"], tone: "draft" },
+                { who: ["In the air", "空运中"], what: ["China → Tanzania", "中国 → 坦桑尼亚"], tone: "owed" },
+                { who: ["Dar floor", "达市仓"], what: ["Land and check in the flight", "接收并核对航班"], tone: "owed" },
+                { who: ["System", "系统"], what: ["Priced automatically as a draft", "自动计价为草稿"], tone: "owed" },
+                { who: ["Finance", "财务"], what: ["Confirm the price → invoice", "确认价格 → 账单"], tone: "owed" },
+                { who: ["Customer Care", "客服"], what: ["Chase the customer", "催收客户"], tone: "owed" },
+                { who: ["Customer Care", "客服"], what: ["Submit the claim with proof", "提交带凭证的收款申报"], tone: "owed" },
+                { who: ["Finance", "财务"], what: ["Verify · receipt · pickup note", "核实 · 收据 · 提货单"], tone: "paid" },
+                { who: ["Dar floor", "达市仓"], what: ["Scan · photograph · hand over", "扫码 · 拍照 · 交货"], tone: "paid" },
+                { who: ["You", "你"], what: ["Approve payouts and big costs", "批准赔付和大额支出"], tone: "info",
                   note: ["Only where a decision has a cost attached.", "仅在决定涉及成本时。"] },
-                { who: "You 你", what: ["Read the position and the profit", "查看经营状况和利润"], tone: "info" },
-                { who: "You 你", what: ["Settle arguments from the log", "依据日志解决争议"], tone: "info" },
+                { who: ["You", "你"], what: ["Read the position and the profit", "查看经营状况和利润"], tone: "info" },
+                { who: ["You", "你"], what: ["Settle arguments from the log", "依据日志解决争议"], tone: "info" },
               ],
             },
           ],
@@ -402,20 +419,20 @@ export default {
       pages: [
         {
           title: ["TX-000042 · a claim and a cost", "TX-000042 · 一次索赔与一笔支出"],
-          eyebrow: "Where you come in",
+          eyebrow: ["Where you come in", "你介入的环节"],
           blocks: [
             {
               type: "example",
               fields: [
-                { k: "Customer", v: "John Peter" },
-                { k: "Tracking", v: "TX-000042" },
-                { k: "Invoice", v: "USD 48.60" },
-                { k: "Claim", v: "USD 180.00" },
+                { k: ["Customer", "客户"], v: "John Peter" },
+                { k: ["Tracking", "运单号"], v: "TX-000042" },
+                { k: ["Invoice", "账单"], v: "USD 48.60" },
+                { k: ["Claim", "索赔"], v: "USD 180.00" },
               ],
             },
             {
               type: "table",
-              head: ["Stage", "What you do"],
+              head: [["Stage", "阶段"], ["What you do", "你做什么"]],
               rows: [
                 [
                   ["A box is missing", "一箱货缺失"],
@@ -465,11 +482,11 @@ export default {
       pages: [
         {
           title: ["Common mistakes", "常见错误"],
-          eyebrow: "Fix it this way",
+          eyebrow: ["Fix it this way", "这样纠正"],
           blocks: [
             {
               type: "table",
-              head: ["The mistake", "What it causes", "What to do"],
+              head: [["The mistake", "错误"], ["What it causes", "后果"], ["What to do", "怎么做"]],
               rows: [
                 [["Doing another desk's work", "替别的岗位做事"], ["Your name lands in the middle of a record that should be theirs.", "你的名字出现在本该属于他们的记录中。"], ["Send it back to the desk that owns it.", "退回给负责该事项的岗位。"]],
                 [["Reading the figure, not the problem line", "只看数字，不看问题描述"], ["A busy, healthy desk looks like a crisis; a real one gets missed.", "忙碌但正常的岗位看起来像危机；真正的问题被忽略。"], ["Read the line underneath the number.", "看数字下面那行说明。"]],
@@ -490,18 +507,18 @@ export default {
       pages: [
         {
           title: ["Best practice", "最佳实践"],
-          eyebrow: "Do it this way",
+          eyebrow: ["Do it this way", "这样做"],
           blocks: [
             {
               type: "cards",
               columns: 2,
               items: [
-                { label: "Decide", title: ["Decide, do not operate", "只做决定，不做操作"], body: ["If you are registering cargo, a desk below you needs attention instead.", "如果你在登记货物，说明下面某个岗位需要关注。"] },
-                { label: "Both halves", title: ["Approving is not paying", "批准不等于付款"], body: ["Your signature unlocks the money; Finance moves it. Confirm both happened.", "你的签批只是解锁，财务才动钱。确认两步都完成。"] },
-                { label: "Numbers", title: ["Say which number you mean", "说明你用的是哪个数字"], body: ["Two profit bases, two currencies. Most bad decisions here are a comparison, not a calculation.", "两种利润口径、两种货币。这里多数错误决定源于比较，而非计算。"] },
-                { label: "People", title: ["Switch access off the same day", "离职当天即停用权限"], body: ["Their record and history stay; only the door closes.", "记录和历史都保留；关闭的只是入口。"] },
-                { label: "Deletion", title: ["Restore before you erase", "先恢复，再考虑清除"], body: ["A soft delete keeps everything. Permanent erasure is for genuine mistakes only.", "软删除保留一切。永久清除只用于真正的误操作。"] },
-                { label: "The log", title: ["Settle from the record", "依据记录解决问题"], body: ["Append-only, including for you. If a mistake is in it, add an entry — never correct one.", "只增不改，对你也一样。若有错误，新增记录——绝不修改。"] },
+                { label: ["Decide", "决定"], title: ["Decide, do not operate", "只做决定，不做操作"], body: ["If you are registering cargo, a desk below you needs attention instead.", "如果你在登记货物，说明下面某个岗位需要关注。"] },
+                { label: ["Both halves", "两个环节"], title: ["Approving is not paying", "批准不等于付款"], body: ["Your signature unlocks the money; Finance moves it. Confirm both happened.", "你的签批只是解锁，财务才动钱。确认两步都完成。"] },
+                { label: ["Numbers", "数字"], title: ["Say which number you mean", "说明你用的是哪个数字"], body: ["Two profit bases, two currencies. Most bad decisions here are a comparison, not a calculation.", "两种利润口径、两种货币。这里多数错误决定源于比较，而非计算。"] },
+                { label: ["People", "人员"], title: ["Switch access off the same day", "离职当天即停用权限"], body: ["Their record and history stay; only the door closes.", "记录和历史都保留；关闭的只是入口。"] },
+                { label: ["Deletion", "删除"], title: ["Restore before you erase", "先恢复，再考虑清除"], body: ["A soft delete keeps everything. Permanent erasure is for genuine mistakes only.", "软删除保留一切。永久清除只用于真正的误操作。"] },
+                { label: ["The log", "日志"], title: ["Settle from the record", "依据记录解决问题"], body: ["Append-only, including for you. If a mistake is in it, add an entry — never correct one.", "只增不改，对你也一样。若有错误，新增记录——绝不修改。"] },
               ],
             },
           ],
@@ -515,11 +532,11 @@ export default {
       pages: [
         {
           title: ["Frequently asked", "常见问答"],
-          eyebrow: "FAQ",
+          eyebrow: ["FAQ", "常见问题"],
           blocks: [
             {
               type: "table",
-              head: ["Question", "Answer"],
+              head: [["Question", "问题"], ["Answer", "解答"]],
               rows: [
                 [["Why can I not deactivate my own account?", "为什么我不能停用自己的账号？"], ["Because it would leave the company with no way back into its own system. The refusal is by name.", "因为那会让公司无法再进入自己的系统。系统会明确拒绝。"]],
                 [["Can I correct a wrong entry in the audit log?", "我能修改审计日志里的错误吗？"], ["No — including you. Add a new entry explaining it. That immutability is what makes the log worth anything.", "不能——包括你。请新增一条说明记录。正是这种不可修改性让日志有价值。"]],
@@ -540,21 +557,21 @@ export default {
       pages: [
         {
           title: ["This chair in one page", "一页看懂这个岗位"],
-          eyebrow: "Keep this one",
+          eyebrow: ["Keep this one", "请保留这一页"],
           blocks: [
             {
               type: "cards",
               columns: 3,
               items: [
-                { label: "1", title: ["Decide, do not operate", "只做决定，不做操作"], body: ["If you are doing another desk's work, that desk needs attention instead.", "如果你在做别的岗位的工作，说明那个岗位才需要关注。"] },
-                { label: "2", title: ["Approving is not paying", "批准不等于付款"], body: ["Your signature unlocks the money; Finance moves it. Confirm both halves.", "你的签批只是解锁，财务才动钱。确认两步都完成。"] },
-                { label: "3", title: ["Say which number you mean", "说明你用的是哪个数字"], body: ["Two profit bases, two currencies. Most bad calls here are comparisons.", "两种口径、两种货币。这里多数误判源于比较。"] },
+                { label: ["1", "一"], title: ["Decide, do not operate", "只做决定，不做操作"], body: ["If you are doing another desk's work, that desk needs attention instead.", "如果你在做别的岗位的工作，说明那个岗位才需要关注。"] },
+                { label: ["2", "二"], title: ["Approving is not paying", "批准不等于付款"], body: ["Your signature unlocks the money; Finance moves it. Confirm both halves.", "你的签批只是解锁，财务才动钱。确认两步都完成。"] },
+                { label: ["3", "三"], title: ["Say which number you mean", "说明你用的是哪个数字"], body: ["Two profit bases, two currencies. Most bad calls here are comparisons.", "两种口径、两种货币。这里多数误判源于比较。"] },
               ],
             },
             {
               type: "callout",
               kind: "tip",
-              label: "If you remember one sentence",
+              label: ["If you remember one sentence", "如果只记住一句话"],
               text: [
                 "Every other desk is built so it cannot do your job. Keep it that way — the separations are what make the whole record worth trusting.",
                 "其他每个岗位的设计都让它无法做你的工作。请保持这样——正是这些分离让整份记录值得信任。",

@@ -5,10 +5,23 @@
 export default {
   department: ["Customer Care", "Huduma kwa Wateja"],
   version: "1.0",
+  labels: {
+    version: ["Version", "Toleo"],
+    languages: ["Languages", "Lugha"],
+    audience: ["For", "Kwa"],
+    issued: ["Issued", "Imetolewa"],
+  },
   languages: "English · Kiswahili",
   audience: "Customer Care desk",
   issued: "August 2026",
   contentsAlt: "Yaliyomo",
+
+  callouts: {
+    stop: ["Never do this", "Usifanye hivi"],
+    warn: ["Careful", "Kuwa makini"],
+    tip: ["Tip", "Kidokezo"],
+    note: ["Note", "Kumbuka"],
+  },
 
   sections: [
     {
@@ -20,14 +33,14 @@ export default {
       pages: [
         {
           title: ["What this desk is, and what it is not", "Kitengo hiki ni nini, na si nini"],
-          eyebrow: "Mission",
+          eyebrow: ["Mission", "Dhamira"],
           blocks: [
             {
               type: "cards",
               columns: 2,
               items: [
                 {
-                  label: "You may say",
+                  label: ["You may say", "Unaweza kusema"],
                   title: ["“The customer says they have paid”", "“Mteja anasema amelipa”"],
                   body: [
                     "You take the claim, attach their evidence, and hand it up to Finance. A submission moves no money: it writes nothing to the invoice, nothing to the ledger, nothing to any balance. *A claim is not money.*",
@@ -35,7 +48,7 @@ export default {
                   ],
                 },
                 {
-                  label: "You may not say",
+                  label: ["You may not say", "Huwezi kusema"],
                   title: ["“The money arrived”", "“Pesa imefika”"],
                   body: [
                     "Only Finance can. That single denial is why this desk can ring customers all day without ever being able to release cargo or move a figure — and why nobody can pressure you into doing it.",
@@ -46,7 +59,7 @@ export default {
             },
             {
               type: "table",
-              head: ["Your day", "What it means"],
+              head: [["Your day", "Siku yako"], ["What it means", "Maana yake"]],
               rows: [
                 [["Land on your desk", "Fika kwenye kitengo chako"], ["/app/support is your dashboard. There is no second one.", "/app/support ndio ukurasa wako. Hakuna mwingine."]],
                 [["Read what needs you", "Soma kinachohitaji uangalizi"], ["One panel, already sorted by urgency. Work it top to bottom.", "Paneli moja, imepangwa kwa udharura. Anza juu hadi chini."]],
@@ -60,14 +73,14 @@ export default {
         },
         {
           title: ["What you may and may not do", "Unachoweza na usichoweza"],
-          eyebrow: "Authority",
+          eyebrow: ["Authority", "Mamlaka"],
           blocks: [
             {
               type: "cards",
               columns: 2,
               items: [
                 {
-                  label: "You may",
+                  label: ["You may", "Unaweza"],
                   title: ["Talk, bill, chase, record", "Kuongea, kutoza, kufuatilia, kuandika"],
                   body: [
                     "See every consignment and what the customer owes · bill a customer and edit an invoice · chase with a pre-written Swahili reminder on WhatsApp · take a payment claim with evidence · print a pickup note Finance already issued · open and close tickets and sourcing requests · quote from the rate book.",
@@ -75,7 +88,7 @@ export default {
                   ],
                 },
                 {
-                  label: "You may not",
+                  label: ["You may not", "Huwezi"],
                   title: ["Confirm money, issue notes, discount", "Kuthibitisha pesa, kutoa hati, kupunguza bei"],
                   body: [
                     "Say money arrived · verify your own submission · issue or cancel a pickup note · give a discount · open the company's books — accounts, ledger, costs, profit · touch the cargo: no registering, scanning, receiving or releasing.",
@@ -87,7 +100,7 @@ export default {
             {
               type: "callout",
               kind: "stop",
-              label: "The one that protects you",
+              label: ["The one that protects you", "Hili linakulinda"],
               text: [
                 "*Never tell a customer their cargo is released until the pickup note actually exists.* A customer sent to the warehouse too early is turned away at the counter — and it is your name they remember.",
                 "*Usimwambie mteja mzigo wake umeruhusiwa hadi hati ya kuchukua iwepo kweli.* Mteja aliyetumwa ghalani mapema mno anarudishwa kaunta — na jina lako ndilo atakalolikumbuka.",
@@ -105,7 +118,7 @@ export default {
         {
           kind: "screen",
           title: ["The login screen", "Ukurasa wa kuingia"],
-          eyebrow: "Step 1",
+          eyebrow: ["Step 1", "Hatua ya 1"],
           route: "target-epress.vercel.app",
           intro: [
             "Type your work email and password. Everyone signs in at the same door, and the system sends you straight to the support desk. If you bookmarked a dashboard from another role it still works — it simply redirects back here.",
@@ -114,7 +127,11 @@ export default {
           figure: {
             shot: "login",
             crop: true,
-            pins: [{ n: 1, x: 50, y: 44 }, { n: 2, x: 50, y: 57 }, { n: 3, x: 50, y: 70 }],
+            pins: [
+              { n: 1, x: 78, y: 48 },
+              { n: 2, x: 78, y: 58 },
+              { n: 3, x: 78, y: 65 },
+            ],
           },
           keys: [
             { n: 1, title: ["Email", "Barua pepe"], body: ["e.g. support@targetexpress.co.tz", "mfano support@targetexpress.co.tz"] },
@@ -123,6 +140,7 @@ export default {
           ],
           callout: {
             kind: "tip",
+            label: ["Tip", "Kidokezo"],
             text: [
               "Do not go looking for a second dashboard. There isn't one, and that is deliberate — everything this desk does starts on one page.",
               "Usitafute ukurasa mwingine wa mwanzo. Haupo, na hiyo ni kwa makusudi — kila kitu kitengo hiki kinachofanya kinaanzia ukurasa mmoja.",
@@ -139,7 +157,7 @@ export default {
         {
           kind: "screen",
           title: ["Home, section by section", "Ukurasa wa mwanzo, sehemu kwa sehemu"],
-          eyebrow: "Dashboard",
+          eyebrow: ["Dashboard", "Ukurasa wa mwanzo"],
           route: "/app/support",
           intro: [
             "Search at the top, then Needs your attention, then the tiles and the call list. Work the panel in the order it gives you — it is not alphabetical, it is ordered by urgency.",
@@ -183,6 +201,7 @@ export default {
           ],
           callout: {
             kind: "tip",
+            label: ["Tip", "Kidokezo"],
             text: [
               "When the panel is empty it says so: *“Nothing is waiting on you. Every landed consignment is billed and no customer is owed a call.”* That is a real state, not a screen that failed to load.",
               "Paneli ikiwa tupu inasema hivyo: *“Hakuna kinachokusubiri. Kila mzigo uliofika umetozwa na hakuna mteja anayedai simu.”* Hiyo ni hali halisi, siyo ukurasa ulioshindwa kupakia.",
@@ -198,11 +217,11 @@ export default {
       pages: [
         {
           title: ["Every menu explained", "Kila menyu imeelezwa"],
-          eyebrow: "Navigation",
+          eyebrow: ["Navigation", "Uelekezi"],
           blocks: [
             {
               type: "table",
-              head: ["Menu", "What it is, and when to use it"],
+              head: [["Menu", "Menyu"], ["What it is, and when to use it", "Ni nini, na lini kuitumia"]],
               rows: [
                 [["Home", "/app/support"], ["Your desk and the attention panel. Start and end here.", "Kitengo chako na paneli ya matukio. Anza na malizia hapa."]],
                 [["Search", "/app/search"], ["Any consignment, by tracking number, customer, phone or description.", "Mzigo wowote, kwa namba ya ufuatiliaji, mteja, simu au maelezo."]],
@@ -229,7 +248,7 @@ export default {
         {
           kind: "screen",
           title: ["Collections — the call list", "Ukusanyaji — orodha ya simu"],
-          eyebrow: "Where most of your day goes",
+          eyebrow: ["Where most of your day goes", "Sehemu kubwa ya siku yako"],
           route: "/app/collections/follow-up",
           intro: [
             "Every consignment sitting in Dar that is already billed and not yet paid, with a phone number on the row. Read the *Next action* column before you dial — a row that says “Confirm the price” means the invoice is still a draft.",
@@ -264,6 +283,7 @@ export default {
           ],
           callout: {
             kind: "stop",
+            label: ["Never do this", "Usifanye hivi kamwe"],
             text: [
               "*Never quote a draft.* A draft is the system's price, not a bill. Asking a customer for a figure this business has not yet agreed to is how a quote becomes an argument.",
               "*Usinukuu rasimu kamwe.* Rasimu ni bei ya mfumo, siyo ankara. Kumwomba mteja kiasi ambacho kampuni haijakubali ndiko kunakogeuza nukuu kuwa ugomvi.",
@@ -273,7 +293,7 @@ export default {
         {
           kind: "screen",
           title: ["Recording a payment claim", "Kuandika dai la malipo"],
-          eyebrow: "Hand it up to Finance",
+          eyebrow: ["Hand it up to Finance", "Wasilisha kwa Fedha"],
           route: "/app/collections/record",
           intro: [
             "When a customer says they have paid, open the payment icon on their row. Everything except the reference and the attachment is filled in for you. You must attach evidence — Finance cannot verify a reference on its own.",
@@ -287,6 +307,7 @@ export default {
           ],
           callout: {
             kind: "warn",
+            label: ["Careful", "Kuwa makini"],
             text: [
               "An iPhone HEIC photo is refused, because Finance must be able to open it. Ask for a screenshot, or have the customer set Camera → Formats to *Most Compatible*. And note: *one pending claim per bill* — a second is refused by name.",
               "Picha ya HEIC ya iPhone inakataliwa, kwa sababu Fedha lazima waweze kuifungua. Omba picha ya skrini, au mteja abadilishe Kamera → Miundo kuwa *Most Compatible*. Pia: *dai moja tu linalosubiri kwa kila ankara* — la pili linakataliwa kwa jina.",
@@ -296,7 +317,7 @@ export default {
         {
           kind: "screen",
           title: ["Tickets — every call written down", "Tiketi — kila simu imeandikwa"],
-          eyebrow: "The record of a conversation",
+          eyebrow: ["The record of a conversation", "Kumbukumbu ya mazungumzo"],
           route: "/app/support/tickets",
           intro: [
             "Take calls, complaints and price enquiries as tickets. A customer link is optional — price enquiries arrive before people are customers — but a name or a phone number is required.",
@@ -305,6 +326,7 @@ export default {
           figure: { shot: "tickets-hero", crop: true },
           callout: {
             kind: "tip",
+            label: ["Tip", "Kidokezo"],
             text: [
               "You cannot close a ticket without writing what you did. *Internal notes are never shown to the customer* — write freely, so the next person picking up the call knows exactly where it got to.",
               "Huwezi kufunga tiketi bila kuandika ulichofanya. *Maelezo ya ndani hayaonyeshwi kwa mteja* — andika bila wasiwasi, ili atakayeshika simu ijayo ajue ilipofikia.",
@@ -314,7 +336,7 @@ export default {
         {
           kind: "screen",
           title: ["Sourcing & China markets", "Kutafuta bidhaa na masoko ya China"],
-          eyebrow: "Finding goods in China",
+          eyebrow: ["Finding goods in China", "Kutafuta bidhaa China"],
           route: "/app/support/sourcing · /app/support/markets",
           intro: [
             "Move sourcing requests left to right: New → In progress → Waiting for customer → Supplier found → Completed. Use the markets directory to point customers at the right Guangzhou market.",
@@ -323,6 +345,7 @@ export default {
           figure: { shot: "sourcing-hero", crop: true },
           callout: {
             kind: "warn",
+            label: ["Careful", "Kuwa makini"],
             text: [
               "You cannot mark a request *Supplier found* or *Completed* without recording what you found. Goods from around Guangzhou consolidate at the Guangzhou warehouse; electronics from Shenzhen fly out of Hong Kong — telling a customer the wrong one changes what they pay.",
               "Huwezi kuweka alama *Msambazaji amepatikana* au *Imekamilika* bila kuandika ulichokipata. Bidhaa za maeneo ya Guangzhou hukusanywa ghala la Guangzhou; vifaa vya elektroniki vya Shenzhen husafiri kupitia Hong Kong — kumwambia mteja soko lisilo sahihi kunabadilisha atakacholipa.",
@@ -332,7 +355,7 @@ export default {
         {
           kind: "screen",
           title: ["Pickup notes & Issues", "Hati za kuchukua na Matatizo"],
-          eyebrow: "Read and print only",
+          eyebrow: ["Read and print only", "Kusoma na kuchapisha tu"],
           route: "/app/finance/pickup-notes · /app/exceptions",
           intro: [
             "You can read, print and search pickup notes. You cannot issue one and you cannot cancel one. For cases, you can move them between open, under investigation and waiting on the customer — but you cannot approve compensation.",
@@ -349,26 +372,26 @@ export default {
       pages: [
         {
           title: ["Fifteen steps, five departments", "Hatua kumi na tano, vitengo vitano"],
-          eyebrow: "End to end",
+          eyebrow: ["End to end", "Mwanzo hadi mwisho"],
           blocks: [
             {
               type: "flow",
               steps: [
-                { who: "Guangzhou", what: ["Cargo registered and flown", "Mzigo unasajiliwa na kusafirishwa"], tone: "draft" },
-                { who: "Dar floor", what: ["Checked in against the manifest", "Unakaguliwa kwa orodha ya mizigo"], tone: "draft" },
-                { who: "System", what: ["Priced automatically as a DRAFT", "Unapangiwa bei kiotomatiki kama RASIMU"], tone: "draft",
+                { who: ["Guangzhou", "Ghala la Guangzhou"], what: ["Cargo registered and flown", "Mzigo unasajiliwa na kusafirishwa"], tone: "draft" },
+                { who: ["Dar floor", "Ghala la Dar"], what: ["Checked in against the manifest", "Unakaguliwa kwa orodha ya mizigo"], tone: "draft" },
+                { who: ["System", "Mfumo"], what: ["Priced automatically as a DRAFT", "Unapangiwa bei kiotomatiki kama RASIMU"], tone: "draft",
                   note: ["Do not quote this figure.", "Usinukuu kiasi hiki."] },
-                { who: "Finance", what: ["Confirm the price → a real bill", "Wanathibitisha bei → ankara halisi"], tone: "owed" },
-                { who: "You", what: ["The row appears on your call list", "Mstari unatokea kwenye orodha yako ya simu"], tone: "info" },
-                { who: "You", what: ["Ring or WhatsApp the customer", "Piga simu au WhatsApp kwa mteja"], tone: "info",
+                { who: ["Finance", "Fedha"], what: ["Confirm the price → a real bill", "Wanathibitisha bei → ankara halisi"], tone: "owed" },
+                { who: ["You", "Wewe"], what: ["The row appears on your call list", "Mstari unatokea kwenye orodha yako ya simu"], tone: "info" },
+                { who: ["You", "Wewe"], what: ["Ring or WhatsApp the customer", "Piga simu au WhatsApp kwa mteja"], tone: "info",
                   note: ["Quote the row, never the band total.", "Nukuu mstari, siyo jumla ya juu."] },
-                { who: "Customer", what: ["Pays and sends proof", "Analipa na kutuma ushahidi"], tone: "info" },
-                { who: "You", what: ["Record the claim with the evidence", "Andika dai pamoja na ushahidi"], tone: "info",
+                { who: ["Customer", "Mteja"], what: ["Pays and sends proof", "Analipa na kutuma ushahidi"], tone: "info" },
+                { who: ["You", "Wewe"], what: ["Record the claim with the evidence", "Andika dai pamoja na ushahidi"], tone: "info",
                   note: ["A claim is not money.", "Dai siyo pesa."] },
-                { who: "Finance", what: ["Verify · receipt · pickup note", "Wanathibitisha · risiti · hati ya kuchukua"], tone: "paid" },
-                { who: "You", what: ["Tell the customer to collect", "Mwambie mteja aje kuchukua"], tone: "paid",
+                { who: ["Finance", "Fedha"], what: ["Verify · receipt · pickup note", "Wanathibitisha · risiti · hati ya kuchukua"], tone: "paid" },
+                { who: ["You", "Wewe"], what: ["Tell the customer to collect", "Mwambie mteja aje kuchukua"], tone: "paid",
                   note: ["Only now — the note exists.", "Sasa tu — hati ipo."] },
-                { who: "Dar floor", what: ["Scan · photograph · hand over", "Skani · piga picha · kabidhi"], tone: "paid" },
+                { who: ["Dar floor", "Ghala la Dar"], what: ["Scan · photograph · hand over", "Skani · piga picha · kabidhi"], tone: "paid" },
               ],
             },
           ],
@@ -382,20 +405,20 @@ export default {
       pages: [
         {
           title: ["TX-000042 · shoes for John Peter", "TX-000042 · viatu vya John Peter"],
-          eyebrow: "Follow it through",
+          eyebrow: ["Follow it through", "Fuatilia hadi mwisho"],
           blocks: [
             {
               type: "example",
               fields: [
-                { k: "Customer", v: "John Peter" },
-                { k: "Tracking", v: "TX-000042" },
-                { k: "Invoice", v: "USD 48.60" },
-                { k: "Phone", v: "0764 197 748" },
+                { k: ["Customer", "Mteja"], v: "John Peter" },
+                { k: ["Tracking", "Ufuatiliaji"], v: "TX-000042" },
+                { k: ["Invoice", "Ankara"], v: "USD 48.60" },
+                { k: ["Phone", "Simu"], v: "0764 197 748" },
               ],
             },
             {
               type: "table",
-              head: ["Stage", "What you do"],
+              head: [["Stage", "Hatua"], ["What you do", "Unachofanya"]],
               rows: [
                 [["Row appears", "Mstari unatokea"], ["Finance confirms the price. TX-000042 lands on your call list with 'Ring them' in the Next action column.", "Fedha wanathibitisha bei. TX-000042 unatokea kwenye orodha yako ya simu na 'Mpigie simu' kwenye safu ya Hatua Inayofuata."]],
                 [["You ring", "Unapiga simu"], ["You press the WhatsApp icon. The Swahili reminder is pre-written with his name, TX-000042, shoes, the invoice number and the amount in shillings.", "Unabonyeza alama ya WhatsApp. Ujumbe wa Kiswahili umeshaandikwa na jina lake, TX-000042, viatu, namba ya ankara na kiasi kwa shilingi."]],
@@ -416,11 +439,11 @@ export default {
       pages: [
         {
           title: ["Common mistakes", "Makosa ya kawaida"],
-          eyebrow: "Fix it this way",
+          eyebrow: ["Fix it this way", "Rekebisha hivi"],
           blocks: [
             {
               type: "table",
-              head: ["The mistake", "What it causes", "What to do"],
+              head: [["The mistake", "Kosa"], ["What it causes", "Linalosababisha"], ["What to do", "Cha kufanya"]],
               rows: [
                 [["Quoting the band total", "Kunukuu jumla ya juu"], ["You quote a live estimate; the customer pays a different figure and disputes it.", "Unanukuu makadirio; mteja analipa kiasi tofauti na kupinga."], ["Quote the amount on the customer's own row.", "Nukuu kiasi kilicho kwenye mstari wa mteja mwenyewe."]],
                 [["Quoting a draft", "Kunukuu rasimu"], ["You ask for a figure the business has not agreed. It may change.", "Unaomba kiasi ambacho kampuni haijakubali. Kinaweza kubadilika."], ["Wait for Finance to confirm the price.", "Subiri Fedha wathibitishe bei."]],
@@ -442,18 +465,18 @@ export default {
       pages: [
         {
           title: ["Best practice", "Mbinu bora"],
-          eyebrow: "Do it this way",
+          eyebrow: ["Do it this way", "Fanya hivi"],
           blocks: [
             {
               type: "cards",
               columns: 2,
               items: [
-                { label: "Order", title: ["Work the panel in its order", "Fanya kazi kwa mpangilio wa paneli"], body: ["It is already sorted by what costs the business most. Do not pick by eye.", "Imeshapangwa kwa hasara kubwa kwa kampuni. Usichague kwa macho."] },
-                { label: "Rejections", title: ["Clear them first", "Zishughulikie kwanza"], body: ["A rejection means a customer believes they paid and the business disagrees. Nothing is more urgent.", "Kukataliwa maana yake mteja anaamini amelipa na kampuni haikubali. Hakuna cha dharura zaidi."] },
-                { label: "Quotes", title: ["Read the rate book", "Soma kitabu cha bei"], body: ["Never quote from memory. If you think a rate is wrong, tell Finance — do not tell the customer a different number.", "Usinukuu kwa kumbukumbu. Ukidhani bei si sahihi, waambie Fedha — usimwambie mteja kiasi tofauti."] },
-                { label: "Evidence", title: ["Proof, not promises", "Ushahidi, siyo ahadi"], body: ["A reference on its own comes straight back. Attach the file the first time.", "Namba peke yake inarudi mara moja. Ambatisha faili mara ya kwanza."] },
-                { label: "Notes", title: ["Write internal notes freely", "Andika maelezo ya ndani bila wasiwasi"], body: ["They are never shown to the customer, and they save the next person the whole conversation.", "Hayaonyeshwi kwa mteja, na yanamwokoa ajaye mazungumzo yote."] },
-                { label: "Promises", title: ["Never promise a release", "Usiahidi kutolewa kwa mzigo"], body: ["You cannot issue the note. Say 'once Finance confirms' — and mean it.", "Huwezi kutoa hati. Sema 'baada ya Fedha kuthibitisha' — na uwe na maana."] },
+                { label: ["Order", "Mpangilio"], title: ["Work the panel in its order", "Fanya kazi kwa mpangilio wa paneli"], body: ["It is already sorted by what costs the business most. Do not pick by eye.", "Imeshapangwa kwa hasara kubwa kwa kampuni. Usichague kwa macho."] },
+                { label: ["Rejections", "Yaliyorudishwa"], title: ["Clear them first", "Zishughulikie kwanza"], body: ["A rejection means a customer believes they paid and the business disagrees. Nothing is more urgent.", "Kukataliwa maana yake mteja anaamini amelipa na kampuni haikubali. Hakuna cha dharura zaidi."] },
+                { label: ["Quotes", "Nukuu"], title: ["Read the rate book", "Soma kitabu cha bei"], body: ["Never quote from memory. If you think a rate is wrong, tell Finance — do not tell the customer a different number.", "Usinukuu kwa kumbukumbu. Ukidhani bei si sahihi, waambie Fedha — usimwambie mteja kiasi tofauti."] },
+                { label: ["Evidence", "Ushahidi"], title: ["Proof, not promises", "Ushahidi, siyo ahadi"], body: ["A reference on its own comes straight back. Attach the file the first time.", "Namba peke yake inarudi mara moja. Ambatisha faili mara ya kwanza."] },
+                { label: ["Notes", "Maelezo"], title: ["Write internal notes freely", "Andika maelezo ya ndani bila wasiwasi"], body: ["They are never shown to the customer, and they save the next person the whole conversation.", "Hayaonyeshwi kwa mteja, na yanamwokoa ajaye mazungumzo yote."] },
+                { label: ["Promises", "Ahadi"], title: ["Never promise a release", "Usiahidi kutolewa kwa mzigo"], body: ["You cannot issue the note. Say 'once Finance confirms' — and mean it.", "Huwezi kutoa hati. Sema 'baada ya Fedha kuthibitisha' — na uwe na maana."] },
               ],
             },
           ],
@@ -467,11 +490,11 @@ export default {
       pages: [
         {
           title: ["Frequently asked", "Maswali ya mara kwa mara"],
-          eyebrow: "FAQ",
+          eyebrow: ["FAQ", "Maswali"],
           blocks: [
             {
               type: "table",
-              head: ["Question", "Answer"],
+              head: [["Question", "Swali"], ["Answer", "Jibu"]],
               rows: [
                 [["The customer paid but the system still says unpaid.", "Mteja amelipa lakini mfumo bado unasema hajalipa."], ["Your claim is with Finance. Nothing settles until they verify it — that is the design, not a delay you caused.", "Dai lako liko kwa Fedha. Hakuna kinachokamilika hadi wathibitishe — hiyo ndiyo muundo, siyo ucheleweshaji wako."]],
                 [["Can I give a discount?", "Naweza kutoa punguzo?"], ["No. You can edit an invoice's notes and other charges, but not the discount. That is deliberate.", "Hapana. Unaweza kuhariri maelezo na gharama nyingine za ankara, lakini siyo punguzo. Hiyo ni kwa makusudi."]],
@@ -491,21 +514,21 @@ export default {
       pages: [
         {
           title: ["The customer desk in one page", "Kitengo cha wateja kwa ukurasa mmoja"],
-          eyebrow: "Keep this one",
+          eyebrow: ["Keep this one", "Hifadhi hii"],
           blocks: [
             {
               type: "cards",
               columns: 3,
               items: [
-                { label: "1", title: ["Work the panel in order", "Fanya kazi kwa mpangilio"], body: ["It is already sorted by what costs the business most.", "Imeshapangwa kwa hasara kubwa kwa kampuni."] },
-                { label: "2", title: ["Never quote what is not agreed", "Usinukuu kisichokubaliwa"], body: ["Not a draft, not a band total. Quote the customer's own row.", "Siyo rasimu, siyo jumla ya juu. Nukuu mstari wa mteja mwenyewe."] },
-                { label: "3", title: ["Take the proof, not the promise", "Chukua ushahidi, siyo ahadi"], body: ["A reference on its own comes straight back.", "Namba peke yake inarudi mara moja."] },
+                { label: ["1", "1"], title: ["Work the panel in order", "Fanya kazi kwa mpangilio"], body: ["It is already sorted by what costs the business most.", "Imeshapangwa kwa hasara kubwa kwa kampuni."] },
+                { label: ["2", "2"], title: ["Never quote what is not agreed", "Usinukuu kisichokubaliwa"], body: ["Not a draft, not a band total. Quote the customer's own row.", "Siyo rasimu, siyo jumla ya juu. Nukuu mstari wa mteja mwenyewe."] },
+                { label: ["3", "3"], title: ["Take the proof, not the promise", "Chukua ushahidi, siyo ahadi"], body: ["A reference on its own comes straight back.", "Namba peke yake inarudi mara moja."] },
               ],
             },
             {
               type: "callout",
               kind: "tip",
-              label: "If you remember one sentence",
+              label: ["If you remember one sentence", "Ukikumbuka sentensi moja"],
               text: [
                 "You hold the relationship; Finance holds the money. Keeping those apart is what lets you be completely straight with a customer about everything except whether their payment has landed.",
                 "Wewe unashikilia uhusiano; Fedha wanashikilia pesa. Kutenganisha hivyo ndiko kunakokuwezesha kuwa mnyoofu kabisa kwa mteja kuhusu kila kitu isipokuwa kama malipo yake yamefika.",

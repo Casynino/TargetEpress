@@ -6,10 +6,23 @@
 export default {
   department: ["China Warehouse", "中国仓库"],
   version: "1.0",
+  labels: {
+    version: ["Version", "版本"],
+    languages: ["Languages", "语言"],
+    audience: ["For", "适用对象"],
+    issued: ["Issued", "发布日期"],
+  },
   languages: "English · 简体中文",
   audience: "Guangzhou floor staff",
   issued: "August 2026",
   contentsAlt: "目录",
+
+  callouts: {
+    stop: ["Never do this", "切勿这样做"],
+    warn: ["Careful", "注意"],
+    tip: ["Tip", "提示"],
+    note: ["Note", "说明"],
+  },
 
   sections: [
     // ---------------------------------------------------------------- 01
@@ -22,7 +35,7 @@ export default {
       pages: [
         {
           title: ["What this desk is for", "这个岗位是做什么的"],
-          eyebrow: "Mission",
+          eyebrow: ["Mission", "岗位职责"],
           blocks: [
             {
               type: "text",
@@ -36,7 +49,7 @@ export default {
               columns: 2,
               items: [
                 {
-                  label: "You create",
+                  label: ["You create", "你创建的"],
                   title: ["The record everyone works from", "全公司依据的记录"],
                   body: [
                     "Registering mints the tracking number, one QR label per box, the first line of history, and the loading table it belongs on.",
@@ -44,7 +57,7 @@ export default {
                   ],
                 },
                 {
-                  label: "You never see",
+                  label: ["You never see", "你看不到的"],
                   title: ["What any of it costs", "货物的价格"],
                   body: [
                     "No price, no invoice, no balance — never sent to your screen at all. A rate box on the registration form would put pricing in the hands of whoever is holding the scale.",
@@ -55,7 +68,10 @@ export default {
             },
             {
               type: "table",
-              head: ["Your day", "What it means"],
+              head: [
+                ["Your day", "你的一天"],
+                ["What it means", "具体含义"],
+              ],
               rows: [
                 [
                   ["Read the floor", "看一下现场"],
@@ -83,14 +99,14 @@ export default {
         },
         {
           title: ["What you may and may not do", "你的权限范围"],
-          eyebrow: "Authority",
+          eyebrow: ["Authority", "权限"],
           blocks: [
             {
               type: "cards",
               columns: 2,
               items: [
                 {
-                  label: "You may",
+                  label: ["You may", "你可以"],
                   title: ["Create and correct", "创建与更正"],
                   body: [
                     "Register cargo · print QR labels · correct your own entry while it is still in China · delete a duplicate with a written reason · open, load, seal and dispatch a loading table · edit the customer book · switch the interface language whenever you like.",
@@ -98,8 +114,8 @@ export default {
                   ],
                 },
                 {
-                  label: "You may not",
-                  title: ["Money, scanning, releasing", "money、扫码、放货"],
+                  label: ["You may not", "你不可以"],
+                  title: ["Money, scanning, releasing", "金额、扫码、放货"],
                   body: [
                     "See any price · scan a box (that is Dar's) · receive an arriving flight · release cargo to a customer · raise a claim · edit or delete cargo that has already left China.",
                     "查看任何价格 · 扫码（属于达市）· 接收到港航班 · 向客户放货 · 提出索赔 · 编辑或删除已离开中国的货物。",
@@ -110,7 +126,7 @@ export default {
             {
               type: "callout",
               kind: "stop",
-              label: "The one that catches everyone",
+              label: ["The one that catches everyone", "最容易出错的一条"],
               text: [
                 "Once a loading table is sealed and dispatched, you can no longer edit or delete any cargo on it. The screen tells you: *“This cargo has already left China. Ask management to correct it.”* Check your numbers while the boxes are still in front of you.",
                 "装货台一旦封批发运，你就无法再编辑或删除上面的任何货物。系统会提示：*“该货物已离开中国，请联系管理层处理。”* 请在货物还在面前时核对好数据。",
@@ -132,7 +148,7 @@ export default {
         {
           kind: "screen",
           title: ["The login screen", "登录界面"],
-          eyebrow: "Step 1",
+          eyebrow: ["Step 1", "第 1 步"],
           route: "target-epress.vercel.app",
           intro: [
             "Open the address in any browser — phone or computer. Type the email your manager gave you and your password, then press Sign in. If the password is refused twice, ask your manager to reset it rather than guessing; repeated failures are recorded.",
@@ -142,11 +158,11 @@ export default {
             shot: "login",
             crop: true,
             pins: [
-              { n: 1, x: 50, y: 44 },
-              { n: 2, x: 50, y: 57 },
-              { n: 3, x: 50, y: 70 },
+              { n: 1, x: 78, y: 48 },
+              { n: 2, x: 78, y: 58 },
+              { n: 3, x: 78, y: 65 },
             ],
-            caption: "The sign-in screen, before there is a session.",
+            caption: ["The sign-in screen, before there is a session.", "登录界面，尚未建立会话。"],
           },
           keys: [
             {
@@ -176,6 +192,7 @@ export default {
           ],
           callout: {
             kind: "tip",
+            label: ["Tip", "小提示"],
             text: [
               "Never share an account. Every registration, every label printed and every dispatch carries the name of whoever was signed in.",
               "切勿共用账号。每一次登记、每一张打印的标签、每一次发运，都会记录当时登录者的姓名。",
@@ -185,7 +202,7 @@ export default {
         {
           kind: "screen",
           title: ["Switching to Chinese", "切换到中文"],
-          eyebrow: "Step 2",
+          eyebrow: ["Step 2", "第 2 步"],
           route: "Sidebar → English / 中文",
           intro: [
             "Your account opens in Chinese already. The switch sits at the bottom of the sidebar, above Sign out. Press *中文* and every screen, button, message and date becomes Chinese; press *English* and it all goes back. Your choice is stored against you, not the computer — so the bench machine in the morning and your phone in the afternoon both remember it.",
@@ -196,7 +213,7 @@ export default {
             crop: true,
             pins: [{ n: 1, x: 10, y: 89 }],
             rings: [{ x: 1.5, y: 84, w: 18, h: 9 }],
-            caption: "The language switch, bottom of the sidebar.",
+            caption: ["The language switch, bottom of the sidebar.", "语言切换，位于侧边栏底部。"],
           },
           keys: [
             {
@@ -210,6 +227,7 @@ export default {
           ],
           callout: {
             kind: "warn",
+            label: ["Careful", "注意"],
             text: [
               "What you *type* is not translated by this switch. If you write a cargo description in Chinese, the system keeps your Chinese exactly as written and shows Dar an English rendering beside it. Neither desk is ever handed the other's language.",
               "这个开关不会翻译你*输入*的内容。如果你用中文填写货物名称，系统会原样保留你的中文，并在旁边为达市提供英文译文。两个部门都不会被迫看另一种语言。",
@@ -230,7 +248,7 @@ export default {
         {
           kind: "screen",
           title: ["Home, section by section", "首页逐块讲解"],
-          eyebrow: "Dashboard",
+          eyebrow: ["Dashboard", "首页"],
           route: "/app/dashboard · 首页",
           intro: [
             "This is the first screen every morning and the one you return to between jobs. Nothing here is decoration — every number is something you can act on.",
@@ -246,7 +264,7 @@ export default {
               { n: 4, x: 62, y: 63 },
               { n: 5, x: 10, y: 30 },
             ],
-            caption: "The Guangzhou home screen, reading in Chinese.",
+            caption: ["The Guangzhou home screen, reading in Chinese.", "广州岗位的首页，中文显示。"],
           },
           keys: [
             {
@@ -292,6 +310,7 @@ export default {
           ],
           callout: {
             kind: "warn",
+            label: ["Careful", "注意"],
             text: [
               "A consignment with *no photograph* is always the most urgent row. It is registered but has nothing to argue with — if Dar reports it damaged, there is no picture of what it looked like when it left you.",
               "*没有照片*的货物永远是最紧急的一条。它虽已登记，但没有任何凭据——如果达市报告破损，就没有照片证明它离开你时是什么样子。",
@@ -311,11 +330,14 @@ export default {
       pages: [
         {
           title: ["Every menu explained", "每个菜单的用途"],
-          eyebrow: "Navigation",
+          eyebrow: ["Navigation", "导航"],
           blocks: [
             {
               type: "table",
-              head: ["Menu", "What it is, and when to use it"],
+              head: [
+                ["Menu", "菜单"],
+                ["What it is, and when to use it", "是什么，什么时候用"],
+              ],
               rows: [
                 [
                   ["Home 首页", "/app/dashboard"],
@@ -398,7 +420,7 @@ export default {
         {
           kind: "screen",
           title: ["Receive Cargo — the registration bench", "收货登记——登记台"],
-          eyebrow: "The screen you use most",
+          eyebrow: ["The screen you use most", "用得最多的界面"],
           route: "/app/cargo/new · 收货登记",
           intro: [
             "Five sections, worked top to bottom. The system does the routing, the batch assignment and the price on its own — your job is the customer, the goods, the scale and the camera.",
@@ -414,12 +436,15 @@ export default {
               { n: 4, x: 60, y: 65 },
               { n: 5, x: 60, y: 89 },
             ],
-            caption: "收货登记 — sections 1 and 2 of the registration form.",
+            caption: [
+              "收货登记 — sections 1 and 2 of the registration form.",
+              "收货登记 — 登记表的第 1、2 部分。",
+            ],
           },
           keys: [
             {
               n: 1,
-              title: ["1. Customer 客户"],
+              title: ["1. Customer", "客户"],
               body: [
                 "Find an existing customer, or create one. Search by name, shipping mark, phone or customer code.",
                 "查找已有客户，或新建客户。可按姓名、唛头、电话或客户编号搜索。",
@@ -427,7 +452,7 @@ export default {
             },
             {
               n: 2,
-              title: ["Find / New 查找 / 新客户"],
+              title: ["Find / New", "查找 / 新客户"],
               body: [
                 "Always search first. A customer entered twice is two histories, two balances, and a phone call to sort out.",
                 "务必先搜索。同一个客户录入两次，就会产生两份历史、两个余额，还要打电话去处理。",
@@ -435,7 +460,7 @@ export default {
             },
             {
               n: 3,
-              title: ["Search field 搜索框"],
+              title: ["Search field", "搜索框"],
               body: [
                 "The phone number is the surest match. Names are typed differently by different people; a number is a number.",
                 "电话号码是最可靠的匹配方式。不同的人写名字方式不同，但号码就是号码。",
@@ -443,7 +468,7 @@ export default {
             },
             {
               n: 4,
-              title: ["2. Cargo category 货物类别"],
+              title: ["2. Cargo category", "货物类别"],
               body: [
                 "One choice, and the system works out the airport and the price from it. Normal goods, Electronics, or Liquid & special goods.",
                 "只需选一项，系统据此判断机场和价格。普通货物、电子产品，或液体及特殊货物。",
@@ -451,7 +476,7 @@ export default {
             },
             {
               n: 5,
-              title: ["Route 航线"],
+              title: ["Route", "航线"],
               body: [
                 "Shown, not chosen. Electronics normally fly from Hong Kong; everything else from Guangzhou. The category decides it.",
                 "只显示、不选择。电子产品通常从香港发出，其他从广州发出。由类别自动决定。",
@@ -460,6 +485,7 @@ export default {
           ],
           callout: {
             kind: "stop",
+            label: ["Never do this", "切勿这样做"],
             text: [
               "*Weigh before you type.* A weight typed from memory is the number the customer is billed on. At least one photograph is required by the server, not just by the form — the save is refused outright without one.",
               "*先称重，再录入。* 凭记忆填写的重量，就是客户被收费的依据。至少一张照片是服务器强制要求的，不只是表单校验——没有照片直接拒绝保存。",
@@ -469,7 +495,7 @@ export default {
         {
           kind: "screen",
           title: ["Batches — the loading tables", "批次——装货台"],
-          eyebrow: "Loading and dispatch",
+          eyebrow: ["Loading and dispatch", "装批与发运"],
           route: "/app/batches · 批次",
           intro: [
             "Two permanent tables, one per airport. Cargo lands on the right one automatically when you register it. Read the four tiles before you seal anything.",
@@ -483,12 +509,12 @@ export default {
               { n: 2, x: 72, y: 30 },
               { n: 3, x: 50, y: 62 },
             ],
-            caption: "The Guangzhou and Hong Kong loading tables.",
+            caption: ["The Guangzhou and Hong Kong loading tables.", "广州和香港两个装货台。"],
           },
           keys: [
             {
               n: 1,
-              title: ["Guangzhou table 广州台"],
+              title: ["Guangzhou table", "广州台"],
               body: [
                 "Normal goods and liquids. Cargo waiting, total weight, customers, and the oldest piece on the table.",
                 "普通货物和液体。显示待运货量、总重量、客户数，以及台上最久的一件。",
@@ -496,7 +522,7 @@ export default {
             },
             {
               n: 2,
-              title: ["Hong Kong table 香港台"],
+              title: ["Hong Kong table", "香港台"],
               body: [
                 "Electronics. Same four figures. Assignment is automatic — you should never have to move a piece between tables.",
                 "电子产品。同样四个数据。分配是自动的——正常情况下你不需要在两个台之间搬动货物。",
@@ -504,7 +530,7 @@ export default {
             },
             {
               n: 3,
-              title: ["Seal & dispatch 封批发运"],
+              title: ["Seal & dispatch", "封批发运"],
               body: [
                 "Waybill number and airline are both required, plus flight, departure date and expected arrival. This moves every piece onto the flight at once.",
                 "空运单号和航空公司为必填，另需航班号、起飞日期和预计到达。此操作会一次性把台上所有货物装上航班。",
@@ -513,6 +539,7 @@ export default {
           ],
           callout: {
             kind: "stop",
+            label: ["Never do this", "切勿这样做"],
             text: [
               "*There is no un-dispatch.* After sealing you can no longer edit or delete any of that cargo. Read the table one more time first — the oldest-piece figure and the misroute flag are there precisely for that last look.",
               "*发运无法撤销。* 封批后你将无法再编辑或删除这些货物。请再核对一遍——“最久一件”和错线提示就是为这最后一眼准备的。",
@@ -522,7 +549,7 @@ export default {
         {
           kind: "screen",
           title: ["Search — finding one box", "搜索——找到某一票货"],
-          eyebrow: "Lookup",
+          eyebrow: ["Lookup", "查找"],
           route: "/app/search · 搜索",
           intro: [
             "Four ways in: a tracking number, a customer name, a phone number, or the carton reference off the packing list. Partial matches work — you do not need the whole thing.",
@@ -531,7 +558,7 @@ export default {
           figure: {
             shot: "search-hero",
             crop: true,
-            caption: "The shared search screen.",
+            caption: ["The shared search screen.", "各部门共用的搜索界面。"],
           },
           keys: [
             {
@@ -555,7 +582,7 @@ export default {
         {
           kind: "screen",
           title: ["Requests — the website queue", "客户申请——官网队列"],
-          eyebrow: "Call these people back",
+          eyebrow: ["Call these people back", "逐个回电"],
           route: "/app/requests · 客户申请",
           intro: [
             "Booking and pickup requests submitted on the public site. Ring each person, agree what is happening, and move the status: pending, contacted, scheduled, completed — or cancelled.",
@@ -576,7 +603,7 @@ export default {
         {
           kind: "screen",
           title: ["Customers — the book", "客户——名录"],
-          eyebrow: "One number, one customer",
+          eyebrow: ["One number, one customer", "一个号码，一个客户"],
           route: "/app/customers · 客户",
           intro: [
             "Every customer who has ever shipped with us, newest first. Created automatically the first time cargo is registered against a name or number.",
@@ -597,7 +624,7 @@ export default {
         {
           kind: "screen",
           title: ["Issues & Claims", "问题与索赔"],
-          eyebrow: "Answer for what you loaded",
+          eyebrow: ["Answer for what you loaded", "为你装的货负责"],
           route: "/app/exceptions · 问题与索赔",
           intro: [
             "Cases raised against cargo you registered. You cannot open, approve or close a case — you answer one question, better than anyone else can: *was it loaded in Guangzhou?* Your photographs, your weight and your carton count are the evidence.",
@@ -606,6 +633,7 @@ export default {
           figure: { shot: "issues-hero", crop: true },
           callout: {
             kind: "warn",
+            label: ["Careful", "注意"],
             text: [
               "*Nothing pushes these cases to you.* The notifications go to Customer Care, Finance and management. Make opening this page part of the end of every day.",
               "*系统不会主动把案件推送给你。* 通知只会发给客服、财务和管理层。请把每天下班前查看此页面变成习惯。",
@@ -615,7 +643,7 @@ export default {
         {
           kind: "screen",
           title: ["Reports — your own numbers", "报表——你自己的数据"],
-          eyebrow: "How the floor is doing",
+          eyebrow: ["How the floor is doing", "现场表现如何"],
           route: "/app/reports · 报表",
           intro: [
             "Registered, flown, still standing, and the photograph compliance ring. Change the period at the top. There is no money on this report, by design — warehouse staff are measured on cargo and time.",
@@ -636,28 +664,28 @@ export default {
       pages: [
         {
           title: ["Fifteen steps, five departments", "十五步，五个部门"],
-          eyebrow: "End to end",
+          eyebrow: ["End to end", "全流程"],
           blocks: [
             {
               type: "flow",
               steps: [
-                { who: "Customer 客户", what: ["Books on the website", "在官网下单"], tone: "draft" },
-                { who: "Guangzhou 广州", what: ["Rings the customer back", "回电确认"], tone: "draft" },
-                { who: "Guangzhou 广州", what: ["Cargo arrives at the warehouse", "货物到仓"], tone: "draft" },
-                { who: "Guangzhou 广州", what: ["Weigh · photograph · register", "称重 · 拍照 · 登记"], tone: "info",
+                { who: ["Customer", "客户"], what: ["Books on the website", "在官网下单"], tone: "draft" },
+                { who: ["Guangzhou", "广州"], what: ["Rings the customer back", "回电确认"], tone: "draft" },
+                { who: ["Guangzhou", "广州"], what: ["Cargo arrives at the warehouse", "货物到仓"], tone: "draft" },
+                { who: ["Guangzhou", "广州"], what: ["Weigh · photograph · register", "称重 · 拍照 · 登记"], tone: "info",
                   note: ["Tracking number and QR labels are created here.", "运单号和二维码标签在此生成。"] },
-                { who: "Guangzhou 广州", what: ["Print labels, stick on every box", "打印标签，逐箱粘贴"], tone: "info" },
-                { who: "Guangzhou 广州", what: ["Cargo joins a loading table", "货物进入装货台"], tone: "info" },
-                { who: "Guangzhou 广州", what: ["Seal and dispatch onto the flight", "封批并发运上机"], tone: "info",
+                { who: ["Guangzhou", "广州"], what: ["Print labels, stick on every box", "打印标签，逐箱粘贴"], tone: "info" },
+                { who: ["Guangzhou", "广州"], what: ["Cargo joins a loading table", "货物进入装货台"], tone: "info" },
+                { who: ["Guangzhou", "广州"], what: ["Seal and dispatch onto the flight", "封批并发运上机"], tone: "info",
                   note: ["Cannot be undone. Your part ends here.", "不可撤销。你的工作到此结束。"] },
-                { who: "In the air 空运中", what: ["China → Tanzania", "中国 → 坦桑尼亚"], tone: "owed" },
-                { who: "Dar floor 达市仓", what: ["Flight lands, batch marked arrived", "航班落地，批次标记到达"], tone: "owed" },
-                { who: "Dar floor 达市仓", what: ["Check in against the manifest", "按舱单核对入库"], tone: "owed" },
-                { who: "System 系统", what: ["Cargo priced automatically", "系统自动计价"], tone: "owed" },
-                { who: "Finance 财务", what: ["Confirm the price → invoice", "确认价格 → 生成账单"], tone: "owed" },
-                { who: "Customer Care 客服", what: ["Chase the customer for payment", "催收客户款项"], tone: "owed" },
-                { who: "Finance 财务", what: ["Verify payment · issue pickup note", "核实收款 · 开具提货单"], tone: "paid" },
-                { who: "Dar floor 达市仓", what: ["Scan · photograph · hand over", "扫码 · 拍照 · 交货"], tone: "paid" },
+                { who: ["In the air", "空运中"], what: ["China → Tanzania", "中国 → 坦桑尼亚"], tone: "owed" },
+                { who: ["Dar floor", "达市仓"], what: ["Flight lands, batch marked arrived", "航班落地，批次标记到达"], tone: "owed" },
+                { who: ["Dar floor", "达市仓"], what: ["Check in against the manifest", "按舱单核对入库"], tone: "owed" },
+                { who: ["System", "系统"], what: ["Cargo priced automatically", "系统自动计价"], tone: "owed" },
+                { who: ["Finance", "财务"], what: ["Confirm the price → invoice", "确认价格 → 生成账单"], tone: "owed" },
+                { who: ["Customer Care", "客服"], what: ["Chase the customer for payment", "催收客户款项"], tone: "owed" },
+                { who: ["Finance", "财务"], what: ["Verify payment · issue pickup note", "核实收款 · 开具提货单"], tone: "paid" },
+                { who: ["Dar floor", "达市仓"], what: ["Scan · photograph · hand over", "扫码 · 拍照 · 交货"], tone: "paid" },
               ],
             },
           ],
@@ -675,20 +703,23 @@ export default {
       pages: [
         {
           title: ["TX-000042 · shoes for John Peter", "TX-000042 · John Peter 的鞋子"],
-          eyebrow: "Follow it through",
+          eyebrow: ["Follow it through", "全程跟踪"],
           blocks: [
             {
               type: "example",
               fields: [
-                { k: "Customer", v: "John Peter" },
-                { k: "Tracking", v: "TX-000042" },
-                { k: "Weight", v: "3.6 kg" },
-                { k: "Cargo", v: "Shoes 鞋子" },
+                { k: ["Customer", "客户"], v: "John Peter" },
+                { k: ["Tracking", "运单号"], v: "TX-000042" },
+                { k: ["Weight", "重量"], v: "3.6 kg" },
+                { k: ["Cargo", "货物"], v: "Shoes 鞋子" },
               ],
             },
             {
               type: "table",
-              head: ["Stage", "What happens, and who does it"],
+              head: [
+                ["Stage", "阶段"],
+                ["What happens, and who does it", "发生什么，由谁完成"],
+              ],
               rows: [
                 [
                   ["At your bench", "在你的工作台"],
@@ -756,11 +787,15 @@ export default {
       pages: [
         {
           title: ["Common mistakes", "常见错误"],
-          eyebrow: "Fix it this way",
+          eyebrow: ["Fix it this way", "这样处理"],
           blocks: [
             {
               type: "table",
-              head: ["The mistake", "What it causes", "What to do"],
+              head: [
+                ["The mistake", "错误"],
+                ["What it causes", "造成的后果"],
+                ["What to do", "应该怎么做"],
+              ],
               rows: [
                 [
                   ["Weight typed from memory", "凭记忆填重量"],
@@ -811,14 +846,14 @@ export default {
       pages: [
         {
           title: ["Best practice", "最佳实践"],
-          eyebrow: "Do it this way",
+          eyebrow: ["Do it this way", "应该这样做"],
           blocks: [
             {
               type: "cards",
               columns: 2,
               items: [
                 {
-                  label: "Scale first",
+                  label: ["Scale first", "先上秤"],
                   title: ["Weigh, then type", "先称重，后录入"],
                   body: [
                     "Every figure downstream is the one you measured. Nobody checks it again.",
@@ -826,7 +861,7 @@ export default {
                   ],
                 },
                 {
-                  label: "Photograph",
+                  label: ["Photograph", "拍照"],
                   title: ["Two pictures, always", "始终拍两张"],
                   body: [
                     "One of the goods, one of the packed box. It costs ten seconds and settles arguments months later.",
@@ -834,7 +869,7 @@ export default {
                   ],
                 },
                 {
-                  label: "Label",
+                  label: ["Label", "标签"],
                   title: ["Stick before it moves", "移动前先贴标"],
                   body: [
                     "A box that leaves the bench unlabelled is a box nobody can identify.",
@@ -842,7 +877,7 @@ export default {
                   ],
                 },
                 {
-                  label: "Batches",
+                  label: ["Batches", "批次"],
                   title: ["Do not let a table age", "不要让装货台久放"],
                   body: [
                     "A table left open stops being a batch and becomes a shelf. Watch the oldest-piece figure.",
@@ -850,7 +885,7 @@ export default {
                   ],
                 },
                 {
-                  label: "Language",
+                  label: ["Language", "语言"],
                   title: ["Type in Chinese freely", "放心用中文录入"],
                   body: [
                     "Your Chinese is kept exactly as written, and Dar is shown an English rendering beside it.",
@@ -858,7 +893,7 @@ export default {
                   ],
                 },
                 {
-                  label: "End of day",
+                  label: ["End of day", "下班前"],
                   title: ["Two pages before you leave", "下班前看两个页面"],
                   body: [
                     "Issues & Claims, then Reports. Five minutes, and nothing is left hanging overnight.",
@@ -879,11 +914,14 @@ export default {
       pages: [
         {
           title: ["Frequently asked", "常见问答"],
-          eyebrow: "FAQ",
+          eyebrow: ["FAQ", "常见问题"],
           blocks: [
             {
               type: "table",
-              head: ["Question", "Answer"],
+              head: [
+                ["Question", "问题"],
+                ["Answer", "解答"],
+              ],
               rows: [
                 [
                   ["I typed the wrong weight. Can I fix it?", "重量填错了，能改吗？"],
@@ -941,14 +979,14 @@ export default {
       pages: [
         {
           title: ["The Guangzhou desk in one page", "一页看懂广州岗位"],
-          eyebrow: "Keep this one",
+          eyebrow: ["Keep this one", "这一页请留好"],
           blocks: [
             {
               type: "cards",
               columns: 3,
               items: [
                 {
-                  label: "Every day",
+                  label: ["Every day", "每天"],
                   title: ["Do", "该做"],
                   body: [
                     "Read the attention panel first · weigh before typing · photograph everything · one label per box · check Issues & Claims before you leave.",
@@ -956,7 +994,7 @@ export default {
                   ],
                 },
                 {
-                  label: "Never",
+                  label: ["Never", "切勿"],
                   title: ["Don't", "不该做"],
                   body: [
                     "Guess a weight · copy a label onto a second box · register a website request as cargo · seal a table without reading it · share your account.",
@@ -964,7 +1002,7 @@ export default {
                   ],
                 },
                 {
-                  label: "Remember",
+                  label: ["Remember", "牢记"],
                   title: ["The rule", "核心原则"],
                   body: [
                     "Nobody downstream can fix what you get wrong. The scale, the camera and the label are the whole job.",
@@ -976,7 +1014,7 @@ export default {
             {
               type: "callout",
               kind: "tip",
-              label: "If you remember one sentence",
+              label: ["If you remember one sentence", "只记住一句话"],
               text: [
                 "Get the weight, the count and the picture right, and every desk after yours can do its job.",
                 "把重量、件数和照片做对，后面每一个岗位才能把事做好。",

@@ -174,7 +174,17 @@ for (const dept of targets) {
   await rm(dir, { recursive: true, force: true });
   await mkdir(dir, { recursive: true });
 
-  const page = await browser.newPage();
+  /*
+    An isolated browser context per department.
+
+    Puppeteer cookies are browser-wide, not per-page. Reusing one browser meant
+    the signed-out login shot was taken while the PREVIOUS department's session
+    cookie was still set — so Management's "login screen" was a photograph of
+    the Customer Care desk. A fresh context has no cookies at all until this
+    department signs in, which is the only way the login shot can be honest.
+  */
+  const ctx = await browser.createBrowserContext();
+  const page = await ctx.newPage();
   // 1280 wide: a real desktop, and narrow enough that text stays legible when
   // the shot is scaled down to fit inside an A4 column.
   await page.setViewport({ width: 1280, height: 900, deviceScaleFactor: 2 });
@@ -209,6 +219,7 @@ for (const dept of targets) {
   }
   manifest[dept] = { email: cfg.email, locale: cfg.locale, shots };
   await page.close();
+  await ctx.close();
 }
 
 await browser.close();

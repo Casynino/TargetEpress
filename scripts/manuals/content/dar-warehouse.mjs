@@ -6,10 +6,23 @@
 export default {
   department: ["Dar es Salaam Warehouse", "Ghala la Dar es Salaam"],
   version: "1.0",
+  labels: {
+    version: ["Version", "Toleo"],
+    languages: ["Languages", "Lugha"],
+    audience: ["For", "Kwa ajili ya"],
+    issued: ["Issued", "Imetolewa"],
+  },
   languages: "English · Kiswahili",
   audience: "Dar floor and counter staff",
   issued: "August 2026",
   contentsAlt: "Yaliyomo",
+
+  callouts: {
+    stop: ["Never do this", "Usifanye hivi"],
+    warn: ["Careful", "Kuwa makini"],
+    tip: ["Tip", "Kidokezo"],
+    note: ["Note", "Kumbuka"],
+  },
 
   sections: [
     {
@@ -21,7 +34,7 @@ export default {
       pages: [
         {
           title: ["What this desk is for", "Kazi ya kitengo hiki"],
-          eyebrow: "Mission",
+          eyebrow: ["Mission", "Dhamira"],
           blocks: [
             {
               type: "text",
@@ -35,7 +48,7 @@ export default {
               columns: 2,
               items: [
                 {
-                  label: "Your word counts",
+                  label: ["Your word counts", "Neno lako lina uzito"],
                   title: ["What arrived, and in what condition", "Kilichofika, na hali yake"],
                   body: [
                     "Your check-in is the only comparison anyone will ever make between what Guangzhou declared and what actually landed. Nobody audits it afterwards. If you tick a box clean, it is clean.",
@@ -43,7 +56,7 @@ export default {
                   ],
                 },
                 {
-                  label: "Not your call",
+                  label: ["Not your call", "Siyo uamuzi wako"],
                   title: ["Whether the cargo may leave", "Kama mzigo unaweza kutoka"],
                   body: [
                     "That is answered by a pickup note Finance issued, and by any open case on the cargo. You cannot see a price or issue a note. If there is no note, the answer is 'check with Finance' — never a workaround.",
@@ -54,7 +67,10 @@ export default {
             },
             {
               type: "table",
-              head: ["Your day", "What it means"],
+              head: [
+                ["Your day", "Siku yako"],
+                ["What it means", "Maana yake"],
+              ],
               rows: [
                 [
                   ["Read the floor", "Angalia hali ya ghala"],
@@ -78,14 +94,14 @@ export default {
         },
         {
           title: ["What you may and may not do", "Unachoweza na usichoweza"],
-          eyebrow: "Authority",
+          eyebrow: ["Authority", "Mamlaka yako"],
           blocks: [
             {
               type: "cards",
               columns: 2,
               items: [
                 {
-                  label: "You may",
+                  label: ["You may", "Unaruhusiwa"],
                   title: ["Count, hold, hand over", "Hesabu, tunza, kabidhi"],
                   body: [
                     "Mark a flight arrived · check it in against the manifest · rule on every consignment · see the photographs Guangzhou took · scan and release against an active pickup note · open an investigation when a box is missing.",
@@ -93,7 +109,7 @@ export default {
                   ],
                 },
                 {
-                  label: "You may not",
+                  label: ["You may not", "Huruhusiwi"],
                   title: ["Register, price, release without a note", "Kusajili, kupanga bei, kukabidhi bila hati"],
                   body: [
                     "Register cargo · print or reprint a label · see any price or invoice · open, print, issue or cancel a pickup note · seal or dispatch a batch · approve a payout on a claim.",
@@ -105,7 +121,7 @@ export default {
             {
               type: "callout",
               kind: "stop",
-              label: "The rule that protects you",
+              label: ["The rule that protects you", "Kanuni inayokulinda"],
               text: [
                 "*A partial shipment is never released.* Handing over four boxes out of five and sorting it out later is how a claim starts. The system refuses it, and that refusal is on your side.",
                 "*Mzigo usiokamilika haukabidhiwi kamwe.* Kukabidhi maboksi manne kati ya matano na kumalizia baadaye ndiyo chanzo cha madai. Mfumo unakataa, na kukataa huko kunakulinda wewe.",
@@ -123,7 +139,7 @@ export default {
         {
           kind: "screen",
           title: ["The login screen", "Ukurasa wa kuingia"],
-          eyebrow: "Step 1",
+          eyebrow: ["Step 1", "Hatua ya 1"],
           route: "target-epress.vercel.app",
           intro: [
             "Open the address on the counter computer or your phone. Type your work email and password, then press Sign in. You land straight on your own department's home — there is no department to choose.",
@@ -133,9 +149,9 @@ export default {
             shot: "login",
             crop: true,
             pins: [
-              { n: 1, x: 50, y: 44 },
-              { n: 2, x: 50, y: 57 },
-              { n: 3, x: 50, y: 70 },
+              { n: 1, x: 78, y: 48 },
+              { n: 2, x: 78, y: 58 },
+              { n: 3, x: 78, y: 65 },
             ],
           },
           keys: [
@@ -161,7 +177,7 @@ export default {
         {
           kind: "screen",
           title: ["Home, section by section", "Ukurasa wa mwanzo, sehemu kwa sehemu"],
-          eyebrow: "Dashboard",
+          eyebrow: ["Dashboard", "Dashibodi"],
           route: "/app/dashboard",
           intro: [
             "You see cargo and time. You do not see money, anywhere, by design.",
@@ -222,11 +238,14 @@ export default {
       pages: [
         {
           title: ["Every menu explained", "Kila menyu imeelezwa"],
-          eyebrow: "Navigation",
+          eyebrow: ["Navigation", "Kuzunguka mfumo"],
           blocks: [
             {
               type: "table",
-              head: ["Menu", "What it is, and when to use it"],
+              head: [
+                ["Menu", "Menyu"],
+                ["What it is, and when to use it", "Ni nini, na utumie lini"],
+              ],
               rows: [
                 [["Home", "/app/dashboard"], ["Your starting point and the attention panel.", "Mwanzo wa kazi na paneli ya matukio yanayohitaji uangalizi."]],
                 [["Search", "/app/search"], ["Find any consignment by tracking number, customer, phone or carton reference.", "Tafuta mzigo wowote kwa namba ya ufuatiliaji, mteja, simu au namba ya boksi."]],
@@ -251,7 +270,7 @@ export default {
         {
           kind: "screen",
           title: ["Receiving Dock — checking a flight in", "Sehemu ya kupokea — kukagua ndege"],
-          eyebrow: "The bench",
+          eyebrow: ["The bench", "Meza ya kukagua"],
           route: "/app/receive",
           intro: [
             "Find the batch that has landed and mark it arrived. Then print the manifest and check the boxes against paper — not against a screen you are also trying to hold while counting.",
@@ -295,7 +314,7 @@ export default {
         {
           kind: "screen",
           title: ["Scan & release — the handover", "Skani na kabidhi — makabidhiano"],
-          eyebrow: "The counter",
+          eyebrow: ["The counter", "Kaunta"],
           route: "/app/release",
           intro: [
             "One scan of the QR on the carton. The screen opens with the customer, the cargo, whether it is paid, and the release form — everything on one page, nothing to go and fetch.",
@@ -339,7 +358,7 @@ export default {
         {
           kind: "screen",
           title: ["Pickup Queue — who may collect", "Foleni ya kuchukua — nani anaweza kuchukua"],
-          eyebrow: "Before the counter opens",
+          eyebrow: ["Before the counter opens", "Kabla kaunta haijafunguliwa"],
           route: "/app/pickup-queue",
           intro: [
             "Read the blockers on each row before a customer is standing in front of you. They mirror, in the same order, the checks the release itself will run.",
@@ -357,7 +376,7 @@ export default {
         {
           kind: "screen",
           title: ["Available Cargo — what is standing", "Mizigo iliyopo — iliyoko ghalani"],
-          eyebrow: "The floor",
+          eyebrow: ["The floor", "Ghalani"],
           route: "/app/inventory",
           intro: [
             "What is on the floor now, sorted by how long it has stood. Storage is free for 7 days, then USD 2 per day. You cannot see or quote the charge — tell the customer to collect and let Finance state the amount.",
@@ -368,7 +387,7 @@ export default {
         {
           kind: "screen",
           title: ["Collected Cargo & Reports", "Mizigo iliyochukuliwa na Ripoti"],
-          eyebrow: "The record",
+          eyebrow: ["The record", "Kumbukumbu"],
           route: "/app/deliveries · /app/reports",
           intro: [
             "Every handover with the receiver, the relationship, who released it and the photo. Reports show throughput, how long each leg took, and who did the work.",
@@ -392,29 +411,29 @@ export default {
       pages: [
         {
           title: ["Fifteen steps, five departments", "Hatua kumi na tano, vitengo vitano"],
-          eyebrow: "End to end",
+          eyebrow: ["End to end", "Mwanzo hadi mwisho"],
           blocks: [
             {
               type: "flow",
               steps: [
-                { who: "Customer", what: ["Books on the website", "Anaagiza kupitia tovuti"], tone: "draft" },
-                { who: "Guangzhou", what: ["Cargo arrives, is registered", "Mzigo unafika, unasajiliwa"], tone: "draft" },
-                { who: "Guangzhou", what: ["Weighed, photographed, labelled", "Unapimwa, unapigwa picha, unawekewa lebo"], tone: "draft" },
-                { who: "Guangzhou", what: ["Sealed and dispatched", "Kundi linafungwa na kusafirishwa"], tone: "draft" },
-                { who: "In the air", what: ["China → Tanzania", "China → Tanzania"], tone: "owed" },
-                { who: "You", what: ["Mark the flight arrived", "Weka alama ndege imefika"], tone: "info",
+                { who: ["Customer", "Mteja"], what: ["Books on the website", "Anaagiza kupitia tovuti"], tone: "draft" },
+                { who: ["Guangzhou", "Ghala la Guangzhou"], what: ["Cargo arrives, is registered", "Mzigo unafika, unasajiliwa"], tone: "draft" },
+                { who: ["Guangzhou", "Ghala la Guangzhou"], what: ["Weighed, photographed, labelled", "Unapimwa, unapigwa picha, unawekewa lebo"], tone: "draft" },
+                { who: ["Guangzhou", "Ghala la Guangzhou"], what: ["Sealed and dispatched", "Kundi linafungwa na kusafirishwa"], tone: "draft" },
+                { who: ["In the air", "Angani"], what: ["China → Tanzania", "China → Tanzania"], tone: "owed" },
+                { who: ["You", "Wewe"], what: ["Mark the flight arrived", "Weka alama ndege imefika"], tone: "info",
                   note: ["The batch becomes yours to check in.", "Kundi linakuwa jukumu lako kulikagua."] },
-                { who: "You", what: ["Print the manifest", "Chapisha orodha ya mizigo"], tone: "info" },
-                { who: "You", what: ["Rule on every consignment", "Toa uamuzi kwa kila mzigo"], tone: "info",
+                { who: ["You", "Wewe"], what: ["Print the manifest", "Chapisha orodha ya mizigo"], tone: "info" },
+                { who: ["You", "Wewe"], what: ["Rule on every consignment", "Toa uamuzi kwa kila mzigo"], tone: "info",
                   note: ["Received, or one of five problems.", "Imepokelewa, au mojawapo ya matatizo matano."] },
-                { who: "You", what: ["Finish the check-in", "Maliza ukaguzi"], tone: "info",
+                { who: ["You", "Wewe"], what: ["Finish the check-in", "Maliza ukaguzi"], tone: "info",
                   note: ["Cargo cannot be invoiced until this is done.", "Mzigo hauwezi kutozwa ankara hadi hii ikamilike."] },
-                { who: "System", what: ["Cargo priced automatically", "Mzigo unapangiwa bei kiotomatiki"], tone: "owed" },
-                { who: "Finance", what: ["Confirm the price → invoice", "Thibitisha bei → ankara"], tone: "owed" },
-                { who: "Customer Care", what: ["Chase the customer", "Fuatilia mteja"], tone: "owed" },
-                { who: "Finance", what: ["Verify payment · issue pickup note", "Thibitisha malipo · toa hati ya kuchukua"], tone: "paid" },
-                { who: "You", what: ["Scan · photograph · hand over", "Skani · piga picha · kabidhi"], tone: "paid" },
-                { who: "Customer", what: ["Walks out with the cargo", "Anaondoka na mzigo wake"], tone: "paid" },
+                { who: ["System", "Mfumo"], what: ["Cargo priced automatically", "Mzigo unapangiwa bei kiotomatiki"], tone: "owed" },
+                { who: ["Finance", "Fedha"], what: ["Confirm the price → invoice", "Thibitisha bei → ankara"], tone: "owed" },
+                { who: ["Customer Care", "Huduma kwa Wateja"], what: ["Chase the customer", "Fuatilia mteja"], tone: "owed" },
+                { who: ["Finance", "Fedha"], what: ["Verify payment · issue pickup note", "Thibitisha malipo · toa hati ya kuchukua"], tone: "paid" },
+                { who: ["You", "Wewe"], what: ["Scan · photograph · hand over", "Skani · piga picha · kabidhi"], tone: "paid" },
+                { who: ["Customer", "Mteja"], what: ["Walks out with the cargo", "Anaondoka na mzigo wake"], tone: "paid" },
               ],
             },
           ],
@@ -428,20 +447,23 @@ export default {
       pages: [
         {
           title: ["TX-000042 · shoes for John Peter", "TX-000042 · viatu vya John Peter"],
-          eyebrow: "Follow it through",
+          eyebrow: ["Follow it through", "Fuatilia hadi mwisho"],
           blocks: [
             {
               type: "example",
               fields: [
-                { k: "Customer", v: "John Peter" },
-                { k: "Tracking", v: "TX-000042" },
-                { k: "Weight", v: "3.6 kg" },
-                { k: "Cargo", v: "Shoes · Viatu" },
+                { k: ["Customer", "Mteja"], v: "John Peter" },
+                { k: ["Tracking", "Ufuatiliaji"], v: "TX-000042" },
+                { k: ["Weight", "Uzito"], v: "3.6 kg" },
+                { k: ["Cargo", "Mzigo"], v: "Shoes · Viatu" },
               ],
             },
             {
               type: "table",
-              head: ["Stage", "What you do"],
+              head: [
+                ["Stage", "Hatua"],
+                ["What you do", "Unachofanya"],
+              ],
               rows: [
                 [
                   ["Flight lands", "Ndege inatua"],
@@ -491,11 +513,15 @@ export default {
       pages: [
         {
           title: ["Common mistakes", "Makosa ya kawaida"],
-          eyebrow: "Fix it this way",
+          eyebrow: ["Fix it this way", "Rekebisha hivi"],
           blocks: [
             {
               type: "table",
-              head: ["The mistake", "What it causes", "What to do"],
+              head: [
+                ["The mistake", "Kosa"],
+                ["What it causes", "Madhara yake"],
+                ["What to do", "Cha kufanya"],
+              ],
               rows: [
                 [
                   ["Ticking a flight clean without opening the rows", "Kuweka alama ndege nzima ni salama bila kufungua mistari"],
@@ -540,23 +566,23 @@ export default {
       pages: [
         {
           title: ["Best practice", "Mbinu bora"],
-          eyebrow: "Do it this way",
+          eyebrow: ["Do it this way", "Fanya hivi"],
           blocks: [
             {
               type: "cards",
               columns: 2,
               items: [
-                { label: "Count", title: ["Against paper, always", "Kwa karatasi, kila wakati"],
+                { label: ["Count", "Kuhesabu"], title: ["Against paper, always", "Kwa karatasi, kila wakati"],
                   body: ["Print the manifest. Counting off a screen you are holding is how a line gets skipped.", "Chapisha orodha. Kuhesabu ukiangalia skrini unayoshikilia ndiko kunakosababisha kuruka mstari."] },
-                { label: "Photograph", title: ["At the moment, not later", "Wakati huo huo, siyo baadaye"],
+                { label: ["Photograph", "Kupiga picha"], title: ["At the moment, not later", "Wakati huo huo, siyo baadaye"],
                   body: ["Damage on the bench, handover at the counter. Neither picture can be taken afterwards.", "Uharibifu hapo mezani, makabidhiano kaunta. Picha zote mbili haziwezi kupigwa baadaye."] },
-                { label: "Queue", title: ["Pre-check before customers arrive", "Kagua kabla wateja hawajafika"],
+                { label: ["Queue", "Foleni"], title: ["Pre-check before customers arrive", "Kagua kabla wateja hawajafika"],
                   body: ["Read the blockers early. That is the difference between a two-minute handover and an argument.", "Soma vizuizi mapema. Hiyo ndiyo tofauti kati ya makabidhiano ya dakika mbili na ugomvi."] },
-                { label: "Missing", title: ["Write where you looked", "Andika ulipotafuta"],
+                { label: ["Missing", "Uliopotea"], title: ["Write where you looked", "Andika ulipotafuta"],
                   body: ["Name the shelf, the bay, the batch. 'Not found' helps nobody.", "Taja rafu, eneo, kundi. 'Haijapatikana' haisaidii mtu."] },
-                { label: "Money", title: ["Never quote a figure", "Usitaje kiasi chochote"],
+                { label: ["Money", "Pesa"], title: ["Never quote a figure", "Usitaje kiasi chochote"],
                   body: ["You do not have prices on screen. Send the customer to Finance.", "Huna bei skrini. Mpeleke mteja kwa Fedha."] },
-                { label: "Cases", title: ["Flag problems freely", "Ripoti matatizo bila woga"],
+                { label: ["Cases", "Kesi"], title: ["Flag problems freely", "Ripoti matatizo bila woga"],
                   body: ["Raising an exception is doing the job properly. The reports say so.", "Kufungua kesi ni kufanya kazi vizuri. Ripoti zinasema hivyo."] },
               ],
             },
@@ -571,11 +597,14 @@ export default {
       pages: [
         {
           title: ["Frequently asked", "Maswali ya mara kwa mara"],
-          eyebrow: "FAQ",
+          eyebrow: ["FAQ", "Maswali"],
           blocks: [
             {
               type: "table",
-              head: ["Question", "Answer"],
+              head: [
+                ["Question", "Swali"],
+                ["Answer", "Jibu"],
+              ],
               rows: [
                 [
                   ["A customer has no pickup note. Can I release?", "Mteja hana hati ya kuchukua. Naweza kukabidhi?"],
@@ -614,24 +643,24 @@ export default {
       pages: [
         {
           title: ["The Dar floor in one page", "Ghala la Dar kwa ukurasa mmoja"],
-          eyebrow: "Keep this one",
+          eyebrow: ["Keep this one", "Hifadhi ukurasa huu"],
           blocks: [
             {
               type: "cards",
               columns: 3,
               items: [
-                { label: "Every day", title: ["Do", "Fanya"],
+                { label: ["Every day", "Kila siku"], title: ["Do", "Fanya"],
                   body: ["Count against paper · photograph damage on the bench · pre-check the queue · photograph every handover · flag problems.", "Hesabu kwa karatasi · piga picha ya uharibifu hapo mezani · kagua foleni mapema · piga picha kila makabidhiano · ripoti matatizo."] },
-                { label: "Never", title: ["Don't", "Usifanye"],
+                { label: ["Never", "Kamwe"], title: ["Don't", "Usifanye"],
                   body: ["Release without a note · hand over part of a consignment · mark missing cargo delivered · quote a price · share your account.", "Usikabidhi bila hati · usikabidhi sehemu ya mzigo · usiweke alama umekabidhiwa mzigo uliopotea · usitaje bei · usishirikishe akaunti."] },
-                { label: "Remember", title: ["The rule", "Kanuni"],
+                { label: ["Remember", "Kumbuka"], title: ["The rule", "Kanuni"],
                   body: ["You hold the cargo, not the money. That is why you can be straightforward with every customer at the counter.", "Wewe unashikilia mzigo, siyo pesa. Ndiyo maana unaweza kuwa mnyoofu kwa kila mteja kaunta."] },
               ],
             },
             {
               type: "callout",
               kind: "tip",
-              label: "If you remember one sentence",
+              label: ["If you remember one sentence", "Ukikumbuka sentensi moja"],
               text: [
                 "Count it against paper, photograph it at the moment, and never hand over part of anything.",
                 "Hesabu kwa karatasi, piga picha wakati huo huo, na usikabidhi kamwe sehemu ya mzigo wowote.",
