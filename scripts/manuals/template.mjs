@@ -50,8 +50,12 @@ let MODE = "bi";
  */
 function sides(p) {
   const [en, alt] = Array.isArray(p) ? p : [p, null];
-  if (MODE === "bi") return { main: en, sub: alt, missing: !alt };
-  return { main: alt ?? en, sub: null, missing: !alt };
+  // `||`, not `??`: an empty-string translation is a missing one. With `??` it
+  // counts as present and prints a blank line, which is the one outcome worse
+  // than printing the untranslated English — nothing renders and nothing
+  // reports it.
+  if (MODE === "bi") return { main: en, sub: alt || null, missing: !alt };
+  return { main: alt || en, sub: null, missing: !alt };
 }
 
 /**

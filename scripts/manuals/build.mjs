@@ -112,6 +112,35 @@ for (const slug of targets) {
 
   const html = await readFile(htmlPath, "utf8");
   const needsCjk = /[㐀-鿿]/.test(html);
+
+  /*
+    A single-language manual has to be checked for the language it is NOT in.
+
+    Counting Latin characters would be useless — a Chinese manual is full of
+    legitimate Latin: tracking numbers, route paths, the brand, and Tanzanian
+    customer names. What does not belong is English PROSE, and prose gives
+    itself away by running several words together. Three or more consecutive
+    Latin words that are not a known identifier is a sentence somebody forgot
+    to translate.
+  */
+  if (manual.lang === "zh") {
+    const prose = html
+      .replace(/<style[\s\S]*?<\/style>/g, "")
+      .replace(/<[^>]+>/g, " ")
+      .match(/[A-Za-z][A-Za-z'’-]*(?:[ ]+[A-Za-z][A-Za-z'’-]*){2,}/g);
+    const KEEP = /^(Target Express|Express Air Cargo|Air Cargo|Staff Training Manual)$/;
+    const leaks = [...new Set((prose ?? []).map((s) => s.trim()))].filter(
+      (s) => !KEEP.test(s),
+    );
+    if (leaks.length) {
+      console.error(
+        `\n${slug}: ${leaks.length} English phrase(s) in a Chinese-only manual:`,
+      );
+      for (const l of leaks.slice(0, 12)) console.error(`   ${JSON.stringify(l)}`);
+      if (leaks.length > 12) console.error(`   …and ${leaks.length - 12} more`);
+      failures.push(slug);
+    }
+  }
   const note = needsCjk ? `  cjk:${[...cjkFonts].join(",") || "NONE"}` : "";
   console.log(
     `${slug.padEnd(17)} ${String(pages).padStart(3)} pages  ${size}  ${mb}MB${note}`,
