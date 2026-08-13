@@ -563,9 +563,9 @@ export default {
               type: "cards",
               columns: 3,
               items: [
-                { label: ["1", "一"], title: ["Decide, do not operate", "只做决定，不做操作"], body: ["If you are doing another desk's work, that desk needs attention instead.", "如果你在做别的岗位的工作，说明那个岗位才需要关注。"] },
-                { label: ["2", "二"], title: ["Approving is not paying", "批准不等于付款"], body: ["Your signature unlocks the money; Finance moves it. Confirm both halves.", "你的签批只是解锁，财务才动钱。确认两步都完成。"] },
-                { label: ["3", "三"], title: ["Say which number you mean", "说明你用的是哪个数字"], body: ["Two profit bases, two currencies. Most bad calls here are comparisons.", "两种口径、两种货币。这里多数误判源于比较。"] },
+                { label: "1", title: ["Decide, do not operate", "只做决定，不做操作"], body: ["If you are doing another desk's work, that desk needs attention instead.", "如果你在做别的岗位的工作，说明那个岗位才需要关注。"] },
+                { label: "2", title: ["Approving is not paying", "批准不等于付款"], body: ["Your signature unlocks the money; Finance moves it. Confirm both halves.", "你的签批只是解锁，财务才动钱。确认两步都完成。"] },
+                { label: "3", title: ["Say which number you mean", "说明你用的是哪个数字"], body: ["Two profit bases, two currencies. Most bad calls here are comparisons.", "两种口径、两种货币。这里多数误判源于比较。"] },
               ],
             },
             {

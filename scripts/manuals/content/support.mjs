@@ -520,9 +520,9 @@ export default {
               type: "cards",
               columns: 3,
               items: [
-                { label: ["1", "1"], title: ["Work the panel in order", "Fanya kazi kwa mpangilio"], body: ["It is already sorted by what costs the business most.", "Imeshapangwa kwa hasara kubwa kwa kampuni."] },
-                { label: ["2", "2"], title: ["Never quote what is not agreed", "Usinukuu kisichokubaliwa"], body: ["Not a draft, not a band total. Quote the customer's own row.", "Siyo rasimu, siyo jumla ya juu. Nukuu mstari wa mteja mwenyewe."] },
-                { label: ["3", "3"], title: ["Take the proof, not the promise", "Chukua ushahidi, siyo ahadi"], body: ["A reference on its own comes straight back.", "Namba peke yake inarudi mara moja."] },
+                { label: "1", title: ["Work the panel in order", "Fanya kazi kwa mpangilio"], body: ["It is already sorted by what costs the business most.", "Imeshapangwa kwa hasara kubwa kwa kampuni."] },
+                { label: "2", title: ["Never quote what is not agreed", "Usinukuu kisichokubaliwa"], body: ["Not a draft, not a band total. Quote the customer's own row.", "Siyo rasimu, siyo jumla ya juu. Nukuu mstari wa mteja mwenyewe."] },
+                { label: "3", title: ["Take the proof, not the promise", "Chukua ushahidi, siyo ahadi"], body: ["A reference on its own comes straight back.", "Namba peke yake inarudi mara moja."] },
               ],
             },
             {

@@ -192,7 +192,6 @@ export default {
           ],
           callout: {
             kind: "tip",
-            label: ["Tip", "小提示"],
             text: [
               "Never share an account. Every registration, every label printed and every dispatch carries the name of whoever was signed in.",
               "切勿共用账号。每一次登记、每一张打印的标签、每一次发运，都会记录当时登录者的姓名。",
@@ -227,7 +226,6 @@ export default {
           ],
           callout: {
             kind: "warn",
-            label: ["Careful", "注意"],
             text: [
               "What you *type* is not translated by this switch. If you write a cargo description in Chinese, the system keeps your Chinese exactly as written and shows Dar an English rendering beside it. Neither desk is ever handed the other's language.",
               "这个开关不会翻译你*输入*的内容。如果你用中文填写货物名称，系统会原样保留你的中文，并在旁边为达市提供英文译文。两个部门都不会被迫看另一种语言。",
@@ -310,7 +308,6 @@ export default {
           ],
           callout: {
             kind: "warn",
-            label: ["Careful", "注意"],
             text: [
               "A consignment with *no photograph* is always the most urgent row. It is registered but has nothing to argue with — if Dar reports it damaged, there is no picture of what it looked like when it left you.",
               "*没有照片*的货物永远是最紧急的一条。它虽已登记，但没有任何凭据——如果达市报告破损，就没有照片证明它离开你时是什么样子。",
@@ -485,7 +482,6 @@ export default {
           ],
           callout: {
             kind: "stop",
-            label: ["Never do this", "切勿这样做"],
             text: [
               "*Weigh before you type.* A weight typed from memory is the number the customer is billed on. At least one photograph is required by the server, not just by the form — the save is refused outright without one.",
               "*先称重，再录入。* 凭记忆填写的重量，就是客户被收费的依据。至少一张照片是服务器强制要求的，不只是表单校验——没有照片直接拒绝保存。",
@@ -539,7 +535,6 @@ export default {
           ],
           callout: {
             kind: "stop",
-            label: ["Never do this", "切勿这样做"],
             text: [
               "*There is no un-dispatch.* After sealing you can no longer edit or delete any of that cargo. Read the table one more time first — the oldest-piece figure and the misroute flag are there precisely for that last look.",
               "*发运无法撤销。* 封批后你将无法再编辑或删除这些货物。请再核对一遍——“最久一件”和错线提示就是为这最后一眼准备的。",
@@ -633,7 +628,6 @@ export default {
           figure: { shot: "issues-hero", crop: true },
           callout: {
             kind: "warn",
-            label: ["Careful", "注意"],
             text: [
               "*Nothing pushes these cases to you.* The notifications go to Customer Care, Finance and management. Make opening this page part of the end of every day.",
               "*系统不会主动把案件推送给你。* 通知只会发给客服、财务和管理层。请把每天下班前查看此页面变成习惯。",

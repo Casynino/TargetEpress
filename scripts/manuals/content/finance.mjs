@@ -431,9 +431,9 @@ export default {
               type: "cards",
               columns: 3,
               items: [
-                { label: ["1", "1"], title: ["Confirm the price", "Thibitisha bei"], body: ["A draft owes nobody anything. Confirm it and the business is owed money.", "Rasimu haimdai mtu. Ithibitishe na kampuni inakuwa inadai."] },
-                { label: ["2", "2"], title: ["Verify the payment", "Thibitisha malipo"], body: ["Match the proof to the account. Until you agree, the money does not exist.", "Linganisha ushahidi na akaunti. Hadi ukubali, pesa hiyo haipo."] },
-                { label: ["3", "3"], title: ["Issue the note", "Toa hati"], body: ["The moment the bill is settled. Until it exists, the cargo cannot move.", "Mara tu ankara inapolipwa. Hadi iwepo, mzigo hauwezi kutoka."] },
+                { label: "1", title: ["Confirm the price", "Thibitisha bei"], body: ["A draft owes nobody anything. Confirm it and the business is owed money.", "Rasimu haimdai mtu. Ithibitishe na kampuni inakuwa inadai."] },
+                { label: "2", title: ["Verify the payment", "Thibitisha malipo"], body: ["Match the proof to the account. Until you agree, the money does not exist.", "Linganisha ushahidi na akaunti. Hadi ukubali, pesa hiyo haipo."] },
+                { label: "3", title: ["Issue the note", "Toa hati"], body: ["The moment the bill is settled. Until it exists, the cargo cannot move.", "Mara tu ankara inapolipwa. Hadi iwepo, mzigo hauwezi kutoka."] },
               ],
             },
             {
