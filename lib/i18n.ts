@@ -3565,7 +3565,6 @@ const ZH: Record<string, string> = {
   "GMT+8": "东八区",
   "Ready to collect": "可提货",
   "Waiting in China": "在中国待运",
-  "Delivered": "已交付",
   "bill(s) unpaid": "笔账单未付",
   "box(es) short of the manifest": "箱少于舱单",
   "collection(s) to verify": "笔收款待核对",
