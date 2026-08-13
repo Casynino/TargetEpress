@@ -1,0 +1,961 @@
+<meta charset="utf-8">
+<title>Customer Care — Target Express Staff Training Manual</title>
+<style>
+:root{
+  --ink:#0b1220; --ink-2:#0f1729; --panel:#131e35; --navy:#182a48; --line:#26344f;
+  --signal:#d81e2a; --paid:#22a86a; --owed:#e09612; --info:#3b82f6; --draft:#7c8ba5;
+  --fg:#eef2f8; --muted:#93a0b6; --dim:#5d6c85;
+  --paper:#ffffff; --paper-ink:#101828; --paper-muted:#5a6478; --paper-line:#e3e8ef;
+  --display:"Avenir Next","Helvetica Neue","PingFang SC",sans-serif;
+  --narrow:"Avenir Next Condensed","Avenir Next","PingFang SC",sans-serif;
+  --body:"Helvetica Neue",Helvetica,"PingFang SC",sans-serif;
+  --mono:"Menlo","PingFang SC",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--paper)}
+body{color:var(--paper-ink);font-family:var(--body);
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;-webkit-font-smoothing:antialiased}
+
+@page{size:A4 portrait;margin:0}
+
+.page{position:relative;width:210mm;height:296.6mm;overflow:hidden;
+  padding:17mm 16mm 13mm;background:var(--paper);display:flex;flex-direction:column;
+  page-break-after:always;break-after:page}
+.page:last-of-type{page-break-after:auto;break-after:auto}
+
+/* --- type ---------------------------------------------------------------- */
+h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;letter-spacing:-.02em}
+h1{font-size:34pt;line-height:1.04}
+h2{font-size:19pt;line-height:1.15}
+h3{font-size:12.5pt}
+p{margin:0;font-size:10pt;line-height:1.55}
+b{font-weight:600}
+
+.bi{display:flex;flex-direction:column;gap:1.2mm}
+.bi .en{color:var(--paper-ink)}
+.bi .alt{color:var(--paper-muted);font-size:9.5pt;line-height:1.5}
+.bi .alt.missing{color:var(--signal);font-style:italic}
+.bihead .en{display:block}
+.bihead .alt{display:block;font-size:.62em;font-weight:500;color:var(--paper-muted);margin-top:1mm}
+
+.eyebrow{font-family:var(--narrow);font-size:8.5pt;font-weight:600;text-transform:uppercase;
+  letter-spacing:.2em;color:var(--signal)}
+.label{font-family:var(--narrow);font-size:7.5pt;font-weight:600;text-transform:uppercase;
+  letter-spacing:.15em;color:var(--paper-muted)}
+.rule{height:3pt;width:22mm;background:var(--signal);border-radius:2pt}
+.hair{height:1px;background:var(--paper-line)}
+
+.head{display:flex;flex-direction:column;gap:2.5mm;margin-bottom:6mm}
+.foot{margin-top:auto;padding-top:4mm;border-top:1px solid var(--paper-line);
+  display:flex;justify-content:space-between;align-items:baseline}
+.foot span{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--paper-muted)}
+
+/* --- cover --------------------------------------------------------------- */
+.cover{background:var(--ink);color:var(--fg);padding:0;justify-content:flex-end}
+.cover::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(120% 80% at 78% 12%,rgba(24,42,72,.95) 0%,rgba(11,18,32,0) 62%)}
+.cover-art{position:absolute;top:0;right:0;width:150mm;height:150mm;opacity:.5}
+.cover-inner{position:relative;padding:0 18mm 20mm;display:flex;flex-direction:column;gap:6mm}
+.cover .brand{display:flex;align-items:center;gap:3mm;margin-bottom:auto;padding-top:18mm}
+.cover .brand-name{font-family:var(--display);font-weight:600;font-size:15pt;letter-spacing:-.01em}
+.cover .brand-name span{color:var(--signal)}
+.cover .brand-sub{font-family:var(--narrow);font-size:8pt;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--muted)}
+.cover h1{font-size:42pt;color:#fff}
+.cover .dept-alt{font-family:var(--display);font-size:24pt;color:var(--muted);margin-top:-2mm}
+.cover .kicker{font-family:var(--narrow);font-size:11pt;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--signal)}
+.cover .meta{display:flex;gap:8mm;padding-top:5mm;border-top:1px solid rgba(255,255,255,.14)}
+.cover .meta div{display:flex;flex-direction:column;gap:1mm}
+.cover .meta .k{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim)}
+.cover .meta .v{font-size:10pt;color:var(--fg)}
+
+/* --- section divider ----------------------------------------------------- */
+.divider{background:var(--navy);color:#fff;justify-content:center;gap:4mm}
+.divider .num{font-family:var(--display);font-weight:600;font-size:64pt;line-height:1;
+  color:rgba(255,255,255,.18)}
+.divider h1{color:#fff;font-size:30pt}
+.divider .alt{font-size:18pt;color:rgba(255,255,255,.7);font-family:var(--display)}
+.divider p{color:rgba(255,255,255,.75);max-width:120mm;margin-top:2mm}
+
+/* --- figures: the screenshot with numbered callouts ---------------------- */
+.figure{position:relative;border:1px solid var(--paper-line);border-radius:2.5mm;
+  overflow:hidden;background:#0b1220;margin:2mm 0}
+.figure img{display:block;width:100%;height:auto}
+.figure.crop{max-height:118mm}
+.figure.crop img{object-fit:cover;object-position:top}
+.pin{position:absolute;width:6.5mm;height:6.5mm;border-radius:50%;background:var(--signal);
+  color:#fff;font-family:var(--display);font-weight:600;font-size:9.5pt;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 2pt rgba(255,255,255,.9),0 1mm 2mm rgba(0,0,0,.35);
+  transform:translate(-50%,-50%)}
+.ring{position:absolute;border:2.2pt solid var(--signal);border-radius:2mm;
+  box-shadow:0 0 0 2pt rgba(216,30,42,.18)}
+.figcap{font-size:8.5pt;color:var(--paper-muted);margin-top:1.5mm;font-style:italic}
+
+/* the numbered key under a figure */
+.keys{display:flex;flex-direction:column;gap:2mm;margin-top:3mm}
+.key{display:grid;grid-template-columns:6.5mm 1fr;gap:3mm;align-items:start}
+.key .n{width:6.5mm;height:6.5mm;border-radius:50%;background:var(--signal);color:#fff;
+  font-family:var(--display);font-weight:600;font-size:9pt;display:flex;
+  align-items:center;justify-content:center}
+.key .body .t{font-weight:600;font-size:10pt}
+.key .body .t .alt{font-weight:500;color:var(--paper-muted)}
+.key .body p{font-size:9.5pt}
+
+/* --- callouts ------------------------------------------------------------ */
+.callout{display:grid;grid-template-columns:7mm 1fr;gap:3.5mm;padding:4mm;border-radius:2.5mm;
+  background:#f7f9fc;border:1px solid var(--paper-line);border-left:2.5pt solid var(--info)}
+.callout.warn{border-left-color:var(--owed);background:#fffaf0}
+.callout.stop{border-left-color:var(--signal);background:#fff5f5}
+.callout.tip{border-left-color:var(--paid);background:#f2fbf6}
+.callout .ico{font-family:var(--display);font-weight:600;font-size:13pt;color:var(--info);text-align:center}
+.callout.warn .ico{color:var(--owed)} .callout.stop .ico{color:var(--signal)} .callout.tip .ico{color:var(--paid)}
+.callout .k{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--paper-muted);margin-bottom:1mm}
+
+/* --- cards & tables ------------------------------------------------------ */
+.cards{display:grid;gap:4mm}
+.cards.two{grid-template-columns:1fr 1fr}
+.cards.three{grid-template-columns:repeat(3,1fr)}
+.card{padding:4.5mm;border-radius:2.5mm;background:#f7f9fc;border:1px solid var(--paper-line);
+  display:flex;flex-direction:column;gap:2mm}
+.card .label{color:var(--signal)}
+
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:2.8mm 3mm;border-bottom:1px solid var(--paper-line);
+  vertical-align:top;font-size:9.5pt}
+th{font-family:var(--narrow);font-size:7.5pt;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--paper-muted);background:#f7f9fc}
+td.k{font-weight:600;width:46mm}
+td .alt{display:block;color:var(--paper-muted);font-size:9pt}
+tr:last-child td{border-bottom:0}
+
+/* --- the workflow spine -------------------------------------------------- */
+.flow{display:flex;flex-direction:column;gap:0;flex:1;justify-content:center}
+.flow-step{display:grid;grid-template-columns:9mm 1fr;gap:0 4mm}
+.flow-rail{position:relative;display:flex;justify-content:center}
+.flow-rail::before{content:"";position:absolute;top:0;bottom:0;width:2pt;background:var(--seg,var(--paper-line))}
+.flow-step:last-child .flow-rail::before{bottom:auto;height:4.5mm}
+.flow-dot{position:relative;z-index:1;width:9mm;height:9mm;border-radius:50%;
+  background:#fff;border:2pt solid var(--seg,var(--paper-line));display:flex;
+  align-items:center;justify-content:center;font-family:var(--display);font-weight:600;font-size:9.5pt}
+.flow-body{padding:0 0 5mm 0}
+.flow-body .who{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--paper-muted)}
+.flow-body .what{font-weight:600;font-size:10.5pt;margin-top:.6mm}
+.flow-body .what .alt{font-weight:500;color:var(--paper-muted)}
+.flow-body p{font-size:9pt;color:var(--paper-muted);margin-top:.8mm}
+
+/* --- worked example ------------------------------------------------------ */
+.example-hd{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:4mm}
+.example-hd div{padding:3mm;border-radius:2mm;background:var(--ink);color:var(--fg)}
+.example-hd .k{font-family:var(--narrow);font-size:7pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted)}
+.example-hd .v{font-family:var(--mono);font-size:10.5pt;margin-top:1mm}
+
+.contents{display:flex;flex-direction:column;gap:0}
+.toc-row{display:grid;grid-template-columns:9mm 1fr auto;gap:3mm;padding:2.6mm 0;
+  border-bottom:1px solid var(--paper-line);align-items:baseline}
+.toc-row .n{font-family:var(--display);font-weight:600;color:var(--signal)}
+.toc-row .t{font-weight:600;font-size:10.5pt}
+.toc-row .t .alt{font-weight:500;color:var(--paper-muted)}
+.toc-row .pg{font-family:var(--mono);font-size:9pt;color:var(--paper-muted)}
+</style>
+<section class="page cover">
+  <svg class="cover-art" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="230" cy="150" r="120" stroke="#26344f" stroke-width="1"/>
+  <circle cx="230" cy="150" r="88" stroke="#26344f" stroke-width="1"/>
+  <circle cx="230" cy="150" r="56" stroke="#26344f" stroke-width="1"/>
+  <ellipse cx="230" cy="150" rx="120" ry="44" stroke="#26344f" stroke-width="1"/>
+  <ellipse cx="230" cy="150" rx="120" ry="86" stroke="#26344f" stroke-width="1"/>
+  <path d="M110 250 C170 205, 250 150, 350 92" stroke="#d81e2a" stroke-width="2"
+        stroke-linecap="round" stroke-dasharray="5 7"/>
+  <circle cx="110" cy="250" r="4.5" fill="#d81e2a"/>
+  <path d="M336 84 l22 8 -18 14 -2 -10 -12 -4z" fill="#d81e2a"/>
+</svg>
+  <div class="cover-inner">
+    <div class="brand">
+      <div>
+        <div class="brand-name"><span>Target</span> Express</div>
+        <div class="brand-sub">Air Cargo · China to Tanzania</div>
+      </div>
+    </div>
+    <div class="kicker">Staff Training Manual</div>
+    <h1>Customer Care</h1>
+    <div class="dept-alt">Huduma kwa Wateja</div>
+    <div class="meta">
+      <div><span class="k">Version</span><span class="v">1.0</span></div>
+      <div><span class="k">Languages</span><span class="v">English · Kiswahili</span></div>
+      <div><span class="k">For</span><span class="v">Customer Care desk</span></div>
+      <div><span class="k">Issued</span><span class="v">August 2026</span></div>
+    </div>
+  </div>
+</section>
+<section class="page">
+  <div class="head"><div class="rule"></div>
+    <h2 class="bihead">
+    <span class="en">Contents</span>
+    <span class="alt">Yaliyomo</span>
+  </h2>
+  </div>
+  <div class="contents">
+    <div class="toc-row">
+      <span class="n">01</span>
+      <span class="t">Welcome to the customer desk <span class="alt">Karibu kwenye kitengo cha wateja</span></span>
+      <span class="pg">03</span>
+    </div><div class="toc-row">
+      <span class="n">02</span>
+      <span class="t">Signing in <span class="alt">Kuingia kwenye mfumo</span></span>
+      <span class="pg">06</span>
+    </div><div class="toc-row">
+      <span class="n">03</span>
+      <span class="t">Your home screen <span class="alt">Ukurasa wako wa mwanzo</span></span>
+      <span class="pg">08</span>
+    </div><div class="toc-row">
+      <span class="n">04</span>
+      <span class="t">The sidebar, menu by menu <span class="alt">Menyu ya kando, moja baada ya nyingine</span></span>
+      <span class="pg">10</span>
+    </div><div class="toc-row">
+      <span class="n">05</span>
+      <span class="t">Every screen in detail <span class="alt">Kila ukurasa kwa kina</span></span>
+      <span class="pg">12</span>
+    </div><div class="toc-row">
+      <span class="n">06</span>
+      <span class="t">The complete journey <span class="alt">Safari kamili</span></span>
+      <span class="pg">18</span>
+    </div><div class="toc-row">
+      <span class="n">07</span>
+      <span class="t">A worked example <span class="alt">Mfano wa vitendo</span></span>
+      <span class="pg">20</span>
+    </div><div class="toc-row">
+      <span class="n">08</span>
+      <span class="t">When things go wrong <span class="alt">Mambo yanapoharibika</span></span>
+      <span class="pg">22</span>
+    </div><div class="toc-row">
+      <span class="n">09</span>
+      <span class="t">Working well <span class="alt">Kufanya kazi vizuri</span></span>
+      <span class="pg">24</span>
+    </div><div class="toc-row">
+      <span class="n">10</span>
+      <span class="t">Questions people ask <span class="alt">Maswali yanayoulizwa</span></span>
+      <span class="pg">26</span>
+    </div><div class="toc-row">
+      <span class="n">11</span>
+      <span class="t">Summary <span class="alt">Muhtasari</span></span>
+      <span class="pg">28</span>
+    </div>
+  </div>
+  <div class="foot"><span>Customer Care</span><span>Contents</span></div>
+</section>
+<section class="page divider">
+  <div class="num">01</div>
+  <h1>Welcome to the customer desk</h1>
+  <div class="alt">Karibu kwenye kitengo cha wateja</div>
+  <p>You are the voice of this business. What you never do is decide that money arrived — and the whole department is built around that one line.</p>
+  <p>Wewe ndiye sauti ya kampuni hii. Kitu usichofanya kamwe ni kuamua kuwa pesa imefika — na kitengo kizima kimejengwa kuzunguka msingi huo mmoja.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Mission</div>
+    <h2 class="bihead">
+    <span class="en">What this desk is, and what it is not</span>
+    <span class="alt">Kitengo hiki ni nini, na si nini</span>
+  </h2>
+  </div>
+  <div class="cards two"><div class="card">
+          <span class="label">You may say</span>
+          <h3>“The customer says they have paid”</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">“Mteja anasema amelipa”</h3>
+          <div class="bi ">
+    <p class="en">You take the claim, attach their evidence, and hand it up to Finance. A submission moves no money: it writes nothing to the invoice, nothing to the ledger, nothing to any balance. <b>A claim is not money.</b></p>
+    <p class="alt">Unapokea dai, unaambatisha ushahidi wake, na kulipeleka kwa Fedha. Uwasilishaji hauhamishi pesa: hauandiki chochote kwenye ankara, daftari, wala salio lolote. <b>Dai siyo pesa.</b></p>
+  </div>
+        </div><div class="card">
+          <span class="label">You may not say</span>
+          <h3>“The money arrived”</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">“Pesa imefika”</h3>
+          <div class="bi ">
+    <p class="en">Only Finance can. That single denial is why this desk can ring customers all day without ever being able to release cargo or move a figure — and why nobody can pressure you into doing it.</p>
+    <p class="alt">Ni Fedha pekee wanaoweza. Kukatazwa huko ndiko kunakofanya kitengo hiki kiweze kupiga simu kwa wateja siku nzima bila kuweza kutoa mzigo au kuhamisha takwimu — na ndiyo maana hakuna anayeweza kukushinikiza kufanya hivyo.</p>
+  </div>
+        </div></div>
+<table><tr><th>Your day</th><th>What it means</th></tr>
+        <tr><td class="k">Land on your desk<span class="alt">Fika kwenye kitengo chako</span></td><td class="">/app/support is your dashboard. There is no second one.<span class="alt">/app/support ndio ukurasa wako. Hakuna mwingine.</span></td></tr><tr><td class="k">Read what needs you<span class="alt">Soma kinachohitaji uangalizi</span></td><td class="">One panel, already sorted by urgency. Work it top to bottom.<span class="alt">Paneli moja, imepangwa kwa udharura. Anza juu hadi chini.</span></td></tr><tr><td class="k">Clear rejections first<span class="alt">Anza na yaliyorudishwa</span></td><td class="">Anything Finance sent back is a customer waiting on you.<span class="alt">Chochote Fedha walichorudisha ni mteja anayekusubiri.</span></td></tr><tr><td class="k">Work the call list<span class="alt">Fanyia kazi orodha ya simu</span></td><td class="">Read the Next action column before you dial.<span class="alt">Soma safu ya Hatua Inayofuata kabla ya kupiga simu.</span></td></tr><tr><td class="k">Take their proof<span class="alt">Chukua ushahidi wao</span></td><td class="">A reference on its own is not evidence. Attach the file.<span class="alt">Namba ya kumbukumbu pekee siyo ushahidi. Ambatisha faili.</span></td></tr><tr><td class="k">Tell them to collect<span class="alt">Waambie waje kuchukua</span></td><td class="">Only once the pickup note actually exists.<span class="alt">Tu baada ya hati ya kuchukua kuwepo kweli.</span></td></tr></table>
+  <div class="foot"><span>What this desk is, and what it is not</span><span>04</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Authority</div>
+    <h2 class="bihead">
+    <span class="en">What you may and may not do</span>
+    <span class="alt">Unachoweza na usichoweza</span>
+  </h2>
+  </div>
+  <div class="cards two"><div class="card">
+          <span class="label">You may</span>
+          <h3>Talk, bill, chase, record</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Kuongea, kutoza, kufuatilia, kuandika</h3>
+          <div class="bi ">
+    <p class="en">See every consignment and what the customer owes · bill a customer and edit an invoice · chase with a pre-written Swahili reminder on WhatsApp · take a payment claim with evidence · print a pickup note Finance already issued · open and close tickets and sourcing requests · quote from the rate book.</p>
+    <p class="alt">Kuona kila mzigo na deni la mteja · kutoza mteja na kuhariri ankara · kufuatilia kwa ujumbe wa Kiswahili ulioandaliwa kwenye WhatsApp · kuchukua dai la malipo pamoja na ushahidi · kuchapisha hati ya kuchukua iliyotolewa na Fedha · kufungua na kufunga tiketi na maombi ya kutafuta bidhaa · kunukuu kutoka kitabu cha bei.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">You may not</span>
+          <h3>Confirm money, issue notes, discount</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Kuthibitisha pesa, kutoa hati, kupunguza bei</h3>
+          <div class="bi ">
+    <p class="en">Say money arrived · verify your own submission · issue or cancel a pickup note · give a discount · open the company's books — accounts, ledger, costs, profit · touch the cargo: no registering, scanning, receiving or releasing.</p>
+    <p class="alt">Kusema pesa imefika · kuthibitisha uwasilishaji wako mwenyewe · kutoa au kufuta hati ya kuchukua · kutoa punguzo · kufungua vitabu vya kampuni — akaunti, daftari, gharama, faida · kugusa mzigo: hakuna kusajili, kuskani, kupokea wala kukabidhi.</p>
+  </div>
+        </div></div>
+<div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">The one that protects you</div>
+      <div class="bi ">
+    <p class="en"><b>Never tell a customer their cargo is released until the pickup note actually exists.</b> A customer sent to the warehouse too early is turned away at the counter — and it is your name they remember.</p>
+    <p class="alt"><b>Usimwambie mteja mzigo wake umeruhusiwa hadi hati ya kuchukua iwepo kweli.</b> Mteja aliyetumwa ghalani mapema mno anarudishwa kaunta — na jina lako ndilo atakalolikumbuka.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>What you may and may not do</span><span>05</span></div>
+</section>
+<section class="page divider">
+  <div class="num">02</div>
+  <h1>Signing in</h1>
+  <div class="alt">Kuingia kwenye mfumo</div>
+  <p>One address, one account, and your desk is the home page.</p>
+  <p>Anwani moja, akaunti moja, na kitengo chako ndio ukurasa wa mwanzo.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Step 1</div>
+    <h2 class="bihead">
+    <span class="en">The login screen</span>
+    <span class="alt">Ukurasa wa kuingia</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">target-epress.vercel.app</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Type your work email and password. Everyone signs in at the same door, and the system sends you straight to the support desk. If you bookmarked a dashboard from another role it still works — it simply redirects back here.</p>
+    <p class="alt">Andika barua pepe yako ya kazi na nenosiri. Kila mtu anaingia mlango mmoja, na mfumo unakupeleka moja kwa moja kwenye kitengo cha huduma. Kama uliweka alama ya ukurasa wa kitengo kingine bado unafanya kazi — unarudi hapa tu.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/support/login.png" alt="">
+    <div class="pin" style="left:50%;top:44%">1</div><div class="pin" style="left:50%;top:57%">2</div><div class="pin" style="left:50%;top:70%">3</div>
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">Email <span class="alt">Barua pepe</span></div>
+        <div class="bi ">
+    <p class="en">e.g. support@targetexpress.co.tz</p>
+    <p class="alt">mfano support@targetexpress.co.tz</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Password <span class="alt">Nenosiri</span></div>
+        <div class="bi ">
+    <p class="en">Change it from Profile once you are in.</p>
+    <p class="alt">Ibadilishe kwenye Wasifu baada ya kuingia.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Sign in <span class="alt">Ingia</span></div>
+        <div class="bi ">
+    <p class="en">Straight to /app/support — your desk IS the dashboard.</p>
+    <p class="alt">Moja kwa moja hadi /app/support — kitengo chako NDIO ukurasa wa mwanzo.</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">Tip</div>
+      <div class="bi ">
+    <p class="en">Do not go looking for a second dashboard. There isn't one, and that is deliberate — everything this desk does starts on one page.</p>
+    <p class="alt">Usitafute ukurasa mwingine wa mwanzo. Haupo, na hiyo ni kwa makusudi — kila kitu kitengo hiki kinachofanya kinaanzia ukurasa mmoja.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>The login screen</span><span>07</span></div>
+</section>
+<section class="page divider">
+  <div class="num">03</div>
+  <h1>Your home screen</h1>
+  <div class="alt">Ukurasa wako wa mwanzo</div>
+  <p>One panel, already sorted by what costs the business most.</p>
+  <p>Paneli moja, tayari imepangwa kwa hasara kubwa kwa kampuni.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Dashboard</div>
+    <h2 class="bihead">
+    <span class="en">Home, section by section</span>
+    <span class="alt">Ukurasa wa mwanzo, sehemu kwa sehemu</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/support</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Search at the top, then Needs your attention, then the tiles and the call list. Work the panel in the order it gives you — it is not alphabetical, it is ordered by urgency.</p>
+    <p class="alt">Utafutaji juu, kisha Yanayohitaji uangalizi wako, kisha vipimo na orodha ya simu. Fanyia kazi paneli kwa mpangilio inavyokupa — siyo wa alfabeti, ni wa udharura.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/support/home-hero.png" alt="">
+    <div class="pin" style="left:50%;top:20%">1</div><div class="pin" style="left:55%;top:42%">2</div><div class="pin" style="left:55%;top:72%">3</div><div class="pin" style="left:10%;top:35%">4</div>
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">The search box <span class="alt">Kisanduku cha utafutaji</span></div>
+        <div class="bi ">
+    <p class="en">Tracking number, customer name, the number they are calling from, a batch or an invoice. Whatever the caller has, type it here.</p>
+    <p class="alt">Namba ya ufuatiliaji, jina la mteja, namba anayopigia, kundi au ankara. Chochote mpigaji alicho nacho, kiandike hapa.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Needs your attention <span class="alt">Yanayohitaji uangalizi wako</span></div>
+        <div class="bi ">
+    <p class="en">Urgent tickets, customers to chase, payments Finance sent back, claims still waiting, cases parked on a customer's answer.</p>
+    <p class="alt">Tiketi za dharura, wateja wa kufuatilia, malipo Fedha waliyorudisha, madai yanayosubiri, kesi zinazosubiri jibu la mteja.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">The call list preview <span class="alt">Muhtasari wa orodha ya simu</span></div>
+        <div class="bi ">
+    <p class="en">The top six customers to ring. The full queue is one press away.</p>
+    <p class="alt">Wateja sita wa kwanza wa kupigiwa. Orodha kamili iko bonyezo moja tu.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">4</div>
+      <div class="body">
+        <div class="t">The sidebar <span class="alt">Menyu ya kando</span></div>
+        <div class="bi ">
+    <p class="en">Everything you can reach, grouped by the kind of work.</p>
+    <p class="alt">Kila ukurasa unaoweza kufikia, umepangwa kwa aina ya kazi.</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">Tip</div>
+      <div class="bi ">
+    <p class="en">When the panel is empty it says so: <b>“Nothing is waiting on you. Every landed consignment is billed and no customer is owed a call.”</b> That is a real state, not a screen that failed to load.</p>
+    <p class="alt">Paneli ikiwa tupu inasema hivyo: <b>“Hakuna kinachokusubiri. Kila mzigo uliofika umetozwa na hakuna mteja anayedai simu.”</b> Hiyo ni hali halisi, siyo ukurasa ulioshindwa kupakia.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Home, section by section</span><span>09</span></div>
+</section>
+<section class="page divider">
+  <div class="num">04</div>
+  <h1>The sidebar, menu by menu</h1>
+  <div class="alt">Menyu ya kando, moja baada ya nyingine</div>
+  <p>Twelve doors, and when to be in each.</p>
+  <p>Milango kumi na miwili, na wakati wa kutumia kila mmoja.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Navigation</div>
+    <h2 class="bihead">
+    <span class="en">Every menu explained</span>
+    <span class="alt">Kila menyu imeelezwa</span>
+  </h2>
+  </div>
+  <table><tr><th>Menu</th><th>What it is, and when to use it</th></tr>
+        <tr><td class="k">Home<span class="alt">/app/support</span></td><td class="">Your desk and the attention panel. Start and end here.<span class="alt">Kitengo chako na paneli ya matukio. Anza na malizia hapa.</span></td></tr><tr><td class="k">Search<span class="alt">/app/search</span></td><td class="">Any consignment, by tracking number, customer, phone or description.<span class="alt">Mzigo wowote, kwa namba ya ufuatiliaji, mteja, simu au maelezo.</span></td></tr><tr><td class="k">Customers<span class="alt">/app/customers</span></td><td class="">The customer book — history, contact details, everything they have shipped.<span class="alt">Kitabu cha wateja — historia, mawasiliano, kila walichosafirisha.</span></td></tr><tr><td class="k">Shipments · Batches<span class="alt">/app/shipments</span></td><td class="">Where a consignment is, and which flight it came on.<span class="alt">Mzigo uko wapi, na ulikuja kwa ndege gani.</span></td></tr><tr><td class="k">Collections<span class="alt">/app/collections</span></td><td class="">What is owed, who to ring, what you handed up and what came back.<span class="alt">Kinachodaiwa, nani wa kupigia, ulichowasilisha na kilichorudi.</span></td></tr><tr><td class="k">Pickup notes<span class="alt">/app/finance/pickup-notes</span></td><td class="">Notes Finance has issued. You print them; you never create one.<span class="alt">Hati zilizotolewa na Fedha. Unazichapisha; huwezi kuunda.</span></td></tr><tr><td class="k">Price Configuration<span class="alt">/app/finance/pricing</span></td><td class="">The rate book. Read a quote off this, never from memory.<span class="alt">Kitabu cha bei. Soma nukuu hapa, siyo kwa kumbukumbu.</span></td></tr><tr><td class="k">Tickets<span class="alt">/app/support/tickets</span></td><td class="">Calls, complaints and enquiries, with the resolution written down.<span class="alt">Simu, malalamiko na maswali, pamoja na suluhisho lililoandikwa.</span></td></tr><tr><td class="k">Issues &amp; Claims<span class="alt">/app/exceptions</span></td><td class="">Cargo under investigation. Ring the ones parked on the customer.<span class="alt">Mizigo iliyo kwenye uchunguzi. Piga simu kwa zinazosubiri mteja.</span></td></tr><tr><td class="k">Sourcing requests<span class="alt">/app/support/sourcing</span></td><td class="">Customers asking us to find goods in China, on a board.<span class="alt">Wateja wanaotuomba tuwatafutie bidhaa China, kwenye ubao.</span></td></tr><tr><td class="k">China markets<span class="alt">/app/support/markets</span></td><td class="">Which Guangzhou market sells what, so you can point them properly.<span class="alt">Soko gani la Guangzhou linauza nini, ili uwaelekeze vizuri.</span></td></tr></table>
+  <div class="foot"><span>Every menu explained</span><span>11</span></div>
+</section>
+<section class="page divider">
+  <div class="num">05</div>
+  <h1>Every screen in detail</h1>
+  <div class="alt">Kila ukurasa kwa kina</div>
+  <p>The picture, every control, and why it is there.</p>
+  <p>Picha, kila kitufe, na sababu ya kuwepo kwake.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Where most of your day goes</div>
+    <h2 class="bihead">
+    <span class="en">Collections — the call list</span>
+    <span class="alt">Ukusanyaji — orodha ya simu</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/collections/follow-up</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Every consignment sitting in Dar that is already billed and not yet paid, with a phone number on the row. Read the <b>Next action</b> column before you dial — a row that says “Confirm the price” means the invoice is still a draft.</p>
+    <p class="alt">Kila mzigo uliopo Dar ambao umeshatozwa na haujalipwa, na namba ya simu kwenye mstari. Soma safu ya <b>Hatua Inayofuata</b> kabla ya kupiga — mstari unaosema “Thibitisha bei” maana yake ankara bado ni rasimu.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/support/follow-up-hero.png" alt="">
+    
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">The band totals <span class="alt">Jumla za juu</span></div>
+        <div class="bi ">
+    <p class="en">A live estimate at today's rate. <b>Quote the row, never the band</b> — the row is the exact figure the customer was given.</p>
+    <p class="alt">Makadirio ya sasa kwa kiwango cha leo. <b>Nukuu mstari, siyo jumla ya juu</b> — mstari ndio kiasi hasa alichopewa mteja.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">The WhatsApp icon <span class="alt">Alama ya WhatsApp</span></div>
+        <div class="bi ">
+    <p class="en">The Swahili reminder is already written: name, tracking number, goods, invoice, weight, amount in shillings and where to pay.</p>
+    <p class="alt">Ujumbe wa Kiswahili umeshaandikwa: jina, namba ya ufuatiliaji, bidhaa, ankara, uzito, kiasi kwa shilingi na mahali pa kulipa.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Next action <span class="alt">Hatua inayofuata</span></div>
+        <div class="bi ">
+    <p class="en">Tells you what this row actually needs. Read it first and you will never quote a figure the business has not agreed.</p>
+    <p class="alt">Inakuambia mstari huu unahitaji nini hasa. Isome kwanza na hutawahi kunukuu kiasi ambacho kampuni haijakubali.</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Never do this</div>
+      <div class="bi ">
+    <p class="en"><b>Never quote a draft.</b> A draft is the system's price, not a bill. Asking a customer for a figure this business has not yet agreed to is how a quote becomes an argument.</p>
+    <p class="alt"><b>Usinukuu rasimu kamwe.</b> Rasimu ni bei ya mfumo, siyo ankara. Kumwomba mteja kiasi ambacho kampuni haijakubali ndiko kunakogeuza nukuu kuwa ugomvi.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Collections — the call list</span><span>13</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Hand it up to Finance</div>
+    <h2 class="bihead">
+    <span class="en">Recording a payment claim</span>
+    <span class="alt">Kuandika dai la malipo</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/collections/record</p>
+  </div>
+  <div class="bi ">
+    <p class="en">When a customer says they have paid, open the payment icon on their row. Everything except the reference and the attachment is filled in for you. You must attach evidence — Finance cannot verify a reference on its own.</p>
+    <p class="alt">Mteja anaposema amelipa, fungua alama ya malipo kwenye mstari wake. Kila kitu isipokuwa namba ya kumbukumbu na kiambatisho kimeshajazwa. Lazima uambatishe ushahidi — Fedha hawawezi kuthibitisha namba peke yake.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/support/collections-hero.png" alt="">
+    
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">The reference <span class="alt">Namba ya kumbukumbu</span></div>
+        <div class="bi ">
+    <p class="en">The M-Pesa or bank reference the customer gives you.</p>
+    <p class="alt">Namba ya M-Pesa au benki mteja anayokupa.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">The attachment <span class="alt">Kiambatisho</span></div>
+        <div class="bi ">
+    <p class="en">A screenshot or slip. Required — a reference alone is refused.</p>
+    <p class="alt">Picha au risiti. Ni lazima — namba peke yake inakataliwa.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Hand up to Finance <span class="alt">Wasilisha kwa Fedha</span></div>
+        <div class="bi ">
+    <p class="en">This moves no money. Finance rules on it, and only then does anything settle.</p>
+    <p class="alt">Hii haihamishi pesa. Fedha wanaamua, na hapo tu ndipo kitu kinakamilika.</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout warn">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Careful</div>
+      <div class="bi ">
+    <p class="en">An iPhone HEIC photo is refused, because Finance must be able to open it. Ask for a screenshot, or have the customer set Camera → Formats to <b>Most Compatible</b>. And note: <b>one pending claim per bill</b> — a second is refused by name.</p>
+    <p class="alt">Picha ya HEIC ya iPhone inakataliwa, kwa sababu Fedha lazima waweze kuifungua. Omba picha ya skrini, au mteja abadilishe Kamera → Miundo kuwa <b>Most Compatible</b>. Pia: <b>dai moja tu linalosubiri kwa kila ankara</b> — la pili linakataliwa kwa jina.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Recording a payment claim</span><span>14</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">The record of a conversation</div>
+    <h2 class="bihead">
+    <span class="en">Tickets — every call written down</span>
+    <span class="alt">Tiketi — kila simu imeandikwa</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/support/tickets</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Take calls, complaints and price enquiries as tickets. A customer link is optional — price enquiries arrive before people are customers — but a name or a phone number is required.</p>
+    <p class="alt">Pokea simu, malalamiko na maswali ya bei kama tiketi. Kumuunganisha mteja siyo lazima — maswali ya bei huja kabla watu hawajawa wateja — lakini jina au namba ya simu ni lazima.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/support/tickets-hero.png" alt="">
+    
+  </div>
+  
+  
+  <div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">Tip</div>
+      <div class="bi ">
+    <p class="en">You cannot close a ticket without writing what you did. <b>Internal notes are never shown to the customer</b> — write freely, so the next person picking up the call knows exactly where it got to.</p>
+    <p class="alt">Huwezi kufunga tiketi bila kuandika ulichofanya. <b>Maelezo ya ndani hayaonyeshwi kwa mteja</b> — andika bila wasiwasi, ili atakayeshika simu ijayo ajue ilipofikia.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Tickets — every call written down</span><span>15</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Finding goods in China</div>
+    <h2 class="bihead">
+    <span class="en">Sourcing &amp; China markets</span>
+    <span class="alt">Kutafuta bidhaa na masoko ya China</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/support/sourcing · /app/support/markets</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Move sourcing requests left to right: New → In progress → Waiting for customer → Supplier found → Completed. Use the markets directory to point customers at the right Guangzhou market.</p>
+    <p class="alt">Sogeza maombi ya kutafuta bidhaa kutoka kushoto kwenda kulia: Mpya → Inaendelea → Inasubiri mteja → Msambazaji amepatikana → Imekamilika. Tumia orodha ya masoko kuwaelekeza wateja soko sahihi la Guangzhou.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/support/sourcing-hero.png" alt="">
+    
+  </div>
+  
+  
+  <div class="callout warn">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Careful</div>
+      <div class="bi ">
+    <p class="en">You cannot mark a request <b>Supplier found</b> or <b>Completed</b> without recording what you found. Goods from around Guangzhou consolidate at the Guangzhou warehouse; electronics from Shenzhen fly out of Hong Kong — telling a customer the wrong one changes what they pay.</p>
+    <p class="alt">Huwezi kuweka alama <b>Msambazaji amepatikana</b> au <b>Imekamilika</b> bila kuandika ulichokipata. Bidhaa za maeneo ya Guangzhou hukusanywa ghala la Guangzhou; vifaa vya elektroniki vya Shenzhen husafiri kupitia Hong Kong — kumwambia mteja soko lisilo sahihi kunabadilisha atakacholipa.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Sourcing &amp; China markets</span><span>16</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Read and print only</div>
+    <h2 class="bihead">
+    <span class="en">Pickup notes &amp; Issues</span>
+    <span class="alt">Hati za kuchukua na Matatizo</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/finance/pickup-notes · /app/exceptions</p>
+  </div>
+  <div class="bi ">
+    <p class="en">You can read, print and search pickup notes. You cannot issue one and you cannot cancel one. For cases, you can move them between open, under investigation and waiting on the customer — but you cannot approve compensation.</p>
+    <p class="alt">Unaweza kusoma, kuchapisha na kutafuta hati za kuchukua. Huwezi kutoa wala kufuta. Kwa kesi, unaweza kuzisogeza kati ya wazi, uchunguzi unaendelea na inasubiri mteja — lakini huwezi kuidhinisha fidia.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/support/pickup-notes-hero.png" alt="">
+    
+  </div>
+  
+  
+  
+  <div class="foot"><span>Pickup notes &amp; Issues</span><span>17</span></div>
+</section>
+<section class="page divider">
+  <div class="num">06</div>
+  <h1>The complete journey</h1>
+  <div class="alt">Safari kamili</div>
+  <p>Where your part sits in the whole chain.</p>
+  <p>Sehemu yako iko wapi kwenye mnyororo mzima.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">End to end</div>
+    <h2 class="bihead">
+    <span class="en">Fifteen steps, five departments</span>
+    <span class="alt">Hatua kumi na tano, vitengo vitano</span>
+  </h2>
+  </div>
+  <div class="flow"><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">1</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou</div>
+            <div class="what">Cargo registered and flown <span class="alt">Mzigo unasajiliwa na kusafirishwa</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">2</div></div>
+          <div class="flow-body">
+            <div class="who">Dar floor</div>
+            <div class="what">Checked in against the manifest <span class="alt">Unakaguliwa kwa orodha ya mizigo</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">3</div></div>
+          <div class="flow-body">
+            <div class="who">System</div>
+            <div class="what">Priced automatically as a DRAFT <span class="alt">Unapangiwa bei kiotomatiki kama RASIMU</span></div>
+            <p>Do not quote this figure.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">4</div></div>
+          <div class="flow-body">
+            <div class="who">Finance</div>
+            <div class="what">Confirm the price → a real bill <span class="alt">Wanathibitisha bei → ankara halisi</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">5</div></div>
+          <div class="flow-body">
+            <div class="who">You</div>
+            <div class="what">The row appears on your call list <span class="alt">Mstari unatokea kwenye orodha yako ya simu</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">6</div></div>
+          <div class="flow-body">
+            <div class="who">You</div>
+            <div class="what">Ring or WhatsApp the customer <span class="alt">Piga simu au WhatsApp kwa mteja</span></div>
+            <p>Quote the row, never the band total.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">7</div></div>
+          <div class="flow-body">
+            <div class="who">Customer</div>
+            <div class="what">Pays and sends proof <span class="alt">Analipa na kutuma ushahidi</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">8</div></div>
+          <div class="flow-body">
+            <div class="who">You</div>
+            <div class="what">Record the claim with the evidence <span class="alt">Andika dai pamoja na ushahidi</span></div>
+            <p>A claim is not money.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--paid)">
+          <div class="flow-rail"><div class="flow-dot">9</div></div>
+          <div class="flow-body">
+            <div class="who">Finance</div>
+            <div class="what">Verify · receipt · pickup note <span class="alt">Wanathibitisha · risiti · hati ya kuchukua</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--paid)">
+          <div class="flow-rail"><div class="flow-dot">10</div></div>
+          <div class="flow-body">
+            <div class="who">You</div>
+            <div class="what">Tell the customer to collect <span class="alt">Mwambie mteja aje kuchukua</span></div>
+            <p>Only now — the note exists.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--paid)">
+          <div class="flow-rail"><div class="flow-dot">11</div></div>
+          <div class="flow-body">
+            <div class="who">Dar floor</div>
+            <div class="what">Scan · photograph · hand over <span class="alt">Skani · piga picha · kabidhi</span></div>
+            
+          </div>
+        </div></div>
+  <div class="foot"><span>Fifteen steps, five departments</span><span>19</span></div>
+</section>
+<section class="page divider">
+  <div class="num">07</div>
+  <h1>A worked example</h1>
+  <div class="alt">Mfano wa vitendo</div>
+  <p>One customer, from the call to the collection.</p>
+  <p>Mteja mmoja, kutoka simu hadi kuchukua.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Follow it through</div>
+    <h2 class="bihead">
+    <span class="en">TX-000042 · shoes for John Peter</span>
+    <span class="alt">TX-000042 · viatu vya John Peter</span>
+  </h2>
+  </div>
+  <div class="example-hd"><div><div class="k">Customer</div><div class="v">John Peter</div></div><div><div class="k">Tracking</div><div class="v">TX-000042</div></div><div><div class="k">Invoice</div><div class="v">USD 48.60</div></div><div><div class="k">Phone</div><div class="v">0764 197 748</div></div></div>
+<table><tr><th>Stage</th><th>What you do</th></tr>
+        <tr><td class="k">Row appears<span class="alt">Mstari unatokea</span></td><td class="">Finance confirms the price. TX-000042 lands on your call list with 'Ring them' in the Next action column.<span class="alt">Fedha wanathibitisha bei. TX-000042 unatokea kwenye orodha yako ya simu na 'Mpigie simu' kwenye safu ya Hatua Inayofuata.</span></td></tr><tr><td class="k">You ring<span class="alt">Unapiga simu</span></td><td class="">You press the WhatsApp icon. The Swahili reminder is pre-written with his name, TX-000042, shoes, the invoice number and the amount in shillings.<span class="alt">Unabonyeza alama ya WhatsApp. Ujumbe wa Kiswahili umeshaandikwa na jina lake, TX-000042, viatu, namba ya ankara na kiasi kwa shilingi.</span></td></tr><tr><td class="k">He pays<span class="alt">Analipa</span></td><td class="">John sends the money by M-Pesa and forwards you the confirmation screenshot.<span class="alt">John anatuma pesa kwa M-Pesa na kukutumia picha ya uthibitisho.</span></td></tr><tr><td class="k">You record it<span class="alt">Unaiandika</span></td><td class="">You open the payment icon on his row, type the M-Pesa reference, attach his screenshot, and hand it up. Nothing has settled yet.<span class="alt">Unafungua alama ya malipo kwenye mstari wake, unaandika namba ya M-Pesa, unaambatisha picha yake, na kuwasilisha. Bado hakuna kilichokamilika.</span></td></tr><tr><td class="k">Finance verifies<span class="alt">Fedha wanathibitisha</span></td><td class="">They match the proof to the M-Pesa account and verify. A receipt is numbered and the pickup note is issued.<span class="alt">Wanalinganisha ushahidi na akaunti ya M-Pesa na kuthibitisha. Risiti inapewa namba na hati ya kuchukua inatolewa.</span></td></tr><tr><td class="k">You tell him<span class="alt">Unamwambia</span></td><td class="">Now — and only now — you ring John and tell him the cargo is ready to collect.<span class="alt">Sasa — na sasa tu — unampigia John na kumwambia mzigo uko tayari kuchukuliwa.</span></td></tr></table>
+  <div class="foot"><span>TX-000042 · shoes for John Peter</span><span>21</span></div>
+</section>
+<section class="page divider">
+  <div class="num">08</div>
+  <h1>When things go wrong</h1>
+  <div class="alt">Mambo yanapoharibika</div>
+  <p>The mistakes that actually happen here.</p>
+  <p>Makosa yanayotokea hapa kweli.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Fix it this way</div>
+    <h2 class="bihead">
+    <span class="en">Common mistakes</span>
+    <span class="alt">Makosa ya kawaida</span>
+  </h2>
+  </div>
+  <table><tr><th>The mistake</th><th>What it causes</th><th>What to do</th></tr>
+        <tr><td class="k">Quoting the band total<span class="alt">Kunukuu jumla ya juu</span></td><td class="">You quote a live estimate; the customer pays a different figure and disputes it.<span class="alt">Unanukuu makadirio; mteja analipa kiasi tofauti na kupinga.</span></td><td class="">Quote the amount on the customer's own row.<span class="alt">Nukuu kiasi kilicho kwenye mstari wa mteja mwenyewe.</span></td></tr><tr><td class="k">Quoting a draft<span class="alt">Kunukuu rasimu</span></td><td class="">You ask for a figure the business has not agreed. It may change.<span class="alt">Unaomba kiasi ambacho kampuni haijakubali. Kinaweza kubadilika.</span></td><td class="">Wait for Finance to confirm the price.<span class="alt">Subiri Fedha wathibitishe bei.</span></td></tr><tr><td class="k">A reference with no attachment<span class="alt">Namba bila kiambatisho</span></td><td class="">Finance cannot verify it and sends it back; the customer waits another day.<span class="alt">Fedha hawawezi kuthibitisha na wanarudisha; mteja anasubiri siku nyingine.</span></td><td class="">Always attach the screenshot or slip.<span class="alt">Daima ambatisha picha au risiti.</span></td></tr><tr><td class="k">A second claim after a rejection<span class="alt">Dai la pili baada ya kukataliwa</span></td><td class="">Two claims on one bill; the system refuses and the record looks like a cover-up.<span class="alt">Madai mawili kwa ankara moja; mfumo unakataa na kumbukumbu inaonekana kama kuficha.</span></td><td class="">Correct the claim against the same invoice.<span class="alt">Rekebisha dai kwa ankara ileile.</span></td></tr><tr><td class="k">Telling a customer to collect too early<span class="alt">Kumwambia mteja aje mapema mno</span></td><td class="">They travel to the warehouse and are turned away.<span class="alt">Anasafiri hadi ghalani na kurudishwa.</span></td><td class="">Wait until the cargo shows Ready for pickup.<span class="alt">Subiri hadi mzigo uonyeshe Tayari kuchukuliwa.</span></td></tr><tr><td class="k">Closing a ticket with no resolution<span class="alt">Kufunga tiketi bila suluhisho</span></td><td class="">The system refuses — and the next person has no idea what happened.<span class="alt">Mfumo unakataa — na mtu ajaye hajui kilichotokea.</span></td><td class="">Write what you actually did.<span class="alt">Andika ulichofanya hasa.</span></td></tr><tr><td class="k">Chasing cargo under investigation<span class="alt">Kufuatilia mzigo ulio kwenye uchunguzi</span></td><td class="">You demand money for a box the warehouse cannot find.<span class="alt">Unadai pesa kwa boksi ambalo ghala haliwezi kulipata.</span></td><td class="">Check Issues &amp; Claims before ringing.<span class="alt">Kagua Matatizo na Madai kabla ya kupiga simu.</span></td></tr></table>
+  <div class="foot"><span>Common mistakes</span><span>23</span></div>
+</section>
+<section class="page divider">
+  <div class="num">09</div>
+  <h1>Working well</h1>
+  <div class="alt">Kufanya kazi vizuri</div>
+  <p>Habits that keep customers calm and the record clean.</p>
+  <p>Tabia zinazotuliza wateja na kuweka kumbukumbu safi.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Do it this way</div>
+    <h2 class="bihead">
+    <span class="en">Best practice</span>
+    <span class="alt">Mbinu bora</span>
+  </h2>
+  </div>
+  <div class="cards two"><div class="card">
+          <span class="label">Order</span>
+          <h3>Work the panel in its order</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Fanya kazi kwa mpangilio wa paneli</h3>
+          <div class="bi ">
+    <p class="en">It is already sorted by what costs the business most. Do not pick by eye.</p>
+    <p class="alt">Imeshapangwa kwa hasara kubwa kwa kampuni. Usichague kwa macho.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Rejections</span>
+          <h3>Clear them first</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Zishughulikie kwanza</h3>
+          <div class="bi ">
+    <p class="en">A rejection means a customer believes they paid and the business disagrees. Nothing is more urgent.</p>
+    <p class="alt">Kukataliwa maana yake mteja anaamini amelipa na kampuni haikubali. Hakuna cha dharura zaidi.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Quotes</span>
+          <h3>Read the rate book</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Soma kitabu cha bei</h3>
+          <div class="bi ">
+    <p class="en">Never quote from memory. If you think a rate is wrong, tell Finance — do not tell the customer a different number.</p>
+    <p class="alt">Usinukuu kwa kumbukumbu. Ukidhani bei si sahihi, waambie Fedha — usimwambie mteja kiasi tofauti.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Evidence</span>
+          <h3>Proof, not promises</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Ushahidi, siyo ahadi</h3>
+          <div class="bi ">
+    <p class="en">A reference on its own comes straight back. Attach the file the first time.</p>
+    <p class="alt">Namba peke yake inarudi mara moja. Ambatisha faili mara ya kwanza.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Notes</span>
+          <h3>Write internal notes freely</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Andika maelezo ya ndani bila wasiwasi</h3>
+          <div class="bi ">
+    <p class="en">They are never shown to the customer, and they save the next person the whole conversation.</p>
+    <p class="alt">Hayaonyeshwi kwa mteja, na yanamwokoa ajaye mazungumzo yote.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Promises</span>
+          <h3>Never promise a release</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Usiahidi kutolewa kwa mzigo</h3>
+          <div class="bi ">
+    <p class="en">You cannot issue the note. Say 'once Finance confirms' — and mean it.</p>
+    <p class="alt">Huwezi kutoa hati. Sema 'baada ya Fedha kuthibitisha' — na uwe na maana.</p>
+  </div>
+        </div></div>
+  <div class="foot"><span>Best practice</span><span>25</span></div>
+</section>
+<section class="page divider">
+  <div class="num">10</div>
+  <h1>Questions people ask</h1>
+  <div class="alt">Maswali yanayoulizwa</div>
+  <p>The ones that come up in the first week.</p>
+  <p>Yale yanayojitokeza wiki ya kwanza.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">FAQ</div>
+    <h2 class="bihead">
+    <span class="en">Frequently asked</span>
+    <span class="alt">Maswali ya mara kwa mara</span>
+  </h2>
+  </div>
+  <table><tr><th>Question</th><th>Answer</th></tr>
+        <tr><td class="k">The customer paid but the system still says unpaid.<span class="alt">Mteja amelipa lakini mfumo bado unasema hajalipa.</span></td><td class="">Your claim is with Finance. Nothing settles until they verify it — that is the design, not a delay you caused.<span class="alt">Dai lako liko kwa Fedha. Hakuna kinachokamilika hadi wathibitishe — hiyo ndiyo muundo, siyo ucheleweshaji wako.</span></td></tr><tr><td class="k">Can I give a discount?<span class="alt">Naweza kutoa punguzo?</span></td><td class="">No. You can edit an invoice's notes and other charges, but not the discount. That is deliberate.<span class="alt">Hapana. Unaweza kuhariri maelezo na gharama nyingine za ankara, lakini siyo punguzo. Hiyo ni kwa makusudi.</span></td></tr><tr><td class="k">A customer is angry about storage charges.<span class="alt">Mteja amekasirika kuhusu gharama za uhifadhi.</span></td><td class="">Storage is free for 7 days, then USD 2 per day. Explain the policy, and send billing questions to Finance.<span class="alt">Uhifadhi ni bure kwa siku 7, kisha USD 2 kwa siku. Eleza sera, na peleka maswali ya ankara kwa Fedha.</span></td></tr><tr><td class="k">Someone is asking for a price before they are a customer.<span class="alt">Mtu anauliza bei kabla hajawa mteja.</span></td><td class="">That is normal. Open a ticket with just a name or phone number and read the quote off Price Configuration.<span class="alt">Ni kawaida. Fungua tiketi kwa jina au namba ya simu tu na usome nukuu kutoka Mipangilio ya Bei.</span></td></tr><tr><td class="k">Can I see how much the company has in the bank?<span class="alt">Naweza kuona kampuni ina kiasi gani benki?</span></td><td class="">No. You chase a customer's bill; you do not keep the books. Those are two different permissions on purpose.<span class="alt">Hapana. Wewe unafuatilia ankara ya mteja; huwezi kutunza vitabu. Hayo ni mamlaka mawili tofauti kwa makusudi.</span></td></tr></table>
+  <div class="foot"><span>Frequently asked</span><span>27</span></div>
+</section>
+<section class="page divider">
+  <div class="num">11</div>
+  <h1>Summary</h1>
+  <div class="alt">Muhtasari</div>
+  <p>Three things carry this desk.</p>
+  <p>Mambo matatu yanayobeba kitengo hiki.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Keep this one</div>
+    <h2 class="bihead">
+    <span class="en">The customer desk in one page</span>
+    <span class="alt">Kitengo cha wateja kwa ukurasa mmoja</span>
+  </h2>
+  </div>
+  <div class="cards three"><div class="card">
+          <span class="label">1</span>
+          <h3>Work the panel in order</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Fanya kazi kwa mpangilio</h3>
+          <div class="bi ">
+    <p class="en">It is already sorted by what costs the business most.</p>
+    <p class="alt">Imeshapangwa kwa hasara kubwa kwa kampuni.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">2</span>
+          <h3>Never quote what is not agreed</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Usinukuu kisichokubaliwa</h3>
+          <div class="bi ">
+    <p class="en">Not a draft, not a band total. Quote the customer's own row.</p>
+    <p class="alt">Siyo rasimu, siyo jumla ya juu. Nukuu mstari wa mteja mwenyewe.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">3</span>
+          <h3>Take the proof, not the promise</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Chukua ushahidi, siyo ahadi</h3>
+          <div class="bi ">
+    <p class="en">A reference on its own comes straight back.</p>
+    <p class="alt">Namba peke yake inarudi mara moja.</p>
+  </div>
+        </div></div>
+<div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">If you remember one sentence</div>
+      <div class="bi ">
+    <p class="en">You hold the relationship; Finance holds the money. Keeping those apart is what lets you be completely straight with a customer about everything except whether their payment has landed.</p>
+    <p class="alt">Wewe unashikilia uhusiano; Fedha wanashikilia pesa. Kutenganisha hivyo ndiko kunakokuwezesha kuwa mnyoofu kabisa kwa mteja kuhusu kila kitu isipokuwa kama malipo yake yamefika.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>The customer desk in one page</span><span>29</span></div>
+</section>
