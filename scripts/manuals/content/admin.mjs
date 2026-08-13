@@ -130,8 +130,8 @@ export default {
           eyebrow: ["Step 1", "第一步"],
           route: "target-epress.vercel.app",
           intro: [
-            "Type your work email and password. You land on the executive dashboard — the only role that sees it. The language switch sits at the bottom of the sidebar; press 中文 and the whole system follows.",
-            "输入工作邮箱和密码。你将进入管理层仪表盘——只有这个角色能看到。语言切换位于侧边栏底部；点击中文，整个系统随之切换。",
+            "Type your work email and password. You land on the executive dashboard — the only role that sees it. The language switch sits at the bottom of the sidebar; press 中文 and the whole system follows. This page is in English because nobody has signed in yet, so the system does not know whose language to use. Once you sign in it switches to Chinese by itself.",
+            "输入工作邮箱和密码。你将进入管理层仪表盘——只有这个角色能看到。语言切换位于侧边栏底部；点击中文，整个系统随之切换。这个页面是英文的，因为还没有人登录，系统不知道该用谁的语言。登录之后，界面会自动切换成中文。",
           ],
           figure: {
             shot: "login",

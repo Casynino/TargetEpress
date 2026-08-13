@@ -152,8 +152,8 @@ export default {
           eyebrow: ["Step 1", "第 1 步"],
           route: "target-epress.vercel.app",
           intro: [
-            "Open the address in any browser — phone or computer. Type the email your manager gave you and your password, then press Sign in. If the password is refused twice, ask your manager to reset it rather than guessing; repeated failures are recorded.",
-            "在任意浏览器中打开该网址——手机或电脑均可。输入主管给你的邮箱和密码，然后点击登录。如果密码连续两次被拒，请让主管重置，不要反复猜测；多次失败会被记录。",
+            "Open the address in any browser — phone or computer. Type the email your manager gave you and your password, then press Sign in. If the password is refused twice, ask your manager to reset it rather than guessing; repeated failures are recorded. This page is in English because nobody has signed in yet, so the system does not know whose language to use. Once you sign in it switches to Chinese by itself.",
+            "在任意浏览器中打开该网址——手机或电脑均可。输入主管给你的邮箱和密码，然后点击登录。如果密码连续两次被拒，请让主管重置，不要反复猜测；多次失败会被记录。这个页面是英文的，因为还没有人登录，系统不知道该用谁的语言。登录之后，界面会自动切换成中文。",
           ],
           figure: {
             shot: "login",
