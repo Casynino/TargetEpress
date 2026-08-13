@@ -18,10 +18,11 @@
  * teaches nobody what a working screen looks like.
  */
 
-import { mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
+import { PrismaClient } from "@prisma/client";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
@@ -104,7 +105,9 @@ export const DEPARTMENTS = {
   },
   admin: {
     email: "ceo@targetexpress.co.tz",
-    locale: "en",
+    // The Management manual is written in Chinese, so it is photographed in
+    // Chinese. The account is put back to English when the shoot finishes.
+    locale: "zh",
     screens: [
       ["home", "/app/dashboard"],
       ["general-ledger", "/app/finance"],
@@ -124,6 +127,32 @@ export const DEPARTMENTS = {
 
 /** The login screen itself, shot signed-out. Every manual opens with it. */
 const PUBLIC_SHOTS = [["login", "/login"]];
+
+const prisma = new PrismaClient();
+
+/**
+ * Put an account into the language its manual is written in, for the shoot.
+ *
+ * The app takes a person's language from `user.preferredLanguage`; there is no
+ * query parameter or cookie override, because the whole point of the setting
+ * is that it follows the person rather than the browser. So the only honest
+ * way to photograph the Chinese interface is to be a user whose language is
+ * Chinese. The previous value is returned so the account can be put back —
+ * this runs against the working database, and leaving the CEO's login in a
+ * language they do not read would be a strange parting gift from a screenshot
+ * script.
+ */
+async function useLocale(email, locale) {
+  const before = await prisma.user.findUnique({
+    where: { email },
+    select: { preferredLanguage: true },
+  });
+  if (!before) throw new Error(`No such account: ${email}`);
+  if (before.preferredLanguage !== locale) {
+    await prisma.user.update({ where: { email }, data: { preferredLanguage: locale } });
+  }
+  return before.preferredLanguage;
+}
 
 async function sessionCookies(email) {
   const r1 = await fetch(`${BASE}/api/auth/csrf`);
@@ -196,6 +225,9 @@ for (const dept of targets) {
     await page.screenshot({ path: join(dir, `${name}.png`) });
   }
 
+  // Set the language BEFORE signing in: the session is minted at sign-in and
+  // may carry the preference with it.
+  const restoreLocale = await useLocale(cfg.email, cfg.locale);
   await page.setCookie(...(await sessionCookies(cfg.email)));
 
   const shots = [];
@@ -218,10 +250,27 @@ for (const dept of targets) {
     }
   }
   manifest[dept] = { email: cfg.email, locale: cfg.locale, shots };
+  await useLocale(cfg.email, restoreLocale);
   await page.close();
   await ctx.close();
 }
 
 await browser.close();
-await writeFile(join(OUT, "manifest.json"), JSON.stringify(manifest, null, 1));
+await prisma.$disconnect();
+
+/*
+  Merge rather than replace. Capturing one department used to rewrite the
+  manifest with only that department in it, so `capture.mjs admin` silently
+  erased the record of the other four shoots.
+*/
+let previous = {};
+try {
+  previous = JSON.parse(await readFile(join(OUT, "manifest.json"), "utf8"));
+} catch {
+  // First run, or the file was removed with the shots — nothing to preserve.
+}
+await writeFile(
+  join(OUT, "manifest.json"),
+  JSON.stringify({ ...previous, ...manifest }, null, 1),
+);
 console.log(`\nScreenshots in ${OUT}`);

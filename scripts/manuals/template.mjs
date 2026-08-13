@@ -28,14 +28,46 @@ const esc = (s) =>
 const rich = (s) => esc(s).replace(/\*([^*]+)\*/g, "<b>$1</b>");
 
 /**
- * A bilingual block. `t` is [english, translated].
- * Renders both, and says so loudly when the second is missing.
+ * Which languages this manual prints.
+ *
+ *   "bi"  english first, the second language beneath it
+ *   "zh"  chinese only — the english is not printed at all
+ *
+ * Set once per render. A single-language manual is not a bilingual one with
+ * half hidden: the second language stops being a support line under the
+ * English and has to carry the page by itself, so it is promoted to full
+ * contrast and body size, and the English is dropped rather than greyed.
  */
-function bi(pair, cls = "") {
-  const [en, alt] = Array.isArray(pair) ? pair : [pair, null];
+let MODE = "bi";
+
+/**
+ * Split a [english, translated] pair into what actually gets printed.
+ *
+ * Every render site goes through here, so adding a mode is one change rather
+ * than forty. `missing` is reported rather than silently papered over: in a
+ * Chinese-only manual an untranslated string would otherwise appear as a lone
+ * English sentence with nothing marking it as a gap.
+ */
+function sides(p) {
+  const [en, alt] = Array.isArray(p) ? p : [p, null];
+  if (MODE === "bi") return { main: en, sub: alt, missing: !alt };
+  return { main: alt ?? en, sub: null, missing: !alt };
+}
+
+/**
+ * A block of prose. `p` is [english, translated].
+ * Renders whatever the mode calls for, and says so loudly when it cannot.
+ */
+function bi(p, cls = "") {
+  const { main, sub, missing } = sides(p);
+  if (MODE !== "bi") {
+    return `<div class="bi ${cls}">
+    <p class="en${missing ? " missing" : ""}">${rich(main)}</p>
+  </div>`;
+  }
   return `<div class="bi ${cls}">
-    <p class="en">${rich(en)}</p>
-    ${alt ? `<p class="alt">${rich(alt)}</p>` : `<p class="alt missing">[translation missing]</p>`}
+    <p class="en">${rich(main)}</p>
+    ${sub ? `<p class="alt">${rich(sub)}</p>` : `<p class="alt missing">[translation missing]</p>`}
   </div>`;
 }
 
@@ -46,24 +78,48 @@ function bi(pair, cls = "") {
  * short to deserve its own stacked block. Same rule as everywhere else: a
  * missing second language is shown, not hidden.
  */
-function inline(pair) {
-  const [en, alt] = Array.isArray(pair) ? pair : [pair, null];
-  if (alt) return `${esc(en)} <span class="alt-inline">${esc(alt)}</span>`;
+function inline(p) {
+  const { main, sub, missing } = sides(p);
   // A numeral or a bare symbol reads the same in every language, so flagging it
   // as untranslated would be noise on the page and would train the reader to
   // ignore the marker where it does matter.
-  if (/^[\d\W]+$/.test(String(en ?? ""))) return esc(en);
-  return `${esc(en)} <span class="alt-inline missing">[?]</span>`;
+  const bare = /^[\d\W]+$/.test(String(main ?? ""));
+  if (MODE !== "bi") {
+    return missing && !bare
+      ? `<span class="alt-inline missing">${esc(main)}</span>`
+      : esc(main);
+  }
+  if (sub) return `${esc(main)} <span class="alt-inline">${esc(sub)}</span>`;
+  if (bare) return esc(main);
+  return `${esc(main)} <span class="alt-inline missing">[?]</span>`;
 }
 
-/** A bilingual heading, same rule. */
-function biHead(pair, tag = "h2") {
-  const [en, alt] = Array.isArray(pair) ? pair : [pair, null];
+/** A heading, same rule. */
+function biHead(p, tag = "h2") {
+  const { main, sub } = sides(p);
   return `<${tag} class="bihead">
-    <span class="en">${esc(en)}</span>
-    ${alt ? `<span class="alt">${esc(alt)}</span>` : ""}
+    <span class="en">${esc(main)}</span>
+    ${sub ? `<span class="alt">${esc(sub)}</span>` : ""}
   </${tag}>`;
 }
+
+/**
+ * Fixed wording the template supplies itself, rather than the content files:
+ * cover furniture and the two defaults a content file may leave unset.
+ */
+const CHROME = {
+  kicker: ["Staff Training Manual", "员工培训手册"],
+  brandSub: ["Air Cargo · China to Tanzania", "航空货运 · 中国至坦桑尼亚"],
+  contents: ["Contents", "目录"],
+  screen: ["The screen", "本界面"],
+  stop: ["Never do this", "切勿这样做"],
+  warn: ["Careful", "注意"],
+  tip: ["Tip", "提示"],
+  note: ["Note", "说明"],
+};
+
+/** Cover furniture: one language in single-language mode, both otherwise. */
+const chrome = (k) => esc(sides(CHROME[k]).main);
 
 const CSS = `
 /* macOS registers PingFang as ".PingFang SC" — dot-prefixed families are hidden
@@ -244,6 +300,34 @@ tr:last-child td{border-bottom:0}
 .toc-row .pg{font-family:var(--mono);font-size:9pt;color:var(--paper-muted)}
 `;
 
+/*
+ * Typesetting for a Chinese-only manual.
+ *
+ * Not the bilingual sheet with one language hidden. Latin display type is
+ * tightened to close the gaps between letterforms; Han characters are square
+ * and evenly spaced already, so the same tightening jams them together. CJK
+ * also carries no word spaces, which is what normally gives a paragraph its
+ * air, so the leading has to supply it instead.
+ */
+const CSS_ZH = `
+h1,h2,h3{letter-spacing:normal;text-wrap:balance}
+h1{line-height:1.18}
+h2{line-height:1.35}
+p{line-height:1.8}
+.bi{gap:2mm}
+.bi .en{font-size:10.5pt}
+/* Han is uniform in width and colour, so a long uppercase-tracked label reads
+   as a grey bar. Less tracking, and a touch more size to stay legible. */
+.eyebrow{letter-spacing:.1em;font-size:9pt}
+.label,.foot span,.example-hd .k,.flow-body .who,th{letter-spacing:.06em;font-size:8pt}
+.cover .brand-sub{letter-spacing:.14em}
+.cover .kicker{letter-spacing:.14em}
+.cover h1{line-height:1.15}
+/* Tracking numbers, routes and USD figures stay Latin inside Chinese prose;
+   they must not be broken across lines the way Han characters may be. */
+.mono,td,.example-hd .v{word-break:normal;overflow-wrap:break-word}
+`;
+
 /* ------------------------------------------------------------------ pieces */
 
 const PLANE = `<svg class="cover-art" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -275,9 +359,10 @@ function figure(fig, dir) {
   </div>
   ${
     fig.caption
-      ? `<p class="figcap">${rich(Array.isArray(fig.caption) ? fig.caption[0] : fig.caption)}${
-          Array.isArray(fig.caption) && fig.caption[1] ? `<br>${rich(fig.caption[1])}` : ""
-        }</p>`
+      ? (() => {
+          const { main, sub } = sides(fig.caption);
+          return `<p class="figcap">${rich(main)}${sub ? `<br>${rich(sub)}` : ""}</p>`;
+        })()
       : ""
   }`;
 }
@@ -287,15 +372,16 @@ const keys = (items) =>
     ? ""
     : `<div class="keys">${items
         .map(
-          (k, i) => `<div class="key">
+          (k, i) => {
+          const { main, sub } = sides(k.title);
+          return `<div class="key">
       <div class="n">${k.n ?? i + 1}</div>
       <div class="body">
-        <div class="t">${esc(Array.isArray(k.title) ? k.title[0] : k.title)}${
-          Array.isArray(k.title) && k.title[1] ? ` <span class="alt">${esc(k.title[1])}</span>` : ""
-        }</div>
+        <div class="t">${esc(main)}${sub ? ` <span class="alt">${esc(sub)}</span>` : ""}</div>
         ${bi(k.body)}
       </div>
-    </div>`
+    </div>`;
+        }
         )
         .join("")}</div>`;
 
@@ -315,9 +401,7 @@ const callout = (c) =>
     <div class="ico">${c.kind === "stop" ? "!" : c.kind === "warn" ? "!" : c.kind === "tip" ? "★" : "i"}</div>
     <div>
       <div class="k">${inline(
-        c.label ??
-          CALLOUT_LABELS[c.kind ?? "note"] ??
-          (c.kind === "stop" ? "Never do this" : c.kind === "warn" ? "Careful" : c.kind === "tip" ? "Tip" : "Note")
+        c.label ?? CALLOUT_LABELS[c.kind ?? "note"] ?? CHROME[c.kind ?? "note"] ?? CHROME.note
       )}</div>
       ${bi(c.text)}
     </div>
@@ -326,26 +410,27 @@ const callout = (c) =>
 /* ------------------------------------------------------------------- pages */
 
 const foot = (m, left, right) =>
-  `<div class="foot"><span>${esc(left ?? m.department[0])}</span><span>${esc(right)}</span></div>`;
+  `<div class="foot"><span>${esc(left ?? sides(m.department).main)}</span><span>${esc(right)}</span></div>`;
 
 function coverPage(m) {
+  const dept = sides(m.department);
   return `<section class="page cover">
   ${PLANE}
   <div class="cover-inner">
     <div class="brand">
       <div>
         <div class="brand-name"><span>Target</span> Express</div>
-        <div class="brand-sub">Air Cargo · China to Tanzania</div>
+        <div class="brand-sub">${chrome("brandSub")}</div>
       </div>
     </div>
-    <div class="kicker">Staff Training Manual</div>
-    <h1>${esc(m.department[0])}</h1>
-    <div class="dept-alt">${esc(m.department[1] ?? "")}</div>
+    <div class="kicker">${chrome("kicker")}</div>
+    <h1>${esc(dept.main)}</h1>
+    ${dept.sub ? `<div class="dept-alt">${esc(dept.sub)}</div>` : ""}
     <div class="meta">
-      <div><span class="k">${inline(m.labels?.version ?? "Version")}</span><span class="v">${esc(m.version)}</span></div>
-      <div><span class="k">${inline(m.labels?.languages ?? "Languages")}</span><span class="v">${esc(m.languages)}</span></div>
-      <div><span class="k">${inline(m.labels?.audience ?? "For")}</span><span class="v">${esc(m.audience)}</span></div>
-      <div><span class="k">${inline(m.labels?.issued ?? "Issued")}</span><span class="v">${esc(m.issued)}</span></div>
+      <div><span class="k">${inline(m.labels?.version ?? "Version")}</span><span class="v">${esc(sides(m.version).main)}</span></div>
+      <div><span class="k">${inline(m.labels?.languages ?? "Languages")}</span><span class="v">${esc(sides(m.languages).main)}</span></div>
+      <div><span class="k">${inline(m.labels?.audience ?? "For")}</span><span class="v">${esc(sides(m.audience).main)}</span></div>
+      <div><span class="k">${inline(m.labels?.issued ?? "Issued")}</span><span class="v">${esc(sides(m.issued).main)}</span></div>
     </div>
   </div>
 </section>`;
@@ -354,30 +439,33 @@ function coverPage(m) {
 function contentsPage(m, sections) {
   return `<section class="page">
   <div class="head"><div class="rule"></div>
-    ${biHead(["Contents", m.contentsAlt ?? ""], "h2")}
+    ${biHead([CHROME.contents[0], m.contentsAlt ?? CHROME.contents[1]], "h2")}
   </div>
   <div class="contents">
     ${sections
-      .map(
-        (s, i) => `<div class="toc-row">
+      .map((s, i) => {
+        const { main, sub } = sides(s.title);
+        return `<div class="toc-row">
       <span class="n">${String(i + 1).padStart(2, "0")}</span>
-      <span class="t">${esc(s.title[0])}${s.title[1] ? ` <span class="alt">${esc(s.title[1])}</span>` : ""}</span>
+      <span class="t">${esc(main)}${sub ? ` <span class="alt">${esc(sub)}</span>` : ""}</span>
       <span class="pg">${s.page}</span>
-    </div>`
-      )
+    </div>`;
+      })
       .join("")}
   </div>
-  ${foot(m, m.department[0], "Contents")}
+  ${foot(m, sides(m.department).main, chrome("contents"))}
 </section>`;
 }
 
 function dividerPage(m, n, s) {
+  const t = sides(s.title);
+  const b = s.blurb ? sides(s.blurb) : null;
   return `<section class="page divider">
   <div class="num">${String(n).padStart(2, "0")}</div>
-  <h1>${esc(s.title[0])}</h1>
-  ${s.title[1] ? `<div class="alt">${esc(s.title[1])}</div>` : ""}
-  ${s.blurb ? `<p>${rich(Array.isArray(s.blurb) ? s.blurb[0] : s.blurb)}</p>` : ""}
-  ${s.blurb && Array.isArray(s.blurb) && s.blurb[1] ? `<p>${rich(s.blurb[1])}</p>` : ""}
+  <h1>${esc(t.main)}</h1>
+  ${t.sub ? `<div class="alt">${esc(t.sub)}</div>` : ""}
+  ${b ? `<p>${rich(b.main)}</p>` : ""}
+  ${b && b.sub ? `<p>${rich(b.sub)}</p>` : ""}
 </section>`;
 }
 
@@ -385,7 +473,7 @@ function dividerPage(m, n, s) {
 function screenPage(m, dir, s, pageNo) {
   return `<section class="page">
   <div class="head">
-    <div class="eyebrow">${inline(s.eyebrow ?? "The screen")}</div>
+    <div class="eyebrow">${inline(s.eyebrow ?? CHROME.screen)}</div>
     ${biHead(s.title, "h2")}
     ${s.route ? `<p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">${esc(s.route)}</p>` : ""}
   </div>
@@ -393,7 +481,7 @@ function screenPage(m, dir, s, pageNo) {
   ${figure(s.figure, dir)}
   ${keys(s.keys)}
   ${s.callout ? callout(s.callout) : ""}
-  ${foot(m, s.title[0], String(pageNo).padStart(2, "0"))}
+  ${foot(m, sides(s.title).main, String(pageNo).padStart(2, "0"))}
 </section>`;
 }
 
@@ -407,14 +495,15 @@ function prosePage(m, dir, p, pageNo) {
       if (b.type === "callout") return callout(b);
       if (b.type === "cards")
         return `<div class="cards ${b.columns === 3 ? "three" : "two"}">${b.items
-          .map(
-            (c) => `<div class="card">
+          .map((c) => {
+            const { main, sub } = sides(c.title);
+            return `<div class="card">
           <span class="label">${c.label ? inline(c.label) : ""}</span>
-          <h3>${esc(Array.isArray(c.title) ? c.title[0] : c.title)}</h3>
-          ${Array.isArray(c.title) && c.title[1] ? `<h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">${esc(c.title[1])}</h3>` : ""}
+          <h3>${esc(main)}</h3>
+          ${sub ? `<h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">${esc(sub)}</h3>` : ""}
           ${bi(c.body)}
-        </div>`
-          )
+        </div>`;
+          })
           .join("")}</div>`;
       if (b.type === "table")
         return `<table><tr>${b.head.map((h) => `<th>${inline(h)}</th>`).join("")}</tr>
@@ -423,36 +512,30 @@ function prosePage(m, dir, p, pageNo) {
             (r) =>
               `<tr>${r
                 .map((cell, i) => {
-                  const [en, alt] = Array.isArray(cell) ? cell : [cell, null];
-                  return `<td class="${i === 0 ? "k" : ""}">${rich(en)}${alt ? `<span class="alt">${rich(alt)}</span>` : ""}</td>`;
+                  const { main, sub } = sides(cell);
+                  return `<td class="${i === 0 ? "k" : ""}">${rich(main)}${sub ? `<span class="alt">${rich(sub)}</span>` : ""}</td>`;
                 })
                 .join("")}</tr>`
           )
           .join("")}</table>`;
       if (b.type === "flow")
         return `<div class="flow">${b.steps
-          .map(
-            (st, i) => `<div class="flow-step" style="--seg:${st.tone ? `var(--${st.tone})` : "var(--paper-line)"}">
+          .map((st, i) => {
+            const what = sides(st.what);
+            const note = st.note ? sides(st.note) : null;
+            return `<div class="flow-step" style="--seg:${st.tone ? `var(--${st.tone})` : "var(--paper-line)"}">
           <div class="flow-rail"><div class="flow-dot">${i + 1}</div></div>
           <div class="flow-body">
             <div class="who">${st.who ? inline(st.who) : ""}</div>
-            <div class="what">${esc(Array.isArray(st.what) ? st.what[0] : st.what)}${
-              Array.isArray(st.what) && st.what[1] ? ` <span class="alt">${esc(st.what[1])}</span>` : ""
-            }</div>
-            ${
-              st.note
-                ? `<p>${rich(Array.isArray(st.note) ? st.note[0] : st.note)}${
-                    Array.isArray(st.note) && st.note[1] ? `<br>${rich(st.note[1])}` : ""
-                  }</p>`
-                : ""
-            }
+            <div class="what">${esc(what.main)}${what.sub ? ` <span class="alt">${esc(what.sub)}</span>` : ""}</div>
+            ${note ? `<p>${rich(note.main)}${note.sub ? `<br>${rich(note.sub)}` : ""}</p>` : ""}
           </div>
-        </div>`
-          )
+        </div>`;
+          })
           .join("")}</div>`;
       if (b.type === "example")
         return `<div class="example-hd">${b.fields
-          .map((f) => `<div><div class="k">${inline(f.k)}</div><div class="v">${esc(f.v)}</div></div>`)
+          .map((f) => `<div><div class="k">${inline(f.k)}</div><div class="v">${esc(sides(f.v).main)}</div></div>`)
           .join("")}</div>`;
       return "";
     })
@@ -468,13 +551,14 @@ function prosePage(m, dir, p, pageNo) {
       : ""
   }
   ${blocks}
-  ${foot(m, p.title ? p.title[0] : m.department[0], String(pageNo).padStart(2, "0"))}
+  ${foot(m, sides(p.title ?? m.department).main, String(pageNo).padStart(2, "0"))}
 </section>`;
 }
 
 /* ------------------------------------------------------------------ render */
 
 export function renderManual(m, shotsDir) {
+  MODE = m.lang === "zh" ? "zh" : "bi";
   CALLOUT_LABELS = m.callouts ?? {};
   const pages = [coverPage(m)];
   let n = 2;
@@ -499,9 +583,11 @@ export function renderManual(m, shotsDir) {
     }
   }
 
+  const title = esc(sides(m.department).main);
   return `<meta charset="utf-8">
-<title>${esc(m.department[0])} — Target Express Staff Training Manual</title>
-<style>${CSS}</style>
+<html lang="${MODE === "zh" ? "zh-Hans" : "en"}">
+<title>${title} — ${chrome("kicker")}</title>
+<style>${CSS}${MODE === "zh" ? CSS_ZH : ""}</style>
 ${pages.join("\n")}
 `;
 }

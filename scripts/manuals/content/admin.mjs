@@ -5,6 +5,7 @@
 
 export default {
   department: ["Management", "管理层"],
+  lang: "zh",
   version: "1.0",
   labels: {
     version: ["Version", "版本"],
@@ -12,9 +13,9 @@ export default {
     audience: ["For", "适用对象"],
     issued: ["Issued", "签发"],
   },
-  languages: "English · 简体中文",
-  audience: "CEO and administrators",
-  issued: "August 2026",
+  languages: ["English · 简体中文", "简体中文"],
+  audience: ["CEO and administrators", "总经理与管理员"],
+  issued: ["August 2026", "2026年8月"],
   contentsAlt: "目录",
 
   callouts: {

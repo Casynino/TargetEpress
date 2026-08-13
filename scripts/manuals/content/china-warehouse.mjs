@@ -5,6 +5,7 @@
 
 export default {
   department: ["China Warehouse", "中国仓库"],
+  lang: "zh",
   version: "1.0",
   labels: {
     version: ["Version", "版本"],
@@ -12,9 +13,9 @@ export default {
     audience: ["For", "适用对象"],
     issued: ["Issued", "发布日期"],
   },
-  languages: "English · 简体中文",
-  audience: "Guangzhou floor staff",
-  issued: "August 2026",
+  languages: ["English · 简体中文", "简体中文"],
+  audience: ["Guangzhou floor staff", "广州仓现场员工"],
+  issued: ["August 2026", "2026年8月"],
   contentsAlt: "目录",
 
   callouts: {
