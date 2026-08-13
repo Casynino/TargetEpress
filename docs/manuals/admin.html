@@ -1,0 +1,1033 @@
+<meta charset="utf-8">
+<title>Management — Target Express Staff Training Manual</title>
+<style>
+:root{
+  --ink:#0b1220; --ink-2:#0f1729; --panel:#131e35; --navy:#182a48; --line:#26344f;
+  --signal:#d81e2a; --paid:#22a86a; --owed:#e09612; --info:#3b82f6; --draft:#7c8ba5;
+  --fg:#eef2f8; --muted:#93a0b6; --dim:#5d6c85;
+  --paper:#ffffff; --paper-ink:#101828; --paper-muted:#5a6478; --paper-line:#e3e8ef;
+  --display:"Avenir Next","Helvetica Neue","PingFang SC",sans-serif;
+  --narrow:"Avenir Next Condensed","Avenir Next","PingFang SC",sans-serif;
+  --body:"Helvetica Neue",Helvetica,"PingFang SC",sans-serif;
+  --mono:"Menlo","PingFang SC",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--paper)}
+body{color:var(--paper-ink);font-family:var(--body);
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;-webkit-font-smoothing:antialiased}
+
+@page{size:A4 portrait;margin:0}
+
+.page{position:relative;width:210mm;height:296.6mm;overflow:hidden;
+  padding:17mm 16mm 13mm;background:var(--paper);display:flex;flex-direction:column;
+  page-break-after:always;break-after:page}
+.page:last-of-type{page-break-after:auto;break-after:auto}
+
+/* --- type ---------------------------------------------------------------- */
+h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;letter-spacing:-.02em}
+h1{font-size:34pt;line-height:1.04}
+h2{font-size:19pt;line-height:1.15}
+h3{font-size:12.5pt}
+p{margin:0;font-size:10pt;line-height:1.55}
+b{font-weight:600}
+
+.bi{display:flex;flex-direction:column;gap:1.2mm}
+.bi .en{color:var(--paper-ink)}
+.bi .alt{color:var(--paper-muted);font-size:9.5pt;line-height:1.5}
+.bi .alt.missing{color:var(--signal);font-style:italic}
+.bihead .en{display:block}
+.bihead .alt{display:block;font-size:.62em;font-weight:500;color:var(--paper-muted);margin-top:1mm}
+
+.eyebrow{font-family:var(--narrow);font-size:8.5pt;font-weight:600;text-transform:uppercase;
+  letter-spacing:.2em;color:var(--signal)}
+.label{font-family:var(--narrow);font-size:7.5pt;font-weight:600;text-transform:uppercase;
+  letter-spacing:.15em;color:var(--paper-muted)}
+.rule{height:3pt;width:22mm;background:var(--signal);border-radius:2pt}
+.hair{height:1px;background:var(--paper-line)}
+
+.head{display:flex;flex-direction:column;gap:2.5mm;margin-bottom:6mm}
+.foot{margin-top:auto;padding-top:4mm;border-top:1px solid var(--paper-line);
+  display:flex;justify-content:space-between;align-items:baseline}
+.foot span{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--paper-muted)}
+
+/* --- cover --------------------------------------------------------------- */
+.cover{background:var(--ink);color:var(--fg);padding:0;justify-content:flex-end}
+.cover::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(120% 80% at 78% 12%,rgba(24,42,72,.95) 0%,rgba(11,18,32,0) 62%)}
+.cover-art{position:absolute;top:0;right:0;width:150mm;height:150mm;opacity:.5}
+.cover-inner{position:relative;padding:0 18mm 20mm;display:flex;flex-direction:column;gap:6mm}
+.cover .brand{display:flex;align-items:center;gap:3mm;margin-bottom:auto;padding-top:18mm}
+.cover .brand-name{font-family:var(--display);font-weight:600;font-size:15pt;letter-spacing:-.01em}
+.cover .brand-name span{color:var(--signal)}
+.cover .brand-sub{font-family:var(--narrow);font-size:8pt;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--muted)}
+.cover h1{font-size:42pt;color:#fff}
+.cover .dept-alt{font-family:var(--display);font-size:24pt;color:var(--muted);margin-top:-2mm}
+.cover .kicker{font-family:var(--narrow);font-size:11pt;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--signal)}
+.cover .meta{display:flex;gap:8mm;padding-top:5mm;border-top:1px solid rgba(255,255,255,.14)}
+.cover .meta div{display:flex;flex-direction:column;gap:1mm}
+.cover .meta .k{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim)}
+.cover .meta .v{font-size:10pt;color:var(--fg)}
+
+/* --- section divider ----------------------------------------------------- */
+.divider{background:var(--navy);color:#fff;justify-content:center;gap:4mm}
+.divider .num{font-family:var(--display);font-weight:600;font-size:64pt;line-height:1;
+  color:rgba(255,255,255,.18)}
+.divider h1{color:#fff;font-size:30pt}
+.divider .alt{font-size:18pt;color:rgba(255,255,255,.7);font-family:var(--display)}
+.divider p{color:rgba(255,255,255,.75);max-width:120mm;margin-top:2mm}
+
+/* --- figures: the screenshot with numbered callouts ---------------------- */
+.figure{position:relative;border:1px solid var(--paper-line);border-radius:2.5mm;
+  overflow:hidden;background:#0b1220;margin:2mm 0}
+.figure img{display:block;width:100%;height:auto}
+.figure.crop{max-height:118mm}
+.figure.crop img{object-fit:cover;object-position:top}
+.pin{position:absolute;width:6.5mm;height:6.5mm;border-radius:50%;background:var(--signal);
+  color:#fff;font-family:var(--display);font-weight:600;font-size:9.5pt;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 2pt rgba(255,255,255,.9),0 1mm 2mm rgba(0,0,0,.35);
+  transform:translate(-50%,-50%)}
+.ring{position:absolute;border:2.2pt solid var(--signal);border-radius:2mm;
+  box-shadow:0 0 0 2pt rgba(216,30,42,.18)}
+.figcap{font-size:8.5pt;color:var(--paper-muted);margin-top:1.5mm;font-style:italic}
+
+/* the numbered key under a figure */
+.keys{display:flex;flex-direction:column;gap:2mm;margin-top:3mm}
+.key{display:grid;grid-template-columns:6.5mm 1fr;gap:3mm;align-items:start}
+.key .n{width:6.5mm;height:6.5mm;border-radius:50%;background:var(--signal);color:#fff;
+  font-family:var(--display);font-weight:600;font-size:9pt;display:flex;
+  align-items:center;justify-content:center}
+.key .body .t{font-weight:600;font-size:10pt}
+.key .body .t .alt{font-weight:500;color:var(--paper-muted)}
+.key .body p{font-size:9.5pt}
+
+/* --- callouts ------------------------------------------------------------ */
+.callout{display:grid;grid-template-columns:7mm 1fr;gap:3.5mm;padding:4mm;border-radius:2.5mm;
+  background:#f7f9fc;border:1px solid var(--paper-line);border-left:2.5pt solid var(--info)}
+.callout.warn{border-left-color:var(--owed);background:#fffaf0}
+.callout.stop{border-left-color:var(--signal);background:#fff5f5}
+.callout.tip{border-left-color:var(--paid);background:#f2fbf6}
+.callout .ico{font-family:var(--display);font-weight:600;font-size:13pt;color:var(--info);text-align:center}
+.callout.warn .ico{color:var(--owed)} .callout.stop .ico{color:var(--signal)} .callout.tip .ico{color:var(--paid)}
+.callout .k{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--paper-muted);margin-bottom:1mm}
+
+/* --- cards & tables ------------------------------------------------------ */
+.cards{display:grid;gap:4mm}
+.cards.two{grid-template-columns:1fr 1fr}
+.cards.three{grid-template-columns:repeat(3,1fr)}
+.card{padding:4.5mm;border-radius:2.5mm;background:#f7f9fc;border:1px solid var(--paper-line);
+  display:flex;flex-direction:column;gap:2mm}
+.card .label{color:var(--signal)}
+
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:2.8mm 3mm;border-bottom:1px solid var(--paper-line);
+  vertical-align:top;font-size:9.5pt}
+th{font-family:var(--narrow);font-size:7.5pt;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--paper-muted);background:#f7f9fc}
+td.k{font-weight:600;width:46mm}
+td .alt{display:block;color:var(--paper-muted);font-size:9pt}
+tr:last-child td{border-bottom:0}
+
+/* --- the workflow spine -------------------------------------------------- */
+.flow{display:flex;flex-direction:column;gap:0;flex:1;justify-content:center}
+.flow-step{display:grid;grid-template-columns:9mm 1fr;gap:0 4mm}
+.flow-rail{position:relative;display:flex;justify-content:center}
+.flow-rail::before{content:"";position:absolute;top:0;bottom:0;width:2pt;background:var(--seg,var(--paper-line))}
+.flow-step:last-child .flow-rail::before{bottom:auto;height:4.5mm}
+.flow-dot{position:relative;z-index:1;width:9mm;height:9mm;border-radius:50%;
+  background:#fff;border:2pt solid var(--seg,var(--paper-line));display:flex;
+  align-items:center;justify-content:center;font-family:var(--display);font-weight:600;font-size:9.5pt}
+.flow-body{padding:0 0 5mm 0}
+.flow-body .who{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--paper-muted)}
+.flow-body .what{font-weight:600;font-size:10.5pt;margin-top:.6mm}
+.flow-body .what .alt{font-weight:500;color:var(--paper-muted)}
+.flow-body p{font-size:9pt;color:var(--paper-muted);margin-top:.8mm}
+
+/* --- worked example ------------------------------------------------------ */
+.example-hd{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:4mm}
+.example-hd div{padding:3mm;border-radius:2mm;background:var(--ink);color:var(--fg)}
+.example-hd .k{font-family:var(--narrow);font-size:7pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted)}
+.example-hd .v{font-family:var(--mono);font-size:10.5pt;margin-top:1mm}
+
+.contents{display:flex;flex-direction:column;gap:0}
+.toc-row{display:grid;grid-template-columns:9mm 1fr auto;gap:3mm;padding:2.6mm 0;
+  border-bottom:1px solid var(--paper-line);align-items:baseline}
+.toc-row .n{font-family:var(--display);font-weight:600;color:var(--signal)}
+.toc-row .t{font-weight:600;font-size:10.5pt}
+.toc-row .t .alt{font-weight:500;color:var(--paper-muted)}
+.toc-row .pg{font-family:var(--mono);font-size:9pt;color:var(--paper-muted)}
+</style>
+<section class="page cover">
+  <svg class="cover-art" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="230" cy="150" r="120" stroke="#26344f" stroke-width="1"/>
+  <circle cx="230" cy="150" r="88" stroke="#26344f" stroke-width="1"/>
+  <circle cx="230" cy="150" r="56" stroke="#26344f" stroke-width="1"/>
+  <ellipse cx="230" cy="150" rx="120" ry="44" stroke="#26344f" stroke-width="1"/>
+  <ellipse cx="230" cy="150" rx="120" ry="86" stroke="#26344f" stroke-width="1"/>
+  <path d="M110 250 C170 205, 250 150, 350 92" stroke="#d81e2a" stroke-width="2"
+        stroke-linecap="round" stroke-dasharray="5 7"/>
+  <circle cx="110" cy="250" r="4.5" fill="#d81e2a"/>
+  <path d="M336 84 l22 8 -18 14 -2 -10 -12 -4z" fill="#d81e2a"/>
+</svg>
+  <div class="cover-inner">
+    <div class="brand">
+      <div>
+        <div class="brand-name"><span>Target</span> Express</div>
+        <div class="brand-sub">Air Cargo · China to Tanzania</div>
+      </div>
+    </div>
+    <div class="kicker">Staff Training Manual</div>
+    <h1>Management</h1>
+    <div class="dept-alt">管理层</div>
+    <div class="meta">
+      <div><span class="k">Version</span><span class="v">1.0</span></div>
+      <div><span class="k">Languages</span><span class="v">English · 简体中文</span></div>
+      <div><span class="k">For</span><span class="v">CEO and administrators</span></div>
+      <div><span class="k">Issued</span><span class="v">August 2026</span></div>
+    </div>
+  </div>
+</section>
+<section class="page">
+  <div class="head"><div class="rule"></div>
+    <h2 class="bihead">
+    <span class="en">Contents</span>
+    <span class="alt">目录</span>
+  </h2>
+  </div>
+  <div class="contents">
+    <div class="toc-row">
+      <span class="n">01</span>
+      <span class="t">The chair that answers for everything <span class="alt">对全公司负责的岗位</span></span>
+      <span class="pg">03</span>
+    </div><div class="toc-row">
+      <span class="n">02</span>
+      <span class="t">Signing in <span class="alt">登录系统</span></span>
+      <span class="pg">06</span>
+    </div><div class="toc-row">
+      <span class="n">03</span>
+      <span class="t">The executive dashboard <span class="alt">管理层仪表盘</span></span>
+      <span class="pg">08</span>
+    </div><div class="toc-row">
+      <span class="n">04</span>
+      <span class="t">The sidebar, menu by menu <span class="alt">侧边栏逐项说明</span></span>
+      <span class="pg">10</span>
+    </div><div class="toc-row">
+      <span class="n">05</span>
+      <span class="t">Every screen in detail <span class="alt">各界面详解</span></span>
+      <span class="pg">12</span>
+    </div><div class="toc-row">
+      <span class="n">06</span>
+      <span class="t">The complete journey <span class="alt">完整流程</span></span>
+      <span class="pg">19</span>
+    </div><div class="toc-row">
+      <span class="n">07</span>
+      <span class="t">A worked example <span class="alt">实例演练</span></span>
+      <span class="pg">21</span>
+    </div><div class="toc-row">
+      <span class="n">08</span>
+      <span class="t">When things go wrong <span class="alt">出问题的时候</span></span>
+      <span class="pg">23</span>
+    </div><div class="toc-row">
+      <span class="n">09</span>
+      <span class="t">Working well <span class="alt">把工作做好</span></span>
+      <span class="pg">25</span>
+    </div><div class="toc-row">
+      <span class="n">10</span>
+      <span class="t">Questions people ask <span class="alt">常见问题</span></span>
+      <span class="pg">27</span>
+    </div><div class="toc-row">
+      <span class="n">11</span>
+      <span class="t">Summary <span class="alt">小结</span></span>
+      <span class="pg">29</span>
+    </div>
+  </div>
+  <div class="foot"><span>Management</span><span>Contents</span></div>
+</section>
+<section class="page divider">
+  <div class="num">01</div>
+  <h1>The chair that answers for everything</h1>
+  <div class="alt">对全公司负责的岗位</div>
+  <p>One seat answers for Guangzhou, the Dar floor, Finance and Customer Care at once.</p>
+  <p>一个岗位同时对广州仓、达市仓、财务和客服负责。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Mission</div>
+    <h2 class="bihead">
+    <span class="en">What this chair is for</span>
+    <span class="alt">这个岗位的职责</span>
+  </h2>
+  </div>
+  <div class="bi ">
+    <p class="en">This chair exists to read the whole business on one screen and to sign off the decisions nobody else may take — <b>not to run the daily operation</b>. If you find yourself registering cargo or releasing boxes, something upstream needs attention instead.</p>
+    <p class="alt">这个岗位的存在，是为了在一块屏幕上看清整个业务，并签署其他人无权做出的决定——<b>而不是去做日常操作</b>。如果你发现自己在登记货物或放货，说明上游有问题需要处理。</p>
+  </div>
+<div class="cards two"><div class="card">
+          <span class="label">Yours alone</span>
+          <h3>The decisions with a cost attached</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">带有成本的决定</h3>
+          <div class="bi ">
+    <p class="en">Compensation payouts, costs above the threshold, staff and their access, the prices customers are told, and permanent deletion. No other role holds any of these — not even Finance.</p>
+    <p class="alt">赔偿支付、超过额度的支出、员工及其权限、对客户报出的价格，以及永久删除。其他任何角色都没有这些权限——财务也没有。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Deliberately split</span>
+          <h3>Approving is never paying</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">审批不等于付款</h3>
+          <div class="bi ">
+    <p class="en">You approve a payout; Finance disburses it. You approve a cost; Finance's payment is what actually moves money. <b>One desk deciding and paying is how money leaves a business quietly.</b></p>
+    <p class="alt">你批准赔付，财务执行支付。你批准支出，真正动钱的是财务的付款操作。<b>一个岗位既决定又付款，是公司资金悄悄流失的方式。</b></p>
+  </div>
+        </div></div>
+<table><tr><th>Your day</th><th>What it means</th></tr>
+        <tr><td class="k">Land on the executive view<span class="alt">进入管理层视图</span></td><td class="">A dashboard no other role sees.<span class="alt">其他角色看不到的仪表盘。</span></td></tr><tr><td class="k">Read what needs a decision<span class="alt">看需要你决定的事</span></td><td class="">Grouped by the desk that owns the fix, ranked by severity.<span class="alt">按负责解决的岗位分组，按严重程度排序。</span></td></tr><tr><td class="k">Scan every desk<span class="alt">扫视各个岗位</span></td><td class="">Four cards. Read the problem line, not the figure.<span class="alt">四张卡片。看问题描述，而不是数字。</span></td></tr><tr><td class="k">Clear the case decisions<span class="alt">处理案件决定</span></td><td class="">Compensation and assignment are yours alone.<span class="alt">赔偿和指派只有你能做。</span></td></tr><tr><td class="k">Sign off the big costs<span class="alt">签批大额支出</span></td><td class="">Approving books no money. It only unlocks the payment.<span class="alt">审批本身不入账。它只是解锁付款。</span></td></tr><tr><td class="k">Read the position<span class="alt">查看经营状况</span></td><td class="">Cash available, then what the business actually earned.<span class="alt">可用现金，以及公司实际赚了多少。</span></td></tr></table>
+  <div class="foot"><span>What this chair is for</span><span>04</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Authority</div>
+    <h2 class="bihead">
+    <span class="en">What you may and may not do</span>
+    <span class="alt">你的权限范围</span>
+  </h2>
+  </div>
+  <div class="cards two"><div class="card">
+          <span class="label">You may</span>
+          <h3>See everything, decide the rest</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">看到全部，决定其余</h3>
+          <div class="bi ">
+    <p class="en">Every screen in the system · approve compensation and assign a case · approve any cost above the threshold · read the profit and loss (withheld even from Finance) · create staff, change roles, reset passwords, switch access off · restore a deleted consignment or erase one permanently · change the collection accounts, offices and numbers customers see.</p>
+    <p class="alt">系统中的每一个界面 · 批准赔偿并指派案件 · 批准任何超额支出 · 查看损益表（连财务都看不到）· 创建员工、变更角色、重置密码、停用权限 · 恢复已删除货物或永久清除 · 修改客户看到的收款账户、办公地址和联系电话。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">You may not</span>
+          <h3>Lock yourself out, or rewrite the record</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">把自己锁在外面，或改写记录</h3>
+          <div class="bi ">
+    <p class="en">Deactivate your own account · change your own role · edit or delete anything in the audit log, including your own actions · approve a payout twice or on a finished case · erase a record that still has an invoice, or that flew on a dispatched batch · erase anything without typing its tracking number exactly.</p>
+    <p class="alt">停用自己的账号 · 修改自己的角色 · 编辑或删除审计日志中的任何内容，包括你自己的操作 · 对同一案件重复批准赔付，或对已结案件批准 · 清除仍有账单的记录，或已随航班发运的记录 · 未准确输入运单号就清除任何记录。</p>
+  </div>
+        </div></div>
+<div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">Why the limits exist</div>
+      <div class="bi ">
+    <p class="en"><b>These constraints exist because you are the one person nobody can overrule.</b> They are what make the record worth trusting when you are the one being asked to explain it.</p>
+    <p class="alt"><b>这些限制之所以存在，是因为你是唯一没有人能推翻的人。</b> 当有人要求你解释某个数字时，正是这些限制让记录值得信任。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>What you may and may not do</span><span>05</span></div>
+</section>
+<section class="page divider">
+  <div class="num">02</div>
+  <h1>Signing in</h1>
+  <div class="alt">登录系统</div>
+  <p>One address, one account, and a view no one else has.</p>
+  <p>一个网址、一个账号，以及别人没有的视角。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Step 1</div>
+    <h2 class="bihead">
+    <span class="en">The login screen</span>
+    <span class="alt">登录界面</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">target-epress.vercel.app</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Type your work email and password. You land on the executive dashboard — the only role that sees it. The language switch sits at the bottom of the sidebar; press 中文 and the whole system follows.</p>
+    <p class="alt">输入工作邮箱和密码。你将进入管理层仪表盘——只有这个角色能看到。语言切换位于侧边栏底部；点击中文，整个系统随之切换。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/admin/login.png" alt="">
+    <div class="pin" style="left:50%;top:44%">1</div><div class="pin" style="left:50%;top:57%">2</div><div class="pin" style="left:50%;top:70%">3</div>
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">Email <span class="alt">邮箱</span></div>
+        <div class="bi ">
+    <p class="en">e.g. ceo@targetexpress.co.tz</p>
+    <p class="alt">例如 ceo@targetexpress.co.tz</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Password <span class="alt">密码</span></div>
+        <div class="bi ">
+    <p class="en">Change it from Profile. You cannot lock yourself out — the system refuses that by name.</p>
+    <p class="alt">可在“个人资料”中修改。你无法把自己锁在外面——系统会明确拒绝。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Sign in <span class="alt">登录</span></div>
+        <div class="bi ">
+    <p class="en">Straight to the executive dashboard.</p>
+    <p class="alt">直接进入管理层仪表盘。</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Never do this</div>
+      <div class="bi ">
+    <p class="en">Never share this account. It is the only one that can approve a payout, change a rate customers are quoted, or erase a record permanently — and every one of those carries your name for good.</p>
+    <p class="alt">切勿共用此账号。它是唯一可以批准赔付、修改对客户报价的费率、或永久清除记录的账号——而这些操作都会永久记录你的姓名。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>The login screen</span><span>07</span></div>
+</section>
+<section class="page divider">
+  <div class="num">03</div>
+  <h1>The executive dashboard</h1>
+  <div class="alt">管理层仪表盘</div>
+  <p>Every desk at once, with the problems surfaced rather than the totals.</p>
+  <p>一次看清所有岗位，突出的是问题而不是总数。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Dashboard</div>
+    <h2 class="bihead">
+    <span class="en">Home, section by section</span>
+    <span class="alt">首页逐块讲解</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/dashboard</p>
+  </div>
+  <div class="bi ">
+    <p class="en">This screen answers the three questions only this chair asks: where is all of it, how is each desk, and is the money keeping up.</p>
+    <p class="alt">这个界面回答只有这个岗位会问的三个问题：货都在哪里、各岗位状况如何、资金是否跟得上。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/admin/home-hero.png" alt="">
+    <div class="pin" style="left:55%;top:16%">1</div><div class="pin" style="left:55%;top:38%">2</div><div class="pin" style="left:55%;top:62%">3</div><div class="pin" style="left:55%;top:82%">4</div>
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">The greeting banner <span class="alt">问候横幅</span></div>
+        <div class="bi ">
+    <p class="en">Your name and the CEO badge. <b>The Receive cargo and Scan &amp; release buttons are not your job</b> — they render because you hold those permissions, not because you should use them.</p>
+    <p class="alt">你的姓名和总经理标识。<b>“收货登记”和“扫码放货”按钮不是你的工作</b>——它们出现是因为你拥有权限，而不是因为你该使用。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Needs your decision <span class="alt">需要你决定</span></div>
+        <div class="bi ">
+    <p class="en">One bounded, filterable panel grouped by the desk that owns the fix — Guangzhou, Dar floor, Finance, Support, Cases — ranked critical, warning, info. It never grows into an endless stack.</p>
+    <p class="alt">一个有边界、可筛选的面板，按负责解决的岗位分组——广州、达市仓、财务、客服、案件——按紧急、警告、提示排序。它不会变成无止境的长列表。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Every desk, right now <span class="alt">各岗位实时状况</span></div>
+        <div class="bi ">
+    <p class="en">Four cards: Guangzhou, the Dar floor, Finance, Customer Care. <b>Read the problem line, not just the figure.</b> A high number with no problem line is a busy desk working properly.</p>
+    <p class="alt">四张卡片：广州、达市仓、财务、客服。<b>看问题描述，不要只看数字。</b> 数字大但没有问题描述，说明这个岗位只是忙碌且运转正常。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">4</div>
+      <div class="body">
+        <div class="t">Business health <span class="alt">经营状况</span></div>
+        <div class="bi ">
+    <p class="en">Revenue this month, outstanding, delivered, and the three-day promise. Shillings lead; the dollar figure is what the invoice says.</p>
+    <p class="alt">本月收入、未收款、已交付，以及三天承诺达成率。以先令为主；美元金额是账单上的数字。</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">Tip</div>
+      <div class="bi ">
+    <p class="en">An empty panel says <b>“Nothing needs your decision. Every desk is clear.”</b> That is a real statement, worded deliberately differently from a panel that failed to load.</p>
+    <p class="alt">面板为空时会显示<b>“没有需要你决定的事项，各岗位均正常。”</b> 这是一句真实的结论，措辞刻意区别于加载失败的界面。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Home, section by section</span><span>09</span></div>
+</section>
+<section class="page divider">
+  <div class="num">04</div>
+  <h1>The sidebar, menu by menu</h1>
+  <div class="alt">侧边栏逐项说明</div>
+  <p>You can reach every screen. These are the ones only you can use.</p>
+  <p>你可以进入所有界面。以下是只有你能使用的。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Navigation</div>
+    <h2 class="bihead">
+    <span class="en">The screens only you can use</span>
+    <span class="alt">只有你能使用的界面</span>
+  </h2>
+  </div>
+  <table><tr><th>Menu</th><th>What it is, and when to use it</th></tr>
+        <tr><td class="k">Issues &amp; Claims<span class="alt">/app/exceptions</span></td><td class="">Approving a payout and assigning a case. Yours alone.<span class="alt">批准赔付和指派案件。只有你能做。</span></td></tr><tr><td class="k">Expenses<span class="alt">/app/finance/expenses</span></td><td class="">Signing off costs above the threshold before they can be paid.<span class="alt">在支付前签批超额支出。</span></td></tr><tr><td class="k">Reports · Profit &amp; loss<span class="alt">/app/finance/reports</span></td><td class="">What the business earned, on both bases. Withheld even from Finance.<span class="alt">公司实际盈利，按两种口径列示。连财务都看不到。</span></td></tr><tr><td class="k">Staff<span class="alt">/app/admin/users</span></td><td class="">Accounts, roles, passwords and access. You cannot alter your own.<span class="alt">账号、角色、密码和权限。你不能修改自己的。</span></td></tr><tr><td class="k">Deleted records<span class="alt">/app/admin/deleted</span></td><td class="">Restore a deletion, or erase it permanently under four conditions.<span class="alt">恢复已删除记录，或在满足四个条件下永久清除。</span></td></tr><tr><td class="k">Company settings<span class="alt">/app/admin/settings</span></td><td class="">Collection accounts, offices and numbers — what customers are told.<span class="alt">收款账户、办公地址和电话——即客户看到的信息。</span></td></tr><tr><td class="k">Price Configuration<span class="alt">/app/finance/pricing</span></td><td class="">The rate book every quote in the business comes from.<span class="alt">全公司所有报价的来源费率表。</span></td></tr><tr><td class="k">China markets<span class="alt">/app/admin/markets</span></td><td class="">The market directory Customer Care reads from.<span class="alt">客服查阅的市场目录。</span></td></tr><tr><td class="k">Audit log<span class="alt">/app/admin/audit</span></td><td class="">Every privileged action. Append-only, including for you.<span class="alt">每一项特权操作。只增不改，对你也一样。</span></td></tr><tr><td class="k">General ledger<span class="alt">/app/finance</span></td><td class="">Cash available, derived from the ledger and never typed.<span class="alt">可用现金，由账目推导得出，从不手工填写。</span></td></tr></table>
+  <div class="foot"><span>The screens only you can use</span><span>11</span></div>
+</section>
+<section class="page divider">
+  <div class="num">05</div>
+  <h1>Every screen in detail</h1>
+  <div class="alt">各界面详解</div>
+  <p>The picture, every control, and why it is there.</p>
+  <p>截图、每个控件、以及它存在的原因。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Approve, or assign</div>
+    <h2 class="bihead">
+    <span class="en">Issues &amp; Claims — the decisions only you make</span>
+    <span class="alt">问题与索赔——只有你能做的决定</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/exceptions</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Approve a payout, or assign a case to a named person. Both are yours alone — Customer Care and the warehouses can move a case along and gather evidence, but neither can decide it. Closing a case needs a resolution written down.</p>
+    <p class="alt">批准赔付，或把案件指派给具体的人。这两项只有你能做——客服和仓库可以推进案件、收集证据，但都不能决定。结案必须写明处理结果。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/admin/issues-hero.png" alt="">
+    
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">Approve payout <span class="alt">批准赔付</span></div>
+        <div class="bi ">
+    <p class="en">Refused on a finished case, and refused a second time on the same case.</p>
+    <p class="alt">已结案件无法批准，同一案件也无法重复批准。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Assign to someone <span class="alt">指派给某人</span></div>
+        <div class="bi ">
+    <p class="en">Puts a name against the investigation so it stops being everyone's problem.</p>
+    <p class="alt">为调查指定负责人，避免变成人人有责、无人负责。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Finance disburses <span class="alt">财务执行支付</span></div>
+        <div class="bi ">
+    <p class="en">You approve; they pay. The two are deliberately different desks.</p>
+    <p class="alt">你批准，他们付款。这是刻意分开的两个岗位。</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout warn">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Careful</div>
+      <div class="bi ">
+    <p class="en"><b>Approving books no money.</b> It only unlocks the payout for Finance to make. Confirm both halves happened before you consider a claim closed.</p>
+    <p class="alt"><b>批准本身不入账。</b> 它只是解锁，供财务去支付。在认定案件了结前，请确认两个环节都已完成。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Issues &amp; Claims — the decisions only you make</span><span>13</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">What the business earned</div>
+    <h2 class="bihead">
+    <span class="en">Profit &amp; loss — the report withheld from Finance</span>
+    <span class="alt">损益表——财务也看不到的报表</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/finance/reports</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Two bases side by side: what the work earned (bills raised and costs incurred) and what actually moved (money in and out). <b>They always disagree, and both are true.</b></p>
+    <p class="alt">两种口径并列：业务实际赚到的（已开账单和已发生成本），以及实际动了的钱（收支）。<b>两者永远不一致，而且都是对的。</b></p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/admin/reports-hero.png" alt="">
+    
+  </div>
+  
+  
+  <div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Never do this</div>
+      <div class="bi ">
+    <p class="en"><b>Quoting the cash figure as profit in a month with a big collection is how a bad month reads as a good one.</b> Say which basis you mean, every time.</p>
+    <p class="alt"><b>在某个月收回大额欠款时，把现金口径当作利润，会让糟糕的月份看起来很好。</b> 每次都要说明你用的是哪个口径。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Profit &amp; loss — the report withheld from Finance</span><span>14</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Who can do what</div>
+    <h2 class="bihead">
+    <span class="en">Staff — people and access</span>
+    <span class="alt">员工——人员与权限</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/admin/users</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Create an account, change someone's role, reset a password, or switch access off the moment someone leaves. Each name opens to their own record and activity.</p>
+    <p class="alt">创建账号、变更角色、重置密码，或在员工离职时立即停用权限。点击姓名可查看其个人记录和操作历史。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/admin/staff-hero.png" alt="">
+    
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">Role <span class="alt">角色</span></div>
+        <div class="bi ">
+    <p class="en">Decides every screen that person can reach. Changing it changes their whole system.</p>
+    <p class="alt">决定该员工能进入的所有界面。修改角色即改变其整个系统视图。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Access <span class="alt">权限状态</span></div>
+        <div class="bi ">
+    <p class="en">Switch it off the day someone leaves. Their record and history stay.</p>
+    <p class="alt">员工离职当天即停用。其记录和历史仍然保留。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Your own row <span class="alt">你自己的那一行</span></div>
+        <div class="bi ">
+    <p class="en">Rendered as a badge, not a dropdown. You cannot change your own role or deactivate yourself.</p>
+    <p class="alt">显示为标签而非下拉框。你无法修改自己的角色或停用自己。</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">Tip</div>
+      <div class="bi ">
+    <p class="en">New Guangzhou accounts open in Chinese automatically; every Tanzanian desk opens in English. Whatever the person chooses afterwards is stored against them and wins.</p>
+    <p class="alt">新建的广州账号默认中文；坦桑尼亚各岗位默认英文。员工之后自行选择的语言会保存在其账号上并优先生效。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Staff — people and access</span><span>15</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Nothing is destroyed by a delete</div>
+    <h2 class="bihead">
+    <span class="en">Deleted records — restore or erase</span>
+    <span class="alt">已删除记录——恢复或清除</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/admin/deleted</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Every soft-deleted consignment, with the reason, who deleted it, and its photographs preserved. An ordinary delete is a timestamp, a person and a reason — <b>nothing is destroyed</b>.</p>
+    <p class="alt">所有软删除的货物，附带删除原因、操作人，照片全部保留。普通删除只是记录时间、人员和理由——<b>数据不会被销毁</b>。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/admin/deleted-hero.png" alt="">
+    
+  </div>
+  
+  
+  <div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Never do this</div>
+      <div class="bi ">
+    <p class="en">Permanent erasure refuses a record that is not already deleted, one with any invoice against it, and one that flew on a dispatched flight — and it demands the tracking number typed exactly. <b>Every one of those refusals is protecting the record, not obstructing you.</b></p>
+    <p class="alt">永久清除会拒绝：尚未删除的记录、有任何账单的记录、已随航班发运的记录——并要求准确输入运单号。<b>每一条拒绝都是在保护记录，而不是阻碍你。</b></p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Deleted records — restore or erase</span><span>16</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">What customers are told</div>
+    <h2 class="bihead">
+    <span class="en">Company settings &amp; Pricing</span>
+    <span class="alt">公司设置与价格</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/admin/settings · /app/finance/pricing</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Collection accounts, the Tanzania and China office addresses, and the contact numbers. Pricing is the rate book every quote comes from — change a figure there and cargo, invoices, tracking and reports all follow.</p>
+    <p class="alt">收款账户、坦桑尼亚和中国办公地址，以及联系电话。价格页是全公司报价的来源——在那里修改一个数字，货物、账单、追踪和报表都会随之变化。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/admin/settings-hero.png" alt="">
+    
+  </div>
+  
+  
+  <div class="callout warn">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Careful</div>
+      <div class="bi ">
+    <p class="en">Saving an empty account list is refused outright: <b>an invoice with nowhere to pay is worse than no invoice.</b> Invoices already raised keep the accounts they were issued with. Add the new account before removing the old.</p>
+    <p class="alt">保存空的账户列表会被直接拒绝：<b>一张无处付款的账单比没有账单更糟。</b> 已开出的账单仍保留当时的账户信息。请先添加新账户，再删除旧账户。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Company settings &amp; Pricing</span><span>17</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Append-only, including for you</div>
+    <h2 class="bihead">
+    <span class="en">Audit log — settling arguments</span>
+    <span class="alt">审计日志——解决争议</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/admin/audit</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Every privileged action, searchable by summary, action or user, and filterable to shipments, batches, invoices, payments, pickup notes or staff.</p>
+    <p class="alt">每一项特权操作，可按摘要、操作或用户搜索，并可按运单、批次、账单、收款、提货单或员工筛选。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/admin/audit-hero.png" alt="">
+    
+  </div>
+  
+  
+  <div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Never do this</div>
+      <div class="bi ">
+    <p class="en">Nothing here can be edited or removed — <b>including by you</b>. If a mistake is in the log, the fix is a new entry, never a correction. That is the only defence against “the number changed and nobody knows when”.</p>
+    <p class="alt">这里的任何内容都无法编辑或删除——<b>包括你本人</b>。如果日志中有错误，纠正方式是新增一条记录，而不是修改。这是防止“数字变了却没人知道何时变的”唯一手段。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Audit log — settling arguments</span><span>18</span></div>
+</section>
+<section class="page divider">
+  <div class="num">06</div>
+  <h1>The complete journey</h1>
+  <div class="alt">完整流程</div>
+  <p>What every desk below you is doing, and where you sit in it.</p>
+  <p>你下面每个岗位在做什么，以及你的位置。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">End to end</div>
+    <h2 class="bihead">
+    <span class="en">Fifteen steps, five departments</span>
+    <span class="alt">十五步，五个部门</span>
+  </h2>
+  </div>
+  <div class="flow"><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">1</div></div>
+          <div class="flow-body">
+            <div class="who">Customer 客户</div>
+            <div class="what">Books on the website <span class="alt">在官网下单</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">2</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou 广州</div>
+            <div class="what">Weigh · photograph · register <span class="alt">称重 · 拍照 · 登记</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">3</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou 广州</div>
+            <div class="what">Print labels, one per box <span class="alt">打印标签，每箱一张</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">4</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou 广州</div>
+            <div class="what">Seal and dispatch <span class="alt">封批发运</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">5</div></div>
+          <div class="flow-body">
+            <div class="who">In the air 空运中</div>
+            <div class="what">China → Tanzania <span class="alt">中国 → 坦桑尼亚</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">6</div></div>
+          <div class="flow-body">
+            <div class="who">Dar floor 达市仓</div>
+            <div class="what">Land and check in the flight <span class="alt">接收并核对航班</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">7</div></div>
+          <div class="flow-body">
+            <div class="who">System 系统</div>
+            <div class="what">Priced automatically as a draft <span class="alt">自动计价为草稿</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">8</div></div>
+          <div class="flow-body">
+            <div class="who">Finance 财务</div>
+            <div class="what">Confirm the price → invoice <span class="alt">确认价格 → 账单</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">9</div></div>
+          <div class="flow-body">
+            <div class="who">Customer Care 客服</div>
+            <div class="what">Chase the customer <span class="alt">催收客户</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">10</div></div>
+          <div class="flow-body">
+            <div class="who">Customer Care 客服</div>
+            <div class="what">Submit the claim with proof <span class="alt">提交带凭证的收款申报</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--paid)">
+          <div class="flow-rail"><div class="flow-dot">11</div></div>
+          <div class="flow-body">
+            <div class="who">Finance 财务</div>
+            <div class="what">Verify · receipt · pickup note <span class="alt">核实 · 收据 · 提货单</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--paid)">
+          <div class="flow-rail"><div class="flow-dot">12</div></div>
+          <div class="flow-body">
+            <div class="who">Dar floor 达市仓</div>
+            <div class="what">Scan · photograph · hand over <span class="alt">扫码 · 拍照 · 交货</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">13</div></div>
+          <div class="flow-body">
+            <div class="who">You 你</div>
+            <div class="what">Approve payouts and big costs <span class="alt">批准赔付和大额支出</span></div>
+            <p>Only where a decision has a cost attached.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">14</div></div>
+          <div class="flow-body">
+            <div class="who">You 你</div>
+            <div class="what">Read the position and the profit <span class="alt">查看经营状况和利润</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">15</div></div>
+          <div class="flow-body">
+            <div class="who">You 你</div>
+            <div class="what">Settle arguments from the log <span class="alt">依据日志解决争议</span></div>
+            
+          </div>
+        </div></div>
+  <div class="foot"><span>Fifteen steps, five departments</span><span>20</span></div>
+</section>
+<section class="page divider">
+  <div class="num">07</div>
+  <h1>A worked example</h1>
+  <div class="alt">实例演练</div>
+  <p>One consignment, and the two places you touch it.</p>
+  <p>一票货，以及你介入的两个环节。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Where you come in</div>
+    <h2 class="bihead">
+    <span class="en">TX-000042 · a claim and a cost</span>
+    <span class="alt">TX-000042 · 一次索赔与一笔支出</span>
+  </h2>
+  </div>
+  <div class="example-hd"><div><div class="k">Customer</div><div class="v">John Peter</div></div><div><div class="k">Tracking</div><div class="v">TX-000042</div></div><div><div class="k">Invoice</div><div class="v">USD 48.60</div></div><div><div class="k">Claim</div><div class="v">USD 180.00</div></div></div>
+<table><tr><th>Stage</th><th>What you do</th></tr>
+        <tr><td class="k">A box is missing<span class="alt">一箱货缺失</span></td><td class="">The Dar floor cannot find one of John's two cartons. They press 'Unable to locate', write where they looked, and a case opens automatically. You are notified; they are not able to decide it.<span class="alt">达市仓找不到 John 两箱货中的一箱。他们点击“未找到货物”，写明查找位置，系统自动开立案件。系统会通知你；他们无权决定。</span></td></tr><tr><td class="k">You investigate<span class="alt">你介入调查</span></td><td class="">You open Issues &amp; Claims, read the Guangzhou photographs and the check-in record, and assign the case to a named person so it stops being everyone's problem.<span class="alt">你打开问题与索赔，查看广州的照片和入库记录，并把案件指派给具体负责人，避免无人负责。</span></td></tr><tr><td class="k">You approve<span class="alt">你批准</span></td><td class="">The box is genuinely lost. You approve compensation of USD 180. <b>This books no money</b> — it unlocks the payout for Finance.<span class="alt">确认该箱确实丢失。你批准赔偿 180 美元。<b>此操作不入账</b>——它只是为财务解锁付款。</span></td></tr><tr><td class="k">Finance pays<span class="alt">财务付款</span></td><td class="">Finance disburses it from a named account. Only now has money actually left the business.<span class="alt">财务从指定账户支付。此时资金才真正流出公司。</span></td></tr><tr><td class="k">You check<span class="alt">你复核</span></td><td class="">You open the Audit log and confirm both halves happened: your approval, and Finance's payment. Two entries, two names, two timestamps.<span class="alt">你打开审计日志，确认两个环节都已完成：你的批准，和财务的付款。两条记录、两个姓名、两个时间戳。</span></td></tr></table>
+  <div class="foot"><span>TX-000042 · a claim and a cost</span><span>22</span></div>
+</section>
+<section class="page divider">
+  <div class="num">08</div>
+  <h1>When things go wrong</h1>
+  <div class="alt">出问题的时候</div>
+  <p>The mistakes this chair actually makes.</p>
+  <p>这个岗位真正会犯的错误。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Fix it this way</div>
+    <h2 class="bihead">
+    <span class="en">Common mistakes</span>
+    <span class="alt">常见错误</span>
+  </h2>
+  </div>
+  <table><tr><th>The mistake</th><th>What it causes</th><th>What to do</th></tr>
+        <tr><td class="k">Doing another desk's work<span class="alt">替别的岗位做事</span></td><td class="">Your name lands in the middle of a record that should be theirs.<span class="alt">你的名字出现在本该属于他们的记录中。</span></td><td class="">Send it back to the desk that owns it.<span class="alt">退回给负责该事项的岗位。</span></td></tr><tr><td class="k">Reading the figure, not the problem line<span class="alt">只看数字，不看问题描述</span></td><td class="">A busy, healthy desk looks like a crisis; a real one gets missed.<span class="alt">忙碌但正常的岗位看起来像危机；真正的问题被忽略。</span></td><td class="">Read the line underneath the number.<span class="alt">看数字下面那行说明。</span></td></tr><tr><td class="k">Quoting cash profit as profit<span class="alt">把现金口径当作利润</span></td><td class="">A month with a big collection reads as a good month when the work lost money.<span class="alt">收回大额欠款的月份看起来不错，实际业务却在亏损。</span></td><td class="">Read both bases and say which you mean.<span class="alt">两种口径都看，并说明你指的是哪一种。</span></td></tr><tr><td class="k">Comparing a shilling card with a dollar card<span class="alt">先令卡片与美元卡片相比</span></td><td class="">A conclusion out by a factor of thousands.<span class="alt">结论会相差上千倍。</span></td><td class="">Shillings lead; the dollar figure is what the invoice says.<span class="alt">以先令为主；美元金额是账单上的数字。</span></td></tr><tr><td class="k">Treating approval as payment<span class="alt">把批准当作付款</span></td><td class="">You believe money has left when it has not, or the reverse.<span class="alt">你以为钱已经付了，其实没有，或者相反。</span></td><td class="">Approve, then confirm Finance actually paid it.<span class="alt">批准后，再确认财务确实已付款。</span></td></tr><tr><td class="k">Emptying the collection accounts to tidy up<span class="alt">为整理而清空收款账户</span></td><td class="">Refused — and if it were not, invoices would have nowhere to pay.<span class="alt">会被拒绝——否则账单将无处付款。</span></td><td class="">Add the new account before removing the old.<span class="alt">先添加新账户，再删除旧账户。</span></td></tr></table>
+  <div class="foot"><span>Common mistakes</span><span>24</span></div>
+</section>
+<section class="page divider">
+  <div class="num">09</div>
+  <h1>Working well</h1>
+  <div class="alt">把工作做好</div>
+  <p>Habits that keep the whole record worth trusting.</p>
+  <p>让整份记录值得信任的习惯。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Do it this way</div>
+    <h2 class="bihead">
+    <span class="en">Best practice</span>
+    <span class="alt">最佳实践</span>
+  </h2>
+  </div>
+  <div class="cards two"><div class="card">
+          <span class="label">Decide</span>
+          <h3>Decide, do not operate</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">只做决定，不做操作</h3>
+          <div class="bi ">
+    <p class="en">If you are registering cargo, a desk below you needs attention instead.</p>
+    <p class="alt">如果你在登记货物，说明下面某个岗位需要关注。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Both halves</span>
+          <h3>Approving is not paying</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">批准不等于付款</h3>
+          <div class="bi ">
+    <p class="en">Your signature unlocks the money; Finance moves it. Confirm both happened.</p>
+    <p class="alt">你的签批只是解锁，财务才动钱。确认两步都完成。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Numbers</span>
+          <h3>Say which number you mean</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">说明你用的是哪个数字</h3>
+          <div class="bi ">
+    <p class="en">Two profit bases, two currencies. Most bad decisions here are a comparison, not a calculation.</p>
+    <p class="alt">两种利润口径、两种货币。这里多数错误决定源于比较，而非计算。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">People</span>
+          <h3>Switch access off the same day</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">离职当天即停用权限</h3>
+          <div class="bi ">
+    <p class="en">Their record and history stay; only the door closes.</p>
+    <p class="alt">记录和历史都保留；关闭的只是入口。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Deletion</span>
+          <h3>Restore before you erase</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">先恢复，再考虑清除</h3>
+          <div class="bi ">
+    <p class="en">A soft delete keeps everything. Permanent erasure is for genuine mistakes only.</p>
+    <p class="alt">软删除保留一切。永久清除只用于真正的误操作。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">The log</span>
+          <h3>Settle from the record</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">依据记录解决问题</h3>
+          <div class="bi ">
+    <p class="en">Append-only, including for you. If a mistake is in it, add an entry — never correct one.</p>
+    <p class="alt">只增不改，对你也一样。若有错误，新增记录——绝不修改。</p>
+  </div>
+        </div></div>
+  <div class="foot"><span>Best practice</span><span>26</span></div>
+</section>
+<section class="page divider">
+  <div class="num">10</div>
+  <h1>Questions people ask</h1>
+  <div class="alt">常见问题</div>
+  <p>The ones that come up in the first month.</p>
+  <p>第一个月里最常出现的问题。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">FAQ</div>
+    <h2 class="bihead">
+    <span class="en">Frequently asked</span>
+    <span class="alt">常见问答</span>
+  </h2>
+  </div>
+  <table><tr><th>Question</th><th>Answer</th></tr>
+        <tr><td class="k">Why can I not deactivate my own account?<span class="alt">为什么我不能停用自己的账号？</span></td><td class="">Because it would leave the company with no way back into its own system. The refusal is by name.<span class="alt">因为那会让公司无法再进入自己的系统。系统会明确拒绝。</span></td></tr><tr><td class="k">Can I correct a wrong entry in the audit log?<span class="alt">我能修改审计日志里的错误吗？</span></td><td class="">No — including you. Add a new entry explaining it. That immutability is what makes the log worth anything.<span class="alt">不能——包括你。请新增一条说明记录。正是这种不可修改性让日志有价值。</span></td></tr><tr><td class="k">Why does Finance not see the profit report?<span class="alt">为什么财务看不到利润报表？</span></td><td class="">Deliberately withheld. Finance keeps the books; the profit is the owner's question to ask of them.<span class="alt">刻意不开放。财务负责记账；利润是所有者向他们提问的内容。</span></td></tr><tr><td class="k">How do I change what a customer is charged?<span class="alt">如何修改对客户的收费？</span></td><td class="">Price Configuration. Change it there and cargo, invoices, tracking and reports all follow.<span class="alt">在价格配置页修改。改后货物、账单、追踪和报表都会随之更新。</span></td></tr><tr><td class="k">A staff member has left today.<span class="alt">有员工今天离职了。</span></td><td class="">Switch their access off from Staff. Their record and everything they did stays on the system.<span class="alt">在员工页停用其权限。其记录和所有操作历史都会保留。</span></td></tr><tr><td class="k">Can I delete a customer's whole history?<span class="alt">我能删除某个客户的全部历史吗？</span></td><td class="">No, and you should not want to. Permanent erasure refuses anything with an invoice against it.<span class="alt">不能，也不应该想这么做。永久清除会拒绝任何有账单的记录。</span></td></tr></table>
+  <div class="foot"><span>Frequently asked</span><span>28</span></div>
+</section>
+<section class="page divider">
+  <div class="num">11</div>
+  <h1>Summary</h1>
+  <div class="alt">小结</div>
+  <p>What to remember when everything else is forgotten.</p>
+  <p>即使其他都忘了，也要记住这些。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Keep this one</div>
+    <h2 class="bihead">
+    <span class="en">This chair in one page</span>
+    <span class="alt">一页看懂这个岗位</span>
+  </h2>
+  </div>
+  <div class="cards three"><div class="card">
+          <span class="label">1</span>
+          <h3>Decide, do not operate</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">只做决定，不做操作</h3>
+          <div class="bi ">
+    <p class="en">If you are doing another desk's work, that desk needs attention instead.</p>
+    <p class="alt">如果你在做别的岗位的工作，说明那个岗位才需要关注。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">2</span>
+          <h3>Approving is not paying</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">批准不等于付款</h3>
+          <div class="bi ">
+    <p class="en">Your signature unlocks the money; Finance moves it. Confirm both halves.</p>
+    <p class="alt">你的签批只是解锁，财务才动钱。确认两步都完成。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">3</span>
+          <h3>Say which number you mean</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">说明你用的是哪个数字</h3>
+          <div class="bi ">
+    <p class="en">Two profit bases, two currencies. Most bad calls here are comparisons.</p>
+    <p class="alt">两种口径、两种货币。这里多数误判源于比较。</p>
+  </div>
+        </div></div>
+<div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">If you remember one sentence</div>
+      <div class="bi ">
+    <p class="en">Every other desk is built so it cannot do your job. Keep it that way — the separations are what make the whole record worth trusting.</p>
+    <p class="alt">其他每个岗位的设计都让它无法做你的工作。请保持这样——正是这些分离让整份记录值得信任。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>This chair in one page</span><span>30</span></div>
+</section>
