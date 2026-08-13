@@ -1,0 +1,993 @@
+<meta charset="utf-8">
+<title>Dar es Salaam Warehouse — Target Express Staff Training Manual</title>
+<style>
+:root{
+  --ink:#0b1220; --ink-2:#0f1729; --panel:#131e35; --navy:#182a48; --line:#26344f;
+  --signal:#d81e2a; --paid:#22a86a; --owed:#e09612; --info:#3b82f6; --draft:#7c8ba5;
+  --fg:#eef2f8; --muted:#93a0b6; --dim:#5d6c85;
+  --paper:#ffffff; --paper-ink:#101828; --paper-muted:#5a6478; --paper-line:#e3e8ef;
+  --display:"Avenir Next","Helvetica Neue","PingFang SC",sans-serif;
+  --narrow:"Avenir Next Condensed","Avenir Next","PingFang SC",sans-serif;
+  --body:"Helvetica Neue",Helvetica,"PingFang SC",sans-serif;
+  --mono:"Menlo","PingFang SC",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--paper)}
+body{color:var(--paper-ink);font-family:var(--body);
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;-webkit-font-smoothing:antialiased}
+
+@page{size:A4 portrait;margin:0}
+
+.page{position:relative;width:210mm;height:296.6mm;overflow:hidden;
+  padding:17mm 16mm 13mm;background:var(--paper);display:flex;flex-direction:column;
+  page-break-after:always;break-after:page}
+.page:last-of-type{page-break-after:auto;break-after:auto}
+
+/* --- type ---------------------------------------------------------------- */
+h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;letter-spacing:-.02em}
+h1{font-size:34pt;line-height:1.04}
+h2{font-size:19pt;line-height:1.15}
+h3{font-size:12.5pt}
+p{margin:0;font-size:10pt;line-height:1.55}
+b{font-weight:600}
+
+.bi{display:flex;flex-direction:column;gap:1.2mm}
+.bi .en{color:var(--paper-ink)}
+.bi .alt{color:var(--paper-muted);font-size:9.5pt;line-height:1.5}
+.bi .alt.missing{color:var(--signal);font-style:italic}
+.bihead .en{display:block}
+.bihead .alt{display:block;font-size:.62em;font-weight:500;color:var(--paper-muted);margin-top:1mm}
+
+.eyebrow{font-family:var(--narrow);font-size:8.5pt;font-weight:600;text-transform:uppercase;
+  letter-spacing:.2em;color:var(--signal)}
+.label{font-family:var(--narrow);font-size:7.5pt;font-weight:600;text-transform:uppercase;
+  letter-spacing:.15em;color:var(--paper-muted)}
+.rule{height:3pt;width:22mm;background:var(--signal);border-radius:2pt}
+.hair{height:1px;background:var(--paper-line)}
+
+.head{display:flex;flex-direction:column;gap:2.5mm;margin-bottom:6mm}
+.foot{margin-top:auto;padding-top:4mm;border-top:1px solid var(--paper-line);
+  display:flex;justify-content:space-between;align-items:baseline}
+.foot span{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--paper-muted)}
+
+/* --- cover --------------------------------------------------------------- */
+.cover{background:var(--ink);color:var(--fg);padding:0;justify-content:flex-end}
+.cover::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(120% 80% at 78% 12%,rgba(24,42,72,.95) 0%,rgba(11,18,32,0) 62%)}
+.cover-art{position:absolute;top:0;right:0;width:150mm;height:150mm;opacity:.5}
+.cover-inner{position:relative;padding:0 18mm 20mm;display:flex;flex-direction:column;gap:6mm}
+.cover .brand{display:flex;align-items:center;gap:3mm;margin-bottom:auto;padding-top:18mm}
+.cover .brand-name{font-family:var(--display);font-weight:600;font-size:15pt;letter-spacing:-.01em}
+.cover .brand-name span{color:var(--signal)}
+.cover .brand-sub{font-family:var(--narrow);font-size:8pt;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--muted)}
+.cover h1{font-size:42pt;color:#fff}
+.cover .dept-alt{font-family:var(--display);font-size:24pt;color:var(--muted);margin-top:-2mm}
+.cover .kicker{font-family:var(--narrow);font-size:11pt;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--signal)}
+.cover .meta{display:flex;gap:8mm;padding-top:5mm;border-top:1px solid rgba(255,255,255,.14)}
+.cover .meta div{display:flex;flex-direction:column;gap:1mm}
+.cover .meta .k{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim)}
+.cover .meta .v{font-size:10pt;color:var(--fg)}
+
+/* --- section divider ----------------------------------------------------- */
+.divider{background:var(--navy);color:#fff;justify-content:center;gap:4mm}
+.divider .num{font-family:var(--display);font-weight:600;font-size:64pt;line-height:1;
+  color:rgba(255,255,255,.18)}
+.divider h1{color:#fff;font-size:30pt}
+.divider .alt{font-size:18pt;color:rgba(255,255,255,.7);font-family:var(--display)}
+.divider p{color:rgba(255,255,255,.75);max-width:120mm;margin-top:2mm}
+
+/* --- figures: the screenshot with numbered callouts ---------------------- */
+.figure{position:relative;border:1px solid var(--paper-line);border-radius:2.5mm;
+  overflow:hidden;background:#0b1220;margin:2mm 0}
+.figure img{display:block;width:100%;height:auto}
+.figure.crop{max-height:118mm}
+.figure.crop img{object-fit:cover;object-position:top}
+.pin{position:absolute;width:6.5mm;height:6.5mm;border-radius:50%;background:var(--signal);
+  color:#fff;font-family:var(--display);font-weight:600;font-size:9.5pt;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 2pt rgba(255,255,255,.9),0 1mm 2mm rgba(0,0,0,.35);
+  transform:translate(-50%,-50%)}
+.ring{position:absolute;border:2.2pt solid var(--signal);border-radius:2mm;
+  box-shadow:0 0 0 2pt rgba(216,30,42,.18)}
+.figcap{font-size:8.5pt;color:var(--paper-muted);margin-top:1.5mm;font-style:italic}
+
+/* the numbered key under a figure */
+.keys{display:flex;flex-direction:column;gap:2mm;margin-top:3mm}
+.key{display:grid;grid-template-columns:6.5mm 1fr;gap:3mm;align-items:start}
+.key .n{width:6.5mm;height:6.5mm;border-radius:50%;background:var(--signal);color:#fff;
+  font-family:var(--display);font-weight:600;font-size:9pt;display:flex;
+  align-items:center;justify-content:center}
+.key .body .t{font-weight:600;font-size:10pt}
+.key .body .t .alt{font-weight:500;color:var(--paper-muted)}
+.key .body p{font-size:9.5pt}
+
+/* --- callouts ------------------------------------------------------------ */
+.callout{display:grid;grid-template-columns:7mm 1fr;gap:3.5mm;padding:4mm;border-radius:2.5mm;
+  background:#f7f9fc;border:1px solid var(--paper-line);border-left:2.5pt solid var(--info)}
+.callout.warn{border-left-color:var(--owed);background:#fffaf0}
+.callout.stop{border-left-color:var(--signal);background:#fff5f5}
+.callout.tip{border-left-color:var(--paid);background:#f2fbf6}
+.callout .ico{font-family:var(--display);font-weight:600;font-size:13pt;color:var(--info);text-align:center}
+.callout.warn .ico{color:var(--owed)} .callout.stop .ico{color:var(--signal)} .callout.tip .ico{color:var(--paid)}
+.callout .k{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--paper-muted);margin-bottom:1mm}
+
+/* --- cards & tables ------------------------------------------------------ */
+.cards{display:grid;gap:4mm}
+.cards.two{grid-template-columns:1fr 1fr}
+.cards.three{grid-template-columns:repeat(3,1fr)}
+.card{padding:4.5mm;border-radius:2.5mm;background:#f7f9fc;border:1px solid var(--paper-line);
+  display:flex;flex-direction:column;gap:2mm}
+.card .label{color:var(--signal)}
+
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:2.8mm 3mm;border-bottom:1px solid var(--paper-line);
+  vertical-align:top;font-size:9.5pt}
+th{font-family:var(--narrow);font-size:7.5pt;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--paper-muted);background:#f7f9fc}
+td.k{font-weight:600;width:46mm}
+td .alt{display:block;color:var(--paper-muted);font-size:9pt}
+tr:last-child td{border-bottom:0}
+
+/* --- the workflow spine -------------------------------------------------- */
+.flow{display:flex;flex-direction:column;gap:0;flex:1;justify-content:center}
+.flow-step{display:grid;grid-template-columns:9mm 1fr;gap:0 4mm}
+.flow-rail{position:relative;display:flex;justify-content:center}
+.flow-rail::before{content:"";position:absolute;top:0;bottom:0;width:2pt;background:var(--seg,var(--paper-line))}
+.flow-step:last-child .flow-rail::before{bottom:auto;height:4.5mm}
+.flow-dot{position:relative;z-index:1;width:9mm;height:9mm;border-radius:50%;
+  background:#fff;border:2pt solid var(--seg,var(--paper-line));display:flex;
+  align-items:center;justify-content:center;font-family:var(--display);font-weight:600;font-size:9.5pt}
+.flow-body{padding:0 0 5mm 0}
+.flow-body .who{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--paper-muted)}
+.flow-body .what{font-weight:600;font-size:10.5pt;margin-top:.6mm}
+.flow-body .what .alt{font-weight:500;color:var(--paper-muted)}
+.flow-body p{font-size:9pt;color:var(--paper-muted);margin-top:.8mm}
+
+/* --- worked example ------------------------------------------------------ */
+.example-hd{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:4mm}
+.example-hd div{padding:3mm;border-radius:2mm;background:var(--ink);color:var(--fg)}
+.example-hd .k{font-family:var(--narrow);font-size:7pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted)}
+.example-hd .v{font-family:var(--mono);font-size:10.5pt;margin-top:1mm}
+
+.contents{display:flex;flex-direction:column;gap:0}
+.toc-row{display:grid;grid-template-columns:9mm 1fr auto;gap:3mm;padding:2.6mm 0;
+  border-bottom:1px solid var(--paper-line);align-items:baseline}
+.toc-row .n{font-family:var(--display);font-weight:600;color:var(--signal)}
+.toc-row .t{font-weight:600;font-size:10.5pt}
+.toc-row .t .alt{font-weight:500;color:var(--paper-muted)}
+.toc-row .pg{font-family:var(--mono);font-size:9pt;color:var(--paper-muted)}
+</style>
+<section class="page cover">
+  <svg class="cover-art" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="230" cy="150" r="120" stroke="#26344f" stroke-width="1"/>
+  <circle cx="230" cy="150" r="88" stroke="#26344f" stroke-width="1"/>
+  <circle cx="230" cy="150" r="56" stroke="#26344f" stroke-width="1"/>
+  <ellipse cx="230" cy="150" rx="120" ry="44" stroke="#26344f" stroke-width="1"/>
+  <ellipse cx="230" cy="150" rx="120" ry="86" stroke="#26344f" stroke-width="1"/>
+  <path d="M110 250 C170 205, 250 150, 350 92" stroke="#d81e2a" stroke-width="2"
+        stroke-linecap="round" stroke-dasharray="5 7"/>
+  <circle cx="110" cy="250" r="4.5" fill="#d81e2a"/>
+  <path d="M336 84 l22 8 -18 14 -2 -10 -12 -4z" fill="#d81e2a"/>
+</svg>
+  <div class="cover-inner">
+    <div class="brand">
+      <div>
+        <div class="brand-name"><span>Target</span> Express</div>
+        <div class="brand-sub">Air Cargo · China to Tanzania</div>
+      </div>
+    </div>
+    <div class="kicker">Staff Training Manual</div>
+    <h1>Dar es Salaam Warehouse</h1>
+    <div class="dept-alt">Ghala la Dar es Salaam</div>
+    <div class="meta">
+      <div><span class="k">Version</span><span class="v">1.0</span></div>
+      <div><span class="k">Languages</span><span class="v">English · Kiswahili</span></div>
+      <div><span class="k">For</span><span class="v">Dar floor and counter staff</span></div>
+      <div><span class="k">Issued</span><span class="v">August 2026</span></div>
+    </div>
+  </div>
+</section>
+<section class="page">
+  <div class="head"><div class="rule"></div>
+    <h2 class="bihead">
+    <span class="en">Contents</span>
+    <span class="alt">Yaliyomo</span>
+  </h2>
+  </div>
+  <div class="contents">
+    <div class="toc-row">
+      <span class="n">01</span>
+      <span class="t">Welcome to the Dar floor <span class="alt">Karibu kwenye ghala la Dar</span></span>
+      <span class="pg">03</span>
+    </div><div class="toc-row">
+      <span class="n">02</span>
+      <span class="t">Signing in <span class="alt">Kuingia kwenye mfumo</span></span>
+      <span class="pg">06</span>
+    </div><div class="toc-row">
+      <span class="n">03</span>
+      <span class="t">Your home screen <span class="alt">Ukurasa wako wa mwanzo</span></span>
+      <span class="pg">08</span>
+    </div><div class="toc-row">
+      <span class="n">04</span>
+      <span class="t">The sidebar, menu by menu <span class="alt">Menyu ya kando, moja baada ya nyingine</span></span>
+      <span class="pg">10</span>
+    </div><div class="toc-row">
+      <span class="n">05</span>
+      <span class="t">Every screen in detail <span class="alt">Kila ukurasa kwa kina</span></span>
+      <span class="pg">12</span>
+    </div><div class="toc-row">
+      <span class="n">06</span>
+      <span class="t">The complete journey <span class="alt">Safari kamili</span></span>
+      <span class="pg">18</span>
+    </div><div class="toc-row">
+      <span class="n">07</span>
+      <span class="t">A worked example <span class="alt">Mfano wa vitendo</span></span>
+      <span class="pg">20</span>
+    </div><div class="toc-row">
+      <span class="n">08</span>
+      <span class="t">When things go wrong <span class="alt">Mambo yanapoharibika</span></span>
+      <span class="pg">22</span>
+    </div><div class="toc-row">
+      <span class="n">09</span>
+      <span class="t">Working well <span class="alt">Kufanya kazi vizuri</span></span>
+      <span class="pg">24</span>
+    </div><div class="toc-row">
+      <span class="n">10</span>
+      <span class="t">Questions people ask <span class="alt">Maswali yanayoulizwa</span></span>
+      <span class="pg">26</span>
+    </div><div class="toc-row">
+      <span class="n">11</span>
+      <span class="t">Summary <span class="alt">Muhtasari</span></span>
+      <span class="pg">28</span>
+    </div>
+  </div>
+  <div class="foot"><span>Dar es Salaam Warehouse</span><span>Contents</span></div>
+</section>
+<section class="page divider">
+  <div class="num">01</div>
+  <h1>Welcome to the Dar floor</h1>
+  <div class="alt">Karibu kwenye ghala la Dar</div>
+  <p>From the moment a flight lands until a customer walks out with their boxes, the cargo is yours.</p>
+  <p>Tangu ndege inapotua hadi mteja anapotoka na mizigo yake, mizigo hiyo iko chini yako.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Mission</div>
+    <h2 class="bihead">
+    <span class="en">What this desk is for</span>
+    <span class="alt">Kazi ya kitengo hiki</span>
+  </h2>
+  </div>
+  <div class="bi ">
+    <p class="en">You take physical custody of everything this business flies. You count what arrives, you say what condition it is in, you hold it safely, and you hand it over — but only against a pickup note Finance has issued. You never write the China record and you never touch money.</p>
+    <p class="alt">Wewe ndiye unayepokea na kutunza kila mzigo unaosafirishwa na kampuni hii. Unahesabu kilichofika, unathibitisha hali yake, unautunza salama, na unaukabidhi — lakini tu kwa kutumia hati ya kuchukua mzigo iliyotolewa na Fedha. Hauandiki kumbukumbu za China wala hushughuliki na pesa.</p>
+  </div>
+<div class="cards two"><div class="card">
+          <span class="label">Your word counts</span>
+          <h3>What arrived, and in what condition</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Kilichofika, na hali yake</h3>
+          <div class="bi ">
+    <p class="en">Your check-in is the only comparison anyone will ever make between what Guangzhou declared and what actually landed. Nobody audits it afterwards. If you tick a box clean, it is clean.</p>
+    <p class="alt">Ukaguzi wako ndio ulinganisho pekee kati ya kile Guangzhou walichotangaza na kile kilichofika kweli. Hakuna anayekagua tena baadaye. Ukiweka alama kuwa mzigo ni salama, basi ni salama.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Not your call</span>
+          <h3>Whether the cargo may leave</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Kama mzigo unaweza kutoka</h3>
+          <div class="bi ">
+    <p class="en">That is answered by a pickup note Finance issued, and by any open case on the cargo. You cannot see a price or issue a note. If there is no note, the answer is 'check with Finance' — never a workaround.</p>
+    <p class="alt">Hilo linajibiwa na hati ya kuchukua iliyotolewa na Fedha, na kesi yoyote iliyo wazi kuhusu mzigo. Huwezi kuona bei wala kutoa hati. Kama hakuna hati, jibu ni 'wasiliana na Fedha' — kamwe usitafute njia ya mkato.</p>
+  </div>
+        </div></div>
+<table><tr><th>Your day</th><th>What it means</th></tr>
+        <tr><td class="k">Read the floor<span class="alt">Angalia hali ya ghala</span></td><td class="">Three chips and one panel tell you the whole morning.<span class="alt">Vipimo vitatu na paneli moja vinakuonyesha kazi ya asubuhi nzima.</span></td></tr><tr><td class="k">Land the flight<span class="alt">Pokea ndege</span></td><td class="">Mark the batch arrived. From here it is yours to check in.<span class="alt">Weka alama kuwa kundi limefika. Kuanzia hapa ni jukumu lako kulikagua.</span></td></tr><tr><td class="k">Check in every line<span class="alt">Kagua kila mstari</span></td><td class="">Six outcomes. Damage needs a severity and a photograph.<span class="alt">Matokeo sita. Uharibifu unahitaji kiwango na picha.</span></td></tr><tr><td class="k">Release cargo<span class="alt">Kabidhi mzigo</span></td><td class="">Scan the carton, photograph the handover, hand it over.<span class="alt">Skani boksi, piga picha ya makabidhiano, kabidhi.</span></td></tr></table>
+  <div class="foot"><span>What this desk is for</span><span>04</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Authority</div>
+    <h2 class="bihead">
+    <span class="en">What you may and may not do</span>
+    <span class="alt">Unachoweza na usichoweza</span>
+  </h2>
+  </div>
+  <div class="cards two"><div class="card">
+          <span class="label">You may</span>
+          <h3>Count, hold, hand over</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Hesabu, tunza, kabidhi</h3>
+          <div class="bi ">
+    <p class="en">Mark a flight arrived · check it in against the manifest · rule on every consignment · see the photographs Guangzhou took · scan and release against an active pickup note · open an investigation when a box is missing.</p>
+    <p class="alt">Weka alama ndege imefika · kagua kwa kutumia orodha ya mizigo · toa uamuzi kwa kila mzigo · ona picha zilizopigwa Guangzhou · skani na kabidhi kwa hati hai ya kuchukua · fungua uchunguzi mzigo unapokosekana.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">You may not</span>
+          <h3>Register, price, release without a note</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Kusajili, kupanga bei, kukabidhi bila hati</h3>
+          <div class="bi ">
+    <p class="en">Register cargo · print or reprint a label · see any price or invoice · open, print, issue or cancel a pickup note · seal or dispatch a batch · approve a payout on a claim.</p>
+    <p class="alt">Kusajili mzigo · kuchapisha au kuchapisha upya lebo · kuona bei au ankara yoyote · kufungua, kuchapisha, kutoa au kufuta hati ya kuchukua · kufunga au kusafirisha kundi · kuidhinisha malipo ya fidia.</p>
+  </div>
+        </div></div>
+<div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">The rule that protects you</div>
+      <div class="bi ">
+    <p class="en"><b>A partial shipment is never released.</b> Handing over four boxes out of five and sorting it out later is how a claim starts. The system refuses it, and that refusal is on your side.</p>
+    <p class="alt"><b>Mzigo usiokamilika haukabidhiwi kamwe.</b> Kukabidhi maboksi manne kati ya matano na kumalizia baadaye ndiyo chanzo cha madai. Mfumo unakataa, na kukataa huko kunakulinda wewe.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>What you may and may not do</span><span>05</span></div>
+</section>
+<section class="page divider">
+  <div class="num">02</div>
+  <h1>Signing in</h1>
+  <div class="alt">Kuingia kwenye mfumo</div>
+  <p>One address, one account.</p>
+  <p>Anwani moja, akaunti moja.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Step 1</div>
+    <h2 class="bihead">
+    <span class="en">The login screen</span>
+    <span class="alt">Ukurasa wa kuingia</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">target-epress.vercel.app</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Open the address on the counter computer or your phone. Type your work email and password, then press Sign in. You land straight on your own department's home — there is no department to choose.</p>
+    <p class="alt">Fungua anwani hii kwenye kompyuta ya kaunta au simu yako. Andika barua pepe yako ya kazi na nenosiri, kisha bonyeza Ingia. Utafika moja kwa moja kwenye ukurasa wa kitengo chako — huhitaji kuchagua kitengo.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/dar-warehouse/login.png" alt="">
+    <div class="pin" style="left:50%;top:44%">1</div><div class="pin" style="left:50%;top:57%">2</div><div class="pin" style="left:50%;top:70%">3</div>
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">Email <span class="alt">Barua pepe</span></div>
+        <div class="bi ">
+    <p class="en">Your work email, e.g. warehouse@targetexpress.co.tz.</p>
+    <p class="alt">Barua pepe yako ya kazi, mfano warehouse@targetexpress.co.tz.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Password <span class="alt">Nenosiri</span></div>
+        <div class="bi ">
+    <p class="en">Set by management. Change it from Profile once you are in.</p>
+    <p class="alt">Imewekwa na uongozi. Ibadilishe kwenye Wasifu baada ya kuingia.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Sign in <span class="alt">Ingia</span></div>
+        <div class="bi ">
+    <p class="en">Takes you to the Dar floor home screen.</p>
+    <p class="alt">Inakupeleka kwenye ukurasa wa ghala la Dar.</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">Tip</div>
+      <div class="bi ">
+    <p class="en">Never share an account. Every check-in and every handover carries the name of whoever was signed in.</p>
+    <p class="alt">Usishirikishe akaunti yako. Kila ukaguzi na kila makabidhiano hubeba jina la aliyeingia.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>The login screen</span><span>07</span></div>
+</section>
+<section class="page divider">
+  <div class="num">03</div>
+  <h1>Your home screen</h1>
+  <div class="alt">Ukurasa wako wa mwanzo</div>
+  <p>Three numbers and one job list.</p>
+  <p>Namba tatu na orodha moja ya kazi.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Dashboard</div>
+    <h2 class="bihead">
+    <span class="en">Home, section by section</span>
+    <span class="alt">Ukurasa wa mwanzo, sehemu kwa sehemu</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/dashboard</p>
+  </div>
+  <div class="bi ">
+    <p class="en">You see cargo and time. You do not see money, anywhere, by design.</p>
+    <p class="alt">Unaona mizigo na muda. Huoni pesa popote, na hivyo ndivyo mfumo ulivyoundwa.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/dar-warehouse/home-hero.png" alt="">
+    <div class="pin" style="left:55%;top:15%">1</div><div class="pin" style="left:55%;top:27%">2</div><div class="pin" style="left:60%;top:55%">3</div><div class="pin" style="left:10%;top:32%">4</div>
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">The banner <span class="alt">Kichwa cha ukurasa</span></div>
+        <div class="bi ">
+    <p class="en">Your name and the department badge.</p>
+    <p class="alt">Jina lako na alama ya kitengo.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Three floor chips <span class="alt">Vipimo vitatu vya ghala</span></div>
+        <div class="bi ">
+    <p class="en">Cargo in the warehouse, boxes on the floor, weight on the floor. The boxes chip reads 'short of the manifest' when fewer cartons were ticked in than Guangzhou declared.</p>
+    <p class="alt">Mizigo iliyoko ghalani, maboksi yaliyopo, na uzito uliopo. Kipimo cha maboksi husema 'pungufu ya orodha' pale maboksi yaliyopokelewa ni machache kuliko Guangzhou walivyotangaza.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Needs your attention <span class="alt">Yanayohitaji uangalizi wako</span></div>
+        <div class="bi ">
+    <p class="en">Flights to land, counts that do not match, cargo ready to be collected today. Work it from the top.</p>
+    <p class="alt">Ndege za kupokea, hesabu zisizolingana, mizigo iliyo tayari kuchukuliwa leo. Anza kutoka juu.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">4</div>
+      <div class="body">
+        <div class="t">The sidebar <span class="alt">Menyu ya kando</span></div>
+        <div class="bi ">
+    <p class="en">Everything you can reach, grouped by the kind of work.</p>
+    <p class="alt">Kila ukurasa unaoweza kufikia, umepangwa kwa aina ya kazi.</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout warn">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Careful</div>
+      <div class="bi ">
+    <p class="en"><b>'Short of the manifest' never fixes itself.</b> It is either a mis-scan or a genuinely missing box, and both need somebody to go and look. Recount the same day.</p>
+    <p class="alt"><b>'Pungufu ya orodha' hakujirekebishi.</b> Ni ama kosa la kuskani au boksi limepotea kweli, na vyote vinahitaji mtu aende kuangalia. Hesabu tena siku hiyo hiyo.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Home, section by section</span><span>09</span></div>
+</section>
+<section class="page divider">
+  <div class="num">04</div>
+  <h1>The sidebar, menu by menu</h1>
+  <div class="alt">Menyu ya kando, moja baada ya nyingine</div>
+  <p>Nine doors, and when to be in each.</p>
+  <p>Milango tisa, na wakati wa kutumia kila mmoja.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Navigation</div>
+    <h2 class="bihead">
+    <span class="en">Every menu explained</span>
+    <span class="alt">Kila menyu imeelezwa</span>
+  </h2>
+  </div>
+  <table><tr><th>Menu</th><th>What it is, and when to use it</th></tr>
+        <tr><td class="k">Home<span class="alt">/app/dashboard</span></td><td class="">Your starting point and the attention panel.<span class="alt">Mwanzo wa kazi na paneli ya matukio yanayohitaji uangalizi.</span></td></tr><tr><td class="k">Search<span class="alt">/app/search</span></td><td class="">Find any consignment by tracking number, customer, phone or carton reference.<span class="alt">Tafuta mzigo wowote kwa namba ya ufuatiliaji, mteja, simu au namba ya boksi.</span></td></tr><tr><td class="k">Scan &amp; release<span class="alt">/app/release</span></td><td class="">One scan takes you to everything you need to hand cargo over.<span class="alt">Skani moja inakupa kila kitu unachohitaji kukabidhi mzigo.</span></td></tr><tr><td class="k">Pickup Queue<span class="alt">/app/pickup-queue</span></td><td class="">Who may collect today, and what is blocking the rest.<span class="alt">Nani anaweza kuchukua leo, na nini kinazuia wengine.</span></td></tr><tr><td class="k">Receiving Dock<span class="alt">/app/receive</span></td><td class="">Flights to land, and the bench where you check them in.<span class="alt">Ndege za kupokea, na sehemu ya kukagua mizigo.</span></td></tr><tr><td class="k">Available Cargo<span class="alt">/app/inventory</span></td><td class="">What is on the floor now, and how long each piece has stood.<span class="alt">Kilichopo ghalani sasa, na muda kila mzigo umekaa.</span></td></tr><tr><td class="k">Collected Cargo<span class="alt">/app/deliveries</span></td><td class="">Every handover, with the receiver, the relationship and the photo.<span class="alt">Kila makabidhiano, na aliyepokea, uhusiano wake na picha.</span></td></tr><tr><td class="k">Issues &amp; Claims<span class="alt">/app/exceptions</span></td><td class="">Cases on your floor. Move them along; the CEO approves payouts.<span class="alt">Kesi za ghala lako. Zisogeze mbele; Mkurugenzi ndiye anaidhinisha malipo.</span></td></tr><tr><td class="k">Reports<span class="alt">/app/reports</span></td><td class="">Throughput, how long each leg took, and who did the work.<span class="alt">Kiasi cha kazi, muda wa kila hatua, na nani alifanya kazi.</span></td></tr></table>
+  <div class="foot"><span>Every menu explained</span><span>11</span></div>
+</section>
+<section class="page divider">
+  <div class="num">05</div>
+  <h1>Every screen in detail</h1>
+  <div class="alt">Kila ukurasa kwa kina</div>
+  <p>The picture, every control, and why it is there.</p>
+  <p>Picha, kila kitufe, na sababu ya kuwepo kwake.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">The bench</div>
+    <h2 class="bihead">
+    <span class="en">Receiving Dock — checking a flight in</span>
+    <span class="alt">Sehemu ya kupokea — kukagua ndege</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/receive</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Find the batch that has landed and mark it arrived. Then print the manifest and check the boxes against paper — not against a screen you are also trying to hold while counting.</p>
+    <p class="alt">Tafuta kundi lililofika na uweke alama limefika. Kisha chapisha orodha ya mizigo na ukague maboksi ukitumia karatasi — siyo skrini unayoshikilia huku unahesabu.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/dar-warehouse/receiving-dock-hero.png" alt="">
+    
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">Mark as arrived <span class="alt">Weka alama imefika</span></div>
+        <div class="bi ">
+    <p class="en">Only a batch in transit can be landed. From this moment the batch is yours to check in.</p>
+    <p class="alt">Ni kundi lililo safarini pekee linaloweza kuwekewa alama limefika. Kuanzia hapa kundi ni jukumu lako.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">The six outcomes <span class="alt">Matokeo sita</span></div>
+        <div class="bi ">
+    <p class="en">Received, Missing, Damaged, Wrong item, Wrong quantity, Hold for investigation. Anything other than Received opens a case automatically.</p>
+    <p class="alt">Imepokelewa, Haipo, Imeharibika, Bidhaa isiyo sahihi, Idadi isiyo sahihi, Zuia kwa uchunguzi. Chochote kisicho 'Imepokelewa' hufungua kesi moja kwa moja.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">The China photographs <span class="alt">Picha za China</span></div>
+        <div class="bi ">
+    <p class="en">Each row opens to show what Guangzhou photographed before the cargo flew. If there are none, check the label and packing list harder before you tick it clean.</p>
+    <p class="alt">Kila mstari unafunguka kuonyesha picha Guangzhou walizopiga kabla mzigo haujasafiri. Kama hakuna, kagua lebo na orodha ya vifurushi kwa makini zaidi kabla ya kuweka alama ya usalama.</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Never do this</div>
+      <div class="bi ">
+    <p class="en"><b>Damage needs a severity and a photograph.</b> This is the only moment that picture can be taken. Once the box is on the shelf, nobody can prove whether it arrived that way or was dropped here.</p>
+    <p class="alt"><b>Uharibifu unahitaji kiwango na picha.</b> Huu ndio wakati pekee picha hiyo inaweza kupigwa. Boksi likishawekwa rafuni, hakuna anayeweza kuthibitisha kama lilifika hivyo au liliangushwa hapa.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Receiving Dock — checking a flight in</span><span>13</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">The counter</div>
+    <h2 class="bihead">
+    <span class="en">Scan &amp; release — the handover</span>
+    <span class="alt">Skani na kabidhi — makabidhiano</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/release</p>
+  </div>
+  <div class="bi ">
+    <p class="en">One scan of the QR on the carton. The screen opens with the customer, the cargo, whether it is paid, and the release form — everything on one page, nothing to go and fetch.</p>
+    <p class="alt">Skani moja ya msimbo wa QR ulioko kwenye boksi. Ukurasa unafunguka na taarifa za mteja, mzigo, kama umelipiwa, na fomu ya kukabidhi — kila kitu ukurasa mmoja, hakuna cha kwenda kutafuta.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/dar-warehouse/scan-release-hero.png" alt="">
+    
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">Six things must agree <span class="alt">Mambo sita lazima yakubaliane</span></div>
+        <div class="bi ">
+    <p class="en">An active pickup note, the note matching this cargo, no open case, every package checked in, the full carton count, and the handover photograph. All re-checked together at the moment you press the button.</p>
+    <p class="alt">Hati hai ya kuchukua, hati inayolingana na mzigo huu, hakuna kesi iliyo wazi, kila kifurushi kimepokelewa, idadi kamili ya maboksi, na picha ya makabidhiano. Vyote hukaguliwa tena kwa pamoja unapobonyeza kitufe.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Who is collecting <span class="alt">Nani anachukua</span></div>
+        <div class="bi ">
+    <p class="en">Receiver name, phone, what they are to the customer, and their ID number. This is the record that settles a dispute later.</p>
+    <p class="alt">Jina la mpokeaji, simu, uhusiano wake na mteja, na namba ya kitambulisho. Hii ndiyo kumbukumbu itakayotatua mgogoro baadaye.</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Unable to locate cargo <span class="alt">Mzigo haujapatikana</span></div>
+        <div class="bi ">
+    <p class="en">When the box is not on the shelf. Write where you looked — at least five characters, and the server refuses short answers.</p>
+    <p class="alt">Pale boksi halipo rafuni. Andika ulipotafuta — angalau herufi tano, na mfumo unakataa majibu mafupi.</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Never do this</div>
+      <div class="bi ">
+    <p class="en"><b>Never mark cargo delivered when you cannot find it.</b> 'Where did you look?' is the only thing the person searching tomorrow has to go on. Name the shelf, the bay and the batch.</p>
+    <p class="alt"><b>Usiweke alama kuwa mzigo umekabidhiwa ikiwa hujaupata.</b> 'Ulitafuta wapi?' ndicho kitu pekee atakachotumia atakayetafuta kesho. Taja rafu, eneo na kundi.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Scan &amp; release — the handover</span><span>14</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Before the counter opens</div>
+    <h2 class="bihead">
+    <span class="en">Pickup Queue — who may collect</span>
+    <span class="alt">Foleni ya kuchukua — nani anaweza kuchukua</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/pickup-queue</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Read the blockers on each row before a customer is standing in front of you. They mirror, in the same order, the checks the release itself will run.</p>
+    <p class="alt">Soma vizuizi vya kila mstari kabla mteja hajasimama mbele yako. Vinafuata mpangilio uleule wa ukaguzi utakaofanyika wakati wa kukabidhi.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/dar-warehouse/pickup-queue-hero.png" alt="">
+    
+  </div>
+  
+  
+  <div class="callout warn">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Careful</div>
+      <div class="bi ">
+    <p class="en">A row can look perfectly paid and still be locked. <b>An open case holds the cargo whatever the money says.</b></p>
+    <p class="alt">Mstari unaweza kuonekana umelipiwa kikamilifu lakini bado umezuiwa. <b>Kesi iliyo wazi huzuia mzigo bila kujali hali ya malipo.</b></p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Pickup Queue — who may collect</span><span>15</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">The floor</div>
+    <h2 class="bihead">
+    <span class="en">Available Cargo — what is standing</span>
+    <span class="alt">Mizigo iliyopo — iliyoko ghalani</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/inventory</p>
+  </div>
+  <div class="bi ">
+    <p class="en">What is on the floor now, sorted by how long it has stood. Storage is free for 7 days, then USD 2 per day. You cannot see or quote the charge — tell the customer to collect and let Finance state the amount.</p>
+    <p class="alt">Kilichoko ghalani sasa, kimepangwa kwa muda kilichokaa. Uhifadhi ni bure kwa siku 7, kisha USD 2 kwa siku. Huwezi kuona wala kutaja gharama — mwambie mteja aje kuchukua, na Fedha ndio watataja kiasi.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/dar-warehouse/available-cargo-hero.png" alt="">
+    
+  </div>
+  
+  
+  
+  <div class="foot"><span>Available Cargo — what is standing</span><span>16</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">The record</div>
+    <h2 class="bihead">
+    <span class="en">Collected Cargo &amp; Reports</span>
+    <span class="alt">Mizigo iliyochukuliwa na Ripoti</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/deliveries · /app/reports</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Every handover with the receiver, the relationship, who released it and the photo. Reports show throughput, how long each leg took, and who did the work.</p>
+    <p class="alt">Kila makabidhiano likiwa na mpokeaji, uhusiano, aliyekabidhi na picha. Ripoti zinaonyesha kiasi cha kazi, muda wa kila hatua, na nani alifanya kazi.</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/dar-warehouse/collected-cargo-hero.png" alt="">
+    
+  </div>
+  
+  
+  <div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">Tip</div>
+      <div class="bi ">
+    <p class="en">The 'who did the work' table counts exceptions raised per person, and the page says so plainly: raising an exception is doing the job properly, not a mark against anyone. Do not stop flagging problems.</p>
+    <p class="alt">Jedwali la 'nani alifanya kazi' huhesabu kesi zilizofunguliwa na kila mtu, na ukurasa unasema wazi: kufungua kesi ni kufanya kazi vizuri, siyo kosa. Usiache kuripoti matatizo.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Collected Cargo &amp; Reports</span><span>17</span></div>
+</section>
+<section class="page divider">
+  <div class="num">06</div>
+  <h1>The complete journey</h1>
+  <div class="alt">Safari kamili</div>
+  <p>One box, Guangzhou to a customer's hands.</p>
+  <p>Boksi moja, kutoka Guangzhou hadi mikononi mwa mteja.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">End to end</div>
+    <h2 class="bihead">
+    <span class="en">Fifteen steps, five departments</span>
+    <span class="alt">Hatua kumi na tano, vitengo vitano</span>
+  </h2>
+  </div>
+  <div class="flow"><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">1</div></div>
+          <div class="flow-body">
+            <div class="who">Customer</div>
+            <div class="what">Books on the website <span class="alt">Anaagiza kupitia tovuti</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">2</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou</div>
+            <div class="what">Cargo arrives, is registered <span class="alt">Mzigo unafika, unasajiliwa</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">3</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou</div>
+            <div class="what">Weighed, photographed, labelled <span class="alt">Unapimwa, unapigwa picha, unawekewa lebo</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">4</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou</div>
+            <div class="what">Sealed and dispatched <span class="alt">Kundi linafungwa na kusafirishwa</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">5</div></div>
+          <div class="flow-body">
+            <div class="who">In the air</div>
+            <div class="what">China → Tanzania <span class="alt">China → Tanzania</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">6</div></div>
+          <div class="flow-body">
+            <div class="who">You</div>
+            <div class="what">Mark the flight arrived <span class="alt">Weka alama ndege imefika</span></div>
+            <p>The batch becomes yours to check in.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">7</div></div>
+          <div class="flow-body">
+            <div class="who">You</div>
+            <div class="what">Print the manifest <span class="alt">Chapisha orodha ya mizigo</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">8</div></div>
+          <div class="flow-body">
+            <div class="who">You</div>
+            <div class="what">Rule on every consignment <span class="alt">Toa uamuzi kwa kila mzigo</span></div>
+            <p>Received, or one of five problems.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">9</div></div>
+          <div class="flow-body">
+            <div class="who">You</div>
+            <div class="what">Finish the check-in <span class="alt">Maliza ukaguzi</span></div>
+            <p>Cargo cannot be invoiced until this is done.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">10</div></div>
+          <div class="flow-body">
+            <div class="who">System</div>
+            <div class="what">Cargo priced automatically <span class="alt">Mzigo unapangiwa bei kiotomatiki</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">11</div></div>
+          <div class="flow-body">
+            <div class="who">Finance</div>
+            <div class="what">Confirm the price → invoice <span class="alt">Thibitisha bei → ankara</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">12</div></div>
+          <div class="flow-body">
+            <div class="who">Customer Care</div>
+            <div class="what">Chase the customer <span class="alt">Fuatilia mteja</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--paid)">
+          <div class="flow-rail"><div class="flow-dot">13</div></div>
+          <div class="flow-body">
+            <div class="who">Finance</div>
+            <div class="what">Verify payment · issue pickup note <span class="alt">Thibitisha malipo · toa hati ya kuchukua</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--paid)">
+          <div class="flow-rail"><div class="flow-dot">14</div></div>
+          <div class="flow-body">
+            <div class="who">You</div>
+            <div class="what">Scan · photograph · hand over <span class="alt">Skani · piga picha · kabidhi</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--paid)">
+          <div class="flow-rail"><div class="flow-dot">15</div></div>
+          <div class="flow-body">
+            <div class="who">Customer</div>
+            <div class="what">Walks out with the cargo <span class="alt">Anaondoka na mzigo wake</span></div>
+            
+          </div>
+        </div></div>
+  <div class="foot"><span>Fifteen steps, five departments</span><span>19</span></div>
+</section>
+<section class="page divider">
+  <div class="num">07</div>
+  <h1>A worked example</h1>
+  <div class="alt">Mfano wa vitendo</div>
+  <p>One consignment, followed through your part.</p>
+  <p>Mzigo mmoja, ukifuatiliwa katika sehemu yako.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Follow it through</div>
+    <h2 class="bihead">
+    <span class="en">TX-000042 · shoes for John Peter</span>
+    <span class="alt">TX-000042 · viatu vya John Peter</span>
+  </h2>
+  </div>
+  <div class="example-hd"><div><div class="k">Customer</div><div class="v">John Peter</div></div><div><div class="k">Tracking</div><div class="v">TX-000042</div></div><div><div class="k">Weight</div><div class="v">3.6 kg</div></div><div><div class="k">Cargo</div><div class="v">Shoes · Viatu</div></div></div>
+<table><tr><th>Stage</th><th>What you do</th></tr>
+        <tr><td class="k">Flight lands<span class="alt">Ndege inatua</span></td><td class="">You open Receiving Dock, find batch GZ/26-28 and press 'Mark as arrived'.<span class="alt">Unafungua Sehemu ya kupokea, unatafuta kundi GZ/26-28 na kubonyeza 'Weka alama imefika'.</span></td></tr><tr><td class="k">Manifest<span class="alt">Orodha ya mizigo</span></td><td class="">You print it and work down the sheet. TX-000042 is two cartons, 3.6 kg, shoes.<span class="alt">Unaichapisha na kufuata orodha. TX-000042 ni maboksi mawili, kilo 3.6, viatu.</span></td></tr><tr><td class="k">Check in<span class="alt">Ukaguzi</span></td><td class="">Both boxes are present and undamaged. You tick Received. Both packages are now accounted for.<span class="alt">Maboksi yote mawili yapo na hayajaharibika. Unaweka alama Imepokelewa. Vifurushi vyote sasa vimehesabiwa.</span></td></tr><tr><td class="k">Wait<span class="alt">Subiri</span></td><td class="">You do nothing further. Finance confirms the price, the customer pays, and the pickup note is issued.<span class="alt">Hufanyi kitu kingine. Fedha wanathibitisha bei, mteja analipa, na hati ya kuchukua inatolewa.</span></td></tr><tr><td class="k">Handover<span class="alt">Makabidhiano</span></td><td class="">John arrives. You scan one carton. The screen shows both boxes accounted for and the note active. You record his name, phone and ID, photograph the handover, and complete it.<span class="alt">John anafika. Unaskani boksi moja. Skrini inaonyesha maboksi yote yamehesabiwa na hati ipo hai. Unaandika jina lake, simu na kitambulisho, unapiga picha ya makabidhiano, na kukamilisha.</span></td></tr></table>
+  <div class="foot"><span>TX-000042 · shoes for John Peter</span><span>21</span></div>
+</section>
+<section class="page divider">
+  <div class="num">08</div>
+  <h1>When things go wrong</h1>
+  <div class="alt">Mambo yanapoharibika</div>
+  <p>The mistakes that actually happen here.</p>
+  <p>Makosa yanayotokea hapa kweli.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Fix it this way</div>
+    <h2 class="bihead">
+    <span class="en">Common mistakes</span>
+    <span class="alt">Makosa ya kawaida</span>
+  </h2>
+  </div>
+  <table><tr><th>The mistake</th><th>What it causes</th><th>What to do</th></tr>
+        <tr><td class="k">Ticking a flight clean without opening the rows<span class="alt">Kuweka alama ndege nzima ni salama bila kufungua mistari</span></td><td class="">A damaged box enters the warehouse as undamaged.<span class="alt">Boksi lililoharibika linaingia ghalani kama salama.</span></td><td class="">Open each row against the printed manifest.<span class="alt">Fungua kila mstari ukilinganisha na orodha iliyochapishwa.</span></td></tr><tr><td class="k">Marking damage without the photograph<span class="alt">Kuripoti uharibifu bila picha</span></td><td class="">The system refuses — and without it there is no proof it flew that way.<span class="alt">Mfumo unakataa — na bila picha hakuna ushahidi kuwa ulifika hivyo.</span></td><td class="">Photograph it on the bench, before it moves.<span class="alt">Piga picha hapo hapo, kabla haujahamishwa.</span></td></tr><tr><td class="k">Ignoring 'short of the manifest'<span class="alt">Kupuuza 'pungufu ya orodha'</span></td><td class="">A missing box is discovered weeks later, when nobody can retrace it.<span class="alt">Boksi lililopotea linagundulika wiki kadhaa baadaye, hakuna anayeweza kufuatilia.</span></td><td class="">Recount the same day and open a case if it is real.<span class="alt">Hesabu tena siku hiyo hiyo na fungua kesi kama ni kweli.</span></td></tr><tr><td class="k">Handing over part of a consignment<span class="alt">Kukabidhi sehemu ya mzigo</span></td><td class="">Refused by the system, and the customer leaves believing they got everything.<span class="alt">Mfumo unakataa, na mteja anaondoka akidhani amepata kila kitu.</span></td><td class="">Release all packages together, or none.<span class="alt">Kabidhi vifurushi vyote kwa pamoja, au usikabidhi kabisa.</span></td></tr><tr><td class="k">Marking cargo delivered when it cannot be found<span class="alt">Kuweka alama umekabidhiwa wakati haujapatikana</span></td><td class="">The trail goes cold and the business carries the loss.<span class="alt">Ufuatiliaji unakwama na kampuni inabeba hasara.</span></td><td class="">Press 'Unable to locate' and write where you looked.<span class="alt">Bonyeza 'Haujapatikana' na andika ulipotafuta.</span></td></tr><tr><td class="k">Arguing with a customer about their bill<span class="alt">Kubishana na mteja kuhusu ankara yake</span></td><td class="">You have no figures on screen, so you cannot be right.<span class="alt">Huna takwimu skrini, hivyo huwezi kuwa sahihi.</span></td><td class="">Send them to Finance; keep the counter moving.<span class="alt">Mpeleke kwa Fedha; endelea na kazi ya kaunta.</span></td></tr></table>
+  <div class="foot"><span>Common mistakes</span><span>23</span></div>
+</section>
+<section class="page divider">
+  <div class="num">09</div>
+  <h1>Working well</h1>
+  <div class="alt">Kufanya kazi vizuri</div>
+  <p>Habits that protect you and the customer.</p>
+  <p>Tabia zinazokulinda wewe na mteja.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Do it this way</div>
+    <h2 class="bihead">
+    <span class="en">Best practice</span>
+    <span class="alt">Mbinu bora</span>
+  </h2>
+  </div>
+  <div class="cards two"><div class="card">
+          <span class="label">Count</span>
+          <h3>Against paper, always</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Kwa karatasi, kila wakati</h3>
+          <div class="bi ">
+    <p class="en">Print the manifest. Counting off a screen you are holding is how a line gets skipped.</p>
+    <p class="alt">Chapisha orodha. Kuhesabu ukiangalia skrini unayoshikilia ndiko kunakosababisha kuruka mstari.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Photograph</span>
+          <h3>At the moment, not later</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Wakati huo huo, siyo baadaye</h3>
+          <div class="bi ">
+    <p class="en">Damage on the bench, handover at the counter. Neither picture can be taken afterwards.</p>
+    <p class="alt">Uharibifu hapo mezani, makabidhiano kaunta. Picha zote mbili haziwezi kupigwa baadaye.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Queue</span>
+          <h3>Pre-check before customers arrive</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Kagua kabla wateja hawajafika</h3>
+          <div class="bi ">
+    <p class="en">Read the blockers early. That is the difference between a two-minute handover and an argument.</p>
+    <p class="alt">Soma vizuizi mapema. Hiyo ndiyo tofauti kati ya makabidhiano ya dakika mbili na ugomvi.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Missing</span>
+          <h3>Write where you looked</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Andika ulipotafuta</h3>
+          <div class="bi ">
+    <p class="en">Name the shelf, the bay, the batch. 'Not found' helps nobody.</p>
+    <p class="alt">Taja rafu, eneo, kundi. 'Haijapatikana' haisaidii mtu.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Money</span>
+          <h3>Never quote a figure</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Usitaje kiasi chochote</h3>
+          <div class="bi ">
+    <p class="en">You do not have prices on screen. Send the customer to Finance.</p>
+    <p class="alt">Huna bei skrini. Mpeleke mteja kwa Fedha.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Cases</span>
+          <h3>Flag problems freely</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Ripoti matatizo bila woga</h3>
+          <div class="bi ">
+    <p class="en">Raising an exception is doing the job properly. The reports say so.</p>
+    <p class="alt">Kufungua kesi ni kufanya kazi vizuri. Ripoti zinasema hivyo.</p>
+  </div>
+        </div></div>
+  <div class="foot"><span>Best practice</span><span>25</span></div>
+</section>
+<section class="page divider">
+  <div class="num">10</div>
+  <h1>Questions people ask</h1>
+  <div class="alt">Maswali yanayoulizwa</div>
+  <p>The ones that come up in the first week.</p>
+  <p>Yale yanayojitokeza wiki ya kwanza.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">FAQ</div>
+    <h2 class="bihead">
+    <span class="en">Frequently asked</span>
+    <span class="alt">Maswali ya mara kwa mara</span>
+  </h2>
+  </div>
+  <table><tr><th>Question</th><th>Answer</th></tr>
+        <tr><td class="k">A customer has no pickup note. Can I release?<span class="alt">Mteja hana hati ya kuchukua. Naweza kukabidhi?</span></td><td class="">No. The system will refuse. Send them to Finance — the note is issued the moment the bill is settled.<span class="alt">Hapana. Mfumo utakataa. Wapeleke kwa Fedha — hati inatolewa mara tu ankara inapolipwa.</span></td></tr><tr><td class="k">The QR label is torn and will not scan.<span class="alt">Lebo ya QR imeraruka na haiskaniki.</span></td><td class="">Use the by-hand list. The system records that it was released without scanning, which is honest and expected.<span class="alt">Tumia orodha ya mkono. Mfumo utaandika kuwa ilikabidhiwa bila kuskani, jambo ambalo ni la kweli na linatarajiwa.</span></td></tr><tr><td class="k">Only four of five boxes are on the shelf.<span class="alt">Ni maboksi manne kati ya matano yaliyopo rafuni.</span></td><td class="">Do not release any of them. Open an investigation and write where you looked.<span class="alt">Usikabidhi hata moja. Fungua uchunguzi na andika ulipotafuta.</span></td></tr><tr><td class="k">Why can I not see the price?<span class="alt">Kwa nini sioni bei?</span></td><td class="">By design. You need the payment fact, not the figure. The figure is Finance's to defend.<span class="alt">Ndivyo mfumo ulivyoundwa. Unahitaji kujua kama imelipwa, siyo kiasi. Kiasi ni jukumu la Fedha.</span></td></tr><tr><td class="k">Can I reprint a cargo label?<span class="alt">Naweza kuchapisha upya lebo ya mzigo?</span></td><td class="">No. The sticker is made once, in Guangzhou. A second sticker is two identities for one box.<span class="alt">Hapana. Lebo hutengenezwa mara moja, Guangzhou. Lebo ya pili ni utambulisho mara mbili kwa boksi moja.</span></td></tr><tr><td class="k">Someone else is collecting for the customer.<span class="alt">Mtu mwingine anachukua kwa niaba ya mteja.</span></td><td class="">That is normal. Record their name, phone, relationship and ID number, and photograph the handover.<span class="alt">Hilo ni la kawaida. Andika jina lake, simu, uhusiano na namba ya kitambulisho, na piga picha ya makabidhiano.</span></td></tr></table>
+  <div class="foot"><span>Frequently asked</span><span>27</span></div>
+</section>
+<section class="page divider">
+  <div class="num">11</div>
+  <h1>Summary</h1>
+  <div class="alt">Muhtasari</div>
+  <p>What to remember when everything else is forgotten.</p>
+  <p>Cha kukumbuka hata mengine yote yakisahaulika.</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Keep this one</div>
+    <h2 class="bihead">
+    <span class="en">The Dar floor in one page</span>
+    <span class="alt">Ghala la Dar kwa ukurasa mmoja</span>
+  </h2>
+  </div>
+  <div class="cards three"><div class="card">
+          <span class="label">Every day</span>
+          <h3>Do</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Fanya</h3>
+          <div class="bi ">
+    <p class="en">Count against paper · photograph damage on the bench · pre-check the queue · photograph every handover · flag problems.</p>
+    <p class="alt">Hesabu kwa karatasi · piga picha ya uharibifu hapo mezani · kagua foleni mapema · piga picha kila makabidhiano · ripoti matatizo.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Never</span>
+          <h3>Don't</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Usifanye</h3>
+          <div class="bi ">
+    <p class="en">Release without a note · hand over part of a consignment · mark missing cargo delivered · quote a price · share your account.</p>
+    <p class="alt">Usikabidhi bila hati · usikabidhi sehemu ya mzigo · usiweke alama umekabidhiwa mzigo uliopotea · usitaje bei · usishirikishe akaunti.</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Remember</span>
+          <h3>The rule</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">Kanuni</h3>
+          <div class="bi ">
+    <p class="en">You hold the cargo, not the money. That is why you can be straightforward with every customer at the counter.</p>
+    <p class="alt">Wewe unashikilia mzigo, siyo pesa. Ndiyo maana unaweza kuwa mnyoofu kwa kila mteja kaunta.</p>
+  </div>
+        </div></div>
+<div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">If you remember one sentence</div>
+      <div class="bi ">
+    <p class="en">Count it against paper, photograph it at the moment, and never hand over part of anything.</p>
+    <p class="alt">Hesabu kwa karatasi, piga picha wakati huo huo, na usikabidhi kamwe sehemu ya mzigo wowote.</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>The Dar floor in one page</span><span>29</span></div>
+</section>
