@@ -854,7 +854,7 @@ async function ChinaReport({ periodDays }: { periodDays: number }) {
               value: bucket.packages,
             }))}
             format={(n) => (zh ? `${n} 箱` : `${n} box${n === 1 ? "" : "es"}`)}
-            unit="consignment"
+            unit={{ one: t(locale, "consignment"), many: t(locale, "consignments") }}
             empty={t(locale, "Nothing is waiting in Guangzhou.")}
           />
         </section>

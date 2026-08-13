@@ -20,6 +20,7 @@ import {
   type AdminRule,
 } from "@/components/app/pricing-admin";
 import { Badge } from "@/components/ui/badge";
+import { auditSentence } from "@/lib/audit-humanise";
 import { CATEGORY_LABELS } from "@/lib/cargo";
 import { formatDateTime, formatRelative, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
@@ -346,7 +347,7 @@ export default async function PricingConfigurationPage() {
               <ul className="divide-y">
                 {lastChanges.map((entry) => (
                   <li key={entry.id} className="px-5 py-3">
-                    <p className="text-sm">{entry.summary}</p>
+                    <p className="text-sm">{auditSentence(locale, entry)}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {entry.actor?.name ?? t(locale, "System")} ·{" "}
                       {formatRelative(entry.createdAt, locale)}

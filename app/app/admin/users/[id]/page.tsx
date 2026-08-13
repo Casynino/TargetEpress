@@ -6,6 +6,7 @@ import { ArrowLeft, ShieldAlert } from "lucide-react";
 import { ActivityBars } from "@/components/app/activity-bars";
 import { ProfileHeader } from "@/components/app/profile-header";
 import { Button } from "@/components/ui/button";
+import { auditSentence } from "@/lib/audit-humanise";
 import { DEPARTMENT_LABELS, ROLE_LABELS } from "@/lib/constants";
 import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -171,7 +172,7 @@ export default async function EmployeeProfilePage({
                       <p className="tabular">{entry.dateLabel}</p>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm">{entry.summary}</p>
+                      <p className="text-sm">{auditSentence(locale, entry)}</p>
                       <p className="font-mono text-xs text-muted-foreground">
                         {entry.action}
                       </p>

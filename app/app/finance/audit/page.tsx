@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { Badge } from "@/components/ui/badge";
+import { auditSentence } from "@/lib/audit-humanise";
 import { financeTabs } from "@/lib/finance-tabs";
 import { formatDateTime } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -124,7 +125,7 @@ export default async function FinanceAuditPage({
                 className="flex flex-wrap items-baseline justify-between gap-3 px-5 py-3"
               >
                 <div className="min-w-0">
-                  <p className="text-sm">{entry.summary}</p>
+                  <p className="text-sm">{auditSentence(locale, entry)}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {entry.actor?.name ?? entry.actorEmail ?? t(locale, "System")} ·{" "}
                     {formatDateTime(entry.createdAt, locale)}

@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { cargoLabel } from "@/lib/cargo";
 import { PACKAGE_TYPE_LABELS, SHIPMENT_STATUS_META } from "@/lib/constants";
+import { auditSentence } from "@/lib/audit-humanise";
 import { formatDate, formatDateTime, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
@@ -134,7 +135,11 @@ export async function profileActivity(
     return {
       id: row.id,
       action: row.action,
-      summary: row.summary,
+      // The stored summary is English — it was written at the moment the thing
+      // happened and is never rewritten. Say the event again in the reader's
+      // language instead; anything the humaniser does not recognise falls back
+      // to the stored English rather than being guessed at.
+      summary: auditSentence(locale, { action: row.action, summary: row.summary }),
       reference:
         meta?.trackingNumber ??
         (row.entity === "Shipment" ? row.entityId : null) ??

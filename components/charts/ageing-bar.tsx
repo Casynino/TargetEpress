@@ -58,7 +58,7 @@ export function AgeingBar({
   segments,
   format,
   empty,
-  unit = "bill",
+  unit,
   className,
 }: {
   segments: AgeingSegment[];
@@ -66,8 +66,17 @@ export function AgeingBar({
   format: (value: number) => string;
   /** What to say when there is nothing to age. */
   empty: string;
-  /** Singular noun for the count beside each row. */
-  unit?: string;
+  /**
+   * The noun beside each count, already in the reader's language, in both
+   * numbers.
+   *
+   * This used to be one string with an "s" appended for anything but 1, which
+   * is only ever right in English. Chinese has no plural inflection, so a
+   * translated noun rendered as 票货s, and the untranslated default rendered as
+   * "bills" on a Chinese screen. Both forms, supplied by the caller, is how the
+   * rest of this codebase already handles it.
+   */
+  unit: { one: string; many: string };
   className?: string;
 }) {
   const total = segments.reduce((sum, s) => sum + s.value, 0);
@@ -88,7 +97,7 @@ export function AgeingBar({
               key={segment.key}
               className={FILL[i] ?? FILL[FILL.length - 1]}
               style={{ width: `${(segment.value / total) * 100}%` }}
-              title={`${segment.label}: ${segment.count} ${unit}${segment.count === 1 ? "" : "s"}`}
+              title={`${segment.label}: ${segment.count} ${segment.count === 1 ? unit.one : unit.many}`}
             />
           ) : null
         )}
@@ -132,8 +141,7 @@ export function AgeingBar({
 
               <span className="flex items-center justify-between gap-2 pl-4 sm:contents sm:pl-0">
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  {segment.count} {unit}
-                  {segment.count === 1 ? "" : "s"}
+                  {segment.count} {segment.count === 1 ? unit.one : unit.many}
                 </span>
                 <span
                   className={cn(

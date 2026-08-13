@@ -71,6 +71,7 @@ import {
   type FloorSnapshot,
 } from "@/lib/floor";
 import { MoneyTile } from "@/components/app/money-tile";
+import { auditSentence } from "@/lib/audit-humanise";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { currentRate, formatUsd } from "@/lib/fx";
@@ -685,7 +686,7 @@ async function ChinaDashboard({
                 value: bucket.packages,
               }))}
               format={(n) => `${n} ${t(locale, n === 1 ? "box" : "boxes")}`}
-              unit={t(locale, "consignment")}
+              unit={{ one: t(locale, "consignment"), many: t(locale, "consignments") }}
               empty={t(locale, "Nothing is waiting in Guangzhou.")}
             />
           </section>
@@ -827,7 +828,7 @@ async function ChinaDashboard({
         entries={activity.map((entry) => ({
           id: entry.id,
           action: entry.action,
-          summary: entry.summary,
+          summary: auditSentence(locale, entry),
           createdAt: entry.createdAt,
           actorName: entry.actor?.name ?? entry.actorEmail ?? null,
         }))}
@@ -1335,7 +1336,7 @@ async function DarDashboard({
                 value: b.packages,
               }))}
               format={(n) => `${n} ${t(locale, n === 1 ? "box" : "boxes")}`}
-              unit={t(locale, "consignment")}
+              unit={{ one: t(locale, "consignment"), many: t(locale, "consignments") }}
               empty={t(locale, "Nothing is standing on the floor.")}
             />
           </section>
@@ -1506,7 +1507,7 @@ async function DarDashboard({
           entries={activity.map((entry) => ({
             id: entry.id,
             action: entry.action,
-            summary: entry.summary,
+            summary: auditSentence(locale, entry),
             createdAt: entry.createdAt,
             actorName: entry.actor?.name ?? entry.actorEmail ?? null,
           }))}
@@ -2041,6 +2042,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                 value: bucket.usd,
               }))}
               format={tsh}
+              unit={{ one: t(locale, "bill"), many: t(locale, "bills") }}
               empty={t(locale, "Nothing is owed. Every bill raised has been settled.")}
             />
           </section>
@@ -2482,6 +2484,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
                 value: bucket.usd,
               }))}
               format={execTsh}
+              unit={{ one: t(locale, "bill"), many: t(locale, "bills") }}
               empty={t(locale, "Nothing is owed. Every bill raised has been settled.")}
             />
           </section>
@@ -2573,7 +2576,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           entries={activity.map((entry) => ({
             id: entry.id,
             action: entry.action,
-            summary: entry.summary,
+            summary: auditSentence(locale, entry),
             createdAt: entry.createdAt,
             actorName: entry.actor?.name ?? entry.actorEmail ?? null,
           }))}
