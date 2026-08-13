@@ -30,3 +30,6 @@ next-env.d.ts
 .claude/
 .env*
 !.env.example
+
+# Manual screenshots are rebuilt from the running app by scripts/manuals/capture.mjs
+docs/manuals/shots/

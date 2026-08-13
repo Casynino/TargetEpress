@@ -1,0 +1,1131 @@
+<meta charset="utf-8">
+<title>China Warehouse — Target Express Staff Training Manual</title>
+<style>
+:root{
+  --ink:#0b1220; --ink-2:#0f1729; --panel:#131e35; --navy:#182a48; --line:#26344f;
+  --signal:#d81e2a; --paid:#22a86a; --owed:#e09612; --info:#3b82f6; --draft:#7c8ba5;
+  --fg:#eef2f8; --muted:#93a0b6; --dim:#5d6c85;
+  --paper:#ffffff; --paper-ink:#101828; --paper-muted:#5a6478; --paper-line:#e3e8ef;
+  --display:"Avenir Next","Helvetica Neue","PingFang SC",sans-serif;
+  --narrow:"Avenir Next Condensed","Avenir Next","PingFang SC",sans-serif;
+  --body:"Helvetica Neue",Helvetica,"PingFang SC",sans-serif;
+  --mono:"Menlo","PingFang SC",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--paper)}
+body{color:var(--paper-ink);font-family:var(--body);
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;-webkit-font-smoothing:antialiased}
+
+@page{size:A4 portrait;margin:0}
+
+.page{position:relative;width:210mm;height:296.6mm;overflow:hidden;
+  padding:17mm 16mm 13mm;background:var(--paper);display:flex;flex-direction:column;
+  page-break-after:always;break-after:page}
+.page:last-of-type{page-break-after:auto;break-after:auto}
+
+/* --- type ---------------------------------------------------------------- */
+h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;letter-spacing:-.02em}
+h1{font-size:34pt;line-height:1.04}
+h2{font-size:19pt;line-height:1.15}
+h3{font-size:12.5pt}
+p{margin:0;font-size:10pt;line-height:1.55}
+b{font-weight:600}
+
+.bi{display:flex;flex-direction:column;gap:1.2mm}
+.bi .en{color:var(--paper-ink)}
+.bi .alt{color:var(--paper-muted);font-size:9.5pt;line-height:1.5}
+.bi .alt.missing{color:var(--signal);font-style:italic}
+.bihead .en{display:block}
+.bihead .alt{display:block;font-size:.62em;font-weight:500;color:var(--paper-muted);margin-top:1mm}
+
+.eyebrow{font-family:var(--narrow);font-size:8.5pt;font-weight:600;text-transform:uppercase;
+  letter-spacing:.2em;color:var(--signal)}
+.label{font-family:var(--narrow);font-size:7.5pt;font-weight:600;text-transform:uppercase;
+  letter-spacing:.15em;color:var(--paper-muted)}
+.rule{height:3pt;width:22mm;background:var(--signal);border-radius:2pt}
+.hair{height:1px;background:var(--paper-line)}
+
+.head{display:flex;flex-direction:column;gap:2.5mm;margin-bottom:6mm}
+.foot{margin-top:auto;padding-top:4mm;border-top:1px solid var(--paper-line);
+  display:flex;justify-content:space-between;align-items:baseline}
+.foot span{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--paper-muted)}
+
+/* --- cover --------------------------------------------------------------- */
+.cover{background:var(--ink);color:var(--fg);padding:0;justify-content:flex-end}
+.cover::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(120% 80% at 78% 12%,rgba(24,42,72,.95) 0%,rgba(11,18,32,0) 62%)}
+.cover-art{position:absolute;top:0;right:0;width:150mm;height:150mm;opacity:.5}
+.cover-inner{position:relative;padding:0 18mm 20mm;display:flex;flex-direction:column;gap:6mm}
+.cover .brand{display:flex;align-items:center;gap:3mm;margin-bottom:auto;padding-top:18mm}
+.cover .brand-name{font-family:var(--display);font-weight:600;font-size:15pt;letter-spacing:-.01em}
+.cover .brand-name span{color:var(--signal)}
+.cover .brand-sub{font-family:var(--narrow);font-size:8pt;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--muted)}
+.cover h1{font-size:42pt;color:#fff}
+.cover .dept-alt{font-family:var(--display);font-size:24pt;color:var(--muted);margin-top:-2mm}
+.cover .kicker{font-family:var(--narrow);font-size:11pt;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--signal)}
+.cover .meta{display:flex;gap:8mm;padding-top:5mm;border-top:1px solid rgba(255,255,255,.14)}
+.cover .meta div{display:flex;flex-direction:column;gap:1mm}
+.cover .meta .k{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim)}
+.cover .meta .v{font-size:10pt;color:var(--fg)}
+
+/* --- section divider ----------------------------------------------------- */
+.divider{background:var(--navy);color:#fff;justify-content:center;gap:4mm}
+.divider .num{font-family:var(--display);font-weight:600;font-size:64pt;line-height:1;
+  color:rgba(255,255,255,.18)}
+.divider h1{color:#fff;font-size:30pt}
+.divider .alt{font-size:18pt;color:rgba(255,255,255,.7);font-family:var(--display)}
+.divider p{color:rgba(255,255,255,.75);max-width:120mm;margin-top:2mm}
+
+/* --- figures: the screenshot with numbered callouts ---------------------- */
+.figure{position:relative;border:1px solid var(--paper-line);border-radius:2.5mm;
+  overflow:hidden;background:#0b1220;margin:2mm 0}
+.figure img{display:block;width:100%;height:auto}
+.figure.crop{max-height:118mm}
+.figure.crop img{object-fit:cover;object-position:top}
+.pin{position:absolute;width:6.5mm;height:6.5mm;border-radius:50%;background:var(--signal);
+  color:#fff;font-family:var(--display);font-weight:600;font-size:9.5pt;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 2pt rgba(255,255,255,.9),0 1mm 2mm rgba(0,0,0,.35);
+  transform:translate(-50%,-50%)}
+.ring{position:absolute;border:2.2pt solid var(--signal);border-radius:2mm;
+  box-shadow:0 0 0 2pt rgba(216,30,42,.18)}
+.figcap{font-size:8.5pt;color:var(--paper-muted);margin-top:1.5mm;font-style:italic}
+
+/* the numbered key under a figure */
+.keys{display:flex;flex-direction:column;gap:2mm;margin-top:3mm}
+.key{display:grid;grid-template-columns:6.5mm 1fr;gap:3mm;align-items:start}
+.key .n{width:6.5mm;height:6.5mm;border-radius:50%;background:var(--signal);color:#fff;
+  font-family:var(--display);font-weight:600;font-size:9pt;display:flex;
+  align-items:center;justify-content:center}
+.key .body .t{font-weight:600;font-size:10pt}
+.key .body .t .alt{font-weight:500;color:var(--paper-muted)}
+.key .body p{font-size:9.5pt}
+
+/* --- callouts ------------------------------------------------------------ */
+.callout{display:grid;grid-template-columns:7mm 1fr;gap:3.5mm;padding:4mm;border-radius:2.5mm;
+  background:#f7f9fc;border:1px solid var(--paper-line);border-left:2.5pt solid var(--info)}
+.callout.warn{border-left-color:var(--owed);background:#fffaf0}
+.callout.stop{border-left-color:var(--signal);background:#fff5f5}
+.callout.tip{border-left-color:var(--paid);background:#f2fbf6}
+.callout .ico{font-family:var(--display);font-weight:600;font-size:13pt;color:var(--info);text-align:center}
+.callout.warn .ico{color:var(--owed)} .callout.stop .ico{color:var(--signal)} .callout.tip .ico{color:var(--paid)}
+.callout .k{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--paper-muted);margin-bottom:1mm}
+
+/* --- cards & tables ------------------------------------------------------ */
+.cards{display:grid;gap:4mm}
+.cards.two{grid-template-columns:1fr 1fr}
+.cards.three{grid-template-columns:repeat(3,1fr)}
+.card{padding:4.5mm;border-radius:2.5mm;background:#f7f9fc;border:1px solid var(--paper-line);
+  display:flex;flex-direction:column;gap:2mm}
+.card .label{color:var(--signal)}
+
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:2.8mm 3mm;border-bottom:1px solid var(--paper-line);
+  vertical-align:top;font-size:9.5pt}
+th{font-family:var(--narrow);font-size:7.5pt;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--paper-muted);background:#f7f9fc}
+td.k{font-weight:600;width:46mm}
+td .alt{display:block;color:var(--paper-muted);font-size:9pt}
+tr:last-child td{border-bottom:0}
+
+/* --- the workflow spine -------------------------------------------------- */
+.flow{display:flex;flex-direction:column;gap:0;flex:1;justify-content:center}
+.flow-step{display:grid;grid-template-columns:9mm 1fr;gap:0 4mm}
+.flow-rail{position:relative;display:flex;justify-content:center}
+.flow-rail::before{content:"";position:absolute;top:0;bottom:0;width:2pt;background:var(--seg,var(--paper-line))}
+.flow-step:last-child .flow-rail::before{bottom:auto;height:4.5mm}
+.flow-dot{position:relative;z-index:1;width:9mm;height:9mm;border-radius:50%;
+  background:#fff;border:2pt solid var(--seg,var(--paper-line));display:flex;
+  align-items:center;justify-content:center;font-family:var(--display);font-weight:600;font-size:9.5pt}
+.flow-body{padding:0 0 5mm 0}
+.flow-body .who{font-family:var(--narrow);font-size:7.5pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--paper-muted)}
+.flow-body .what{font-weight:600;font-size:10.5pt;margin-top:.6mm}
+.flow-body .what .alt{font-weight:500;color:var(--paper-muted)}
+.flow-body p{font-size:9pt;color:var(--paper-muted);margin-top:.8mm}
+
+/* --- worked example ------------------------------------------------------ */
+.example-hd{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:4mm}
+.example-hd div{padding:3mm;border-radius:2mm;background:var(--ink);color:var(--fg)}
+.example-hd .k{font-family:var(--narrow);font-size:7pt;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted)}
+.example-hd .v{font-family:var(--mono);font-size:10.5pt;margin-top:1mm}
+
+.contents{display:flex;flex-direction:column;gap:0}
+.toc-row{display:grid;grid-template-columns:9mm 1fr auto;gap:3mm;padding:2.6mm 0;
+  border-bottom:1px solid var(--paper-line);align-items:baseline}
+.toc-row .n{font-family:var(--display);font-weight:600;color:var(--signal)}
+.toc-row .t{font-weight:600;font-size:10.5pt}
+.toc-row .t .alt{font-weight:500;color:var(--paper-muted)}
+.toc-row .pg{font-family:var(--mono);font-size:9pt;color:var(--paper-muted)}
+</style>
+<section class="page cover">
+  <svg class="cover-art" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="230" cy="150" r="120" stroke="#26344f" stroke-width="1"/>
+  <circle cx="230" cy="150" r="88" stroke="#26344f" stroke-width="1"/>
+  <circle cx="230" cy="150" r="56" stroke="#26344f" stroke-width="1"/>
+  <ellipse cx="230" cy="150" rx="120" ry="44" stroke="#26344f" stroke-width="1"/>
+  <ellipse cx="230" cy="150" rx="120" ry="86" stroke="#26344f" stroke-width="1"/>
+  <path d="M110 250 C170 205, 250 150, 350 92" stroke="#d81e2a" stroke-width="2"
+        stroke-linecap="round" stroke-dasharray="5 7"/>
+  <circle cx="110" cy="250" r="4.5" fill="#d81e2a"/>
+  <path d="M336 84 l22 8 -18 14 -2 -10 -12 -4z" fill="#d81e2a"/>
+</svg>
+  <div class="cover-inner">
+    <div class="brand">
+      <div>
+        <div class="brand-name"><span>Target</span> Express</div>
+        <div class="brand-sub">Air Cargo · China to Tanzania</div>
+      </div>
+    </div>
+    <div class="kicker">Staff Training Manual</div>
+    <h1>China Warehouse</h1>
+    <div class="dept-alt">中国仓库</div>
+    <div class="meta">
+      <div><span class="k">Version</span><span class="v">1.0</span></div>
+      <div><span class="k">Languages</span><span class="v">English · 简体中文</span></div>
+      <div><span class="k">For</span><span class="v">Guangzhou floor staff</span></div>
+      <div><span class="k">Issued</span><span class="v">August 2026</span></div>
+    </div>
+  </div>
+</section>
+<section class="page">
+  <div class="head"><div class="rule"></div>
+    <h2 class="bihead">
+    <span class="en">Contents</span>
+    <span class="alt">目录</span>
+  </h2>
+  </div>
+  <div class="contents">
+    <div class="toc-row">
+      <span class="n">01</span>
+      <span class="t">Welcome to the Guangzhou floor <span class="alt">欢迎加入广州仓</span></span>
+      <span class="pg">03</span>
+    </div><div class="toc-row">
+      <span class="n">02</span>
+      <span class="t">Signing in <span class="alt">登录系统</span></span>
+      <span class="pg">06</span>
+    </div><div class="toc-row">
+      <span class="n">03</span>
+      <span class="t">Your home screen <span class="alt">你的首页</span></span>
+      <span class="pg">09</span>
+    </div><div class="toc-row">
+      <span class="n">04</span>
+      <span class="t">The sidebar, menu by menu <span class="alt">侧边栏逐项说明</span></span>
+      <span class="pg">11</span>
+    </div><div class="toc-row">
+      <span class="n">05</span>
+      <span class="t">Every screen in detail <span class="alt">各界面详解</span></span>
+      <span class="pg">13</span>
+    </div><div class="toc-row">
+      <span class="n">06</span>
+      <span class="t">The complete journey <span class="alt">完整流程</span></span>
+      <span class="pg">21</span>
+    </div><div class="toc-row">
+      <span class="n">07</span>
+      <span class="t">A worked example <span class="alt">实例演练</span></span>
+      <span class="pg">23</span>
+    </div><div class="toc-row">
+      <span class="n">08</span>
+      <span class="t">When things go wrong <span class="alt">出问题的时候</span></span>
+      <span class="pg">25</span>
+    </div><div class="toc-row">
+      <span class="n">09</span>
+      <span class="t">Working well <span class="alt">把工作做好</span></span>
+      <span class="pg">27</span>
+    </div><div class="toc-row">
+      <span class="n">10</span>
+      <span class="t">Questions people ask <span class="alt">常见问题</span></span>
+      <span class="pg">29</span>
+    </div><div class="toc-row">
+      <span class="n">11</span>
+      <span class="t">Summary <span class="alt">本岗位小结</span></span>
+      <span class="pg">31</span>
+    </div>
+  </div>
+  <div class="foot"><span>China Warehouse</span><span>Contents</span></div>
+</section>
+<section class="page divider">
+  <div class="num">01</div>
+  <h1>Welcome to the Guangzhou floor</h1>
+  <div class="alt">欢迎加入广州仓</div>
+  <p>Every record in this system starts on your bench. What you type is what four other departments work from.</p>
+  <p>系统里的每一条记录都从你的工作台开始。你输入的内容，是其他四个部门工作的依据。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Mission</div>
+    <h2 class="bihead">
+    <span class="en">What this desk is for</span>
+    <span class="alt">这个岗位是做什么的</span>
+  </h2>
+  </div>
+  <div class="bi ">
+    <p class="en">You take cargo in from suppliers, weigh it, photograph it, register it, print the code that travels on every box, and put it on a flight. That is the whole job, and it is the most important one in the company — because <b>nobody downstream can correct what you get wrong</b>. Dar checks against your record. Finance bills from your weight. The customer tracks what you typed.</p>
+    <p class="alt">你负责从供应商处收货、称重、拍照、登记，打印每个箱子上的条码，并把货装上飞机。这就是全部工作，也是公司里最关键的一环——因为<b>后面的人无法纠正你这里的错误</b>。达市按你的记录核对，财务按你的重量开单，客户看到的就是你输入的内容。</p>
+  </div>
+<div class="cards two"><div class="card">
+          <span class="label">You create</span>
+          <h3>The record everyone works from</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">全公司依据的记录</h3>
+          <div class="bi ">
+    <p class="en">Registering mints the tracking number, one QR label per box, the first line of history, and the loading table it belongs on.</p>
+    <p class="alt">登记时系统会生成运单号、每箱一个二维码标签、第一条状态记录，以及它所属的装货台。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">You never see</span>
+          <h3>What any of it costs</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">货物的价格</h3>
+          <div class="bi ">
+    <p class="en">No price, no invoice, no balance — never sent to your screen at all. A rate box on the registration form would put pricing in the hands of whoever is holding the scale.</p>
+    <p class="alt">没有价格、没有账单、没有余额——这些根本不会发送到你的屏幕。如果登记表上有价格栏，定价权就落到了拿秤的人手里。</p>
+  </div>
+        </div></div>
+<table><tr><th>Your day</th><th>What it means</th></tr>
+        <tr><td class="k">Read the floor<span class="alt">看一下现场</span></td><td class="">Open Home and work the attention panel from the top.<span class="alt">打开首页，从上往下处理提醒面板。</span></td></tr><tr><td class="k">Ring back requests<span class="alt">回访客户申请</span></td><td class="">Website bookings are not cargo until boxes are on your counter.<span class="alt">网站预约在货物到柜台之前都不算货物。</span></td></tr><tr><td class="k">Register cargo<span class="alt">登记货物</span></td><td class="">Weigh, photograph, type, save. The screen you use most.<span class="alt">称重、拍照、录入、保存。用得最多的界面。</span></td></tr><tr><td class="k">Print and stick<span class="alt">打印并贴标</span></td><td class="">One code per physical box, attached before it leaves the bench.<span class="alt">每箱一个条码，离开工作台前必须贴好。</span></td></tr><tr><td class="k">Seal and dispatch<span class="alt">封批发运</span></td><td class="">Waybill, airline, date. This cannot be undone.<span class="alt">空运单号、航空公司、日期。此操作不可撤销。</span></td></tr></table>
+  <div class="foot"><span>What this desk is for</span><span>04</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Authority</div>
+    <h2 class="bihead">
+    <span class="en">What you may and may not do</span>
+    <span class="alt">你的权限范围</span>
+  </h2>
+  </div>
+  <div class="cards two"><div class="card">
+          <span class="label">You may</span>
+          <h3>Create and correct</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">创建与更正</h3>
+          <div class="bi ">
+    <p class="en">Register cargo · print QR labels · correct your own entry while it is still in China · delete a duplicate with a written reason · open, load, seal and dispatch a loading table · edit the customer book · switch the interface language whenever you like.</p>
+    <p class="alt">登记货物 · 打印二维码标签 · 货物仍在中国时更正自己的录入 · 写明理由后删除重复件 · 开启、装载、封批并发运装货台 · 编辑客户名录 · 随时切换界面语言。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">You may not</span>
+          <h3>Money, scanning, releasing</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">money、扫码、放货</h3>
+          <div class="bi ">
+    <p class="en">See any price · scan a box (that is Dar's) · receive an arriving flight · release cargo to a customer · raise a claim · edit or delete cargo that has already left China.</p>
+    <p class="alt">查看任何价格 · 扫码（属于达市）· 接收到港航班 · 向客户放货 · 提出索赔 · 编辑或删除已离开中国的货物。</p>
+  </div>
+        </div></div>
+<div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">The one that catches everyone</div>
+      <div class="bi ">
+    <p class="en">Once a loading table is sealed and dispatched, you can no longer edit or delete any cargo on it. The screen tells you: <b>“This cargo has already left China. Ask management to correct it.”</b> Check your numbers while the boxes are still in front of you.</p>
+    <p class="alt">装货台一旦封批发运，你就无法再编辑或删除上面的任何货物。系统会提示：<b>“该货物已离开中国，请联系管理层处理。”</b> 请在货物还在面前时核对好数据。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>What you may and may not do</span><span>05</span></div>
+</section>
+<section class="page divider">
+  <div class="num">02</div>
+  <h1>Signing in</h1>
+  <div class="alt">登录系统</div>
+  <p>One address, one account, and the language switch that makes the whole system Chinese.</p>
+  <p>一个网址、一个账号，以及能把整个系统变成中文的语言切换。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Step 1</div>
+    <h2 class="bihead">
+    <span class="en">The login screen</span>
+    <span class="alt">登录界面</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">target-epress.vercel.app</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Open the address in any browser — phone or computer. Type the email your manager gave you and your password, then press Sign in. If the password is refused twice, ask your manager to reset it rather than guessing; repeated failures are recorded.</p>
+    <p class="alt">在任意浏览器中打开该网址——手机或电脑均可。输入主管给你的邮箱和密码，然后点击登录。如果密码连续两次被拒，请让主管重置，不要反复猜测；多次失败会被记录。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/china-warehouse/login.png" alt="">
+    <div class="pin" style="left:50%;top:44%">1</div><div class="pin" style="left:50%;top:57%">2</div><div class="pin" style="left:50%;top:70%">3</div>
+  </div>
+  <p class="figcap">The sign-in screen, before there is a session.</p>
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">Email <span class="alt">邮箱</span></div>
+        <div class="bi ">
+    <p class="en">Your work email, e.g. china@targetexpress.co.tz. Not a personal address.</p>
+    <p class="alt">你的工作邮箱，例如 china@targetexpress.co.tz。不要使用个人邮箱。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Password <span class="alt">密码</span></div>
+        <div class="bi ">
+    <p class="en">Set by management. Change it from your Profile once you are in.</p>
+    <p class="alt">由管理层设置。登录后可在“个人资料”中修改。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Sign in <span class="alt">登录</span></div>
+        <div class="bi ">
+    <p class="en">Takes you straight to your own department's home. There is no department to choose — the system knows who you are.</p>
+    <p class="alt">直接进入你所在部门的首页。无需选择部门——系统已经知道你的身份。</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">Tip</div>
+      <div class="bi ">
+    <p class="en">Never share an account. Every registration, every label printed and every dispatch carries the name of whoever was signed in.</p>
+    <p class="alt">切勿共用账号。每一次登记、每一张打印的标签、每一次发运，都会记录当时登录者的姓名。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>The login screen</span><span>07</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Step 2</div>
+    <h2 class="bihead">
+    <span class="en">Switching to Chinese</span>
+    <span class="alt">切换到中文</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">Sidebar → English / 中文</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Your account opens in Chinese already. The switch sits at the bottom of the sidebar, above Sign out. Press <b>中文</b> and every screen, button, message and date becomes Chinese; press <b>English</b> and it all goes back. Your choice is stored against you, not the computer — so the bench machine in the morning and your phone in the afternoon both remember it.</p>
+    <p class="alt">你的账号默认就是中文。语言切换位于侧边栏底部、退出登录上方。点击<b>中文</b>，所有界面、按钮、提示和日期都会变成中文；点击<b>English</b>则全部还原。你的选择保存在你的账号上，而不是这台电脑——所以早上用工作台电脑、下午用手机，都会记得。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/china-warehouse/home-hero.png" alt="">
+    <div class="ring" style="left:1.5%;top:84%;width:18%;height:9%"></div><div class="pin" style="left:10%;top:89%">1</div>
+  </div>
+  <p class="figcap">The language switch, bottom of the sidebar.</p>
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">English / 中文 <span class="alt">英文 / 中文</span></div>
+        <div class="bi ">
+    <p class="en">Each label is written in its own language on purpose, so you can find the one you want even when the screen is in a language you cannot read.</p>
+    <p class="alt">两个按钮各自用本语言书写，这样即使当前界面语言你看不懂，也能找到想要的那个。</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout warn">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Careful</div>
+      <div class="bi ">
+    <p class="en">What you <b>type</b> is not translated by this switch. If you write a cargo description in Chinese, the system keeps your Chinese exactly as written and shows Dar an English rendering beside it. Neither desk is ever handed the other's language.</p>
+    <p class="alt">这个开关不会翻译你<b>输入</b>的内容。如果你用中文填写货物名称，系统会原样保留你的中文，并在旁边为达市提供英文译文。两个部门都不会被迫看另一种语言。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Switching to Chinese</span><span>08</span></div>
+</section>
+<section class="page divider">
+  <div class="num">03</div>
+  <h1>Your home screen</h1>
+  <div class="alt">你的首页</div>
+  <p>The system writes your morning to-do list. Read it from the top.</p>
+  <p>系统会替你写好当天的待办清单。请从上往下处理。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Dashboard</div>
+    <h2 class="bihead">
+    <span class="en">Home, section by section</span>
+    <span class="alt">首页逐块讲解</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/dashboard · 首页</p>
+  </div>
+  <div class="bi ">
+    <p class="en">This is the first screen every morning and the one you return to between jobs. Nothing here is decoration — every number is something you can act on.</p>
+    <p class="alt">这是每天早上第一个打开、工作间隙也会回到的界面。这里没有装饰性内容——每个数字都对应一件可以去做的事。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/china-warehouse/home-hero.png" alt="">
+    <div class="pin" style="left:55%;top:14%">1</div><div class="pin" style="left:55%;top:26%">2</div><div class="pin" style="left:30%;top:47%">3</div><div class="pin" style="left:62%;top:63%">4</div><div class="pin" style="left:10%;top:30%">5</div>
+  </div>
+  <p class="figcap">The Guangzhou home screen, reading in Chinese.</p>
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">The greeting banner <span class="alt">问候横幅</span></div>
+        <div class="bi ">
+    <p class="en">Your name, the department badge, and both clocks — China time and Tanzania time. The clocks matter: a flight time quoted in the wrong one is a missed flight.</p>
+    <p class="alt">你的姓名、部门标识，以及两个时钟——中国时间和坦桑尼亚时间。时钟很重要：航班时间说错时区就会误机。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Today's floor figures <span class="alt">今日现场数据</span></div>
+        <div class="bi ">
+    <p class="en">Cargo registered today, weight taken in today, labels printed today. A quick check that the day is moving.</p>
+    <p class="alt">今日登记的货量、今日收货重量、今日打印的标签数。用来快速判断当天进度。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Quick actions <span class="alt">快捷操作</span></div>
+        <div class="bi ">
+    <p class="en">The five things this desk does most, one press away: Receive cargo, Load a batch, Shipments, Issues &amp; Claims, Reports.</p>
+    <p class="alt">本岗位最常做的五件事，一键直达：收货登记、装批、运单、问题与索赔、报表。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">4</div>
+      <div class="body">
+        <div class="t">Needs your attention <span class="alt">需要你处理</span></div>
+        <div class="bi ">
+    <p class="en">Your job list, written by the system. Consignments with no photograph, batches left open too long, cargo waiting too many days. <b>Work it from the top</b> — it is ordered by what costs the business most.</p>
+    <p class="alt">系统替你生成的待办清单：没有照片的货物、开启过久的批次、等待太久的货物。<b>请从上往下处理</b>——顺序按对公司损失大小排列。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">5</div>
+      <div class="body">
+        <div class="t">The sidebar <span class="alt">侧边栏</span></div>
+        <div class="bi ">
+    <p class="en">Everything you can reach, grouped by the kind of work. Explained in full in the next section.</p>
+    <p class="alt">你可以进入的所有页面，按工作类型分组。下一节会详细讲解。</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout warn">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Careful</div>
+      <div class="bi ">
+    <p class="en">A consignment with <b>no photograph</b> is always the most urgent row. It is registered but has nothing to argue with — if Dar reports it damaged, there is no picture of what it looked like when it left you.</p>
+    <p class="alt"><b>没有照片</b>的货物永远是最紧急的一条。它虽已登记，但没有任何凭据——如果达市报告破损，就没有照片证明它离开你时是什么样子。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Home, section by section</span><span>10</span></div>
+</section>
+<section class="page divider">
+  <div class="num">04</div>
+  <h1>The sidebar, menu by menu</h1>
+  <div class="alt">侧边栏逐项说明</div>
+  <p>Nine doors. What each is, why it exists, and when you should be in it.</p>
+  <p>九个入口。分别是什么、为什么存在、什么时候该用。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Navigation</div>
+    <h2 class="bihead">
+    <span class="en">Every menu explained</span>
+    <span class="alt">每个菜单的用途</span>
+  </h2>
+  </div>
+  <table><tr><th>Menu</th><th>What it is, and when to use it</th></tr>
+        <tr><td class="k">Home 首页<span class="alt">/app/dashboard</span></td><td class="">Your morning starting point and the attention panel. Open it first, and again whenever you finish a job.<span class="alt">每天的起点和提醒面板。上班先打开，每做完一件事再回来看一次。</span></td></tr><tr><td class="k">Search 搜索<span class="alt">/app/search</span></td><td class="">Find any consignment by tracking number, customer name, phone or description. Use it when someone asks 'where is my box'.<span class="alt">通过运单号、客户姓名、电话或货物名称查找任何一票货。有人问“我的货在哪”时用它。</span></td></tr><tr><td class="k">Requests 客户申请<span class="alt">/app/requests</span></td><td class="">Booking and pickup requests from the public website. Ring each person back and move the status along. <b>A request is not cargo.</b><span class="alt">来自官网的预约和上门取件申请。逐个回电并更新状态。<b>申请不等于货物。</b></span></td></tr><tr><td class="k">Receive Cargo 收货登记<span class="alt">/app/cargo/new</span></td><td class="">The registration bench. The screen you will spend most of your day on.<span class="alt">收货登记台。你一天中用得最多的界面。</span></td></tr><tr><td class="k">Batches 批次<span class="alt">/app/batches</span></td><td class="">The two permanent loading tables — Guangzhou and Hong Kong — plus the Seal &amp; dispatch panel.<span class="alt">两个固定装货台——广州和香港——以及封批发运面板。</span></td></tr><tr><td class="k">Shipments 运单<span class="alt">/app/shipments</span></td><td class="">Everything you have ever registered and where it has got to. Read-only history.<span class="alt">你登记过的所有货物及其当前位置。只读的历史记录。</span></td></tr><tr><td class="k">Customers 客户<span class="alt">/app/customers</span></td><td class="">The customer book. The <b>phone number is the identity</b> — one number, one customer.<span class="alt">客户名录。<b>电话号码就是身份标识</b>——一个号码对应一个客户。</span></td></tr><tr><td class="k">Issues &amp; Claims 问题与索赔<span class="alt">/app/exceptions</span></td><td class="">Cases raised against cargo you loaded. <b>Nothing pushes these to you</b> — open it at the end of every day.<span class="alt">针对你装载货物提出的案件。<b>系统不会主动通知你</b>——请每天下班前打开查看。</span></td></tr><tr><td class="k">Reports 报表<span class="alt">/app/reports</span></td><td class="">Your own numbers: registered, flown, still standing, photograph compliance. No money, by design.<span class="alt">你自己的数据：已登记、已发运、仍在库、拍照完成率。按设计不含任何金额。</span></td></tr></table>
+  <div class="foot"><span>Every menu explained</span><span>12</span></div>
+</section>
+<section class="page divider">
+  <div class="num">05</div>
+  <h1>Every screen in detail</h1>
+  <div class="alt">各界面详解</div>
+  <p>One chapter per screen: the picture, every control, and why it is there.</p>
+  <p>每个界面一章：截图、每个控件、以及它存在的原因。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">The screen you use most</div>
+    <h2 class="bihead">
+    <span class="en">Receive Cargo — the registration bench</span>
+    <span class="alt">收货登记——登记台</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/cargo/new · 收货登记</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Five sections, worked top to bottom. The system does the routing, the batch assignment and the price on its own — your job is the customer, the goods, the scale and the camera.</p>
+    <p class="alt">五个部分，从上往下依次填写。航线、批次和价格由系统自动判断——你负责的是客户、货物、称重和拍照。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/china-warehouse/receive-cargo-hero.png" alt="">
+    <div class="pin" style="left:60%;top:22%">1</div><div class="pin" style="left:46%;top:31%">2</div><div class="pin" style="left:60%;top:41%">3</div><div class="pin" style="left:60%;top:65%">4</div><div class="pin" style="left:60%;top:89%">5</div>
+  </div>
+  <p class="figcap">收货登记 — sections 1 and 2 of the registration form.</p>
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">1. Customer 客户</div>
+        <div class="bi ">
+    <p class="en">Find an existing customer, or create one. Search by name, shipping mark, phone or customer code.</p>
+    <p class="alt">查找已有客户，或新建客户。可按姓名、唛头、电话或客户编号搜索。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Find / New 查找 / 新客户</div>
+        <div class="bi ">
+    <p class="en">Always search first. A customer entered twice is two histories, two balances, and a phone call to sort out.</p>
+    <p class="alt">务必先搜索。同一个客户录入两次，就会产生两份历史、两个余额，还要打电话去处理。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Search field 搜索框</div>
+        <div class="bi ">
+    <p class="en">The phone number is the surest match. Names are typed differently by different people; a number is a number.</p>
+    <p class="alt">电话号码是最可靠的匹配方式。不同的人写名字方式不同，但号码就是号码。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">4</div>
+      <div class="body">
+        <div class="t">2. Cargo category 货物类别</div>
+        <div class="bi ">
+    <p class="en">One choice, and the system works out the airport and the price from it. Normal goods, Electronics, or Liquid &amp; special goods.</p>
+    <p class="alt">只需选一项，系统据此判断机场和价格。普通货物、电子产品，或液体及特殊货物。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">5</div>
+      <div class="body">
+        <div class="t">Route 航线</div>
+        <div class="bi ">
+    <p class="en">Shown, not chosen. Electronics normally fly from Hong Kong; everything else from Guangzhou. The category decides it.</p>
+    <p class="alt">只显示、不选择。电子产品通常从香港发出，其他从广州发出。由类别自动决定。</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Never do this</div>
+      <div class="bi ">
+    <p class="en"><b>Weigh before you type.</b> A weight typed from memory is the number the customer is billed on. At least one photograph is required by the server, not just by the form — the save is refused outright without one.</p>
+    <p class="alt"><b>先称重，再录入。</b> 凭记忆填写的重量，就是客户被收费的依据。至少一张照片是服务器强制要求的，不只是表单校验——没有照片直接拒绝保存。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Receive Cargo — the registration bench</span><span>14</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Loading and dispatch</div>
+    <h2 class="bihead">
+    <span class="en">Batches — the loading tables</span>
+    <span class="alt">批次——装货台</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/batches · 批次</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Two permanent tables, one per airport. Cargo lands on the right one automatically when you register it. Read the four tiles before you seal anything.</p>
+    <p class="alt">两个固定装货台，每个机场一个。登记时货物会自动落到正确的台上。封批前请先看四个数据块。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/china-warehouse/batches-hero.png" alt="">
+    <div class="pin" style="left:30%;top:30%">1</div><div class="pin" style="left:72%;top:30%">2</div><div class="pin" style="left:50%;top:62%">3</div>
+  </div>
+  <p class="figcap">The Guangzhou and Hong Kong loading tables.</p>
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">Guangzhou table 广州台</div>
+        <div class="bi ">
+    <p class="en">Normal goods and liquids. Cargo waiting, total weight, customers, and the oldest piece on the table.</p>
+    <p class="alt">普通货物和液体。显示待运货量、总重量、客户数，以及台上最久的一件。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">Hong Kong table 香港台</div>
+        <div class="bi ">
+    <p class="en">Electronics. Same four figures. Assignment is automatic — you should never have to move a piece between tables.</p>
+    <p class="alt">电子产品。同样四个数据。分配是自动的——正常情况下你不需要在两个台之间搬动货物。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">3</div>
+      <div class="body">
+        <div class="t">Seal &amp; dispatch 封批发运</div>
+        <div class="bi ">
+    <p class="en">Waybill number and airline are both required, plus flight, departure date and expected arrival. This moves every piece onto the flight at once.</p>
+    <p class="alt">空运单号和航空公司为必填，另需航班号、起飞日期和预计到达。此操作会一次性把台上所有货物装上航班。</p>
+  </div>
+      </div>
+    </div></div>
+  <div class="callout stop">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Never do this</div>
+      <div class="bi ">
+    <p class="en"><b>There is no un-dispatch.</b> After sealing you can no longer edit or delete any of that cargo. Read the table one more time first — the oldest-piece figure and the misroute flag are there precisely for that last look.</p>
+    <p class="alt"><b>发运无法撤销。</b> 封批后你将无法再编辑或删除这些货物。请再核对一遍——“最久一件”和错线提示就是为这最后一眼准备的。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Batches — the loading tables</span><span>15</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Lookup</div>
+    <h2 class="bihead">
+    <span class="en">Search — finding one box</span>
+    <span class="alt">搜索——找到某一票货</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/search · 搜索</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Four ways in: a tracking number, a customer name, a phone number, or the carton reference off the packing list. Partial matches work — you do not need the whole thing.</p>
+    <p class="alt">四种查找方式：运单号、客户姓名、电话号码，或装箱单上的箱号。支持模糊匹配——不需要输入完整内容。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/china-warehouse/search-hero.png" alt="">
+    
+  </div>
+  <p class="figcap">The shared search screen.</p>
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">What you can type <span class="alt">可以输入什么</span></div>
+        <div class="bi ">
+    <p class="en">TX-000125, a carton reference like GZ/26-28-7, part of a customer's name, or a phone number in any of the forms people write it.</p>
+    <p class="alt">TX-000125、类似 GZ/26-28-7 的箱号、客户姓名的一部分，或任意书写格式的电话号码。</p>
+  </div>
+      </div>
+    </div><div class="key">
+      <div class="n">2</div>
+      <div class="body">
+        <div class="t">What you will not see <span class="alt">你看不到什么</span></div>
+        <div class="bi ">
+    <p class="en">No prices and no camera scanner. Scanning belongs to the Dar counter; this desk prints labels and never reads them.</p>
+    <p class="alt">没有价格，也没有摄像头扫码。扫码属于达市柜台；本岗位只打印标签，不扫描。</p>
+  </div>
+      </div>
+    </div></div>
+  
+  <div class="foot"><span>Search — finding one box</span><span>16</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Call these people back</div>
+    <h2 class="bihead">
+    <span class="en">Requests — the website queue</span>
+    <span class="alt">客户申请——官网队列</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/requests · 客户申请</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Booking and pickup requests submitted on the public site. Ring each person, agree what is happening, and move the status: pending, contacted, scheduled, completed — or cancelled.</p>
+    <p class="alt">客户在官网提交的预约和上门取件申请。逐个致电、确认安排，并更新状态：待处理、已联系、已安排、已完成——或已取消。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/china-warehouse/requests-hero.png" alt="">
+    
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">A request is not a shipment <span class="alt">申请不是运单</span></div>
+        <div class="bi ">
+    <p class="en">It can never become one by itself. Cargo is registered when the boxes are physically on your counter and somebody has weighed them.</p>
+    <p class="alt">申请不会自动变成运单。只有当箱子实际到达柜台并完成称重时，才登记为货物。</p>
+  </div>
+      </div>
+    </div></div>
+  
+  <div class="foot"><span>Requests — the website queue</span><span>17</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">One number, one customer</div>
+    <h2 class="bihead">
+    <span class="en">Customers — the book</span>
+    <span class="alt">客户——名录</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/customers · 客户</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Every customer who has ever shipped with us, newest first. Created automatically the first time cargo is registered against a name or number.</p>
+    <p class="alt">所有曾发过货的客户，按最新排列。首次以某个姓名或号码登记货物时自动创建。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/china-warehouse/customers-hero.png" alt="">
+    
+  </div>
+  
+  <div class="keys"><div class="key">
+      <div class="n">1</div>
+      <div class="body">
+        <div class="t">Search before you create <span class="alt">先搜索，再新建</span></div>
+        <div class="bi ">
+    <p class="en">The phone number is the identity. Creating a second record for the same person splits their history in half and neither half is right.</p>
+    <p class="alt">电话号码就是身份标识。为同一个人重复建档会把历史一分为二，两边都不完整。</p>
+  </div>
+      </div>
+    </div></div>
+  
+  <div class="foot"><span>Customers — the book</span><span>18</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Answer for what you loaded</div>
+    <h2 class="bihead">
+    <span class="en">Issues &amp; Claims</span>
+    <span class="alt">问题与索赔</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/exceptions · 问题与索赔</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Cases raised against cargo you registered. You cannot open, approve or close a case — you answer one question, better than anyone else can: <b>was it loaded in Guangzhou?</b> Your photographs, your weight and your carton count are the evidence.</p>
+    <p class="alt">针对你登记货物提出的案件。你不能开立、批准或结案——你只回答一个别人无法替你回答的问题：<b>这票货在广州装了吗？</b> 你的照片、重量和箱数就是证据。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/china-warehouse/issues-hero.png" alt="">
+    
+  </div>
+  
+  
+  <div class="callout warn">
+    <div class="ico">!</div>
+    <div>
+      <div class="k">Careful</div>
+      <div class="bi ">
+    <p class="en"><b>Nothing pushes these cases to you.</b> The notifications go to Customer Care, Finance and management. Make opening this page part of the end of every day.</p>
+    <p class="alt"><b>系统不会主动把案件推送给你。</b> 通知只会发给客服、财务和管理层。请把每天下班前查看此页面变成习惯。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>Issues &amp; Claims</span><span>19</span></div>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">How the floor is doing</div>
+    <h2 class="bihead">
+    <span class="en">Reports — your own numbers</span>
+    <span class="alt">报表——你自己的数据</span>
+  </h2>
+    <p class="label" style="font-family:var(--mono);text-transform:none;letter-spacing:0">/app/reports · 报表</p>
+  </div>
+  <div class="bi ">
+    <p class="en">Registered, flown, still standing, and the photograph compliance ring. Change the period at the top. There is no money on this report, by design — warehouse staff are measured on cargo and time.</p>
+    <p class="alt">已登记、已发运、仍在库，以及拍照完成率。可在顶部切换统计周期。按设计本报表不含任何金额——仓库岗位以货量和时效衡量。</p>
+  </div>
+  <div class="figure crop">
+    <img src="shots/china-warehouse/reports-hero.png" alt="">
+    
+  </div>
+  
+  
+  
+  <div class="foot"><span>Reports — your own numbers</span><span>20</span></div>
+</section>
+<section class="page divider">
+  <div class="num">06</div>
+  <h1>The complete journey</h1>
+  <div class="alt">完整流程</div>
+  <p>One box, from a supplier in Guangzhou to a customer's hands in Dar es Salaam.</p>
+  <p>一个箱子，从广州的供应商到达累斯萨拉姆客户手中。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">End to end</div>
+    <h2 class="bihead">
+    <span class="en">Fifteen steps, five departments</span>
+    <span class="alt">十五步，五个部门</span>
+  </h2>
+  </div>
+  <div class="flow"><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">1</div></div>
+          <div class="flow-body">
+            <div class="who">Customer 客户</div>
+            <div class="what">Books on the website <span class="alt">在官网下单</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">2</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou 广州</div>
+            <div class="what">Rings the customer back <span class="alt">回电确认</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--draft)">
+          <div class="flow-rail"><div class="flow-dot">3</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou 广州</div>
+            <div class="what">Cargo arrives at the warehouse <span class="alt">货物到仓</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">4</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou 广州</div>
+            <div class="what">Weigh · photograph · register <span class="alt">称重 · 拍照 · 登记</span></div>
+            <p>Tracking number and QR labels are created here.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">5</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou 广州</div>
+            <div class="what">Print labels, stick on every box <span class="alt">打印标签，逐箱粘贴</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">6</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou 广州</div>
+            <div class="what">Cargo joins a loading table <span class="alt">货物进入装货台</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--info)">
+          <div class="flow-rail"><div class="flow-dot">7</div></div>
+          <div class="flow-body">
+            <div class="who">Guangzhou 广州</div>
+            <div class="what">Seal and dispatch onto the flight <span class="alt">封批并发运上机</span></div>
+            <p>Cannot be undone. Your part ends here.</p>
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">8</div></div>
+          <div class="flow-body">
+            <div class="who">In the air 空运中</div>
+            <div class="what">China → Tanzania <span class="alt">中国 → 坦桑尼亚</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">9</div></div>
+          <div class="flow-body">
+            <div class="who">Dar floor 达市仓</div>
+            <div class="what">Flight lands, batch marked arrived <span class="alt">航班落地，批次标记到达</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">10</div></div>
+          <div class="flow-body">
+            <div class="who">Dar floor 达市仓</div>
+            <div class="what">Check in against the manifest <span class="alt">按舱单核对入库</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">11</div></div>
+          <div class="flow-body">
+            <div class="who">System 系统</div>
+            <div class="what">Cargo priced automatically <span class="alt">系统自动计价</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">12</div></div>
+          <div class="flow-body">
+            <div class="who">Finance 财务</div>
+            <div class="what">Confirm the price → invoice <span class="alt">确认价格 → 生成账单</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--owed)">
+          <div class="flow-rail"><div class="flow-dot">13</div></div>
+          <div class="flow-body">
+            <div class="who">Customer Care 客服</div>
+            <div class="what">Chase the customer for payment <span class="alt">催收客户款项</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--paid)">
+          <div class="flow-rail"><div class="flow-dot">14</div></div>
+          <div class="flow-body">
+            <div class="who">Finance 财务</div>
+            <div class="what">Verify payment · issue pickup note <span class="alt">核实收款 · 开具提货单</span></div>
+            
+          </div>
+        </div><div class="flow-step" style="--seg:var(--paid)">
+          <div class="flow-rail"><div class="flow-dot">15</div></div>
+          <div class="flow-body">
+            <div class="who">Dar floor 达市仓</div>
+            <div class="what">Scan · photograph · hand over <span class="alt">扫码 · 拍照 · 交货</span></div>
+            
+          </div>
+        </div></div>
+  <div class="foot"><span>Fifteen steps, five departments</span><span>22</span></div>
+</section>
+<section class="page divider">
+  <div class="num">07</div>
+  <h1>A worked example</h1>
+  <div class="alt">实例演练</div>
+  <p>One real consignment, followed all the way through.</p>
+  <p>跟随一票真实货物，走完全程。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Follow it through</div>
+    <h2 class="bihead">
+    <span class="en">TX-000042 · shoes for John Peter</span>
+    <span class="alt">TX-000042 · John Peter 的鞋子</span>
+  </h2>
+  </div>
+  <div class="example-hd"><div><div class="k">Customer</div><div class="v">John Peter</div></div><div><div class="k">Tracking</div><div class="v">TX-000042</div></div><div><div class="k">Weight</div><div class="v">3.6 kg</div></div><div><div class="k">Cargo</div><div class="v">Shoes 鞋子</div></div></div>
+<table><tr><th>Stage</th><th>What happens, and who does it</th></tr>
+        <tr><td class="k">At your bench<span class="alt">在你的工作台</span></td><td class="">John's boxes arrive. You search 0764 197 748, find him, pick <b>Normal goods</b>, weigh 3.6 kg, count 2 cartons, type 鞋子, take two photographs and save. The system creates TX-000042 and two labels: TX-000042-P1 and -P2.<span class="alt">John 的货到了。你搜索 0764 197 748 找到他，选择<b>普通货物</b>，称得 3.6 公斤，数出 2 箱，填写“鞋子”，拍两张照片并保存。系统生成 TX-000042 及两张标签：TX-000042-P1 和 -P2。</span></td></tr><tr><td class="k">Labels<span class="alt">贴标</span></td><td class="">You print both stickers and attach one to each box before they leave the bench.<span class="alt">打印两张贴纸，在箱子离开工作台前分别贴好。</span></td></tr><tr><td class="k">Loading<span class="alt">装台</span></td><td class="">Shoes are normal goods, so it lands on the Guangzhou table automatically.<span class="alt">鞋子属于普通货物，因此自动落到广州装货台。</span></td></tr><tr><td class="k">Dispatch<span class="alt">发运</span></td><td class="">You seal the table with waybill 176-44821905 on Ethiopian Airlines ET605. TX-000042 is now beyond your reach.<span class="alt">你以空运单号 176-44821905、埃塞俄比亚航空 ET605 封批。此后 TX-000042 你无法再修改。</span></td></tr><tr><td class="k">Dar<span class="alt">达市</span></td><td class="">Both boxes are ticked in against the manifest. The system prices it: 3.6 kg × USD 13.50 = USD 48.60.<span class="alt">两箱按舱单核对入库。系统计价：3.6 公斤 × 13.50 美元 = 48.60 美元。</span></td></tr><tr><td class="k">Money<span class="alt">收款</span></td><td class="">Finance confirms the price, Customer Care rings John, John pays, Finance verifies and issues pickup note PN-2026-000042.<span class="alt">财务确认价格，客服致电 John，John 付款，财务核实并开具提货单 PN-2026-000042。</span></td></tr><tr><td class="k">Collected<span class="alt">提货</span></td><td class="">John comes to the counter. The clerk scans one carton, both boxes are accounted for, a handover photo is taken, and TX-000042 is delivered.<span class="alt">John 到柜台。柜员扫描其中一箱，两箱都核对齐全，拍摄交接照片，TX-000042 完成交付。</span></td></tr></table>
+  <div class="foot"><span>TX-000042 · shoes for John Peter</span><span>24</span></div>
+</section>
+<section class="page divider">
+  <div class="num">08</div>
+  <h1>When things go wrong</h1>
+  <div class="alt">出问题的时候</div>
+  <p>The mistakes that actually happen here, and what to do about each.</p>
+  <p>这里真正会发生的错误，以及各自的处理方法。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Fix it this way</div>
+    <h2 class="bihead">
+    <span class="en">Common mistakes</span>
+    <span class="alt">常见错误</span>
+  </h2>
+  </div>
+  <table><tr><th>The mistake</th><th>What it causes</th><th>What to do</th></tr>
+        <tr><td class="k">Weight typed from memory<span class="alt">凭记忆填重量</span></td><td class="">The customer is billed on a number nobody measured.<span class="alt">客户按无人测量的数字被收费。</span></td><td class="">Re-weigh and correct it while the cargo is still in China.<span class="alt">货物仍在中国时重新称重并更正。</span></td></tr><tr><td class="k">One label on two boxes<span class="alt">一张标签贴两箱</span></td><td class="">Two boxes with one identity — nobody can say which went missing.<span class="alt">两箱共用一个身份——无法判断丢的是哪一箱。</span></td><td class="">Reprint from the consignment and re-label. Never copy a sticker.<span class="alt">从该运单重新打印并贴标。切勿复制贴纸。</span></td></tr><tr><td class="k">No photograph<span class="alt">没有照片</span></td><td class="">A damage claim arrives and you have nothing to answer it with.<span class="alt">收到破损索赔时你无凭据可依。</span></td><td class="">Open the consignment and add photos before it flies.<span class="alt">在发运前打开该运单补拍照片。</span></td></tr><tr><td class="k">Customer entered twice<span class="alt">客户重复建档</span></td><td class="">History and balance split across two records.<span class="alt">历史和余额被拆成两份。</span></td><td class="">Search by phone first. Tell management to merge duplicates.<span class="alt">先按电话搜索。发现重复请报管理层合并。</span></td></tr><tr><td class="k">Registering a website request<span class="alt">把官网申请当货登记</span></td><td class="">A tracking number exists for boxes nobody has seen.<span class="alt">为没人见过的箱子生成了运单号。</span></td><td class="">Register only when the boxes are on the counter.<span class="alt">只有箱子到柜台时才登记。</span></td></tr><tr><td class="k">Sealing without reading<span class="alt">不核对就封批</span></td><td class="">Wrong cargo flies, and it cannot be undone.<span class="alt">错误货物被发运，且不可撤销。</span></td><td class="">Check the four tiles and any misroute flag, then dispatch.<span class="alt">先看四个数据块和错线提示，再发运。</span></td></tr><tr><td class="k">Never opening Issues &amp; Claims<span class="alt">从不查看问题与索赔</span></td><td class="">Cases about your cargo sit unanswered; nothing notifies you.<span class="alt">关于你货物的案件无人回应；系统不会提醒你。</span></td><td class="">Check it at the end of every day.<span class="alt">每天下班前查看一次。</span></td></tr></table>
+  <div class="foot"><span>Common mistakes</span><span>26</span></div>
+</section>
+<section class="page divider">
+  <div class="num">09</div>
+  <h1>Working well</h1>
+  <div class="alt">把工作做好</div>
+  <p>Habits that make the whole chain easier.</p>
+  <p>让整条链条更顺畅的习惯。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Do it this way</div>
+    <h2 class="bihead">
+    <span class="en">Best practice</span>
+    <span class="alt">最佳实践</span>
+  </h2>
+  </div>
+  <div class="cards two"><div class="card">
+          <span class="label">Scale first</span>
+          <h3>Weigh, then type</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">先称重，后录入</h3>
+          <div class="bi ">
+    <p class="en">Every figure downstream is the one you measured. Nobody checks it again.</p>
+    <p class="alt">下游所有数据都来自你测的这个数。没有人会再核一遍。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Photograph</span>
+          <h3>Two pictures, always</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">始终拍两张</h3>
+          <div class="bi ">
+    <p class="en">One of the goods, one of the packed box. It costs ten seconds and settles arguments months later.</p>
+    <p class="alt">一张拍货物，一张拍装好的箱子。只花十秒，却能在几个月后平息争议。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Label</span>
+          <h3>Stick before it moves</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">移动前先贴标</h3>
+          <div class="bi ">
+    <p class="en">A box that leaves the bench unlabelled is a box nobody can identify.</p>
+    <p class="alt">未贴标就离开工作台的箱子，之后无人能识别。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Batches</span>
+          <h3>Do not let a table age</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">不要让装货台久放</h3>
+          <div class="bi ">
+    <p class="en">A table left open stops being a batch and becomes a shelf. Watch the oldest-piece figure.</p>
+    <p class="alt">长期开着的装货台就不再是批次，而变成了货架。注意“最久一件”这个数字。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Language</span>
+          <h3>Type in Chinese freely</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">放心用中文录入</h3>
+          <div class="bi ">
+    <p class="en">Your Chinese is kept exactly as written, and Dar is shown an English rendering beside it.</p>
+    <p class="alt">你的中文会被原样保留，达市看到的是旁边的英文译文。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">End of day</span>
+          <h3>Two pages before you leave</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">下班前看两个页面</h3>
+          <div class="bi ">
+    <p class="en">Issues &amp; Claims, then Reports. Five minutes, and nothing is left hanging overnight.</p>
+    <p class="alt">先看问题与索赔，再看报表。五分钟，不留隔夜问题。</p>
+  </div>
+        </div></div>
+  <div class="foot"><span>Best practice</span><span>28</span></div>
+</section>
+<section class="page divider">
+  <div class="num">10</div>
+  <h1>Questions people ask</h1>
+  <div class="alt">常见问题</div>
+  <p>The ones that come up in the first week.</p>
+  <p>第一周里最常被问到的问题。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">FAQ</div>
+    <h2 class="bihead">
+    <span class="en">Frequently asked</span>
+    <span class="alt">常见问答</span>
+  </h2>
+  </div>
+  <table><tr><th>Question</th><th>Answer</th></tr>
+        <tr><td class="k">I typed the wrong weight. Can I fix it?<span class="alt">重量填错了，能改吗？</span></td><td class="">Yes, while the cargo is still in China. Open the consignment and press Edit. After dispatch you cannot — ask management.<span class="alt">可以，只要货物还在中国。打开该运单点击编辑。发运后无法修改——请联系管理层。</span></td></tr><tr><td class="k">I registered the same boxes twice.<span class="alt">同一批箱子登记了两次。</span></td><td class="">Delete the duplicate from the panel at the foot of the edit page and write why. Nothing is truly destroyed — the photos and history survive.<span class="alt">在编辑页面底部的面板中删除重复项并写明原因。数据不会真正被销毁——照片和历史都会保留。</span></td></tr><tr><td class="k">Why can I not see the price?<span class="alt">为什么我看不到价格？</span></td><td class="">By design. Pricing is Finance's. A rate box on this form would put pricing in the hands of whoever is holding the scale.<span class="alt">这是设计如此。定价属于财务。如果这张表上有价格栏，定价权就落到拿秤的人手里。</span></td></tr><tr><td class="k">A customer has no phone number.<span class="alt">客户没有电话号码。</span></td><td class="">You can still register. The record is flagged so somebody confirms it before the cargo lands.<span class="alt">仍然可以登记。系统会标记该记录，以便有人在货物到港前补齐。</span></td></tr><tr><td class="k">The system says my cargo is on the wrong table.<span class="alt">系统提示我的货在错误的装货台。</span></td><td class="">Assignment is automatic, so that warning should be impossible. Check the cargo category before dismissing it.<span class="alt">分配是自动的，正常不该出现此提示。忽略之前请先检查货物类别。</span></td></tr><tr><td class="k">Can I use my phone instead of the computer?<span class="alt">可以用手机代替电脑吗？</span></td><td class="">Yes. Every screen works on a phone, and the camera is the easiest way to take the cargo photographs.<span class="alt">可以。所有界面都支持手机，而且用手机相机拍货物照片最方便。</span></td></tr></table>
+  <div class="foot"><span>Frequently asked</span><span>30</span></div>
+</section>
+<section class="page divider">
+  <div class="num">11</div>
+  <h1>Summary</h1>
+  <div class="alt">本岗位小结</div>
+  <p>What to remember when everything else has been forgotten.</p>
+  <p>即使其他都忘了，也要记住这些。</p>
+</section>
+<section class="page">
+  <div class="head">
+    <div class="eyebrow">Keep this one</div>
+    <h2 class="bihead">
+    <span class="en">The Guangzhou desk in one page</span>
+    <span class="alt">一页看懂广州岗位</span>
+  </h2>
+  </div>
+  <div class="cards three"><div class="card">
+          <span class="label">Every day</span>
+          <h3>Do</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">该做</h3>
+          <div class="bi ">
+    <p class="en">Read the attention panel first · weigh before typing · photograph everything · one label per box · check Issues &amp; Claims before you leave.</p>
+    <p class="alt">先看提醒面板 · 先称重再录入 · 每票都拍照 · 每箱一张标签 · 下班前查看问题与索赔。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Never</span>
+          <h3>Don't</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">不该做</h3>
+          <div class="bi ">
+    <p class="en">Guess a weight · copy a label onto a second box · register a website request as cargo · seal a table without reading it · share your account.</p>
+    <p class="alt">凭感觉填重量 · 把标签复制到第二个箱子 · 把官网申请当货登记 · 不核对就封批 · 共用账号。</p>
+  </div>
+        </div><div class="card">
+          <span class="label">Remember</span>
+          <h3>The rule</h3>
+          <h3 style="color:var(--paper-muted);font-size:11pt;margin-top:-1mm">核心原则</h3>
+          <div class="bi ">
+    <p class="en">Nobody downstream can fix what you get wrong. The scale, the camera and the label are the whole job.</p>
+    <p class="alt">下游没有人能纠正你这里的错误。秤、相机和标签就是这份工作的全部。</p>
+  </div>
+        </div></div>
+<div class="callout tip">
+    <div class="ico">★</div>
+    <div>
+      <div class="k">If you remember one sentence</div>
+      <div class="bi ">
+    <p class="en">Get the weight, the count and the picture right, and every desk after yours can do its job.</p>
+    <p class="alt">把重量、件数和照片做对，后面每一个岗位才能把事做好。</p>
+  </div>
+    </div>
+  </div>
+  <div class="foot"><span>The Guangzhou desk in one page</span><span>32</span></div>
+</section>
