@@ -78,11 +78,24 @@ async function inspect(pdfPath) {
     const [, , w, h] = box[1].trim().split(/\s+/).map(Number);
     size = `${Math.round((w / 72) * 25.4)}x${Math.round((h / 72) * 25.4)}mm`;
   }
-  return { pages, size, mb: (buf.length / 1024 / 1024).toFixed(1) };
+  // A manual whose second language is Chinese must embed a CJK face. Chrome
+  // will happily lay out Chinese it cannot draw and print blank space where
+  // the characters belong — the HTML looks perfect and the PDF is unreadable,
+  // which is exactly how this shipped once. Checking the font table is the
+  // only place the failure is visible.
+  const cjkFonts = new Set(
+    (raw.match(/BaseFont\s*\/[A-Za-z0-9+#.-]*(?:Heiti|Songti|PingFang|Hiragino|Noto\w*CJK)[A-Za-z0-9+#.-]*/g) ?? [])
+      // Chrome emits one subset per page ("EAAAAA+STHeitiSC-Light"); the six-letter
+      // tag is noise here, the family is the thing being asserted.
+      .map((m) => m.split("/").pop().replace(/^[A-Z]{6}\+/, "")),
+  );
+  return { pages, size, mb: (buf.length / 1024 / 1024).toFixed(1), cjkFonts };
 }
 
 const wanted = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const targets = wanted.length ? wanted : DEPARTMENTS;
+
+const failures = [];
 
 await mkdir(OUT, { recursive: true });
 await rm(PROFILE, { recursive: true, force: true });
@@ -95,6 +108,24 @@ for (const slug of targets) {
   await writeFile(htmlPath, renderManual(manual, `shots/${slug}`), "utf8");
   await printToPdf(htmlPath, pdfPath);
 
-  const { pages, size, mb } = await inspect(pdfPath);
-  console.log(`${slug.padEnd(17)} ${String(pages).padStart(3)} pages  ${size}  ${mb}MB`);
+  const { pages, size, mb, cjkFonts } = await inspect(pdfPath);
+
+  const html = await readFile(htmlPath, "utf8");
+  const needsCjk = /[㐀-鿿]/.test(html);
+  const note = needsCjk ? `  cjk:${[...cjkFonts].join(",") || "NONE"}` : "";
+  console.log(
+    `${slug.padEnd(17)} ${String(pages).padStart(3)} pages  ${size}  ${mb}MB${note}`,
+  );
+
+  if (needsCjk && cjkFonts.size === 0) {
+    console.error(
+      `\n${slug}: the manual contains Chinese but the PDF embeds no CJK font, ` +
+        `so those characters print blank.\n` +
+        `Check the @font-face src list in template.mjs against the fonts on ` +
+        `this machine — note macOS hides ".PingFang SC" from font matching.\n`,
+    );
+    failures.push(slug);
+  }
 }
+
+if (failures.length) process.exit(1);

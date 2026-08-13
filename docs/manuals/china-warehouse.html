@@ -1,15 +1,26 @@
 <meta charset="utf-8">
 <title>China Warehouse — Target Express Staff Training Manual</title>
 <style>
+/* macOS registers PingFang as ".PingFang SC" — dot-prefixed families are hidden
+   from font matching, so naming it in a stack silently resolves to nothing and
+   Chinese renders blank. Headless Chrome also does no per-codepoint fallback
+   down the stack here: a CJK face listed second is never reached. Both problems
+   go away by binding the CJK ranges to a real face and putting it first. */
+@font-face{font-family:"TXCJK";font-style:normal;font-weight:400;
+  src:local("STHeiti Light"),local("STHeitiSC-Light"),local("Heiti SC");
+  unicode-range:U+2E80-2EFF,U+3000-303F,U+3400-4DBF,U+4E00-9FFF,U+F900-FAFF,U+FF00-FFEF;}
+@font-face{font-family:"TXCJK";font-style:normal;font-weight:500 900;
+  src:local("STHeiti Medium"),local("STHeitiSC-Medium"),local("Heiti SC");
+  unicode-range:U+2E80-2EFF,U+3000-303F,U+3400-4DBF,U+4E00-9FFF,U+F900-FAFF,U+FF00-FFEF;}
 :root{
   --ink:#0b1220; --ink-2:#0f1729; --panel:#131e35; --navy:#182a48; --line:#26344f;
   --signal:#d81e2a; --paid:#22a86a; --owed:#e09612; --info:#3b82f6; --draft:#7c8ba5;
   --fg:#eef2f8; --muted:#93a0b6; --dim:#5d6c85;
   --paper:#ffffff; --paper-ink:#101828; --paper-muted:#5a6478; --paper-line:#e3e8ef;
-  --display:"Avenir Next","Helvetica Neue","PingFang SC",sans-serif;
-  --narrow:"Avenir Next Condensed","Avenir Next","PingFang SC",sans-serif;
-  --body:"Helvetica Neue",Helvetica,"PingFang SC",sans-serif;
-  --mono:"Menlo","PingFang SC",monospace;
+  --display:"TXCJK","Avenir Next","Helvetica Neue",sans-serif;
+  --narrow:"TXCJK","Avenir Next Condensed","Avenir Next",sans-serif;
+  --body:"TXCJK","Helvetica Neue",Helvetica,sans-serif;
+  --mono:"TXCJK","Menlo",monospace;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--paper)}
