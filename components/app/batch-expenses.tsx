@@ -1,16 +1,21 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ChevronDown, Paperclip, Plus } from "lucide-react";
+import { ChevronDown, Paperclip, Pencil, Plus } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import { recordExpense } from "@/lib/actions/expenses";
+import {
+  editExpense,
+  recordExpense,
+  reverseExpense,
+  voidExpense,
+} from "@/lib/actions/expenses";
 import { formatLocal, formatUsd } from "@/lib/money";
 import type { ActionResult } from "@/lib/actions/types";
-import { BATCH_COST_TYPES } from "@/lib/expenses";
+import { BATCH_COST_TYPES, EXPENSE_CLASSES } from "@/lib/expenses";
 import type { ExpenseAccount } from "@/components/app/expense-form";
 
 /**
@@ -86,6 +91,8 @@ export function BatchExpenses({
   const t = useT();
   /** Which cost the picker is showing. Defaults to the first not yet recorded. */
   const [choice, setChoice] = useState<string>("");
+  /** The row whose editor is open, if any. One at a time. */
+  const [editing, setEditing] = useState<string | null>(null);
 
   const [state, action] = useActionState<
     ActionResult<{ expenseNumber: string }>,
@@ -250,10 +257,8 @@ export function BatchExpenses({
         <>
         <ul className="max-h-40 divide-y divide-border/60 overflow-y-auto">
           {operating.map((e) => (
-            <li
-              key={e.id}
-              className="flex h-10 items-center gap-x-3 px-5 text-sm transition-colors hover:bg-muted/20"
-            >
+            <li key={e.id}>
+            <div className="group flex h-10 items-center gap-x-3 px-5 text-sm transition-colors hover:bg-muted/20">
               {/*
                 One state, marked once.
 
@@ -302,6 +307,37 @@ export function BatchExpenses({
               <span className="w-32 shrink-0 text-right font-medium tabular-nums text-destructive">
                 {shillings(tsh(e))}
               </span>
+              {/*
+                Correcting a cost, from the row it is on.
+
+                Costs are typed in a hurry by somebody who has just come back
+                from the port, so a wrong figure or a wrong description is
+                ordinary. Sending them to the central expenses register to fix
+                it means finding it again among every cost the company has ever
+                paid. The pencil is quiet until the row is hovered or the key
+                lands on it — an edit affordance on every row of a money list
+                invites edits, and most rows do not need one.
+              */}
+              {canRecord && !closed ? (
+                <button
+                  type="button"
+                  onClick={() => setEditing(editing === e.id ? null : e.id)}
+                  aria-label={`${t("Correct")} ${e.description}`}
+                  className="focus-ring shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              ) : (
+                <span aria-hidden className="w-[26px] shrink-0" />
+              )}
+            </div>
+            {editing === e.id ? (
+              <ExpenseEditor
+                  row={e}
+                  batchId={batchId}
+                  onDone={() => setEditing(null)}
+                />
+            ) : null}
             </li>
           ))}
         </ul>
@@ -444,5 +480,165 @@ export function BatchExpenses({
       ) : null}
       </div>
     </section>
+  );
+}
+
+/**
+ * Correcting one cost, in the row it is on.
+ *
+ * Two different repairs, because they are two different facts.
+ *
+ * A cost that has not been paid has no ledger line and no account balance
+ * standing on it, so a wrong figure is just a wrong figure: it is corrected,
+ * with a reason, and the change is kept as history. A cost whose money has
+ * already left an account cannot have its amount edited at all — the account
+ * would disagree with the ledger and nothing would say why. That one is
+ * REVERSED: the row stays, its ledger line stays, and an opposite line is
+ * written against it. The server enforces both; the form only reflects them.
+ */
+function ExpenseEditor({
+  row,
+  batchId,
+  onDone,
+}: {
+  row: BatchExpenseRow;
+  batchId: string;
+  onDone: () => void;
+}) {
+  const t = useT();
+  const paid = row.status === "PAID";
+
+  const [editState, edit] = useActionState<
+    ActionResult<{ expenseNumber: string }>,
+    FormData
+  >(editExpense, { ok: true });
+  /* Two actions with different result shapes; the form only needs the error. */
+  const [killState, kill] = useActionState<ActionResult<unknown>, FormData>(
+    paid
+      ? (reverseExpense as unknown as (
+          prev: ActionResult<unknown>,
+          data: FormData
+        ) => Promise<ActionResult<unknown>>)
+      : (voidExpense as unknown as (
+          prev: ActionResult<unknown>,
+          data: FormData
+        ) => Promise<ActionResult<unknown>>),
+    { ok: true }
+  );
+
+  return (
+    <div className="border-t bg-muted/25 px-5 py-3">
+      <form action={edit} className="flex flex-wrap items-end gap-2">
+        <input type="hidden" name="expenseId" value={row.id} />
+        {/* Unchanged fields still have to be posted: the action compares the
+            whole record and writes down only what actually moved. */}
+        <input type="hidden" name="category" value={row.category} />
+        <input
+          type="hidden"
+          name="expenseClass"
+          value={
+            EXPENSE_CLASSES.includes(row.expenseClass as (typeof EXPENSE_CLASSES)[number])
+              ? row.expenseClass
+              : "OPERATING"
+          }
+        />
+        <input type="hidden" name="incurredAt" value={row.incurredAt} />
+        {/*
+          Every field the action compares has to be posted, including the ones
+          this form does not show.
+
+          The action reads the whole record and writes down whatever moved, so
+          a field left out of the body arrives as empty and is saved as empty.
+          Leaving these three off detached the cost from its flight and wiped
+          the vendor the first time anybody corrected a typo — caught by the
+          change history, which recorded "Dispatch → null" in plain sight.
+        */}
+        <input type="hidden" name="batchId" value={batchId} />
+        <input type="hidden" name="vendor" value={row.vendor ?? ""} />
+        <input type="hidden" name="note" value={row.note ?? ""} />
+
+        <label className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="text-[11px] text-muted-foreground">{t("What it was")}</span>
+          <Input
+            name="description"
+            defaultValue={row.description}
+            required
+            minLength={3}
+            className="h-9 bg-card text-sm"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-muted-foreground">
+            {paid ? t("Amount (paid — reverse to change)") : t("Amount")}
+          </span>
+          <Input
+            name="amount"
+            inputMode="numeric"
+            defaultValue={String(row.amount)}
+            disabled={paid}
+            className="h-9 w-32 bg-card text-sm tabular-nums disabled:opacity-60"
+          />
+        </label>
+
+        <label className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="text-[11px] text-muted-foreground">
+            {t("Why is it being corrected")}
+          </span>
+          <Input
+            name="reason"
+            required
+            minLength={3}
+            placeholder={t("Typed the wrong figure")}
+            className="h-9 bg-card text-sm"
+          />
+        </label>
+
+        <SubmitButton
+          variant="ghost"
+          className="h-9 border border-brand/35 bg-brand/10 px-3 text-brand hover:bg-brand/20 hover:text-brand"
+          pendingLabel={t("Saving…")}
+        >
+          {t("Save")}
+        </SubmitButton>
+        <button
+          type="button"
+          onClick={onDone}
+          className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
+        >
+          {t("Cancel")}
+        </button>
+      </form>
+      <FormError state={editState} />
+
+      {/* Taking it back out. A cost that never happened is cancelled; one whose
+          money moved is reversed, and the difference is not the user's to
+          remember — the row already knows which it is. */}
+      <form action={kill} className="mt-2 flex flex-wrap items-end gap-2">
+        <input type="hidden" name="expenseId" value={row.id} />
+        <label className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="text-[11px] text-muted-foreground">
+            {paid
+              ? t("Reverse this cost — an opposite entry, so the account balance comes back")
+              : t("Cancel this cost — it should never have been recorded")}
+          </span>
+          <Input
+            name="reason"
+            required
+            minLength={3}
+            placeholder={t("Why")}
+            className="h-9 bg-card text-sm"
+          />
+        </label>
+        <SubmitButton
+          variant="ghost"
+          className="h-9 border border-destructive/35 bg-destructive/10 px-3 text-destructive hover:bg-destructive/20 hover:text-destructive"
+          pendingLabel={t("Working…")}
+        >
+          {paid ? t("Reverse") : t("Cancel this cost")}
+        </SubmitButton>
+      </form>
+      <FormError state={killState} />
+    </div>
   );
 }

@@ -1378,7 +1378,12 @@ export async function verifyBatchAll(
 */
 
 /** What the close did, so the screen can say it rather than just reload. */
-type CloseOutcome = { kind: string; writtenOff: number; kept: number };
+type CloseOutcome = {
+  kind: string;
+  writtenOff: number;
+  kept: number;
+  carried: number;
+};
 
 export async function closeBatch(
   _prev: ActionResult<CloseOutcome> | undefined,
@@ -1402,6 +1407,10 @@ export async function closeBatch(
   const writeOff = new Set(
     formData.getAll("writeOff").map((value) => String(value))
   );
+  /* Cargo moving to a flight whose books are still open, so the chase can
+     carry on somewhere it is allowed to. */
+  const carry = new Set(formData.getAll("carry").map((value) => String(value)));
+  const carryTo = String(formData.get("carryTo") ?? "");
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -1444,8 +1453,58 @@ export async function closeBatch(
         );
       }
 
-      const chosen = owing.unpaid.filter((row) => writeOff.has(row.invoiceId));
-      const kept = owing.unpaid.filter((row) => !writeOff.has(row.invoiceId));
+      const moving = owing.unpaid.filter((row) => carry.has(row.invoiceId));
+      const chosen = owing.unpaid.filter(
+        (row) => writeOff.has(row.invoiceId) && !carry.has(row.invoiceId)
+      );
+      const kept = owing.unpaid.filter(
+        (row) => !writeOff.has(row.invoiceId) && !carry.has(row.invoiceId)
+      );
+
+      /*
+        Move the cargo, and say where it came from.
+
+        The piece keeps its identity, its bill and its debt — nothing about the
+        customer's side changes. What changes is which flight is carrying it,
+        and the receiving batch is told this piece did not fly in with it, so
+        its weight, its count and its revenue are not quietly credited to a
+        flight that never carried it.
+      */
+      let target: {
+        id: string;
+        batchNumber: string;
+        closedAt: Date | null;
+        permanent: boolean;
+      } | null = null;
+      if (moving.length > 0) {
+        if (!carryTo) {
+          throw new Error(t(locale, "Choose the batch this cargo is moving to."));
+        }
+        if (carryTo === batchId) {
+          throw new Error(
+            t(locale, "Cargo cannot be carried onto the batch it is already on.")
+          );
+        }
+        target = await tx.batch.findUnique({
+          where: { id: carryTo },
+          select: { id: true, batchNumber: true, closedAt: true, permanent: true },
+        });
+        if (!target) throw new Error(t(locale, "That batch no longer exists."));
+        if (target.closedAt) {
+          throw new Error(
+            t(locale, "That batch is closed too. Carry the cargo somewhere still open.")
+          );
+        }
+
+        await tx.shipment.updateMany({
+          where: { id: { in: moving.map((row) => row.shipmentId) } },
+          data: {
+            batchId: target.id,
+            carriedFromBatchId: batch.id,
+            carriedAt: new Date(),
+          },
+        });
+      }
 
       if (chosen.length > 0) {
         await tx.invoice.updateMany({
@@ -1465,14 +1524,18 @@ export async function closeBatch(
         it really made. A kept debt does not: it is still owed, still chaseable,
         and still counted — closing the flight is not forgiving it.
       */
+      const decisions = [chosen.length > 0, kept.length > 0, moving.length > 0]
+        .filter(Boolean).length;
       const kind =
         owing.unpaid.length === 0
           ? "SETTLED"
-          : chosen.length > 0 && kept.length > 0
+          : decisions > 1
             ? "MIXED"
-            : chosen.length > 0
-              ? "WRITTEN_OFF"
-              : "DEBT_KEPT";
+            : moving.length > 0
+              ? "CARRIED_OVER"
+              : chosen.length > 0
+                ? "WRITTEN_OFF"
+                : "DEBT_KEPT";
 
       await tx.batch.update({
         where: { id: batchId },
@@ -1498,7 +1561,11 @@ export async function closeBatch(
             chosen.length
               ? ` — wrote off USD ${writtenOffUsd.toFixed(2)} on ${chosen.length} consignment(s)`
               : ""
-          }${kept.length ? ` — USD ${keptUsd.toFixed(2)} still being chased` : ""}`,
+          }${kept.length ? ` — USD ${keptUsd.toFixed(2)} still being chased` : ""}${
+            moving.length && target
+              ? ` — carried ${moving.length} consignment(s) to ${target.batchNumber}`
+              : ""
+          }`,
           metadata: {
             kind,
             note: note || null,
@@ -1510,16 +1577,27 @@ export async function closeBatch(
               trackingNumber: row.trackingNumber,
               owedUsd: row.owedUsd,
             })),
+            carriedTo: target?.batchNumber ?? null,
+            carried: moving.map((row) => ({
+              trackingNumber: row.trackingNumber,
+              owedUsd: row.owedUsd,
+            })),
           },
         },
         tx
       );
 
-      return { kind, writtenOff: chosen.length, kept: kept.length };
+      return {
+        kind,
+        writtenOff: chosen.length,
+        kept: kept.length,
+        carried: moving.length,
+      };
     });
 
     revalidatePath(`/app/shipments/${batchId}`);
     revalidatePath("/app/shipments");
+    if (carryTo) revalidatePath(`/app/shipments/${carryTo}`);
     return ok(result);
   } catch (error) {
     return fail(toActionError(error));

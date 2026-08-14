@@ -99,6 +99,9 @@ enum BatchCloseKind {
   WRITTEN_OFF
   /// Both: some debts kept alive, others written off.
   MIXED
+  /// The unpaid cargo was moved onto a live flight so the chase could carry on
+  /// somewhere the books are still open.
+  CARRIED_OVER
 }
 
 enum Origin {
@@ -489,6 +492,9 @@ model Batch {
   updatedAt DateTime @updatedAt
 
   shipments     Shipment[]
+  /// Cargo that arrived here from a flight whose books were shut while it was
+  /// still unpaid. It is on this batch to be chased, not because it flew here.
+  carriedIn     Shipment[]          @relation("ShipmentCarriedFrom")
   verifications BatchVerification[]
   /// What this flight cost. Revenue per dispatch was always derivable; this
   /// is the other half, and the two together are profit per flight.
@@ -507,6 +513,19 @@ model Batch {
 
 model Shipment {
   id String @id @default(cuid())
+
+  /**
+   * Where this piece was before its old flight closed.
+   * A batch cannot stay open forever waiting on one customer, and giving up on
+   * the debt is not the only alternative: the cargo moves to a flight whose
+   * books are still open and the chase carries on there. Which means the
+   * receiving batch has to be able to say this piece did not fly in with it —
+   * otherwise its weight, its count and its revenue quietly belong to a flight
+   * that never carried it.
+   */
+  carriedFromBatchId String?
+  carriedFromBatch   Batch?    @relation("ShipmentCarriedFrom", fields: [carriedFromBatchId], references: [id], onDelete: SetNull)
+  carriedAt          DateTime?
 
   /// Public identity. Printed on the label, quoted to the customer.
   trackingNumber String @unique // TX-000123

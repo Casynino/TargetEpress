@@ -175,6 +175,39 @@ export default async function ShipmentPage({
   const owing = canClose ? await batchOwing(dispatch.id) : null;
 
   /*
+    Where unpaid cargo could go instead of being given up on.
+
+    Any flight whose books are still open, this one excluded — a debt has to
+    land somewhere it can still be chased. The loading tables are excluded too:
+    they hold cargo that has not left China, and a Dar debt does not belong on
+    one.
+  */
+  const carryTargets = canClose
+    ? await prisma.batch.findMany({
+        where: {
+          permanent: false,
+          closedAt: null,
+          id: { not: dispatch.id },
+          status: { in: ["IN_TRANSIT", "ARRIVED", "VERIFIED"] },
+        },
+        orderBy: [{ departureDate: "desc" }, { createdAt: "desc" }],
+        take: 20,
+        select: { id: true, batchNumber: true },
+      })
+    : [];
+
+  /* Cargo sitting on THIS batch that flew on a different one. */
+  const carriedIn = canClose
+    ? await prisma.shipment.findMany({
+        where: { batchId: dispatch.id, carriedFromBatchId: { not: null }, deletedAt: null },
+        select: {
+          trackingNumber: true,
+          carriedFromBatch: { select: { batchNumber: true } },
+        },
+      })
+    : [];
+
+  /*
     What this flight cost, fetched on the same permission as what it earned.
 
     Costs are read here rather than on the central expenses list because this
@@ -408,6 +441,11 @@ export default async function ShipmentPage({
             drafts: owing.drafts,
             unbilled: owing.unbilled,
             rate: finance?.rate ?? null,
+            carryTargets,
+            carriedIn: carriedIn.map((row) => ({
+              trackingNumber: row.trackingNumber,
+              fromBatchNumber: row.carriedFromBatch?.batchNumber ?? "—",
+            })),
           }}
         />
       ) : null}

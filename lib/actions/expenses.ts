@@ -523,6 +523,22 @@ const editSchema = z.object({
   vendor: z.string().trim().optional(),
   note: z.string().trim().optional(),
   batchId: z.string().trim().optional(),
+  /**
+   * A figure typed wrong, corrected — but only while the money has not moved.
+   *
+   * The commonest mistake by a distance is a digit: 300,000 for 30,000. Until
+   * a cost is paid there is no ledger line and no account balance depending on
+   * it, so the figure is just a figure and correcting it is honest. Once money
+   * has left an account the amount is frozen here and the only correct answer
+   * is a reversal, which is enforced in the action rather than by hiding the
+   * box.
+   */
+  amount: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? Number(v.replace(/,/g, "")) : null))
+    .refine((n) => n === null || (Number.isFinite(n) && n > 0), "That amount is not a number."),
   incurredAt: z
     .string()
     .trim()
@@ -536,6 +552,7 @@ const editSchema = z.object({
 
 /** Human labels, so the history reads as English rather than as column names. */
 const FIELD_LABELS: Record<string, string> = {
+  amount: "Amount",
   category: "Category",
   expenseClass: "Counts towards profit",
   description: "Description",
@@ -597,7 +614,11 @@ export async function editExpense(
           note: true,
           batchId: true,
           incurredAt: true,
+          amount: true,
+          currency: true,
+          exchangeRate: true,
           batch: { select: { batchNumber: true } },
+          ledgerEntry: { select: { id: true } },
         },
       });
       if (!before) throw new Error(t(locale, "That cost no longer exists."));
@@ -607,6 +628,23 @@ export async function editExpense(
         );
       }
 
+      /*
+        The figure moves only while no money has.
+
+        A ledger line means an account balance is standing on this amount.
+        Changing it here would leave the two disagreeing with nothing to say
+        why — which is the exact failure a ledger exists to prevent. Reversal
+        is the answer there, and it is one click away in the same row.
+      */
+      const amountChanged =
+        input.amount !== null && input.amount !== toNumber(before.amount);
+      if (amountChanged && before.ledgerEntry) {
+        throw new Error(
+          `${before.expenseNumber} ${t(locale, "has already been paid, so its amount cannot be edited. Reverse it and record it again.")}`
+        );
+      }
+
+      const rate = toNumber(before.exchangeRate ?? 0) || null;
       const after = {
         category: input.category,
         expenseClass: input.expenseClass,
@@ -615,6 +653,21 @@ export async function editExpense(
         note: input.note || null,
         batchId: input.batchId || null,
         incurredAt: input.incurredAt ?? before.incurredAt,
+        ...(amountChanged
+          ? {
+              amount: new Prisma.Decimal(input.amount!),
+              // The dollar value follows the shillings at the rate this cost
+              // was booked at, not today's — a correction to a typo must not
+              // quietly revalue a cost into a different month's exchange rate.
+              amountUsd: new Prisma.Decimal(
+                before.currency === "USD"
+                  ? input.amount!
+                  : rate
+                    ? input.amount! / rate
+                    : 0
+              ),
+            }
+          : {}),
       };
 
       // Only what actually moved. A "correction" that changed nothing should
@@ -623,6 +676,8 @@ export async function editExpense(
       const show = (key: string, value: unknown) => {
         if (value === null || value === undefined || value === "") return null;
         if (value instanceof Date) return value.toISOString().slice(0, 10);
+        // Decimal prints as an object unless it is asked for a number.
+        if (key === "amount") return toNumber(value as never).toLocaleString();
         return String(value);
       };
       for (const key of Object.keys(FIELD_LABELS)) {
