@@ -25,6 +25,13 @@ export function financeTabs(role: Role): FinanceTab[] {
       visible: can(role, "accounting.view"),
     },
     {
+      // Straight after Overview, because it is the sheet the department is
+      // actually run on: what landed, what it cost, what has been collected.
+      href: "/app/finance/income",
+      label: "Income",
+      visible: can(role, "accounting.view"),
+    },
+    {
       href: "/app/finance/accounts",
       label: "Accounts",
       visible: can(role, "account.view"),

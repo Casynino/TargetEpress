@@ -460,6 +460,22 @@ model Batch {
 
   notes String?
 
+  /**
+   * What a kilo costs to move, and what it costs to clear.
+   * Finance has always run the flight on these two numbers on paper: the
+   * airline's charge per kilo and the customs charge per kilo. Everything the
+   * boss reads follows from them — freight plus customs is what has to be paid
+   * back, the selling rate minus the two is the margin on every kilo, and the
+   * two multiplied by the weight is the whole flight's cost before a single
+   * local expense.
+   * Stored per batch because they are negotiated per flight: Guangzhou at 8 and
+   * Hong Kong at 9.5 on the same week's sheet. Null until Finance enters them,
+   * and every figure derived from them stays blank rather than reading as zero
+   * profit.
+   */
+  freightRatePerKg Decimal? @db.Decimal(10, 2)
+  customsRatePerKg Decimal? @db.Decimal(10, 2)
+
   /// Optional capacity. When a limit is set and reached, the batch flips to
   /// FULL and the next shipment opens a fresh one — so a pallet never quietly
   /// grows past what the airline will take.
