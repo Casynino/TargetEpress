@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Paperclip, Plus } from "lucide-react";
+import { ChevronDown, Paperclip, Plus } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
@@ -12,6 +12,16 @@ import { formatLocal, formatUsd } from "@/lib/money";
 import type { ActionResult } from "@/lib/actions/types";
 import { BATCH_COST_TYPES } from "@/lib/expenses";
 import type { ExpenseAccount } from "@/components/app/expense-form";
+
+/**
+ * How many expenses the panel shows before it starts scrolling.
+ *
+ * Four, matching the attention panel on the Finance dashboard, which is the
+ * screen this desk spends its day on. The number is here rather than inline
+ * because the box height below is cut to exactly this many rows and the two
+ * have to move together.
+ */
+const VISIBLE_ROWS = 4;
 
 export type BatchExpenseRow = {
   id: string;
@@ -140,6 +150,9 @@ export function BatchExpenses({
   const share = (row: BatchExpenseRow) =>
     totalTsh > 0 ? ((tsh(row) ?? 0) / totalTsh) * 100 : 0;
 
+  /** What the box cannot show. Four rows at 40px, cut to the row. */
+  const hiddenRows = Math.max(0, operating.length - VISIBLE_ROWS);
+
   return (
     <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b px-5 py-4">
@@ -206,19 +219,40 @@ export function BatchExpenses({
           figures line up down the page, and figures that do not line up
           cannot be compared.
 
-          And bounded. Nothing stops a batch collecting twenty costs, and a
-          panel that simply grows pushes the cargo table off the screen for
-          everybody who did not come here about money. The list keeps its own
-          height and scrolls inside itself; the total in the header is always
+          And bounded, the same way the attention panel on the dashboard is
+          bounded: four rows, then scroll, and a line at the foot that says so
+          out loud. Nothing stops a batch collecting twenty costs, and a panel
+          that simply grows pushes the cargo table off the screen for everybody
+          who did not come here about money. The total in the header is always
           the total, whether or not the last line is on screen.
+
+          Rows are a fixed h-10 so the box can be cut to exactly four of them:
+          border-box sizing puts the divider inside the 40px, so four rows are
+          160px and max-h-40 lands on the seam. A half-row peeking out of a
+          scroll area is how a list ends up looking broken rather than
+          continued.
         */
-        <div className="relative">
-        <ul className="max-h-80 divide-y divide-border/60 overflow-y-auto">
+        <>
+        <ul className="max-h-40 divide-y divide-border/60 overflow-y-auto">
           {operating.map((e) => (
             <li
               key={e.id}
-              className="flex items-baseline gap-x-3 px-5 py-2 text-sm transition-colors hover:bg-muted/20"
+              className="flex h-10 items-center gap-x-3 px-5 text-sm transition-colors hover:bg-muted/20"
             >
+              {/*
+                One state, marked once.
+
+                Paid or not is the only thing about an expense that can be
+                wrong, and it is what somebody scans this list for. The rail
+                makes it findable down the left edge; the words stay, because
+                a colour on its own is not a fact anybody can read.
+              */}
+              <span
+                aria-hidden
+                className={`h-5 w-0.5 shrink-0 rounded-full ${
+                  e.accountName ? "bg-border" : "bg-warning"
+                }`}
+              />
               <span className="flex min-w-0 flex-1 items-baseline gap-2">
                 <span className="truncate font-medium">{e.description}</span>
                 {/* Where the money left from, or that it has not yet. */}
@@ -256,20 +290,17 @@ export function BatchExpenses({
             </li>
           ))}
         </ul>
-        {/*
-          A clipped row is the honest signal that the list continues, but a
-          hard edge reads as a rendering fault. The last visible line fades
-          instead. Row height is fixed, so ten is the count at which the box
-          overflows — no measuring, and if it is out by one the fade simply
-          sits at the foot of a full list, where it costs nothing.
-        */}
-        {operating.length > 9 ? (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent"
-          />
+        {/* Said out loud, because a scroll area with no edge showing looks
+            like the whole list. Worded and built exactly as the dashboard's
+            attention panel, so a bounded list means the same thing on both
+            screens rather than being a trick this one page plays. */}
+        {hiddenRows > 0 ? (
+          <p className="flex items-center justify-center gap-1.5 border-t px-4 py-1.5 text-xs text-muted-foreground">
+            <ChevronDown className="h-3 w-3" />
+            {t("scroll for")} {hiddenRows} {t("more")}
+          </p>
         ) : null}
-        </div>
+        </>
       )}
 
       {/* Paid, recorded, and deliberately outside the total above. */}
