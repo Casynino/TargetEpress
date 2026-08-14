@@ -24,7 +24,8 @@
     "verify:batching": "tsx --conditions=react-server prisma/verify-batching.ts",
     "verify:packages": "tsx --conditions=react-server prisma/verify-packages.ts",
     "verify:tracking": "tsx --conditions=react-server prisma/verify-tracking-hold.ts",
-    "verify:investigations": "tsx --conditions=react-server prisma/verify-investigations.ts"
+    "verify:investigations": "tsx --conditions=react-server prisma/verify-investigations.ts",
+    "finance:check": "tsx --conditions=react-server scripts/finance-check.mts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
