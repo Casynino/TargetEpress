@@ -43,6 +43,7 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
     netProfitUsd,
     marginPct,
     atALoss,
+    unreachable,
   } = finance;
 
   return (
@@ -149,6 +150,12 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
             </span>
           ) : null}
         </span>
+        {/* Outstanding money you cannot ring anybody about. */}
+        {unreachable > 0 ? (
+          <span className="text-warning">
+            {unreachable} {t(locale, "with no phone number to chase")}
+          </span>
+        ) : null}
         {rate !== null ? (
           <span className="ml-auto">1 USD = {rate.toLocaleString()} TSh</span>
         ) : (

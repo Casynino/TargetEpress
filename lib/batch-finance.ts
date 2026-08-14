@@ -101,8 +101,18 @@ export type BatchFinance = {
   marginPct: number | null;
   /** The same sum against expected revenue — a forecast, and labelled as one. */
   expectedProfitUsd: number;
-  /** True when this flight has cost more than it has billed. */
+  /** True when this batch has cost more than it has billed. */
   atALoss: boolean;
+
+  /**
+   * Cargo on this batch whose customer has no phone number.
+   *
+   * A finance figure, not a warehouse one: an outstanding balance you cannot
+   * ring anybody about is the hardest kind to collect. The packing-list
+   * importer already counted these once and wrote the number into a note, where
+   * it went stale the moment somebody added a phone. Counted live instead.
+   */
+  unreachable: number;
 };
 
 export async function batchFinance(
@@ -234,6 +244,10 @@ export async function batchFinance(
     recorded, so a shilling cost and a dollar cost can be added together
     without re-converting history every time this page is opened.
   */
+  const unreachable = await prisma.shipment.count({
+    where: { batchId, deletedAt: null, customer: { phone: null } },
+  });
+
   const costs = await prisma.expense.findMany({
     where: {
       batchId,
@@ -281,5 +295,6 @@ export async function batchFinance(
     marginPct: billedUsd > 0 ? (netProfitUsd / billedUsd) * 100 : null,
     expectedProfitUsd: expectedUsd - expensesUsd,
     atALoss: netProfitUsd < 0,
+    unreachable,
   };
 }

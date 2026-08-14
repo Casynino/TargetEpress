@@ -398,12 +398,6 @@ export default async function ShipmentPage({
       ) : null}
 
 
-      {dispatch.notes ? (
-        <p className="mb-6 rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-          {dispatch.notes}
-        </p>
-      ) : null}
-
       <ShipmentDetailTabs
         showPrice={finance !== null}
         canEditPrice={can(user.role, "invoice.edit")}

@@ -20,6 +20,9 @@ import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format
 import { cargoLabel } from "@/lib/cargo";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { batchFinance } from "@/lib/batch-finance";
+import { formatLocal, formatUsd } from "@/lib/money";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
@@ -38,7 +41,10 @@ export default async function ManifestPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePermission("batch.view");
+  // The warehouse prints this to check cargo off, so the page itself is a
+  // batch.view page. The money on it is not — gated separately below, exactly
+  // as it is on the batch screen.
+  const user = await requirePermission("batch.view");
   const locale = await viewerLocale();
   const { id } = await params;
 
@@ -66,6 +72,17 @@ export default async function ManifestPage({
   });
 
   if (!batch) notFound();
+
+
+  // Same gate as the batch screen: the desk that checks cargo off does not
+
+  // need what it is worth, and a figure never fetched cannot leak.
+
+  const finance = can(user.role, "finance.view")
+
+    ? await batchFinance(batch.id, locale)
+
+    : null;
 
   const totalWeight = batch.shipments.reduce(
     (sum, s) => sum + toNumber(s.weightKg),
@@ -172,6 +189,78 @@ export default async function ManifestPage({
             </div>
           ))}
         </dl>
+
+        {/*
+          The batch's money, for whoever may see money.
+
+          Finance reads this sheet to reconcile a batch, and having to hold the
+          manifest in one window and the figures in another is how a number gets
+          copied down wrong. Printed with the rest, so a signed-off manifest
+          carries what the batch was worth on the day it was checked.
+        */}
+        {finance ? (
+          <>
+            <div className="mt-6 h-px bg-black/15" />
+            <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-black/55">
+              {t(locale, "Financial position")}
+            </p>
+            <dl className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+              {[
+                {
+                  label: "Expected revenue",
+                  tsh: finance.rate ? finance.billedUsd * finance.rate : null,
+                  usd: finance.billedUsd,
+                },
+                {
+                  label: "Collected",
+                  tsh: finance.rate ? finance.receivedUsd * finance.rate : null,
+                  usd: finance.receivedUsd,
+                },
+                {
+                  label: "Outstanding",
+                  tsh: finance.rate ? finance.outstandingUsd * finance.rate : null,
+                  usd: finance.outstandingUsd,
+                },
+                {
+                  label: "Expenses",
+                  tsh: finance.expensesTzs,
+                  usd: finance.expensesUsd,
+                },
+                {
+                  label: finance.atALoss ? "Expected loss" : "Expected profit",
+                  tsh: finance.rate
+                    ? Math.abs(finance.netProfitUsd) * finance.rate
+                    : null,
+                  usd: Math.abs(finance.netProfitUsd),
+                },
+                {
+                  label: "Expected margin",
+                  text:
+                    finance.marginPct === null
+                      ? "—"
+                      : `${Math.round(finance.marginPct)}%`,
+                },
+              ].map((cell) => (
+                <div key={cell.label}>
+                  <dt className="text-xs font-semibold uppercase tracking-widest text-black/55">
+                    {t(locale, cell.label)}
+                  </dt>
+                  <dd className="mt-0.5 font-mono text-xs font-bold tabular">
+                    {cell.text ??
+                      (cell.tsh === null || cell.tsh === undefined
+                        ? formatUsd(cell.usd!)
+                        : formatLocal(cell.tsh))}
+                  </dd>
+                  {cell.text === undefined ? (
+                    <dd className="font-mono text-[11px] tabular text-black/55">
+                      {formatUsd(cell.usd!)}
+                    </dd>
+                  ) : null}
+                </div>
+              ))}
+            </dl>
+          </>
+        ) : null}
 
         <table className="mt-7 w-full border-collapse text-xs">
           <thead>
