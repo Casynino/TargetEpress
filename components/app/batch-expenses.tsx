@@ -154,7 +154,17 @@ export function BatchExpenses({
   const hiddenRows = Math.max(0, operating.length - VISIBLE_ROWS);
 
   return (
-    <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">
+    /*
+      Money out, and the panel says so before you have read a word.
+
+      Every other card on this page is neutral card stock. This one carries a
+      faint red wash and a red hairline, so the block of the page that is
+      spending is separable from the block that is earning at a glance — the
+      tint is 4%, which is enough to tell two surfaces apart and not enough to
+      make a warning out of an ordinary clearing bill.
+    */
+    <section className="mb-6 overflow-hidden rounded-xl border border-destructive/25 bg-card shadow-soft">
+      <div className="bg-destructive/[0.04]">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b px-5 py-4">
         <div>
           <h2 className="font-display font-semibold">
@@ -187,7 +197,9 @@ export function BatchExpenses({
           ) : null}
         </div>
         <div className="text-right">
-          <p className="font-display text-xl font-bold tabular-nums">
+          {/* Red, because it is money that has gone. Same rule as the row
+              figures and as the Expenses tile in the band above. */}
+          <p className="font-display text-xl font-bold tabular-nums text-destructive">
             {shillings(totalTsh)}
           </p>
           <p className="text-xs tabular-nums text-muted-foreground">
@@ -284,7 +296,7 @@ export function BatchExpenses({
               <span className="hidden w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground sm:block">
                 {Math.round(share(e))}%
               </span>
-              <span className="w-32 shrink-0 text-right font-medium tabular-nums">
+              <span className="w-32 shrink-0 text-right font-medium tabular-nums text-destructive">
                 {shillings(tsh(e))}
               </span>
             </li>
@@ -421,6 +433,7 @@ export function BatchExpenses({
           <FormError state={state} />
         </form>
       ) : null}
+      </div>
     </section>
   );
 }

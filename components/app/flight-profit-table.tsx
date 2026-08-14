@@ -113,7 +113,10 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
                   >
                     {formatUsd(f.outstanding)}
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
+                  {/* Money out, in the same red as everywhere else it is
+                      shown. A cost set in grey on the one screen that compares
+                      batches is the column a reader skips. */}
+                  <td className="px-3 py-2.5 text-right tabular-nums text-destructive">
                     {formatUsd(f.costs)}
                   </td>
                   {/* Green is reserved for money in the bank, which on this

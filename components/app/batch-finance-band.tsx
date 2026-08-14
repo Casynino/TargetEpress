@@ -71,12 +71,13 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
         anybody has paid for it.
 
         Colour follows the same rule as the words. Green marks money the
-        business is actually holding, and that is Collected alone; red marks
-        money that is missing or a batch that has gone under. An expected
-        profit printed in the same green as a bank balance is the figure
-        arguing for itself — so it is set in plain type like every other
-        expectation, and only turns red when the answer is a loss, which is
-        worth interrupting somebody for even before it is certain.
+        business is actually holding, and that is Collected alone. Red marks
+        money that is against you: gone (Expenses), not arrived (Outstanding),
+        or a batch that has turned over (a loss). An expected profit printed
+        in the same green as a bank balance is the figure arguing for itself —
+        so it is set in plain type like every other expectation, and only
+        turns red when the answer is a loss, which is worth interrupting
+        somebody for even before it is certain.
       */}
       <dl className="grid grid-cols-2 gap-px border-b bg-border sm:grid-cols-3 lg:grid-cols-6">
         {[
@@ -87,7 +88,12 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
             usd: outstandingUsd,
             tone: outstandingUsd > 0 ? "text-destructive" : "",
           },
-          { k: t(locale, "Expenses"), usd: expensesUsd, tsh: expensesTzs, tone: "" },
+          {
+            k: t(locale, "Expenses"),
+            usd: expensesUsd,
+            tsh: expensesTzs,
+            tone: "text-destructive",
+          },
           {
             k: atALoss ? t(locale, "Expected loss") : t(locale, "Expected profit"),
             usd: Math.abs(netProfitUsd),
