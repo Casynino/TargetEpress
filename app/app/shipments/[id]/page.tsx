@@ -10,6 +10,7 @@ import {
   type DocumentEntry,
   type TimelineEntry,
 } from "@/components/app/shipment-detail-tabs";
+import { BatchExpenses } from "@/components/app/batch-expenses";
 import { BatchFinanceBand } from "@/components/app/batch-finance-band";
 import { ConfirmPricesBanner } from "@/components/app/confirm-prices-banner";
 import { BatchStatusBadge } from "@/components/app/status-badge";
@@ -22,6 +23,11 @@ import {
 } from "@/lib/constants";
 import { formatDate, formatDateTime, toNumber } from "@/lib/format";
 import { batchFinance } from "@/lib/batch-finance";
+import {
+  COMMON_EXPENSES,
+  EXPENSE_APPROVAL_THRESHOLD_USD,
+} from "@/lib/expenses";
+import { currentRateValue } from "@/lib/fx";
 import { cargoLabel } from "@/lib/cargo";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -155,6 +161,81 @@ export default async function ShipmentPage({
     : null;
   const canConfirm = can(user.role, "invoice.manage");
 
+  /*
+    What this flight cost, fetched on the same permission as what it earned.
+
+    Costs are read here rather than on the central expenses list because this
+    is the page where they are known: whoever is looking at GZ/26-28 is the
+    person who just paid its clearing agent.
+  */
+  const canRecordCost = can(user.role, "expense.record");
+  const [batchCosts, costAccounts, usedMost, costRate] = finance
+    ? await Promise.all([
+        prisma.expense.findMany({
+          where: { batchId: dispatch.id },
+          orderBy: [{ incurredAt: "desc" }, { createdAt: "desc" }],
+          select: {
+            id: true,
+            expenseNumber: true,
+            category: true,
+            expenseClass: true,
+            description: true,
+            note: true,
+            vendor: true,
+            amount: true,
+            currency: true,
+            amountUsd: true,
+            status: true,
+            incurredAt: true,
+            account: { select: { name: true } },
+            recordedBy: { select: { name: true } },
+            _count: { select: { receipts: true } },
+          },
+        }),
+        canRecordCost
+          ? prisma.companyAccount.findMany({
+              where: { active: true },
+              orderBy: [{ kind: "asc" }, { name: "asc" }],
+              select: {
+                id: true,
+                name: true,
+                currency: true,
+                kind: true,
+                accountNumber: true,
+              },
+            })
+          : Promise.resolve([]),
+        canRecordCost
+          ? prisma.expense.groupBy({
+              by: ["description", "category"],
+              where: { status: { not: "VOID" } },
+              _count: true,
+              orderBy: { _count: { description: "desc" } },
+              take: 8,
+            })
+          : Promise.resolve([]),
+        canRecordCost ? currentRateValue() : Promise.resolve(null),
+      ])
+    : [[], [], [], null];
+
+  const quickCosts = (() => {
+    const seen = new Set<string>();
+    return [
+      ...usedMost.map((row) => ({
+        label: row.description,
+        category: row.category as string,
+      })),
+      ...COMMON_EXPENSES,
+    ]
+      .filter((item) => {
+        const key = item.label.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 12);
+  })();
+
   const weight = cargo.reduce((sum, line) => sum + line.weightKg, 0);
   const packages = cargo.reduce((sum, line) => sum + line.packages, 0);
   const customers = new Set(cargo.map((line) => line.customerId)).size;
@@ -252,6 +333,35 @@ export default async function ShipmentPage({
       {/* Money first, for the desks that came here to ask a money question.
           Everyone else goes straight to the cargo. */}
       {finance ? <BatchFinanceBand finance={finance} /> : null}
+
+      {finance ? (
+        <BatchExpenses
+          batchId={dispatch.id}
+          batchNumber={dispatch.batchNumber}
+          expenses={batchCosts.map((e) => ({
+            id: e.id,
+            expenseNumber: e.expenseNumber,
+            category: e.category as string,
+            expenseClass: e.expenseClass as string,
+            description: e.description,
+            note: e.note,
+            vendor: e.vendor,
+            amount: toNumber(e.amount),
+            currency: e.currency,
+            amountUsd: toNumber(e.amountUsd),
+            status: e.status as string,
+            incurredAt: e.incurredAt,
+            accountName: e.account?.name ?? null,
+            recordedBy: e.recordedBy?.name ?? null,
+            receipts: e._count.receipts,
+          }))}
+          accounts={costAccounts}
+          quick={quickCosts}
+          thresholdUsd={EXPENSE_APPROVAL_THRESHOLD_USD}
+          rate={costRate}
+          canRecord={canRecordCost}
+        />
+      ) : null}
 
       {/* Overview card — everything a manager asks standing up. */}
       <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">

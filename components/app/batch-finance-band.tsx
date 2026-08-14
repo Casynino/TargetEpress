@@ -1,4 +1,5 @@
 import {
+  Plane,
   Banknote,
   Coins,
   ReceiptText,
@@ -44,6 +45,11 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
     receivedUsd,
     outstandingUsd,
     unpriceable,
+    expensesUsd,
+    expenseCount,
+    netProfitUsd,
+    marginPct,
+    atALoss,
   } = finance;
 
   const tiles = [
@@ -123,6 +129,20 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
           : t(locale, "Nothing billed is unpaid"),
       tone: outstandingUsd > 0 ? ("danger" as const) : ("success" as const),
     },
+    {
+      icon: Plane,
+      label: t(locale, "Cost of this flight"),
+      value: formatUsd(expensesUsd),
+      // A flight with no costs recorded is not a free flight. Saying so is the
+      // difference between a profit figure and a number that merely looks like
+      // one — customs and clearing are always paid, so a zero here means
+      // nobody has written them down yet.
+      sub:
+        expenseCount > 0
+          ? `${expenseCount} ${t(locale, expenseCount === 1 ? "cost recorded" : "costs recorded")}`
+          : t(locale, "No costs recorded — profit below is not final"),
+      tone: expenseCount > 0 ? ("warning" as const) : ("signal" as const),
+    },
   ];
 
   const TONE: Record<string, string> = {
@@ -148,6 +168,46 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
         </p>
       </div>
 
+      {/*
+        The six figures, before any of the detail.
+
+        Finance should be able to tell in one glance whether this flight made
+        money. Everything below this strip explains how; this is the answer.
+      */}
+      <dl className="grid grid-cols-2 gap-px border-b bg-border sm:grid-cols-3 lg:grid-cols-6">
+        {[
+          { k: t(locale, "Revenue"), v: formatUsd(billedUsd), tone: "" },
+          { k: t(locale, "Collected"), v: formatUsd(receivedUsd), tone: "text-success" },
+          {
+            k: t(locale, "Outstanding"),
+            v: formatUsd(outstandingUsd),
+            tone: outstandingUsd > 0 ? "text-destructive" : "",
+          },
+          { k: t(locale, "Expenses"), v: formatUsd(expensesUsd), tone: "" },
+          {
+            k: atALoss ? t(locale, "Net loss") : t(locale, "Net profit"),
+            v: formatUsd(Math.abs(netProfitUsd)),
+            tone: atALoss ? "text-destructive" : "text-success",
+          },
+          {
+            k: t(locale, "Margin"),
+            // No margin rather than a zero: a flight that has billed nothing
+            // has not made 0%, it has no answer yet.
+            v: marginPct === null ? "—" : `${Math.round(marginPct)}%`,
+            tone: atALoss ? "text-destructive" : "",
+          },
+        ].map((cell) => (
+          <div key={cell.k} className="bg-card px-5 py-3">
+            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              {cell.k}
+            </dt>
+            <dd className={`mt-0.5 font-display text-base font-bold tabular-nums ${cell.tone}`}>
+              {cell.v}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
       <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
         {tiles.map((tile) => (
           <div key={tile.label} className="bg-card p-4">
@@ -161,10 +221,6 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
             <p className="mt-0.5 text-xs text-muted-foreground">{tile.sub}</p>
           </div>
         ))}
-        {/* Seven tiles into a two- or four-column grid leaves one cell empty at
-            both breakpoints, and the gap-px trick renders that as a slab of
-            border colour. This fills it with the panel. */}
-        <div className="hidden bg-card sm:block" aria-hidden />
       </dl>
 
       {estimatedUsd > 0 || unpriceable.length > 0 ? (

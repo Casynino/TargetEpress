@@ -15,6 +15,11 @@ import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { recordExpense } from "@/lib/actions/expenses";
+import {
+  EXPENSE_CLASSES,
+  EXPENSE_CLASS_LABELS,
+  EXPENSE_CLASS_HINTS,
+} from "@/lib/expenses";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import type { ActionResult } from "@/lib/actions/types";
 
@@ -53,11 +58,21 @@ export function ExpenseForm({
   thresholdUsd,
   rate,
   alwaysOpen = false,
+  fixedDispatch,
 }: {
   /** Empty means "use the shared list" — the ledger has no reason to pass it. */
   categories?: { value: string; label: string }[];
   accounts: ExpenseAccount[];
   dispatches?: ExpenseDispatch[];
+  /**
+   * Recording from inside one flight's own page.
+   *
+   * The dispatch is not a choice there — it is the thing being looked at — so
+   * it is carried rather than asked for. Offering a picker that defaults to
+   * "not one flight" on a page about one flight is how a customs charge ends
+   * up attributed to nothing and the flight reads as pure profit.
+   */
+  fixedDispatch?: ExpenseDispatch;
   /** Most-recorded first, then the seeded common costs. */
   quick: QuickExpense[];
   thresholdUsd: number;
@@ -151,6 +166,10 @@ export function ExpenseForm({
       ) : null}
 
       <form action={action} className="p-5">
+        {/* Carried, not asked for — this form is already inside the flight. */}
+        {fixedDispatch ? (
+          <input type="hidden" name="batchId" value={fixedDispatch.id} />
+        ) : null}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
           <div className="space-y-1.5 lg:col-span-4">
             <Label htmlFor="description" className="text-xs">
@@ -272,7 +291,7 @@ export function ExpenseForm({
                   placeholder={t("Who received it")}
                 />
               </div>
-              {dispatches && dispatches.length > 0 ? (
+              {!fixedDispatch && dispatches && dispatches.length > 0 ? (
                 <div className="space-y-1.5 lg:col-span-4">
                   <Label htmlFor="expenseBatch" className="text-xs">
                     {t("Against a dispatch")}
@@ -292,6 +311,32 @@ export function ExpenseForm({
                   {t("Date")}
                 </Label>
                 <Input id="incurredAt" name="incurredAt" type="date" max={TODAY} />
+              </div>
+              {/*
+                Operating or special.
+
+                Defaulted to operating because almost everything is, and put
+                behind "more" for the same reason — the one desk that needs the
+                other option knows it needs it.
+              */}
+              <div className="space-y-1.5 lg:col-span-4">
+                <Label htmlFor="expenseClass" className="text-xs">
+                  {t("Counts towards profit")}
+                </Label>
+                <NativeSelect
+                  id="expenseClass"
+                  name="expenseClass"
+                  defaultValue="OPERATING"
+                >
+                  {EXPENSE_CLASSES.map((value) => (
+                    <option key={value} value={value}>
+                      {t(EXPENSE_CLASS_LABELS[value])}
+                    </option>
+                  ))}
+                </NativeSelect>
+                <p className="text-[11px] text-muted-foreground">
+                  {t(EXPENSE_CLASS_HINTS.NON_OPERATING)}
+                </p>
               </div>
             </>
           ) : null}
