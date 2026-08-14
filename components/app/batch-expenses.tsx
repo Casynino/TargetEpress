@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Paperclip, Plus, X } from "lucide-react";
+import { Paperclip } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
@@ -33,13 +33,16 @@ export type BatchExpenseRow = {
 };
 
 /**
- * What this flight cost: the costs it has, and a line of the ones it might.
+ * What this batch cost: the costs it has, and one line to add the next.
  *
- * The first version listed all six standard costs permanently, so a flight with
- * one cost recorded spent six rows saying what had NOT happened. The owner's
- * correction: the prompt is worth keeping, six empty rows are not. The costs
- * still to record are chips on one line — a tap opens a box for the figure —
- * and a full row is spent only on a cost that exists.
+ * Adding one is a single line that is always there: pick what it was, type the
+ * shillings, say which account it left. No chips to tap first and no form to
+ * open — the fastest version of this is the one where the boxes are already in
+ * front of you, because the person doing it has just come back from the port
+ * and is entering four of them at once.
+ *
+ * The picker still lists the six that happen on every batch, so it doubles as
+ * the reminder that Zanzibar customs has not been entered yet.
  *
  * Shillings lead throughout. The office pays the clearing agent in shillings;
  * the dollar figure is what the invoice says, so it sits underneath in small
@@ -62,10 +65,8 @@ export function BatchExpenses({
   canRecord: boolean;
 }) {
   const t = useT();
-  /** Which cost is being entered: a named one, "something else", or nothing. */
-  const [adding, setAdding] = useState<
-    { label: string; category: string; free: boolean } | null
-  >(null);
+  /** Which cost the picker is showing. Defaults to the first not yet recorded. */
+  const [choice, setChoice] = useState<string>("");
 
   const [state, action] = useActionState<
     ActionResult<{ expenseNumber: string }>,
@@ -81,10 +82,22 @@ export function BatchExpenses({
   const live = expenses.filter((e) => e.status !== "VOID");
   const recorded = new Set(live.map((e) => e.description.toLowerCase()));
 
-  // Only the standard costs this flight has not had yet.
+  // Only the standard costs this batch has not had yet.
   const remaining = BATCH_COST_TYPES.filter(
     (c) => !recorded.has(c.label.toLowerCase())
   );
+
+  /*
+    The picker's current selection, resolved to what the form needs.
+
+    Falling back to the first remaining cost rather than to nothing: opening a
+    batch that still owes four entries should have the next one already chosen.
+  */
+  const current = remaining.find((c) => c.key === choice) ?? remaining[0];
+  const picked =
+    choice === "other" || !current
+      ? { label: "", category: "OTHER", free: true }
+      : { label: current.label, category: current.category, free: false };
 
   const totalTsh = live.reduce((sum, e) => sum + (tsh(e) ?? 0), 0);
   const totalUsd = live.reduce((sum, e) => sum + e.amountUsd, 0);
@@ -94,7 +107,7 @@ export function BatchExpenses({
     <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-5 py-4">
         <div>
-          <h2 className="font-display font-semibold">{t("Cost of this flight")}</h2>
+          <h2 className="font-display font-semibold">{t("Cost of this batch")}</h2>
           <p className="text-xs text-muted-foreground">
             {t("Clearing, permits and transport for")} {batchNumber}
           </p>
@@ -111,7 +124,7 @@ export function BatchExpenses({
       {live.length === 0 ? (
         <p className="px-5 pt-4 text-sm text-muted-foreground">
           {t(
-            "Nothing recorded yet, so this flight's profit has nothing taken off it."
+            "Nothing recorded yet, so this batch's profit has nothing taken off it."
           )}
         </p>
       ) : (
@@ -143,104 +156,80 @@ export function BatchExpenses({
       )}
 
       {canRecord ? (
-        <div className="border-t bg-muted/20 px-5 py-3">
-          {adding ? (
-            <form action={action} className="flex flex-wrap items-end gap-2">
-              <input type="hidden" name="batchId" value={batchId} />
-              <input type="hidden" name="currency" value="TZS" />
-              <input type="hidden" name="category" value={adding.category} />
+        <form
+          action={action}
+          className="flex flex-wrap items-end gap-2 border-t bg-muted/20 px-5 py-3"
+        >
+          <input type="hidden" name="batchId" value={batchId} />
+          <input type="hidden" name="currency" value="TZS" />
+          {/* Whatever the picker is on decides the category too. */}
+          <input type="hidden" name="category" value={picked.category} />
 
-              {/* A named cost carries its own name; only "something else" asks. */}
-              {adding.free ? (
-                <label className="flex flex-col gap-1">
-                  <span className="text-[11px] text-muted-foreground">
-                    {t("What was it for")}
-                  </span>
-                  <Input
-                    name="description"
-                    required
-                    minLength={3}
-                    autoFocus
-                    placeholder={t("Something else this flight cost")}
-                    className="h-8 w-52 text-sm"
-                  />
-                </label>
-              ) : (
-                <>
-                  <input type="hidden" name="description" value={adding.label} />
-                  <span className="mb-1.5 text-sm font-medium">
-                    {t(adding.label)}
-                  </span>
-                </>
-              )}
-
-              <label className="flex flex-col gap-1">
-                <span className="text-[11px] text-muted-foreground">
-                  {t("Amount in shillings")}
-                </span>
-                <Input
-                  name="amount"
-                  inputMode="numeric"
-                  required
-                  autoFocus={!adding.free}
-                  placeholder="0"
-                  className="h-8 w-36 text-sm"
-                />
-              </label>
-
-              <label className="flex flex-col gap-1">
-                <span className="text-[11px] text-muted-foreground">
-                  {t("Paid from")}
-                </span>
-                <NativeSelect name="accountId" defaultValue="" className="h-8 text-sm">
-                  <option value="">{t("Not paid yet")}</option>
-                  {payFrom.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </label>
-
-              <SubmitButton size="sm" variant="brand" pendingLabel={t("Saving…")}>
-                {t("Record")}
-              </SubmitButton>
-              <button
-                type="button"
-                onClick={() => setAdding(null)}
-                aria-label={t("Cancel")}
-                className="focus-ring mb-0.5 rounded p-1.5 text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              <FormError state={state} />
-            </form>
-          ) : (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-xs text-muted-foreground">{t("Add")}</span>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] text-muted-foreground">{t("Cost")}</span>
+            <NativeSelect
+              value={choice}
+              onChange={(e) => setChoice(e.target.value)}
+              className="h-8 w-56 text-sm"
+              aria-label={t("Cost")}
+            >
               {remaining.map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  onClick={() =>
-                    setAdding({ label: c.label, category: c.category, free: false })
-                  }
-                  className="focus-ring rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
+                <option key={c.key} value={c.key}>
                   {t(c.label)}
-                </button>
+                </option>
               ))}
-              <button
-                type="button"
-                onClick={() => setAdding({ label: "", category: "OTHER", free: true })}
-                className="focus-ring inline-flex items-center gap-1 rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <Plus className="h-3 w-3" />
-                {t("Something else")}
-              </button>
-            </div>
+              <option value="other">{t("Something else")}</option>
+            </NativeSelect>
+          </label>
+
+          {/* Named costs carry their own description; only "something else" asks. */}
+          {picked.free ? (
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-muted-foreground">
+                {t("What was it for")}
+              </span>
+              <Input
+                name="description"
+                required
+                minLength={3}
+                placeholder={t("What was it for")}
+                className="h-8 w-48 text-sm"
+              />
+            </label>
+          ) : (
+            <input type="hidden" name="description" value={picked.label} />
           )}
-        </div>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] text-muted-foreground">
+              {t("Amount in shillings")}
+            </span>
+            <Input
+              name="amount"
+              inputMode="numeric"
+              required
+              placeholder="0"
+              className="h-8 w-32 text-sm"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] text-muted-foreground">{t("Paid from")}</span>
+            <NativeSelect name="accountId" defaultValue="" className="h-8 text-sm">
+              <option value="">{t("Not paid yet")}</option>
+              {payFrom.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </label>
+
+          <SubmitButton size="sm" variant="brand" pendingLabel={t("Adding…")}>
+            {t("Add")}
+          </SubmitButton>
+          <FormError state={state} />
+        </form>
       ) : null}
     </section>
   );

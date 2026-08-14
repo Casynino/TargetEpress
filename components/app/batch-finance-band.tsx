@@ -1,12 +1,5 @@
 import {
-  Plane,
-  Banknote,
-  Coins,
-  ReceiptText,
-  Scale,
   TriangleAlert,
-  Users,
-  Wallet,
 } from "lucide-react";
 
 import type { BatchFinance } from "@/lib/batch-finance";
@@ -15,7 +8,7 @@ import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer";
 
 /**
- * What this flight is worth, above everything else on the page.
+ * What this batch is worth, above everything else on the page.
  *
  * The owner's rule: Finance opens a dispatch to answer a money question, so
  * the money answer comes before the cargo detail rather than after it.
@@ -53,112 +46,6 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
     atALoss,
   } = finance;
 
-  const tiles = [
-    {
-      icon: Wallet,
-      label: t(locale, "Expected revenue"),
-      value:
-        expectedTzs === null ? formatUsd(expectedUsd) : formatLocal(expectedTzs),
-      sub:
-        estimatedUsd > 0
-          ? `${formatUsd(invoicedUsd)} ${t(locale, "invoiced")} · ${formatUsd(estimatedUsd)} ${t(locale, "estimated")}`
-          : t(locale, "All of it invoiced"),
-      tone: "brand" as const,
-    },
-    {
-      icon: Coins,
-      label: t(locale, "Expected revenue (USD)"),
-      value: formatUsd(expectedUsd),
-      sub:
-        expectedTzs === null
-          ? t(locale, "No exchange rate published yet")
-          : `${t(locale, "Estimate converted at")} ${rate?.toLocaleString()}`,
-      tone: "brand" as const,
-    },
-    {
-      icon: Users,
-      label: t(locale, "Total customers"),
-      value: customers.toLocaleString(),
-      sub: `${pieces.toLocaleString()} ${t(locale, pieces === 1 ? "piece of cargo" : "pieces of cargo")}`,
-      tone: "muted" as const,
-    },
-    {
-      icon: Scale,
-      label: t(locale, "Total cargo weight"),
-      value: `${weightKg.toFixed(1)} kg`,
-      sub: t(locale, "As declared on the manifest"),
-      tone: "muted" as const,
-    },
-    {
-      icon: ReceiptText,
-      label: t(locale, "Invoices generated"),
-      value: `${invoiced}${t(locale, " of ")}${pieces}`,
-      // "Generated" and "confirmed" are different questions and the desk needs
-      // both: 86 of 87 raised, 84 of those still waiting on a signature.
-      sub:
-        drafts > 0
-          ? `${drafts} ${t(locale, "still a draft")}`
-          : invoiced === pieces
-            ? t(locale, "Every piece billed and confirmed")
-            : `${pieces - invoiced} ${t(locale, "still to bill")}`,
-      tone:
-        drafts > 0
-          ? ("signal" as const)
-          : invoiced === pieces
-            ? ("success" as const)
-            : ("warning" as const),
-    },
-    {
-      icon: Banknote,
-      label: t(locale, "Payments received"),
-      value: rate === null ? formatUsd(receivedUsd) : formatLocal(receivedUsd * rate),
-      // Against confirmed bills, not drafts. A dispatch where 84 of 86 figures
-      // are still drafts has barely billed anything, and dividing by the
-      // drafts too would report 0% of a number nobody has been asked for.
-      sub:
-        billedUsd > 0
-          ? `${Math.round((receivedUsd / billedUsd) * 100)}${t(locale, "% of what has been billed")}`
-          : t(locale, "Nothing billed yet"),
-      tone: "success" as const,
-    },
-    {
-      icon: Wallet,
-      label: t(locale, "Outstanding balance"),
-      value:
-        rate === null ? formatUsd(outstandingUsd) : formatLocal(outstandingUsd * rate),
-      sub:
-        outstandingUsd > 0
-          ? t(locale, "Billed and not yet paid")
-          : t(locale, "Nothing billed is unpaid"),
-      tone: outstandingUsd > 0 ? ("danger" as const) : ("success" as const),
-    },
-    {
-      icon: Plane,
-      label: t(locale, "Cost of this flight"),
-      // The per-row sum, so this agrees with the panel that lists them.
-      value:
-        expensesTzs === null ? formatUsd(expensesUsd) : formatLocal(expensesTzs),
-      // A flight with no costs recorded is not a free flight. Saying so is the
-      // difference between a profit figure and a number that merely looks like
-      // one — customs and clearing are always paid, so a zero here means
-      // nobody has written them down yet.
-      sub:
-        expenseCount > 0
-          ? `${expenseCount} ${t(locale, expenseCount === 1 ? "cost recorded" : "costs recorded")}`
-          : t(locale, "No costs recorded — profit below is not final"),
-      tone: expenseCount > 0 ? ("warning" as const) : ("signal" as const),
-    },
-  ];
-
-  const TONE: Record<string, string> = {
-    brand: "text-brand",
-    success: "text-success",
-    warning: "text-warning",
-    danger: "text-destructive",
-    signal: "text-signal",
-    muted: "text-muted-foreground",
-  };
-
   return (
     <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-gradient-to-br from-brand/5 to-transparent px-5 py-4">
@@ -168,7 +55,7 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
         <p className="text-xs text-muted-foreground">
           {t(
             locale,
-            "What this dispatch is worth, and how much of it has been collected"
+            "What this batch is worth, and how much of it has been collected"
           )}
         </p>
       </div>
@@ -176,7 +63,7 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
       {/*
         The six figures, before any of the detail.
 
-        Finance should be able to tell in one glance whether this flight made
+        Finance should be able to tell in one glance whether this batch made
         money. Everything below this strip explains how; this is the answer.
       */}
       <dl className="grid grid-cols-2 gap-px border-b bg-border sm:grid-cols-3 lg:grid-cols-6">
@@ -196,7 +83,7 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
           },
           {
             k: t(locale, "Margin"),
-            // No margin rather than a zero: a flight that has billed nothing
+            // No margin rather than a zero: a batch that has billed nothing
             // has not made 0%, it has no answer yet.
             percent: marginPct === null ? "—" : `${Math.round(marginPct)}%`,
             tone: atALoss ? "text-destructive" : "",
@@ -231,20 +118,44 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
         ))}
       </dl>
 
-      <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
-        {tiles.map((tile) => (
-          <div key={tile.label} className="bg-card p-4">
-            <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <tile.icon className={`h-3.5 w-3.5 ${TONE[tile.tone]}`} />
-              {tile.label}
-            </dt>
-            <dd className="mt-1 font-display text-lg font-bold tabular-nums">
-              {tile.value}
-            </dd>
-            <p className="mt-0.5 text-xs text-muted-foreground">{tile.sub}</p>
-          </div>
-        ))}
-      </dl>
+      {/*
+        One line of context, not eight tiles.
+
+        The strip above already answers revenue, collected, outstanding,
+        expenses, profit and margin. The tiles that used to sit here answered
+        four of those a second time, in a different unit, which is how a panel
+        ends up the height of a screen while saying one thing twice. What is
+        left is only what the strip cannot say.
+      */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t px-5 py-2.5 text-xs text-muted-foreground">
+        <span>
+          {pieces.toLocaleString()}{" "}
+          {t(locale, pieces === 1 ? "piece of cargo" : "pieces of cargo")}
+        </span>
+        <span>
+          {customers.toLocaleString()}{" "}
+          {t(locale, customers === 1 ? "customer" : "customers")}
+        </span>
+        <span>{weightKg.toFixed(1)} kg</span>
+        <span>
+          {invoiced} {t(locale, "of")} {pieces} {t(locale, "invoiced")}
+          {drafts > 0 ? (
+            <span className="text-signal">
+              {" "}
+              · {drafts} {t(locale, "still a draft")}
+            </span>
+          ) : null}
+        </span>
+        {rate !== null ? (
+          <span className="ml-auto">
+            1 USD = {rate.toLocaleString()} TSh
+          </span>
+        ) : (
+          <span className="ml-auto text-signal">
+            {t(locale, "No exchange rate published yet")}
+          </span>
+        )}
+      </div>
 
       {estimatedUsd > 0 || unpriceable.length > 0 ? (
         <div className="space-y-1 border-t bg-muted/30 px-5 py-3">
