@@ -25,13 +25,6 @@ export function financeTabs(role: Role): FinanceTab[] {
       visible: can(role, "accounting.view"),
     },
     {
-      // Straight after Overview, because it is the sheet the department is
-      // actually run on: what landed, what it cost, what has been collected.
-      href: "/app/finance/income",
-      label: "Income",
-      visible: can(role, "accounting.view"),
-    },
-    {
       href: "/app/finance/accounts",
       label: "Accounts",
       visible: can(role, "account.view"),
@@ -52,6 +45,20 @@ export function financeTabs(role: Role): FinanceTab[] {
       // sidebar — this is Finance's door to it, not a second copy.
       label: "Collections",
       visible: can(role, "collections.view"),
+    },
+    {
+      /*
+        With the records, not with the daily work.
+
+        It was second, on the argument that it is the sheet the department is
+        run on. It is — but only for flights that have already closed, and
+        nothing on it can be done today. The tabs ahead of it are the ones
+        somebody opens to act: where the money is, what is waiting to be
+        agreed, who has not paid. This one is read.
+      */
+      href: "/app/finance/income",
+      label: "Income",
+      visible: can(role, "accounting.view"),
     },
     {
       href: "/app/finance/transactions",
