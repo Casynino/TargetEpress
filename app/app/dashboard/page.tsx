@@ -70,6 +70,8 @@ import {
   floorSnapshot,
   type FloorSnapshot,
 } from "@/lib/floor";
+import { profitByDispatch } from "@/lib/profit";
+import { FlightProfitTable } from "@/components/app/flight-profit-table";
 import { MoneyTile } from "@/components/app/money-tile";
 import { auditSentence } from "@/lib/audit-humanise";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
@@ -1554,6 +1556,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
   const [
     stats,
     aging,
+    flights,
     ageing,
     flow,
     alerts,
@@ -1568,6 +1571,9 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
   ] = await Promise.all([
     financeStats(),
     agingInWarehouse(6),
+    // The row the business is actually run on: the company earns per dispatch,
+    // and a month-level profit figure cannot say which flight paid for itself.
+    profitByDispatch(6),
     // The two questions a single "collections by month" bar could never
     // answer: how old is what we are owed, and are we keeping any of it.
     receivablesAgeing(),
@@ -1815,6 +1821,16 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
             "Nothing is waiting on you. Every price is confirmed, every payment sits in an account, and every bill has been settled."
           )}
         />
+      </div>
+
+      {/* ---- Per flight, because that is how the company earns ---- */}
+      <div>
+        <SectionLabel
+          action={{ href: "/app/shipments", label: t(locale, "All flights") }}
+        >
+          {t(locale, "Flights · what each one made")}
+        </SectionLabel>
+        <FlightProfitTable flights={flights} />
       </div>
 
       {/* ---- The position those decisions are made against ---- */}
