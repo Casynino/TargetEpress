@@ -149,6 +149,27 @@ export async function recordExpense(
     const incurredAt = input.incurredAt ?? new Date();
 
     const expenseNumber = await prisma.$transaction(async (tx) => {
+      /*
+        A closed flight takes no more costs.
+
+        The whole point of drawing a line under a batch is that what it made
+        stops moving. A customs receipt found in somebody's bag two months
+        later is a real cost and it should be recorded — but recording it has
+        to reopen the books deliberately, with a reason, rather than silently
+        change a profit figure the owner has already read.
+      */
+      if (input.batchId) {
+        const batch = await tx.batch.findUnique({
+          where: { id: input.batchId },
+          select: { batchNumber: true, closedAt: true },
+        });
+        if (batch?.closedAt) {
+          throw new Error(
+            `${batch.batchNumber} ${t(locale, "is closed. Reopen it to add a cost.")}`
+          );
+        }
+      }
+
       let account: {
         id: string;
         name: string;

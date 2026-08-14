@@ -13,6 +13,7 @@ import {
 } from "@/lib/constants";
 import { autoPriceShipments } from "@/lib/auto-price";
 import { recordAudit } from "@/lib/audit";
+import { CLOSEABLE_FROM, batchOwing } from "@/lib/batch-close";
 import { notifyReceivingOutcome } from "@/lib/exception-audience";
 import { contributorsTo, notify } from "@/lib/notify";
 import {
@@ -1354,6 +1355,246 @@ export async function verifyBatchAll(
     // ActionResult carries no message channel, and the page re-reads the batch
     // on revalidate, so the new counts are the feedback.
     return ok();
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
+
+/*
+  ---------------------------------------------------------------------------
+  Closing a flight
+  ---------------------------------------------------------------------------
+
+  The owner's problem, in his words: we cannot always have the batches open.
+  Income and costs pile onto a flight forever, nobody draws a line, and after a
+  year of a weekly schedule nothing on the board reads as finished.
+
+  Almost every flight closes itself — settleBatchIfClear runs when a payment
+  settles the last bill, and nobody decides anything. What is below is for the
+  flights that do not: somebody has not paid and is not going to, or has not
+  paid and is still being chased. Those two are different facts about money and
+  the close has to record which one, per consignment, because a real flight has
+  both — one big debt worth a phone call and three small ones that are gone.
+*/
+
+/** What the close did, so the screen can say it rather than just reload. */
+type CloseOutcome = { kind: string; writtenOff: number; kept: number };
+
+export async function closeBatch(
+  _prev: ActionResult<CloseOutcome> | undefined,
+  formData: FormData
+): Promise<ActionResult<CloseOutcome>> {
+  const locale = await viewerLocale();
+
+  let user: SessionUser;
+  try {
+    user = await authorize("batch.close");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const batchId = String(formData.get("batchId") ?? "");
+  if (!batchId) return fail(t(locale, "Missing batch."));
+
+  const note = String(formData.get("note") ?? "").trim();
+  /* Which of the unpaid consignments are being given up on. Everything not
+     ticked stays a live debt: silence must never mean "write it off". */
+  const writeOff = new Set(
+    formData.getAll("writeOff").map((value) => String(value))
+  );
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const batch = await tx.batch.findUnique({
+        where: { id: batchId },
+        select: {
+          id: true,
+          batchNumber: true,
+          status: true,
+          permanent: true,
+          closedAt: true,
+        },
+      });
+      if (!batch) throw new Error(t(locale, "Batch not found."));
+      if (batch.permanent) {
+        throw new Error(t(locale, "A loading table never closes."));
+      }
+      if (batch.closedAt) {
+        throw new Error(t(locale, "This batch is already closed."));
+      }
+      if (!CLOSEABLE_FROM.includes(batch.status as "VERIFIED")) {
+        throw new Error(
+          t(
+            locale,
+            "Check every piece off the manifest before closing the books on this batch."
+          )
+        );
+      }
+
+      // Read inside the transaction: what is owed has to be the state being
+      // closed over, not what the screen was showing a minute ago.
+      const owing = await batchOwing(batchId, tx);
+
+      if (owing.drafts > 0 || owing.unbilled > 0) {
+        throw new Error(
+          t(
+            locale,
+            "Confirm the price on every piece first — closing now would give up money nobody has been asked for."
+          )
+        );
+      }
+
+      const chosen = owing.unpaid.filter((row) => writeOff.has(row.invoiceId));
+      const kept = owing.unpaid.filter((row) => !writeOff.has(row.invoiceId));
+
+      if (chosen.length > 0) {
+        await tx.invoice.updateMany({
+          where: { id: { in: chosen.map((row) => row.invoiceId) } },
+          data: {
+            status: "WRITTEN_OFF",
+            writtenOffAt: new Date(),
+            writtenOffById: user.id,
+          },
+        });
+      }
+
+      /*
+        How it ended, as a fact rather than a guess later.
+
+        A written-off bill leaves revenue, so the flight's profit drops to what
+        it really made. A kept debt does not: it is still owed, still chaseable,
+        and still counted — closing the flight is not forgiving it.
+      */
+      const kind =
+        owing.unpaid.length === 0
+          ? "SETTLED"
+          : chosen.length > 0 && kept.length > 0
+            ? "MIXED"
+            : chosen.length > 0
+              ? "WRITTEN_OFF"
+              : "DEBT_KEPT";
+
+      await tx.batch.update({
+        where: { id: batchId },
+        data: {
+          status: "CLOSED",
+          closedAt: new Date(),
+          closedById: user.id,
+          closeKind: kind,
+          closeNote: note || null,
+        },
+      });
+
+      const writtenOffUsd = chosen.reduce((sum, row) => sum + row.owedUsd, 0);
+      const keptUsd = kept.reduce((sum, row) => sum + row.owedUsd, 0);
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "batch.closed",
+          entity: "Batch",
+          entityId: batch.id,
+          summary: `Closed ${batch.batchNumber}${
+            chosen.length
+              ? ` — wrote off USD ${writtenOffUsd.toFixed(2)} on ${chosen.length} consignment(s)`
+              : ""
+          }${kept.length ? ` — USD ${keptUsd.toFixed(2)} still being chased` : ""}`,
+          metadata: {
+            kind,
+            note: note || null,
+            writtenOff: chosen.map((row) => ({
+              trackingNumber: row.trackingNumber,
+              owedUsd: row.owedUsd,
+            })),
+            stillChasing: kept.map((row) => ({
+              trackingNumber: row.trackingNumber,
+              owedUsd: row.owedUsd,
+            })),
+          },
+        },
+        tx
+      );
+
+      return { kind, writtenOff: chosen.length, kept: kept.length };
+    });
+
+    revalidatePath(`/app/shipments/${batchId}`);
+    revalidatePath("/app/shipments");
+    return ok(result);
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
+
+/**
+ * Open a closed flight's books again.
+ *
+ * Needed because closing is a judgement and judgements are wrong sometimes — a
+ * customer pays two months later, a customs receipt turns up in somebody's
+ * bag. The reason is required and kept: a set of books that can be reopened
+ * silently is not a set of books.
+ *
+ * Write-offs are NOT undone here. Reopening restores the flight; deciding a
+ * written-off bill is collectable again is a separate decision about a
+ * customer, and folding it into this one would quietly resurrect debts nobody
+ * meant to revive.
+ */
+export async function reopenBatch(
+  _prev: ActionResult<Record<string, never>> | undefined,
+  formData: FormData
+): Promise<ActionResult<Record<string, never>>> {
+  const locale = await viewerLocale();
+
+  let user: SessionUser;
+  try {
+    user = await authorize("batch.close");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const batchId = String(formData.get("batchId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!batchId) return fail(t(locale, "Missing batch."));
+  if (reason.length < 4) {
+    return fail(t(locale, "Say why this batch is being reopened."));
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const batch = await tx.batch.findUnique({
+        where: { id: batchId },
+        select: { id: true, batchNumber: true, closedAt: true },
+      });
+      if (!batch) throw new Error(t(locale, "Batch not found."));
+      if (!batch.closedAt) throw new Error(t(locale, "This batch is open."));
+
+      await tx.batch.update({
+        where: { id: batchId },
+        data: {
+          status: "VERIFIED",
+          closedAt: null,
+          closedById: null,
+          closeKind: null,
+          closeNote: null,
+        },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "batch.reopened",
+          entity: "Batch",
+          entityId: batch.id,
+          summary: `Reopened ${batch.batchNumber} — ${reason}`,
+          metadata: { reason, closedAt: batch.closedAt.toISOString() },
+        },
+        tx
+      );
+    });
+
+    revalidatePath(`/app/shipments/${batchId}`);
+    revalidatePath("/app/shipments");
+    return ok({});
   } catch (error) {
     return fail(toActionError(error));
   }

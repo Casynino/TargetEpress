@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
+import { settleBatchIfClear } from "@/lib/batch-close";
 import {
   EXCEPTION_OPEN_STATUSES,
   STORAGE_POLICY,
@@ -764,11 +765,16 @@ export async function recordPayment(
           currency: true,
           exchangeRate: true,
           issuedAt: true,
-          shipment: { select: { id: true, trackingNumber: true } },
+          shipment: { select: { id: true, trackingNumber: true, batchId: true } },
         },
       });
       if (!invoice) throw new Error("Invoice not found.");
       if (invoice.status === "VOID") throw new Error("This invoice is void.");
+      if (invoice.status === "WRITTEN_OFF") {
+        throw new Error(
+          `${invoice.invoiceNumber} was written off when its batch was closed. Reopen the batch to take money against it.`
+        );
+      }
       // Without this the confirm step would be decorative: a clerk could take
       // money against a price nobody in Finance had looked at.
       if (invoice.status === "DRAFT") {
@@ -959,6 +965,19 @@ export async function recordPayment(
         },
       });
 
+      /*
+        The flight shuts its own books.
+
+        Almost every batch will end this way — the last customer pays and the
+        close happens with nobody deciding anything, which is the only version
+        of this that reliably happens every week. Inside the same transaction
+        as the payment, so a batch cannot end up closed by money that failed to
+        save. Cheap when it is not the last bill: one count, then it stops.
+      */
+      const closedNow = settled
+        ? await settleBatchIfClear(tx, invoice.shipment.batchId)
+        : false;
+
       // Confirming the final payment is one action: receipt AND pickup note.
       // Making the note a second click left cargo sitting paid-but-unreleasable
       // whenever someone was interrupted between the two.
@@ -1040,12 +1059,15 @@ export async function recordPayment(
             credited,
             exchangeRate: rateUsed,
             proofs: proofs.length,
+            /* So the audit log says why a batch changed status a second
+               later, rather than leaving it looking spontaneous. */
+            closedBatch: closedNow,
           },
         },
         tx
       );
 
-      return receipt.receiptNumber;
+      return { receiptNumber: receipt.receiptNumber, closedBatch: closedNow };
     });
 
     revalidatePath("/app/finance");
@@ -1053,7 +1075,12 @@ export async function recordPayment(
     revalidatePath("/app/finance/payments");
     revalidatePath("/app/finance/pickup-notes");
     revalidatePath("/app/release");
-    return ok({ receiptNumber, pickupNoteNumber: issuedNote });
+    revalidatePath("/app/shipments");
+    return ok({
+      receiptNumber: receiptNumber.receiptNumber,
+      pickupNoteNumber: issuedNote,
+      closedBatch: receiptNumber.closedBatch,
+    });
   } catch (error) {
     return fail(toActionError(error));
   }

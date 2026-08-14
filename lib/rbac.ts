@@ -37,6 +37,10 @@ export type Permission =
   | "batch.manage" // add/remove shipments, seal, record flight
   | "batch.receive" // mark arrived in Dar
   | "batch.verify" // tick shipments off the manifest
+  /* Draw the line under a flight: shut its books, or open them again. A money
+     decision — writing off what will never be collected — so it sits with the
+     desks that own money, not with the warehouses that own cargo. */
+  | "batch.close"
   // Exceptions / investigations
   /// Read the Issues & Claims and the cases in it. Every department holds
   /// this, because a case is never one department's business: Dar found the
@@ -192,6 +196,7 @@ const CHINA: Permission[] = [
   "batch.view",
   "batch.create",
   "batch.manage",
+  "batch.close",
   "customer.view",
   "customer.manage",
   // Reads the Issues & Claims, and nothing more. When Dar reports a box
@@ -320,6 +325,9 @@ const FINANCE: Permission[] = [
   // their hands; they work from the tracking number a customer reads out, and
   // Search answers that with the same record.
   "batch.view",
+  // Finance shuts a flight's books, because closing one is a decision about
+  // money owed and not about cargo.
+  "batch.close",
   "finance.view",
   "invoice.manage",
   "invoice.edit",

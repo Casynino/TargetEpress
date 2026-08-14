@@ -78,11 +78,34 @@ async function checkBatch(batchNumber: string, batchId: string) {
     (c) => c.invoice && c.invoice.status !== "DRAFT" && c.invoice.status !== "VOID"
   );
 
-  const billed = confirmed.reduce((n, c) => n + toNumber(c.invoice!.total), 0);
+  /*
+    A written-off bill counts only for what was actually collected before it
+    was given up on.
+
+    The remainder left revenue when the batch closed — that is the whole point
+    of writing it off, and it is why a flight that abandoned a fifth of its
+    billing shows a smaller profit than one that collected everything. Recorded
+    here as its own rule rather than by trusting the app's arithmetic, which is
+    the only reason this script is worth running.
+  */
+  const billedOn = (invoice: { status: string; total: unknown; amountPaid: unknown }) =>
+    invoice.status === "WRITTEN_OFF"
+      ? toNumber(invoice.amountPaid as never)
+      : toNumber(invoice.total as never);
+
+  const billed = confirmed.reduce((n, c) => n + billedOn(c.invoice!), 0);
   compare(batchNumber, "billed (confirmed invoices)", app.billedUsd, billed);
 
   const paid = confirmed.reduce((n, c) => n + toNumber(c.invoice!.amountPaid), 0);
   compare(batchNumber, "collected", app.receivedUsd, paid);
+
+  const writtenOff = confirmed
+    .filter((c) => c.invoice!.status === "WRITTEN_OFF")
+    .reduce(
+      (n, c) => n + toNumber(c.invoice!.total) - toNumber(c.invoice!.amountPaid),
+      0
+    );
+  compare(batchNumber, "written off", app.writtenOffUsd, writtenOff);
 
   // Nobody owes an estimate, so outstanding is measured against what was billed.
   compare(batchNumber, "outstanding", app.outstandingUsd, Math.max(0, billed - paid));
@@ -151,13 +174,29 @@ async function checkLedger() {
   }
 
   /*
-    Every payment and every paid expense should have left a line in the ledger.
+    Every payment that named an account should have left a line in the ledger.
     A money movement with no ledger entry is invisible to every report built on
     the ledger, which is the whole point of having one.
+
+    Measured against payments that named an account, not against every payment.
+    The capture form allows a payment with no account — money taken at the
+    counter before anybody decides which till it went into — and there is
+    genuinely no line to write until it does. Counting those as missing made
+    this check fail on correct behaviour, which is worse than not having it.
+    They are reported separately below, because money sitting in no account is
+    still money nothing in the ledger can see.
   */
-  const payments = await prisma.payment.count();
+  const payments = await prisma.payment.count({ where: { accountId: { not: null } } });
   const paymentLines = await prisma.ledgerEntry.count({ where: { kind: "CUSTOMER_PAYMENT" } });
   compare("ledger", "payments with a ledger line", paymentLines, payments);
+
+  const unattributed = await prisma.payment.count({ where: { accountId: null } });
+  if (unattributed > 0) {
+    notes.push(
+      `${unattributed} payment(s) named no account, so no ledger line exists for them yet. ` +
+        `The money is recorded against the invoice; it is not in any account balance.`
+    );
+  }
 
   /*
     Measured on paidAt, not on status.

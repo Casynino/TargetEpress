@@ -75,6 +75,8 @@ export type BatchFinance = {
    * the cash position, but charging it to a flight would make that flight look
    * unprofitable for a reason that has nothing to do with the flight.
    */
+  /** Billed, given up on, and taken back out of revenue when a batch closed. */
+  writtenOffUsd: number;
   expensesUsd: number;
   /** How many cost lines are behind that figure. */
   expenseCount: number;
@@ -148,6 +150,7 @@ export async function batchFinance(
   let outstandingUsd = 0;
   let invoicedTzs = 0;
   let invoiced = 0;
+  let writtenOffUsd = 0;
   let weightKg = 0;
   let drafts = 0;
   let draftsUsd = 0;
@@ -171,6 +174,24 @@ export async function batchFinance(
     // A voided invoice is not revenue and is not a debt. It stays out of every
     // figure rather than being counted and then subtracted.
     if (piece.invoice.status === "VOID") continue;
+
+    /*
+      A written-off bill is money the company decided it will never see.
+
+      Same arithmetic as a void — out of revenue, out of debt — for a different
+      reason, and the difference matters enough to keep its own total. A void
+      was a bill that should not have existed; a write-off was a real debt
+      somebody gave up on, and a flight that closed by giving up on a fifth of
+      its revenue should not look identical to one that collected everything.
+    */
+    if (piece.invoice.status === "WRITTEN_OFF") {
+      writtenOffUsd += total - paid;
+      // What was actually collected before it was given up on is still money
+      // in the bank and still this flight's revenue.
+      invoicedUsd += paid;
+      receivedUsd += paid;
+      continue;
+    }
 
     invoicedUsd += total;
     receivedUsd += paid;
@@ -288,6 +309,7 @@ export async function batchFinance(
     rate,
     receivedUsd,
     outstandingUsd,
+    writtenOffUsd,
     expensesUsd,
     expenseCount: costs.length,
     expensesTzs,

@@ -71,6 +71,7 @@ export function BatchExpenses({
   accounts,
   rate,
   canRecord,
+  closed = false,
 }: {
   batchId: string;
   batchNumber: string;
@@ -79,6 +80,8 @@ export function BatchExpenses({
   /** USD → TZS, for showing a dollar cost in shillings. Null if unpublished. */
   rate: number | null;
   canRecord: boolean;
+  /** A closed batch takes no more costs, so it is not offered a form. */
+  closed?: boolean;
 }) {
   const t = useT();
   /** Which cost the picker is showing. Defaults to the first not yet recorded. */
@@ -340,7 +343,13 @@ export function BatchExpenses({
         </div>
       ) : null}
 
-      {canRecord ? (
+      {/* The server refuses a cost on a closed batch. Offering the boxes
+          anyway would be a form whose only outcome is an error message. */}
+      {closed ? (
+        <p className="border-t bg-muted/25 px-5 py-3 text-xs text-muted-foreground">
+          {t("This batch is closed. Reopen it to add a cost.")}
+        </p>
+      ) : canRecord ? (
         <form
           action={action}
           className="flex flex-wrap items-end gap-2 border-t bg-muted/25 px-5 py-3"

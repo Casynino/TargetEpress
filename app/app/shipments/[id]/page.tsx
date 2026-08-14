@@ -10,6 +10,7 @@ import {
   type DocumentEntry,
   type TimelineEntry,
 } from "@/components/app/shipment-detail-tabs";
+import { BatchClosePanel } from "@/components/app/batch-close-panel";
 import { BatchExpenses } from "@/components/app/batch-expenses";
 import { BatchFinanceBand } from "@/components/app/batch-finance-band";
 import { ConfirmPricesBanner } from "@/components/app/confirm-prices-banner";
@@ -22,6 +23,7 @@ import {
   formatPackagesShort,
 } from "@/lib/constants";
 import { formatDate, formatDateTime, toNumber } from "@/lib/format";
+import { batchOwing } from "@/lib/batch-close";
 import { batchFinance } from "@/lib/batch-finance";
 import {
   COMMON_EXPENSES,
@@ -63,6 +65,7 @@ export default async function ShipmentPage({
     where: { id },
     include: {
       createdBy: { select: { name: true } },
+      closedBy: { select: { name: true } },
       shipments: {
         orderBy: { registeredAt: "desc" },
         include: {
@@ -160,6 +163,16 @@ export default async function ShipmentPage({
     ? await batchFinance(dispatch.id, locale)
     : null;
   const canConfirm = can(user.role, "invoice.manage");
+
+  /*
+    Whether this flight's books can be shut, and what is stopping them.
+
+    Same permission as the money: closing is a decision about what will never
+    be collected, so a warehouse opening this page is not shown the option and
+    is not sent the list of who has not paid.
+  */
+  const canClose = can(user.role, "batch.close");
+  const owing = canClose ? await batchOwing(dispatch.id) : null;
 
   /*
     What this flight cost, fetched on the same permission as what it earned.
@@ -370,6 +383,35 @@ export default async function ShipmentPage({
           Everyone else goes straight to the cargo. */}
       {finance ? <BatchFinanceBand finance={finance} /> : null}
 
+      {/* The line under the flight, directly under the figures it draws it
+          under. Renders nothing at all until the batch has been checked off
+          the manifest, so it never nags a flight that is still in the air. */}
+      {owing ? (
+        <BatchClosePanel
+          state={{
+            batchId: dispatch.id,
+            batchNumber: dispatch.batchNumber,
+            closedAt: dispatch.closedAt
+              ? formatDate(dispatch.closedAt, locale)
+              : null,
+            closedBy: dispatch.closedBy?.name ?? null,
+            closeKind: dispatch.closeKind,
+            closeNote: dispatch.closeNote,
+            verified:
+              dispatch.status === "VERIFIED" || dispatch.status === "CLOSED",
+            unpaid: owing.unpaid.map((row) => ({
+              invoiceId: row.invoiceId,
+              trackingNumber: row.trackingNumber,
+              customerName: row.customerName,
+              owedUsd: row.owedUsd,
+            })),
+            drafts: owing.drafts,
+            unbilled: owing.unbilled,
+            rate: finance?.rate ?? null,
+          }}
+        />
+      ) : null}
+
       {finance ? (
         <BatchExpenses
           batchId={dispatch.id}
@@ -394,6 +436,7 @@ export default async function ShipmentPage({
           accounts={costAccounts}
           rate={costRate}
           canRecord={canRecordCost}
+          closed={dispatch.closedAt !== null}
         />
       ) : null}
 

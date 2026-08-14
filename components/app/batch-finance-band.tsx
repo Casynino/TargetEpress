@@ -37,6 +37,7 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
     receivedUsd,
     outstandingUsd,
     unpriceable,
+    writtenOffUsd,
     expensesUsd,
     expensesTzs,
     expenseCount,
@@ -164,6 +165,16 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
             </span>
           ) : null}
         </span>
+        {/* Revenue given up on when this batch closed. It has already left
+            every figure above; this is the only place that says it existed,
+            and a flight that closed by abandoning a fifth of its revenue must
+            not read like one that collected everything. */}
+        {writtenOffUsd > 0 ? (
+          <span className="text-muted-foreground">
+            {rate === null ? formatUsd(writtenOffUsd) : formatLocal(writtenOffUsd * rate)}{" "}
+            {t(locale, "written off")}
+          </span>
+        ) : null}
         {/* Outstanding money you cannot ring anybody about. */}
         {unreachable > 0 ? (
           <span className="text-warning">
