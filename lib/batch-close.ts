@@ -185,8 +185,29 @@ export async function settleBatchIfClear(
     },
     await currentRateValue()
   );
-  await tx.batchStatement.create({
-    data: { batchId, ...statement, submittedById: null },
+  /*
+    Upsert, not create.
+
+    A statement the boss sent back stays on the flight — that is how Finance
+    reads his note. batchId is unique, so creating a second one throws, and
+    this call sits inside the PAYMENT transaction: a customer settling the last
+    bill on a previously-returned flight would have had their payment rolled
+    back by a constraint error they had nothing to do with. Closing again
+    replaces the statement and it goes up fresh.
+  */
+  await tx.batchStatement.upsert({
+    where: { batchId },
+    create: { batchId, ...statement, submittedById: null },
+    update: {
+      ...statement,
+      status: "SUBMITTED",
+      submittedById: null,
+      submittedAt: new Date(),
+      reviewedById: null,
+      reviewedAt: null,
+      reviewNote: null,
+      note: null,
+    },
   });
 
   return true;

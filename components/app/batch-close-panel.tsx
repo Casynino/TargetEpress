@@ -42,6 +42,12 @@ export type BatchCloseState = {
   /** Whatever has already been entered for this flight, if anything. */
   freightRate: number | null;
   customsRate: number | null;
+  /** Everything that landed on this flight, so the panel can show the sum. */
+  kg: number;
+  /** Weight whose bill is settled, and weight nobody has paid for yet. */
+  soldKg: number;
+  /** What the flight was billed at — the yardstick a payback is judged against. */
+  worthUsd: number;
   /** Where the statement has got to, once there is one. */
   statementStatus: string | null;
   reviewNote: string | null;
@@ -113,6 +119,48 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
 
   const carrying = countFor("carry");
   const writingOff = countFor("writeOff");
+
+  /*
+    The payback, worked out as it is typed.
+
+    A per-kilo rate is the one field on this panel where a wrong unit is
+    invisible: 2000 and 8 look equally like numbers, and only the product says
+    which one was meant. Somebody entered shillings into a dollars box on a
+    three-kilo flight and the statement went to the boss saying it had lost
+    fourteen thousand dollars. Showing the multiplication removes the guess —
+    "3 kg × USD 5,000.00 = USD 15,000.00" is wrong on sight in a way that
+    "5000" in a box never is.
+  */
+  const [freight, setFreight] = useState<string>(
+    state.freightRate === null ? "" : String(state.freightRate)
+  );
+  const [customs, setCustoms] = useState<string>(
+    state.customsRate === null ? "" : String(state.customsRate)
+  );
+  const num = (text: string) => {
+    const value = Number(text.trim().replace(/,/g, ""));
+    return text.trim() === "" || !Number.isFinite(value) ? null : value;
+  };
+  const landed =
+    num(freight) === null && num(customs) === null
+      ? null
+      : (num(freight) ?? 0) + (num(customs) ?? 0);
+  const payback = landed === null ? null : state.kg * landed;
+  /*
+    A payback several times what the flight billed is not a rate, it is a unit
+    mistake — shillings typed into a dollars box.
+
+    Measured against what the flight is WORTH, not against what is still owed.
+    The first version compared it to the outstanding balance, which on a flight
+    where almost everyone had paid was a few dollars — so the correct rate of
+    8 + 1.8 tripped the warning and the warning became noise. A yardstick has
+    to be the thing being measured.
+
+    Three times, not two: a genuinely bad flight can cost more than it earned,
+    and that is a fact to report rather than a typo to catch.
+  */
+  const suspicious =
+    payback !== null && state.worthUsd > 0 && payback > 3 * state.worthUsd;
 
   /*
     Cargo that did not fly in with this flight.
@@ -448,36 +496,69 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
             and profit columns blank, which is a fair reason for the boss to
             send it back.
           */}
-          <div className="flex flex-wrap items-end gap-2 border-t px-5 py-3">
-            <label className="flex flex-col gap-1">
-              <span className="text-[11px] text-muted-foreground">
-                {t("Freight per kg")}
-              </span>
-              <Input
-                name="freightRate"
-                inputMode="decimal"
-                defaultValue={state.freightRate ?? ""}
-                placeholder="8"
-                className="h-9 w-24 bg-card text-sm tabular-nums"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-[11px] text-muted-foreground">
-                {t("Customs per kg")}
-              </span>
-              <Input
-                name="customsRate"
-                inputMode="decimal"
-                defaultValue={state.customsRate ?? ""}
-                placeholder="1.8"
-                className="h-9 w-24 bg-card text-sm tabular-nums"
-              />
-            </label>
-            <p className="pb-2 text-xs text-muted-foreground">
-              {t(
-                "Weight × these two is what has to be paid back before any of this flight is profit."
-              )}
+          <div className="border-t px-5 py-3">
+            {/* What the flight is, in kilos, before any rate is applied to it. */}
+            <p className="mb-2 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {state.kg.toFixed(1)} kg
+              </span>{" "}
+              {t("landed")} ·{" "}
+              <span className="font-medium text-foreground">
+                {state.soldKg.toFixed(1)} kg
+              </span>{" "}
+              {t("paid for")}
+              {carrying > 0 ? ` · ${carrying} ${t("piece(s) carrying on")}` : ""}
+              {writingOff > 0 ? ` · ${writingOff} ${t("piece(s) written off")}` : ""}
             </p>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-muted-foreground">
+                  {t("Freight")} <span className="text-foreground">USD / kg</span>
+                </span>
+                <Input
+                  name="freightRate"
+                  inputMode="decimal"
+                  value={freight}
+                  onChange={(event) => setFreight(event.target.value)}
+                  placeholder="8"
+                  className="h-9 w-24 bg-card text-sm tabular-nums"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-muted-foreground">
+                  {t("Customs")} <span className="text-foreground">USD / kg</span>
+                </span>
+                <Input
+                  name="customsRate"
+                  inputMode="decimal"
+                  value={customs}
+                  onChange={(event) => setCustoms(event.target.value)}
+                  placeholder="1.8"
+                  className="h-9 w-24 bg-card text-sm tabular-nums"
+                />
+              </label>
+              <p className="pb-2 text-xs">
+                {payback === null ? (
+                  <span className="text-muted-foreground">
+                    {t(
+                      "Weight × these two is what has to be paid back before any of this flight is profit."
+                    )}
+                  </span>
+                ) : (
+                  <span className={suspicious ? "text-destructive" : "text-muted-foreground"}>
+                    {state.kg.toFixed(1)} kg × {formatUsd(landed!)} ={" "}
+                    <span className="font-medium">{formatUsd(payback)}</span>{" "}
+                    {t("to pay back")}
+                    {state.rate !== null
+                      ? ` (${formatLocal(payback * state.rate)})`
+                      : ""}
+                    {suspicious
+                      ? ` — ${t("that is far more than this flight earned. Are those shillings in a dollars box?")}`
+                      : ""}
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-end gap-2 border-t bg-muted/25 px-5 py-3">

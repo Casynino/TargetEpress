@@ -451,6 +451,18 @@ export default async function ShipmentPage({
               dispatch.customsRatePerKg === null
                 ? null
                 : toNumber(dispatch.customsRatePerKg),
+            /* The weights the rate is about to be multiplied by, so the panel
+               can show the product as it is typed. */
+            kg: dispatch.shipments
+              .filter((piece) => piece.deletedAt === null)
+              .reduce((sum, piece) => sum + toNumber(piece.weightKg), 0),
+            soldKg: dispatch.shipments
+              .filter(
+                (piece) =>
+                  piece.deletedAt === null && piece.invoice?.status === "PAID"
+              )
+              .reduce((sum, piece) => sum + toNumber(piece.weightKg), 0),
+            worthUsd: finance?.billedUsd ?? 0,
             statementStatus: dispatch.statement?.status ?? null,
             reviewNote: dispatch.statement?.reviewNote ?? null,
             carriedIn: carriedIn.map((row) => ({

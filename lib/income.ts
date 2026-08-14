@@ -173,14 +173,25 @@ export async function incomeSheet(month?: string): Promise<IncomeSheet> {
     }));
 
   const rows = month ? all.filter((row) => row.month === month) : all;
+
+  /*
+    A sent-back statement stays on the page and stays out of the totals.
+
+    Its flight is open again — costs can land on it, payments can arrive — so
+    the figures on that row are a snapshot of a close that was rejected. The
+    row is worth showing, because Finance needs to see the boss's note and
+    what he was looking at; adding it to a total of what the business made
+    would be counting a flight that has not finished.
+  */
+  const counted = rows.filter((row) => row.status !== "RETURNED");
   const sum = (pick: (row: IncomeRow) => number | null) =>
-    rows.reduce((acc, row) => acc + (pick(row) ?? 0), 0);
+    counted.reduce((acc, row) => acc + (pick(row) ?? 0), 0);
 
   const kg = sum((r) => r.kg);
   const worthUsd = sum((r) => r.worthUsd);
   /* Only flights whose rates were entered can contribute to a payback total,
      or the average per kilo would be dragged down by blanks. */
-  const priced = rows.filter((row) => row.landedRate !== null);
+  const priced = counted.filter((row) => row.landedRate !== null);
   const pricedKg = priced.reduce((acc, row) => acc + row.kg, 0);
 
   return {

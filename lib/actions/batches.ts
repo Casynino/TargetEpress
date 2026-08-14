@@ -1594,8 +1594,22 @@ export async function closeBatch(
         { freight, customs },
         await currentRateValue()
       );
-      await tx.batchStatement.create({
-        data: { batchId, ...statement, note: note || null, submittedById: user.id },
+      /* Overwrites a statement the boss sent back — see the note in
+         lib/batch-close. Re-closing is the fix for a return, so it has to be
+         allowed to replace what is there rather than collide with it. */
+      await tx.batchStatement.upsert({
+        where: { batchId },
+        create: { batchId, ...statement, note: note || null, submittedById: user.id },
+        update: {
+          ...statement,
+          note: note || null,
+          status: "SUBMITTED",
+          submittedById: user.id,
+          submittedAt: new Date(),
+          reviewedById: null,
+          reviewedAt: null,
+          reviewNote: null,
+        },
       });
 
       const writtenOffUsd = chosen.reduce((sum, row) => sum + row.owedUsd, 0);
@@ -1888,12 +1902,28 @@ export async function reviewStatement(
         select: {
           id: true,
           status: true,
-          batch: { select: { batchNumber: true } },
+          batch: { select: { batchNumber: true, closedAt: true } },
         },
       });
       if (!statement) throw new Error(t(locale, "There is no statement to review."));
       if (statement.status === "CONFIRMED") {
         throw new Error(t(locale, "This one has already been confirmed."));
+      }
+      /*
+        A statement can only be signed while its flight is actually shut.
+
+        Sending one back reopens the flight, and the statement stays on it so
+        Finance can read the note. Confirming that stale copy would sign off
+        figures for a flight that is trading again — costs landing on it,
+        payments arriving — and make them the record.
+      */
+      if (decision === "CONFIRMED" && !statement.batch.closedAt) {
+        throw new Error(
+          t(
+            locale,
+            "This batch was reopened after you sent it back. Finance has to close it again before it can be confirmed."
+          )
+        );
       }
 
       await tx.batchStatement.update({
@@ -1914,6 +1944,10 @@ export async function reviewStatement(
             closedAt: null,
             closedById: null,
             closeKind: null,
+            /* The note explained a close that has been undone. Leaving it on
+               an open flight makes the next close inherit somebody else's
+               explanation. */
+            closeNote: null,
           },
         });
       }
