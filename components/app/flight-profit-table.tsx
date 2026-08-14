@@ -20,15 +20,19 @@ export type FlightProfit = {
 };
 
 /**
- * Every recent flight, and whether it made money.
+ * Every recent batch, and whether it is expected to make money.
  *
- * The company earns per dispatch, so this is the row the business is actually
- * run on: what it billed, how much has come back, what it cost to move, and
- * what is left. A month-level profit figure cannot tell you that the Guangzhou
- * flight paid for itself and the Hong Kong one did not.
+ * Revenue here is BILLED, not banked, so it and everything derived from it are
+ * expectations — the labels say so. Collected is the only column describing
+ * money the business actually holds.
+ *
+ * The company earns per batch, so this is the row the business is actually run
+ * on: what it billed, how much has come back, what it cost to move, and what is
+ * left. A month-level profit figure cannot tell you that the Guangzhou batch
+ * paid for itself and the Hong Kong one did not.
  *
  * Two honesty markers, because a profit figure is only as good as what is
- * behind it. A flight with no costs recorded is flagged rather than shown as
+ * behind it. A batch with no costs recorded is flagged rather than shown as
  * pure profit — customs and clearing are always paid, so a zero means nobody
  * has written them down. And a flight still carrying draft prices is flagged
  * too, because its revenue will move.
@@ -39,9 +43,9 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
   if (flights.length === 0) {
     return (
       <section className="panel p-5">
-        <h2 className="font-display font-semibold">{t(locale, "Flights")}</h2>
+        <h2 className="font-display font-semibold">{t(locale, "Batches")}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t(locale, "No dispatches have flown yet.")}
+          {t(locale, "No batches have flown yet.")}
         </p>
       </section>
     );
@@ -51,10 +55,10 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
     <section className="panel overflow-hidden">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-5 py-4">
         <h2 className="font-display font-semibold">
-          {t(locale, "What each flight made")}
+          {t(locale, "What each batch is making")}
         </h2>
         <p className="text-xs text-muted-foreground">
-          {t(locale, "Billed, collected, and what it cost to move")}
+          {t(locale, "Billed against what it cost. Only Collected is money in the bank.")}
         </p>
       </div>
 
@@ -62,13 +66,13 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-5 py-2 font-medium">{t(locale, "Flight")}</th>
-              <th className="px-3 py-2 text-right font-medium">{t(locale, "Revenue")}</th>
+              <th className="px-5 py-2 font-medium">{t(locale, "Batch")}</th>
+              <th className="px-3 py-2 text-right font-medium">{t(locale, "Expected revenue")}</th>
               <th className="px-3 py-2 text-right font-medium">{t(locale, "Collected")}</th>
               <th className="px-3 py-2 text-right font-medium">{t(locale, "Outstanding")}</th>
               <th className="px-3 py-2 text-right font-medium">{t(locale, "Expenses")}</th>
-              <th className="px-3 py-2 text-right font-medium">{t(locale, "Net profit")}</th>
-              <th className="px-3 py-2 text-right font-medium">{t(locale, "Margin")}</th>
+              <th className="px-3 py-2 text-right font-medium">{t(locale, "Expected profit")}</th>
+              <th className="px-3 py-2 text-right font-medium">{t(locale, "Expected margin")}</th>
             </tr>
           </thead>
           <tbody>

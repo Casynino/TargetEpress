@@ -55,7 +55,7 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
         <p className="text-xs text-muted-foreground">
           {t(
             locale,
-            "What this batch is worth, and how much of it has been collected"
+            "Collected and Expenses are money that has actually moved. The rest is what this batch is expected to be worth once everyone pays."
           )}
         </p>
       </div>
@@ -63,12 +63,16 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
       {/*
         The six figures, before any of the detail.
 
-        Finance should be able to tell in one glance whether this batch made
-        money. Everything below this strip explains how; this is the answer.
+        Named for what they actually are. Revenue here is what has been BILLED,
+        not banked, so it is expected revenue — and every figure derived from it
+        is expected too. Only Collected and Expenses describe money that has
+        really moved. Calling a billed figure "revenue" and a billed-minus-costs
+        figure "net profit" is how a batch reads as a good one months before
+        anybody has paid for it.
       */}
       <dl className="grid grid-cols-2 gap-px border-b bg-border sm:grid-cols-3 lg:grid-cols-6">
         {[
-          { k: t(locale, "Revenue"), usd: billedUsd, tone: "" },
+          { k: t(locale, "Expected revenue"), usd: billedUsd, tone: "" },
           { k: t(locale, "Collected"), usd: receivedUsd, tone: "text-success" },
           {
             k: t(locale, "Outstanding"),
@@ -77,12 +81,12 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
           },
           { k: t(locale, "Expenses"), usd: expensesUsd, tsh: expensesTzs, tone: "" },
           {
-            k: atALoss ? t(locale, "Net loss") : t(locale, "Net profit"),
+            k: atALoss ? t(locale, "Expected loss") : t(locale, "Expected profit"),
             usd: Math.abs(netProfitUsd),
             tone: atALoss ? "text-destructive" : "text-success",
           },
           {
-            k: t(locale, "Margin"),
+            k: t(locale, "Expected margin"),
             // No margin rather than a zero: a batch that has billed nothing
             // has not made 0%, it has no answer yet.
             percent: marginPct === null ? "—" : `${Math.round(marginPct)}%`,
