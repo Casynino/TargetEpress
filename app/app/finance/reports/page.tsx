@@ -4,6 +4,7 @@ import { Plane, TrendingDown, TrendingUp } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
+import { ReportViewer } from "@/components/app/report-viewer";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { Badge } from "@/components/ui/badge";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
@@ -12,6 +13,8 @@ import { formatDate } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { monthWindow, profitAndLoss, profitByDispatch, yearWindow } from "@/lib/profit";
+import { prisma } from "@/lib/prisma";
+import { REPORTS, runReport, type ReportKey } from "@/lib/reports";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -32,11 +35,17 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function FinanceReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{
+    period?: string;
+    report?: string;
+    from?: string;
+    to?: string;
+    batch?: string;
+  }>;
 }) {
   const user = await requirePermission("profit.view");
   const locale = await viewerLocale();
-  const { period } = await searchParams;
+  const { period, report: rawReport, from, to, batch } = await searchParams;
 
   const window =
     period === "last"
@@ -45,9 +54,50 @@ export default async function FinanceReportsPage({
         ? yearWindow(locale)
         : monthWindow(0, locale);
 
-  const [pl, dispatches] = await Promise.all([
+  /*
+    The picked report, run with the same filters the download will use.
+
+    Defaulting to the P&L keeps the page opening on the question most people
+    came to ask, while the other thirteen are one tap away rather than
+    thirteen routes away.
+  */
+  const reportKey = (REPORTS.some((r) => r.key === rawReport)
+    ? rawReport
+    : "profit-loss") as ReportKey;
+
+  const asDate = (v?: string) => {
+    if (!v) return null;
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  // The closing day belongs inside the window; the queries compare with `lt`.
+  const toExclusive = (() => {
+    const d = asDate(to);
+    if (!d) return null;
+    const end = new Date(d);
+    end.setDate(end.getDate() + 1);
+    return end;
+  })();
+
+  const reportQuery = new URLSearchParams();
+  if (from) reportQuery.set("from", from);
+  if (to) reportQuery.set("to", to);
+  if (batch) reportQuery.set("batch", batch);
+  if (period) reportQuery.set("period", period);
+
+  const [pl, dispatches, report, flights] = await Promise.all([
     profitAndLoss(window),
     profitByDispatch(8),
+    runReport(reportKey, {
+      from: asDate(from),
+      to: toExclusive,
+      batchId: batch ?? null,
+    }),
+    prisma.batch.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      select: { id: true, batchNumber: true },
+    }),
   ]);
 
   const profitable = pl.profit >= 0;
@@ -64,6 +114,68 @@ export default async function FinanceReportsPage({
       />
 
       <FinanceNav tabs={financeTabs(user.role)} />
+
+      <div className="mb-6">
+        <ReportViewer
+          report={report}
+          query={reportQuery.toString()}
+          filters={
+            <form
+              method="get"
+              className="flex flex-wrap items-end gap-3 text-xs"
+            >
+              <input type="hidden" name="report" value={reportKey} />
+              <label className="flex flex-col gap-1">
+                <span className="text-muted-foreground">{t(locale, "From")}</span>
+                <input
+                  type="date"
+                  name="from"
+                  defaultValue={from ?? ""}
+                  className="focus-ring h-8 rounded-md border bg-card px-2"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-muted-foreground">{t(locale, "To")}</span>
+                <input
+                  type="date"
+                  name="to"
+                  defaultValue={to ?? ""}
+                  className="focus-ring h-8 rounded-md border bg-card px-2"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-muted-foreground">{t(locale, "Flight")}</span>
+                <select
+                  name="batch"
+                  defaultValue={batch ?? ""}
+                  className="focus-ring h-8 rounded-md border bg-card px-2"
+                >
+                  <option value="">{t(locale, "Every flight")}</option>
+                  {flights.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.batchNumber}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="submit"
+                className="focus-ring h-8 rounded-md border bg-card px-3 font-medium hover:bg-accent"
+              >
+                {t(locale, "Apply")}
+              </button>
+              {from || to || batch ? (
+                <a
+                  href={`/app/finance/reports?report=${reportKey}`}
+                  className="h-8 self-end px-1 leading-8 text-muted-foreground underline"
+                >
+                  {t(locale, "Clear")}
+                </a>
+              ) : null}
+            </form>
+          }
+        />
+      </div>
 
       <div className="mb-4 flex flex-wrap gap-1.5">
         <Chip href="/app/finance/reports" active={!period || period === "month"}>
