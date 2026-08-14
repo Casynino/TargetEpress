@@ -9,6 +9,7 @@ import { toNumber } from "@/lib/format";
 import {
   EXPENSE_APPROVAL_THRESHOLD_USD as APPROVAL_THRESHOLD_USD,
   EXPENSE_CATEGORIES as CATEGORIES,
+  EXPENSE_CLASSES,
 } from "@/lib/expenses";
 import { currentRateValue } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -17,6 +18,7 @@ import { postLedgerEntry } from "@/lib/ledger";
 import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 import { filesFrom, putDocument } from "@/lib/storage";
+import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -51,6 +53,7 @@ const expenseSchema = z.object({
       "A cost cannot be dated in the future."
     ),
   note: z.string().trim().optional(),
+  expenseClass: z.enum(EXPENSE_CLASSES).default("OPERATING"),
 });
 
 /** USD value of an amount, at the rate published today. */
@@ -130,7 +133,19 @@ export async function recordExpense(
 
   try {
     const { usd, rate } = await usdValue(input.amount, input.currency, locale);
-    const needsApproval = usd > APPROVAL_THRESHOLD_USD;
+    /*
+      A cost waits for a signature only when the person recording it cannot
+      sign it themselves.
+
+      The threshold is not gone — it still holds for any desk that may record a
+      cost but not approve one. What has gone is Finance being stopped by it:
+      Finance now holds expense.approve, so a clearing charge at the port is
+      recorded and paid in one action instead of waiting for the CEO to open an
+      approval screen. Who approved it is still written down, and when the
+      recorder approved their own cost that is exactly what the audit log says.
+    */
+    const needsApproval =
+      usd > APPROVAL_THRESHOLD_USD && !can(user.role, "expense.approve");
     const incurredAt = input.incurredAt ?? new Date();
 
     const expenseNumber = await prisma.$transaction(async (tx) => {
@@ -171,8 +186,11 @@ export async function recordExpense(
         data: {
           expenseNumber: number,
           category: input.category,
+          expenseClass: input.expenseClass,
           vendor: input.vendor || null,
           description: input.description,
+          // Validated since this form was written, and never written down.
+          note: input.note || null,
           amount: new Prisma.Decimal(input.amount),
           currency: input.currency,
           amountUsd: new Prisma.Decimal(usd),
@@ -331,16 +349,25 @@ export async function payExpense(
       if (expense.status === "VOID") {
         throw new Error(`${expense.expenseNumber} was cancelled.`);
       }
-      // The threshold again, at the moment it matters. A cost that needs a
-      // signature cannot be paid without one, whatever route the form took.
-      if (
-        expense.status === "PENDING" &&
-        toNumber(expense.amountUsd) > APPROVAL_THRESHOLD_USD
-      ) {
+      /*
+        The threshold again, at the moment it matters — but read against the
+        person paying, not against the amount alone.
+
+        Somebody who may approve a cost should not have to approve it on one
+        screen and then pay it on another: paying it IS the sign-off, and the
+        row records that they gave it. Somebody who may not approve still
+        cannot pay an unapproved cost, whatever route the form took.
+      */
+      const overThreshold = toNumber(expense.amountUsd) > APPROVAL_THRESHOLD_USD;
+      const mayApprove = can(user.role, "expense.approve");
+
+      if (expense.status === "PENDING" && overThreshold && !mayApprove) {
         throw new Error(
           `${expense.expenseNumber} is over the ${APPROVAL_THRESHOLD_USD} dollar approval limit and has not been approved yet.`
         );
       }
+      const approvedOnPayment =
+        expense.status === "PENDING" && overThreshold && mayApprove;
 
       const account = await tx.companyAccount.findUnique({
         where: { id: accountId },
@@ -357,7 +384,16 @@ export async function payExpense(
       const paidAt = new Date();
       await tx.expense.update({
         where: { id },
-        data: { status: "PAID", accountId: account.id, paidAt },
+        data: {
+          status: "PAID",
+          accountId: account.id,
+          paidAt,
+          // Who signed it off, when the payment was itself the sign-off. An
+          // approval that happened but is not written down is not an approval.
+          ...(approvedOnPayment
+            ? { approvedById: user.id, approvedAt: paidAt }
+            : {}),
+        },
       });
 
       await postLedgerEntry(tx, {

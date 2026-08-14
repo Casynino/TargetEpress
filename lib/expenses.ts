@@ -25,6 +25,8 @@ export const EXPENSE_CATEGORIES = [
   "CUSTOMS_DUTY",
   "CLEARING_AGENT",
   "LOCAL_TRANSPORT",
+  "PORT_CHARGES",
+  "PERMITS",
   "WAREHOUSE_RENT",
   "SALARIES",
   "UTILITIES",
@@ -46,6 +48,8 @@ export const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
   CUSTOMS_DUTY: "Customs duty",
   CLEARING_AGENT: "Clearing agent",
   LOCAL_TRANSPORT: "Local transport",
+  PORT_CHARGES: "Port charges",
+  PERMITS: "Permits",
   WAREHOUSE_RENT: "Warehouse rent",
   SALARIES: "Salaries",
   UTILITIES: "Utilities",
@@ -100,3 +104,36 @@ export const COMMON_EXPENSES: { label: string; category: string }[] = [
   { label: "Office supplies", category: "OFFICE_SUPPLIES" },
   { label: "Vehicle repair", category: "REPAIRS" },
 ];
+
+/**
+ * Whether a cost counts towards the figure the business is judged on.
+ *
+ * Operating is everything it takes to fly cargo and keep the office open.
+ * Non-operating is money that genuinely left the company but that would
+ * mislead if mixed in — it makes a good month look bad and a profitable
+ * flight look like a loss. Both are recorded, both move the cash position,
+ * both appear in the ledger; only one is allowed into operating and per-batch
+ * profit.
+ */
+export const EXPENSE_CLASSES = ["OPERATING", "NON_OPERATING"] as const;
+
+export const EXPENSE_CLASS_LABELS: Record<
+  (typeof EXPENSE_CLASSES)[number],
+  string
+> = {
+  OPERATING: "Operating",
+  NON_OPERATING: "Special",
+};
+
+/**
+ * The longer sentence under each option on the form, so whoever is recording a
+ * cost picks the right one without being told twice.
+ */
+export const EXPENSE_CLASS_HINTS: Record<
+  (typeof EXPENSE_CLASSES)[number],
+  string
+> = {
+  OPERATING: "Counts towards profit — running the business and flying cargo.",
+  NON_OPERATING:
+    "Recorded and paid, but kept out of operating and batch profit so it cannot distort them.",
+};

@@ -54,7 +54,7 @@ export function yearWindow(locale: Locale = "en"): ProfitWindow {
 export async function profitAndLoss(window: ProfitWindow) {
   const range = { gte: window.from, lt: window.to };
 
-  const [billed, collected, incurred, paidOut, byCategory, transferFees] =
+  const [billed, collected, incurred, paidOut, byCategory, special, transferFees] =
     await Promise.all([
     // Accrual revenue: bills raised in the window that Finance has confirmed.
     prisma.invoice.aggregate({
@@ -72,19 +72,41 @@ export async function profitAndLoss(window: ProfitWindow) {
     // flight's customs bill in the month it flew rather than the month it was
     // settled.
     prisma.expense.aggregate({
-      where: { incurredAt: range, status: { not: "VOID" } },
+      where: {
+        incurredAt: range,
+        status: { not: "VOID" },
+        expenseClass: "OPERATING",
+      },
       _sum: { amountUsd: true },
     }),
-    // Cash out: money that actually left an account.
+    // Cash out: money that actually left an account — ALL of it, including the
+    // special class. Profit and cash answer different questions: a
+    // non-operating payment does not belong in the margin, but it absolutely
+    // left the bank, and a cash figure that pretends otherwise will not
+    // reconcile against a statement.
     prisma.expense.aggregate({
       where: { paidAt: range, status: "PAID" },
       _sum: { amountUsd: true },
     }),
     prisma.expense.groupBy({
       by: ["category"],
-      where: { incurredAt: range, status: { not: "VOID" } },
+      where: {
+        incurredAt: range,
+        status: { not: "VOID" },
+        expenseClass: "OPERATING",
+      },
       _sum: { amountUsd: true },
       orderBy: { _sum: { amountUsd: "desc" } },
+    }),
+    // Recorded, shown on its own line, and kept out of the margin.
+    prisma.expense.aggregate({
+      where: {
+        incurredAt: range,
+        status: { not: "VOID" },
+        expenseClass: "NON_OPERATING",
+      },
+      _sum: { amountUsd: true },
+      _count: true,
     }),
     // Bank charges on our own transfers.
     //
@@ -116,12 +138,25 @@ export async function profitAndLoss(window: ProfitWindow) {
   const costs = toNumber(incurred._sum.amountUsd) + feeUsd;
   const cashOut = toNumber(paidOut._sum.amountUsd) + feeUsd;
 
+  const specialUsd = toNumber(special._sum.amountUsd);
+
   return {
     window,
     invoices: billed._count,
     revenue,
     costs,
     profit: revenue - costs,
+    /*
+      Money that left the company without belonging in the margin.
+
+      Reported next to profit rather than buried, because the reader needs both
+      numbers to make sense of the bank balance: profit says how the business
+      did, and this says what else went out. Adding it to costs would answer
+      neither question honestly.
+    */
+    specialCosts: specialUsd,
+    specialCount: special._count,
+    profitAfterSpecial: revenue - costs - specialUsd,
     // Guarded: a month with no revenue has no margin, not an infinite one.
     margin: revenue > 0 ? ((revenue - costs) / revenue) * 100 : null,
     cashIn,
@@ -159,12 +194,18 @@ export async function profitByDispatch(take = 10) {
       status: true,
       departedAt: true,
       shipments: {
+        // Cargo that was deleted is not on the flight, and counting its invoice
+        // would inflate the flight's revenue with money nobody will ever pay.
+        where: { deletedAt: null },
         select: {
-          invoice: { select: { total: true, status: true } },
+          invoice: { select: { total: true, status: true, amountPaid: true } },
         },
       },
       expenses: {
-        where: { status: { not: "VOID" } },
+        // Operating only. A special cost is real money and appears in the cash
+        // figures, but charging it to a flight would make that flight look
+        // unprofitable for a reason that has nothing to do with the flight.
+        where: { status: { not: "VOID" }, expenseClass: "OPERATING" },
         select: { amountUsd: true },
       },
     },
@@ -186,14 +227,27 @@ export async function profitByDispatch(take = 10) {
       0
     );
 
+    const collected = batch.shipments.reduce((sum, shipment) => {
+      const invoice = shipment.invoice;
+      if (!invoice || invoice.status === "DRAFT" || invoice.status === "VOID") {
+        return sum;
+      }
+      return sum + toNumber(invoice.amountPaid);
+    }, 0);
+
     return {
       id: batch.id,
       batchNumber: batch.batchNumber,
       status: batch.status,
       departedAt: batch.departedAt,
       revenue,
+      collected,
+      outstanding: Math.max(0, revenue - collected),
       costs,
       profit: revenue - costs,
+      // Guarded: a flight that has billed nothing has no margin, not an
+      // infinite one and not a division by zero.
+      margin: revenue > 0 ? ((revenue - costs) / revenue) * 100 : null,
       // Shown, not hidden: a flight whose prices are still drafts has a revenue
       // figure that will move, and the page must not present it as final.
       unconfirmed: drafts,

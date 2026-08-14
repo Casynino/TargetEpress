@@ -334,20 +334,35 @@ const FINANCE: Permission[] = [
   // rate book — what a kilo costs — stays with the CEO.
   "fx.manage",
   // The company's own money: which accounts exist, what is in them, and every
-  // movement through them. Notably absent: account.manage and ledger.adjust.
-  // Finance reads and reconciles; opening a new account and writing a
-  // correcting line are the CEO's, for the same reason exception.approve is —
-  // the desk that records the money does not also get to restate it.
+  // movement through them.
   "account.view",
   // Opening balances and archiving an account. This desk reconciles the
   // accounts, counts the tin and moves money between them — the opening figure
   // comes off a bank statement they are holding, so making them ask the CEO to
-  // type it is ceremony, not control. The genuinely dangerous act, restating a
-  // figure already booked, stays with the CEO as ledger.adjust.
+  // type it is ceremony, not control.
   "account.manage",
   "ledger.view",
   "expense.view",
   "expense.record",
+  /*
+    Finance signs off its own spending, and can restate a figure already booked.
+
+    These two were held back on the classic segregation-of-duties argument: the
+    desk that records the money should not also get to approve it or restate it.
+    The owner has overruled that deliberately — this is an owner-operated
+    business where Finance IS the accounting department, and a clearing agent
+    at the port does not wait for the CEO to open an approval screen.
+
+    What replaces the control is the record, not nothing. `ledger.adjust` here
+    does not mean editing history: the ledger is append-only and a wrong line is
+    cancelled by a reversing entry that points back at it, so the register still
+    shows what was believed at the time and what corrected it. Every approval,
+    correction and reversal is written to the audit log with who, when and why.
+    The CEO reads that log; the difference is that they read it afterwards
+    instead of standing in the way of it.
+  */
+  "expense.approve",
+  "ledger.adjust",
   // Finance reads the money trail on its own tab. The log is append-only and
   // shows who did what — including what Finance itself did, which is the point.
   "audit.view",

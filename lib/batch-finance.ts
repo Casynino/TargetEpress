@@ -68,6 +68,31 @@ export type BatchFinance = {
   receivedUsd: number;
   /** Billed but not yet paid. Estimates are excluded — nobody owes an estimate. */
   outstandingUsd: number;
+
+  /**
+   * What this flight cost to move: customs, port charges, clearing, transport,
+   * permits. Operating costs only — a special cost is real money and shows in
+   * the cash position, but charging it to a flight would make that flight look
+   * unprofitable for a reason that has nothing to do with the flight.
+   */
+  expensesUsd: number;
+  /** How many cost lines are behind that figure. */
+  expenseCount: number;
+  /**
+   * Billed revenue less what the flight cost.
+   *
+   * Measured against BILLED rather than expected, deliberately. Expected
+   * includes a rate-book estimate for cargo nobody has invoiced yet, and a
+   * profit figure built on an estimate is a forecast wearing the clothes of an
+   * accounting figure. `expectedProfitUsd` is the forecast, named as one.
+   */
+  netProfitUsd: number;
+  /** Net profit as a percentage of billed revenue. Null when nothing is billed. */
+  marginPct: number | null;
+  /** The same sum against expected revenue — a forecast, and labelled as one. */
+  expectedProfitUsd: number;
+  /** True when this flight has cost more than it has billed. */
+  atALoss: boolean;
 };
 
 export async function batchFinance(
@@ -192,6 +217,25 @@ export async function batchFinance(
   const expectedTzs =
     rate === null ? null : invoicedTzs + toLocal(estimatedUsd, rate);
 
+  /*
+    What the flight cost.
+
+    Already stored in USD on the row, frozen at the rate on the day it was
+    recorded, so a shilling cost and a dollar cost can be added together
+    without re-converting history every time this page is opened.
+  */
+  const costs = await prisma.expense.findMany({
+    where: {
+      batchId,
+      status: { not: "VOID" },
+      expenseClass: "OPERATING",
+    },
+    select: { amountUsd: true },
+  });
+  const expensesUsd = costs.reduce((sum, c) => sum + toNumber(c.amountUsd), 0);
+  const billedUsd = invoicedUsd - draftsUsd;
+  const netProfitUsd = billedUsd - expensesUsd;
+
   return {
     pieces: cargo.length,
     customers: new Set(cargo.map((c) => c.customerId)).size,
@@ -202,12 +246,18 @@ export async function batchFinance(
     draftsUsd,
     unpriceable,
     invoicedUsd,
-    billedUsd: invoicedUsd - draftsUsd,
+    billedUsd,
     estimatedUsd,
     expectedUsd,
     expectedTzs,
     rate,
     receivedUsd,
     outstandingUsd,
+    expensesUsd,
+    expenseCount: costs.length,
+    netProfitUsd,
+    marginPct: billedUsd > 0 ? (netProfitUsd / billedUsd) * 100 : null,
+    expectedProfitUsd: expectedUsd - expensesUsd,
+    atALoss: netProfitUsd < 0,
   };
 }
