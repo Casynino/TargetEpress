@@ -32,7 +32,6 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
     drafts,
     rate,
     customers,
-    weightKg,
     invoiced,
     pieces,
     receivedUsd,
@@ -131,16 +130,16 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
         ends up the height of a screen while saying one thing twice. What is
         left is only what the strip cannot say.
       */}
+      {/*
+        Only what nothing else on the page says.
+
+        Cargo, weight and customers are already on the line under the title, so
+        repeating them here was the same duplication as the tiles, just smaller.
+        What is left is how much of the batch is actually billed — which decides
+        whether the figures above are complete — and the rate they were
+        converted at.
+      */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t px-5 py-2.5 text-xs text-muted-foreground">
-        <span>
-          {pieces.toLocaleString()}{" "}
-          {t(locale, pieces === 1 ? "piece of cargo" : "pieces of cargo")}
-        </span>
-        <span>
-          {customers.toLocaleString()}{" "}
-          {t(locale, customers === 1 ? "customer" : "customers")}
-        </span>
-        <span>{weightKg.toFixed(1)} kg</span>
         <span>
           {invoiced} {t(locale, "of")} {pieces} {t(locale, "invoiced")}
           {drafts > 0 ? (
@@ -151,9 +150,7 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
           ) : null}
         </span>
         {rate !== null ? (
-          <span className="ml-auto">
-            1 USD = {rate.toLocaleString()} TSh
-          </span>
+          <span className="ml-auto">1 USD = {rate.toLocaleString()} TSh</span>
         ) : (
           <span className="ml-auto text-signal">
             {t(locale, "No exchange rate published yet")}

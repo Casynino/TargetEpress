@@ -170,7 +170,7 @@ export function BatchExpenses({
             <NativeSelect
               value={choice}
               onChange={(e) => setChoice(e.target.value)}
-              className="h-8 w-56 text-sm"
+              className="h-9 w-56 text-sm"
               aria-label={t("Cost")}
             >
               {remaining.map((c) => (
@@ -193,7 +193,7 @@ export function BatchExpenses({
                 required
                 minLength={3}
                 placeholder={t("What was it for")}
-                className="h-8 w-48 text-sm"
+                className="h-9 w-48 text-sm"
               />
             </label>
           ) : (
@@ -209,13 +209,13 @@ export function BatchExpenses({
               inputMode="numeric"
               required
               placeholder="0"
-              className="h-8 w-32 text-sm"
+              className="h-9 w-32 text-sm"
             />
           </label>
 
           <label className="flex flex-col gap-1">
             <span className="text-[11px] text-muted-foreground">{t("Paid from")}</span>
-            <NativeSelect name="accountId" defaultValue="" className="h-8 text-sm">
+            <NativeSelect name="accountId" defaultValue="" className="h-9 text-sm">
               <option value="">{t("Not paid yet")}</option>
               {payFrom.map((a) => (
                 <option key={a.id} value={a.id}>
