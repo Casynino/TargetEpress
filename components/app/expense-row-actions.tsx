@@ -9,6 +9,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import {
   approveExpense,
   payExpense,
+  reverseExpense,
   voidExpense,
 } from "@/lib/actions/expenses";
 import type { ActionResult } from "@/lib/actions/types";
@@ -18,9 +19,9 @@ import type { ExpenseAccount } from "@/components/app/expense-form";
  * What can be done to one cost, from the register.
  *
  * Only ever the action that is actually available: an unapproved cost over the
- * limit offers approval and nothing else; an approved one offers payment; a
- * paid one offers nothing at all, because money that has left an account is
- * corrected by a reversing ledger entry, never by editing the record.
+ * limit offers approval and nothing else; an approved one offers payment; and a
+ * paid one offers a REVERSAL, because money that has left an account is
+ * corrected by an opposite ledger entry, never by editing the record.
  */
 export function ExpenseRowActions({
   expenseId,
@@ -29,6 +30,7 @@ export function ExpenseRowActions({
   accounts,
   canApprove,
   needsApproval,
+  canReverse = false,
 }: {
   expenseId: string;
   status: string;
@@ -36,9 +38,12 @@ export function ExpenseRowActions({
   accounts: ExpenseAccount[];
   canApprove: boolean;
   needsApproval: boolean;
+  /** Writing the opposite entry is ledger.adjust, not expense.record. */
+  canReverse?: boolean;
 }) {
   const t = useT();
   const [voiding, setVoiding] = useState(false);
+  const [reversing, setReversing] = useState(false);
 
   const [approveState, approve] = useActionState<ActionResult, FormData>(
     approveExpense,
@@ -51,8 +56,52 @@ export function ExpenseRowActions({
     voidExpense,
     { ok: true }
   );
+  const [reverseState, reverse] = useActionState<
+    ActionResult<{ expenseNumber: string }>,
+    FormData
+  >(reverseExpense, { ok: true });
 
-  if (status === "PAID" || status === "VOID") return null;
+  if (status === "VOID") return null;
+
+  /*
+    Paid: the money is gone, so the only honest correction is an opposite
+    entry. The reason is required — a reversal with no explanation is
+    indistinguishable, months later, from a bookkeeping error.
+  */
+  if (status === "PAID") {
+    if (!canReverse) return null;
+    return reversing ? (
+      <form action={reverse} className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="expenseId" value={expenseId} />
+        <Input
+          name="reason"
+          required
+          minLength={3}
+          placeholder={t("Why is this being reversed?")}
+          className="h-8 w-56 text-xs"
+        />
+        <SubmitButton size="sm" variant="signal" pendingLabel={t("Reversing…")}>
+          {t("Reverse")}
+        </SubmitButton>
+        <button
+          type="button"
+          onClick={() => setReversing(false)}
+          className="text-xs text-muted-foreground underline"
+        >
+          {t("Keep")}
+        </button>
+        <FormError state={reverseState} />
+      </form>
+    ) : (
+      <button
+        type="button"
+        onClick={() => setReversing(true)}
+        className="text-xs text-muted-foreground underline"
+      >
+        {t("Reverse")}
+      </button>
+    );
+  }
 
   const eligible = accounts.filter((a) => a.currency === currency);
   const blocked = status === "PENDING" && needsApproval;

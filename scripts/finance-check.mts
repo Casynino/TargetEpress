@@ -159,9 +159,25 @@ async function checkLedger() {
   const paymentLines = await prisma.ledgerEntry.count({ where: { kind: "CUSTOMER_PAYMENT" } });
   compare("ledger", "payments with a ledger line", paymentLines, payments);
 
-  const paidExpenses = await prisma.expense.count({ where: { status: "PAID" } });
+  /*
+    Measured on paidAt, not on status.
+
+    A cost that was paid and later reversed is VOID, but its original ledger
+    line stays exactly where it was — that is the whole point of correcting by
+    reversal rather than by deletion. Counting PAID rows made this check report
+    a discrepancy the first time a reversal happened, which is the check being
+    wrong rather than the books.
+  */
+  const everPaid = await prisma.expense.count({ where: { paidAt: { not: null } } });
   const expenseLines = await prisma.ledgerEntry.count({ where: { kind: "EXPENSE" } });
-  compare("ledger", "paid expenses with a ledger line", expenseLines, paidExpenses);
+  compare("ledger", "costs ever paid, with a ledger line", expenseLines, everPaid);
+
+  // And every reversal answers exactly one entry.
+  const reversals = await prisma.ledgerEntry.count({ where: { reversesId: { not: null } } });
+  const reversedExpenses = await prisma.expense.count({
+    where: { status: "VOID", paidAt: { not: null } },
+  });
+  compare("ledger", "reversals matching reversed costs", reversals, reversedExpenses);
 }
 
 /* --------------------------------------------------------------------- main */

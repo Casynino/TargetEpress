@@ -491,3 +491,297 @@ export async function voidExpense(
     return fail(toActionError(error));
   }
 }
+
+/* ------------------------------------------------------------- corrections */
+
+const editSchema = z.object({
+  expenseId: z.string().trim().min(1),
+  category: z.enum(CATEGORIES),
+  expenseClass: z.enum(EXPENSE_CLASSES),
+  description: z.string().trim().min(3, "Say what this was for."),
+  vendor: z.string().trim().optional(),
+  note: z.string().trim().optional(),
+  batchId: z.string().trim().optional(),
+  incurredAt: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? new Date(v) : null))
+    .refine((d) => d === null || !Number.isNaN(d.getTime()), "That date is not valid."),
+  /// Not optional. A correction without a reason is indistinguishable from a
+  /// mistake, six months later, to the person trying to understand the books.
+  reason: z.string().trim().min(3, "Say why this is being corrected."),
+});
+
+/** Human labels, so the history reads as English rather than as column names. */
+const FIELD_LABELS: Record<string, string> = {
+  category: "Category",
+  expenseClass: "Counts towards profit",
+  description: "Description",
+  vendor: "Paid to",
+  note: "Note",
+  batchId: "Dispatch",
+  incurredAt: "Date incurred",
+};
+
+/**
+ * Correct a cost that was recorded wrongly.
+ *
+ * What can be changed depends on whether the money has moved. Anything
+ * descriptive — what it was for, which category, which flight, the date it was
+ * incurred — is editable at any time, because getting those right is the whole
+ * point of letting Finance correct its own records.
+ *
+ * The AMOUNT is not editable once the cost is PAID. A paid expense has a
+ * ledger line behind it and an account balance that agrees with a bank
+ * statement; quietly changing the figure would leave the register saying one
+ * thing and the books another. That case is a reversal, not an edit, and
+ * `reverseExpense` is the door.
+ *
+ * Every change is written twice: as FieldChange rows carrying the before and
+ * after values, and as one audit entry carrying the reason. The ledger is
+ * append-only and so is this.
+ */
+export async function editExpense(
+  _prev: ActionResult<{ expenseNumber: string }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ expenseNumber: string }>> {
+  const locale = await viewerLocale();
+
+  let user: SessionUser;
+  try {
+    user = await authorize("expense.record");
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  const parsed = editSchema.safeParse(
+    Object.fromEntries(formData) as Record<string, string>
+  );
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+  const input = parsed.data;
+
+  try {
+    const expenseNumber = await prisma.$transaction(async (tx) => {
+      const before = await tx.expense.findUnique({
+        where: { id: input.expenseId },
+        select: {
+          id: true,
+          expenseNumber: true,
+          status: true,
+          category: true,
+          expenseClass: true,
+          description: true,
+          vendor: true,
+          note: true,
+          batchId: true,
+          incurredAt: true,
+          batch: { select: { batchNumber: true } },
+        },
+      });
+      if (!before) throw new Error(t(locale, "That cost no longer exists."));
+      if (before.status === "VOID") {
+        throw new Error(
+          `${before.expenseNumber} ${t(locale, "was cancelled, so there is nothing to correct.")}`
+        );
+      }
+
+      const after = {
+        category: input.category,
+        expenseClass: input.expenseClass,
+        description: input.description,
+        vendor: input.vendor || null,
+        note: input.note || null,
+        batchId: input.batchId || null,
+        incurredAt: input.incurredAt ?? before.incurredAt,
+      };
+
+      // Only what actually moved. A "correction" that changed nothing should
+      // leave no trail, or the history becomes noise nobody reads.
+      const changes: { field: string; before: string | null; after: string | null }[] = [];
+      const show = (key: string, value: unknown) => {
+        if (value === null || value === undefined || value === "") return null;
+        if (value instanceof Date) return value.toISOString().slice(0, 10);
+        return String(value);
+      };
+      for (const key of Object.keys(FIELD_LABELS)) {
+        const a = show(key, (before as Record<string, unknown>)[key]);
+        const b = show(key, (after as Record<string, unknown>)[key]);
+        if (a !== b) {
+          changes.push({ field: FIELD_LABELS[key], before: a, after: b });
+        }
+      }
+
+      if (changes.length === 0) {
+        throw new Error(t(locale, "Nothing was changed."));
+      }
+
+      await tx.expense.update({ where: { id: before.id }, data: after });
+
+      await tx.fieldChange.createMany({
+        data: changes.map((c) => ({
+          entity: "Expense",
+          entityId: before.id,
+          field: c.field,
+          before: c.before,
+          after: c.after,
+          actorId: user.id,
+          actorName: user.name ?? user.email ?? null,
+        })),
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "expense.edit",
+          entity: "Expense",
+          entityId: before.id,
+          summary: `Corrected ${before.expenseNumber}: ${changes
+            .map((c) => `${c.field} ${c.before ?? "—"} → ${c.after ?? "—"}`)
+            .join("; ")} — ${input.reason}`,
+          metadata: { reason: input.reason, changes },
+        },
+        tx
+      );
+
+      return before.expenseNumber;
+    });
+
+    revalidatePath("/app/finance/expenses");
+    revalidatePath("/app/shipments");
+    return ok({ expenseNumber });
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+const reverseSchema = z.object({
+  expenseId: z.string().trim().min(1),
+  reason: z.string().trim().min(3, "Say why this is being reversed."),
+});
+
+/**
+ * Undo a cost whose money has already left an account.
+ *
+ * Not a deletion and not an edit. The original row stays exactly as it was,
+ * its ledger line stays exactly where it was, and an opposite line is written
+ * pointing back at it. The account balance returns to what it should have
+ * been, and the register still shows both the mistake and the correction —
+ * which is the difference between a ledger and a spreadsheet.
+ */
+export async function reverseExpense(
+  _prev: ActionResult<{ expenseNumber: string }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ expenseNumber: string }>> {
+  const locale = await viewerLocale();
+
+  let user: SessionUser;
+  try {
+    user = await authorize("ledger.adjust");
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  const parsed = reverseSchema.safeParse(
+    Object.fromEntries(formData) as Record<string, string>
+  );
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+  const { expenseId, reason } = parsed.data;
+
+  try {
+    const expenseNumber = await prisma.$transaction(async (tx) => {
+      const expense = await tx.expense.findUnique({
+        where: { id: expenseId },
+        select: {
+          id: true,
+          expenseNumber: true,
+          status: true,
+          amount: true,
+          amountUsd: true,
+          currency: true,
+          exchangeRate: true,
+          accountId: true,
+          ledgerEntry: { select: { id: true, reversedBy: { select: { id: true } } } },
+        },
+      });
+      if (!expense) throw new Error(t(locale, "That cost no longer exists."));
+      if (expense.status === "VOID") {
+        throw new Error(
+          `${expense.expenseNumber} ${t(locale, "was already cancelled.")}`
+        );
+      }
+      if (expense.status !== "PAID" || !expense.accountId || !expense.ledgerEntry) {
+        throw new Error(
+          `${expense.expenseNumber} ${t(locale, "has not been paid, so cancel it instead of reversing it.")}`
+        );
+      }
+      if (expense.ledgerEntry.reversedBy) {
+        throw new Error(
+          `${expense.expenseNumber} ${t(locale, "has already been reversed.")}`
+        );
+      }
+
+      const occurredAt = new Date();
+
+      // The opposite leg: money back IN to the account it left.
+      await postLedgerEntry(tx, {
+        accountId: expense.accountId,
+        currency: expense.currency,
+        direction: "IN",
+        kind: "ADJUSTMENT",
+        amount: toNumber(expense.amount),
+        amountUsd: toNumber(expense.amountUsd),
+        exchangeRate:
+          expense.exchangeRate === null ? null : toNumber(expense.exchangeRate),
+        occurredAt,
+        description: `Reversal of ${expense.expenseNumber} — ${reason}`,
+        sourceEntity: "Expense",
+        sourceId: expense.id,
+        /*
+          Deliberately NOT expenseId.
+
+          LedgerEntry.expenseId is unique — one line per expense, which is what
+          makes "money cannot move without a ledger line" enforceable by the
+          database rather than by discipline. The reversal is a second line
+          about the same cost, so it links through reversesId, which points at
+          the entry it cancels, and through sourceId for anyone tracing back to
+          the expense.
+        */
+        recordedById: user.id,
+        reversesId: expense.ledgerEntry.id,
+      });
+
+      await tx.expense.update({
+        where: { id: expense.id },
+        data: { status: "VOID", voidedAt: occurredAt, voidReason: reason },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "expense.reverse",
+          entity: "Expense",
+          entityId: expense.id,
+          summary: `Reversed ${expense.expenseNumber} — ${reason}`,
+          metadata: {
+            reason,
+            amount: toNumber(expense.amount),
+            currency: expense.currency,
+            amountUsd: toNumber(expense.amountUsd),
+            reversedLedgerEntryId: expense.ledgerEntry.id,
+          },
+        },
+        tx
+      );
+
+      return expense.expenseNumber;
+    });
+
+    revalidatePath("/app/finance/expenses");
+    revalidatePath("/app/finance/transactions");
+    revalidatePath("/app/shipments");
+    return ok({ expenseNumber });
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}

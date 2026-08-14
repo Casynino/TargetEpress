@@ -43,6 +43,15 @@ export type PostEntry = {
   /** Set on both legs of a transfer; the pair (transferId, direction) is unique. */
   transferId?: string | null;
   recordedById?: string | null;
+  /**
+   * The entry this one cancels.
+   *
+   * A wrong line is never edited or deleted — it is answered by an opposite
+   * one that points back at it, so the register still shows what was believed
+   * at the time and what corrected it. The column is unique, so the same entry
+   * cannot be reversed twice.
+   */
+  reversesId?: string | null;
 };
 
 export async function postLedgerEntry(tx: TxClient, entry: PostEntry) {
@@ -67,6 +76,7 @@ export async function postLedgerEntry(tx: TxClient, entry: PostEntry) {
       expenseId: entry.expenseId ?? null,
       transferId: entry.transferId ?? null,
       recordedById: entry.recordedById ?? null,
+      reversesId: entry.reversesId ?? null,
     },
   });
 }

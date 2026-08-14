@@ -80,6 +80,7 @@ export default async function ExpensesPage({
   const user = await requirePermission("expense.view");
   const locale = await viewerLocale();
   const canRecord = can(user.role, "expense.record");
+  const canAdjustLedger = can(user.role, "ledger.adjust");
   const canApprove = can(user.role, "expense.approve");
 
   const { period: rawPeriod } = await searchParams;
@@ -446,12 +447,21 @@ export default async function ExpensesPage({
                       {canRecord || canApprove ? (
                         <div className="mt-2">
                           <ExpenseRowActions
+                            canReverse={canAdjustLedger}
                             expenseId={expense.id}
                             status={expense.status}
                             currency={expense.currency}
                             accounts={accountOptions}
                             canApprove={canApprove}
-                            needsApproval={usd > EXPENSE_APPROVAL_THRESHOLD_USD}
+                            /*
+                              A gate only exists for somebody it applies to.
+                              Finance holds expense.approve, so showing it an
+                              Approve step before it may pay is the CEO
+                              bottleneck rebuilt in the UI.
+                            */
+                            needsApproval={
+                              usd > EXPENSE_APPROVAL_THRESHOLD_USD && !canApprove
+                            }
                           />
                         </div>
                       ) : null}
