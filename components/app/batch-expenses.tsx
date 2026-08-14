@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, Paperclip, Plus } from "lucide-react";
+import { Paperclip, Plus, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
@@ -33,17 +33,17 @@ export type BatchExpenseRow = {
 };
 
 /**
- * What this flight cost, as the six things that actually happen to it.
+ * What this flight cost: the costs it has, and a line of the ones it might.
  *
- * The owner's correction, and it is the right one: a dispatch does not incur
- * "an expense in a category" — it is cleared at Zanzibar, cleared at Dar, may
- * need a permit at either, and is trucked twice. Those six are always on the
- * list whether or not they have been paid, so a blank row is a reminder rather
- * than an absence nobody notices. Anything unusual goes in the row underneath.
+ * The first version listed all six standard costs permanently, so a flight with
+ * one cost recorded spent six rows saying what had NOT happened. The owner's
+ * correction: the prompt is worth keeping, six empty rows are not. The costs
+ * still to record are chips on one line — a tap opens a box for the figure —
+ * and a full row is spent only on a cost that exists.
  *
- * Shillings lead. The office pays the clearing agent in shillings and reads
- * shillings all day; the dollar figure is what the invoice says, so it sits
- * underneath in small type rather than the other way round.
+ * Shillings lead throughout. The office pays the clearing agent in shillings;
+ * the dollar figure is what the invoice says, so it sits underneath in small
+ * type rather than the other way round.
  */
 export function BatchExpenses({
   batchId,
@@ -62,8 +62,10 @@ export function BatchExpenses({
   canRecord: boolean;
 }) {
   const t = useT();
-  const [openRow, setOpenRow] = useState<string | null>(null);
-  const [showOther, setShowOther] = useState(false);
+  /** Which cost is being entered: a named one, "something else", or nothing. */
+  const [adding, setAdding] = useState<
+    { label: string; category: string; free: boolean } | null
+  >(null);
 
   const [state, action] = useActionState<
     ActionResult<{ expenseNumber: string }>,
@@ -72,129 +74,21 @@ export function BatchExpenses({
 
   /** Every figure in shillings, whichever currency it was paid in. */
   const tsh = (row: { amount: number; currency: string; amountUsd: number }) =>
-    row.currency === "TZS"
-      ? row.amount
-      : rate
-        ? row.amountUsd * rate
-        : null;
+    row.currency === "TZS" ? row.amount : rate ? row.amountUsd * rate : null;
 
-  // Same formatter as everywhere else, so no screen quotes a different symbol.
   const shillings = (n: number | null) => (n === null ? "—" : formatLocal(n));
-  const dollars = (n: number) => formatUsd(n);
 
   const live = expenses.filter((e) => e.status !== "VOID");
+  const recorded = new Set(live.map((e) => e.description.toLowerCase()));
 
-  // A recorded cost is matched to its row by the name it was recorded under.
-  const forType = (label: string) =>
-    live.find((e) => e.description.toLowerCase() === label.toLowerCase());
-
-  const standardLabels = new Set(
-    BATCH_COST_TYPES.map((c) => c.label.toLowerCase())
-  );
-  const others = live.filter(
-    (e) => !standardLabels.has(e.description.toLowerCase())
+  // Only the standard costs this flight has not had yet.
+  const remaining = BATCH_COST_TYPES.filter(
+    (c) => !recorded.has(c.label.toLowerCase())
   );
 
   const totalTsh = live.reduce((sum, e) => sum + (tsh(e) ?? 0), 0);
   const totalUsd = live.reduce((sum, e) => sum + e.amountUsd, 0);
-
-  /** One row: the cost, and either its figure or a box to put one in. */
-  const CostRow = ({
-    label,
-    category,
-    recorded,
-  }: {
-    label: string;
-    category: string;
-    recorded?: BatchExpenseRow;
-  }) => {
-    const open = openRow === label;
-    return (
-      <div className="border-b last:border-0">
-        <div className="flex flex-wrap items-center gap-3 px-5 py-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            {recorded ? (
-              <Check className="h-4 w-4 shrink-0 text-success" />
-            ) : (
-              <span className="h-4 w-4 shrink-0 rounded-full border border-dashed" />
-            )}
-            <span className={recorded ? "font-medium" : "text-muted-foreground"}>
-              {t(label)}
-            </span>
-            {recorded?.receipts ? (
-              <Paperclip className="h-3 w-3 text-muted-foreground" />
-            ) : null}
-          </div>
-
-          {recorded ? (
-            <div className="text-right">
-              <p className="font-display font-bold tabular-nums">
-                {shillings(tsh(recorded))}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {dollars(recorded.amountUsd)} ·{" "}
-                {recorded.accountName ?? t("not paid yet")}
-              </p>
-            </div>
-          ) : canRecord ? (
-            <button
-              type="button"
-              onClick={() => setOpenRow(open ? null : label)}
-              className="focus-ring rounded-md border px-3 py-1 text-xs font-medium hover:bg-accent"
-            >
-              {open ? t("Cancel") : t("Add")}
-            </button>
-          ) : (
-            <span className="text-xs text-muted-foreground">{t("Not recorded")}</span>
-          )}
-        </div>
-
-        {open && !recorded ? (
-          <form action={action} className="bg-muted/30 px-5 py-3">
-            {/* The row already knows what it is; only the figure is asked for. */}
-            <input type="hidden" name="batchId" value={batchId} />
-            <input type="hidden" name="description" value={label} />
-            <input type="hidden" name="category" value={category} />
-            <input type="hidden" name="currency" value="TZS" />
-            <div className="flex flex-wrap items-end gap-2">
-              <label className="flex flex-col gap-1">
-                <span className="text-[11px] text-muted-foreground">
-                  {t("Amount in shillings")}
-                </span>
-                <Input
-                  name="amount"
-                  inputMode="numeric"
-                  required
-                  autoFocus
-                  placeholder="0"
-                  className="h-8 w-40 text-sm"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[11px] text-muted-foreground">
-                  {t("Paid from")}
-                </span>
-                <NativeSelect name="accountId" defaultValue="" className="h-8 text-sm">
-                  <option value="">{t("Not paid yet")}</option>
-                  {accounts
-                    .filter((a) => a.currency === "TZS")
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                </NativeSelect>
-              </label>
-              <SubmitButton size="sm" variant="brand" pendingLabel={t("Saving…")}>
-                {t("Record")}
-              </SubmitButton>
-            </div>
-            <FormError state={state} />
-          </form>
-        ) : null}
-      </div>
-    );
-  };
+  const payFrom = accounts.filter((a) => a.currency === "TZS");
 
   return (
     <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">
@@ -209,65 +103,77 @@ export function BatchExpenses({
           <p className="font-display text-lg font-bold tabular-nums">
             {shillings(totalTsh)}
           </p>
-          <p className="text-xs text-muted-foreground">{dollars(totalUsd)}</p>
+          <p className="text-xs text-muted-foreground">{formatUsd(totalUsd)}</p>
         </div>
       </div>
 
-      {BATCH_COST_TYPES.map((type) => (
-        <CostRow
-          key={type.key}
-          label={type.label}
-          category={type.category}
-          recorded={forType(type.label)}
-        />
-      ))}
-
-      {others.map((e) => (
-        <div
-          key={e.id}
-          className="flex flex-wrap items-center gap-3 border-b px-5 py-3 last:border-0"
-        >
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <Check className="h-4 w-4 shrink-0 text-success" />
-            <span className="font-medium">{e.description}</span>
-            {e.expenseClass === "NON_OPERATING" ? (
-              <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                {t("Special — not in this flight's profit")}
+      {/* A row is spent only on a cost that exists. */}
+      {live.length === 0 ? (
+        <p className="px-5 pt-4 text-sm text-muted-foreground">
+          {t(
+            "Nothing recorded yet, so this flight's profit has nothing taken off it."
+          )}
+        </p>
+      ) : (
+        <ul className="divide-y">
+          {live.map((e) => (
+            <li key={e.id} className="flex flex-wrap items-center gap-3 px-5 py-2.5">
+              <span className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="truncate font-medium">{e.description}</span>
+                {e.expenseClass === "NON_OPERATING" ? (
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                    {t("Special — not in profit")}
+                  </span>
+                ) : null}
+                {e.receipts > 0 ? (
+                  <Paperclip className="h-3 w-3 shrink-0 text-muted-foreground" />
+                ) : null}
               </span>
-            ) : null}
-            {e.receipts > 0 ? (
-              <Paperclip className="h-3 w-3 text-muted-foreground" />
-            ) : null}
-          </div>
-          <div className="text-right">
-            <p className="font-display font-bold tabular-nums">{shillings(tsh(e))}</p>
-            <p className="text-xs text-muted-foreground">
-              {dollars(e.amountUsd)} · {e.accountName ?? t("not paid yet")}
-            </p>
-          </div>
-        </div>
-      ))}
+              <span className="text-right">
+                <span className="block font-display font-bold tabular-nums">
+                  {shillings(tsh(e))}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {formatUsd(e.amountUsd)} · {e.accountName ?? t("not paid yet")}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {canRecord ? (
-        <div className="bg-muted/30 px-5 py-3">
-          {showOther ? (
+        <div className="border-t bg-muted/20 px-5 py-3">
+          {adding ? (
             <form action={action} className="flex flex-wrap items-end gap-2">
               <input type="hidden" name="batchId" value={batchId} />
               <input type="hidden" name="currency" value="TZS" />
-              <input type="hidden" name="category" value="OTHER" />
-              <label className="flex flex-col gap-1">
-                <span className="text-[11px] text-muted-foreground">
-                  {t("What was it for")}
-                </span>
-                <Input
-                  name="description"
-                  required
-                  minLength={3}
-                  autoFocus
-                  placeholder={t("Something else this flight cost")}
-                  className="h-8 w-56 text-sm"
-                />
-              </label>
+              <input type="hidden" name="category" value={adding.category} />
+
+              {/* A named cost carries its own name; only "something else" asks. */}
+              {adding.free ? (
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] text-muted-foreground">
+                    {t("What was it for")}
+                  </span>
+                  <Input
+                    name="description"
+                    required
+                    minLength={3}
+                    autoFocus
+                    placeholder={t("Something else this flight cost")}
+                    className="h-8 w-52 text-sm"
+                  />
+                </label>
+              ) : (
+                <>
+                  <input type="hidden" name="description" value={adding.label} />
+                  <span className="mb-1.5 text-sm font-medium">
+                    {t(adding.label)}
+                  </span>
+                </>
+              )}
+
               <label className="flex flex-col gap-1">
                 <span className="text-[11px] text-muted-foreground">
                   {t("Amount in shillings")}
@@ -276,46 +182,63 @@ export function BatchExpenses({
                   name="amount"
                   inputMode="numeric"
                   required
+                  autoFocus={!adding.free}
                   placeholder="0"
                   className="h-8 w-36 text-sm"
                 />
               </label>
+
               <label className="flex flex-col gap-1">
                 <span className="text-[11px] text-muted-foreground">
                   {t("Paid from")}
                 </span>
                 <NativeSelect name="accountId" defaultValue="" className="h-8 text-sm">
                   <option value="">{t("Not paid yet")}</option>
-                  {accounts
-                    .filter((a) => a.currency === "TZS")
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
+                  {payFrom.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
                 </NativeSelect>
               </label>
+
               <SubmitButton size="sm" variant="brand" pendingLabel={t("Saving…")}>
                 {t("Record")}
               </SubmitButton>
               <button
                 type="button"
-                onClick={() => setShowOther(false)}
-                className="h-8 text-xs text-muted-foreground underline"
+                onClick={() => setAdding(null)}
+                aria-label={t("Cancel")}
+                className="focus-ring mb-0.5 rounded p-1.5 text-muted-foreground hover:text-foreground"
               >
-                {t("Cancel")}
+                <X className="h-4 w-4" />
               </button>
               <FormError state={state} />
             </form>
           ) : (
-            <button
-              type="button"
-              onClick={() => setShowOther(true)}
-              className="focus-ring inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              {t("Another cost on this flight")}
-            </button>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-xs text-muted-foreground">{t("Add")}</span>
+              {remaining.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() =>
+                    setAdding({ label: c.label, category: c.category, free: false })
+                  }
+                  className="focus-ring rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  {t(c.label)}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setAdding({ label: "", category: "OTHER", free: true })}
+                className="focus-ring inline-flex items-center gap-1 rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Plus className="h-3 w-3" />
+                {t("Something else")}
+              </button>
+            </div>
           )}
         </div>
       ) : null}
