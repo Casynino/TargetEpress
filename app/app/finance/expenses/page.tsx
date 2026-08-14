@@ -46,6 +46,14 @@ const STATUS_TONE: Record<string, string> = {
  * LEFT, which is what the ledger and a bank statement agree on. Only the second
  * writes a ledger line, because only the second is a movement of money.
  */
+/** The three kinds of spending, and what each one is for. */
+const KINDS = [
+  { key: "all", label: "Everything", hint: "Every cost, whatever it belongs to" },
+  { key: "flight", label: "Flight costs", hint: "Attached to a dispatch — what per-flight profit is made of" },
+  { key: "office", label: "Office", hint: "Running the business; belongs to no flight" },
+  { key: "special", label: "Special", hint: "Recorded and paid, but kept out of operating and batch profit" },
+] as const;
+
 const PERIODS = [
   { key: "today", label: "Today" },
   { key: "week", label: "This week" },
@@ -75,7 +83,7 @@ function windowStart(period: string): Date | null {
 export default async function ExpensesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; kind?: string }>;
 }) {
   const user = await requirePermission("expense.view");
   const locale = await viewerLocale();
@@ -83,7 +91,7 @@ export default async function ExpensesPage({
   const canAdjustLedger = can(user.role, "ledger.adjust");
   const canApprove = can(user.role, "expense.approve");
 
-  const { period: rawPeriod } = await searchParams;
+  const { period: rawPeriod, kind: rawKind } = await searchParams;
   const period = PERIODS.some((p) => p.key === rawPeriod)
     ? (rawPeriod as string)
     : "month";
@@ -91,6 +99,26 @@ export default async function ExpensesPage({
     PERIODS.find((p) => p.key === period)?.label ?? "This month";
   const from = windowStart(period);
   const inWindow = from ? { gte: from } : undefined;
+
+  /*
+    Three kinds of spending, and they answer different questions.
+
+    A flight cost belongs to a dispatch and is what per-flight profit is made
+    of. An office cost keeps the business running and belongs to no flight. A
+    special cost is money that left the company but would mislead if it were
+    counted in either — so it is recorded, visible here, and excluded from
+    profit. Being able to look at one without the others is the whole reason
+    the class exists.
+  */
+  const kind = KINDS.some((k) => k.key === rawKind) ? (rawKind as string) : "all";
+  const kindWhere =
+    kind === "flight"
+      ? { batchId: { not: null }, expenseClass: "OPERATING" as const }
+      : kind === "office"
+        ? { batchId: null, expenseClass: "OPERATING" as const }
+        : kind === "special"
+          ? { expenseClass: "NON_OPERATING" as const }
+          : {};
 
   const [
     expenses,
@@ -103,7 +131,7 @@ export default async function ExpensesPage({
     usedMost,
   ] = await Promise.all([
       prisma.expense.findMany({
-        where: inWindow ? { incurredAt: inWindow } : {},
+        where: { ...(inWindow ? { incurredAt: inWindow } : {}), ...kindWhere },
         orderBy: [{ incurredAt: "desc" }, { createdAt: "desc" }],
         take: 100,
         include: {
@@ -203,6 +231,29 @@ export default async function ExpensesPage({
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
+      {/* Which kind of spending, before how much of it. */}
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        {KINDS.map((k) => (
+          <Link
+            key={k.key}
+            href={
+              k.key === "all"
+                ? `/app/finance/expenses${period === "month" ? "" : `?period=${period}`}`
+                : `/app/finance/expenses?kind=${k.key}${period === "month" ? "" : `&period=${period}`}`
+            }
+            aria-current={kind === k.key ? "true" : undefined}
+            title={t(locale, k.hint)}
+            className={`focus-ring rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              kind === k.key
+                ? "border-foreground bg-foreground text-background"
+                : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
+            }`}
+          >
+            {t(locale, k.label)}
+          </Link>
+        ))}
+      </div>
+
       {/* Period first: "how much did we spend" is meaningless without saying
              over what. URL state, so a month can be linked to and reloaded. */}
       <div className="mb-4 flex flex-wrap items-center gap-1.5">
@@ -211,8 +262,8 @@ export default async function ExpensesPage({
             key={p.key}
             href={
               p.key === "month"
-                ? "/app/finance/expenses"
-                : `/app/finance/expenses?period=${p.key}`
+                ? `/app/finance/expenses${kind === "all" ? "" : `?kind=${kind}`}`
+                : `/app/finance/expenses?period=${p.key}${kind === "all" ? "" : `&kind=${kind}`}`
             }
             aria-current={period === p.key ? "true" : undefined}
             className={`focus-ring rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
@@ -360,7 +411,18 @@ export default async function ExpensesPage({
                     <li key={expense.id} className="p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="font-medium">{expense.description}</p>
+                          <p className="font-medium">
+                            {expense.description}
+                            {/* Marked wherever it appears, not only when
+                                filtered for — a reader scanning the list has to
+                                be able to see which figures are outside the
+                                profit calculation. */}
+                            {expense.expenseClass === "NON_OPERATING" ? (
+                              <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground">
+                                {t(locale, "Special — not in profit")}
+                              </span>
+                            ) : null}
+                          </p>
                           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                             <span className="font-mono">
                               {expense.expenseNumber}
