@@ -192,6 +192,68 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
       </p>
     ) : null;
 
+  /*
+    One rate block, used by BOTH close forms.
+
+    It existed only on the money-still-owed branch. The ordinary case — every
+    bill paid, which is most flights — had two unlabelled boxes and no preview,
+    so the exact mistake the preview was built to catch was still wide open on
+    the path most closes take. It is also the path a returned statement lands
+    on: the boss sends a flight back BECAUSE the payback looked wrong, and
+    Finance retypes the rate with nothing to check it against.
+  */
+  const rateFields = (
+    <>
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-muted-foreground">
+                  {t("Freight")} <span className="text-foreground">USD / kg</span>
+                </span>
+                <Input
+                  name="freightRate"
+                  inputMode="decimal"
+                  value={freight}
+                  onChange={(event) => setFreight(event.target.value)}
+                  placeholder="8"
+                  className="h-9 w-24 bg-card text-sm tabular-nums"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-muted-foreground">
+                  {t("Customs")} <span className="text-foreground">USD / kg</span>
+                </span>
+                <Input
+                  name="customsRate"
+                  inputMode="decimal"
+                  value={customs}
+                  onChange={(event) => setCustoms(event.target.value)}
+                  placeholder="1.8"
+                  className="h-9 w-24 bg-card text-sm tabular-nums"
+                />
+              </label>
+              <p className="pb-2 text-xs">
+                {payback === null ? (
+                  <span className="text-muted-foreground">
+                    {t(
+                      "Weight × these two is what has to be paid back before any of this flight is profit."
+                    )}
+                  </span>
+                ) : (
+                  <span className={suspicious ? "text-destructive" : "text-muted-foreground"}>
+                    {state.kg.toFixed(1)} kg × {formatUsd(landed!)} ={" "}
+                    <span className="font-medium">{formatUsd(payback)}</span>{" "}
+                    {t("to pay back")}
+                    {state.rate !== null
+                      ? ` (${formatLocal(payback * state.rate)})`
+                      : ""}
+                    {suspicious
+                      ? ` — ${t("that is far more than this flight earned. Are those shillings in a dollars box?")}`
+                      : ""}
+                  </span>
+                )}
+              </p>
+    </>
+  );
+
   /* ------------------------------------------------------------------ */
   /* Already closed: one line, and a way back.                           */
   /* ------------------------------------------------------------------ */
@@ -325,26 +387,7 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
         <span className="text-sm text-muted-foreground">
           {t("Everything on this batch is paid. Nothing is owed.")}
         </span>
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          {t("Freight/kg")}
-          <Input
-            name="freightRate"
-            inputMode="decimal"
-            defaultValue={state.freightRate ?? ""}
-            placeholder="8"
-            className="h-8 w-20 text-sm tabular-nums"
-          />
-        </label>
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          {t("Customs/kg")}
-          <Input
-            name="customsRate"
-            inputMode="decimal"
-            defaultValue={state.customsRate ?? ""}
-            placeholder="1.8"
-            className="h-8 w-20 text-sm tabular-nums"
-          />
-        </label>
+        {rateFields}
         <SubmitButton
           variant="ghost"
           className="ml-auto h-9 gap-1.5 border border-success/35 bg-success/10 px-3 text-success hover:bg-success/20 hover:text-success"
@@ -511,53 +554,7 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
               {writingOff > 0 ? ` · ${writingOff} ${t("piece(s) written off")}` : ""}
             </p>
             <div className="flex flex-wrap items-end gap-2">
-              <label className="flex flex-col gap-1">
-                <span className="text-[11px] text-muted-foreground">
-                  {t("Freight")} <span className="text-foreground">USD / kg</span>
-                </span>
-                <Input
-                  name="freightRate"
-                  inputMode="decimal"
-                  value={freight}
-                  onChange={(event) => setFreight(event.target.value)}
-                  placeholder="8"
-                  className="h-9 w-24 bg-card text-sm tabular-nums"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[11px] text-muted-foreground">
-                  {t("Customs")} <span className="text-foreground">USD / kg</span>
-                </span>
-                <Input
-                  name="customsRate"
-                  inputMode="decimal"
-                  value={customs}
-                  onChange={(event) => setCustoms(event.target.value)}
-                  placeholder="1.8"
-                  className="h-9 w-24 bg-card text-sm tabular-nums"
-                />
-              </label>
-              <p className="pb-2 text-xs">
-                {payback === null ? (
-                  <span className="text-muted-foreground">
-                    {t(
-                      "Weight × these two is what has to be paid back before any of this flight is profit."
-                    )}
-                  </span>
-                ) : (
-                  <span className={suspicious ? "text-destructive" : "text-muted-foreground"}>
-                    {state.kg.toFixed(1)} kg × {formatUsd(landed!)} ={" "}
-                    <span className="font-medium">{formatUsd(payback)}</span>{" "}
-                    {t("to pay back")}
-                    {state.rate !== null
-                      ? ` (${formatLocal(payback * state.rate)})`
-                      : ""}
-                    {suspicious
-                      ? ` — ${t("that is far more than this flight earned. Are those shillings in a dollars box?")}`
-                      : ""}
-                  </span>
-                )}
-              </p>
+            {rateFields}
             </div>
           </div>
 
