@@ -179,6 +179,23 @@ export default async function FinanceOverviewPage() {
     .filter((row) => ["RECEIVED_AT_DAR", "READY_FOR_PICKUP"].includes(row.status))
     .reduce((n, row) => n + toNumber(row._sum.weightKg), 0);
 
+  /*
+    The flights themselves, which this page never mentioned.
+
+    Every figure above hangs off cargo, and cargo arrives on a flight — but the
+    overview jumped from a cash balance to individual consignments with nothing
+    in between, so the one unit the business is actually run on was missing.
+    How many flew, how many are still open, and how many have had a line drawn
+    under them.
+  */
+  const [flightsTotal, flightsOpen, flightsClosed] = await Promise.all([
+    prisma.batch.count({ where: { permanent: false } }),
+    prisma.batch.count({
+      where: { permanent: false, closedAt: null, status: { not: "OPEN" } },
+    }),
+    prisma.batch.count({ where: { permanent: false, closedAt: { not: null } } }),
+  ]);
+
   const wherever = [
     { label: "Waiting in China", value: countFor("READY_TO_DEPART") },
     { label: "In the air", value: countFor("IN_TRANSIT") },
@@ -270,10 +287,10 @@ export default async function FinanceOverviewPage() {
   return (
     <>
       <PageHeader
-        title={t(locale, "General ledger")}
+        title={t(locale, "Overview")}
         description={t(
           locale,
-          "What the business is holding, what is owed to it, and what has moved. Shown in shillings; the dollar figure is what the invoice says."
+          "The department at a glance: what the business is holding, what is owed to it, and how the flights are doing. Shown in shillings; the dollar figure is what the invoice says."
         )}
         actions={
           <Button asChild variant="brand" className="rounded-lg">
@@ -486,6 +503,35 @@ export default async function FinanceOverviewPage() {
         <p className="ml-auto text-xs text-muted-foreground">
           {formatWeight(heldWeightKg)} {t(locale, "held in Dar")}
         </p>
+      </section>
+
+      {/* The same line, one level up: cargo sits on flights, and a flight is
+          the unit the boss asks about. Closed means its books are shut and
+          nothing more can land on it. */}
+      <section className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border bg-card px-5 py-4">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          {t(locale, "Flights")}
+        </p>
+        {[
+          { label: "on record", value: flightsTotal },
+          { label: "still open", value: flightsOpen },
+          { label: "closed", value: flightsClosed },
+        ].map((item) => (
+          <div key={item.label} className="flex items-baseline gap-2">
+            <span className="font-display text-lg font-bold tabular-nums">
+              {item.value}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {t(locale, item.label)}
+            </span>
+          </div>
+        ))}
+        <Link
+          href="/app/finance/income"
+          className="ml-auto text-xs font-medium text-brand hover:underline"
+        >
+          {t(locale, "What each one made")} →
+        </Link>
       </section>
 
       {/* ── Two registers, as tables.

@@ -174,10 +174,11 @@ const SECTIONS: NavSection[] = [
       // its own says nothing about which box it is or where.
       {
         href: "/app/finance",
-        // The sidebar names it by the accounting term, which is the clearer
-        // signpost from outside the finance workspace. Inside it, the page
-        // and its tab keep the shorter title.
-        label: "General ledger",
+        // Named for what the page IS. "General ledger" now belongs to the tab
+        // that holds every movement — this door opens onto the department at a
+        // glance, and calling both by the same words sent people to the wrong
+        // one to look up a transaction.
+        label: "Overview",
         icon: "Wallet",
         permission: "accounting.view",
       },
@@ -501,11 +502,11 @@ const FINANCE_SECTIONS: NavSection[] = [
     // release the cargo it paid for.
     group: { label: "Finance", icon: "ReceiptText" },
     items: [
-      // The ledger leads: it is the department, and Collections is one part of
-      // the money passing through it.
+      // The overview leads: it is the department, and Collections is one part
+      // of the money passing through it.
       {
         href: "/app/finance",
-        label: "General ledger",
+        label: "Overview",
         icon: "Wallet",
         permission: "accounting.view",
       },
@@ -741,7 +742,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { href: "/app/collections", label: "Collections", icon: "Banknote", permission: "collections.view" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode", permission: "pickupNote.view" },
-      { href: "/app/finance", label: "General ledger", icon: "Wallet", permission: "accounting.view" },
+      { href: "/app/finance", label: "Overview", icon: "Wallet", permission: "accounting.view" },
       // collections.view, matching the route's own guard. The shared menu had
       // this on ticket.manage, from when the call list lived under /app/support.
       { href: "/app/collections/follow-up", label: "Payment follow-up", icon: "PhoneCall", permission: "collections.view" },
