@@ -30,6 +30,13 @@ export function financeTabs(role: Role): FinanceTab[] {
       visible: can(role, "account.view"),
     },
     {
+      // Beside Accounts because it is one of them, seen from the point of view
+      // of the person physically holding the money rather than the books.
+      href: "/app/finance/cash",
+      label: "Cash",
+      visible: can(role, "account.view"),
+    },
+    {
       href: "/app/collections",
       // Beside Verify payments because they are one pipeline read end to end:
       // what customers owe, what has been collected against it, and what is

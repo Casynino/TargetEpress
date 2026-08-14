@@ -380,6 +380,21 @@ const FINANCE: Permission[] = [
   // never decided and disbursed by the same desk.
   "exception.compensate",
   "report.view",
+  /*
+    Whether the business made money.
+
+    Withheld from Finance until now on the argument that the desk which sets
+    prices and records costs should not also be the one reporting whether the
+    result was good. The owner has overruled it: this brief asks Finance for
+    batch profitability, Profit & Loss and financial statements by name, and a
+    finance department that cannot see the profit figure is a bookkeeping
+    desk, not the "complete financial control center" that was asked for.
+
+    The reporting still cannot be quietly managed — every price change, cost,
+    correction and reversal behind these figures is in the audit log with a
+    name against it, and the CEO reads the same reports.
+  */
+  "profit.view",
 ];
 
 /** The CEO sees and can do everything — but is never required to. */
@@ -501,6 +516,7 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // a customer's bill; these two are about what the business is worth, and
   // Support has no business in either.
   { prefix: "/app/finance/accounts", permission: "account.view" },
+  { prefix: "/app/finance/cash", permission: "account.view" },
   { prefix: "/app/finance/transactions", permission: "ledger.view" },
   // The payments register. It has always been guarded on the page itself, but
   // not here — so Support, who holds finance.view, was admitted by the catch-all
