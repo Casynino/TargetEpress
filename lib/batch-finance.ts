@@ -79,6 +79,16 @@ export type BatchFinance = {
   /** How many cost lines are behind that figure. */
   expenseCount: number;
   /**
+   * The same costs in shillings, summed the accurate way.
+   *
+   * NOT expensesUsd × today's rate. A cost paid in shillings is already an
+   * exact shilling figure; converting it to dollars and back rounds it twice
+   * and lands a few shillings away from what actually left the account. Summed
+   * per row, so the panel listing the costs and the tile totalling them cannot
+   * print two different numbers under the same word.
+   */
+  expensesTzs: number | null;
+  /**
    * Billed revenue less what the flight cost.
    *
    * Measured against BILLED rather than expected, deliberately. Expected
@@ -230,9 +240,20 @@ export async function batchFinance(
       status: { not: "VOID" },
       expenseClass: "OPERATING",
     },
-    select: { amountUsd: true },
+    select: { amountUsd: true, amount: true, currency: true },
   });
   const expensesUsd = costs.reduce((sum, c) => sum + toNumber(c.amountUsd), 0);
+  const expensesTzs =
+    rate === null
+      ? null
+      : costs.reduce(
+          (sum, c) =>
+            sum +
+            (c.currency === "TZS"
+              ? toNumber(c.amount)
+              : toNumber(c.amountUsd) * rate),
+          0
+        );
   const billedUsd = invoicedUsd - draftsUsd;
   const netProfitUsd = billedUsd - expensesUsd;
 
@@ -255,6 +276,7 @@ export async function batchFinance(
     outstandingUsd,
     expensesUsd,
     expenseCount: costs.length,
+    expensesTzs,
     netProfitUsd,
     marginPct: billedUsd > 0 ? (netProfitUsd / billedUsd) * 100 : null,
     expectedProfitUsd: expectedUsd - expensesUsd,

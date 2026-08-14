@@ -137,3 +137,38 @@ export const EXPENSE_CLASS_HINTS: Record<
   NON_OPERATING:
     "Recorded and paid, but kept out of operating and batch profit so it cannot distort them.",
 };
+
+/**
+ * The costs that happen on almost every dispatch, in the order they happen.
+ *
+ * A flight lands and then always incurs roughly the same six things: it is
+ * cleared at Zanzibar or at Dar, it may need a permit at either, it is trucked
+ * from Zanzibar to Dar, and it is trucked from the port to the warehouse.
+ *
+ * Presenting those as a generic form with a category dropdown of eighteen makes
+ * somebody pick the same category several times a week for a cost whose
+ * category never changes. So they are a checklist instead: the six are always
+ * listed, each either carrying its figure or waiting for one, and anything
+ * unusual is added underneath.
+ *
+ * The list being always visible is the point. A blank row is a reminder that
+ * the clearing agent has not been paid yet; a blank form can never be that.
+ */
+export const BATCH_COST_TYPES = [
+  { key: "zanzibar-customs", label: "Zanzibar customs", category: "CUSTOMS_DUTY" },
+  { key: "zanzibar-permit", label: "Zanzibar special permit", category: "PERMITS" },
+  {
+    key: "zanzibar-dar-transport",
+    label: "Transport · Zanzibar to Dar",
+    category: "LOCAL_TRANSPORT",
+  },
+  { key: "dar-customs", label: "Dar es Salaam customs", category: "CUSTOMS_DUTY" },
+  { key: "dar-permit", label: "Dar es Salaam special permit", category: "PERMITS" },
+  {
+    key: "port-warehouse-transport",
+    label: "Transport · Dar port to warehouse",
+    category: "LOCAL_TRANSPORT",
+  },
+] as const;
+
+export type BatchCostType = (typeof BATCH_COST_TYPES)[number];

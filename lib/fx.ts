@@ -1,5 +1,23 @@
 import "server-only";
 
+/*
+  The pure part of this module lives in lib/money.ts and is re-exported here.
+
+  Formatting a figure needs no database and no request, but this file does —
+  it reads the published rate — so anything importing a formatter from here
+  was importing the server with it, and a client component doing that fails
+  the build. Existing imports from "@/lib/fx" keep working.
+*/
+export {
+  BASE_CURRENCY,
+  LOCAL_CURRENCY,
+  formatLocal,
+  formatUsd,
+  toLocal,
+} from "@/lib/money";
+
+import { BASE_CURRENCY, LOCAL_CURRENCY } from "@/lib/money";
+
 import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -15,8 +33,6 @@ import { prisma } from "@/lib/prisma";
  *     in six months, whatever the rate has done since.
  */
 
-export const BASE_CURRENCY = "USD";
-export const LOCAL_CURRENCY = "TZS";
 
 /** The rate in force at a moment — latest effective row on or before it. */
 export async function currentRate(asOf: Date = new Date()) {
@@ -47,24 +63,5 @@ export async function rateHistory(take = 20) {
   });
 }
 
-/**
- * Converts USD to TZS at a given rate.
- *
- * Rounded to whole shillings: there is no sub-shilling coin, and showing
- * decimals on a TZS figure looks like a system that does not understand the
- * currency it is quoting.
- */
-export function toLocal(usd: number, rate: number): number {
-  return Math.round(usd * rate);
-}
 
-export function formatLocal(amount: number, currency = LOCAL_CURRENCY) {
-  return `${currency} ${Math.round(amount).toLocaleString("en-US")}`;
-}
 
-export function formatUsd(amount: number) {
-  return `${BASE_CURRENCY} ${amount.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}

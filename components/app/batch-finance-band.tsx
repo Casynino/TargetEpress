@@ -46,6 +46,7 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
     outstandingUsd,
     unpriceable,
     expensesUsd,
+    expensesTzs,
     expenseCount,
     netProfitUsd,
     marginPct,
@@ -55,8 +56,9 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
   const tiles = [
     {
       icon: Wallet,
-      label: t(locale, "Expected revenue (USD)"),
-      value: formatUsd(expectedUsd),
+      label: t(locale, "Expected revenue"),
+      value:
+        expectedTzs === null ? formatUsd(expectedUsd) : formatLocal(expectedTzs),
       sub:
         estimatedUsd > 0
           ? `${formatUsd(invoicedUsd)} ${t(locale, "invoiced")} · ${formatUsd(estimatedUsd)} ${t(locale, "estimated")}`
@@ -65,8 +67,8 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
     },
     {
       icon: Coins,
-      label: t(locale, "Expected revenue (TZS)"),
-      value: expectedTzs === null ? "—" : formatLocal(expectedTzs),
+      label: t(locale, "Expected revenue (USD)"),
+      value: formatUsd(expectedUsd),
       sub:
         expectedTzs === null
           ? t(locale, "No exchange rate published yet")
@@ -109,7 +111,7 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
     {
       icon: Banknote,
       label: t(locale, "Payments received"),
-      value: formatUsd(receivedUsd),
+      value: rate === null ? formatUsd(receivedUsd) : formatLocal(receivedUsd * rate),
       // Against confirmed bills, not drafts. A dispatch where 84 of 86 figures
       // are still drafts has barely billed anything, and dividing by the
       // drafts too would report 0% of a number nobody has been asked for.
@@ -122,7 +124,8 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
     {
       icon: Wallet,
       label: t(locale, "Outstanding balance"),
-      value: formatUsd(outstandingUsd),
+      value:
+        rate === null ? formatUsd(outstandingUsd) : formatLocal(outstandingUsd * rate),
       sub:
         outstandingUsd > 0
           ? t(locale, "Billed and not yet paid")
@@ -132,7 +135,9 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
     {
       icon: Plane,
       label: t(locale, "Cost of this flight"),
-      value: formatUsd(expensesUsd),
+      // The per-row sum, so this agrees with the panel that lists them.
+      value:
+        expensesTzs === null ? formatUsd(expensesUsd) : formatLocal(expensesTzs),
       // A flight with no costs recorded is not a free flight. Saying so is the
       // difference between a profit figure and a number that merely looks like
       // one — customs and clearing are always paid, so a zero here means
@@ -176,24 +181,24 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
       */}
       <dl className="grid grid-cols-2 gap-px border-b bg-border sm:grid-cols-3 lg:grid-cols-6">
         {[
-          { k: t(locale, "Revenue"), v: formatUsd(billedUsd), tone: "" },
-          { k: t(locale, "Collected"), v: formatUsd(receivedUsd), tone: "text-success" },
+          { k: t(locale, "Revenue"), usd: billedUsd, tone: "" },
+          { k: t(locale, "Collected"), usd: receivedUsd, tone: "text-success" },
           {
             k: t(locale, "Outstanding"),
-            v: formatUsd(outstandingUsd),
+            usd: outstandingUsd,
             tone: outstandingUsd > 0 ? "text-destructive" : "",
           },
-          { k: t(locale, "Expenses"), v: formatUsd(expensesUsd), tone: "" },
+          { k: t(locale, "Expenses"), usd: expensesUsd, tsh: expensesTzs, tone: "" },
           {
             k: atALoss ? t(locale, "Net loss") : t(locale, "Net profit"),
-            v: formatUsd(Math.abs(netProfitUsd)),
+            usd: Math.abs(netProfitUsd),
             tone: atALoss ? "text-destructive" : "text-success",
           },
           {
             k: t(locale, "Margin"),
             // No margin rather than a zero: a flight that has billed nothing
             // has not made 0%, it has no answer yet.
-            v: marginPct === null ? "—" : `${Math.round(marginPct)}%`,
+            percent: marginPct === null ? "—" : `${Math.round(marginPct)}%`,
             tone: atALoss ? "text-destructive" : "",
           },
         ].map((cell) => (
@@ -201,9 +206,27 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
             <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
               {cell.k}
             </dt>
+            {/*
+              Shillings lead, dollars underneath.
+
+              The office quotes, pays and banks in shillings all day; the dollar
+              figure is what the invoice says. Putting the dollar first made
+              every reader do the conversion in their head before the number
+              meant anything.
+            */}
             <dd className={`mt-0.5 font-display text-base font-bold tabular-nums ${cell.tone}`}>
-              {cell.v}
+              {cell.percent ??
+                (cell.tsh !== undefined && cell.tsh !== null
+                  ? formatLocal(cell.tsh)
+                  : rate === null
+                    ? formatUsd(cell.usd!)
+                    : formatLocal(cell.usd! * rate))}
             </dd>
+            {cell.percent === undefined && rate !== null ? (
+              <p className="text-[11px] tabular-nums text-muted-foreground">
+                {formatUsd(cell.usd!)}
+              </p>
+            ) : null}
           </div>
         ))}
       </dl>

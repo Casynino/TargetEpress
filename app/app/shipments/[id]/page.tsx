@@ -319,6 +319,42 @@ export default async function ShipmentPage({
         }
       />
 
+      {/*
+        The flight's own facts, as a line rather than a card.
+
+        These are reference — which plane, which waybill, how heavy, what dates.
+        Nobody opens a dispatch to read them, they check them in passing, so
+        they sit under the title in one row instead of occupying a panel the
+        size of the financial summary halfway down the page.
+      */}
+      <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border bg-card px-4 py-2.5 text-sm">
+        <span className="flex items-center gap-1.5 font-medium">
+          <Plane className="h-3.5 w-3.5 text-brand" />
+          {[dispatch.airline, dispatch.flightNumber].filter(Boolean).join(" ") ||
+            t(locale, "Flight not recorded")}
+        </span>
+        {dispatch.waybillNumber ? (
+          <span className="font-mono text-xs text-muted-foreground">
+            {t(locale, "Waybill")} {dispatch.waybillNumber}
+          </span>
+        ) : null}
+        {[
+          { label: t(locale, "Cargo"), value: `${cargo.length} · ${packages} ${t(locale, "pkg")}` },
+          { label: t(locale, "Weight"), value: `${weight.toFixed(1)} kg` },
+          { label: t(locale, "Customers"), value: String(customers) },
+          { label: t(locale, "Departed"), value: formatDate(dispatch.departureDate, locale) },
+          { label: t(locale, "Expected"), value: formatDate(dispatch.expectedArrival, locale) },
+          { label: t(locale, "Arrived"), value: formatDate(dispatch.arrivalDate, locale) },
+        ].map((f) => (
+          <span key={f.label} className="text-xs text-muted-foreground">
+            {f.label}{" "}
+            <span className="font-medium tabular-nums text-foreground">
+              {f.value || "—"}
+            </span>
+          </span>
+        ))}
+      </div>
+
       {/* The job before the numbers: sign the system's prices off. Shown only
           while there is something to sign, and only to desks that may. */}
       {finance && canConfirm ? (
@@ -350,64 +386,23 @@ export default async function ShipmentPage({
             currency: e.currency,
             amountUsd: toNumber(e.amountUsd),
             status: e.status as string,
-            incurredAt: e.incurredAt,
+            incurredAt: e.incurredAt.toISOString().slice(0, 10),
             accountName: e.account?.name ?? null,
             recordedBy: e.recordedBy?.name ?? null,
             receipts: e._count.receipts,
           }))}
           accounts={costAccounts}
-          quick={quickCosts}
-          thresholdUsd={EXPENSE_APPROVAL_THRESHOLD_USD}
           rate={costRate}
           canRecord={canRecordCost}
         />
       ) : null}
 
-      {/* Overview card — everything a manager asks standing up. */}
-      <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">
-        <div className="flex flex-wrap items-center gap-x-8 gap-y-3 border-b bg-gradient-to-br from-brand/5 to-transparent p-5">
-          <div className="flex items-center gap-2">
-            <Plane className="h-4 w-4 text-brand" />
-            <span className="text-sm font-medium">
-              {[dispatch.airline, dispatch.flightNumber].filter(Boolean).join(" ") ||
-                t(locale, "Flight not recorded")}
-            </span>
-          </div>
-          {dispatch.waybillNumber ? (
-            <span className="font-mono text-sm text-muted-foreground">
-              {t(locale, "Waybill")} {dispatch.waybillNumber}
-            </span>
-          ) : null}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Users className="h-4 w-4" />
-            {customers} {t(locale, customers === 1 ? "customer" : "customers")}
-          </div>
-        </div>
 
-        <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-3 lg:grid-cols-6">
-          {[
-            { label: t(locale, "Cargo pieces"), value: String(cargo.length) },
-            { label: t(locale, "Packages"), value: String(packages) },
-            { label: t(locale, "Total weight"), value: `${weight.toFixed(1)} kg` },
-            { label: t(locale, "Departed"), value: formatDate(dispatch.departureDate, locale) },
-            { label: t(locale, "Expected"), value: formatDate(dispatch.expectedArrival, locale) },
-            { label: t(locale, "Arrived"), value: formatDate(dispatch.arrivalDate, locale) },
-          ].map((stat) => (
-            <div key={stat.label} className="bg-card p-4">
-              <dt className="text-xs text-muted-foreground">{stat.label}</dt>
-              <dd className="mt-1 font-display text-lg font-bold tabular-nums">
-                {stat.value || "—"}
-              </dd>
-            </div>
-          ))}
-        </dl>
-
-        {dispatch.notes ? (
-          <p className="border-t bg-muted/30 p-4 text-sm text-muted-foreground">
-            {dispatch.notes}
-          </p>
-        ) : null}
-      </section>
+      {dispatch.notes ? (
+        <p className="mb-6 rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+          {dispatch.notes}
+        </p>
+      ) : null}
 
       <ShipmentDetailTabs
         showPrice={finance !== null}
