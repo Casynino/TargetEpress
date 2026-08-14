@@ -33,13 +33,13 @@ export type BatchExpenseRow = {
 };
 
 /**
- * What this batch cost: the costs it has, and one line to add the next.
+ * What this batch cost: one line per expense, and one line to add the next.
  *
- * Every cost carries a rail showing its share of the batch, in its own
- * category's colour. A list of four figures makes you do the arithmetic to
- * find out that transport is two thirds of the clearing bill; a rail says it
- * before you have read the numbers, which is the whole reason to look at this
- * panel rather than the ledger.
+ * A register, not a chart. Six costs is an ordinary batch and twenty is a bad
+ * one, so every device that looks good against three of them — a bar per row,
+ * a colour per category, two lines of detail — is furniture that arrives
+ * exactly when the panel can least afford it. Each expense is one line, the
+ * list is sorted biggest first, and it keeps its own height.
  *
  * Adding one is a single line that is always there: pick what it was, type the
  * shillings, say which account it left. No chips to tap first and no form to
@@ -97,9 +97,22 @@ export function BatchExpenses({
     would put a figure on screen that is larger than the Expenses figure two
     inches above it, and there would be no way to tell which one was wrong.
     Special costs are still shown, still paid, just kept where they belong.
+
+    Both lists are sorted biggest first rather than newest first. The page
+    hands them over in the order they were entered, which is the order they
+    happened to be typed and tells a reader nothing. By size, the top of the
+    list is the bill — and since the list is bounded, what is visible without
+    scrolling is the part worth arguing about. The twelve-thousand-shilling
+    bank charge belongs below the fold.
   */
-  const operating = live.filter((e) => e.expenseClass !== "NON_OPERATING");
-  const special = live.filter((e) => e.expenseClass === "NON_OPERATING");
+  const bySize = (a: BatchExpenseRow, b: BatchExpenseRow) =>
+    (tsh(b) ?? 0) - (tsh(a) ?? 0);
+  const operating = live
+    .filter((e) => e.expenseClass !== "NON_OPERATING")
+    .sort(bySize);
+  const special = live
+    .filter((e) => e.expenseClass === "NON_OPERATING")
+    .sort(bySize);
 
   // Only the standard costs this batch has not had yet.
   const remaining = BATCH_COST_TYPES.filter(
@@ -131,7 +144,9 @@ export function BatchExpenses({
     <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b px-5 py-4">
         <div>
-          <h2 className="font-display font-semibold">{t("Cost of this batch")}</h2>
+          <h2 className="font-display font-semibold">
+            {t("Expenses in this batch")}
+          </h2>
           {/*
             The nudge is what is MISSING, and it is not an error.
 
@@ -139,14 +154,24 @@ export function BatchExpenses({
             has four costs against it — true of the standard list, and wrong
             about the batch. And in red it accused somebody of something that
             is only a reminder. Missing count, plain type, gone once the list
-            is complete.
+            is complete — which is why there is no permanent subtitle here:
+            a line of prose explaining what a clearing bill is costs the same
+            space every time the page opens and is read once.
+
+            The count is beside it because the list is allowed to be taller
+            than its box, and a count is how a reader knows that.
           */}
-          <p className="text-xs text-muted-foreground">
-            {t("Clearing, permits and transport for")} {batchNumber}
-            {remaining.length > 0
-              ? ` · ${remaining.length} ${t("usual costs still to record")}`
-              : ""}
-          </p>
+          {operating.length > 0 || remaining.length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {operating.length > 0
+                ? `${operating.length} ${t(operating.length === 1 ? "expense" : "expenses")}`
+                : ""}
+              {operating.length > 0 && remaining.length > 0 ? " · " : ""}
+              {remaining.length > 0
+                ? `${remaining.length} ${t("usual costs still to record")}`
+                : ""}
+            </p>
+          ) : null}
         </div>
         <div className="text-right">
           <p className="font-display text-xl font-bold tabular-nums">
@@ -161,89 +186,111 @@ export function BatchExpenses({
       {/* A row is spent only on a cost that exists. */}
       {live.length === 0 ? (
         <p className="px-5 py-4 text-sm text-muted-foreground">
-          {t(
-            "Nothing recorded yet, so this batch's profit has nothing taken off it."
-          )}
+          {t("Nothing recorded against")} {batchNumber}{" "}
+          {t("yet, so its profit has nothing taken off it.")}
         </p>
       ) : (
-        <ul className="divide-y">
+        /*
+          One line per expense, and it stays one line at twenty of them.
+
+          The bars are gone. A share rail per row reads well against three
+          costs and turns into six near-empty tracks the moment a real batch
+          is entered — four of them at 1%, which is a lot of furniture to say
+          "this one is not the problem". The share is a number in its own
+          column instead: same fact, no drawing, and it still sorts the bill
+          at a glance because the eye runs down a column of percentages
+          faster than it compares six bar lengths.
+
+          Fixed widths on the two right-hand columns rather than a grid,
+          because each row is its own element — widths are what make the
+          figures line up down the page, and figures that do not line up
+          cannot be compared.
+
+          And bounded. Nothing stops a batch collecting twenty costs, and a
+          panel that simply grows pushes the cargo table off the screen for
+          everybody who did not come here about money. The list keeps its own
+          height and scrolls inside itself; the total in the header is always
+          the total, whether or not the last line is on screen.
+        */
+        <div className="relative">
+        <ul className="max-h-80 divide-y divide-border/60 overflow-y-auto">
           {operating.map((e) => (
             <li
               key={e.id}
-              className="px-5 py-2.5 transition-colors hover:bg-muted/20"
+              className="flex items-baseline gap-x-3 px-5 py-2 text-sm transition-colors hover:bg-muted/20"
             >
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span className="truncate text-sm font-medium">
-                  {e.description}
-                </span>
+              <span className="flex min-w-0 flex-1 items-baseline gap-2">
+                <span className="truncate font-medium">{e.description}</span>
                 {/* Where the money left from, or that it has not yet. */}
                 {e.accountName ? (
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                  <span className="hidden shrink-0 truncate text-xs text-muted-foreground sm:inline">
                     {e.accountName}
                   </span>
                 ) : (
-                  <span className="rounded bg-warning/10 px-1.5 py-0.5 text-[11px] text-warning">
-                    {t("Not paid yet")}
+                  <span className="shrink-0 text-xs text-warning">
+                    {t("not paid yet")}
                   </span>
                 )}
+                {/* A cost paid in dollars: say so, since the column is shillings. */}
+                {e.currency !== "TZS" ? (
+                  <span className="hidden shrink-0 text-xs tabular-nums text-muted-foreground sm:inline">
+                    {formatUsd(e.amountUsd)}
+                  </span>
+                ) : null}
                 {e.receipts > 0 ? (
                   <Paperclip
-                    className="h-3 w-3 text-muted-foreground"
+                    className="h-3 w-3 shrink-0 text-muted-foreground"
                     aria-label={t("Receipt")}
                   />
                 ) : null}
-                <span className="ml-auto font-display text-base font-bold tabular-nums">
-                  {shillings(tsh(e))}
-                </span>
-              </div>
-
-              {/*
-                One accent, not six.
-
-                Colour-coding each category would need a legend nobody has,
-                and would put green and red — which mean paid and missing
-                everywhere else in this system — on a bar that means neither.
-                Every rail is the brand colour and it is the LENGTH that
-                carries the information: which line is most of the bill.
-              */}
-              <div className="mt-1.5 flex items-center gap-3">
-                <span className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-                  <span
-                    className="cost-rail block h-full rounded-full bg-brand"
-                    style={{ width: `${Math.max(share(e), 1.5)}%` }}
-                  />
-                </span>
-                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                  {Math.round(share(e))}%
-                </span>
-                <span className="w-24 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
-                  {formatUsd(e.amountUsd)}
-                </span>
-              </div>
+              </span>
+              {/* The share is the first thing to go on a phone: on 430px of
+                  screen the name is being clipped to make room for it, and
+                  what a cost WAS beats what fraction of the bill it is. */}
+              <span className="hidden w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground sm:block">
+                {Math.round(share(e))}%
+              </span>
+              <span className="w-32 shrink-0 text-right font-medium tabular-nums">
+                {shillings(tsh(e))}
+              </span>
             </li>
           ))}
         </ul>
+        {/*
+          A clipped row is the honest signal that the list continues, but a
+          hard edge reads as a rendering fault. The last visible line fades
+          instead. Row height is fixed, so ten is the count at which the box
+          overflows — no measuring, and if it is out by one the fade simply
+          sits at the foot of a full list, where it costs nothing.
+        */}
+        {operating.length > 9 ? (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent"
+          />
+        ) : null}
+        </div>
       )}
 
       {/* Paid, recorded, and deliberately outside the total above. */}
       {special.length > 0 ? (
-        <div className="border-t bg-muted/20 px-5 py-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              {t("Special — not in profit")}
-            </p>
-            <p className="text-sm font-semibold tabular-nums text-muted-foreground">
+        <div className="border-t bg-muted/20 py-2">
+          <p className="flex items-baseline gap-x-3 px-5 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+            <span className="flex-1">{t("Special — not in profit")}</span>
+            <span className="w-32 shrink-0 text-right font-semibold tabular-nums">
               {shillings(specialTsh)}
-            </p>
-          </div>
-          <ul className="mt-1 space-y-0.5">
+            </span>
+          </p>
+          <ul>
             {special.map((e) => (
               <li
                 key={e.id}
-                className="flex flex-wrap items-baseline justify-between gap-2 text-xs text-muted-foreground"
+                className="flex items-baseline gap-x-3 px-5 py-1 text-xs text-muted-foreground"
               >
-                <span className="truncate">{e.description}</span>
-                <span className="tabular-nums">{shillings(tsh(e))}</span>
+                <span className="min-w-0 flex-1 truncate">{e.description}</span>
+                <span className="w-32 shrink-0 text-right tabular-nums">
+                  {shillings(tsh(e))}
+                </span>
               </li>
             ))}
           </ul>
@@ -261,12 +308,12 @@ export function BatchExpenses({
           <input type="hidden" name="category" value={picked.category} />
 
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] text-muted-foreground">{t("Cost")}</span>
+            <span className="text-[11px] text-muted-foreground">{t("Expense")}</span>
             <NativeSelect
               value={choice}
               onChange={(e) => setChoice(e.target.value)}
               className="h-9 w-56 bg-card text-sm"
-              aria-label={t("Cost")}
+              aria-label={t("Expense")}
             >
               {remaining.map((c) => (
                 <option key={c.key} value={c.key}>

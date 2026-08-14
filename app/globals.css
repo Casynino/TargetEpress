@@ -340,37 +340,6 @@
   }
 }
 
-/**
- * A proportion, drawn.
- *
- * Share bars — one cost against the batch's whole clearing bill — arrive by
- * growing from their own left edge, so the eye is given the comparison rather
- * than handed it finished. scaleX rather than width: a transform is composited
- * and does not lay the row out again on every frame.
- *
- * Set on the inner span, whose width is already the share; the animation only
- * decides how it gets there. With motion turned down it is simply there.
- */
-@keyframes rail-in {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-
-.cost-rail {
-  transform-origin: left;
-  animation: rail-in var(--dur-slow) var(--ease-out) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cost-rail {
-    animation: none;
-  }
-}
-
 
 @layer components {
   /**
