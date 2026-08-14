@@ -39,6 +39,12 @@ export type BatchCloseState = {
   carryTargets: CarryTarget[];
   /** Cargo on THIS batch that arrived from a flight that closed. */
   carriedIn: { trackingNumber: string; fromBatchNumber: string }[];
+  /** Whatever has already been entered for this flight, if anything. */
+  freightRate: number | null;
+  customsRate: number | null;
+  /** Where the statement has got to, once there is one. */
+  statementStatus: string | null;
+  reviewNote: string | null;
 };
 
 const KIND_LABEL: Record<string, string> = {
@@ -155,6 +161,17 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
             {state.closedBy ? `${t("by")} ${state.closedBy}` : t("automatically")}
             {state.closeKind ? ` · ${t(KIND_LABEL[state.closeKind] ?? "")}` : ""}
           </span>
+          {/* Closed is not finished. The boss has the statement until he says
+              otherwise, and the difference is the whole reason he gets one. */}
+          {state.statementStatus === "SUBMITTED" ? (
+            <span className="rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs text-warning">
+              {t("with the boss")}
+            </span>
+          ) : state.statementStatus === "CONFIRMED" ? (
+            <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-xs text-success">
+              {t("confirmed by the boss")}
+            </span>
+          ) : null}
           <button
             type="button"
             onClick={() => setReopening((open) => !open)}
@@ -216,10 +233,21 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
   /* ------------------------------------------------------------------ */
   /* Money nobody has been asked for. Closing would give it away.        */
   /* ------------------------------------------------------------------ */
+  /* Sent back by the boss: the flight is open again and the reason is the
+     first thing Finance needs to read. */
+  const returned =
+    state.statementStatus === "RETURNED" && state.reviewNote ? (
+      <p className="mb-6 rounded-xl border border-destructive/30 bg-destructive/[0.06] px-5 py-3 text-sm">
+        <span className="font-medium">{t("Sent back by the boss:")}</span>{" "}
+        <span className="text-muted-foreground">{state.reviewNote}</span>
+      </p>
+    ) : null;
+
   if (state.drafts > 0 || state.unbilled > 0) {
     return (
       <>
       {carriedInNote}
+      {returned}
       <p className="mb-6 rounded-xl border border-dashed px-5 py-3 text-xs text-muted-foreground">
         {t("This batch cannot be closed yet —")}{" "}
         {state.drafts > 0
@@ -240,6 +268,7 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
     return (
       <>
       {carriedInNote}
+      {returned}
       <form
         action={close}
         className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border bg-card px-5 py-3 shadow-soft"
@@ -248,6 +277,26 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
         <span className="text-sm text-muted-foreground">
           {t("Everything on this batch is paid. Nothing is owed.")}
         </span>
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {t("Freight/kg")}
+          <Input
+            name="freightRate"
+            inputMode="decimal"
+            defaultValue={state.freightRate ?? ""}
+            placeholder="8"
+            className="h-8 w-20 text-sm tabular-nums"
+          />
+        </label>
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {t("Customs/kg")}
+          <Input
+            name="customsRate"
+            inputMode="decimal"
+            defaultValue={state.customsRate ?? ""}
+            placeholder="1.8"
+            className="h-8 w-20 text-sm tabular-nums"
+          />
+        </label>
         <SubmitButton
           variant="ghost"
           className="ml-auto h-9 gap-1.5 border border-success/35 bg-success/10 px-3 text-success hover:bg-success/20 hover:text-success"
@@ -268,6 +317,7 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
   return (
     <>
     {carriedInNote}
+    {returned}
     <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3">
         <span className="text-sm">
@@ -388,10 +438,52 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
             </div>
           ) : null}
 
+          {/*
+            The two figures the statement cannot work out for itself.
+
+            Asked HERE because this is the moment the maths is done — the
+            owner's rule is that closing a batch is when the flight is added
+            up, and the person doing it is the person who knows what the
+            airline charged. Left empty, the statement goes up with the payback
+            and profit columns blank, which is a fair reason for the boss to
+            send it back.
+          */}
+          <div className="flex flex-wrap items-end gap-2 border-t px-5 py-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-muted-foreground">
+                {t("Freight per kg")}
+              </span>
+              <Input
+                name="freightRate"
+                inputMode="decimal"
+                defaultValue={state.freightRate ?? ""}
+                placeholder="8"
+                className="h-9 w-24 bg-card text-sm tabular-nums"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-muted-foreground">
+                {t("Customs per kg")}
+              </span>
+              <Input
+                name="customsRate"
+                inputMode="decimal"
+                defaultValue={state.customsRate ?? ""}
+                placeholder="1.8"
+                className="h-9 w-24 bg-card text-sm tabular-nums"
+              />
+            </label>
+            <p className="pb-2 text-xs text-muted-foreground">
+              {t(
+                "Weight × these two is what has to be paid back before any of this flight is profit."
+              )}
+            </p>
+          </div>
+
           <div className="flex flex-wrap items-end gap-2 border-t bg-muted/25 px-5 py-3">
             <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="text-[11px] text-muted-foreground">
-                {t("Note for whoever reads this later")}
+                {t("Note for the boss")}
               </span>
               <Input
                 name="note"

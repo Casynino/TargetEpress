@@ -89,6 +89,17 @@ enum BatchStatus {
   CLOSED
 }
 
+/// Where a flight's closing statement has got to.
+enum StatementStatus {
+  /// Finance has shut the books and sent the figures up. Nothing more can land
+  /// on the flight while it sits here.
+  SUBMITTED
+  /// The boss has read it and agreed. This is the final word on the flight.
+  CONFIRMED
+  /// The boss sent it back with a note. The flight reopens so it can be fixed.
+  RETURNED
+}
+
 /// How a flight's books were shut.
 enum BatchCloseKind {
   /// Nothing was owed. The system closed it when the last bill was settled.
@@ -342,6 +353,8 @@ model User {
   createdShipments      Shipment[]              @relation("ShipmentCreatedBy")
   createdBatches        Batch[]                 @relation("BatchCreatedBy")
   closedBatches         Batch[]                 @relation("BatchClosedBy")
+  statementsSubmitted   BatchStatement[]        @relation("StatementSubmittedBy")
+  statementsReviewed    BatchStatement[]        @relation("StatementReviewedBy")
   statusChanges         ShipmentStatusHistory[]
   uploadedPhotos        ShipmentPhoto[]
   verifications         BatchVerification[]
@@ -508,14 +521,17 @@ model Batch {
   updatedAt DateTime @updatedAt
 
   shipments     Shipment[]
-  /// Cargo that arrived here from a flight whose books were shut while it was
-  /// still unpaid. It is on this batch to be chased, not because it flew here.
-  carriedIn     Shipment[]          @relation("ShipmentCarriedFrom")
+  /// Cargo that LEFT this flight when its books were shut, still unpaid, to be
+  /// chased on a batch that was still open. Named for the direction the
+  /// relation actually points: this is the batch the cargo came FROM.
+  carriedAway   Shipment[]          @relation("ShipmentCarriedFrom")
   verifications BatchVerification[]
   /// What this flight cost. Revenue per dispatch was always derivable; this
   /// is the other half, and the two together are profit per flight.
   expenses      Expense[]
   exceptions    ShipmentException[]
+  /// What it finally made, written on the day its books were shut.
+  statement     BatchStatement?
 
   @@index([status])
   @@index([createdAt])
@@ -526,6 +542,72 @@ model Batch {
 // ---------------------------------------------------------------------------
 // Shipments
 // ---------------------------------------------------------------------------
+
+/**
+ * What a flight finally made, frozen on the day its books were shut.
+ * The owner's rule: the maths happens WHEN A BATCH IS CLOSED, and then it goes
+ * to the boss. Not a live grid that keeps moving — a statement. A payment that
+ * arrives next week does not quietly rewrite what the flight was reported to
+ * have made, and the boss reading it in a month sees the same figures he
+ * confirmed.
+ * Everything here is a copy, deliberately. The invoices and payments it was
+ * computed from are still there and still the truth about a customer; this is
+ * the truth about a flight on the day it was closed, and the two are different
+ * questions.
+ */
+model BatchStatement {
+  id      String @id @default(cuid())
+  batchId String @unique
+  batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  // ---- Goods received: everything that landed, and what it was worth ------
+  kgReceived  Decimal  @db.Decimal(12, 2)
+  receivedUsd Decimal  @db.Decimal(12, 2)
+  /// receivedUsd ÷ kgReceived. Stored rather than recomputed so the statement
+  /// reads the same when a weight is corrected on the cargo months later.
+  sellRate    Decimal? @db.Decimal(10, 4)
+
+  /// The two figures nothing in the system can know, entered at close.
+  freightRatePerKg Decimal? @db.Decimal(10, 2)
+  customsRatePerKg Decimal? @db.Decimal(10, 2)
+  /// kg × (freight + customs) — what has to go back before anything is profit.
+  paybackUsd       Decimal? @db.Decimal(12, 2)
+  profitUsd        Decimal? @db.Decimal(12, 2)
+
+  // ---- Goods sold: what was actually paid for ----------------------------
+  kgSold       Decimal @db.Decimal(12, 2)
+  soldUsd      Decimal @db.Decimal(12, 2)
+  /// Money in, including part-payments on cargo that never settled.
+  collectedUsd Decimal @db.Decimal(12, 2)
+
+  // ---- What left the flight without being paid for -----------------------
+  /// Moved onto a live flight so the chase could carry on.
+  kgCarried     Decimal @db.Decimal(12, 2)
+  carriedUsd    Decimal @db.Decimal(12, 2)
+  /// Given up on.
+  kgWrittenOff  Decimal @db.Decimal(12, 2)
+  writtenOffUsd Decimal @db.Decimal(12, 2)
+
+  /// Local costs booked against the flight — clearing, permits, transport.
+  expensesUsd  Decimal  @db.Decimal(12, 2)
+  /// The rate on the day, so the shilling columns never move afterwards.
+  exchangeRate Decimal? @db.Decimal(14, 4)
+
+  status StatementStatus @default(SUBMITTED)
+  note   String?
+
+  submittedById String?
+  submittedBy   User?    @relation("StatementSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+  submittedAt   DateTime @default(now())
+
+  reviewedById String?
+  reviewedBy   User?     @relation("StatementReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  @@index([status])
+  @@index([submittedAt])
+}
 
 model Shipment {
   id String @id @default(cuid())

@@ -1,70 +1,64 @@
 import "server-only";
 
 import { toNumber } from "@/lib/format";
-import { currentRateValue } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
 
 /**
- * The sheet Finance has always kept, computed from the records instead.
+ * What each closed flight made — the statements, not a running total.
  *
- * Two halves, exactly as they are drawn on paper. GOODS RECEIVED is what
- * landed and what it is worth: the weight, the selling rate, the freight and
- * customs that have to be paid back on it, and the margin left over. GOODS
- * SOLD is what has actually been collected — the weight customers have paid
- * for and the money in the bank against it.
+ * The owner's rule, in his words: when we close a batch is when we do that
+ * maths, and then it goes to the boss. So this page is not a live grid that
+ * keeps moving. It is the register of flights that have been shut, each
+ * carrying the figures as they stood on the day, and each either waiting on
+ * the boss or signed off by him.
  *
- * The boss reads the gap between the two halves. Everything else on this page
- * exists to make that gap honest.
- *
- * Two figures are entered, not derived: freight per kilo and customs per kilo.
- * They are negotiated per flight — Guangzhou at 8 and Hong Kong at 9.5 on the
- * same week — and nothing in the system can know them. Everything else comes
- * from the invoices and payments already on record, so the sheet cannot drift
- * from the books the way a spreadsheet does.
+ * Nothing here is recomputed. A payment that lands next week is still recorded
+ * against its invoice and still changes what that customer owes — it does not
+ * rewrite what a flight was reported to have made in July.
  */
 export type IncomeRow = {
   batchId: string;
   batchNumber: string;
-  /** The month it belongs to, YYYY-MM, for the period chips. */
   month: string;
-  arrivedLabel: string | null;
+  closedLabel: string | null;
 
-  // ---- Goods received -----------------------------------------------------
-  /** Everything that landed on this flight. */
+  status: "SUBMITTED" | "CONFIRMED" | "RETURNED";
+  submittedBy: string | null;
+  reviewedBy: string | null;
+  reviewNote: string | null;
+  note: string | null;
+
+  // Goods received
   kg: number;
-  /** What it is worth, billed where billed and priced from the rate book where
-   *  not — the same figure the flight's own page calls expected revenue. */
   worthUsd: number;
-  /** Worth ÷ weight. Descriptive: the sheet writes one rate per flight, and a
-   *  real flight carries cargo at several. */
   sellRate: number | null;
-  /** Entered by Finance. Null until they are. */
   freightRate: number | null;
   customsRate: number | null;
-  /** freight + customs, the per-kilo cost of getting it here. */
   landedRate: number | null;
-  /** What has to be paid back: weight × landed rate. */
   paybackUsd: number | null;
-  /** Selling rate − landed rate: the margin on a kilo. */
   profitRate: number | null;
-  /** Worth − payback. */
   profitUsd: number | null;
 
-  // ---- Goods sold ---------------------------------------------------------
-  /** Weight whose bill is settled in full. */
+  // Goods sold
   soldKg: number;
-  /** What that weight was billed at. */
   soldUsd: number;
-  /** Money actually in, including part-payments on cargo not yet settled. This
-   *  is why it is reported beside soldUsd rather than instead of it. */
   collectedUsd: number;
+
+  // What left without being paid for
+  carriedKg: number;
+  carriedUsd: number;
+  writtenOffKg: number;
+  writtenOffUsd: number;
+
+  expensesUsd: number;
+  /** The rate on the day it was closed, so shillings never move afterwards. */
+  rate: number | null;
 };
 
 export type IncomeSheet = {
   rows: IncomeRow[];
-  /** USD → TZS. Null when no rate is published; the sheet then shows dollars. */
-  rate: number | null;
   months: { key: string; label: string }[];
+  awaiting: number;
   totals: {
     kg: number;
     worthUsd: number;
@@ -73,15 +67,9 @@ export type IncomeSheet = {
     soldKg: number;
     soldUsd: number;
     collectedUsd: number;
-    /*
-      Weighted, not summed.
-
-      The paper sheet adds the rate column up — 12.5 + 13.5 + 12.5 = 38.5 — and
-      that figure means nothing: it is dollars per kilo added to dollars per
-      kilo. What the boss is actually asking is "what did we get per kilo
-      across everything", which is the total divided by the total weight. Same
-      question, an answer that survives another flight being added.
-    */
+    carriedKg: number;
+    writtenOffUsd: number;
+    expensesUsd: number;
     sellRate: number | null;
     landedRate: number | null;
     profitRate: number | null;
@@ -89,102 +77,87 @@ export type IncomeSheet = {
 };
 
 export async function incomeSheet(month?: string): Promise<IncomeSheet> {
-  const rate = await currentRateValue();
-
-  const batches = await prisma.batch.findMany({
-    where: { permanent: false },
-    orderBy: [{ arrivalDate: "desc" }, { departureDate: "desc" }],
-    take: 200,
+  const statements = await prisma.batchStatement.findMany({
+    orderBy: { submittedAt: "desc" },
+    take: 300,
     select: {
-      id: true,
-      batchNumber: true,
-      arrivalDate: true,
-      departureDate: true,
-      createdAt: true,
+      batchId: true,
+      status: true,
+      note: true,
+      reviewNote: true,
+      submittedAt: true,
+      submittedBy: { select: { name: true } },
+      reviewedBy: { select: { name: true } },
+      kgReceived: true,
+      receivedUsd: true,
+      sellRate: true,
       freightRatePerKg: true,
       customsRatePerKg: true,
-      shipments: {
-        where: { deletedAt: null },
+      paybackUsd: true,
+      profitUsd: true,
+      kgSold: true,
+      soldUsd: true,
+      collectedUsd: true,
+      kgCarried: true,
+      carriedUsd: true,
+      kgWrittenOff: true,
+      writtenOffUsd: true,
+      expensesUsd: true,
+      exchangeRate: true,
+      batch: {
         select: {
-          weightKg: true,
-          invoice: { select: { status: true, total: true, amountPaid: true } },
+          batchNumber: true,
+          closedAt: true,
+          arrivalDate: true,
+          departureDate: true,
         },
       },
     },
   });
 
-  const all: IncomeRow[] = batches.map((batch) => {
-    let kg = 0;
-    let worthUsd = 0;
-    let soldKg = 0;
-    let soldUsd = 0;
-    let collectedUsd = 0;
-
-    for (const piece of batch.shipments) {
-      const weight = toNumber(piece.weightKg);
-      kg += weight;
-
-      const invoice = piece.invoice;
-      if (!invoice) continue;
-      // A withdrawn bill is not worth anything and a written-off one is worth
-      // only what came in before it was given up on — the same rule the
-      // flight's own figures use, so the two screens cannot disagree.
-      if (invoice.status === "VOID") continue;
-
-      const total = toNumber(invoice.total);
-      const paid = toNumber(invoice.amountPaid);
-      collectedUsd += paid;
-
-      if (invoice.status === "WRITTEN_OFF") {
-        worthUsd += paid;
-        continue;
-      }
-
-      worthUsd += total;
-
-      // Sold means settled. A part-paid consignment is not sold cargo — the
-      // customer still owes for it — but the money that did arrive is real and
-      // is counted in collected, one line above.
-      if (invoice.status === "PAID") {
-        soldKg += weight;
-        soldUsd += total;
-      }
-    }
-
+  const all: IncomeRow[] = statements.map((s) => {
+    const kg = toNumber(s.kgReceived);
     const freightRate =
-      batch.freightRatePerKg === null ? null : toNumber(batch.freightRatePerKg);
+      s.freightRatePerKg === null ? null : toNumber(s.freightRatePerKg);
     const customsRate =
-      batch.customsRatePerKg === null ? null : toNumber(batch.customsRatePerKg);
+      s.customsRatePerKg === null ? null : toNumber(s.customsRatePerKg);
     const landedRate =
       freightRate === null && customsRate === null
         ? null
         : (freightRate ?? 0) + (customsRate ?? 0);
-
-    const sellRate = kg > 0 ? worthUsd / kg : null;
-    const paybackUsd = landedRate === null ? null : kg * landedRate;
+    const sellRate = s.sellRate === null ? null : toNumber(s.sellRate);
 
     return {
-      batchId: batch.id,
-      batchNumber: batch.batchNumber,
-      month: (batch.arrivalDate ?? batch.departureDate ?? batch.createdAt)
+      batchId: s.batchId,
+      batchNumber: s.batch.batchNumber,
+      month: (s.batch.arrivalDate ?? s.batch.departureDate ?? s.submittedAt)
         .toISOString()
         .slice(0, 7),
-      arrivedLabel: batch.arrivalDate
-        ? batch.arrivalDate.toISOString().slice(0, 10)
-        : null,
+      closedLabel: (s.batch.closedAt ?? s.submittedAt).toISOString().slice(0, 10),
+      status: s.status,
+      submittedBy: s.submittedBy?.name ?? null,
+      reviewedBy: s.reviewedBy?.name ?? null,
+      reviewNote: s.reviewNote,
+      note: s.note,
       kg,
-      worthUsd,
+      worthUsd: toNumber(s.receivedUsd),
       sellRate,
       freightRate,
       customsRate,
       landedRate,
-      paybackUsd,
+      paybackUsd: s.paybackUsd === null ? null : toNumber(s.paybackUsd),
       profitRate:
         sellRate === null || landedRate === null ? null : sellRate - landedRate,
-      profitUsd: paybackUsd === null ? null : worthUsd - paybackUsd,
-      soldKg,
-      soldUsd,
-      collectedUsd,
+      profitUsd: s.profitUsd === null ? null : toNumber(s.profitUsd),
+      soldKg: toNumber(s.kgSold),
+      soldUsd: toNumber(s.soldUsd),
+      collectedUsd: toNumber(s.collectedUsd),
+      carriedKg: toNumber(s.kgCarried),
+      carriedUsd: toNumber(s.carriedUsd),
+      writtenOffKg: toNumber(s.kgWrittenOff),
+      writtenOffUsd: toNumber(s.writtenOffUsd),
+      expensesUsd: toNumber(s.expensesUsd),
+      rate: s.exchangeRate === null ? null : toNumber(s.exchangeRate),
     };
   });
 
@@ -200,35 +173,39 @@ export async function incomeSheet(month?: string): Promise<IncomeSheet> {
     }));
 
   const rows = month ? all.filter((row) => row.month === month) : all;
-
   const sum = (pick: (row: IncomeRow) => number | null) =>
     rows.reduce((acc, row) => acc + (pick(row) ?? 0), 0);
 
   const kg = sum((r) => r.kg);
   const worthUsd = sum((r) => r.worthUsd);
-  /* Only flights whose rates have been entered can contribute to a payback
-     total, or the average would be dragged down by blanks. */
+  /* Only flights whose rates were entered can contribute to a payback total,
+     or the average per kilo would be dragged down by blanks. */
   const priced = rows.filter((row) => row.landedRate !== null);
   const pricedKg = priced.reduce((acc, row) => acc + row.kg, 0);
-  const paybackUsd = priced.reduce((acc, row) => acc + (row.paybackUsd ?? 0), 0);
 
   return {
     rows,
-    rate,
     months,
+    awaiting: all.filter((row) => row.status === "SUBMITTED").length,
     totals: {
       kg,
       worthUsd,
-      paybackUsd,
+      paybackUsd: sum((r) => r.paybackUsd),
       profitUsd: sum((r) => r.profitUsd),
       soldKg: sum((r) => r.soldKg),
       soldUsd: sum((r) => r.soldUsd),
       collectedUsd: sum((r) => r.collectedUsd),
+      carriedKg: sum((r) => r.carriedKg),
+      writtenOffUsd: sum((r) => r.writtenOffUsd),
+      expensesUsd: sum((r) => r.expensesUsd),
       sellRate: kg > 0 ? worthUsd / kg : null,
-      landedRate: pricedKg > 0 ? paybackUsd / pricedKg : null,
+      landedRate:
+        pricedKg > 0
+          ? priced.reduce((acc, r) => acc + (r.paybackUsd ?? 0), 0) / pricedKg
+          : null,
       profitRate:
         pricedKg > 0
-          ? priced.reduce((acc, row) => acc + (row.profitUsd ?? 0), 0) / pricedKg
+          ? priced.reduce((acc, r) => acc + (r.profitUsd ?? 0), 0) / pricedKg
           : null,
     },
   };

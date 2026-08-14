@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma, type TxClient } from "@/lib/prisma";
 import { toNumber } from "@/lib/format";
+import { currentRateValue } from "@/lib/fx";
 
 /**
  * Whether a flight's books can be shut, and what is stopping them.
@@ -152,5 +153,159 @@ export async function settleBatchIfClear(
     },
   });
 
+  /*
+    A flight that shut itself still owes the boss a statement.
+
+    Otherwise the only flights he ever reviews are the ones that went wrong,
+    and the ones that went perfectly — every customer paid, nothing written
+    off — would never appear on the sheet at all.
+
+    It carries whatever rates are already on the batch. If nobody has entered
+    them the payback and profit columns are blank, which is a fair reason for
+    him to send it back.
+  */
+  const withRates = await tx.batch.findUnique({
+    where: { id: batchId },
+    select: { freightRatePerKg: true, customsRatePerKg: true },
+  });
+  const statement = await buildStatement(
+    tx,
+    batchId,
+    [],
+    [],
+    {
+      freight:
+        withRates?.freightRatePerKg == null
+          ? null
+          : toNumber(withRates.freightRatePerKg),
+      customs:
+        withRates?.customsRatePerKg == null
+          ? null
+          : toNumber(withRates.customsRatePerKg),
+    },
+    await currentRateValue()
+  );
+  await tx.batchStatement.create({
+    data: { batchId, ...statement, submittedById: null },
+  });
+
   return true;
+}
+
+/**
+ * What a flight made, worked out once and written down.
+ *
+ * Called at the moment the books are shut, inside the same transaction, and
+ * after the carried and written-off decisions have been applied — so the cargo
+ * it counts is the cargo the flight is actually left with, and the two figures
+ * it reports leaving are the ones that just left.
+ *
+ * Frozen on purpose. A payment that arrives next week is still recorded
+ * against its invoice and still changes what the customer owes; it does not
+ * rewrite what this flight was reported to have made, because the boss read
+ * and signed that.
+ */
+export async function buildStatement(
+  tx: TxClient,
+  batchId: string,
+  moved: { shipmentId: string; owedUsd: number }[],
+  writtenOffIds: string[],
+  rates: { freight: number | null; customs: number | null },
+  rate: number | null
+) {
+  const cargo = await tx.shipment.findMany({
+    where: { batchId, deletedAt: null },
+    select: {
+      id: true,
+      weightKg: true,
+      invoice: { select: { id: true, status: true, total: true, amountPaid: true } },
+    },
+  });
+
+  let kgReceived = 0;
+  let receivedUsd = 0;
+  let kgSold = 0;
+  let soldUsd = 0;
+  let collectedUsd = 0;
+  let kgWrittenOff = 0;
+  let writtenOffUsd = 0;
+
+  const wroteOff = new Set(writtenOffIds);
+
+  for (const piece of cargo) {
+    const weight = toNumber(piece.weightKg);
+    kgReceived += weight;
+
+    const invoice = piece.invoice;
+    if (!invoice || invoice.status === "VOID") continue;
+
+    const total = toNumber(invoice.total);
+    const paid = toNumber(invoice.amountPaid);
+    collectedUsd += paid;
+
+    if (wroteOff.has(invoice.id) || invoice.status === "WRITTEN_OFF") {
+      kgWrittenOff += weight;
+      writtenOffUsd += total - paid;
+      // Only what came in before it was given up on was ever worth anything.
+      receivedUsd += paid;
+      continue;
+    }
+
+    receivedUsd += total;
+    if (invoice.status === "PAID") {
+      kgSold += weight;
+      soldUsd += total;
+    }
+  }
+
+  /*
+    The cargo that moved is already gone from the query above — it was
+    reassigned a moment ago — so its weight is fetched back deliberately. It
+    belongs on this statement: the flight carried those kilos, and a sheet that
+    silently dropped them would not add up against the manifest.
+  */
+  let kgCarried = 0;
+  let carriedUsd = 0;
+  if (moved.length > 0) {
+    const gone = await tx.shipment.findMany({
+      where: { id: { in: moved.map((row) => row.shipmentId) } },
+      select: { id: true, weightKg: true },
+    });
+    for (const piece of gone) {
+      kgCarried += toNumber(piece.weightKg);
+    }
+    carriedUsd = moved.reduce((sum, row) => sum + row.owedUsd, 0);
+    kgReceived += kgCarried;
+  }
+
+  const costs = await tx.expense.findMany({
+    where: { batchId, status: { not: "VOID" }, expenseClass: "OPERATING" },
+    select: { amountUsd: true },
+  });
+  const expensesUsd = costs.reduce((sum, c) => sum + toNumber(c.amountUsd), 0);
+
+  const landed =
+    rates.freight === null && rates.customs === null
+      ? null
+      : (rates.freight ?? 0) + (rates.customs ?? 0);
+  const paybackUsd = landed === null ? null : kgReceived * landed;
+
+  return {
+    kgReceived,
+    receivedUsd,
+    sellRate: kgReceived > 0 ? receivedUsd / kgReceived : null,
+    freightRatePerKg: rates.freight,
+    customsRatePerKg: rates.customs,
+    paybackUsd,
+    profitUsd: paybackUsd === null ? null : receivedUsd - paybackUsd,
+    kgSold,
+    soldUsd,
+    collectedUsd,
+    kgCarried,
+    carriedUsd,
+    kgWrittenOff,
+    writtenOffUsd,
+    expensesUsd,
+    exchangeRate: rate,
+  };
 }

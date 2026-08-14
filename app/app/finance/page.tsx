@@ -2,6 +2,10 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import {
   ArrowDownLeft,
+  CheckCircle2,
+  Hourglass,
+  Plane,
+  TrendingUp,
   ArrowLeftRight,
   ArrowUpRight,
   Calculator,
@@ -14,8 +18,12 @@ import {
   Warehouse,
 } from "lucide-react";
 
+import { KpiCard } from "@/components/app/kpi-card";
 import { MoneyTile } from "@/components/app/money-tile";
 import { PageHeader } from "@/components/app/page-header";
+import { SectionLabel } from "@/components/app/section-label";
+import { AgeingBar } from "@/components/charts/ageing-bar";
+import { FlowBars } from "@/components/charts/flow-bars";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -29,7 +37,12 @@ import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/forma
 import { currentRate, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { accountBalances } from "@/lib/ledger";
-import { agingInWarehouse, financeStats } from "@/lib/queries";
+import {
+  agingInWarehouse,
+  cashFlowByMonth,
+  financeStats,
+  receivablesAgeing,
+} from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { FinanceNav } from "@/components/app/finance-nav";
@@ -188,6 +201,24 @@ export default async function FinanceOverviewPage() {
     How many flew, how many are still open, and how many have had a line drawn
     under them.
   */
+  const [ageing, flow, statements] = await Promise.all([
+    receivablesAgeing(),
+    cashFlowByMonth(new Date(), locale),
+    /* What the closed flights actually made, and how many are still sitting
+       with the boss. Read from the statements rather than recomputed, because
+       a statement is the figure he signed. */
+    prisma.batchStatement.findMany({
+      select: { status: true, profitUsd: true, receivedUsd: true, collectedUsd: true },
+    }),
+  ]);
+
+  const confirmed = statements.filter((row) => row.status === "CONFIRMED");
+  const awaiting = statements.filter((row) => row.status === "SUBMITTED").length;
+  const confirmedProfit = confirmed.reduce(
+    (sum, row) => sum + (row.profitUsd === null ? 0 : toNumber(row.profitUsd)),
+    0
+  );
+
   const [flightsTotal, flightsOpen, flightsClosed] = await Promise.all([
     prisma.batch.count({ where: { permanent: false } }),
     prisma.batch.count({
@@ -505,34 +536,144 @@ export default async function FinanceOverviewPage() {
         </p>
       </section>
 
-      {/* The same line, one level up: cargo sits on flights, and a flight is
-          the unit the boss asks about. Closed means its books are shut and
-          nothing more can land on it. */}
-      <section className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border bg-card px-5 py-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          {t(locale, "Flights")}
-        </p>
-        {[
-          { label: "on record", value: flightsTotal },
-          { label: "still open", value: flightsOpen },
-          { label: "closed", value: flightsClosed },
-        ].map((item) => (
-          <div key={item.label} className="flex items-baseline gap-2">
-            <span className="font-display text-lg font-bold tabular-nums">
-              {item.value}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {t(locale, item.label)}
-            </span>
-          </div>
-        ))}
-        <Link
+      {/*
+        The flights, as cards rather than a strip.
+
+        Cargo sits on a flight, and a flight is the unit the boss asks about —
+        so the page that summarises the department has to answer it in the same
+        weight as it answers cash. Three states, because those are the three
+        that mean different things: still trading, shut and waiting on the
+        boss, and signed off.
+      */}
+      <SectionLabel
+        action={{ href: "/app/finance/income", label: t(locale, "What each one made") }}
+      >
+        {t(locale, "Flights")}
+      </SectionLabel>
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {/*
+          Counts, not money — so they are count cards.
+
+          A MoneyTile leads with a currency figure, and three flights is not a
+          currency figure. Rendering them as money put "USD 0.00" in the largest
+          type on the card and hid the only number that mattered in the caption
+          underneath it.
+        */}
+        <KpiCard
+          label={t(locale, "Still open")}
+          numeric={flightsOpen}
+          hint={t(
+            locale,
+            "Flying, landed or being collected. Money can still move on these."
+          )}
+          icon={Plane}
+          tone="brand"
+          href="/app/shipments"
+        />
+        <KpiCard
+          label={t(locale, "With the boss")}
+          numeric={awaiting}
+          hint={t(
+            locale,
+            "Closed by Finance, and not finished until he has read the statement."
+          )}
+          icon={Hourglass}
+          tone={awaiting > 0 ? "warning" : "info"}
           href="/app/finance/income"
-          className="ml-auto text-xs font-medium text-brand hover:underline"
-        >
-          {t(locale, "What each one made")} →
-        </Link>
-      </section>
+        />
+        <KpiCard
+          label={t(locale, "Confirmed")}
+          numeric={confirmed.length}
+          hint={t(locale, "The boss has agreed these figures. They are the record.")}
+          icon={CheckCircle2}
+          tone="success"
+          href="/app/finance/income"
+        />
+        <MoneyTile
+          label={t(locale, "Profit, confirmed flights")}
+          usd={confirmedProfit}
+          rate={rate}
+          icon={TrendingUp}
+          tone={confirmedProfit < 0 ? "bad" : "good"}
+          count={`${confirmed.length} ${t(locale, "flights")}`}
+          hint={t(
+            locale,
+            "Billed less freight, customs and clearing — on the flights he has signed."
+          )}
+          href="/app/finance/income"
+        />
+      </div>
+
+      {/* ── The two shapes the figures make.
+             A balance says where the money is; these say which way it is
+             going and how old what we are owed has become — the two questions
+             a column of totals cannot answer. */}
+      <SectionLabel
+        action={{ href: "/app/finance/transactions", label: t(locale, "General ledger") }}
+      >
+        {t(locale, "The money, in shape")}
+      </SectionLabel>
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="panel p-4">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold">
+              {t(locale, "Money in and out")}
+            </h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t(locale, "What arrived against what it cost, this year")}
+            </p>
+          </div>
+          <FlowBars
+            className="mt-3"
+            labels={flow.labels}
+            valuesIn={flow.moneyIn}
+            valuesOut={flow.moneyOut}
+            currentIndex={flow.currentIndex}
+            format={(usd: number) =>
+              rate
+                ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}`
+                : formatUsd(usd)
+            }
+          />
+        </section>
+
+        <section className="panel p-4">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold">
+                {t(locale, "What we are owed, by age")}
+              </h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t(locale, "From the day the bill became real")}
+              </p>
+            </div>
+            {ageing.oldestDays > 0 ? (
+              <p className="shrink-0 text-right text-xs text-muted-foreground">
+                {t(locale, "oldest")}{" "}
+                <span className="font-mono font-semibold text-foreground">
+                  {ageing.oldestDays}d
+                </span>
+              </p>
+            ) : null}
+          </div>
+          <AgeingBar
+            className="mt-3"
+            segments={ageing.buckets.map((bucket) => ({
+              key: bucket.key,
+              label: t(locale, bucket.label),
+              count: bucket.count,
+              value: bucket.usd,
+            }))}
+            format={(usd: number) =>
+              rate
+                ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}`
+                : formatUsd(usd)
+            }
+            unit={{ one: t(locale, "bill"), many: t(locale, "bills") }}
+            empty={t(locale, "Nothing is owed. Every bill raised has been settled.")}
+          />
+        </section>
+      </div>
 
       {/* ── Two registers, as tables.
              They were lists of tall rows with the amount, the dollar figure, a

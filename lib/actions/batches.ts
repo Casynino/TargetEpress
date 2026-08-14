@@ -13,7 +13,8 @@ import {
 } from "@/lib/constants";
 import { autoPriceShipments } from "@/lib/auto-price";
 import { recordAudit } from "@/lib/audit";
-import { CLOSEABLE_FROM, batchOwing } from "@/lib/batch-close";
+import { CLOSEABLE_FROM, batchOwing, buildStatement } from "@/lib/batch-close";
+import { currentRateValue } from "@/lib/fx";
 import { notifyReceivingOutcome } from "@/lib/exception-audience";
 import { contributorsTo, notify } from "@/lib/notify";
 import {
@@ -1412,6 +1413,26 @@ export async function closeBatch(
   const carry = new Set(formData.getAll("carry").map((value) => String(value)));
   const carryTo = String(formData.get("carryTo") ?? "");
 
+  /*
+    The two figures the statement cannot work out for itself, asked for HERE.
+
+    The owner's rule: the maths happens when a batch is closed. Freight and
+    customs per kilo are negotiated per flight, and this is the moment somebody
+    who knows them is looking at the flight — not a live grid they have to
+    remember to go and fill in later.
+  */
+  const perKg = (raw: FormDataEntryValue | null) => {
+    const text = String(raw ?? "").trim().replace(/,/g, "");
+    if (text === "") return null;
+    const value = Number(text);
+    return Number.isFinite(value) && value >= 0 ? value : undefined;
+  };
+  const freight = perKg(formData.get("freightRate"));
+  const customs = perKg(formData.get("customsRate"));
+  if (freight === undefined || customs === undefined) {
+    return fail(t(locale, "Freight and customs have to be numbers, or left empty."));
+  }
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const batch = await tx.batch.findUnique({
@@ -1548,6 +1569,35 @@ export async function closeBatch(
         },
       });
 
+      /*
+        The statement, written now and never again.
+
+        After the moves and the write-offs, so it counts the flight as it
+        actually ends up, and inside the same transaction, so a statement
+        cannot exist for a close that failed to save.
+      */
+      await tx.batch.update({
+        where: { id: batchId },
+        data: {
+          freightRatePerKg:
+            freight === null ? null : new Prisma.Decimal(freight),
+          customsRatePerKg:
+            customs === null ? null : new Prisma.Decimal(customs),
+        },
+      });
+
+      const statement = await buildStatement(
+        tx,
+        batchId,
+        moving.map((row) => ({ shipmentId: row.shipmentId, owedUsd: row.owedUsd })),
+        chosen.map((row) => row.invoiceId),
+        { freight, customs },
+        await currentRateValue()
+      );
+      await tx.batchStatement.create({
+        data: { batchId, ...statement, note: note || null, submittedById: user.id },
+      });
+
       const writtenOffUsd = chosen.reduce((sum, row) => sum + row.owedUsd, 0);
       const keptUsd = kept.reduce((sum, row) => sum + row.owedUsd, 0);
 
@@ -1656,6 +1706,12 @@ export async function reopenBatch(
           closeNote: null,
         },
       });
+
+      /* The statement goes with it. A flight being worked on again has not
+         made anything final, and leaving a confirmed statement attached to an
+         open flight is how the boss ends up reading a figure that has since
+         moved. Closing it again writes a fresh one. */
+      await tx.batchStatement.deleteMany({ where: { batchId } });
 
       await recordAudit(
         {
@@ -1784,6 +1840,103 @@ export async function saveBatchRates(
 
     revalidatePath("/app/finance/income");
     return ok({ saved });
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
+
+/**
+ * The boss reads the flight's statement and says yes, or sends it back.
+ *
+ * The owner's rule: a batch closes when Finance shuts it, and it is FINISHED
+ * when the boss has reviewed and confirmed it. Two different facts, and the
+ * gap between them is the whole point — somebody senior looks at what each
+ * flight made before it becomes the record.
+ *
+ * Sending it back reopens the flight, because a statement the boss does not
+ * accept is a flight that is not finished: Finance can add the cost that was
+ * missing, chase the customer again, and close it afresh.
+ */
+export async function reviewStatement(
+  _prev: ActionResult<{ status: string }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ status: string }>> {
+  const locale = await viewerLocale();
+
+  let user: SessionUser;
+  try {
+    user = await authorize("statement.review");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const batchId = String(formData.get("batchId") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  const reviewNote = String(formData.get("reviewNote") ?? "").trim();
+
+  if (decision !== "CONFIRMED" && decision !== "RETURNED") {
+    return fail(t(locale, "Confirm it or send it back."));
+  }
+  if (decision === "RETURNED" && reviewNote.length < 4) {
+    return fail(t(locale, "Say what needs fixing before sending it back."));
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const statement = await tx.batchStatement.findUnique({
+        where: { batchId },
+        select: {
+          id: true,
+          status: true,
+          batch: { select: { batchNumber: true } },
+        },
+      });
+      if (!statement) throw new Error(t(locale, "There is no statement to review."));
+      if (statement.status === "CONFIRMED") {
+        throw new Error(t(locale, "This one has already been confirmed."));
+      }
+
+      await tx.batchStatement.update({
+        where: { id: statement.id },
+        data: {
+          status: decision,
+          reviewedById: user.id,
+          reviewedAt: new Date(),
+          reviewNote: reviewNote || null,
+        },
+      });
+
+      if (decision === "RETURNED") {
+        await tx.batch.update({
+          where: { id: batchId },
+          data: {
+            status: "VERIFIED",
+            closedAt: null,
+            closedById: null,
+            closeKind: null,
+          },
+        });
+      }
+
+      await recordAudit(
+        {
+          actor: user,
+          action: decision === "CONFIRMED" ? "statement.confirmed" : "statement.returned",
+          entity: "Batch",
+          entityId: batchId,
+          summary:
+            decision === "CONFIRMED"
+              ? `Confirmed the closing statement for ${statement.batch.batchNumber}`
+              : `Sent ${statement.batch.batchNumber} back — ${reviewNote}`,
+          metadata: { reviewNote: reviewNote || null },
+        },
+        tx
+      );
+    });
+
+    revalidatePath("/app/finance/income");
+    revalidatePath(`/app/shipments/${batchId}`);
+    return ok({ status: decision });
   } catch (error) {
     return fail(toActionError(error));
   }

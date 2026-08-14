@@ -41,6 +41,10 @@ export type Permission =
      decision — writing off what will never be collected — so it sits with the
      desks that own money, not with the warehouses that own cargo. */
   | "batch.close"
+  /* Read a flight's closing statement and either accept it as the record or
+     send it back. The boss's signature, so it is his alone — Finance shuts the
+     books, somebody senior agrees they are right. */
+  | "statement.review"
   // Exceptions / investigations
   /// Read the Issues & Claims and the cases in it. Every department holds
   /// this, because a case is never one department's business: Dar found the
@@ -197,6 +201,7 @@ const CHINA: Permission[] = [
   "batch.create",
   "batch.manage",
   "batch.close",
+  "statement.review",
   "customer.view",
   "customer.manage",
   // Reads the Issues & Claims, and nothing more. When Dar reports a box

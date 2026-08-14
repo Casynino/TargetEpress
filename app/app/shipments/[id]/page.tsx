@@ -66,6 +66,7 @@ export default async function ShipmentPage({
     include: {
       createdBy: { select: { name: true } },
       closedBy: { select: { name: true } },
+      statement: { select: { status: true, reviewNote: true } },
       shipments: {
         orderBy: { registeredAt: "desc" },
         include: {
@@ -442,6 +443,16 @@ export default async function ShipmentPage({
             unbilled: owing.unbilled,
             rate: finance?.rate ?? null,
             carryTargets,
+            freightRate:
+              dispatch.freightRatePerKg === null
+                ? null
+                : toNumber(dispatch.freightRatePerKg),
+            customsRate:
+              dispatch.customsRatePerKg === null
+                ? null
+                : toNumber(dispatch.customsRatePerKg),
+            statementStatus: dispatch.statement?.status ?? null,
+            reviewNote: dispatch.statement?.reviewNote ?? null,
             carriedIn: carriedIn.map((row) => ({
               trackingNumber: row.trackingNumber,
               fromBatchNumber: row.carriedFromBatch?.batchNumber ?? "—",

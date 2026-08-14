@@ -34,7 +34,7 @@ export default async function IncomePage({
     <>
       <PageHeader
         title="Income"
-        description="Every flight: what landed, what it cost to land it, and how much of it has been paid for."
+        description="What each closed flight made. The figures are worked out when Finance shuts the books and frozen there — then the boss reviews them."
       />
       <FinanceNav tabs={financeTabs(user.role)} />
 
@@ -60,10 +60,18 @@ export default async function IncomePage({
         </div>
       ) : null}
 
+      {sheet.awaiting > 0 ? (
+        <p className="mb-4 rounded-xl border border-warning/30 bg-warning/[0.06] px-5 py-3 text-sm">
+          <span className="font-medium">{sheet.awaiting}</span>{" "}
+          {sheet.awaiting === 1
+            ? "flight is waiting for the boss to confirm it."
+            : "flights are waiting for the boss to confirm them."}
+        </p>
+      ) : null}
+
       <IncomeSheetTable
         sheet={sheet}
-        month={month}
-        canEdit={can(user.role, "expense.record")}
+        canReview={can(user.role, "statement.review")}
       />
     </>
   );
