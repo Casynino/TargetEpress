@@ -37,11 +37,12 @@ export function financeTabs(role: Role): FinanceTab[] {
       visible: can(role, "account.view"),
     },
     {
-      // Beside Accounts because it is one of them, seen from the point of view
-      // of the person physically holding the money rather than the books.
-      href: "/app/finance/cash",
-      label: "Cash",
-      visible: can(role, "account.view"),
+      href: "/app/finance/verify",
+      // Money somebody says arrived and nobody has agreed to yet. It comes
+      // before Collections because a payment sitting unverified makes the
+      // collections list wrong: the customer has paid and is still on it.
+      label: "Verify payments",
+      visible: can(role, "payment.verify"),
     },
     {
       href: "/app/collections",
@@ -51,13 +52,6 @@ export function financeTabs(role: Role): FinanceTab[] {
       // sidebar — this is Finance's door to it, not a second copy.
       label: "Collections",
       visible: can(role, "collections.view"),
-    },
-    {
-      href: "/app/finance/verify",
-      // Ahead of the register on purpose: a customer is waiting on each of
-      // these, and money nobody has agreed to is not in the books yet.
-      label: "Verify payments",
-      visible: can(role, "payment.verify"),
     },
     {
       href: "/app/finance/transactions",

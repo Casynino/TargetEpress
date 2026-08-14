@@ -4,6 +4,7 @@ import { CircleHelp, TriangleAlert } from "lucide-react";
 
 import { AccountCard } from "@/components/app/account-card";
 import { OpeningBalanceForm } from "@/components/app/opening-balance";
+import { CashSection } from "@/components/app/cash-section";
 import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { Badge } from "@/components/ui/badge";
@@ -338,6 +339,10 @@ export default async function AccountsPage() {
           </ul>
         </section>
       ) : null}
+
+      {/* A till is an account, so the tin lives under the list of them rather
+          than on a tab of its own. */}
+      <CashSection />
     </>
   );
 }
