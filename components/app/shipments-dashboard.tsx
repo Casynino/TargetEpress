@@ -2,16 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  ChevronRight,
-  Package,
-  Plane,
-  Search,
-  Warehouse,
-} from "lucide-react";
+import { ChevronRight, Plane, Search } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
+import { formatLocal, formatUsd } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 export type DispatchRow = {
@@ -29,6 +24,15 @@ export type DispatchRow = {
   departedLabel: string | null;
   expectedLabel: string | null;
   arrivedLabel: string | null;
+  /**
+   * The month this flight belongs to, as YYYY-MM.
+   *
+   * Arrival where there is one, departure otherwise: a flight belongs to the
+   * month its cargo landed and started being invoiced, and one still in the
+   * air belongs to the month it left. Decided on the server so every desk
+   * agrees on which month a flight is in, whatever a browser's clock says.
+   */
+  month: string;
   /**
    * Consignments on this flight with an unfinished case against them — short,
    * damaged, or not found. A flight is not "checked in and done" while any of
@@ -50,18 +54,32 @@ export type DispatchRow = {
     outstanding: number;
     /** Prices nobody in Finance has signed off yet. */
     drafts: number;
+    /** What clearing this flight has cost, in dollars and in shillings. */
+    spentUsd: number;
+    spentTzs: number;
   } | null;
 };
 
-/** Money without cents — a board is read at a glance, not reconciled from. */
-const money = (n: number) =>
-  n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+/**
+ * Money on a board, where the question is scale and not the last shilling.
+ *
+ * 22,935,015 is eight digits that have to be counted before they mean
+ * anything, and four columns of them is a wall. 22.9M is read, not counted.
+ * The exact figure is one click away on the flight itself, and the band above
+ * the list carries the total in full.
+ */
+function compact(n: number) {
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${Math.round(n / 1_000)}k`;
+  return String(Math.round(n));
+}
 
-const STATUS_TONE: Record<string, string> = {
-  IN_TRANSIT: "bg-info/10 text-info border-info/30",
-  ARRIVED: "bg-warning/10 text-warning border-warning/30",
-  VERIFIED: "bg-success/10 text-success border-success/30",
-  CLOSED: "bg-muted text-muted-foreground border-border",
+const STATUS_RAIL: Record<string, string> = {
+  IN_TRANSIT: "bg-info",
+  ARRIVED: "bg-warning",
+  VERIFIED: "bg-success",
+  CLOSED: "bg-border",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -79,33 +97,79 @@ const FILTERS = [
   { key: "CLOSED", label: "Completed" },
 ] as const;
 
+/*
+  Column widths live here rather than on each cell.
+
+  The headings and the figures are separate elements, so the only thing
+  keeping a column title over its own numbers is that both use the same width.
+  Written out twice, they drift the first time one of them is edited.
+*/
+const COL = {
+  /* On a phone the code takes the free space; origin is what steps out. */
+  code: "min-w-0 flex-1 sm:w-28 sm:flex-none",
+  origin: "hidden min-w-0 flex-1 sm:block",
+  status: "hidden w-24 shrink-0 lg:block",
+  cargo: "hidden w-10 shrink-0 text-right xl:block",
+  weight: "hidden w-16 shrink-0 text-right xl:block",
+  arrived: "hidden w-20 shrink-0 text-right lg:block",
+  money: "w-20 shrink-0 text-right",
+  moneySm: "hidden w-20 shrink-0 text-right sm:block",
+  moneyLg: "hidden w-20 shrink-0 text-right lg:block",
+};
+
 /**
- * Every dispatch that has left China.
+ * Every dispatch that has left China, as a register.
  *
- * Filtering and search are client-side over rows the server already sent: the
+ * This was a stack of cards, each carrying ten figures over two rows. That
+ * reads beautifully against three flights and is unusable against forty —
+ * which is one year of a weekly schedule, and the state this board will spend
+ * most of its life in. One flight is now one line.
+ *
+ * The band above the list totals what is ON SCREEN rather than everything on
+ * record. Filter to August, or to what is still in the air, and the money
+ * follows: that is the question somebody came to this page with, and it saves
+ * them adding a column up by eye.
+ *
+ * Filtering and search stay client-side over rows the server already sent: the
  * whole history is a few hundred flights at most, and a desk flicking between
  * "in transit" and "pending clearance" should not wait on a round trip.
  */
-export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
+export function ShipmentsDashboard({
+  rows,
+  months,
+  rate,
+}: {
+  rows: DispatchRow[];
+  /** Every month that actually flew, newest first. */
+  months: { key: string; label: string }[];
+  /** USD → TZS. Null when no rate is published; the board falls back to USD. */
+  rate: number | null;
+}) {
   const t = useT();
   const [filter, setFilter] = useState<string>("all");
+  const [month, setMonth] = useState<string>("all");
   const [query, setQuery] = useState("");
 
+  const showMoney = rows.some((row) => row.money);
+
+  /* Status counts follow the month, so a chip never offers an empty list. */
   const counts = useMemo(() => {
-    const by = (status: string) => rows.filter((r) => r.status === status).length;
+    const inMonth = month === "all" ? rows : rows.filter((r) => r.month === month);
+    const by = (status: string) => inMonth.filter((r) => r.status === status).length;
     return {
-      all: rows.length,
+      all: inMonth.length,
       IN_TRANSIT: by("IN_TRANSIT"),
       ARRIVED: by("ARRIVED"),
       VERIFIED: by("VERIFIED"),
       CLOSED: by("CLOSED"),
     } as Record<string, number>;
-  }, [rows]);
+  }, [rows, month]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((row) => {
       if (filter !== "all" && row.status !== filter) return false;
+      if (month !== "all" && row.month !== month) return false;
       if (!q) return true;
       return [
         row.shipmentNumber,
@@ -118,10 +182,124 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
         .toLowerCase()
         .includes(q);
     });
-  }, [rows, filter, query]);
+  }, [rows, filter, month, query]);
+
+  /** Everything on screen, added up. */
+  const totals = useMemo(() => {
+    const sum = (pick: (row: DispatchRow) => number) =>
+      visible.reduce((acc, row) => acc + pick(row), 0);
+    return {
+      cargo: sum((r) => r.cargoCount),
+      weight: sum((r) => r.weightKg),
+      expected: sum((r) => r.money?.expected ?? 0),
+      collected: sum((r) => r.money?.collected ?? 0),
+      outstanding: sum((r) => r.money?.outstanding ?? 0),
+      spentUsd: sum((r) => r.money?.spentUsd ?? 0),
+      spentTzs: sum((r) => r.money?.spentTzs ?? 0),
+    };
+  }, [visible]);
+
+  /* Shillings lead, as they do everywhere money is shown in this app. */
+  const tsh = (usd: number) =>
+    rate === null ? formatUsd(usd) : formatLocal(usd * rate);
+  /*
+    Nothing is a dash, not a nought.
+
+    A column of red zeroes down a board reads as a problem on every row. Zero
+    collected and zero spent are the ordinary state of a flight that has just
+    landed, so they are set as an absence and the eye passes over them.
+  */
+  const tshCompact = (usd: number) =>
+    usd === 0 ? "—" : rate === null ? compact(usd) : compact(usd * rate);
+
+  const cells: {
+    k: string;
+    main: string;
+    sub: string;
+    tone?: string;
+  }[] = [
+    {
+      k: t("Shipments"),
+      main: String(visible.length),
+      sub: `${totals.cargo} ${t("cargo")} · ${totals.weight.toFixed(0)} kg`,
+    },
+  ];
+
+  if (showMoney) {
+    const profitUsd = totals.expected - totals.spentUsd;
+    cells.push(
+      {
+        k: t("Expected"),
+        main: tsh(totals.expected),
+        sub: formatUsd(totals.expected),
+      },
+      {
+        k: t("Collected"),
+        main: tsh(totals.collected),
+        sub: formatUsd(totals.collected),
+        tone: "text-success",
+      },
+      {
+        k: t("Outstanding"),
+        main: tsh(totals.outstanding),
+        sub: formatUsd(totals.outstanding),
+        tone: totals.outstanding > 0 ? "text-destructive" : undefined,
+      },
+      {
+        // Shillings summed at face value where they were paid in shillings,
+        // exactly as a flight's own expenses panel does it.
+        k: t("Expenses"),
+        main: rate === null ? formatUsd(totals.spentUsd) : formatLocal(totals.spentTzs),
+        sub: formatUsd(totals.spentUsd),
+        tone: "text-destructive",
+      },
+      {
+        k: t("Expected profit"),
+        main: tsh(profitUsd),
+        sub: formatUsd(profitUsd),
+        tone: profitUsd < 0 ? "text-destructive" : undefined,
+      }
+    );
+  }
 
   return (
     <div>
+      {/*
+        What is on screen, in one band.
+
+        Deliberately the same object as the Financial overview on a flight —
+        label above, shillings large, dollars small — so a total means the same
+        thing whether you are looking at one flight or at forty.
+      */}
+      {!showMoney ? (
+        <p className="mb-4 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{visible.length}</span>{" "}
+          {t(visible.length === 1 ? "shipment" : "shipments")} · {totals.cargo}{" "}
+          {t("cargo")} · {totals.weight.toFixed(0)} kg
+        </p>
+      ) : (
+      <dl className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border shadow-soft sm:grid-cols-3 lg:grid-cols-6">
+        {cells.map((cell) => (
+          <div key={cell.k} className="bg-card px-4 py-3">
+            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              {cell.k}
+            </dt>
+            <dd
+              className={cn(
+                "mt-0.5 font-display text-base font-bold tabular-nums",
+                cell.tone
+              )}
+            >
+              {cell.main}
+            </dd>
+            <p className="truncate text-[11px] tabular-nums text-muted-foreground">
+              {cell.sub}
+            </p>
+          </div>
+        ))}
+      </dl>
+      )}
+
       <div className="mb-4 rounded-xl border bg-card p-4 shadow-soft">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -158,12 +336,33 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
             </button>
           ))}
         </div>
-      </div>
 
-      <p className="mb-3 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">{visible.length}</span>{" "}
-        shipment{visible.length === 1 ? "" : "s"}
-      </p>
+        {/*
+          A month, because the schedule is weekly and the question is almost
+          always "how did August go" rather than "how has the company done
+          since it started". Only months that actually flew are offered, so
+          the row cannot grow a chip that leads nowhere.
+        */}
+        {months.length > 1 ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {[{ key: "all", label: t("Every month") }, ...months].map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => setMonth(option.key)}
+                className={cn(
+                  "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                  month === option.key
+                    ? "border-foreground/25 bg-accent text-foreground"
+                    : "border-transparent text-muted-foreground hover:bg-accent"
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
 
       {visible.length === 0 ? (
         <div className="rounded-xl border border-dashed p-12 text-center">
@@ -174,125 +373,135 @@ export function ShipmentsDashboard({ rows }: { rows: DispatchRow[] }) {
           </p>
         </div>
       ) : (
-        <ul className="space-y-3">
-          {visible.map((row) => (
-            <li key={row.id}>
-              <Link
-                href={`/app/shipments/${row.id}`}
-                className="group block rounded-xl border bg-card p-5 shadow-soft transition-all hover:border-brand/40 hover:shadow-lift"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-base font-bold">
-                        {row.shipmentNumber}
+        <section className="overflow-hidden rounded-xl border bg-card shadow-soft">
+          {/* The headings, on the same widths as the figures under them. */}
+          <div className="flex items-center gap-3 border-b bg-muted/20 px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+            <span aria-hidden className="w-0.5 shrink-0" />
+            <span className={COL.code}>{t("Batch")}</span>
+            <span className={COL.origin}>{t("Origin")}</span>
+            <span className={COL.status}>{t("Status")}</span>
+            <span className={COL.cargo}>{t("Cargo")}</span>
+            <span className={COL.weight}>{t("Weight")}</span>
+            <span className={COL.arrived}>{t("Arrived")}</span>
+            {showMoney ? (
+              <>
+                <span className={COL.moneySm}>{t("Expected")}</span>
+                <span className={COL.moneyLg}>{t("Collected")}</span>
+                <span className={COL.money}>{t("Outstanding")}</span>
+                <span className={COL.moneyLg}>{t("Expenses")}</span>
+              </>
+            ) : null}
+            <span aria-hidden className="w-4 shrink-0" />
+          </div>
+
+          <ul className="divide-y divide-border/60">
+            {visible.map((row) => (
+              <li key={row.id}>
+                <Link
+                  href={`/app/shipments/${row.id}`}
+                  className="flex h-11 items-center gap-3 px-4 text-sm transition-colors hover:bg-muted/25"
+                >
+                  {/* Status, findable down the edge before a word is read. */}
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "h-6 w-0.5 shrink-0 rounded-full",
+                      STATUS_RAIL[row.status] ?? "bg-border"
+                    )}
+                  />
+                  <span className={cn(COL.code, "truncate font-mono font-semibold")}>
+                    {row.shipmentNumber}
+                  </span>
+                  {/* Origin and flight only. Every one of these landed in
+                      Dar es Salaam, so printing the destination on each row is
+                      fifteen characters of the same word all the way down a
+                      column that is short of space. The airline is dropped
+                      for the same reason — "Ethiopian Airlines" truncates to
+                      "Ethiopian Air…" while ET605 says it in five characters,
+                      and search still matches the full name. */}
+                  <span className={cn(COL.origin, "truncate text-muted-foreground")}>
+                    {row.route}
+                    {row.flightNumber ? ` · ${row.flightNumber}` : ""}
+                    {row.flagged > 0 ? (
+                      <span className="ml-2 text-destructive">
+                        {row.flagged} {t("under investigation")}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span
+                    className={cn(COL.status, "truncate text-xs text-muted-foreground")}
+                  >
+                    {t(STATUS_LABEL[row.status] ?? row.status)}
+                  </span>
+                  <span className={cn(COL.cargo, "tabular-nums text-muted-foreground")}>
+                    {row.cargoCount}
+                  </span>
+                  <span className={cn(COL.weight, "tabular-nums text-muted-foreground")}>
+                    {row.weightKg.toFixed(0)} kg
+                  </span>
+                  <span className={cn(COL.arrived, "text-xs text-muted-foreground")}>
+                    {row.arrivedLabel ?? row.expectedLabel ?? "—"}
+                  </span>
+                  {row.money ? (
+                    <>
+                      <span className={cn(COL.moneySm, "font-medium tabular-nums")}>
+                        {tshCompact(row.money.expected)}
                       </span>
                       <span
                         className={cn(
-                          "rounded-full border px-2.5 py-0.5 text-xs font-medium",
-                          STATUS_TONE[row.status] ?? "bg-muted"
+                          COL.moneyLg,
+                          "tabular-nums",
+                          row.money.collected > 0
+                            ? "text-success"
+                            : "text-muted-foreground"
                         )}
                       >
-                        {t(STATUS_LABEL[row.status] ?? row.status)}
+                        {tshCompact(row.money.collected)}
                       </span>
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {row.route} → {t("Dar es Salaam")}
-                      {row.airline ? ` · ${row.airline}` : ""}
-                      {row.flightNumber ? ` ${row.flightNumber}` : ""}
-                    </p>
-                    {row.waybillNumber ? (
-                      <p className="mt-0.5 font-mono text-xs text-muted-foreground">
-                        {t("Waybill")} {row.waybillNumber}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                </div>
-
-                <dl className="mt-4 grid grid-cols-2 gap-4 border-t pt-4 sm:grid-cols-3 lg:grid-cols-6">
-                  {[
-                    { label: t("Cargo"), value: String(row.cargoCount), Icon: Package },
-                    { label: t("Customers"), value: String(row.customerCount) },
-                    { label: t("Packages"), value: String(row.packages) },
-                    { label: t("Weight"), value: `${row.weightKg.toFixed(1)} kg` },
-                    {
-                      label: row.arrivedLabel ? t("Arrived") : t("Expected"),
-                      value: row.arrivedLabel ?? row.expectedLabel ?? "—",
-                      Icon: Warehouse,
-                    },
-                    {
-                      label: t("Under investigation"),
-                      value: row.flagged ? String(row.flagged) : t("None"),
-                      tone: row.flagged ? "text-destructive" : undefined,
-                    },
-                  ].map((stat) => (
-                    <div key={stat.label}>
-                      <dt className="text-xs text-muted-foreground">{stat.label}</dt>
-                      <dd
-                        className={`mt-0.5 text-sm font-semibold tabular-nums ${
-                          "tone" in stat && stat.tone ? stat.tone : ""
-                        }`}
-                      >
-                        {stat.value}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-
-                {/* How this flight is doing on money, on its own line so the
-                    cargo figures above stay readable. Outstanding is the one
-                    that decides whether anybody has to make a phone call, so
-                    it carries the colour. */}
-                {row.money ? (
-                  <dl className="mt-3 grid grid-cols-2 gap-4 border-t pt-3 sm:grid-cols-4">
-                    {[
-                      {
-                        label: t("Expected"),
-                        value: `${row.money.currency} ${money(row.money.expected)}`,
-                        tone: "text-foreground",
-                      },
-                      {
-                        label: t("Collected"),
-                        value: `${row.money.currency} ${money(row.money.collected)}`,
-                        tone: "text-success",
-                      },
-                      {
-                        label: t("To collect"),
-                        value: `${row.money.currency} ${money(row.money.outstanding)}`,
-                        tone:
+                      <span
+                        className={cn(
+                          COL.money,
+                          "font-medium tabular-nums",
                           row.money.outstanding > 0
-                            ? "text-warning"
-                            : "text-muted-foreground",
-                      },
-                      {
-                        label: t("Prices to confirm"),
-                        value: row.money.drafts
-                          ? String(row.money.drafts)
-                          : t("All confirmed"),
-                        tone: row.money.drafts
-                          ? "text-signal"
-                          : "text-muted-foreground",
-                      },
-                    ].map((stat) => (
-                      <div key={stat.label}>
-                        <dt className="text-xs text-muted-foreground">
-                          {stat.label}
-                        </dt>
-                        <dd
-                          className={`mt-0.5 text-sm font-semibold tabular-nums ${stat.tone}`}
-                        >
-                          {stat.value}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                ) : null}
-              </Link>
-            </li>
-          ))}
-        </ul>
+                            ? "text-destructive"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {tshCompact(row.money.outstanding)}
+                      </span>
+                      <span
+                        className={cn(
+                          COL.moneyLg,
+                          "tabular-nums",
+                          row.money.spentUsd > 0
+                            ? "text-destructive"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {row.money.spentUsd === 0
+                          ? "—"
+                          : rate === null
+                            ? compact(row.money.spentUsd)
+                            : compact(row.money.spentTzs)}
+                      </span>
+                    </>
+                  ) : null}
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          {/* The unit, said once. Repeating "TSh" down four columns of a
+              forty-row board is forty times the ink for one fact. */}
+          {showMoney ? (
+            <p className="border-t px-4 py-1.5 text-right text-[11px] text-muted-foreground">
+              {rate === null
+                ? t("Figures in USD — no exchange rate published")
+                : t("Money columns in thousands (k) and millions (M) of shillings")}
+            </p>
+          ) : null}
+        </section>
       )}
     </div>
   );

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Boxes, PackageCheck, Plane, Scale, Warehouse } from "lucide-react";
+import { PackageCheck } from "lucide-react";
 
-import { KpiCard } from "@/components/app/kpi-card";
 import { PageHeader } from "@/components/app/page-header";
 import {
   ShipmentsDashboard,
@@ -10,6 +9,7 @@ import {
 } from "@/components/app/shipments-dashboard";
 import { EXCEPTION_OPEN_STATUSES, ORIGIN_LABELS } from "@/lib/constants";
 import { formatDate, toNumber } from "@/lib/format";
+import { currentRateValue } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -88,6 +88,7 @@ export default async function ShipmentsPage() {
       departureDate: true,
       expectedArrival: true,
       arrivalDate: true,
+      createdAt: true,
       shipments: {
         select: {
           weightKg: true,
@@ -121,6 +122,39 @@ export default async function ShipmentsPage() {
     },
   });
 
+  /*
+    What clearing each flight has cost, in one query rather than one per row.
+
+    Not a groupBy: a cost paid in shillings counts at face value and a cost
+    paid in dollars is converted, which is a per-row decision a SUM cannot
+    make. Same rule as lib/batch-finance, so a flight's Expenses figure is the
+    same number on this board as on its own page — and OPERATING only, again
+    matching batch profit, because a special cost is real money deliberately
+    kept out of the figure the business is judged on.
+  */
+  const rate = showMoney ? await currentRateValue() : null;
+  const costs = showMoney
+    ? await prisma.expense.findMany({
+        where: {
+          batchId: { in: dispatches.map((d) => d.id) },
+          status: { not: "VOID" },
+          expenseClass: "OPERATING",
+        },
+        select: { batchId: true, amount: true, currency: true, amountUsd: true },
+      })
+    : [];
+
+  const spend = new Map<string, { usd: number; tzs: number }>();
+  for (const cost of costs) {
+    if (!cost.batchId) continue;
+    const usd = toNumber(cost.amountUsd);
+    const entry = spend.get(cost.batchId) ?? { usd: 0, tzs: 0 };
+    entry.usd += usd;
+    entry.tzs +=
+      cost.currency === "TZS" ? toNumber(cost.amount) : rate ? usd * rate : 0;
+    spend.set(cost.batchId, entry);
+  }
+
   const rows: DispatchRow[] = dispatches.map((dispatch) => ({
     id: dispatch.id,
     shipmentNumber: dispatch.batchNumber,
@@ -138,21 +172,38 @@ export default async function ShipmentsPage() {
       ? formatDate(dispatch.expectedArrival, locale)
       : null,
     arrivedLabel: dispatch.arrivalDate ? formatDate(dispatch.arrivalDate, locale) : null,
+    /* Landed where it landed, left where it has not. Decided here so every
+       desk agrees on which month a flight is in, whatever a browser thinks. */
+    month: (dispatch.arrivalDate ?? dispatch.departureDate ?? dispatch.createdAt)
+      .toISOString()
+      .slice(0, 7),
     flagged: dispatch.shipments.filter((c) => c.exceptions.length > 0).length,
-    money: showMoney ? moneyFor(dispatch.shipments) : null,
+    money: showMoney
+      ? {
+          ...moneyFor(dispatch.shipments),
+          spentUsd: spend.get(dispatch.id)?.usd ?? 0,
+          spentTzs: spend.get(dispatch.id)?.tzs ?? 0,
+        }
+      : null,
   }));
 
-  const active = rows.filter(
-    (row) => row.status === "IN_TRANSIT" || row.status === "ARRIVED"
-  );
-  const inTransitCargo = rows
-    .filter((row) => row.status === "IN_TRANSIT")
-    .reduce((sum, row) => sum + row.cargoCount, 0);
-  const arrivedCargo = rows
-    .filter((row) => row.status === "ARRIVED" || row.status === "VERIFIED")
-    .reduce((sum, row) => sum + row.cargoCount, 0);
-  const pendingClearance = rows.filter((row) => row.status === "ARRIVED").length;
-  const activeWeight = active.reduce((sum, row) => sum + row.weightKg, 0);
+  /*
+    The months that actually flew, newest first.
+
+    Built from the rows rather than from a calendar, so the chips can only ever
+    offer a month with something in it. Labelled on the server because the
+    label has to match the reader's language, and that is decided here.
+  */
+  const months = [...new Set(rows.map((row) => row.month))]
+    .sort()
+    .reverse()
+    .map((key) => ({
+      key,
+      label: new Date(`${key}-02`).toLocaleDateString(
+        locale === "zh" ? "zh-CN" : "en-GB",
+        { month: "short", year: "numeric" }
+      ),
+    }));
 
   return (
     <>
@@ -161,60 +212,7 @@ export default async function ShipmentsPage() {
         description="Every dispatch that has left China. Open one to see its cargo, documents and full timeline."
       />
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <KpiCard
-          delay={0}
-          label={t(locale, "Total shipments")}
-          numeric={rows.length}
-          hint={t(locale, "Every dispatch on record")}
-          icon={Plane}
-          tone="brand"
-        />
-        <KpiCard
-          delay={1}
-          label={t(locale, "Active")}
-          numeric={active.length}
-          hint={t(locale, "In the air or awaiting clearance")}
-          icon={Boxes}
-          tone="info"
-        />
-        <KpiCard
-          delay={2}
-          label={t(locale, "Cargo in transit")}
-          numeric={inTransitCargo}
-          hint={t(locale, "Pieces currently flying")}
-          icon={Plane}
-          tone="signal"
-        />
-        <KpiCard
-          delay={3}
-          label={t(locale, "Pending clearance")}
-          numeric={pendingClearance}
-          hint={
-            pendingClearance > 0
-              ? t(locale, "Landed, not yet checked in")
-              : t(locale, "Nothing waiting on Dar")
-          }
-          icon={Warehouse}
-          tone={pendingClearance > 0 ? "warning" : "success"}
-        />
-        {/*
-          The hint reads "22 pieces landed". The count leads the phrase in both
-          languages — "22 件已到货" — so the whole predicate is one dictionary
-          entry with the number in front of it, rather than English word order
-          reassembled out of translated scraps.
-        */}
-        <KpiCard
-          delay={4}
-          label={t(locale, "Weight in motion")}
-          value={`${activeWeight.toFixed(0)} kg`}
-          hint={`${arrivedCargo} ${t(locale, "pieces landed")}`}
-          icon={Scale}
-          tone="brand"
-        />
-      </div>
-
-      <ShipmentsDashboard rows={rows} />
+      <ShipmentsDashboard rows={rows} months={months} rate={rate} />
 
       <p className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
         <PackageCheck className="h-4 w-4" />
