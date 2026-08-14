@@ -228,6 +228,8 @@ export default async function InvoicePage({
             localCurrency={localCurrency}
             notes={invoice.notes}
             locked={toNumber(invoice.amountPaid) > 0}
+            canCorrect={can(user.role, "ledger.adjust")}
+            alreadyPaid={toNumber(invoice.amountPaid)}
             canDiscount={canDiscount}
           />
         </div>

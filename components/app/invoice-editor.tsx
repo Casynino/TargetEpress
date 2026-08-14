@@ -33,6 +33,8 @@ export function InvoiceEditor({
   localCurrency,
   notes,
   locked,
+  canCorrect = false,
+  alreadyPaid = 0,
   canDiscount,
 }: {
   invoiceId: string;
@@ -48,6 +50,10 @@ export function InvoiceEditor({
   notes: string | null;
   /** Money has landed — nothing here may change. */
   locked: boolean;
+  /** May restate a bill money has already landed against — ledger.adjust. */
+  canCorrect?: boolean;
+  /** What the customer has handed over. The floor a correction cannot go under. */
+  alreadyPaid?: number;
   canDiscount: boolean;
 }) {
   const [state, action] = useActionState(adjustInvoice, undefined);
@@ -70,13 +76,24 @@ export function InvoiceEditor({
   const total = freight + storage + num(otherDraft) - num(discountDraft);
   const rate = num(rateDraft);
 
-  if (locked) {
-    return (
+  // Editing a bill that has already been paid, rather than one that has not.
+  const correcting = locked && canCorrect;
+
+  /*
+    Paid, and not allowed to restate it: say so and stop.
+
+    Whoever may adjust the ledger gets the form instead, with a reason field —
+    a customer billed the wrong amount who then paid it is exactly the case
+    Finance most needs to fix, and refusing outright only moves the correction
+    into a conversation nobody writes down.
+  */
+  if (locked && !canCorrect) {
+  return (
       <div className="no-print flex items-start gap-3 rounded-xl border bg-muted/40 p-4 text-sm">
         <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <p className="text-muted-foreground">
           {t(
-            "Money has been received against this invoice, so it can no longer be edited. Corrections after payment are handled as a new charge or a refund, not by rewriting the bill."
+            "Money has been received against this invoice, so correcting it needs someone who may adjust the ledger."
           )}
         </p>
       </div>
@@ -106,6 +123,30 @@ export function InvoiceEditor({
 
       {open ? (
         <form action={action} className="space-y-4 border-t p-4">
+      {/* The reason, only when a paid bill is being restated. Required by the
+          action too — a client that forgets it is refused rather than obeyed. */}
+      {correcting ? (
+        <div className="mb-4 rounded-lg border border-signal/30 bg-signal/5 p-3">
+          <label
+            htmlFor="correctionReason"
+            className="text-xs font-medium text-signal"
+          >
+            {t("Why is this bill being corrected?")}
+          </label>
+          <Input
+            id="correctionReason"
+            name="correctionReason"
+            required
+            minLength={3}
+            className="mt-1.5 h-8 text-sm"
+            placeholder={t("What was wrong with it")}
+          />
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            {t("Already paid")}: {alreadyPaid.toFixed(2)}.{" "}
+            {t("The corrected total cannot be less than that — refunding the difference is a payment out, not a change to the bill.")}
+          </p>
+        </div>
+      ) : null}
           <input type="hidden" name="invoiceId" value={invoiceId} />
           <FormError state={state} />
           {state?.ok ? (
@@ -137,7 +178,7 @@ export function InvoiceEditor({
                 value={freightDraft}
                 onValueChange={setFreightDraft}
                 placeholder={freight.toFixed(2)}
-                disabled={locked || !canDiscount}
+                disabled={(locked && !canCorrect) || !canDiscount}
               />
               <p className="text-xs text-muted-foreground">
                 {t("The rate book says")} {currency} {freight.toFixed(2)}.{" "}
@@ -158,7 +199,7 @@ export function InvoiceEditor({
                   name="freightOverrideReason"
                   placeholder={t("e.g. re-weighed on the floor scale at 8.9 kg")}
                   required
-                  disabled={locked}
+                  disabled={locked && !canCorrect}
                 />
               </div>
             ) : null}

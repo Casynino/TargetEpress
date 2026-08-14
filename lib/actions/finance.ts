@@ -497,6 +497,9 @@ export async function adjustInvoice(
         "That rate looks wrong for USD→TZS. Check the number of digits."
       ),
     notes: z.string().trim().optional(),
+    /// Required only when money has already landed against the bill. A
+    /// correction to a settled figure has to say what was wrong with it.
+    correctionReason: z.string().trim().optional(),
     freightOverride: z
       .string()
       .trim()
@@ -528,6 +531,7 @@ export async function adjustInvoice(
           otherCharges: true,
           discount: true,
           amountPaid: true,
+          total: true,
           exchangeRate: true,
           localCurrency: true,
           notes: true,
@@ -536,10 +540,35 @@ export async function adjustInvoice(
       });
       if (!invoice) throw new Error("That invoice no longer exists.");
 
-      if (toNumber(invoice.amountPaid) > 0) {
-        throw new Error(
-          `Money has already been received against ${invoice.invoiceNumber} — it can no longer be edited.`
-        );
+      /*
+        A bill money has landed against can still be corrected — carefully.
+
+        The old rule refused outright, which is safe and wrong: a customer who
+        was billed the wrong amount and paid it is exactly the case Finance
+        most needs to fix, and refusing only pushes the correction into a
+        conversation nobody writes down.
+
+        Three conditions instead of a wall. It takes ledger.adjust, because
+        restating a figure money has moved against is the same act as
+        restating the ledger. It takes a written reason. And it cannot take the
+        total below what has already been paid — that is not a correction, it
+        is a refund, and a refund is money leaving an account rather than a
+        number being edited.
+      */
+      const alreadyPaid = toNumber(invoice.amountPaid);
+      const correcting = alreadyPaid > 0;
+
+      if (correcting) {
+        if (!can(user.role, "ledger.adjust")) {
+          throw new Error(
+            `Money has already been received against ${invoice.invoiceNumber}, so correcting it needs someone who may adjust the ledger.`
+          );
+        }
+        if (!input.correctionReason || input.correctionReason.length < 3) {
+          throw new Error(
+            `Say what was wrong with ${invoice.invoiceNumber}. A bill that has been paid is not changed without a reason.`
+          );
+        }
       }
 
       const discountChanged = input.discount !== toNumber(invoice.discount);
@@ -573,6 +602,20 @@ export async function adjustInvoice(
       const total = freight + storage + input.otherCharges - input.discount;
       if (total < 0) {
         throw new Error("The discount is larger than the rest of the invoice.");
+      }
+
+      /*
+        A correction cannot turn into a refund by arithmetic.
+
+        Dropping the total below what the customer has already handed over
+        would leave the invoice owing them money, with no record of that money
+        going back and no account it left from. That is a real thing that
+        happens — it is just not an edit.
+      */
+      if (correcting && total < alreadyPaid) {
+        throw new Error(
+          `${invoice.invoiceNumber} has ${alreadyPaid.toFixed(2)} paid against it, so it cannot be corrected to ${total.toFixed(2)}. Refunding the difference is a payment out, not a change to the bill.`
+        );
       }
 
       // The rate is Finance's, like the discount above it. Support prepares
@@ -622,10 +665,18 @@ export async function adjustInvoice(
           entity: "Invoice",
           entityId: invoice.id,
           summary:
-            `Adjusted ${invoice.invoiceNumber} (${invoice.shipment.trackingNumber}) ` +
-            `to ${total.toFixed(2)}` +
-            (discountChanged ? ` — discount ${input.discount.toFixed(2)}` : ""),
+            `${correcting ? "Corrected" : "Adjusted"} ${invoice.invoiceNumber} (${invoice.shipment.trackingNumber}) ` +
+            `from ${toNumber(invoice.total).toFixed(2)} to ${total.toFixed(2)}` +
+            (discountChanged ? ` — discount ${input.discount.toFixed(2)}` : "") +
+            (correcting ? ` — ${input.correctionReason}` : ""),
           metadata: {
+            // Named so a reader of the log can tell a routine adjustment from
+            // a restatement of a bill somebody had already paid.
+            correction: correcting,
+            reason: correcting ? input.correctionReason : undefined,
+            alreadyPaid: correcting ? alreadyPaid : undefined,
+            totalBefore: toNumber(invoice.total),
+            totalAfter: total,
             before: {
               discount: toNumber(invoice.discount),
               otherCharges: toNumber(invoice.otherCharges),
