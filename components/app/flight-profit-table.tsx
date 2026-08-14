@@ -116,9 +116,12 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
                   <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
                     {formatUsd(f.costs)}
                   </td>
+                  {/* Green is reserved for money in the bank, which on this
+                      row is Collected. An expected profit is set plain, and
+                      turns red only when it has gone the other way. */}
                   <td
                     className={`px-3 py-2.5 text-right font-medium tabular-nums ${
-                      loss ? "text-destructive" : "text-success"
+                      loss ? "text-destructive" : ""
                     }`}
                   >
                     {loss ? `(${formatUsd(Math.abs(f.profit))})` : formatUsd(f.profit)}

@@ -69,6 +69,14 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
         really moved. Calling a billed figure "revenue" and a billed-minus-costs
         figure "net profit" is how a batch reads as a good one months before
         anybody has paid for it.
+
+        Colour follows the same rule as the words. Green marks money the
+        business is actually holding, and that is Collected alone; red marks
+        money that is missing or a batch that has gone under. An expected
+        profit printed in the same green as a bank balance is the figure
+        arguing for itself — so it is set in plain type like every other
+        expectation, and only turns red when the answer is a loss, which is
+        worth interrupting somebody for even before it is certain.
       */}
       <dl className="grid grid-cols-2 gap-px border-b bg-border sm:grid-cols-3 lg:grid-cols-6">
         {[
@@ -83,7 +91,7 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
           {
             k: atALoss ? t(locale, "Expected loss") : t(locale, "Expected profit"),
             usd: Math.abs(netProfitUsd),
-            tone: atALoss ? "text-destructive" : "text-success",
+            tone: atALoss ? "text-destructive" : "",
           },
           {
             k: t(locale, "Expected margin"),
