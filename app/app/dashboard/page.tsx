@@ -1790,6 +1790,11 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
    */
   const shortcuts: ActionPill[] = [
     { href: "/app/shipments", label: t(locale, "Confirm prices"), icon: ClipboardCheck, weight: "primary", tone: "brand" },
+    /* Money in beside money out. They are the two halves of the same job and
+       were a tab apart, so the commoner of the two — customers paying — was
+       the one that took more clicks. It opens the ledger with the panel
+       already up rather than carrying a second copy of the form. */
+    { href: "/app/finance/transactions?income=1", label: t(locale, "Record an income"), icon: Banknote, weight: "secondary", tone: "success" },
     { href: "/app/finance/transactions", label: t(locale, "Record a cost"), icon: Banknote, weight: "secondary", tone: "signal" },
     // Verify payments, not Payments. What Finance starts here is the queue
     // Customer Support hands up — proofs collected at the counter that are

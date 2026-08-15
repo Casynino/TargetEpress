@@ -25,6 +25,19 @@ const money = (n: number, currency: string) =>
   })}`;
 
 /**
+ * A bill in shillings, with the dollars underneath.
+ *
+ * The owner's rule, and it is about which currency this business actually runs
+ * on: pricing is done in dollars, but customers pay in shillings and the office
+ * counts in shillings. So every figure leads in TSh and carries the USD it was
+ * billed at — never the other way round, which made a clerk convert in their
+ * head before the number meant anything.
+ */
+function inShillings(usd: number, rate: number | null) {
+  return rate === null ? null : `TSh ${Math.round(usd * rate).toLocaleString("en-US")}`;
+}
+
+/**
  * Recording money that came in, from the ledger.
  *
  * The owner's flow, in his words: Finance decides to record an income, searches
@@ -46,13 +59,22 @@ const money = (n: number, currency: string) =>
 export function RecordIncome({
   accounts,
   rate,
+  autoOpen = false,
 }: {
   accounts: ExpenseAccount[];
   /** Today's USD→TZS, shown so nobody has to guess what a dollar bill is worth. */
   rate: number | null;
+  /**
+   * Open on arrival.
+   *
+   * Home links here to record an income rather than carrying its own copy of
+   * this form, so somebody who pressed that button should land with the search
+   * box in front of them, not with a button to press a second time.
+   */
+  autoOpen?: boolean;
 }) {
   const t = useT();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<BillableHit[]>([]);
   const [picked, setPicked] = useState<BillableHit | null>(null);
@@ -67,6 +89,8 @@ export function RecordIncome({
     choice that can only end in an error message. The list follows the switch.
   */
   const [tendered, setTendered] = useState<string>("TZS");
+  /* Typed over freely; recomputed whenever the bill or the currency changes. */
+  const [amount, setAmount] = useState<string>("");
   const [searching, startSearch] = useTransition();
 
   const [state, action] = useActionState<
@@ -105,6 +129,48 @@ export function RecordIncome({
     }
   }, [state]);
 
+  /*
+    The rate this bill settles at — the one frozen onto the invoice, not
+    today's.
+
+    It matters for more than display. The action converts a shilling payment at
+    the invoice's rate, so a shilling amount worked out at today's rate would
+    credit slightly more or less than the balance and leave a bill a few
+    hundred shillings short of settled. Converting at the same rate the action
+    will use means "the whole balance" really is the whole balance.
+  */
+  const billRate = picked?.rate ?? rate;
+
+  /** What the balance comes to in the currency the customer is handing over. */
+  const owedIn = (hit: BillableHit, currency: string) => {
+    const r = hit.rate ?? rate;
+    if (currency === hit.currency) return hit.outstanding;
+    if (r === null) return hit.outstanding;
+    return currency === "TZS"
+      ? Math.round(hit.outstanding * r)
+      : Math.round((hit.outstanding / r) * 100) / 100;
+  };
+
+  /*
+    Shillings by default, whatever the bill says.
+
+    Pricing is in dollars; paying is not. A customer settling a USD bill hands
+    over shillings at the counter almost every time, so the form opens on what
+    is actually about to happen — and the amount opens as the shilling value of
+    the whole balance rather than a dollar figure nobody in the room said.
+  */
+  const pick = (hit: BillableHit) => {
+    const currency = "TZS";
+    setPicked(hit);
+    setTendered(currency);
+    setAmount(String(owedIn(hit, currency)));
+  };
+
+  const switchCurrency = (currency: string) => {
+    setTendered(currency);
+    if (picked) setAmount(String(owedIn(picked, currency)));
+  };
+
   const close = () => {
     setOpen(false);
     setPicked(null);
@@ -127,9 +193,26 @@ export function RecordIncome({
     );
   }
 
+  /*
+    An overlay, not a block in the page.
+
+    The owner wants this button beside "Record a cost", which lives in the page
+    header — and a panel cannot unfold inside a header. Floating it also means
+    the same button works from anywhere: the ledger header today, Home's
+    shortcut, wherever it is wanted next.
+  */
   return (
-    <section className="mb-4 overflow-hidden rounded-xl border border-success/30 bg-success/[0.04]">
-      <div className="flex items-center justify-between border-b border-success/20 px-5 py-2.5">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 p-4 backdrop-blur-sm sm:p-8">
+      {/* Clicking the dark ground closes it; the panel above swallows its own
+          clicks so a stray one inside the form does not throw the work away. */}
+      <button
+        type="button"
+        aria-label={t("Close")}
+        onClick={close}
+        className="absolute inset-0 cursor-default"
+      />
+      <section className="relative w-full max-w-4xl overflow-hidden rounded-xl border border-success/30 bg-card shadow-lg">
+      <div className="flex items-center justify-between border-b border-success/20 bg-success/[0.06] px-5 py-2.5">
         <p className="text-xs font-semibold uppercase tracking-wide text-success">
           {t("Record an income")}
         </p>
@@ -188,10 +271,7 @@ export function RecordIncome({
                            to "has this been paid" is worth more than an empty
                            list, but it must not invite a second payment. */
                         disabled={settled}
-                        onClick={() => {
-                          setPicked(hit);
-                          setTendered(hit.currency);
-                        }}
+                        onClick={() => pick(hit)}
                         className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 text-left transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
                       >
                         <span className="font-mono text-xs font-semibold">
@@ -208,8 +288,18 @@ export function RecordIncome({
                             {t("settled")}
                           </span>
                         ) : (
-                          <span className="text-sm font-semibold tabular-nums text-destructive">
-                            {money(hit.outstanding, hit.currency)}
+                          <span className="text-right">
+                            <span className="block text-sm font-semibold tabular-nums text-destructive">
+                              {hit.currency === "TZS"
+                                ? money(hit.outstanding, "TZS")
+                                : (inShillings(hit.outstanding, hit.rate ?? rate) ??
+                                  money(hit.outstanding, hit.currency))}
+                            </span>
+                            {hit.currency === "USD" ? (
+                              <span className="block text-[11px] tabular-nums text-muted-foreground">
+                                {money(hit.outstanding, "USD")}
+                              </span>
+                            ) : null}
                           </span>
                         )}
                       </button>
@@ -243,8 +333,16 @@ export function RecordIncome({
             <span className="text-xs text-muted-foreground">
               {t("owes")}{" "}
               <span className="font-semibold tabular-nums text-destructive">
-                {money(picked.outstanding, picked.currency)}
+                {picked.currency === "TZS"
+                  ? money(picked.outstanding, "TZS")
+                  : (inShillings(picked.outstanding, billRate) ??
+                    money(picked.outstanding, "USD"))}
               </span>
+              {picked.currency === "USD" ? (
+                <span className="ml-1.5 tabular-nums">
+                  ({money(picked.outstanding, "USD")})
+                </span>
+              ) : null}
             </span>
             <button
               type="button"
@@ -267,7 +365,8 @@ export function RecordIncome({
                 name="amount"
                 inputMode="decimal"
                 required
-                defaultValue={String(picked.outstanding)}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
                 className="w-36 bg-card tabular-nums"
               />
             </label>
@@ -279,7 +378,7 @@ export function RecordIncome({
               <NativeSelect
                 name="currency"
                 value={tendered}
-                onChange={(e) => setTendered(e.target.value)}
+                onChange={(e) => switchCurrency(e.target.value)}
                 className="w-28 bg-card"
               >
                 <option value="TZS">TZS</option>
@@ -348,6 +447,7 @@ export function RecordIncome({
           <FormError state={state} />
         </form>
       )}
-    </section>
+      </section>
+    </div>
   );
 }

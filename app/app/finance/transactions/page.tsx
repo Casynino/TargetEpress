@@ -92,6 +92,8 @@ export default async function LedgerPage({
     person?: string;
     period?: string;
     page?: string;
+    /** ?income=1 opens the income panel on arrival, for Home's shortcut. */
+    income?: string;
   }>;
 }) {
   const user = await requirePermission("ledger.view");
@@ -296,7 +298,21 @@ export default async function LedgerPage({
           "Every movement of money — freight collected, costs paid, transfers between accounts — with its account, who recorded it, and a running balance."
         )}
         actions={
-          canRecord ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {canTakeMoney ? (
+              <RecordIncome
+                accounts={accounts.map((a) => ({
+                  id: a.id,
+                  name: a.name,
+                  currency: a.currency,
+                  accountNumber: a.accountNumber,
+                }))}
+                rate={rate}
+                /* Home links straight in with the panel already open. */
+                autoOpen={params.income === "1"}
+              />
+            ) : null}
+            {canRecord ? (
             <RecordCostButton
               accounts={accounts.map((a) => ({
                 id: a.id,
@@ -308,25 +324,12 @@ export default async function LedgerPage({
               thresholdUsd={EXPENSE_APPROVAL_THRESHOLD_USD}
               rate={rate}
             />
-          ) : null
+            ) : null}
+          </div>
         }
       />
 
       <FinanceNav tabs={financeTabs(user.role)} />
-
-      {canTakeMoney ? (
-        <div className="mb-4">
-          <RecordIncome
-            accounts={accounts.map((a) => ({
-              id: a.id,
-              name: a.name,
-              currency: a.currency,
-              accountNumber: a.accountNumber,
-            }))}
-            rate={rate}
-          />
-        </div>
-      ) : null}
 
       <LedgerFilters
         accounts={accounts.map((a) => ({ id: a.id, name: a.name }))}
