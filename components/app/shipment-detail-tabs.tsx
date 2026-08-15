@@ -306,6 +306,7 @@ export function ShipmentDetailTabs({
                           <span className="inline-flex items-center gap-1.5">
                             {line.price.edit && canEditPrice ? (
                               <RowPriceEditor
+                                weightKg={line.weightKg}
                                 invoiceId={line.price.edit.invoiceId}
                                 trackingNumber={line.trackingNumber}
                                 currency={line.price.currency}

@@ -28,6 +28,7 @@ export function RowPriceEditor({
   trackingNumber,
   currency,
   rateBookFreight,
+  weightKg,
   freightOverride,
   storage,
   otherCharges,
@@ -38,6 +39,8 @@ export function RowPriceEditor({
   trackingNumber: string;
   currency: string;
   rateBookFreight: number;
+  /** What it weighs, so the freight can show its own working. */
+  weightKg: number;
   freightOverride: number | null;
   storage: number;
   otherCharges: number;
@@ -105,9 +108,29 @@ export function RowPriceEditor({
             disabled={!canOverride}
             className="h-8 text-sm"
           />
+          {/*
+            The working, not just the answer.
+
+            "Rate book says USD 110.70" is a figure to accept or argue with;
+            "8.2 kg × USD 13.50 a kilo" is a figure somebody can check. It is
+            the same number with the reason attached, and the reason is what
+            gets quoted to a customer asking why their bill is what it is.
+          */}
           <p className="text-xs text-muted-foreground">
-            {t("Rate book says")} {currency} {rateBookFreight.toFixed(2)}.{" "}
-            {t("Leave blank to use it.")}
+            {t("Rate book")}:{" "}
+            {weightKg > 0 ? (
+              <>
+                <span className="tabular-nums text-foreground">
+                  {weightKg.toFixed(1)} kg × {currency}{" "}
+                  {(rateBookFreight / weightKg).toFixed(2)}
+                </span>{" "}
+                {t("a kilo")} ={" "}
+              </>
+            ) : null}
+            <span className="tabular-nums text-foreground">
+              {currency} {rateBookFreight.toFixed(2)}
+            </span>
+            . {t("Leave blank to use it.")}
           </p>
         </div>
 
@@ -156,14 +179,23 @@ export function RowPriceEditor({
           </div>
         </div>
 
+        {/*
+          Every part that makes the total, added up in front of the reader.
+
+          A discount that does not visibly come off is a discount somebody has
+          to take on trust, and this is the box where a customer is being given
+          one. Freight, storage, extra, less the discount — then the answer.
+        */}
         <p className="rounded border bg-muted/40 px-2 py-1.5 text-xs tabular-nums">
-          {t("New total")} {currency} {preview.toFixed(2)}
-          {storage > 0 ? (
-            <span className="text-muted-foreground">
-              {" "}
-              · {t("includes")} {currency} {storage.toFixed(2)} {t("storage")}
-            </span>
-          ) : null}
+          <span className="text-muted-foreground">
+            {currency} {(n(freight) || rateBookFreight).toFixed(2)}
+            {storage > 0 ? ` + ${storage.toFixed(2)} ${t("storage")}` : ""}
+            {n(extra) > 0 ? ` + ${n(extra).toFixed(2)} ${t("extra")}` : ""}
+            {n(off) > 0 ? ` − ${n(off).toFixed(2)} ${t("discount")}` : ""} ={" "}
+          </span>
+          <span className="font-semibold">
+            {t("New total")} {currency} {preview.toFixed(2)}
+          </span>
         </p>
 
         <FormError state={state} />
