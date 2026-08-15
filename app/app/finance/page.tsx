@@ -362,7 +362,7 @@ export default async function FinanceOverviewPage() {
         the actions sit with them instead of a screen away.
       */}
       <section className="mb-4 overflow-hidden rounded-xl border bg-card shadow-soft">
-        <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3 xl:grid-cols-6">
           {[
             {
               k: seesCompanyMoney
@@ -397,6 +397,29 @@ export default async function FinanceOverviewPage() {
                   },
                 ]
               : []),
+            /*
+              What is coming, and what is standing in the warehouse.
+
+              Money already banked is only half of what this desk has to know.
+              Outstanding is the other half — it is the biggest figure on the
+              page most weeks — and the weight held in Dar is what that money
+              is actually sitting against. Both were further down the page than
+              the cash, which is the wrong way round for the department that
+              has to answer "what are we owed and what have we still got".
+            */
+            {
+              k: t(locale, "Expected to come in"),
+              v: tsh(stats.outstanding),
+              usd: formatUsd(stats.outstanding),
+              tone: stats.outstanding > 0 ? "text-signal" : "text-foreground",
+              hint: t(locale, "Billed and not yet paid"),
+            },
+            {
+              k: t(locale, "Held in the warehouse"),
+              v: formatWeight(heldWeightKg),
+              tone: "text-foreground",
+              hint: t(locale, "Landed in Dar, not handed over"),
+            },
           ].map((cell) => (
             <div key={cell.k} className="bg-card px-5 py-3.5">
               <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -460,6 +483,75 @@ export default async function FinanceOverviewPage() {
           </span>
         </div>
       </section>
+
+
+      {/*
+        The batches, as cards rather than a strip.
+
+        Cargo sits on a batch, and a batch is the unit the boss asks about —
+        so the page that summarises the department has to answer it in the same
+        weight as it answers cash. Three states, because those are the three
+        that mean different things: still trading, shut and waiting on the
+        boss, and signed off.
+      */}
+      <SectionLabel
+        action={{ href: "/app/finance/income", label: t(locale, "What each one made") }}
+      >
+        {t(locale, "Batches")}
+      </SectionLabel>
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {/*
+          Counts, not money — so they are count cards.
+
+          A MoneyTile leads with a currency figure, and three batches is not a
+          currency figure. Rendering them as money put "USD 0.00" in the largest
+          type on the card and hid the only number that mattered in the caption
+          underneath it.
+        */}
+        <KpiCard
+          label={t(locale, "Still open")}
+          numeric={flightsOpen}
+          hint={t(
+            locale,
+            "Flying, landed or being collected. Money can still move on these."
+          )}
+          icon={Plane}
+          tone="brand"
+          href="/app/shipments"
+        />
+        <KpiCard
+          label={t(locale, "With the boss")}
+          numeric={awaiting}
+          hint={t(
+            locale,
+            "Closed by Finance, and not finished until he has read the statement."
+          )}
+          icon={Hourglass}
+          tone={awaiting > 0 ? "warning" : "info"}
+          href="/app/finance/income"
+        />
+        <KpiCard
+          label={t(locale, "Confirmed")}
+          numeric={confirmed.length}
+          hint={t(locale, "The boss has agreed these figures. They are the record.")}
+          icon={CheckCircle2}
+          tone="success"
+          href="/app/finance/income"
+        />
+        <MoneyTile
+          label={t(locale, "Profit, confirmed batches")}
+          usd={confirmedProfit}
+          rate={rate}
+          icon={TrendingUp}
+          tone={confirmedProfit < 0 ? "bad" : "good"}
+          count={`${confirmed.length} ${t(locale, "batches")}`}
+          hint={t(
+            locale,
+            "Billed less every cost recorded against the batch, on the ones he has signed."
+          )}
+          href="/app/finance/income"
+        />
+      </div>
 
       {/* ── The work. A list, not a card grid: each row is one job with the
              money attached and the door to go do it. */}
@@ -618,74 +710,6 @@ export default async function FinanceOverviewPage() {
           {formatWeight(heldWeightKg)} {t(locale, "held in Dar")}
         </p>
       </section>
-
-      {/*
-        The flights, as cards rather than a strip.
-
-        Cargo sits on a flight, and a flight is the unit the boss asks about —
-        so the page that summarises the department has to answer it in the same
-        weight as it answers cash. Three states, because those are the three
-        that mean different things: still trading, shut and waiting on the
-        boss, and signed off.
-      */}
-      <SectionLabel
-        action={{ href: "/app/finance/income", label: t(locale, "What each one made") }}
-      >
-        {t(locale, "Batches")}
-      </SectionLabel>
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {/*
-          Counts, not money — so they are count cards.
-
-          A MoneyTile leads with a currency figure, and three flights is not a
-          currency figure. Rendering them as money put "USD 0.00" in the largest
-          type on the card and hid the only number that mattered in the caption
-          underneath it.
-        */}
-        <KpiCard
-          label={t(locale, "Still open")}
-          numeric={flightsOpen}
-          hint={t(
-            locale,
-            "Flying, landed or being collected. Money can still move on these."
-          )}
-          icon={Plane}
-          tone="brand"
-          href="/app/shipments"
-        />
-        <KpiCard
-          label={t(locale, "With the boss")}
-          numeric={awaiting}
-          hint={t(
-            locale,
-            "Closed by Finance, and not finished until he has read the statement."
-          )}
-          icon={Hourglass}
-          tone={awaiting > 0 ? "warning" : "info"}
-          href="/app/finance/income"
-        />
-        <KpiCard
-          label={t(locale, "Confirmed")}
-          numeric={confirmed.length}
-          hint={t(locale, "The boss has agreed these figures. They are the record.")}
-          icon={CheckCircle2}
-          tone="success"
-          href="/app/finance/income"
-        />
-        <MoneyTile
-          label={t(locale, "Profit, confirmed batches")}
-          usd={confirmedProfit}
-          rate={rate}
-          icon={TrendingUp}
-          tone={confirmedProfit < 0 ? "bad" : "good"}
-          count={`${confirmed.length} ${t(locale, "flights")}`}
-          hint={t(
-            locale,
-            "Billed less every cost recorded against the batch, on the ones he has signed."
-          )}
-          href="/app/finance/income"
-        />
-      </div>
 
       {/* ── The two shapes the figures make.
              A balance says where the money is; these say which way it is
