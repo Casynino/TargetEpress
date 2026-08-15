@@ -52,6 +52,16 @@ export type IncomeRow = {
 
 export type IncomeSheet = {
   rows: IncomeRow[];
+  /** The stretch before this one, for comparison. Null when unfiltered. */
+  period: {
+    label: string;
+    previousLabel: string;
+    batches: number;
+    kg: number;
+    worthUsd: number;
+    profitUsd: number;
+    collectedUsd: number;
+  } | null;
   months: { key: string; label: string }[];
   awaiting: number;
   /** Sent back by the boss: the ones somebody has to act on. */
@@ -73,10 +83,44 @@ export type IncomeSheet = {
   };
 };
 
+/**
+ * A stretch of time, and the same stretch before it.
+ *
+ * Finance does not read a closed batch on its own — it reads this week against
+ * last week, this month against the one before. So a period is always a pair,
+ * and the summary carries both so the page can say "up" or "down" rather than
+ * leaving somebody to work it out from two numbers on two screens.
+ *
+ * Calendar weeks and calendar months, not rolling windows: the office closes
+ * its books on the same boundaries the boss asks about.
+ */
+function periodBounds(period: string | undefined) {
+  if (period !== "week" && period !== "month") return null;
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === "week") {
+    /* Monday-first: Sunday is 0, so it counts back six days, not none. */
+    const back = (start.getDay() + 6) % 7;
+    start.setDate(start.getDate() - back);
+    const previous = new Date(start);
+    previous.setDate(previous.getDate() - 7);
+    return { start, previous, label: "this week", previousLabel: "last week" };
+  }
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return {
+    start: monthStart,
+    previous,
+    label: "this month",
+    previousLabel: "last month",
+  };
+}
+
 export async function incomeSheet(
   month?: string,
   status?: string,
-  query?: string
+  query?: string,
+  period?: string
 ): Promise<IncomeSheet> {
   const statements = await prisma.batchStatement.findMany({
     orderBy: { submittedAt: "desc" },
@@ -168,8 +212,17 @@ export async function incomeSheet(
     how somebody ends up believing there is nothing to do.
   */
   const q = query?.trim().toLowerCase() ?? "";
+  const bounds = periodBounds(period);
+  /* Closed inside the window, read off the day the books were shut. */
+  const inWindow = (row: IncomeRow, from: Date, to: Date | null) => {
+    if (!row.closedLabel) return false;
+    const day = new Date(`${row.closedLabel}T00:00:00`);
+    return day >= from && (to === null || day < to);
+  };
+
   const rows = all.filter(
     (row) =>
+      (!bounds || inWindow(row, bounds.start, null)) &&
       (!month || row.month === month) &&
       (!status || row.status === status) &&
       (!q ||
@@ -197,7 +250,34 @@ export async function incomeSheet(
   const kg = sum((r) => r.kg);
   const worthUsd = sum((r) => r.worthUsd);
 
+  /*
+    The same figures for the stretch before, so the page can compare rather
+    than merely report. Counted on the same rule — sent-back statements are
+    excluded from both sides, or a rejected close would make last week look
+    worse than it was.
+  */
+  const before = bounds
+    ? all.filter(
+        (row) =>
+          row.status !== "RETURNED" &&
+          inWindow(row, bounds.previous, bounds.start)
+      )
+    : [];
+  const priorSum = (pick: (row: IncomeRow) => number | null) =>
+    before.reduce((acc, row) => acc + (pick(row) ?? 0), 0);
+
   return {
+    period: bounds
+      ? {
+          label: bounds.label,
+          previousLabel: bounds.previousLabel,
+          batches: before.length,
+          kg: priorSum((r) => r.kg),
+          worthUsd: priorSum((r) => r.worthUsd),
+          profitUsd: priorSum((r) => r.profitUsd),
+          collectedUsd: priorSum((r) => r.collectedUsd),
+        }
+      : null,
     rows,
     months,
     awaiting: all.filter((row) => row.status === "SUBMITTED").length,

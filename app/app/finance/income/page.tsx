@@ -31,18 +31,26 @@ export const metadata: Metadata = { title: "Closed batches" };
 export default async function ClosedBatchesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; status?: string; q?: string }>;
+  searchParams: Promise<{
+    month?: string;
+    status?: string;
+    q?: string;
+    period?: string;
+  }>;
 }) {
   const user = await requirePermission("accounting.view");
-  const { month, status, q } = await searchParams;
+  const { month, status, q, period } = await searchParams;
 
-  const sheet = await incomeSheet(month, status, q);
+  const sheet = await incomeSheet(month, status, q, period);
   const canReopen = can(user.role, "batch.close");
+  /* Whole dollars — these are batches, not invoices, same as the table below. */
+  const usd = (n: number) =>
+    `USD ${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 
   /* Kept in the links so one filter does not silently drop another. */
   const withParams = (next: Record<string, string | undefined>) => {
     const params = new URLSearchParams();
-    const merged = { month, status, q, ...next };
+    const merged = { month, status, q, period, ...next };
     for (const [key, value] of Object.entries(merged)) {
       if (value) params.set(key, value);
     }
@@ -144,6 +152,37 @@ export default async function ClosedBatchesPage({
           />
         </form>
 
+        {/*
+          This week, this month, or everything.
+
+          Finance does not read a closed batch on its own — it reads the week
+          against last week. Choosing a stretch here is what makes the summary
+          underneath a comparison instead of a total.
+        */}
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            { key: "week", label: "This week" },
+            { key: "month", label: "This month" },
+            { key: "", label: "All time" },
+          ].map((option) => {
+            const active = (period ?? "") === option.key;
+            return (
+              <Link
+                key={option.key || "all"}
+                href={withParams({ period: option.key || undefined })}
+                className={cn(
+                  pill,
+                  active
+                    ? "border-brand/40 bg-brand/15 text-brand"
+                    : "border-transparent text-muted-foreground hover:bg-accent"
+                )}
+              >
+                {option.label}
+              </Link>
+            );
+          })}
+        </div>
+
         <div className="flex flex-wrap gap-1.5">
           {states.map((state) => {
             const active = (status ?? "") === state.key;
@@ -206,6 +245,96 @@ export default async function ClosedBatchesPage({
           </Link>
         ) : null}
       </div>
+
+      {/*
+        What the chosen stretch made, against the one before it.
+
+        A row of closed batches answers "what happened"; it does not answer
+        "was that better or worse than last week", which is the question the
+        boss actually asks. Each figure carries its own change, and the change
+        is stated in the same words a person would use — up, down, or the same
+        — rather than an arrow nobody is sure the direction of.
+
+        Only when a stretch is chosen. Comparing "all time" against the period
+        before all time is not a thing.
+      */}
+      {sheet.period && sheet.rows.length > 0 ? (
+        <dl className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-4">
+          {(() => {
+            const p = sheet.period!;
+            const change = (now: number, before: number) => {
+              if (before === 0) return now === 0 ? null : `new ${p.previousLabel === "last week" ? "this week" : "this month"}`;
+              const pct = Math.round(((now - before) / Math.abs(before)) * 100);
+              if (pct === 0) return `same as ${p.previousLabel}`;
+              return `${pct > 0 ? "up" : "down"} ${Math.abs(pct)}% on ${p.previousLabel}`;
+            };
+            /*
+              Counted the same way the money is.
+
+              A sent-back statement stays on the page and out of the totals,
+              because its batch is open again — so counting it here produced
+              "1 batch closed" beside "USD 0 billed" in the same row of cards,
+              which reads as a bug in the money rather than a batch the boss
+              rejected.
+            */
+            const counted = sheet.rows.filter((row) => row.status !== "RETURNED");
+            const cells = [
+              {
+                k: "Batches closed",
+                v: String(counted.length),
+                d: change(counted.length, p.batches),
+                up: counted.length >= p.batches,
+              },
+              {
+                k: "Weight closed",
+                v: `${sheet.totals.kg.toFixed(1)} kg`,
+                d: change(sheet.totals.kg, p.kg),
+                up: sheet.totals.kg >= p.kg,
+              },
+              {
+                k: "Billed",
+                v: usd(sheet.totals.worthUsd),
+                d: change(sheet.totals.worthUsd, p.worthUsd),
+                up: sheet.totals.worthUsd >= p.worthUsd,
+              },
+              {
+                k: "Profit",
+                v: usd(sheet.totals.profitUsd),
+                d: change(sheet.totals.profitUsd, p.profitUsd),
+                up: sheet.totals.profitUsd >= p.profitUsd,
+              },
+            ];
+            return cells.map((cell) => (
+              <div
+                key={cell.k}
+                className={cn(
+                  "bg-gradient-to-b to-transparent bg-card px-5 py-4",
+                  cell.up ? "from-success/10" : "from-destructive/10"
+                )}
+              >
+                <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {cell.k} · {p.label}
+                </dt>
+                <dd className="mt-1 whitespace-nowrap font-display text-2xl font-bold leading-tight tabular-nums">
+                  {cell.v}
+                </dd>
+                <p
+                  className={cn(
+                    "mt-0.5 text-[11px]",
+                    cell.d === null
+                      ? "text-muted-foreground"
+                      : cell.up
+                        ? "text-success"
+                        : "text-destructive"
+                  )}
+                >
+                  {cell.d ?? `nothing closed ${p.previousLabel}`}
+                </p>
+              </div>
+            ));
+          })()}
+        </dl>
+      ) : null}
 
       {sheet.rows.length === 0 && sheet.total > 0 ? (
         <p className="mb-4 rounded-xl border border-dashed px-5 py-8 text-center text-sm text-muted-foreground">

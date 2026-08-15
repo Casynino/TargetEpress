@@ -29,32 +29,19 @@ export function financeTabs(role: Role): FinanceTab[] {
       label: "Accounts",
       visible: can(role, "account.view"),
     },
-    /*
-      Neither Verify payments nor Collections is a tab here any more.
-
-      They belong to the collections workspace, which has its own tab row — so
-      clicking them from this one threw the reader out of these tabs and into
-      those, and Verify payments then appeared in both places at once. The
-      owner's word for it was inconvenient, and he is right: a tab that
-      replaces the tab row it was clicked from is a trapdoor, not navigation.
-
-      Collections is a top-level item in the sidebar, one click from anywhere,
-      and Verify payments lives inside it where the work is. Two workspaces,
-      each entered deliberately, neither pretending to be part of the other.
-    */
     {
       /*
-        With the records, not with the daily work.
+        Collections sits with the money screens, between the accounts it fills
+        and the register it feeds. What customers owe is a finance figure
+        before it is a phone call, and the owner asked for it here.
 
-        It was second, on the argument that it is the sheet the department is
-        run on. It is — but only for flights that have already closed, and
-        nothing on it can be done today. The tabs ahead of it are the ones
-        somebody opens to act: where the money is, what is waiting to be
-        agreed, who has not paid. This one is read.
+        Verify payments is NOT a tab here. It lives inside Collections, where
+        the job is actually done — in both rows it was the same queue twice,
+        and each copy threw the reader into the other's navigation.
       */
-      href: "/app/finance/income",
-      label: "Closed batches",
-      visible: can(role, "accounting.view"),
+      href: "/app/collections",
+      label: "Collections",
+      visible: can(role, "collections.view"),
     },
     {
       href: "/app/finance/transactions",
@@ -83,6 +70,20 @@ export function financeTabs(role: Role): FinanceTab[] {
       href: "/app/finance/pricing",
       label: "Pricing & configuration",
       visible: can(role, "pricing.view"),
+    },
+    {
+      /*
+        With the records, not with the daily work.
+
+        It was second, on the argument that it is the sheet the department is
+        run on. It is — but only for flights that have already closed, and
+        nothing on it can be done today. The tabs ahead of it are the ones
+        somebody opens to act: where the money is, what is waiting to be
+        agreed, who has not paid. This one is read.
+      */
+      href: "/app/finance/income",
+      label: "Closed batches",
+      visible: can(role, "accounting.view"),
     },
     {
       href: "/app/finance/audit",
