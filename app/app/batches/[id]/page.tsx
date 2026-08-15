@@ -178,7 +178,7 @@ export default async function LoadingTablePage({
           delay={1}
           label={t(locale, "Total weight")}
           value={`${totalWeight.toFixed(1)} kg`}
-          hint={t(locale, "What the flight will carry")}
+          hint={t(locale, "What the batch will carry")}
           icon={Scale}
           tone="info"
         />
@@ -186,7 +186,7 @@ export default async function LoadingTablePage({
           delay={2}
           label={t(locale, "Customers")}
           numeric={customers}
-          hint={t(locale, "Waiting on this flight")}
+          hint={t(locale, "Waiting on this batch")}
           icon={Users}
           tone="signal"
         />

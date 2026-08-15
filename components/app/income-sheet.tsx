@@ -80,7 +80,7 @@ export function IncomeSheetTable({
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-dashed p-12 text-center">
-        <p className="font-medium">{t("No flights have been closed yet")}</p>
+        <p className="font-medium">{t("No batches have been closed yet")}</p>
         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
           {t(
             "A flight lands here when Finance shuts its books. That is when the maths is done and the figures are frozen — until then it is still moving, and it is on the Batches board."
@@ -331,7 +331,7 @@ export function IncomeSheetTable({
                     <input type="hidden" name="batchId" value={row.batchId} />
                     <p className="mb-2 text-xs text-muted-foreground">
                       {t(
-                        "Confirming makes this the final word on the flight. Sending it back reopens it so Finance can fix what is wrong."
+                        "Confirming makes this the final word on the batch. Sending it back reopens it so Finance can fix what is wrong."
                       )}
                     </p>
                     <div className="flex flex-wrap items-end gap-2">

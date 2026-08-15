@@ -537,7 +537,7 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
           ) : (
             <p className="border-b px-5 py-2.5 text-xs text-signal">
               {t(
-                "No costs recorded against this flight. Customs and clearing are always paid, so a zero means nobody has written them down."
+                "No costs recorded against this batch. Customs and clearing are always paid, so a zero means nobody has written them down."
               )}
             </p>
           )}

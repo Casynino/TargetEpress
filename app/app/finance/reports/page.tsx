@@ -109,7 +109,7 @@ export default async function FinanceReportsPage({
         title={t(locale, "Profit & loss")}
         description={t(
           locale,
-          "Revenue against costs, for a period and for a flight. Every figure is derived from the operational record — there is no separate set of books."
+          "Revenue against costs, for a period and for a batch. Every figure is derived from the operational record — there is no separate set of books."
         )}
       />
 
@@ -150,7 +150,7 @@ export default async function FinanceReportsPage({
                   defaultValue={batch ?? ""}
                   className="focus-ring h-8 rounded-md border bg-card px-2"
                 >
-                  <option value="">{t(locale, "Every flight")}</option>
+                  <option value="">{t(locale, "Every batch")}</option>
                   {flights.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.batchNumber}
@@ -324,7 +324,7 @@ export default async function FinanceReportsPage({
           <div className="border-b px-5 py-4">
             <h2 className="flex items-center gap-2 font-semibold">
               <Plane className="h-4 w-4 text-muted-foreground" />
-              {t(locale, "Profit per flight")}
+              {t(locale, "Profit per batch")}
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {t(

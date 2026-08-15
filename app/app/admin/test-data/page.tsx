@@ -227,7 +227,7 @@ export default async function TestDataPage() {
           locale,
           "Note what is missing: no staff names, no prices, no internal notes."
         ),
-        `${t(locale, "Now search a batch number like")} ${arrivedBatch?.batchNumber ?? "BATCH-2026-002"} — ${t(locale, "it shows flight status only, never the other customers' cargo.")}`,
+        `${t(locale, "Now search a batch number like")} ${arrivedBatch?.batchNumber ?? "BATCH-2026-002"} — ${t(locale, "it shows cargo status only, never the other customers' cargo.")}`,
       ],
     },
   ];

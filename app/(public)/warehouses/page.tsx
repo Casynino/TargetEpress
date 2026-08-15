@@ -43,7 +43,7 @@ const HANDLING = [
   {
     icon: ClipboardCheck,
     title: "Checked against a manifest on arrival",
-    body: "In Dar the whole flight is checked piece by piece against a printed list. Anything short is flagged there, not weeks later.",
+    body: "In Dar the whole batch is checked piece by piece against a printed list. Anything short is flagged there, not weeks later.",
   },
 ];
 

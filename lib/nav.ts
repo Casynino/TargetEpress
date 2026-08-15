@@ -497,6 +497,29 @@ const FINANCE_SECTIONS: NavSection[] = [
     ],
   },
   {
+    // Batches lead this menu, above the money.
+    //
+    // Finance opens a batch to answer a money question — what GZ-0028 made,
+    // what is still owed on it — so the batch is the thing being looked up and
+    // the finance screens are what gets done about it.
+    title: "Batches",
+    group: { label: "Batches", icon: "Boxes" },
+    items: [
+      {
+        href: "/app/shipments",
+        label: "Arrived batches",
+        icon: "PlaneTakeoff",
+        permission: "batch.view",
+      },
+      {
+        href: "/app/batches",
+        label: "Loading batches",
+        icon: "Boxes",
+        permission: "batch.view",
+      },
+    ],
+  },
+  {
     title: "Finance",
     // The order the day runs in: chase what is owed, record what came in, then
     // release the cargo it paid for.
@@ -525,24 +548,6 @@ const FINANCE_SECTIONS: NavSection[] = [
         label: "Pickup notes",
         icon: "QrCode",
         permission: "pickupNote.view",
-      },
-    ],
-  },
-  {
-    title: "Batches",
-    group: { label: "Batches", icon: "Boxes" },
-    items: [
-      {
-        href: "/app/shipments",
-        label: "Arrived batches",
-        icon: "PlaneTakeoff",
-        permission: "batch.view",
-      },
-      {
-        href: "/app/batches",
-        label: "Loading batches",
-        icon: "Boxes",
-        permission: "batch.view",
       },
     ],
   },

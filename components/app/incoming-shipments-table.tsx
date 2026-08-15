@@ -152,7 +152,7 @@ function PhotoStrip({ line }: { line: IncomingLine }) {
  * manifest that proves it.
  *
  * Rows are dispatches rather than individual boxes because that is the unit
- * that lands: the operator's question is "which flight do I open next", and the
+ * that lands: the operator's question is "which batch do I open next", and the
  * per-customer detail is one click away in the expanded manifest.
  */
 export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {

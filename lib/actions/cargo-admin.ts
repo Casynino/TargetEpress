@@ -254,7 +254,7 @@ export async function purgeCargo(
       return fail(
         t(
           locale,
-          "This cargo is on a dispatched flight. It has to stay on the record for that manifest."
+          "This cargo is on a dispatched batch. It has to stay on the record for that manifest."
         )
       );
     }

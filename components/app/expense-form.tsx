@@ -69,7 +69,7 @@ export function ExpenseForm({
    *
    * The dispatch is not a choice there — it is the thing being looked at — so
    * it is carried rather than asked for. Offering a picker that defaults to
-   * "not one flight" on a page about one flight is how a customs charge ends
+   * "not one batch" on a page about one flight is how a customs charge ends
    * up attributed to nothing and the flight reads as pure profit.
    */
   fixedDispatch?: ExpenseDispatch;
@@ -275,7 +275,7 @@ export function ExpenseForm({
               />
               {more
                 ? t("Fewer details")
-                : t("Who was paid, which flight, what date")}
+                : t("Who was paid, which batch, what date")}
             </button>
           </div>
 
@@ -297,7 +297,7 @@ export function ExpenseForm({
                     {t("Against a dispatch")}
                   </Label>
                   <NativeSelect id="expenseBatch" name="batchId" defaultValue="">
-                    <option value="">{t("Not one flight")}</option>
+                    <option value="">{t("Not one batch")}</option>
                     {dispatches.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.label}

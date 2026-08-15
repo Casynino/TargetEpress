@@ -261,7 +261,7 @@ export default async function FinanceOverviewPage() {
       ),
       usd: draftValue,
       href: "/app/shipments",
-      cta: t(locale, "Review by flight"),
+      cta: t(locale, "Review by batch"),
       urgent: true,
     },
     {
@@ -333,7 +333,7 @@ export default async function FinanceOverviewPage() {
           <Button asChild variant="brand" className="rounded-lg">
             <Link href="/app/shipments">
               <ReceiptText className="mr-2 h-4 w-4" />
-              {t(locale, "Review prices by flight")}
+              {t(locale, "Review prices by batch")}
             </Link>
           </Button>
         }
@@ -554,7 +554,7 @@ export default async function FinanceOverviewPage() {
       <SectionLabel
         action={{ href: "/app/finance/income", label: t(locale, "What each one made") }}
       >
-        {t(locale, "Flights")}
+        {t(locale, "Batches")}
       </SectionLabel>
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/*
@@ -596,7 +596,7 @@ export default async function FinanceOverviewPage() {
           href="/app/finance/income"
         />
         <MoneyTile
-          label={t(locale, "Profit, confirmed flights")}
+          label={t(locale, "Profit, confirmed batches")}
           usd={confirmedProfit}
           rate={rate}
           icon={TrendingUp}
@@ -604,7 +604,7 @@ export default async function FinanceOverviewPage() {
           count={`${confirmed.length} ${t(locale, "flights")}`}
           hint={t(
             locale,
-            "Billed less every cost recorded against the flight, on the ones he has signed."
+            "Billed less every cost recorded against the batch, on the ones he has signed."
           )}
           href="/app/finance/income"
         />

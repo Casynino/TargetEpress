@@ -49,8 +49,8 @@ const STATUS_TONE: Record<string, string> = {
 /** The three kinds of spending, and what each one is for. */
 const KINDS = [
   { key: "all", label: "Everything", hint: "Every cost, whatever it belongs to" },
-  { key: "flight", label: "Flight costs", hint: "Attached to a dispatch — what per-flight profit is made of" },
-  { key: "office", label: "Office", hint: "Running the business; belongs to no flight" },
+  { key: "flight", label: "Batch costs", hint: "Attached to a batch — what per-batch profit is made of" },
+  { key: "office", label: "Office", hint: "Running the business; belongs to no batch" },
   { key: "special", label: "Special", hint: "Recorded and paid, but kept out of operating and batch profit" },
 ] as const;
 

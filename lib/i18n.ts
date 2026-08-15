@@ -23,19 +23,31 @@ import type { Locale } from "@/lib/locale";
 
 const ZH: Record<string, string> = {
   "All batches →": "全部批次 →",
+  "Batch arrived until the boxes were ticked off the manifest.": "从批次到达到货物在舱单上全部打钩为止。",
   "Batch, waybill, flight, tracking number or customer…": "批次号、空运单号、航班、运单号或客户…",
   "Boxes are checked in but the cargo still reads In transit — finish its check-in.":
     "箱子已入库核收，但货物状态仍是“运输中”——请完成入库核对。",
   "Cancel cargo": "取消货物",
   "Last cargo": "最近货物",
+  "No batch — flagged before it joined one.": "无批次——在并入批次前就已标记。",
   "No cargo is cleared for release right now. Finance issues a pickup note once cargo is paid for.":
     "目前没有可放的货。客户付款后财务才会开提货单。",
   "No cargo matches": "没有匹配的货物",
+  "Not one batch": "不属于任何批次",
   "Open the cargo": "打开货物",
+  "Profit per batch": "各批次利润",
+  "Revenue against costs, for a period and for a batch. Every figure is derived from the operational record — there is no separate set of books.": "收入与成本对比，分期间口径和批次口径。所有数字都从业务记录推算——没有第二套账。",
+  "Review by batch": "按批次核价",
+  "Review prices by batch": "按批次核对价格",
   "Search batch number, waybill, airline or flight…": "搜索批次号、空运单号、航空公司或航班…",
+  "This cargo is on a dispatched batch. It has to stay on the record for that manifest.": "该货物在已发运批次上，必须保留在该舱单记录中。",
   "View cargo": "查看货物",
+  "Waiting on this batch": "等待这个批次",
   "Waybills, customs paperwork and packing photos attached to this batch appear here.":
     "这个批次的空运单、报关单据和装箱照片会显示在这里。",
+  "What the batch will carry": "本批次装载内容",
+  "Who was paid, which batch, what date": "收款方、哪个批次、哪一天",
+  "it shows cargo status only, never the other customers' cargo.": "只显示货物状态，绝不会显示其他客户的货物。",
   "— consignment label": "— 货物标签",
   ". Do not release a partial consignment.": "。不得部分放货。",
   "% of what has been billed": "%，占已开单金额",

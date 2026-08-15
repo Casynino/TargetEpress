@@ -1675,7 +1675,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       ),
       usd: draftValue,
       href: "/app/shipments",
-      cta: t(locale, "Review by flight"),
+      cta: t(locale, "Review by batch"),
       urgent: true,
     },
     {
@@ -1826,9 +1826,9 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       {/* ---- Per flight, because that is how the company earns ---- */}
       <div>
         <SectionLabel
-          action={{ href: "/app/shipments", label: t(locale, "All flights") }}
+          action={{ href: "/app/shipments", label: t(locale, "All batches") }}
         >
-          {t(locale, "Flights · what each one made")}
+          {t(locale, "Batches · what each one made")}
         </SectionLabel>
         <FlightProfitTable flights={flights} />
       </div>

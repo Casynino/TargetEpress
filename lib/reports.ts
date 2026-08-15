@@ -216,7 +216,7 @@ async function expenses(f: ReportFilters): Promise<ReportResult> {
         r.expenseClass === "NON_OPERATING"
           ? "Special"
           : r.batch
-            ? "Flight"
+            ? "Batch"
             : "Office",
       flight: r.batch?.batchNumber ?? "—",
       account: r.account?.name ?? "not paid yet",

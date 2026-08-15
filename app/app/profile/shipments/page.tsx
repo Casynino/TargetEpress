@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "My cargo" };
 /**
  * Only what this person registered.
  *
- * The batch screens answer "what is on the flight"; this answers "what have I
+ * The batch screens answer "what is on the batch"; this answers "what have I
  * done", which is the question someone asks about their own shift. Same rows,
  * different question, so it is a separate page rather than a filter people
  * have to remember to set.

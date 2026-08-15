@@ -18,7 +18,7 @@ import type { ActionResult } from "@/lib/actions/types";
  * desks that notice — Finance chasing a figure, Support taking the customer's
  * call — can fix it here rather than asking somebody with dispatch powers.
  *
- * A reason is required. "Which flight was this on" is a question somebody will
+ * A reason is required. "Which batch was this on" is a question somebody will
  * ask about a specific box six months from now, and the answer has to be more
  * than that it changed.
  */
@@ -86,7 +86,7 @@ export function MoveCargo({
           {t("Move")}
         </SubmitButton>
         <p className="w-full text-[11px] text-muted-foreground">
-          {t("Its bill and history move with it. Both flights' figures follow.")}
+          {t("Its bill and history move with it. Both batches' figures follow.")}
         </p>
         <FormError state={state} />
       </form>

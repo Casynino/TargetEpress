@@ -284,7 +284,7 @@ export function ExceptionCard({
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {t(locale, "No batch — flagged outside a flight.")}
+              {t(locale, "No batch — flagged before it joined one.")}
             </p>
           )}
         </Field>

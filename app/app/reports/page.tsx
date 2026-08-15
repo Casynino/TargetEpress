@@ -310,7 +310,7 @@ export default async function WarehouseReportsPage({
               label={t(locale, "Landing to checked in")}
               note={t(
                 locale,
-                "Flight arrived until the boxes were ticked off the manifest."
+                "Batch arrived until the boxes were ticked off the manifest."
               )}
               spread={speed.checkInLag}
               owner={t(locale, "Our clock")}

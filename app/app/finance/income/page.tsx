@@ -64,8 +64,8 @@ export default async function IncomePage({
         <p className="mb-4 rounded-xl border border-warning/30 bg-warning/[0.06] px-5 py-3 text-sm">
           <span className="font-medium">{sheet.awaiting}</span>{" "}
           {sheet.awaiting === 1
-            ? "flight is waiting for the boss to confirm it."
-            : "flights are waiting for the boss to confirm them."}
+            ? "batch is waiting for the boss to confirm it."
+            : "batches are waiting for the boss to confirm them."}
         </p>
       ) : null}
 

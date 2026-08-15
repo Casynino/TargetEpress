@@ -67,7 +67,7 @@ function useStaffHint() {
 const NAV = [
   { href: "/book", label: "Book" },
   { href: "/pickup", label: "Pickup" },
-  // "Schedules", not "Flights": the page is a timetable with cut-off days,
+  // "Schedules", not "Batches": the page is a timetable with cut-off days,
   // not a list of aircraft, and the route is /schedule.
   { href: "/schedule", label: "Schedules" },
   { href: "/pricing", label: "Rates" },
