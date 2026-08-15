@@ -512,6 +512,12 @@ export default async function ShipmentPage({
               rateUsed: finance?.rate ?? null,
               unpaidPieces: owing?.unpaid.length ?? 0,
               unpaidKg: unpaidWeight,
+              soldKg: dispatch.shipments
+                .filter(
+                  (piece) =>
+                    piece.deletedAt === null && piece.invoice?.status === "PAID"
+                )
+                .reduce((sum, piece) => sum + toNumber(piece.weightKg), 0),
               unpaidCustomers: new Set(
                 (owing?.unpaid ?? []).map((row) => row.customerName)
               ).size,
