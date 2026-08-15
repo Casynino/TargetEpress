@@ -300,6 +300,90 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
         />
       ) : null}
 
+      {/*
+        The warehouse clock, said plainly, before anybody is billed for it.
+
+        The owner's rule: a customer should never be surprised by a storage
+        charge. So this appears the moment the cargo lands — not when the free
+        week runs out, and not when an invoice arrives. While the week is
+        running it is a countdown and a reason to come; once it has run out it
+        is a running total and a stronger one.
+      */}
+      {result.storage ? (
+        <section
+          className={`mb-4 overflow-hidden rounded-xl border ${
+            result.storage.collected
+              ? "border-border"
+              : result.storage.expired
+                ? "border-destructive/30 bg-destructive/[0.05]"
+                : result.storage.lastFreeDay
+                  ? "border-warning/40 bg-warning/[0.06]"
+                  : "border-border bg-card"
+          }`}
+        >
+          <p className="border-b px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Warehouse storage
+          </p>
+          <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+            {[
+              {
+                k: "Arrived",
+                v: new Date(result.storage.arrivedAt).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                }),
+              },
+              {
+                k: "Days in warehouse",
+                v: `${result.storage.daysInWarehouse} ${
+                  result.storage.daysInWarehouse === 1 ? "day" : "days"
+                }`,
+              },
+              result.storage.collected
+                ? { k: "Status", v: "Collected — the clock has stopped" }
+                : result.storage.expired
+                  ? { k: "Free storage", v: "Expired" }
+                  : {
+                      k: "Free storage remaining",
+                      v: `${result.storage.freeDaysRemaining} ${
+                        result.storage.freeDaysRemaining === 1 ? "day" : "days"
+                      }`,
+                    },
+              {
+                k: result.storage.expired ? "Storage charges" : "Charged so far",
+                v: `USD ${result.storage.chargeUsd.toFixed(2)}`,
+                tone: result.storage.chargeUsd > 0 ? "text-destructive" : "",
+              },
+            ].map((cell) => (
+              <div key={cell.k} className="bg-card px-5 py-3">
+                <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {cell.k}
+                </dt>
+                <dd
+                  className={`mt-0.5 font-display text-base font-semibold ${
+                    "tone" in cell ? (cell.tone as string) : ""
+                  }`}
+                >
+                  {cell.v}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          {/* One line saying what happens next, which is the whole point of
+              showing any of this. */}
+          {!result.storage.collected ? (
+            <p className="border-t px-5 py-2.5 text-xs text-muted-foreground">
+              {result.storage.expired
+                ? `Storage is charged at USD ${result.storage.perDayUsd} a day until the cargo is collected.`
+                : result.storage.lastFreeDay
+                  ? `Today is the last free day. From tomorrow storage is USD ${result.storage.perDayUsd} a day.`
+                  : `The first ${result.storage.freeDays} days are free. After that storage is USD ${result.storage.perDayUsd} a day until it is collected.`}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
       <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-3 lg:grid-cols-4">
         {[
           { label: "Cargo", value: result.description },

@@ -332,6 +332,122 @@ export function storageDaysFor(
   return Math.max(0, days - STORAGE_POLICY.freeDays);
 }
 
+/** Everything true about one shipment's storage, in one object. */
+export type StorageStatus = {
+  /** Null until the cargo is actually checked in at Dar. */
+  arrivedAt: Date | null;
+  /** Whole days since it landed. 0 on the day it arrives. */
+  daysInWarehouse: number;
+  /** How many of the free days are left. 0 once they are used up. */
+  freeDaysRemaining: number;
+  /** Days being charged for. Zero while the free week is running. */
+  chargeableDays: number;
+  chargeUsd: number;
+  perDayUsd: number;
+  freeDays: number;
+  /** The free week has run out and the meter is running. */
+  expired: boolean;
+  /** Today is the last day before charges begin — worth a phone call. */
+  lastFreeDay: boolean;
+  /** The clock has stopped because the customer collected it. */
+  collected: boolean;
+};
+
+/**
+ * The storage position of one consignment, for whoever is looking at it.
+ *
+ * One function, because the same four facts are shown to four different
+ * readers and they must never disagree: the customer on the tracking page, the
+ * notice on their invoice, the clerk about to take their money, and the
+ * warning on a desk that should be ringing them. Working the days out
+ * separately in four places is how a customer gets told six days on the phone
+ * and billed for eight.
+ *
+ * The rule the owner set, and the only one that matters: the counter starts
+ * when the cargo is marked arrived at Dar and stops the moment it is collected.
+ * Cargo still in China or in the air has no storage position at all, so this
+ * returns zeroes rather than a number somebody might print.
+ */
+export function storageStatus(
+  arrivedAt: Date | null,
+  deliveredAt: Date | null,
+  now: Date = new Date()
+): StorageStatus {
+  const { freeDays, perDayUsd } = STORAGE_POLICY;
+  if (!arrivedAt) {
+    return {
+      arrivedAt: null,
+      daysInWarehouse: 0,
+      freeDaysRemaining: freeDays,
+      chargeableDays: 0,
+      chargeUsd: 0,
+      perDayUsd,
+      freeDays,
+      expired: false,
+      lastFreeDay: false,
+      collected: false,
+    };
+  }
+
+  const end = deliveredAt ?? now;
+  const daysInWarehouse = Math.max(
+    0,
+    Math.floor((end.getTime() - arrivedAt.getTime()) / 86_400_000)
+  );
+  const chargeableDays = Math.max(0, daysInWarehouse - freeDays);
+
+  return {
+    arrivedAt,
+    daysInWarehouse,
+    freeDaysRemaining: Math.max(0, freeDays - daysInWarehouse),
+    chargeableDays,
+    chargeUsd: chargeableDays * perDayUsd,
+    perDayUsd,
+    freeDays,
+    expired: chargeableDays > 0,
+    /* The day the free week runs out, which is the day to ring somebody. */
+    lastFreeDay: deliveredAt === null && daysInWarehouse === freeDays,
+    collected: deliveredAt !== null,
+  };
+}
+
+/**
+ * The storage notice for an invoice — in English AND Kiswahili, both printed.
+ *
+ * Not a locale switch. The app's two interface languages are English and
+ * Chinese, for the desks that run it; the people paying these bills are in Dar
+ * es Salaam and read Kiswahili. A bill that explains a charge in a language its
+ * reader does not speak has not explained it, and the owner's rule is that
+ * nobody is ever surprised by a storage fee.
+ *
+ * Two sentences each rather than the four-line policy block: an invoice is read
+ * in a hurry, and what a customer needs is when the free week ends and what it
+ * costs afterwards. The Kiswahili is the owner's own wording.
+ */
+export function storageNotice(): {
+  en: { heading: string; body: string };
+  sw: { heading: string; body: string };
+} {
+  const { freeDays, perDayUsd } = STORAGE_POLICY;
+  return {
+    en: {
+      heading: "Warehouse Storage Policy",
+      body:
+        `Your cargo includes ${freeDays} days of free storage from the date it ` +
+        `arrives at our Dar es Salaam warehouse. After the free period ends, a ` +
+        `storage fee of USD ${perDayUsd} per day will be charged until the ` +
+        `cargo is collected.`,
+    },
+    sw: {
+      heading: "Masharti ya Kuhifadhi Mzigo",
+      body:
+        `Mzigo wako unapata siku ${freeDays} za kuhifadhi bure kuanzia tarehe ` +
+        `unapofika kwenye ghala letu la Dar es Salaam. Baada ya siku hizo ` +
+        `kuisha, utatozwa USD ${perDayUsd} kwa siku hadi utakapochukua mzigo wako.`,
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Roles & departments
 // ---------------------------------------------------------------------------

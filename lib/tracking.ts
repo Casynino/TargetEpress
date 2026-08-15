@@ -7,6 +7,7 @@ import {
   SHIPMENT_FLOW,
   SHIPMENT_STATUS_META,
   STORAGE_POLICY,
+  storageStatus,
   formatPackages,
 } from "@/lib/constants";
 import { normaliseCode, toNumber } from "@/lib/format";
@@ -169,6 +170,32 @@ export type PublicCharge = {
 };
 
 /**
+ * What the warehouse clock says, for the customer looking at it.
+ *
+ * The owner's rule: a customer must never be surprised by a storage charge. So
+ * the tracking page shows the same four facts the invoice will eventually
+ * carry — how long it has been sitting, how much of the free week is left,
+ * what has accrued and what a day costs — from the moment it lands, not from
+ * the moment somebody is billed for it.
+ *
+ * Null until the cargo actually arrives in Dar. Cargo in the air has no
+ * storage position, and printing "0 days" against it invites the question of
+ * whether the clock has started.
+ */
+export type PublicStorage = {
+  arrivedAt: string;
+  daysInWarehouse: number;
+  freeDays: number;
+  freeDaysRemaining: number;
+  chargeableDays: number;
+  chargeUsd: number;
+  perDayUsd: number;
+  expired: boolean;
+  lastFreeDay: boolean;
+  collected: boolean;
+};
+
+/**
  * A price worked out from the rate book, for cargo Finance has not billed yet.
  *
  * Explicitly an estimate. The real invoice can differ on the exchange rate of
@@ -225,6 +252,8 @@ export type PublicShipment = {
   /** What was sent, in the words of the price list. */
   description: string;
   weightKg: number | null;
+  /** The warehouse clock, once the cargo has landed. Null before then. */
+  storage: PublicStorage | null;
   origin: string;
   lastUpdate: string | null;
   timeline: PublicTimelineEntry[];
@@ -641,6 +670,23 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
         CATEGORY_LABELS[shipment.cargoCategory] ??
         "General cargo",
       weightKg: shipment.weightKg === null ? null : toNumber(shipment.weightKg),
+      /* The warehouse clock, once there is one to read. */
+      storage: ((): PublicStorage | null => {
+        if (!shipment.arrivedAt) return null;
+        const st = storageStatus(shipment.arrivedAt, shipment.deliveredAt);
+        return {
+          arrivedAt: shipment.arrivedAt.toISOString(),
+          daysInWarehouse: st.daysInWarehouse,
+          freeDays: st.freeDays,
+          freeDaysRemaining: st.freeDaysRemaining,
+          chargeableDays: st.chargeableDays,
+          chargeUsd: st.chargeUsd,
+          perDayUsd: st.perDayUsd,
+          expired: st.expired,
+          lastFreeDay: st.lastFreeDay,
+          collected: st.collected,
+        };
+      })(),
       origin: ORIGIN_PUBLIC[shipment.origin] ?? shipment.origin,
       lastUpdate: shipment.updatedAt.toISOString(),
       timeline: buildTimeline(

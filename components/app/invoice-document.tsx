@@ -8,7 +8,11 @@ import {
   DocumentSheet,
   DocumentStamp,
 } from "@/components/app/document-sheet";
-import { STORAGE_POLICY, type CollectionAccount } from "@/lib/constants";
+import {
+  STORAGE_POLICY,
+  storageNotice,
+  type CollectionAccount,
+} from "@/lib/constants";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { cargoText, viewerLocale } from "@/lib/viewer";
@@ -402,12 +406,27 @@ export async function InvoiceDocument({
         </section>
       )}
 
+      {/*
+        The storage terms, in both languages the customer might read.
+
+        The interface speaks English and Chinese because that is what the desks
+        that run it speak. The person holding this bill is in Dar es Salaam and
+        reads Kiswahili — so the notice is printed twice rather than translated
+        into whichever language the clerk happened to have selected. A charge
+        explained in a language its reader does not speak has not been
+        explained, and the owner's rule is that nobody is ever surprised by one.
+      */}
       <section className="mt-5">
         <DocumentField label={t(locale, "Storage policy")}>
-          <div className="space-y-1 text-xs leading-relaxed">
-            {STORAGE_POLICY.text.map((line) => (
-              <p key={line}>{t(locale, line)}</p>
-            ))}
+          <div className="space-y-2 text-xs leading-relaxed">
+            <div>
+              <p className="font-semibold">{storageNotice().en.heading}</p>
+              <p>{storageNotice().en.body}</p>
+            </div>
+            <div>
+              <p className="font-semibold">{storageNotice().sw.heading}</p>
+              <p>{storageNotice().sw.body}</p>
+            </div>
           </div>
         </DocumentField>
       </section>

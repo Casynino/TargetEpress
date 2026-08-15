@@ -511,6 +511,28 @@ export async function adjustInvoice(
         "That freight amount is not valid."
       ),
     freightOverrideReason: z.string().trim().optional(),
+    /**
+     * The storage charge, as Finance decides it should stand.
+     *
+     * The clock works the figure out — days past the free week times the daily
+     * rate — but the owner asked for full flexibility at the counter: charge
+     * it, reduce it, or waive it entirely. So this is what Finance says the
+     * charge IS, and 0 is a waiver rather than a missing value.
+     *
+     * Absent means leave it alone, which is what almost every other edit to an
+     * invoice does.
+     */
+    storageCharge: z
+      .string()
+      .trim()
+      .optional()
+      .transform((v) => (v && v.length > 0 ? Number(v) : null))
+      .refine(
+        (v) => v === null || (Number.isFinite(v) && v >= 0),
+        "That storage amount is not valid."
+      ),
+    /// Required whenever the storage charge is moved off what the clock says.
+    storageReason: z.string().trim().optional(),
   });
 
   const parsed = schema.safeParse(
@@ -599,7 +621,26 @@ export async function adjustInvoice(
       }
 
       const freight = input.freightOverride ?? rateBookFreight;
-      const storage = toNumber(invoice.storageCharge);
+      /*
+        Storage: the clock proposes, Finance decides.
+
+        Waiving or reducing it is a real decision about real money, so it is
+        not allowed to be silent — the reason is required the moment the figure
+        moves off what the days say, and it lands in the audit log with who
+        made it. Charging the full amount needs no explanation, because that is
+        simply the policy the customer was told about.
+      */
+      const clockStorage = toNumber(invoice.storageCharge);
+      const storage = input.storageCharge ?? clockStorage;
+      const storageMoved = Math.abs(storage - clockStorage) > 0.005;
+      if (storageMoved && (!input.storageReason || input.storageReason.length < 3)) {
+        throw new Error(
+          storage === 0
+            ? "Say why the storage charge is being waived."
+            : "Say why the storage charge is being changed."
+        );
+      }
+
       const total = freight + storage + input.otherCharges - input.discount;
       if (total < 0) {
         throw new Error("The discount is larger than the rest of the invoice.");
@@ -651,6 +692,7 @@ export async function adjustInvoice(
           freightOverrideReason: input.freightOverride === null
             ? null
             : input.freightOverrideReason || null,
+          storageCharge: new Prisma.Decimal(storage),
           total: new Prisma.Decimal(total),
           exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
           localCurrency: invoice.localCurrency ?? LOCAL_CURRENCY,
@@ -669,6 +711,14 @@ export async function adjustInvoice(
             `${correcting ? "Corrected" : "Adjusted"} ${invoice.invoiceNumber} (${invoice.shipment.trackingNumber}) ` +
             `from ${toNumber(invoice.total).toFixed(2)} to ${total.toFixed(2)}` +
             (discountChanged ? ` — discount ${input.discount.toFixed(2)}` : "") +
+            /* A waived or reduced storage charge is money the business chose
+               not to take. It is named in the summary rather than left to be
+               inferred from two numbers in the metadata. */
+            (storageMoved
+              ? storage === 0
+                ? ` — storage waived (${clockStorage.toFixed(2)}): ${input.storageReason}`
+                : ` — storage ${clockStorage.toFixed(2)} to ${storage.toFixed(2)}: ${input.storageReason}`
+              : "") +
             (correcting ? ` — ${input.correctionReason}` : ""),
           metadata: {
             // Named so a reader of the log can tell a routine adjustment from
@@ -678,8 +728,11 @@ export async function adjustInvoice(
             alreadyPaid: correcting ? alreadyPaid : undefined,
             totalBefore: toNumber(invoice.total),
             totalAfter: total,
+            storageWaived: storageMoved && storage === 0 ? true : undefined,
+            storageReason: storageMoved ? input.storageReason : undefined,
             before: {
               discount: toNumber(invoice.discount),
+              storageCharge: clockStorage,
               otherCharges: toNumber(invoice.otherCharges),
               exchangeRate:
                 invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate),
@@ -687,6 +740,7 @@ export async function adjustInvoice(
             },
             after: {
               discount: input.discount,
+              storageCharge: storage,
               otherCharges: input.otherCharges,
               exchangeRate: rate,
               notes: input.notes ?? null,

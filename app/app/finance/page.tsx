@@ -7,6 +7,7 @@ import {
   Plane,
   TrendingUp,
   ArrowLeftRight,
+  Banknote,
   ArrowUpRight,
   Calculator,
   CircleHelp,
@@ -451,7 +452,21 @@ export default async function FinanceOverviewPage() {
         <div className="flex flex-wrap items-center gap-2 border-t bg-muted/20 px-5 py-2.5">
           {seesCompanyMoney ? (
             <>
+              {/*
+                Money in first, because it happens more often.
+
+                It opens the ledger with the income panel already up rather
+                than carrying a second copy of that form — one implementation
+                of recording a payment, reachable from wherever somebody
+                happens to be standing.
+              */}
               <Button asChild variant="brand" size="sm" className="h-8 rounded-lg">
+                <Link href="/app/finance/transactions?income=1">
+                  <Banknote className="mr-1.5 h-3.5 w-3.5" />
+                  {t(locale, "Record an income")}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="h-8 rounded-lg">
                 <Link href="/app/finance/expenses">
                   <Receipt className="mr-1.5 h-3.5 w-3.5" />
                   {t(locale, "Record a cost")}
