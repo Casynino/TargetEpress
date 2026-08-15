@@ -86,8 +86,10 @@ const ZH: Record<string, string> = {
     "支付币种与账单币种不同，按账单上的汇率折算。",
   "The finance desk": "财务台",
   "This cargo is on a dispatched batch. It has to stay on the record for that manifest.": "该货物在已发运批次上，必须保留在该舱单记录中。",
+  "Verify them": "去核对",
   "View cargo": "查看货物",
   "Waiting on this batch": "等待这个批次",
+  "Waiting on you to verify": "待你核对",
   "Waiting to be read": "等待老板查看",
   "Waybills, customs paperwork and packing photos attached to this batch appear here.":
     "这个批次的空运单、报关单据和装箱照片会显示在这里。",
@@ -109,6 +111,7 @@ const ZH: Record<string, string> = {
     "是公司尚欠的款项。未计入上方数字，因为这些钱还没有从任何账户支出。",
   "mostly": "主要是",
   "nothing billed yet": "尚未开单",
+  "nothing handed up": "没有上报",
   "nothing waiting": "没有待办",
   "of what was billed": "，占已开单金额",
   "pick another": "换一个",

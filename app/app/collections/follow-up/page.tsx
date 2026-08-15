@@ -8,6 +8,7 @@ import { can } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { toNumber } from "@/lib/format";
+import { collectionsOverview } from "@/lib/collections";
 import { t } from "@/lib/i18n";
 import { paymentReminderSwahili, whatsappLink } from "@/lib/messages";
 import { requirePermission } from "@/lib/session";
@@ -62,7 +63,10 @@ export default async function FollowUpPage({
    * estimate rather than a sum of quoted figures. The dollar figure beneath it
    * is the exact one.
    */
-  const rateRow = await currentRate();
+  const [rateRow, overview] = await Promise.all([
+    currentRate(),
+    collectionsOverview(),
+  ]);
   const liveRate = rateRow ? toNumber(rateRow.rate) : null;
   const tsh = (usd: number) =>
     liveRate ? `TZS ${Math.round(usd * liveRate).toLocaleString("en-US")}` : formatUsd(usd);
@@ -153,6 +157,46 @@ export default async function FollowUpPage({
           </p>
           <p className="font-mono text-xs text-muted-foreground">
             {formatUsd(totalOutstanding)} {t(locale, "on the invoices")}
+          </p>
+        </div>
+        {/*
+          The two figures the dashboard existed to show, folded in.
+
+          Everything else on that page was either a repeat of this list or a
+          card describing it. What could not be read off the rows is how many
+          claims are sitting with this desk and how many it has cleared today,
+          so those come along — as two more small cells, not a page.
+        */}
+        <div>
+          <p className="text-xs text-muted-foreground">
+            {t(locale, "Waiting on you to verify")}
+          </p>
+          <p
+            className={`font-display text-xl font-bold tabular-nums ${
+              overview.pendingCount > 0 ? "text-warning" : ""
+            }`}
+          >
+            {overview.pendingCount}
+          </p>
+          {overview.pendingCount > 0 ? (
+            <Link
+              href="/app/collections/verify"
+              className="text-xs text-brand hover:underline"
+            >
+              {t(locale, "Verify them")} →
+            </Link>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {t(locale, "nothing handed up")}
+            </p>
+          )}
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">
+            {t(locale, "Verified today")}
+          </p>
+          <p className="font-display text-xl font-bold tabular-nums text-success">
+            {overview.verifiedToday}
           </p>
         </div>
         <div>

@@ -30,10 +30,10 @@ type Tab = {
 };
 
 const TABS: Tab[] = [
-  { href: "/app/collections", label: "Dashboard", exact: true },
-  // The follow-up queue IS the call list: it knows each consignment's next
-  // action, carries the storage clock and can send the invoice. A second,
-  // thinner "awaiting payment" page beside it was two lists of one thing.
+  // No dashboard tab. The call list IS the workspace: it knows each
+  // consignment's next action, carries the storage clock, can send the
+  // invoice, and now shows the department's figures along its top. A tab that
+  // summarised it was a page you read before the page you work.
   { href: "/app/collections/follow-up", label: "The call list" },
   // The pending submissions appear twice on purpose, because they are not the
   // same thing to the two desks that share this workspace. "With Finance" is
