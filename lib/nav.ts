@@ -159,7 +159,7 @@ const SECTIONS: NavSection[] = [
       // permission (collections.view) and no way in. Their links to the chase
       // list all landed on "That area is not yours".
       {
-        href: "/app/collections",
+        href: "/app/collections/follow-up",
         label: "Collections",
         icon: "Banknote",
         permission: "collections.view",
@@ -445,7 +445,7 @@ const SUPPORT_SECTIONS: NavSection[] = [
     // repeating those down the side is the same navigation twice.
     group: { label: "Billing", icon: "ReceiptText" },
     items: [
-      { href: "/app/collections", label: "Collections", icon: "Banknote" },
+      { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode" },
       // Read-only for this desk: they quote from the rate book and answer
       // "what will this cost", they do not set it. pricing.manage is Finance's.
@@ -538,7 +538,7 @@ const FINANCE_SECTIONS: NavSection[] = [
       // doors into one room: it is opened many times a day, and burying it a
       // click inside the ledger costs more than the duplication does.
       {
-        href: "/app/collections",
+        href: "/app/collections/follow-up",
         label: "Collections",
         icon: "Banknote",
         permission: "collections.view",
@@ -745,7 +745,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     title: "Finance",
     group: { label: "Finance", icon: "ReceiptText" },
     items: [
-      { href: "/app/collections", label: "Collections", icon: "Banknote", permission: "collections.view" },
+      { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote", permission: "collections.view" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode", permission: "pickupNote.view" },
       { href: "/app/finance", label: "Overview", icon: "Wallet", permission: "accounting.view" },
       // collections.view, matching the route's own guard. The shared menu had

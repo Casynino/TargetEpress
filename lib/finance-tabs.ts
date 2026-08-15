@@ -39,7 +39,16 @@ export function financeTabs(role: Role): FinanceTab[] {
         the job is actually done — in both rows it was the same queue twice,
         and each copy threw the reader into the other's navigation.
       */
-      href: "/app/collections",
+      /*
+        Straight at the queue, not at the redirect in front of it.
+
+        /app/collections is a redirect to this page, and on production that
+        extra hop cost 1.2 seconds of the owner's time on every click —
+        measured: 2,873ms through the redirect against 1,702ms direct. The
+        redirect stays for bookmarks and old links; nothing that ships new
+        should route through it.
+      */
+      href: "/app/collections/follow-up",
       label: "Collections",
       visible: can(role, "collections.view"),
     },
