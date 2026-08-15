@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ArrowRightLeft } from "lucide-react";
+import { ArrowRightLeft, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
@@ -41,62 +41,70 @@ export function MoveCargo({
 
   if (batches.length === 0) return null;
 
-  return (
-    <span className="relative inline-block">
+  /*
+    In place, not floating over the table.
+
+    The first version put the panel in an absolutely-positioned span inside a
+    table cell: it escaped its row, laid itself over five consignments below,
+    and left the price column showing through it. The price editor beside it
+    has always got this right by simply REPLACING its own button when open —
+    the cell grows, the row grows, nothing overlaps anything. Same here.
+  */
+  if (!open) {
+    return (
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(true)}
         aria-label={`${t("Move")} ${trackingNumber}`}
-        className="focus-ring inline-flex items-center gap-1 rounded px-1 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+        className="focus-ring inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"
       >
         <ArrowRightLeft className="h-3 w-3" />
         {t("Move")}
       </button>
+    );
+  }
 
-      {open ? (
-        <span className="absolute right-0 top-6 z-20 block w-[19rem] rounded-lg border bg-card p-3 text-left shadow-lift">
-          <span className="mb-2 flex items-center justify-between gap-2">
-            <span className="font-mono text-xs font-semibold">
-              {trackingNumber}
-            </span>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              ×
-            </button>
-          </span>
+  return (
+    <div className="w-[19rem] rounded-lg border bg-card p-3 text-left shadow-lift">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="font-mono text-xs font-semibold">{trackingNumber}</p>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="focus-ring rounded p-0.5 text-muted-foreground hover:text-foreground"
+          aria-label={t("Close")}
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
 
-          <form action={action} className="space-y-2">
-            <input type="hidden" name="shipmentId" value={shipmentId} />
-            <NativeSelect name="toBatchId" required className="h-8 text-sm">
-              <option value="">{t("Move it to…")}</option>
-              {batches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.batchNumber}
-                </option>
-              ))}
-            </NativeSelect>
-            <Input
-              name="reason"
-              required
-              minLength={3}
-              placeholder={t("e.g. scanned onto the wrong pallet")}
-              className="h-8 text-sm"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              {t(
-                "Its bill, payments and history move with it. Both flights' figures follow."
-              )}
-            </p>
-            <SubmitButton size="sm" variant="brand" pendingLabel={t("Moving…")}>
-              {t("Move")}
-            </SubmitButton>
-            <FormError state={state} />
-          </form>
-        </span>
-      ) : null}
-    </span>
+      <form action={action} className="space-y-2">
+        <input type="hidden" name="shipmentId" value={shipmentId} />
+        <NativeSelect name="toBatchId" required className="h-8 text-sm">
+          <option value="">{t("Move it to…")}</option>
+          {batches.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.batchNumber}
+            </option>
+          ))}
+        </NativeSelect>
+        <Input
+          name="reason"
+          required
+          minLength={3}
+          placeholder={t("e.g. scanned onto the wrong pallet")}
+          className="h-8 text-sm"
+        />
+        <div className="flex items-center gap-2">
+          <p className="min-w-0 flex-1 text-[11px] text-muted-foreground">
+            {t("Its bill and history move with it.")}
+          </p>
+          <SubmitButton size="sm" variant="brand" pendingLabel={t("Moving…")}>
+            {t("Move")}
+          </SubmitButton>
+        </div>
+        <FormError state={state} />
+      </form>
+    </div>
   );
 }
