@@ -25,6 +25,7 @@ import {
   Truck,
   UserCog,
   Users,
+  TrendingUp,
   Wallet,
   Warehouse,
 } from "lucide-react";
@@ -1840,7 +1841,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
         >
           {t(locale, "The money · right now")}
         </SectionLabel>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <MoneyTile
           label={t(locale, "Cash available")}
           usd={cashUsd}
@@ -1897,6 +1898,41 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
               : t(locale, "Confirmed, sent, and still unpaid.")
           }
           href="/app/collections/follow-up"
+        />
+        {/*
+          What was billed against what actually arrived.
+
+          The owner's point, and it is the one figure a dashboard usually
+          hides: a bill raised is not money in the bank. Expected revenue and
+          collected sit in different cards on different rows, so a good-looking
+          billed figure reads as a good month until somebody checks the bank.
+          This card puts the two next to each other and states the share, which
+          is the number that says whether the chasing is working.
+        */}
+        <MoneyTile
+          label={t(locale, "Collected of billed")}
+          usd={stats.collected}
+          rate={rate}
+          icon={TrendingUp}
+          tone={
+            stats.collected + stats.outstanding === 0
+              ? "default"
+              : stats.collected / (stats.collected + stats.outstanding) >= 0.5
+                ? "good"
+                : "warn"
+          }
+          count={
+            stats.collected + stats.outstanding === 0
+              ? t(locale, "nothing billed yet")
+              : `${Math.round(
+                  (stats.collected / (stats.collected + stats.outstanding)) * 100
+                )}% ${t(locale, "of what was billed")}`
+          }
+          hint={t(
+            locale,
+            "Money actually in, against everything ever billed. A bill raised is not a bill paid — the gap is what Collections is for."
+          )}
+          href="/app/collections"
         />
         <MoneyTile
           label={t(locale, "Spent this month")}
