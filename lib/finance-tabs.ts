@@ -29,23 +29,19 @@ export function financeTabs(role: Role): FinanceTab[] {
       label: "Accounts",
       visible: can(role, "account.view"),
     },
-    {
-      href: "/app/finance/verify",
-      // Money somebody says arrived and nobody has agreed to yet. It comes
-      // before Collections because a payment sitting unverified makes the
-      // collections list wrong: the customer has paid and is still on it.
-      label: "Verify payments",
-      visible: can(role, "payment.verify"),
-    },
-    {
-      href: "/app/collections",
-      // Beside Verify payments because they are one pipeline read end to end:
-      // what customers owe, what has been collected against it, and what is
-      // waiting to be agreed. Support reaches the same workspace from their own
-      // sidebar — this is Finance's door to it, not a second copy.
-      label: "Collections",
-      visible: can(role, "collections.view"),
-    },
+    /*
+      Neither Verify payments nor Collections is a tab here any more.
+
+      They belong to the collections workspace, which has its own tab row — so
+      clicking them from this one threw the reader out of these tabs and into
+      those, and Verify payments then appeared in both places at once. The
+      owner's word for it was inconvenient, and he is right: a tab that
+      replaces the tab row it was clicked from is a trapdoor, not navigation.
+
+      Collections is a top-level item in the sidebar, one click from anywhere,
+      and Verify payments lives inside it where the work is. Two workspaces,
+      each entered deliberately, neither pretending to be part of the other.
+    */
     {
       /*
         With the records, not with the daily work.

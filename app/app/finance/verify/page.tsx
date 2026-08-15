@@ -1,33 +1,17 @@
-import type { Metadata } from "next";
-
-import { FinanceNav } from "@/components/app/finance-nav";
-import { PageHeader } from "@/components/app/page-header";
-import { VerifyQueue } from "@/components/app/verify-queue";
-import { financeTabs } from "@/lib/finance-tabs";
-import { requirePermission } from "@/lib/session";
-
-export const metadata: Metadata = { title: "Verify payments" };
+import { redirect } from "next/navigation";
 
 /**
- * The verification queue, as a tab of the General ledger.
+ * Verifying payments lives in Collections, and only there.
  *
- * The queue itself is VerifyQueue, shared with the Collections copy of this
- * screen — same rows, same actions, different row of tabs above them. See that
- * component for why the page is split this way.
+ * This page and /app/collections/verify rendered the same VerifyQueue with a
+ * different row of tabs above it, so the same job appeared twice in the app
+ * and each copy threw the reader into the other's navigation. The owner's
+ * instruction was plain: it belongs inside Collections.
+ *
+ * A redirect rather than a deletion, because the dashboard shortcut, the
+ * attention list and a permission-mapped route prefix all point here. They
+ * keep working and they land on the one page that does the work.
  */
-export default async function VerifyPaymentsPage() {
-  const user = await requirePermission("payment.verify");
-
-  return (
-    <>
-      <PageHeader
-        title="Verify payments"
-        description="Claims Customer Support has collected from customers. Nothing is settled and no cargo is released until you agree."
-      />
-
-      <FinanceNav tabs={financeTabs(user.role)} />
-
-      <VerifyQueue />
-    </>
-  );
+export default function VerifyPaymentsPage() {
+  redirect("/app/collections/verify");
 }
