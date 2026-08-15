@@ -12,7 +12,7 @@ import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
-import { monthWindow, profitAndLoss, profitByDispatch, yearWindow } from "@/lib/profit";
+import { profitAndLoss, profitByDispatch, windowFor } from "@/lib/profit";
 import { prisma } from "@/lib/prisma";
 import { REPORTS, runReport, type ReportKey } from "@/lib/reports";
 import { requirePermission } from "@/lib/session";
@@ -47,12 +47,29 @@ export default async function FinanceReportsPage({
   const locale = await viewerLocale();
   const { period, report: rawReport, from, to, batch } = await searchParams;
 
-  const window =
-    period === "last"
-      ? monthWindow(1, locale)
-      : period === "year"
-        ? yearWindow(locale)
-        : monthWindow(0, locale);
+  const asDate0 = (v?: string) => {
+    if (!v) return null;
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  /*
+    One window, read by everything on the page.
+
+    The chip used to move the hero card and nothing else: `period` was written
+    into the URL and onto the download link, and neither runReport nor the CSV
+    route ever read it — so under a chip saying "This month" the table
+    underneath was showing all time, and the download matched the table. A
+    reader has no way to see that, which makes it the worst kind of wrong.
+
+    Typing a From/To still wins, because that is somebody being explicit.
+  */
+  const typedRange = asDate0(from) !== null || asDate0(to) !== null;
+  const picked = windowFor(
+    typedRange ? "custom" : (period ?? "month"),
+    locale,
+    { from: asDate0(from), to: null }
+  );
+  const window = picked.window;
 
   /*
     The picked report, run with the same filters the download will use.
@@ -85,12 +102,13 @@ export default async function FinanceReportsPage({
   if (batch) reportQuery.set("batch", batch);
   if (period) reportQuery.set("period", period);
 
-  const [pl, dispatches, report, flights] = await Promise.all([
+  const [pl, dispatches, report, flights, prior] = await Promise.all([
     profitAndLoss(window),
     profitByDispatch(8),
     runReport(reportKey, {
-      from: asDate(from),
-      to: toExclusive,
+      /* The chip's window unless somebody typed their own dates. */
+      from: typedRange ? asDate(from) : window.from,
+      to: typedRange ? toExclusive : window.to,
       batchId: batch ?? null,
     }),
     prisma.batch.findMany({
@@ -98,6 +116,9 @@ export default async function FinanceReportsPage({
       take: 30,
       select: { id: true, batchNumber: true },
     }),
+    /* The same figures for the stretch before, so every card can say which
+       way it went rather than only how much. */
+    profitAndLoss(picked.previous),
   ]);
 
   const profitable = pl.profit >= 0;
@@ -178,16 +199,128 @@ export default async function FinanceReportsPage({
       </div>
 
       <div className="mb-4 flex flex-wrap gap-1.5">
-        <Chip href="/app/finance/reports" active={!period || period === "month"}>
-          {t(locale, "This month")}
-        </Chip>
-        <Chip href="/app/finance/reports?period=last" active={period === "last"}>
-          {t(locale, "Last month")}
-        </Chip>
-        <Chip href="/app/finance/reports?period=year" active={period === "year"}>
-          {t(locale, "This year")}
-        </Chip>
+        {/*
+          Every stretch the owner asked for, and each one drives the whole
+          page — hero, cards, the table underneath and the download — rather
+          than only the figure at the top.
+        */}
+        {[
+          { key: "today", label: "Today" },
+          { key: "week", label: "This week" },
+          { key: "month", label: "This month" },
+          { key: "quarter", label: "This quarter" },
+          { key: "year", label: "This year" },
+        ].map((option) => (
+          <Chip
+            key={option.key}
+            href={`/app/finance/reports?report=${reportKey}&period=${option.key}`}
+            active={!typedRange && (period ?? "month") === option.key}
+          >
+            {t(locale, option.label)}
+          </Chip>
+        ))}
+        {typedRange ? (
+          <span className="text-xs text-muted-foreground">
+            {t(locale, "Showing the dates you typed above.")}
+          </span>
+        ) : null}
       </div>
+
+      {/*
+        Six figures, each against the stretch before it.
+
+        A number on its own answers "how much" and never "is that good", which
+        is the question somebody opens this page holding. Every card carries
+        its own change in words — up, down, or the same — measured against the
+        matching stretch: this week against last week, this quarter against the
+        one before, a typed range against the same number of days before it.
+
+        Outstanding and cash carry no comparison and say so. Both are "as at
+        right now" figures derived from live balances, not sums over a window,
+        so putting a period delta on them would be inventing history.
+      */}
+      <dl className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3 xl:grid-cols-6">
+        {(() => {
+          const change = (now: number, before: number) => {
+            if (before === 0) return now === 0 ? "nothing either way" : `new ${window.label}`;
+            const pct = Math.round(((now - before) / Math.abs(before)) * 100);
+            if (pct === 0) return `same as ${picked.previous.label}`;
+            return `${pct > 0 ? "up" : "down"} ${Math.abs(pct)}% on ${picked.previous.label}`;
+          };
+          const cells: {
+            k: string;
+            v: string;
+            sub: string;
+            tone: string;
+            wash: string;
+          }[] = [
+            {
+              k: "Revenue",
+              v: formatUsd(pl.revenue),
+              sub: change(pl.revenue, prior.revenue),
+              tone: "text-foreground",
+              wash: pl.revenue >= prior.revenue ? "from-success/10" : "from-destructive/10",
+            },
+            {
+              k: "Total expenses",
+              v: formatUsd(pl.costs),
+              sub: change(pl.costs, prior.costs),
+              tone: "text-destructive",
+              wash: pl.costs <= prior.costs ? "from-success/10" : "from-destructive/10",
+            },
+            {
+              k: pl.profit < 0 ? "Net loss" : "Net profit",
+              v: formatUsd(Math.abs(pl.profit)),
+              sub: change(pl.profit, prior.profit),
+              tone: pl.profit < 0 ? "text-destructive" : "text-success",
+              wash: pl.profit >= prior.profit ? "from-success/10" : "from-destructive/10",
+            },
+            {
+              k: "Profit margin",
+              v: pl.margin === null ? "—" : `${pl.margin.toFixed(1)}%`,
+              sub:
+                prior.margin === null || pl.margin === null
+                  ? "no margin to compare"
+                  : `${(pl.margin - prior.margin).toFixed(1)} points on ${picked.previous.label}`,
+              tone: (pl.margin ?? 0) < 0 ? "text-destructive" : "text-foreground",
+              wash:
+                (pl.margin ?? 0) >= (prior.margin ?? 0)
+                  ? "from-success/10"
+                  : "from-destructive/10",
+            },
+            {
+              k: "Collected",
+              v: formatUsd(pl.cashIn),
+              sub: change(pl.cashIn, prior.cashIn),
+              tone: "text-success",
+              wash: pl.cashIn >= prior.cashIn ? "from-success/10" : "from-destructive/10",
+            },
+            {
+              k: "Paid out",
+              v: formatUsd(pl.cashOut),
+              sub: change(pl.cashOut, prior.cashOut),
+              tone: "text-destructive",
+              wash: pl.cashOut <= prior.cashOut ? "from-success/10" : "from-destructive/10",
+            },
+          ];
+          return cells.map((cell) => (
+            <div
+              key={cell.k}
+              className={`bg-gradient-to-b ${cell.wash} to-transparent bg-card px-4 py-3.5`}
+            >
+              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                {t(locale, cell.k)}
+              </dt>
+              <dd
+                className={`mt-1 whitespace-nowrap font-display text-xl font-bold leading-tight tabular-nums ${cell.tone}`}
+              >
+                {cell.v}
+              </dd>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{cell.sub}</p>
+            </div>
+          ));
+        })()}
+      </dl>
 
       {/* The headline, and the number under it that stops it being misread. */}
       <section
