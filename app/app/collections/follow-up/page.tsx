@@ -149,80 +149,77 @@ export default async function FollowUpPage({
             {t(locale, "Ordered by what needs a phone call most")}
           </p>
         </div>
-        <div className="flex flex-wrap gap-6 px-4 py-3 text-sm">
-        <div>
-          <p className="text-xs text-muted-foreground">
-            {t(locale, "Cargo shown")}
-          </p>
-          <p className="font-display text-xl font-bold tabular-nums">{visible.length}</p>
-        </div>
-        {/* Shillings lead, here as everywhere. Freight is priced in dollars
-            and paid in shillings: the customer on the phone is quoting
-            shillings and so is the clerk. The invoice figure stays underneath,
-            smaller, for matching against the bill that was sent. */}
-        <div>
-          <p className="text-xs text-muted-foreground">
-            {t(locale, "Money outstanding")}
-          </p>
-          <p className="font-display text-xl font-bold tabular-nums">
-            {tsh(totalOutstanding)}
-          </p>
-          <p className="font-mono text-xs text-muted-foreground">
-            {formatUsd(totalOutstanding)} {t(locale, "on the invoices")}
-          </p>
-        </div>
         {/*
-          The two figures the dashboard existed to show, folded in.
+          Five cards, each saying what it IS.
 
-          Everything else on that page was either a repeat of this list or a
-          card describing it. What could not be read off the rows is how many
-          claims are sitting with this desk and how many it has cleared today,
-          so those come along — as two more small cells, not a page.
+          The owner's objection was that a column of figures raises questions
+          instead of answering them: is that money coming in, money owed,
+          money already counted? So every cell carries the sentence that
+          settles it, and a colour that means the same thing everywhere else in
+          Finance — amber for money not yet arrived, red for a queue, green for
+          work done, neutral for a count.
+
+          The honest one is storage. It is NOT a separate pot of income: the
+          clock is added to the bill when the bill is raised, so adding it to
+          what is outstanding would count the same shillings twice. It says so.
         */}
-        <div>
-          <p className="text-xs text-muted-foreground">
-            {t(locale, "Waiting on you to verify")}
-          </p>
-          <p
-            className={`font-display text-xl font-bold tabular-nums ${
-              overview.pendingCount > 0 ? "text-warning" : ""
-            }`}
-          >
-            {overview.pendingCount}
-          </p>
-          {overview.pendingCount > 0 ? (
-            <Link
-              href="/app/collections/verify"
-              className="text-xs text-brand hover:underline"
+        <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3 xl:grid-cols-5">
+          {[
+            {
+              k: t(locale, "Cargo on this list"),
+              v: String(visible.length),
+              sub: t(locale, "Landed in Dar, not yet handed over"),
+              tone: "text-foreground",
+              wash: "from-brand/10",
+            },
+            {
+              k: t(locale, "Expected to come in"),
+              v: tsh(totalOutstanding),
+              sub: `${formatUsd(totalOutstanding)} ${t(locale, "billed and not yet paid")}`,
+              tone: "text-signal",
+              wash: "from-signal/10",
+            },
+            {
+              k: t(locale, "Waiting on you to verify"),
+              v: String(overview.pendingCount),
+              sub:
+                overview.pendingCount > 0
+                  ? t(locale, "Claims Support handed up")
+                  : t(locale, "Nothing handed up"),
+              tone: overview.pendingCount > 0 ? "text-destructive" : "text-muted-foreground",
+              wash: overview.pendingCount > 0 ? "from-destructive/10" : "",
+            },
+            {
+              k: t(locale, "Verified today"),
+              v: String(overview.verifiedToday),
+              sub: t(locale, "Cleared by you since midnight"),
+              tone: "text-success",
+              wash: "from-success/10",
+            },
+            {
+              k: t(locale, "Storage accrued so far"),
+              v: tsh(storageAtRisk),
+              sub: t(locale, "Already inside the bill — it keeps running"),
+              tone: "text-foreground",
+              wash: "from-info/10",
+            },
+          ].map((cell) => (
+            <div
+              key={cell.k}
+              className={`bg-gradient-to-b ${cell.wash} to-transparent bg-card px-4 py-3`}
             >
-              {t(locale, "Verify them")} →
-            </Link>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {t(locale, "nothing handed up")}
-            </p>
-          )}
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">
-            {t(locale, "Verified today")}
-          </p>
-          <p className="font-display text-xl font-bold tabular-nums text-success">
-            {overview.verifiedToday}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">
-            {t(locale, "Storage charges accrued")}
-          </p>
-          <p className="font-display text-xl font-bold tabular-nums">
-            {tsh(storageAtRisk)}
-          </p>
-          <p className="font-mono text-xs text-muted-foreground">
-            {formatUsd(storageAtRisk)}
-          </p>
-          </div>
-      </div>
+              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                {cell.k}
+              </dt>
+              <dd
+                className={`mt-1 whitespace-nowrap font-display text-xl font-bold leading-tight tabular-nums ${cell.tone}`}
+              >
+                {cell.v}
+              </dd>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{cell.sub}</p>
+            </div>
+          ))}
+        </dl>
       </div>
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-soft">

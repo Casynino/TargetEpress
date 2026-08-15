@@ -22,6 +22,12 @@ import type { Locale } from "@/lib/locale";
  */
 
 const ZH: Record<string, string> = {
+  "Already inside the bill — it keeps running": "已包含在账单中——并且仍在累计",
+  "Cargo on this list": "本列表的货物",
+  "Claims Support handed up": "客服上报的付款申报",
+  "Cleared by you since midnight": "今日零点以来你已核对",
+  "Landed in Dar, not yet handed over": "已到达达累斯萨拉姆，尚未交付",
+  "Nothing handed up": "没有上报",
   "Ordered by what needs a phone call most":
     "按最需要打电话的顺序排列",
   "Leave the account blank and it is recorded as still to pay.":
@@ -84,6 +90,7 @@ const ZH: Record<string, string> = {
   "Review prices by batch": "按批次核对价格",
   "Say later": "稍后填写",
   "Search batch number, waybill, airline or flight…": "搜索批次号、空运单号、航空公司或航班…",
+  "Storage accrued so far": "已累计仓储费",
   "Tendered in a different currency from the bill, so it converts at the rate on the bill.":
     "支付币种与账单币种不同，按账单上的汇率折算。",
   "The finance desk": "财务台",
@@ -102,6 +109,7 @@ const ZH: Record<string, string> = {
   "Why is it being reopened": "为什么要重开",
   "account, so a": "账户，因此",
   "batches": "批次",
+  "billed and not yet paid": "已开单尚未支付",
   "cargo": "货物",
   "cost": "笔费用",
   "cost cannot have left it.": "的费用不可能从该账户支出。",
