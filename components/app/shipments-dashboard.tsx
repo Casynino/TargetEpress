@@ -89,12 +89,22 @@ const STATUS_LABEL: Record<string, string> = {
   CLOSED: "Completed",
 };
 
+/*
+  Active flights and history are two different questions.
+
+  A closed flight is finished: its books are shut, nothing can land on it, and
+  it is only opened again to be read. Leaving it in the working list meant the
+  board grew forever and "all shipments" answered neither "what am I working
+  on" nor "what did we fly in March". Active is now the default and the closed
+  ones live behind History.
+*/
 const FILTERS = [
-  { key: "all", label: "All shipments" },
+  { key: "active", label: "Active" },
   { key: "IN_TRANSIT", label: "In transit" },
   { key: "ARRIVED", label: "Pending clearance" },
   { key: "VERIFIED", label: "Checked in" },
-  { key: "CLOSED", label: "Completed" },
+  { key: "CLOSED", label: "History" },
+  { key: "all", label: "Everything" },
 ] as const;
 
 /*
@@ -146,7 +156,7 @@ export function ShipmentsDashboard({
   rate: number | null;
 }) {
   const t = useT();
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<string>("active");
   const [month, setMonth] = useState<string>("all");
   const [query, setQuery] = useState("");
 
@@ -158,6 +168,8 @@ export function ShipmentsDashboard({
     const by = (status: string) => inMonth.filter((r) => r.status === status).length;
     return {
       all: inMonth.length,
+      /* Everything that has not had a line drawn under it. */
+      active: inMonth.filter((r) => r.status !== "CLOSED").length,
       IN_TRANSIT: by("IN_TRANSIT"),
       ARRIVED: by("ARRIVED"),
       VERIFIED: by("VERIFIED"),
@@ -168,7 +180,9 @@ export function ShipmentsDashboard({
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((row) => {
-      if (filter !== "all" && row.status !== filter) return false;
+      if (filter === "active" ? row.status === "CLOSED" : filter !== "all" && row.status !== filter) {
+        return false;
+      }
       if (month !== "all" && row.month !== month) return false;
       if (!q) return true;
       return [

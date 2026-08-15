@@ -239,6 +239,8 @@ export async function buildStatement(
     select: {
       id: true,
       weightKg: true,
+      packages: true,
+      customerId: true,
       invoice: { select: { id: true, status: true, total: true, amountPaid: true } },
     },
   });
@@ -250,12 +252,16 @@ export async function buildStatement(
   let collectedUsd = 0;
   let kgWrittenOff = 0;
   let writtenOffUsd = 0;
+  let packages = 0;
+  const customers = new Set<string>();
 
   const wroteOff = new Set(writtenOffIds);
 
   for (const piece of cargo) {
     const weight = toNumber(piece.weightKg);
     kgReceived += weight;
+    packages += piece.packages;
+    if (piece.customerId) customers.add(piece.customerId);
 
     const invoice = piece.invoice;
     if (!invoice || invoice.status === "VOID") continue;
@@ -290,10 +296,14 @@ export async function buildStatement(
   if (moved.length > 0) {
     const gone = await tx.shipment.findMany({
       where: { id: { in: moved.map((row) => row.shipmentId) } },
-      select: { id: true, weightKg: true },
+      select: { id: true, weightKg: true, packages: true, customerId: true },
     });
     for (const piece of gone) {
       kgCarried += toNumber(piece.weightKg);
+      // It flew on this batch, so it counts on this batch's manifest even
+      // though it has just been moved off for chasing.
+      packages += piece.packages;
+      if (piece.customerId) customers.add(piece.customerId);
     }
     carriedUsd = moved.reduce((sum, row) => sum + row.owedUsd, 0);
     kgReceived += kgCarried;
@@ -301,9 +311,28 @@ export async function buildStatement(
 
   const costs = await tx.expense.findMany({
     where: { batchId, status: { not: "VOID" }, expenseClass: "OPERATING" },
-    select: { amountUsd: true },
+    select: { amountUsd: true, category: true },
   });
   const expensesUsd = costs.reduce((sum, c) => sum + toNumber(c.amountUsd), 0);
+
+  /*
+    The same total, split by what it was for.
+
+    "USD 1,469 of costs" is a figure the boss can only accept or query; the
+    same money as customs, transport, permits and the clearing agent is a
+    figure he can read. Frozen with everything else — a category renamed next
+    year must not rewrite a statement he has already signed.
+  */
+  const byCategory = new Map<string, number>();
+  for (const cost of costs) {
+    byCategory.set(
+      cost.category,
+      (byCategory.get(cost.category) ?? 0) + toNumber(cost.amountUsd)
+    );
+  }
+  const expenseByCategory = [...byCategory.entries()]
+    .map(([category, usd]) => ({ category, usd }))
+    .sort((a, b) => b.usd - a.usd);
 
   const landed =
     rates.freight === null && rates.customs === null
@@ -312,6 +341,9 @@ export async function buildStatement(
   const paybackUsd = landed === null ? null : kgReceived * landed;
 
   return {
+    pieces: cargo.length + moved.length,
+    packages,
+    customers: customers.size,
     kgReceived,
     receivedUsd,
     sellRate: kgReceived > 0 ? receivedUsd / kgReceived : null,
@@ -327,6 +359,7 @@ export async function buildStatement(
     kgWrittenOff,
     writtenOffUsd,
     expensesUsd,
+    expenseByCategory,
     exchangeRate: rate,
   };
 }

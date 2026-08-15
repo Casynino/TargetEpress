@@ -560,6 +560,14 @@ model BatchStatement {
   batchId String @unique
   batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
+  // ---- What the flight physically was -----------------------------------
+  /// Consignments, the packages inside them, and the people they belong to.
+  /// Counted at the close, because cargo can be carried off a flight after it
+  /// and the manifest the boss signed has to stay the manifest he signed.
+  pieces    Int @default(0)
+  packages  Int @default(0)
+  customers Int @default(0)
+
   // ---- Goods received: everything that landed, and what it was worth ------
   kgReceived  Decimal  @db.Decimal(12, 2)
   receivedUsd Decimal  @db.Decimal(12, 2)
@@ -589,9 +597,12 @@ model BatchStatement {
   writtenOffUsd Decimal @db.Decimal(12, 2)
 
   /// Local costs booked against the flight — clearing, permits, transport.
-  expensesUsd  Decimal  @db.Decimal(12, 2)
+  expensesUsd       Decimal  @db.Decimal(12, 2)
+  /// The same total split by category, frozen with everything else, so the
+  /// boss can see WHERE it went and not only how much. [{category, usd}].
+  expenseByCategory Json?
   /// The rate on the day, so the shilling columns never move afterwards.
-  exchangeRate Decimal? @db.Decimal(14, 4)
+  exchangeRate      Decimal? @db.Decimal(14, 4)
 
   status StatementStatus @default(SUBMITTED)
   note   String?

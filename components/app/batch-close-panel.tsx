@@ -51,6 +51,26 @@ export type BatchCloseState = {
   /** Where the statement has got to, once there is one. */
   statementStatus: string | null;
   reviewNote: string | null;
+  /**
+   * Everything the flight is, gathered before it is shut.
+   *
+   * The owner's rule: before it is closed, prepare a complete summary of
+   * everything that happened inside that batch. Closing is irreversible
+   * without an admin, so the figures somebody is about to sign have to be in
+   * front of them at the moment they decide — not one screen back.
+   */
+  summary: {
+    pieces: number;
+    packages: number;
+    customers: number;
+    kg: number;
+    expectedUsd: number;
+    collectedUsd: number;
+    outstandingUsd: number;
+    expensesUsd: number;
+    expenseByCategory: { label: string; usd: number }[];
+    profitUsd: number;
+  };
 };
 
 const KIND_LABEL: Record<string, string> = {
@@ -433,6 +453,66 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
 
       {expanded ? (
         <form action={close} className="border-t">
+          {/*
+            The whole flight, before anybody signs anything.
+
+            Three blocks in the order the question is asked: what it was, what
+            it earned, what it cost. The collection percentage is here rather
+            than left to be worked out, because "TSh 22m expected, TSh 21m
+            collected" and "96% collected" are the same fact and only one of
+            them can be read at a glance.
+          */}
+          <dl className="grid grid-cols-2 gap-px border-b bg-border sm:grid-cols-4 lg:grid-cols-7">
+            {[
+              ["Cargo", String(state.summary.pieces)],
+              ["Packages", String(state.summary.packages)],
+              ["Customers", String(state.summary.customers)],
+              ["Weight", `${state.summary.kg.toFixed(1)} kg`],
+              ["Expected", money(state.summary.expectedUsd)],
+              ["Collected", money(state.summary.collectedUsd)],
+              [
+                "Collected %",
+                state.summary.expectedUsd > 0
+                  ? `${Math.round(
+                      (state.summary.collectedUsd / state.summary.expectedUsd) * 100
+                    )}%`
+                  : "—",
+              ],
+            ].map(([label, value]) => (
+              <div key={label} className="bg-card px-4 py-2.5">
+                <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {t(label)}
+                </dt>
+                <dd className="mt-0.5 font-display text-sm font-bold tabular-nums">
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          {/* What it cost, split by what it was for. A total the boss can only
+              accept or query becomes a list he can read. */}
+          {state.summary.expenseByCategory.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b px-5 py-2.5 text-xs">
+              <span className="font-medium">
+                {t("Costs")} {money(state.summary.expensesUsd)}
+              </span>
+              {state.summary.expenseByCategory.map((row) => (
+                <span key={row.label} className="text-muted-foreground">
+                  {t(row.label)}{" "}
+                  <span className="tabular-nums text-destructive">
+                    {money(row.usd)}
+                  </span>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="border-b px-5 py-2.5 text-xs text-signal">
+              {t(
+                "No costs recorded against this flight. Customs and clearing are always paid, so a zero means nobody has written them down."
+              )}
+            </p>
+          )}
           <input type="hidden" name="batchId" value={state.batchId} />
 
           <p className="px-5 py-3 text-xs text-muted-foreground">

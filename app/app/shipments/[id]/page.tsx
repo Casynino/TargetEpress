@@ -24,6 +24,7 @@ import {
 } from "@/lib/constants";
 import { formatDate, formatDateTime, toNumber } from "@/lib/format";
 import { batchOwing } from "@/lib/batch-close";
+import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import { batchFinance } from "@/lib/batch-finance";
 import {
   COMMON_EXPENSES,
@@ -173,6 +174,26 @@ export default async function ShipmentPage({
     is not sent the list of who has not paid.
   */
   const canClose = can(user.role, "batch.close");
+
+  /* What the flight's costs were FOR, so the close summary can say. */
+  const costBreakdown = canClose
+    ? (
+        await prisma.expense.groupBy({
+          by: ["category"],
+          where: {
+            batchId: dispatch.id,
+            status: { not: "VOID" },
+            expenseClass: "OPERATING",
+          },
+          _sum: { amountUsd: true },
+        })
+      )
+        .map((row) => ({
+          label: EXPENSE_CATEGORY_LABELS[row.category] ?? row.category,
+          usd: toNumber(row._sum.amountUsd),
+        }))
+        .sort((a, b) => b.usd - a.usd)
+    : [];
   const owing = canClose ? await batchOwing(dispatch.id) : null;
 
   /*
@@ -463,6 +484,20 @@ export default async function ShipmentPage({
               )
               .reduce((sum, piece) => sum + toNumber(piece.weightKg), 0),
             worthUsd: finance?.billedUsd ?? 0,
+            summary: {
+              pieces: finance?.pieces ?? 0,
+              packages: dispatch.shipments
+                .filter((piece) => piece.deletedAt === null)
+                .reduce((sum, piece) => sum + piece.packages, 0),
+              customers: finance?.customers ?? 0,
+              kg: finance?.weightKg ?? 0,
+              expectedUsd: finance?.expectedUsd ?? 0,
+              collectedUsd: finance?.receivedUsd ?? 0,
+              outstandingUsd: finance?.outstandingUsd ?? 0,
+              expensesUsd: finance?.expensesUsd ?? 0,
+              expenseByCategory: costBreakdown,
+              profitUsd: finance?.netProfitUsd ?? 0,
+            },
             statementStatus: dispatch.statement?.status ?? null,
             reviewNote: dispatch.statement?.reviewNote ?? null,
             carriedIn: carriedIn.map((row) => ({
