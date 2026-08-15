@@ -175,6 +175,23 @@ export default async function ShipmentPage({
   */
   const canClose = can(user.role, "batch.close");
 
+  /* The weight still sitting in the warehouse against an unpaid bill —
+     uncollected cargo is floor space as well as money. */
+  const unpaidWeight = canClose
+    ? toNumber(
+        (
+          await prisma.shipment.aggregate({
+            where: {
+              batchId: dispatch.id,
+              deletedAt: null,
+              invoice: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
+            },
+            _sum: { weightKg: true },
+          })
+        )._sum.weightKg
+      )
+    : 0;
+
   /* What the flight's costs were FOR, so the close summary can say. */
   const costBreakdown = canClose
     ? (
@@ -497,6 +514,16 @@ export default async function ShipmentPage({
               expensesUsd: finance?.expensesUsd ?? 0,
               expenseByCategory: costBreakdown,
               profitUsd: finance?.netProfitUsd ?? 0,
+              sellRate:
+                finance && finance.weightKg > 0
+                  ? finance.expectedUsd / finance.weightKg
+                  : null,
+              rateUsed: finance?.rate ?? null,
+              unpaidPieces: owing?.unpaid.length ?? 0,
+              unpaidKg: unpaidWeight,
+              unpaidCustomers: new Set(
+                (owing?.unpaid ?? []).map((row) => row.customerName)
+              ).size,
             },
             statementStatus: dispatch.statement?.status ?? null,
             reviewNote: dispatch.statement?.reviewNote ?? null,

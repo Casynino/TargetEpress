@@ -70,6 +70,14 @@ export type BatchCloseState = {
     expensesUsd: number;
     expenseByCategory: { label: string; usd: number }[];
     profitUsd: number;
+    /** What a kilo actually earned on this flight: billed ÷ weight. */
+    sellRate: number | null;
+    /** USD → TZS on the day, so the reader knows what the shillings are at. */
+    rateUsed: number | null;
+    /** What is left behind: cargo nobody has paid for, and who owes it. */
+    unpaidPieces: number;
+    unpaidKg: number;
+    unpaidCustomers: number;
   };
 };
 
@@ -462,23 +470,34 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
             collected" and "96% collected" are the same fact and only one of
             them can be read at a glance.
           */}
-          <dl className="grid grid-cols-2 gap-px border-b bg-border sm:grid-cols-4 lg:grid-cols-7">
+          <dl className="grid grid-cols-2 gap-px border-b bg-border sm:grid-cols-3 lg:grid-cols-5">
             {[
-              ["Cargo", String(state.summary.pieces)],
-              ["Packages", String(state.summary.packages)],
-              ["Customers", String(state.summary.customers)],
-              ["Weight", `${state.summary.kg.toFixed(1)} kg`],
-              ["Expected", money(state.summary.expectedUsd)],
-              ["Collected", money(state.summary.collectedUsd)],
+              /* What landed. */
+              ["Cargo", String(state.summary.pieces), `${state.summary.packages} ${t("packages")}`],
+              ["Customers", String(state.summary.customers), t("on this flight")],
               [
-                "Collected %",
+                "Weight",
+                `${state.summary.kg.toFixed(1)} kg`,
+                state.summary.sellRate === null
+                  ? t("no rate yet")
+                  : `${formatUsd(state.summary.sellRate)} ${t("a kilo")}`,
+              ],
+              /* What it earned, and what has actually arrived. */
+              [
+                "Expected",
+                money(state.summary.expectedUsd),
+                formatUsd(state.summary.expectedUsd),
+              ],
+              [
+                "Collected",
+                money(state.summary.collectedUsd),
                 state.summary.expectedUsd > 0
                   ? `${Math.round(
                       (state.summary.collectedUsd / state.summary.expectedUsd) * 100
-                    )}%`
+                    )}% ${t("of it")}`
                   : "—",
               ],
-            ].map(([label, value]) => (
+            ].map(([label, value, sub]) => (
               <div key={label} className="bg-card px-4 py-2.5">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {t(label)}
@@ -486,9 +505,47 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
                 <dd className="mt-0.5 font-display text-sm font-bold tabular-nums">
                   {value}
                 </dd>
+                <p className="text-[11px] tabular-nums text-muted-foreground">{sub}</p>
               </div>
             ))}
           </dl>
+
+          {/*
+            What is being left behind, said as one sentence.
+
+            The list below names every piece, but a list of forty-nine rows is
+            not an answer to "what is still out there" — the counts are. Weight
+            as well as money, because uncollected cargo is also floor space.
+          */}
+          <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b bg-destructive/[0.04] px-5 py-2.5 text-sm">
+            <span className="font-display font-bold tabular-nums text-destructive">
+              {money(state.summary.outstandingUsd)}
+            </span>
+            <span className="text-muted-foreground">
+              {t("still owed on")}{" "}
+              <span className="font-medium text-foreground">
+                {state.summary.unpaidPieces}
+              </span>{" "}
+              {t(state.summary.unpaidPieces === 1 ? "piece" : "pieces")} ·{" "}
+              <span className="font-medium text-foreground">
+                {state.summary.unpaidKg.toFixed(1)} kg
+              </span>{" "}
+              {t("still in the warehouse")} ·{" "}
+              <span className="font-medium text-foreground">
+                {state.summary.unpaidCustomers}
+              </span>{" "}
+              {t(
+                state.summary.unpaidCustomers === 1
+                  ? "customer owes it"
+                  : "customers owe it"
+              )}
+            </span>
+            {state.summary.rateUsed !== null ? (
+              <span className="ml-auto text-xs text-muted-foreground">
+                1 USD = {state.summary.rateUsed.toLocaleString()} TSh
+              </span>
+            ) : null}
+          </p>
 
           {/* What it cost, split by what it was for. A total the boss can only
               accept or query becomes a list he can read. */}
