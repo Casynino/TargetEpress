@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { ArrowRightLeft, X } from "lucide-react";
+import { useActionState } from "react";
+import { X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
@@ -26,14 +26,16 @@ export function MoveCargo({
   shipmentId,
   trackingNumber,
   batches,
+  onDone,
 }: {
   shipmentId: string;
   trackingNumber: string;
   /** Flights whose books are still open, this one's excluded. */
   batches: { id: string; batchNumber: string }[];
+  /** The table owns which row is open, so closing is its business. */
+  onDone: () => void;
 }) {
   const t = useT();
-  const [open, setOpen] = useState(false);
   const [state, action] = useActionState<ActionResult<{ to: string }>, FormData>(
     moveShipmentToBatch,
     { ok: true }
@@ -41,36 +43,13 @@ export function MoveCargo({
 
   if (batches.length === 0) return null;
 
-  /*
-    In place, not floating over the table.
-
-    The first version put the panel in an absolutely-positioned span inside a
-    table cell: it escaped its row, laid itself over five consignments below,
-    and left the price column showing through it. The price editor beside it
-    has always got this right by simply REPLACING its own button when open —
-    the cell grows, the row grows, nothing overlaps anything. Same here.
-  */
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label={`${t("Move")} ${trackingNumber}`}
-        className="focus-ring inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"
-      >
-        <ArrowRightLeft className="h-3 w-3" />
-        {t("Move")}
-      </button>
-    );
-  }
-
   return (
-    <div className="w-[19rem] rounded-lg border bg-card p-3 text-left shadow-lift">
+    <div className="text-left">
       <div className="mb-2 flex items-center justify-between">
         <p className="font-mono text-xs font-semibold">{trackingNumber}</p>
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={onDone}
           className="focus-ring rounded p-0.5 text-muted-foreground hover:text-foreground"
           aria-label={t("Close")}
         >
@@ -78,9 +57,10 @@ export function MoveCargo({
         </button>
       </div>
 
-      <form action={action} className="space-y-2">
+      {/* One line across the row: where it goes, why, and the button. */}
+      <form action={action} className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="shipmentId" value={shipmentId} />
-        <NativeSelect name="toBatchId" required className="h-8 text-sm">
+        <NativeSelect name="toBatchId" required className="h-8 w-56 text-sm">
           <option value="">{t("Move it to…")}</option>
           {batches.map((b) => (
             <option key={b.id} value={b.id}>
@@ -93,16 +73,14 @@ export function MoveCargo({
           required
           minLength={3}
           placeholder={t("e.g. scanned onto the wrong pallet")}
-          className="h-8 text-sm"
+          className="h-8 min-w-[16rem] flex-1 text-sm"
         />
-        <div className="flex items-center gap-2">
-          <p className="min-w-0 flex-1 text-[11px] text-muted-foreground">
-            {t("Its bill and history move with it.")}
-          </p>
-          <SubmitButton size="sm" variant="brand" pendingLabel={t("Moving…")}>
-            {t("Move")}
-          </SubmitButton>
-        </div>
+        <SubmitButton size="sm" variant="brand" pendingLabel={t("Moving…")}>
+          {t("Move")}
+        </SubmitButton>
+        <p className="w-full text-[11px] text-muted-foreground">
+          {t("Its bill and history move with it. Both flights' figures follow.")}
+        </p>
         <FormError state={state} />
       </form>
     </div>

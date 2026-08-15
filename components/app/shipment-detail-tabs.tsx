@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowRightLeft,
   AlertTriangle,
   ChevronRight,
   Download,
@@ -129,6 +130,8 @@ export function ShipmentDetailTabs({
 }) {
   const t = useT();
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("cargo");
+  /** Which cargo row has its "move it to" panel open. One at a time. */
+  const [moving, setMoving] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("ALL");
   const [sort, setSort] = useState("carton");
@@ -263,7 +266,8 @@ export function ShipmentDetailTabs({
               </thead>
               <tbody>
                 {visible.map((line) => (
-                  <tr key={line.id} className="border-t">
+                  <Fragment key={line.id}>
+                  <tr className="border-t">
                     <td className="whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground">
                       {line.receivedLabel}
                     </td>
@@ -311,12 +315,18 @@ export function ShipmentDetailTabs({
                       <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
                         {line.price ? (
                           <span className="inline-flex items-center gap-1.5">
-                            {canMoveCargo ? (
-                              <MoveCargo
-                                shipmentId={line.id}
-                                trackingNumber={line.trackingNumber}
-                                batches={moveTargets}
-                              />
+                            {canMoveCargo && moveTargets.length > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setMoving(moving === line.id ? null : line.id)
+                                }
+                                aria-label={`${t("Move")} ${line.trackingNumber}`}
+                                className="focus-ring inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"
+                              >
+                                <ArrowRightLeft className="h-3 w-3" />
+                                {t("Move")}
+                              </button>
                             ) : null}
                             {line.price.edit && canEditPrice ? (
                               <RowPriceEditor
@@ -395,6 +405,31 @@ export function ShipmentDetailTabs({
                       </Link>
                     </td>
                   </tr>
+                  {/*
+                    An expanded row, not a box floating in the middle of a
+                    table.
+
+                    Rendering the panel inside the actions cell put a 300px
+                    card in the middle of a 1,300px row with cargo detail on
+                    one side and the price on the other — contained, but
+                    reading as though it had come loose. A full-width row
+                    underneath is what an expanded row looks like everywhere
+                    else, and it leaves the cargo line above it readable while
+                    you decide.
+                  */}
+                  {moving === line.id ? (
+                    <tr className="border-t bg-muted/20">
+                      <td colSpan={showPrice ? 10 : 9} className="px-3 py-3">
+                        <MoveCargo
+                          shipmentId={line.id}
+                          trackingNumber={line.trackingNumber}
+                          batches={moveTargets}
+                          onDone={() => setMoving(null)}
+                        />
+                      </td>
+                    </tr>
+                  ) : null}
+                  </Fragment>
                 ))}
                 {visible.length === 0 ? (
                   <tr>
