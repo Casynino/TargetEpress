@@ -158,7 +158,7 @@ export default async function LedgerPage({
     ];
   }
 
-  const [accounts, people, entries, total, totals, rateRow, unpaid] =
+  const [accounts, people, entries, total, totals, rateRow, unpaid, unpaidByKind] =
     await Promise.all([
       activeAccounts(),
       prisma.user.findMany({
@@ -223,6 +223,16 @@ export default async function LedgerPage({
       // Costs recorded but not yet disbursed have no ledger line, because no
       // money has moved. They still have to be visible somewhere.
       prisma.expense.aggregate({
+        where: { status: { in: ["PENDING", "APPROVED"] } },
+        _sum: { amountUsd: true },
+        _count: true,
+      }),
+      /* Broken down, because the total alone is a mystery. Thirty-four
+         million against a handful of clearing costs looks wrong until you
+         know it is payroll — so the line says which kind of cost it mostly
+         is, and the reader stops having to guess. */
+      prisma.expense.groupBy({
+        by: ["category"],
         where: { status: { in: ["PENDING", "APPROVED"] } },
         _sum: { amountUsd: true },
         _count: true,
@@ -412,6 +422,26 @@ export default async function LedgerPage({
             {tsh(toNumber(unpaid._sum.amountUsd))} {t(locale, "in costs still to pay")}
           </Link>
           {" — "}
+          {(() => {
+            const biggest = [...unpaidByKind].sort(
+              (a, b) => toNumber(b._sum.amountUsd) - toNumber(a._sum.amountUsd)
+            )[0];
+            if (!biggest) return null;
+            const label = t(
+              locale,
+              EXPENSE_CATEGORY_LABELS[biggest.category] ?? biggest.category
+            ).toLowerCase();
+            const share =
+              toNumber(biggest._sum.amountUsd) / toNumber(unpaid._sum.amountUsd);
+            return (
+              <>
+                {unpaidByKind.length === 1 || share > 0.6
+                  ? `${t(locale, "mostly")} ${label}`
+                  : `${unpaid._count} ${t(locale, unpaid._count === 1 ? "cost" : "costs")}`}
+                {", "}
+              </>
+            );
+          })()}
           {t(
             locale,
             "money the business owes. Not counted above, because none of it has left an account yet."
