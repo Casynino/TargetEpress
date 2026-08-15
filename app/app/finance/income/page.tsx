@@ -1,62 +1,118 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Search, Undo2 } from "lucide-react";
 
 import { FinanceNav } from "@/components/app/finance-nav";
 import { IncomeSheetTable } from "@/components/app/income-sheet";
 import { PageHeader } from "@/components/app/page-header";
+import { Input } from "@/components/ui/input";
 import { financeTabs } from "@/lib/finance-tabs";
 import { incomeSheet } from "@/lib/income";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Income" };
+export const metadata: Metadata = { title: "Closed batches" };
 
 /**
- * What came in, and what has been collected against it.
+ * Every batch whose books are shut, and what each one made.
  *
- * This is the sheet Finance has always kept by hand, and the owner asked for
- * it in the system so the boss can read the same thing without anybody typing
- * it twice. Everything on it except two per-kilo rates is computed from the
- * invoices and payments already on record, so it cannot drift from the books.
+ * The register Finance has always kept by hand, in the system so the boss can
+ * read the same thing without anybody typing it twice. Every figure except two
+ * per-kilo rates is computed from the invoices and payments already on record,
+ * so it cannot drift from the books.
+ *
+ * It is not only an archive. A closed batch is the last thing that happens to
+ * a batch, so this is also where the two ways back live: the boss can send a
+ * statement back for Finance to fix, and an admin can reopen the batch itself.
+ * Both belong on the page that lists what is closed, because that is where
+ * somebody goes looking for the one that is wrong.
  */
-export default async function IncomePage({
+export default async function ClosedBatchesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; status?: string; q?: string }>;
 }) {
   const user = await requirePermission("accounting.view");
-  const { month } = await searchParams;
+  const { month, status, q } = await searchParams;
 
-  const sheet = await incomeSheet(month);
+  const sheet = await incomeSheet(month, status, q);
+  const canReopen = can(user.role, "batch.close");
+
+  /* Kept in the links so one filter does not silently drop another. */
+  const withParams = (next: Record<string, string | undefined>) => {
+    const params = new URLSearchParams();
+    const merged = { month, status, q, ...next };
+    for (const [key, value] of Object.entries(merged)) {
+      if (value) params.set(key, value);
+    }
+    const query = params.toString();
+    return query ? `?${query}` : "?";
+  };
+
+  const states = [
+    { key: "", label: "All", count: sheet.total },
+    { key: "RETURNED", label: "Sent back", count: sheet.counts.returned },
+    { key: "SUBMITTED", label: "With the boss", count: sheet.counts.submitted },
+    { key: "CONFIRMED", label: "Confirmed", count: sheet.counts.confirmed },
+  ];
+
+  const pill =
+    "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors";
 
   return (
     <>
       <PageHeader
-        title="Income"
-        description="What each closed flight made. The figures are worked out when Finance shuts the books and frozen there — then the boss reviews them."
+        title="Closed batches"
+        description="What each closed batch made. The figures are worked out when Finance shuts the books and frozen there — then the boss reviews them."
       />
       <FinanceNav tabs={financeTabs(user.role)} />
 
-      {sheet.months.length > 1 ? (
-        <div className="mb-4 flex flex-wrap gap-1.5">
-          {[{ key: "", label: "Every month" }, ...sheet.months].map((option) => {
-            const active = (month ?? "") === option.key;
-            return (
-              <Link
-                key={option.key || "all"}
-                href={option.key ? `?month=${option.key}` : "?"}
-                className={cn(
-                  "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                  active
-                    ? "border-foreground/25 bg-accent text-foreground"
-                    : "border-transparent text-muted-foreground hover:bg-accent"
-                )}
+      {/*
+        Sent back, and said first.
+
+        A returned statement is the only row on this page that is somebody's
+        job today: the boss has read it, disagreed, and written down why. It
+        is easy to miss as a coloured chip in a long table, so it gets its own
+        block at the top with the reason and a way straight into the batch.
+      */}
+      {sheet.returned.length > 0 ? (
+        <div className="mb-4 overflow-hidden rounded-xl border border-destructive/30 bg-destructive/[0.05]">
+          <p className="border-b border-destructive/20 px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-destructive">
+            <Undo2 className="mr-1.5 inline h-3.5 w-3.5" />
+            {sheet.returned.length === 1
+              ? "1 batch was sent back to be fixed"
+              : `${sheet.returned.length} batches were sent back to be fixed`}
+          </p>
+          <ul className="divide-y divide-destructive/15">
+            {sheet.returned.map((row) => (
+              <li
+                key={row.batchId}
+                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-5 py-2.5 text-sm"
               >
-                {option.label}
-              </Link>
-            );
-          })}
+                <Link
+                  href={`/app/shipments/${row.batchId}`}
+                  className="font-mono text-xs font-semibold hover:underline"
+                >
+                  {row.batchNumber}
+                </Link>
+                <span className="min-w-0 flex-1 text-muted-foreground">
+                  {row.reviewNote?.trim()
+                    ? `“${row.reviewNote.trim()}”`
+                    : "No reason was written down."}
+                  {row.reviewedBy ? (
+                    <span className="ml-1.5 text-xs">— {row.reviewedBy}</span>
+                  ) : null}
+                </span>
+                <Link
+                  href={`/app/shipments/${row.batchId}#batch-costs`}
+                  className="text-xs font-medium text-brand hover:underline"
+                >
+                  Open it and fix it →
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 
@@ -69,10 +125,104 @@ export default async function IncomePage({
         </p>
       ) : null}
 
-      <IncomeSheetTable
-        sheet={sheet}
-        canReview={can(user.role, "statement.review")}
-      />
+      {/*
+        Find one, or narrow to a kind. Three controls on one line, because a
+        register of a hundred batches is looked at with a batch number in mind
+        far more often than it is browsed.
+      */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <form method="get" className="relative">
+          {month ? <input type="hidden" name="month" value={month} /> : null}
+          {status ? <input type="hidden" name="status" value={status} /> : null}
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="Batch number, who closed it, the boss's note…"
+            className="h-9 w-72 pl-9 text-sm"
+            aria-label="Search closed batches"
+          />
+        </form>
+
+        <div className="flex flex-wrap gap-1.5">
+          {states.map((state) => {
+            const active = (status ?? "") === state.key;
+            return (
+              <Link
+                key={state.key || "all"}
+                href={withParams({ status: state.key || undefined })}
+                className={cn(
+                  pill,
+                  active
+                    ? "border-foreground/25 bg-accent text-foreground"
+                    : "border-transparent text-muted-foreground hover:bg-accent",
+                  /* A sent-back count is worth colouring even unselected. */
+                  !active && state.key === "RETURNED" && state.count > 0
+                    ? "text-destructive"
+                    : ""
+                )}
+              >
+                {state.label}
+                {state.count > 0 ? (
+                  <span className="ml-1.5 tabular-nums opacity-70">
+                    {state.count}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
+        </div>
+
+        {sheet.months.length > 1 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {[{ key: "", label: "Every month" }, ...sheet.months].map((option) => {
+              const active = (month ?? "") === option.key;
+              return (
+                <Link
+                  key={option.key || "all"}
+                  href={withParams({ month: option.key || undefined })}
+                  className={cn(
+                    pill,
+                    active
+                      ? "border-foreground/25 bg-accent text-foreground"
+                      : "border-transparent text-muted-foreground hover:bg-accent"
+                  )}
+                >
+                  {option.label}
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {/* Only when something is actually filtered, and it says what it will
+            undo rather than a bare "clear". */}
+        {month || status || q ? (
+          <Link
+            href="?"
+            className="text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            Show every closed batch
+          </Link>
+        ) : null}
+      </div>
+
+      {sheet.rows.length === 0 && sheet.total > 0 ? (
+        <p className="mb-4 rounded-xl border border-dashed px-5 py-8 text-center text-sm text-muted-foreground">
+          Nothing matches that. {sheet.total} closed{" "}
+          {sheet.total === 1 ? "batch" : "batches"} in all —{" "}
+          <Link href="?" className="text-brand hover:underline">
+            show them
+          </Link>
+          .
+        </p>
+      ) : (
+        <IncomeSheetTable
+          sheet={sheet}
+          canReview={can(user.role, "statement.review")}
+          canReopen={canReopen}
+        />
+      )}
     </>
   );
 }

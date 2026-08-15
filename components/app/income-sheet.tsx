@@ -2,18 +2,18 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { Check, Clock, Undo2 } from "lucide-react";
+import { Check, Clock, LockOpen, Undo2 } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
-import { reviewStatement } from "@/lib/actions/batches";
+import { reopenBatch, reviewStatement } from "@/lib/actions/batches";
 import type { ActionResult } from "@/lib/actions/types";
 import type { IncomeRow, IncomeSheet } from "@/lib/income";
 import { formatLocal } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
-/** Whole dollars: these are flights, not invoices. */
+/** Whole dollars: these are batches, not invoices. */
 const usd = (n: number | null) =>
   n === null ? "—" : n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 /** A per-kilo rate. Two places, because 12.5 and 1.8 are the whole point. */
@@ -42,25 +42,29 @@ const STATE: Record<
 };
 
 /**
- * What each closed flight made, and whether the boss has agreed.
+ * What each closed batch made, and whether the boss has agreed.
  *
- * Not a live grid. Every row is a statement written on the day its flight was
+ * Not a live grid. Every row is a statement written on the day its batch was
  * shut, in the two halves the department has always drawn — what landed on the
  * left, what was paid for on the right — plus the two things that leave a
- * flight without being paid for: cargo carried onto another batch, and cargo
+ * batch without being paid for: cargo carried onto another batch, and cargo
  * given up on.
  *
  * The figures do not move again. That is the point of closing: a payment
  * arriving next week still changes what its customer owes, and still shows up
- * on that customer's account, but it does not rewrite what July's flight was
+ * on that customer's account, but it does not rewrite what July's batch was
  * reported to have earned after the boss signed it.
  */
 export function IncomeSheetTable({
   sheet,
   canReview,
+  canReopen = false,
 }: {
   sheet: IncomeSheet;
   canReview: boolean;
+  /** Reopening the batch itself, which is a bigger door than sending a
+      statement back — it lets costs and payments land on it again. */
+  canReopen?: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState<string | null>(null);
@@ -68,8 +72,21 @@ export function IncomeSheetTable({
     ActionResult<{ status: string }>,
     FormData
   >(reviewStatement, { ok: true });
+  const [reopenState, reopen] = useActionState<
+    ActionResult<Record<string, never>>,
+    FormData
+  >(reopenBatch, { ok: true });
+  /** Which row is showing the reopen box. Asking for a reason is the point. */
+  const [reopening, setReopening] = useState<string | null>(null);
 
   const { rows, totals } = sheet;
+  /*
+    Sent-back rows are shown but not counted, because their batch is open
+    again. With one on screen and nothing else, the Total reads zero beside a
+    row of real figures — correct, and indistinguishable from broken unless it
+    says so.
+  */
+  const excluded = rows.filter((row) => row.status === "RETURNED").length;
   const cell = "px-2 py-2 text-right tabular-nums";
   const head =
     "px-2 py-1.5 text-right text-[11px] font-medium uppercase tracking-wide";
@@ -83,7 +100,7 @@ export function IncomeSheetTable({
         <p className="font-medium">{t("No batches have been closed yet")}</p>
         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
           {t(
-            "A flight lands here when Finance shuts its books. That is when the maths is done and the figures are frozen — until then it is still moving, and it is on the Batches board."
+            "A batch lands here when Finance shuts its books. That is when the maths is done and the figures are frozen — until then it is still moving, and it is on the Batches board."
           )}
         </p>
       </div>
@@ -208,6 +225,11 @@ export function IncomeSheetTable({
             <tr className="border-t-2 bg-muted/30 font-semibold">
               <td className="px-2 py-2 text-xs uppercase tracking-wide">
                 {t("Total")}
+                {excluded > 0 ? (
+                  <span className="ml-1.5 font-normal normal-case tracking-normal text-[11px] text-muted-foreground">
+                    {t("without")} {excluded} {t(excluded === 1 ? "sent back" : "sent back")}
+                  </span>
+                ) : null}
               </td>
               <td />
               <td className={cell}>{totals.kg.toFixed(1)}</td>
@@ -239,7 +261,7 @@ export function IncomeSheetTable({
 
       <p className="mt-2 text-xs text-muted-foreground">
         {t(
-          "Each row is frozen at the day its flight closed, including the exchange rate. The Total row's rates are per kilo across the period, not column sums."
+          "Each row is frozen at the day its batch closed, including the exchange rate. The Total row's rates are per kilo across the period, not column sums."
         )}
       </p>
 
@@ -368,6 +390,70 @@ export function IncomeSheetTable({
                     </div>
                     <FormError state={state} />
                   </form>
+                ) : null}
+
+                {/*
+                  The way back into the batch itself.
+
+                  Sending a statement back reopens the books for Finance to
+                  correct the figures. Reopening the BATCH is bigger: cargo can
+                  move, costs can land, the statement is torn up. Both belong
+                  here, because this is the page somebody is on when they find
+                  the one that is wrong — but they are not the same button and
+                  they do not look like it.
+                */}
+                {canReopen ? (
+                  reopening === row.batchId ? (
+                    <form
+                      action={reopen}
+                      className="flex flex-wrap items-end gap-2 border-t bg-muted/25 px-5 py-3"
+                    >
+                      <input type="hidden" name="batchId" value={row.batchId} />
+                      <label className="flex min-w-0 flex-1 flex-col gap-1">
+                        <span className="text-[11px] text-muted-foreground">
+                          {t("Why is it being reopened")}
+                        </span>
+                        <Input
+                          name="reason"
+                          required
+                          minLength={4}
+                          placeholder={t("A customs receipt turned up late")}
+                          className="h-9 bg-card text-sm"
+                        />
+                      </label>
+                      <SubmitButton
+                        variant="ghost"
+                        className="h-9 gap-1.5 border border-signal/35 bg-signal/10 px-3 text-signal hover:bg-signal/20 hover:text-signal"
+                        pendingLabel={t("Reopening…")}
+                      >
+                        <LockOpen className="h-4 w-4" />
+                        {t("Reopen the batch")}
+                      </SubmitButton>
+                      <button
+                        type="button"
+                        onClick={() => setReopening(null)}
+                        className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {t("Leave it closed")}
+                      </button>
+                      <p className="w-full text-[11px] text-muted-foreground">
+                        {t(
+                          "Its statement is torn up and the figures start moving again. The boss is told."
+                        )}
+                      </p>
+                      <FormError state={reopenState} />
+                    </form>
+                  ) : (
+                    <div className="border-t px-5 py-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setReopening(row.batchId)}
+                        className="text-xs text-muted-foreground underline hover:text-foreground"
+                      >
+                        {t("Reopen this batch")}
+                      </button>
+                    </div>
+                  )
                 ) : null}
               </section>
             ))

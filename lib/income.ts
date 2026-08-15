@@ -4,17 +4,17 @@ import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 /**
- * What each closed flight made — the statements, not a running total.
+ * What each closed batch made — the statements, not a running total.
  *
  * The owner's rule, in his words: when we close a batch is when we do that
  * maths, and then it goes to the boss. So this page is not a live grid that
- * keeps moving. It is the register of flights that have been shut, each
+ * keeps moving. It is the register of batches that have been shut, each
  * carrying the figures as they stood on the day, and each either waiting on
  * the boss or signed off by him.
  *
  * Nothing here is recomputed. A payment that lands next week is still recorded
  * against its invoice and still changes what that customer owes — it does not
- * rewrite what a flight was reported to have made in July.
+ * rewrite what a batch was reported to have made in July.
  */
 export type IncomeRow = {
   batchId: string;
@@ -54,6 +54,11 @@ export type IncomeSheet = {
   rows: IncomeRow[];
   months: { key: string; label: string }[];
   awaiting: number;
+  /** Sent back by the boss: the ones somebody has to act on. */
+  returned: IncomeRow[];
+  /** How many closed batches there are in total, before any filter. */
+  total: number;
+  counts: { submitted: number; confirmed: number; returned: number };
   totals: {
     kg: number;
     worthUsd: number;
@@ -68,7 +73,11 @@ export type IncomeSheet = {
   };
 };
 
-export async function incomeSheet(month?: string): Promise<IncomeSheet> {
+export async function incomeSheet(
+  month?: string,
+  status?: string,
+  query?: string
+): Promise<IncomeSheet> {
   const statements = await prisma.batchStatement.findMany({
     orderBy: { submittedAt: "desc" },
     take: 300,
@@ -149,16 +158,37 @@ export async function incomeSheet(month?: string): Promise<IncomeSheet> {
       }),
     }));
 
-  const rows = month ? all.filter((row) => row.month === month) : all;
+  /*
+    Filtered in three independent ways, because they answer three different
+    questions: which month am I closing off, what still needs somebody, and
+    where is GZ-0028.
+
+    The month pills and the counts are always computed from EVERY closed batch,
+    never from the filtered set — a filter that hides its own escape route is
+    how somebody ends up believing there is nothing to do.
+  */
+  const q = query?.trim().toLowerCase() ?? "";
+  const rows = all.filter(
+    (row) =>
+      (!month || row.month === month) &&
+      (!status || row.status === status) &&
+      (!q ||
+        row.batchNumber.toLowerCase().includes(q) ||
+        (row.closedLabel ?? "").includes(q) ||
+        (row.submittedBy ?? "").toLowerCase().includes(q) ||
+        (row.reviewedBy ?? "").toLowerCase().includes(q) ||
+        (row.note ?? "").toLowerCase().includes(q) ||
+        (row.reviewNote ?? "").toLowerCase().includes(q))
+  );
 
   /*
     A sent-back statement stays on the page and stays out of the totals.
 
-    Its flight is open again — costs can land on it, payments can arrive — so
+    Its batch is open again — costs can land on it, payments can arrive — so
     the figures on that row are a snapshot of a close that was rejected. The
     row is worth showing, because Finance needs to see the boss's note and
     what he was looking at; adding it to a total of what the business made
-    would be counting a flight that has not finished.
+    would be counting a batch that has not finished.
   */
   const counted = rows.filter((row) => row.status !== "RETURNED");
   const sum = (pick: (row: IncomeRow) => number | null) =>
@@ -171,6 +201,13 @@ export async function incomeSheet(month?: string): Promise<IncomeSheet> {
     rows,
     months,
     awaiting: all.filter((row) => row.status === "SUBMITTED").length,
+    returned: all.filter((row) => row.status === "RETURNED"),
+    total: all.length,
+    counts: {
+      submitted: all.filter((row) => row.status === "SUBMITTED").length,
+      confirmed: all.filter((row) => row.status === "CONFIRMED").length,
+      returned: all.filter((row) => row.status === "RETURNED").length,
+    },
     totals: {
       kg,
       worthUsd,

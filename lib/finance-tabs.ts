@@ -57,7 +57,7 @@ export function financeTabs(role: Role): FinanceTab[] {
         agreed, who has not paid. This one is read.
       */
       href: "/app/finance/income",
-      label: "Income",
+      label: "Closed batches",
       visible: can(role, "accounting.view"),
     },
     {
