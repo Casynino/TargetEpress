@@ -22,6 +22,8 @@ import type { Locale } from "@/lib/locale";
  */
 
 const ZH: Record<string, string> = {
+  "Ordered by what needs a phone call most":
+    "按最需要打电话的顺序排列",
   "Leave the account blank and it is recorded as still to pay.":
     "不填账户，则记为尚未支付。",
   "A customs receipt turned up late": "海关单据晚到了",

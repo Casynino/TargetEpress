@@ -109,35 +109,47 @@ export default async function FollowUpPage({
 
       <CollectionsNav canVerify={can(user.role, "payment.verify")} />
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {FOLLOW_UP_FILTERS.map((option) => {
-          const count = rows.filter((row) => matchesFilter(row, option.key)).length;
-          const isActive = option.key === active;
-          return (
-            <Link
-              key={option.key}
-              href={`/app/collections/follow-up?filter=${option.key}`}
-              title={t(locale, option.hint)}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
-                isActive
-                  ? "border-brand bg-brand text-brand-foreground"
-                  : "hover:bg-accent"
-              }`}
-            >
-              {t(locale, option.label)}
-              <span
-                className={`rounded-full px-1.5 text-xs tabular-nums ${
-                  isActive ? "bg-white/20" : "bg-muted text-muted-foreground"
+      <div className="mb-4 overflow-hidden rounded-xl border bg-card shadow-soft">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+        {/*
+          Filtering, made to look like filtering.
+
+          It was a second row of pills directly under the navigation pills —
+          same shape, same size, same place — so the eye could not tell which
+          row moved between pages and which narrowed the list. These are a
+          segmented control now, joined into one block, sitting inside the card
+          they act on rather than floating above it.
+        */}
+        <div className="inline-flex overflow-hidden rounded-lg border">
+          {FOLLOW_UP_FILTERS.map((option) => {
+            const count = rows.filter((row) => matchesFilter(row, option.key)).length;
+            const isActive = option.key === active;
+            return (
+              <Link
+                key={option.key}
+                href={`/app/collections/follow-up?filter=${option.key}`}
+                title={t(locale, option.hint)}
+                className={`inline-flex items-center gap-1.5 border-r px-3 py-1.5 text-xs font-medium transition-colors last:border-r-0 ${
+                  isActive
+                    ? "bg-brand text-brand-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 }`}
               >
-                {count}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-
-      <div className="mb-4 flex flex-wrap gap-6 rounded-xl border bg-card p-4 text-sm shadow-soft">
+                {t(locale, option.label)}
+                <span
+                  className={`tabular-nums ${isActive ? "opacity-80" : "opacity-60"}`}
+                >
+                  {count}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+          <p className="text-xs text-muted-foreground">
+            {t(locale, "Ordered by what needs a phone call most")}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-6 px-4 py-3 text-sm">
         <div>
           <p className="text-xs text-muted-foreground">
             {t(locale, "Cargo shown")}
@@ -209,7 +221,8 @@ export default async function FollowUpPage({
           <p className="font-mono text-xs text-muted-foreground">
             {formatUsd(storageAtRisk)}
           </p>
-        </div>
+          </div>
+      </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-soft">
