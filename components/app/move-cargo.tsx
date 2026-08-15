@@ -57,10 +57,17 @@ export function MoveCargo({
         </button>
       </div>
 
-      {/* One line across the row: where it goes, why, and the button. */}
+      {/*
+        One line across the row: where it goes, why, and the button.
+
+        The three controls keep the app's standard height. They used to be
+        squeezed to h-8 next to a button that is h-11 like every button here,
+        which left the fields both clipped and visibly shorter than the thing
+        they sit beside.
+      */}
       <form action={action} className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="shipmentId" value={shipmentId} />
-        <NativeSelect name="toBatchId" required className="h-8 w-56 text-sm">
+        <NativeSelect name="toBatchId" required className="w-56">
           <option value="">{t("Move it to…")}</option>
           {batches.map((b) => (
             <option key={b.id} value={b.id}>
@@ -73,7 +80,7 @@ export function MoveCargo({
           required
           minLength={3}
           placeholder={t("e.g. scanned onto the wrong pallet")}
-          className="h-8 min-w-[16rem] flex-1 text-sm"
+          className="min-w-[16rem] flex-1"
         />
         <SubmitButton size="sm" variant="brand" pendingLabel={t("Moving…")}>
           {t("Move")}
