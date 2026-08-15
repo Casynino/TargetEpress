@@ -72,8 +72,18 @@ export async function ReportViewer({
             <Download className="h-3.5 w-3.5" />
             {t(locale, "Spreadsheet")}
           </a>
+          {/*
+            `&`, never `?`.
+
+            This built its own separator — `?` when there were no filters — and
+            produced /api/finance/reports?report=profit-loss?format=pdf. The
+            query string already began at `?report=`, so the second one made
+            "profit-loss?format=pdf" the report name, and every filter-free PDF
+            click answered {"error":"No such report"}. The separator was never
+            in question: there is always a parameter in front of this one.
+          */}
           <a
-            href={`/api/finance/reports?report=${report.key}${q}${q ? "&" : "?"}format=pdf`}
+            href={`/api/finance/reports?report=${report.key}${q}&format=pdf`}
             className="focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-accent"
           >
             <FileText className="h-3.5 w-3.5" />

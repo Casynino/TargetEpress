@@ -68,7 +68,11 @@ export const REPORTS = [
   { key: "mobile-money", label: "Mobile money" },
   { key: "petty-cash", label: "Cash and petty cash" },
   { key: "monthly-summary", label: "Monthly summary" },
-  { key: "financial-statement", label: "Financial statement" },
+  /* "Position summary", not "Financial statement": the statement is now a real
+     multi-section document with its own download at the top of that section,
+     and two different things under one name on one page is exactly the
+     confusion to avoid. This is what it always was — the position on a page. */
+  { key: "financial-statement", label: "Position summary" },
 ] as const;
 
 export type ReportKey = (typeof REPORTS)[number]["key"];
@@ -731,9 +735,9 @@ async function financialStatement(f: ReportFilters): Promise<ReportResult> {
 
   return {
     key: "financial-statement",
-    title: "Financial statement",
+    title: "Position summary",
     caption: rate
-      ? `The whole position on one page, in USD, at the published rate of ${rate.toLocaleString("en-US")}.`
+      ? `The whole position on one page, in USD, at the published rate of ${rate.toLocaleString("en-US")}. The full statement, in both currencies, is the document above.`
       : "The whole position on one page, in USD. No exchange rate is published, so shilling balances are shown at their recorded dollar value.",
     columns: [
       { key: "line", label: "Line" },

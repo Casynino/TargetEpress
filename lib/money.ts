@@ -48,3 +48,21 @@ export function formatUsd(amount: number) {
 export function toLocal(usd: number, rate: number): number {
   return Math.round(usd * rate);
 }
+
+/**
+ * A stored dollar figure, written the way this office reads money.
+ *
+ * Everything is priced in dollars because that is how air freight is sold.
+ * Nobody in Dar es Salaam thinks in dollars: the till holds shillings, the
+ * customer pays shillings, the salary is a shilling figure. A screen printing
+ * USD is asking its reader to convert in their head, at whatever rate they
+ * happen to remember, before they can answer a question about their own money.
+ *
+ * One function rather than a `rate ? … : …` at each call site — which is how
+ * the ledger ended up leading in shillings while the profit page beside it led
+ * in dollars. With no rate published there is nothing honest to convert with,
+ * so the dollar figure stands rather than a guess.
+ */
+export function formatShillings(usd: number, rate: number | null) {
+  return rate === null ? formatUsd(usd) : formatLocal(usd * rate);
+}

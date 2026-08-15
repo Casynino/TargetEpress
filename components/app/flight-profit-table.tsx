@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
 
-import { formatUsd } from "@/lib/fx";
+import { currentRateValue, formatShillings } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -39,6 +39,11 @@ export type FlightProfit = {
  */
 export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }) {
   const locale = await viewerLocale();
+  /* Shillings, like every other money figure on the boss's screen. The dollar
+     amounts are what the invoices say, and the profit page keeps them one tap
+     away — this table is the one he scans, so it speaks his currency. */
+  const rate = await currentRateValue();
+  const money = (usd: number) => formatShillings(usd, rate);
 
   if (flights.length === 0) {
     return (
@@ -101,23 +106,23 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
                     ) : null}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums">
-                    {formatUsd(f.revenue)}
+                    {money(f.revenue)}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-success">
-                    {formatUsd(f.collected)}
+                    {money(f.collected)}
                   </td>
                   <td
                     className={`px-3 py-2.5 text-right tabular-nums ${
                       f.outstanding > 0 ? "text-destructive" : "text-muted-foreground"
                     }`}
                   >
-                    {formatUsd(f.outstanding)}
+                    {money(f.outstanding)}
                   </td>
                   {/* Money out, in the same red as everywhere else it is
                       shown. A cost set in grey on the one screen that compares
                       batches is the column a reader skips. */}
                   <td className="px-3 py-2.5 text-right tabular-nums text-destructive">
-                    {formatUsd(f.costs)}
+                    {money(f.costs)}
                   </td>
                   {/* Green is reserved for money in the bank, which on this
                       row is Collected. An expected profit is set plain, and
@@ -127,7 +132,7 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
                       loss ? "text-destructive" : ""
                     }`}
                   >
-                    {loss ? `(${formatUsd(Math.abs(f.profit))})` : formatUsd(f.profit)}
+                    {loss ? `(${money(Math.abs(f.profit))})` : money(f.profit)}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums">
                     {/* Nothing billed means no margin yet, not a margin of zero. */}

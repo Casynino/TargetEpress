@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plane, TrendingDown, TrendingUp } from "lucide-react";
+import { FileText, Plane, TrendingDown, TrendingUp } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { SectionLabel } from "@/components/app/section-label";
@@ -13,8 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import { financeTabs } from "@/lib/finance-tabs";
-import { formatDate } from "@/lib/format";
-import { formatUsd } from "@/lib/fx";
+import { formatDate, formatMonthYear, toNumber } from "@/lib/format";
+import { currentRate, formatShillings, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { financeDashboard } from "@/lib/finance-dashboard";
 import { profitAndLoss, profitByDispatch, windowFor } from "@/lib/profit";
@@ -46,11 +46,19 @@ export default async function FinanceReportsPage({
     from?: string;
     to?: string;
     batch?: string;
+    currency?: string;
   }>;
 }) {
   const user = await requirePermission("profit.view");
   const locale = await viewerLocale();
-  const { period, report: rawReport, from, to, batch } = await searchParams;
+  const {
+    period,
+    report: rawReport,
+    from,
+    to,
+    batch,
+    currency,
+  } = await searchParams;
 
   const asDate0 = (v?: string) => {
     if (!v) return null;
@@ -107,7 +115,7 @@ export default async function FinanceReportsPage({
   if (batch) reportQuery.set("batch", batch);
   if (period) reportQuery.set("period", period);
 
-  const [pl, dispatches, report, flights, prior, dash] = await Promise.all([
+  const [pl, dispatches, report, flights, prior, dash, rateRow] = await Promise.all([
     profitAndLoss(window),
     profitByDispatch(8),
     runReport(reportKey, {
@@ -126,10 +134,74 @@ export default async function FinanceReportsPage({
     profitAndLoss(picked.previous),
     /* Everything else on this page, from the one function Admin reads too. */
     financeDashboard(window, picked.previous, { batchId: batch ?? null }),
+    /* The published rate, so this page can talk about money in the currency
+       the office actually holds. */
+    currentRate(),
   ]);
 
   const profitable = pl.profit >= 0;
   const biggest = pl.categories[0]?.amount ?? 0;
+
+  /*
+    SHILLINGS LEAD, DOLLARS STAY.
+
+    Every figure in the database is a dollar figure, because that is how air
+    freight is priced — and this page printed dollars straight through, so the
+    owner read his own profit in a currency nobody in the office holds. The
+    ledger, the overview and the customer profile had already been turned round
+    to lead in shillings; the profit page had not, which is why the answer to
+    "why do I keep seeing USD" was simply "because this page was never
+    converted".
+
+    Both currencies stay reachable. The switch decides which one leads, the
+    headline cards and the statement print both at once, and the rate that did
+    the converting is stamped underneath so nobody has to guess which one was
+    used.
+  */
+  const rate = rateRow ? toNumber(rateRow.rate) : null;
+  const inUsd = currency === "usd" || rate === null;
+  const money = (amount: number) =>
+    inUsd ? formatUsd(amount) : formatShillings(amount, rate);
+  /** The same figure in the other currency — null when there is no rate. */
+  const alt = (amount: number) =>
+    rate === null ? null : inUsd ? formatShillings(amount, rate) : formatUsd(amount);
+
+  /*
+    What the statement can be run for: the last eighteen months, and the last
+    three years. Calendar periods only — a statement is a thing with a name
+    somebody can ask for ("send me August") rather than an arbitrary stretch,
+    and the From/To boxes further down already cover the arbitrary case.
+  */
+  const statementPeriods = (() => {
+    const today = new Date();
+    const months = Array.from({ length: 18 }, (_, i) => {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      return {
+        value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+        label: formatMonthYear(d, locale),
+      };
+    });
+    const years = [0, 1, 2].map((i) => today.getFullYear() - i);
+    return { months, years };
+  })();
+
+  /** Keeps the rest of the URL intact when one control changes. */
+  const withParams = (next: Record<string, string | undefined>) => {
+    const params = new URLSearchParams();
+    const merged: Record<string, string | undefined> = {
+      report: reportKey,
+      period,
+      from,
+      to,
+      batch,
+      currency,
+      ...next,
+    };
+    for (const [key, value] of Object.entries(merged)) {
+      if (value) params.set(key, value);
+    }
+    return `/app/finance/reports?${params.toString()}`;
+  };
 
   return (
     <>
@@ -144,33 +216,87 @@ export default async function FinanceReportsPage({
       <FinanceNav tabs={financeTabs(user.role)} />
 
 
-      <div className="mb-4 flex flex-wrap gap-1.5">
+      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/*
+            Every stretch the owner asked for, and each one drives the whole
+            page — hero, cards, the table underneath and the download — rather
+            than only the figure at the top.
+          */}
+          {[
+            { key: "today", label: "Today" },
+            { key: "week", label: "This week" },
+            { key: "month", label: "This month" },
+            { key: "quarter", label: "This quarter" },
+            { key: "year", label: "This year" },
+          ].map((option) => (
+            <Chip
+              key={option.key}
+              href={withParams({
+                period: option.key,
+                from: undefined,
+                to: undefined,
+              })}
+              active={!typedRange && (period ?? "month") === option.key}
+            >
+              {t(locale, option.label)}
+            </Chip>
+          ))}
+          {typedRange ? (
+            <span className="text-xs text-muted-foreground">
+              {t(locale, "Showing the dates you typed above.")}
+            </span>
+          ) : null}
+        </div>
+
         {/*
-          Every stretch the owner asked for, and each one drives the whole
-          page — hero, cards, the table underneath and the download — rather
-          than only the figure at the top.
+          Which currency the page reads in.
+
+          Shillings by default, because that is the money the office holds and
+          the customer hands over. Dollars are one tap away and never hidden —
+          the cards and the statement print both at once — because the invoice,
+          the rate book and every stored figure are dollars, and Finance has to
+          be able to check one against the other.
         */}
-        {[
-          { key: "today", label: "Today" },
-          { key: "week", label: "This week" },
-          { key: "month", label: "This month" },
-          { key: "quarter", label: "This quarter" },
-          { key: "year", label: "This year" },
-        ].map((option) => (
-          <Chip
-            key={option.key}
-            href={`/app/finance/reports?report=${reportKey}&period=${option.key}`}
-            active={!typedRange && (period ?? "month") === option.key}
+        {rate === null ? null : (
+          <div
+            className="inline-flex overflow-hidden rounded-full border"
+            role="group"
+            aria-label={t(locale, "Currency")}
           >
-            {t(locale, option.label)}
-          </Chip>
-        ))}
-        {typedRange ? (
-          <span className="text-xs text-muted-foreground">
-            {t(locale, "Showing the dates you typed above.")}
-          </span>
-        ) : null}
+            {[
+              { key: "tzs", label: "TSh", on: !inUsd },
+              { key: "usd", label: "USD", on: inUsd },
+            ].map((option) => (
+              <Link
+                key={option.key}
+                href={withParams({
+                  currency: option.key === "usd" ? "usd" : undefined,
+                })}
+                aria-current={option.on ? "true" : undefined}
+                className={`focus-ring px-3 py-1 text-xs font-semibold transition-colors ${
+                  option.on
+                    ? "bg-brand text-brand-foreground"
+                    : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                {option.label}
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
+
+      <p className="mb-4 text-[11px] text-muted-foreground">
+        {rate === null
+          ? t(
+              locale,
+              "No exchange rate has been published, so every figure is shown in dollars. Publish one on the Accounts tab and this page reads in shillings."
+            )
+          : `${t(locale, inUsd ? "Reading in dollars" : "Reading in shillings")} · USD 1 = TSh ${rate.toLocaleString("en-US")} · ${t(locale, "in force since")} ${formatDate(rateRow?.effectiveFrom, locale)}${
+              rateRow?.setBy?.name ? `, ${t(locale, "set by")} ${rateRow.setBy.name}` : ""
+            }`}
+      </p>
 
       {/*
         Six figures, each against the stretch before it.
@@ -196,27 +322,32 @@ export default async function FinanceReportsPage({
           const cells: {
             k: string;
             v: string;
+            /** The same money in the other currency, so both are always here. */
+            alt: string | null;
             sub: string;
             tone: string;
             wash: string;
           }[] = [
             {
               k: "Revenue",
-              v: formatUsd(pl.revenue),
+              v: money(pl.revenue),
+              alt: alt(pl.revenue),
               sub: change(pl.revenue, prior.revenue),
               tone: "text-foreground",
               wash: pl.revenue >= prior.revenue ? "from-success/10" : "from-destructive/10",
             },
             {
               k: "Total expenses",
-              v: formatUsd(pl.costs),
+              v: money(pl.costs),
+              alt: alt(pl.costs),
               sub: change(pl.costs, prior.costs),
               tone: "text-destructive",
               wash: pl.costs <= prior.costs ? "from-success/10" : "from-destructive/10",
             },
             {
               k: pl.profit < 0 ? "Net loss" : "Net profit",
-              v: formatUsd(Math.abs(pl.profit)),
+              v: money(Math.abs(pl.profit)),
+              alt: alt(Math.abs(pl.profit)),
               sub: change(pl.profit, prior.profit),
               tone: pl.profit < 0 ? "text-destructive" : "text-success",
               wash: pl.profit >= prior.profit ? "from-success/10" : "from-destructive/10",
@@ -224,6 +355,8 @@ export default async function FinanceReportsPage({
             {
               k: "Profit margin",
               v: pl.margin === null ? "—" : `${pl.margin.toFixed(1)}%`,
+              /* A percentage has no currency. */
+              alt: null,
               sub:
                 prior.margin === null || pl.margin === null
                   ? "no margin to compare"
@@ -236,14 +369,16 @@ export default async function FinanceReportsPage({
             },
             {
               k: "Collected",
-              v: formatUsd(pl.cashIn),
+              v: money(pl.cashIn),
+              alt: alt(pl.cashIn),
               sub: change(pl.cashIn, prior.cashIn),
               tone: "text-success",
               wash: pl.cashIn >= prior.cashIn ? "from-success/10" : "from-destructive/10",
             },
             {
               k: "Paid out",
-              v: formatUsd(pl.cashOut),
+              v: money(pl.cashOut),
+              alt: alt(pl.cashOut),
               sub: change(pl.cashOut, prior.cashOut),
               tone: "text-destructive",
               wash: pl.cashOut <= prior.cashOut ? "from-success/10" : "from-destructive/10",
@@ -262,6 +397,12 @@ export default async function FinanceReportsPage({
               >
                 {cell.v}
               </dd>
+              {/* The other currency, always present and deliberately quiet. */}
+              {cell.alt ? (
+                <p className="whitespace-nowrap font-mono text-[11px] tabular-nums text-muted-foreground">
+                  {cell.alt}
+                </p>
+              ) : null}
               <p className="mt-0.5 text-[11px] text-muted-foreground">{cell.sub}</p>
             </div>
           ));
@@ -279,7 +420,7 @@ export default async function FinanceReportsPage({
         <p className="text-xs text-muted-foreground">{pl.window.label}</p>
         <p className="mt-1 flex items-baseline gap-3">
           <span className="font-display text-3xl font-bold tabular-nums">
-            {formatUsd(pl.profit)}
+            {money(pl.profit)}
           </span>
           <span
             className={`inline-flex items-center gap-1 text-sm font-medium ${
@@ -295,14 +436,21 @@ export default async function FinanceReportsPage({
               ? t(locale, "no revenue yet")
               : `${pl.margin.toFixed(1)}% ${t(locale, "margin")}`}
           </span>
+          {/* The same profit in the other currency, beside the headline rather
+              than a page away — this is the one figure somebody quotes. */}
+          {alt(pl.profit) ? (
+            <span className="font-mono text-sm tabular-nums text-muted-foreground">
+              {alt(pl.profit)}
+            </span>
+          ) : null}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {formatUsd(pl.revenue)} {t(locale, "billed on")} {pl.invoices}{" "}
+          {money(pl.revenue)} {t(locale, "billed on")} {pl.invoices}{" "}
           {t(
             locale,
             pl.invoices === 1 ? "confirmed invoice" : "confirmed invoices"
           )}
-          , {t(locale, "less")} {formatUsd(pl.costs)}{" "}
+          , {t(locale, "less")} {money(pl.costs)}{" "}
           {t(
             locale,
             "of costs incurred. Counted from the day the work happened, not the day the money moved."
@@ -324,13 +472,20 @@ export default async function FinanceReportsPage({
           <dl className="mt-4 space-y-2 text-sm">
             <Row
               label={t(locale, "Revenue billed")}
-              value={formatUsd(pl.revenue)}
+              value={money(pl.revenue)}
+              alt={alt(pl.revenue)}
             />
             <Row
               label={t(locale, "Costs incurred")}
-              value={`− ${formatUsd(pl.costs)}`}
+              value={`− ${money(pl.costs)}`}
+              alt={alt(pl.costs)}
             />
-            <Row label={t(locale, "Profit")} value={formatUsd(pl.profit)} strong />
+            <Row
+              label={t(locale, "Profit")}
+              value={money(pl.profit)}
+              alt={alt(pl.profit)}
+              strong
+            />
           </dl>
         </section>
 
@@ -343,12 +498,22 @@ export default async function FinanceReportsPage({
             )}
           </p>
           <dl className="mt-4 space-y-2 text-sm">
-            <Row label={t(locale, "Collected")} value={formatUsd(pl.cashIn)} />
+            <Row
+              label={t(locale, "Collected")}
+              value={money(pl.cashIn)}
+              alt={alt(pl.cashIn)}
+            />
             <Row
               label={t(locale, "Paid out")}
-              value={`− ${formatUsd(pl.cashOut)}`}
+              value={`− ${money(pl.cashOut)}`}
+              alt={alt(pl.cashOut)}
             />
-            <Row label={t(locale, "Net cash")} value={formatUsd(pl.netCash)} strong />
+            <Row
+              label={t(locale, "Net cash")}
+              value={money(pl.netCash)}
+              alt={alt(pl.netCash)}
+              strong
+            />
           </dl>
         </section>
       </div>
@@ -380,7 +545,7 @@ export default async function FinanceReportsPage({
                       )}
                     </span>
                     <span className="font-mono tabular-nums">
-                      {formatUsd(row.amount)}
+                      {money(row.amount)}
                     </span>
                   </div>
                   {/* A bar against the largest category, so the shape of the
@@ -433,9 +598,9 @@ export default async function FinanceReportsPage({
                           ? `${t(locale, "flew")} ${formatDate(batch.departedAt, locale)}`
                           : t(locale, "not departed")}
                         {" · "}
-                        {formatUsd(batch.revenue)} {t(locale, "in")}
+                        {money(batch.revenue)} {t(locale, "in")}
                         {batch.hasCosts
-                          ? `, ${formatUsd(batch.costs)} ${t(locale, "out")}`
+                          ? `, ${money(batch.costs)} ${t(locale, "out")}`
                           : ""}
                       </p>
                     </div>
@@ -446,7 +611,7 @@ export default async function FinanceReportsPage({
                             batch.profit >= 0 ? "text-success" : "text-destructive"
                           }`}
                         >
-                          {formatUsd(batch.profit)}
+                          {money(batch.profit)}
                         </p>
                       ) : (
                         <p className="text-xs text-muted-foreground">
@@ -513,30 +678,30 @@ export default async function FinanceReportsPage({
               { k: "Batches arrived", v: String(dash.volume.batchesArrived), d: null },
               {
                 k: "Revenue",
-                v: formatUsd(pl.revenue),
+                v: money(pl.revenue),
                 d: move(pl.revenue, prior.revenue),
                 up: pl.revenue >= prior.revenue,
               },
               {
                 k: "Collected",
-                v: formatUsd(pl.cashIn),
+                v: money(pl.cashIn),
                 d: move(pl.cashIn, prior.cashIn),
                 up: pl.cashIn >= prior.cashIn,
               },
               {
                 k: "Outstanding",
-                v: formatUsd(dash.revenue.outstandingUsd),
+                v: money(dash.revenue.outstandingUsd),
                 d: null,
               },
               {
                 k: "Expenses",
-                v: formatUsd(pl.costs),
+                v: money(pl.costs),
                 d: move(pl.costs, prior.costs),
                 up: pl.costs <= prior.costs,
               },
               {
                 k: pl.profit < 0 ? "Net loss" : "Net profit",
-                v: formatUsd(Math.abs(pl.profit)),
+                v: money(Math.abs(pl.profit)),
                 d: move(pl.profit, prior.profit),
                 up: pl.profit >= prior.profit,
               },
@@ -579,19 +744,19 @@ export default async function FinanceReportsPage({
               {
                 k: "Most profitable",
                 b: best,
-                v: formatUsd(best.profitUsd),
+                v: money(best.profitUsd),
                 tone: "text-success",
               },
               {
                 k: worst.profitUsd < 0 ? "Losing money" : "Least profitable",
                 b: worst,
-                v: formatUsd(worst.profitUsd),
+                v: money(worst.profitUsd),
                 tone: worst.profitUsd < 0 ? "text-destructive" : "",
               },
               {
                 k: "Most owed on it",
                 b: owed,
-                v: formatUsd(owed.outstandingUsd),
+                v: money(owed.outstandingUsd),
                 tone: "text-signal",
               },
               { k: "Heaviest", b: heaviest, v: `${heaviest.kg.toFixed(0)} kg`, tone: "" },
@@ -631,6 +796,16 @@ export default async function FinanceReportsPage({
       >
         {t(locale, "Batch performance")}
       </SectionLabel>
+      {/* A table this wide cannot carry two figures per cell without becoming
+          unreadable, so it says which currency it is in and where the switch
+          is, rather than leaving the reader to work it out from the symbol. */}
+      <p className="mb-2 text-[11px] text-muted-foreground">
+        {rate === null
+          ? t(locale, "In dollars.")
+          : inUsd
+            ? t(locale, "In dollars. Switch to shillings at the top of the page.")
+            : `${t(locale, "In shillings, converted at")} USD 1 = TSh ${rate.toLocaleString("en-US")}. ${t(locale, "Switch to dollars at the top of the page.")}`}
+      </p>
       <div className="mb-6 overflow-x-auto rounded-xl border bg-card shadow-soft">
         <table className="w-full min-w-[900px] text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -671,23 +846,23 @@ export default async function FinanceReportsPage({
                   <td className="px-4 py-2.5 text-right tabular-nums">{b.cargo}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{b.kg.toFixed(1)}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">
-                    {formatUsd(b.expectedUsd)}
+                    {money(b.expectedUsd)}
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-success">
-                    {formatUsd(b.collectedUsd)}
+                    {money(b.collectedUsd)}
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-destructive">
-                    {formatUsd(b.outstandingUsd)}
+                    {money(b.outstandingUsd)}
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-destructive">
-                    {formatUsd(b.expensesUsd)}
+                    {money(b.expensesUsd)}
                   </td>
                   <td
                     className={`px-4 py-2.5 text-right font-medium tabular-nums ${
                       b.profitUsd < 0 ? "text-destructive" : ""
                     }`}
                   >
-                    {formatUsd(b.profitUsd)}
+                    {money(b.profitUsd)}
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
                     {b.marginPct === null ? "—" : `${b.marginPct}%`}
@@ -736,11 +911,11 @@ export default async function FinanceReportsPage({
           </div>
           <dl className="grid grid-cols-3 gap-px border-b bg-border">
             {[
-              { k: "Expected", v: formatUsd(dash.revenue.expectedUsd), tone: "" },
-              { k: "Collected", v: formatUsd(dash.revenue.collectedUsd), tone: "text-success" },
+              { k: "Expected", v: money(dash.revenue.expectedUsd), tone: "" },
+              { k: "Collected", v: money(dash.revenue.collectedUsd), tone: "text-success" },
               {
                 k: "Outstanding",
-                v: formatUsd(dash.revenue.outstandingUsd),
+                v: money(dash.revenue.outstandingUsd),
                 tone: "text-destructive",
               },
             ].map((cell) => (
@@ -760,9 +935,9 @@ export default async function FinanceReportsPage({
                 <span className="min-w-0 flex-1">
                   {t(locale, ORIGIN_LABELS[row.origin as keyof typeof ORIGIN_LABELS] ?? row.origin)}
                 </span>
-                <span className="tabular-nums">{formatUsd(row.expectedUsd)}</span>
+                <span className="tabular-nums">{money(row.expectedUsd)}</span>
                 <span className="w-24 text-right text-xs tabular-nums text-success">
-                  {formatUsd(row.collectedUsd)} {t(locale, "in")}
+                  {money(row.collectedUsd)} {t(locale, "in")}
                 </span>
               </li>
             ))}
@@ -774,9 +949,9 @@ export default async function FinanceReportsPage({
                 <span className="min-w-0 flex-1 truncate text-muted-foreground">
                   {row.name}
                 </span>
-                <span className="tabular-nums">{formatUsd(row.expectedUsd)}</span>
+                <span className="tabular-nums">{money(row.expectedUsd)}</span>
                 <span className="w-24 text-right tabular-nums text-destructive">
-                  {row.outstandingUsd > 0 ? `${formatUsd(row.outstandingUsd)} owed` : "settled"}
+                  {row.outstandingUsd > 0 ? `${money(row.outstandingUsd)} owed` : "settled"}
                 </span>
               </li>
             ))}
@@ -795,9 +970,9 @@ export default async function FinanceReportsPage({
           </div>
           <dl className="grid grid-cols-3 gap-px border-b bg-border">
             {[
-              { k: "Batch costs", v: formatUsd(dash.expenses.batchUsd) },
-              { k: "Office costs", v: formatUsd(dash.expenses.officeUsd) },
-              { k: "Special", v: formatUsd(dash.expenses.specialUsd) },
+              { k: "Batch costs", v: money(dash.expenses.batchUsd) },
+              { k: "Office costs", v: money(dash.expenses.officeUsd) },
+              { k: "Special", v: money(dash.expenses.specialUsd) },
             ].map((cell) => (
               <div key={cell.k} className="bg-card px-4 py-3">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -816,7 +991,7 @@ export default async function FinanceReportsPage({
                   <span className="min-w-0 flex-1 truncate">
                     {t(locale, EXPENSE_CATEGORY_LABELS[row.category] ?? row.category)}
                   </span>
-                  <span className="tabular-nums">{formatUsd(row.amount)}</span>
+                  <span className="tabular-nums">{money(row.amount)}</span>
                   <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">
                     {Math.round(row.share)}%
                   </span>
@@ -860,20 +1035,20 @@ export default async function FinanceReportsPage({
           </ul>
           <dl className="grid grid-cols-2 gap-px border-t bg-border sm:grid-cols-4">
             {[
-              { k: "Cash", v: formatUsd(dash.position.cashUsd), tone: "" },
+              { k: "Cash", v: money(dash.position.cashUsd), tone: "" },
               {
                 k: "Owed to us",
-                v: formatUsd(dash.position.receivableUsd),
+                v: money(dash.position.receivableUsd),
                 tone: "text-signal",
               },
               {
                 k: "Owed by us",
-                v: formatUsd(dash.position.payableUsd),
+                v: money(dash.position.payableUsd),
                 tone: "text-destructive",
               },
               {
                 k: "Net position",
-                v: formatUsd(dash.position.netUsd),
+                v: money(dash.position.netUsd),
                 tone: dash.position.netUsd < 0 ? "text-destructive" : "text-success",
               },
             ].map((cell) => (
@@ -975,7 +1150,7 @@ export default async function FinanceReportsPage({
             valuesIn={dash.trend.revenue}
             valuesOut={dash.trend.expenses}
             currentIndex={dash.trend.labels.length - 1}
-            format={(usd: number) => formatUsd(usd)}
+            format={(usd: number) => money(usd)}
           />
         </section>
         <section className="rounded-xl border bg-card p-5 shadow-soft">
@@ -1002,11 +1177,76 @@ export default async function FinanceReportsPage({
         dashboard above is built from and hands them over as a file — so it
         goes underneath the reading, and now says so in a sentence.
       */}
+      {/*
+        The statement, and then the working papers.
+
+        A report is one table. What gets printed, signed and handed to the boss
+        or the bank is the whole set of books for a named period — profit and
+        loss, cash, revenue, spending, batch by batch, position, collections,
+        volume — in both currencies, with the rate it was converted at printed
+        on it. That document is chosen by period here rather than inheriting
+        whatever the screen happened to be showing, because "send me August"
+        is the actual request.
+      */}
+      <SectionLabel>{t(locale, "Financial statement")}</SectionLabel>
+      <section className="mb-6 rounded-xl border bg-card p-5 shadow-soft">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0 max-w-xl">
+            <h2 className="font-display font-semibold">
+              {t(locale, "The whole set of books, as one document")}
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              {t(
+                locale,
+                "Profit and loss, cash, where revenue came from, where money was spent, every batch, the position today, collections and volume — for the month or year you pick, in shillings and dollars, with a line for Finance and a line for approval."
+              )}
+            </p>
+          </div>
+          <form
+            method="get"
+            action="/api/finance/statement"
+            target="_blank"
+            className="flex flex-wrap items-end gap-2"
+          >
+            <label className="flex flex-col gap-1 text-xs">
+              <span className="text-muted-foreground">{t(locale, "Period")}</span>
+              <select
+                name="period"
+                defaultValue={statementPeriods.months[0]?.value}
+                className="focus-ring h-9 min-w-[11rem] rounded-md border bg-card px-2 text-sm"
+              >
+                <optgroup label={t(locale, "Month")}>
+                  {statementPeriods.months.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label={t(locale, "Full year")}>
+                  {statementPeriods.years.map((yr) => (
+                    <option key={yr} value={String(yr)}>
+                      {yr}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </label>
+            <button
+              type="submit"
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-brand px-4 text-sm font-semibold text-brand-foreground transition-colors hover:opacity-90"
+            >
+              <FileText className="h-4 w-4" />
+              {t(locale, "Open the statement")}
+            </button>
+          </form>
+        </div>
+      </section>
+
       <SectionLabel>{t(locale, "Reports to download")}</SectionLabel>
       <p className="mb-3 text-xs text-muted-foreground">
         {t(
           locale,
-          "Each one runs the same records as the figures above, over the period chosen at the top, and downloads as a spreadsheet."
+          "One table each, over the period chosen at the top — the working papers behind the statement. Spreadsheet to work in, PDF to hand over."
         )}
       </p>
       <div className="mb-6">
@@ -1077,10 +1317,13 @@ export default async function FinanceReportsPage({
 function Row({
   label,
   value,
+  alt,
   strong,
 }: {
   label: string;
   value: string;
+  /** The same figure in the other currency, under the leading one. */
+  alt?: string | null;
   strong?: boolean;
 }) {
   return (
@@ -1090,7 +1333,14 @@ function Row({
       }`}
     >
       <dt className={strong ? "" : "text-muted-foreground"}>{label}</dt>
-      <dd className="font-mono tabular-nums">{value}</dd>
+      <dd className="text-right">
+        <span className="font-mono tabular-nums">{value}</span>
+        {alt ? (
+          <span className="block font-mono text-[11px] font-normal tabular-nums text-muted-foreground">
+            {alt}
+          </span>
+        ) : null}
+      </dd>
     </div>
   );
 }

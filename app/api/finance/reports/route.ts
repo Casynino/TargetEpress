@@ -68,7 +68,9 @@ export async function GET(request: Request) {
     return new NextResponse(pdf, {
       headers: {
         "content-type": "application/pdf",
-        "content-disposition": `attachment; filename="target-express-${key}-${stamp}.pdf"`,
+        // Inline: a PDF is read, not filed. Forcing the download left the tab
+        // blank, which reads as a broken link rather than a saved file.
+        "content-disposition": `inline; filename="target-express-${key}-${stamp}.pdf"`,
         "cache-control": "no-store",
       },
     });
