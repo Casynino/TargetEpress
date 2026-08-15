@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { activeAccounts } from "@/lib/accounts";
+import { RecordIncome } from "@/components/app/record-income";
 import {
   COMMON_EXPENSES,
   EXPENSE_APPROVAL_THRESHOLD_USD,
@@ -98,6 +99,9 @@ export default async function LedgerPage({
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
   const canRecord = can(user.role, "expense.record");
+  /* Money in is a different permission from money out: the desk that records
+     costs is not automatically the desk that takes customers' payments. */
+  const canTakeMoney = can(user.role, "payment.record");
 
   const where: Prisma.LedgerEntryWhereInput = {};
   if (params.account) where.accountId = params.account;
@@ -310,6 +314,20 @@ export default async function LedgerPage({
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
+      {canTakeMoney ? (
+        <div className="mb-4">
+          <RecordIncome
+            accounts={accounts.map((a) => ({
+              id: a.id,
+              name: a.name,
+              currency: a.currency,
+              accountNumber: a.accountNumber,
+            }))}
+            rate={rate}
+          />
+        </div>
+      ) : null}
+
       <LedgerFilters
         accounts={accounts.map((a) => ({ id: a.id, name: a.name }))}
         people={people}
@@ -322,38 +340,71 @@ export default async function LedgerPage({
         )}
       />
 
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-sm">
-        <p className="text-muted-foreground">
-          {total} {t(locale, total === 1 ? "movement" : "movements")}
-          {unpaid._count > 0 ? (
-            <>
-              {" · "}
-              <Link
-                href="/app/finance/transactions?kind=EXPENSE"
-                className="text-warning hover:underline"
-              >
-                {tsh(toNumber(unpaid._sum.amountUsd))}{" "}
-                {t(locale, "recorded but not yet paid")}
-              </Link>
-              , {t(locale, "so not in the register")}
-            </>
-          ) : null}
+      {/*
+        In, out and net as cards rather than a line of small type.
+
+        The ledger is the page somebody opens to answer "what did we take and
+        what did we spend", and the answer was set in 13px above the table
+        while every row of detail below it was louder. These three follow the
+        filters, so narrowing to one account or one month re-totals them — a
+        card that ignored the filter under it would be worse than no card.
+      */}
+      <dl className="mb-4 grid grid-cols-1 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3">
+        {[
+          {
+            k: t(locale, "Money in"),
+            v: tsh(inUsd),
+            tone: "text-success",
+            wash: "from-success/10",
+            hint: t(locale, "Freight collected and money moved in"),
+          },
+          {
+            k: t(locale, "Money out"),
+            v: tsh(outUsd),
+            tone: "text-destructive",
+            wash: "from-destructive/10",
+            hint: t(locale, "Costs paid and money moved out"),
+          },
+          {
+            k: t(locale, "Net"),
+            v: tsh(inUsd - outUsd),
+            tone: inUsd - outUsd >= 0 ? "text-foreground" : "text-destructive",
+            wash: inUsd - outUsd >= 0 ? "from-brand/10" : "from-destructive/10",
+            hint: `${total} ${t(locale, total === 1 ? "movement" : "movements")}`,
+          },
+        ].map((cell) => (
+          <div
+            key={cell.k}
+            className={`bg-gradient-to-b ${cell.wash} to-transparent bg-card px-5 py-4`}
+          >
+            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              {cell.k}
+            </dt>
+            <dd
+              className={`mt-1 whitespace-nowrap font-display text-2xl font-bold leading-tight tabular-nums ${cell.tone}`}
+            >
+              {cell.v}
+            </dd>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{cell.hint}</p>
+          </div>
+        ))}
+      </dl>
+
+      {/* The one figure the cards above must NOT quietly absorb: a cost that
+          is recorded and not yet paid has moved no money, so it is not in the
+          register and must not be added into "out". */}
+      {unpaid._count > 0 ? (
+        <p className="mb-4 text-sm text-muted-foreground">
+          <Link
+            href="/app/finance/transactions?kind=EXPENSE"
+            className="text-warning hover:underline"
+          >
+            {tsh(toNumber(unpaid._sum.amountUsd))}{" "}
+            {t(locale, "recorded but not yet paid")}
+          </Link>
+          , {t(locale, "so not in the register")}
         </p>
-        <p className="flex flex-wrap gap-x-5 font-mono tabular-nums">
-          <span>
-            <span className="text-muted-foreground">{t(locale, "In")} </span>
-            <span className="font-semibold text-success">{tsh(inUsd)}</span>
-          </span>
-          <span>
-            <span className="text-muted-foreground">{t(locale, "Out")} </span>
-            <span className="font-semibold text-destructive">{tsh(outUsd)}</span>
-          </span>
-          <span>
-            <span className="text-muted-foreground">{t(locale, "Net")} </span>
-            <span className="font-semibold">{tsh(inUsd - outUsd)}</span>
-          </span>
-        </p>
-      </div>
+      ) : null}
 
       {entries.length === 0 ? (
         <EmptyState

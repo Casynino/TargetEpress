@@ -1416,3 +1416,89 @@ export async function attributePayment(
     return fail(toActionError(error));
   }
 }
+
+/** One bill the search turned up, with everything the form needs to fill itself. */
+export type BillableHit = {
+  invoiceId: string;
+  invoiceNumber: string;
+  trackingNumber: string;
+  customerName: string;
+  goods: string;
+  currency: string;
+  total: number;
+  paid: number;
+  outstanding: number;
+  /** The rate frozen on the bill, so a shilling payment converts at what was quoted. */
+  rate: number | null;
+  status: string;
+};
+
+/**
+ * Find the bill a payment belongs to, from whatever the customer said on the
+ * phone.
+ *
+ * The owner's flow: Finance decides to record an income, searches a customer or
+ * a tracking number, picks the cargo, and enters what came in. So the search
+ * has to accept all the things a person actually has in front of them — the
+ * tracking number off a label, a name half-remembered, the invoice number from
+ * a message, the phone number that just rang — rather than making them know
+ * which field their scrap of information belongs to.
+ *
+ * Settled bills are returned too, and marked. Somebody searching a tracking
+ * number wants to know it is already paid far more than they want an empty
+ * result that leaves them wondering whether they typed it wrong.
+ */
+export async function searchBillable(query: string): Promise<BillableHit[]> {
+  try {
+    await authorize("payment.record");
+  } catch {
+    return [];
+  }
+
+  const q = query.trim();
+  if (q.length < 2) return [];
+
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      status: { not: "WRITTEN_OFF" },
+      OR: [
+        { invoiceNumber: { contains: q, mode: "insensitive" } },
+        { shipment: { trackingNumber: { contains: q, mode: "insensitive" } } },
+        { customer: { name: { contains: q, mode: "insensitive" } } },
+        { customer: { phone: { contains: q } } },
+      ],
+    },
+    /* Unpaid first — the reason somebody is searching — then newest. */
+    orderBy: [{ status: "asc" }, { issuedAt: "desc" }],
+    take: 12,
+    select: {
+      id: true,
+      invoiceNumber: true,
+      currency: true,
+      total: true,
+      amountPaid: true,
+      status: true,
+      exchangeRate: true,
+      customer: { select: { name: true } },
+      shipment: { select: { trackingNumber: true, description: true } },
+    },
+  });
+
+  return invoices.map((inv) => {
+    const total = toNumber(inv.total);
+    const paid = toNumber(inv.amountPaid);
+    return {
+      invoiceId: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      trackingNumber: inv.shipment.trackingNumber,
+      customerName: inv.customer.name,
+      goods: inv.shipment.description,
+      currency: inv.currency,
+      total,
+      paid,
+      outstanding: Math.max(0, total - paid),
+      rate: inv.exchangeRate === null ? null : toNumber(inv.exchangeRate),
+      status: inv.status,
+    };
+  });
+}
