@@ -397,11 +397,11 @@ export function RecordIncome({
               </NativeSelect>
             </label>
 
-            <label className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="text-[11px] text-muted-foreground">
+            <label className="flex flex-col gap-1">
+              <span className="whitespace-nowrap text-[11px] text-muted-foreground">
                 {t("Into which account")}
               </span>
-              <NativeSelect name="accountId" defaultValue="" className="bg-card">
+              <NativeSelect name="accountId" defaultValue="" className="w-52 bg-card">
                 <option value="">{t("Say later")}</option>
                 {accounts
                   .filter((a) => a.currency === tendered)
@@ -413,22 +413,33 @@ export function RecordIncome({
               </NativeSelect>
             </label>
 
-            <label className="flex flex-col gap-1">
+            {/*
+              Proof, and nothing else to type.
+
+              The reference box and the date box are gone. The date is stamped
+              when Record is pressed — money is recorded as it is taken, and a
+              field that is right by default should not cost a clerk a keystroke
+              or the form a column. (paymentSchema already reads an empty
+              paidAt as now, so nothing had to change in the action.) The
+              M-Pesa code went with it: a photograph of the message says more
+              than a code typed off it, and it is the thing that settles an
+              argument months later.
+
+              Optional, deliberately. Taking the money is the job; the evidence
+              catches up. What arrives without proof is still visible as exactly
+              that.
+            */}
+            <label className="flex min-w-0 flex-col gap-1">
               <span className="text-[11px] text-muted-foreground">
-                {t("Reference")}
+                {t("Proof")} <span className="opacity-70">{t("(optional)")}</span>
               </span>
               <Input
-                name="reference"
-                placeholder={t("M-Pesa code, slip number")}
-                className="w-44 bg-card"
+                name="proof"
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="w-56 bg-card file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
               />
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-[11px] text-muted-foreground">
-                {t("When it arrived")}
-              </span>
-              <Input name="paidAt" type="date" className="w-40 bg-card" />
             </label>
 
             <SubmitButton variant="brand" pendingLabel={t("Recording…")}>

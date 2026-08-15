@@ -393,19 +393,29 @@ export default async function LedgerPage({
         ))}
       </dl>
 
-      {/* The one figure the cards above must NOT quietly absorb: a cost that
-          is recorded and not yet paid has moved no money, so it is not in the
-          register and must not be added into "out". */}
+      {/*
+        Costs still to pay, said in words that do not fight each other.
+
+        It read "recorded but not yet paid, so not in the register", which
+        states a fact and then withdraws it in the same breath — the owner
+        could not tell whether it was money coming in or going out. It is
+        neither yet: these are bills the business has written down and not
+        settled, so no money has moved and nothing above can include them.
+        The line now says what they are, then why they are not in the totals.
+      */}
       {unpaid._count > 0 ? (
         <p className="mb-4 text-sm text-muted-foreground">
           <Link
             href="/app/finance/transactions?kind=EXPENSE"
-            className="text-warning hover:underline"
+            className="font-medium text-warning hover:underline"
           >
-            {tsh(toNumber(unpaid._sum.amountUsd))}{" "}
-            {t(locale, "recorded but not yet paid")}
+            {tsh(toNumber(unpaid._sum.amountUsd))} {t(locale, "in costs still to pay")}
           </Link>
-          , {t(locale, "so not in the register")}
+          {" — "}
+          {t(
+            locale,
+            "money the business owes. Not counted above, because none of it has left an account yet."
+          )}
         </p>
       ) : null}
 
