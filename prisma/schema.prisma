@@ -680,8 +680,14 @@ model Shipment {
   weightKg        Decimal     @db.Decimal(10, 3)
   volumeCbm       Decimal?    @db.Decimal(10, 4)
 
-  /// Departure airport. Derived from cargoCategory — never chosen by hand — and
-  /// must match the batch this shipment joins.
+  /// Where this cargo actually loaded, which is wherever its batch loaded — a
+  /// batch is one physical load, so every piece on it left from the same place.
+  /// It follows the batch, including when a piece is moved between batches.
+  ///
+  /// cargoCategory says where cargo of this kind NORMALLY leaves from, and the
+  /// two can honestly disagree: a Hong Kong packing list routinely carries cups
+  /// and drawing boards. That disagreement is flagged on the piece and at
+  /// registration, never silently settled by overwriting one with the other.
   origin Origin
 
   // --- Quote snapshot -------------------------------------------------------

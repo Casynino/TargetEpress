@@ -24,7 +24,7 @@
  */
 import { PrismaClient, type CargoCategory, type Origin } from "@prisma/client";
 
-import { ROUTE_FOR_CATEGORY } from "../lib/cargo";
+import { ROUTE_FOR_CATEGORY, originFromBatchNumber } from "../lib/cargo";
 
 const prisma = new PrismaClient();
 
@@ -32,14 +32,50 @@ async function main() {
   const apply = process.argv.includes("--apply");
   if (!apply) console.log("DRY RUN — pass --apply to write.\n");
 
+  /*
+    This script trusts batch.origin absolutely — it rewrites a consignment's
+    CATEGORY to agree with the batch it sits on, and category is what the rate
+    book is keyed on. So a batch whose stored location is wrong would not just
+    mislabel cargo, it would reprice it: ten electronics pieces on a batch
+    mistakenly marked Guangzhou would be rewritten into normal goods and quoted
+    off the wrong list.
+
+    Not hypothetical. HK-0013 was imported as a Guangzhou batch and sat that way
+    for weeks with exactly those ten pieces on it. So before touching anything,
+    the number is checked against the location: they disagree only when
+    something upstream is broken, and a repair script must never build on top of
+    a fault it cannot see.
+  */
+  const all = await prisma.batch.findMany({
+    select: { batchNumber: true, origin: true },
+  });
+  const contradictory = all.filter((b) => {
+    const fromNumber = originFromBatchNumber(b.batchNumber);
+    return fromNumber !== null && fromNumber !== b.origin;
+  });
+  if (contradictory.length > 0) {
+    console.error(
+      "Refusing to run. These batches are stored under a location their own number\n" +
+        "contradicts, and this script would rewrite cargo categories to match the\n" +
+        "wrong one:\n" +
+        contradictory
+          .map((b) => `  ${b.batchNumber} is stored as ${b.origin}`)
+          .join("\n") +
+        "\n\nRun scripts/fix-batch-numbering.mts first."
+    );
+    process.exit(1);
+  }
+
   const openBatches = await prisma.batch.findMany({
     where: { status: "OPEN" },
+    // Newest first — which is the rule the line below states and did not follow.
+    orderBy: { createdAt: "desc" },
     select: { id: true, batchNumber: true, origin: true },
   });
 
   const batchForRoute = new Map<Origin, (typeof openBatches)[number]>();
   for (const batch of openBatches) {
-    // Newest open batch per airport wins if there is more than one.
+    // Newest open batch per location wins if there is more than one.
     if (!batchForRoute.has(batch.origin)) batchForRoute.set(batch.origin, batch);
   }
 

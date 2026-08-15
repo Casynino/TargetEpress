@@ -106,9 +106,66 @@ export function categoryFitsRoute(category: CargoCategory, route: Origin) {
   return ROUTE_FOR_CATEGORY[category] === route;
 }
 
-/** Batch number prefix per route, e.g. GZ-2026-001 / HK-2026-005. */
+/** Batch number prefix per loading location: GZ-0028, HK-0013. */
 export function batchPrefix(route: Origin) {
   return route === "GUANGZHOU" ? "GZ" : "HK";
+}
+
+/**
+ * The shape of every batch number: GZ-0028, HK-0013.
+ *
+ * Where it loaded, then its place in that location's own run. The two runs are
+ * independent — Hong Kong's fourteenth batch is HK-0014 whether Guangzhou has
+ * sent four or four hundred — because they are two warehouses packing two sets
+ * of cargo, and a shared counter would make each one's numbers jump for
+ * reasons the other warehouse could not see.
+ *
+ * The run does not restart in January. A batch number is how the office refers
+ * to a load for years afterwards, on paperwork that outlives the year it was
+ * printed in, so GZ-0028 stays the only GZ-0028 there will ever be.
+ *
+ * Four digits so a column of them reads straight down, and more than four once
+ * a location passes 9999 rather than rolling over onto a number already used.
+ */
+export const BATCH_NUMBER = /^(GZ|HK)-(\d{4,})$/;
+
+/**
+ * The notation the office wrote before this one: GZ/26-28.
+ *
+ * Recognised only so those batches keep their place in the run when they are
+ * renumbered — the 28th Guangzhou load of 2026 becomes GZ-0028, not whatever
+ * number happened to be free on the day the scheme changed.
+ */
+export const LEGACY_BATCH_NUMBER = /^(GZ|HK)\/(\d{2})-(\d{1,})$/;
+
+/** A batch number, assembled. */
+export function batchNumberFor(route: Origin, sequence: number) {
+  return `${batchPrefix(route)}-${String(sequence).padStart(4, "0")}`;
+}
+
+/**
+ * Which loading location a batch number says it came from.
+ *
+ * The prefix is not decoration — it is the location, written down. Reading it
+ * back is what lets every path that mints or imports a batch check the number
+ * against the location instead of trusting them to agree. Returns null for
+ * anything that is not a batch number, which includes the two permanent
+ * loading tables (GZ-LOADING, HK-LOADING).
+ */
+export function originFromBatchNumber(batchNumber: string): Origin | null {
+  const clean = batchNumber.trim().toUpperCase();
+  const match = BATCH_NUMBER.exec(clean) ?? LEGACY_BATCH_NUMBER.exec(clean);
+  if (!match) return null;
+  return match[1] === "HK" ? "HONG_KONG" : "GUANGZHOU";
+}
+
+/** Its place in that location's run, or null if it is not a batch number. */
+export function sequenceFromBatchNumber(batchNumber: string): number | null {
+  const clean = batchNumber.trim().toUpperCase();
+  const current = BATCH_NUMBER.exec(clean);
+  if (current) return Number(current[2]);
+  const legacy = LEGACY_BATCH_NUMBER.exec(clean);
+  return legacy ? Number(legacy[3]) : null;
 }
 
 /**

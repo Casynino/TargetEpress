@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
-import type { Prisma } from "@prisma/client";
+import type { Origin, Prisma } from "@prisma/client";
+import { batchNumberFor, batchPrefix } from "@/lib/cargo";
 import type { TxClient } from "@/lib/prisma";
 
 /**
@@ -29,35 +30,26 @@ export async function nextTrackingNumber(tx: TxClient) {
   return `TX-${pad(n)}`;
 }
 
-export async function nextBatchNumber(
-  tx: TxClient,
-  year = new Date().getFullYear()
-) {
-  const n = await nextSequence(tx, `batch:${year}`);
-  return `BATCH-${year}-${pad(n, 3)}`;
-}
-
 /**
- * Batch numbers per route: HK-2026-001, GZ-2026-001.
+ * The number of one batch: GZ-0028, HK-0013.
  *
- * The route is in the number because these get read aloud over the phone and
- * written on cartons — "HK oh-oh-one" says which flight it is without anyone
- * looking it up. Numbering restarts each year, per route.
- */
-/**
- * The number of a dispatch — one flight-load leaving China.
+ * Where it loaded, then its place in that location's own run. It is minted
+ * here and never typed, which is what stops a batch from being called
+ * BATCH-2026-004 one week, GZ-SHIP-2026-001 the next and IMPORTED the week
+ * after that.
  *
- * GZ-SHIP-2026-001. Sequenced per route and per year, so the Guangzhou and
- * Hong Kong runs each count from one and neither depends on the other.
+ * The two locations count separately, so Hong Kong's run is unaffected by how
+ * busy Guangzhou has been and the other way round. Nothing renumbers when a
+ * batch is cancelled: a gap in the run is the honest record of one.
+ *
+ * Because the prefix IS the location, `originFromBatchNumber` can read it
+ * back, and every path that creates or imports a batch checks the two agree
+ * rather than trusting whoever typed them. That check is the whole reason the
+ * number has a shape.
  */
-export async function nextDispatchNumber(
-  tx: TxClient,
-  route: "GUANGZHOU" | "HONG_KONG",
-  year = new Date().getFullYear()
-) {
-  const prefix = route === "HONG_KONG" ? "HK" : "GZ";
-  const n = await nextSequence(tx, `dispatch:${prefix}:${year}`);
-  return `${prefix}-SHIP-${year}-${pad(n, 3)}`;
+export async function nextBatchNumber(tx: TxClient, route: Origin) {
+  const n = await nextSequence(tx, `batch:${batchPrefix(route)}`);
+  return batchNumberFor(route, n);
 }
 
 /** Requests that came in off the website, before any cargo exists. */

@@ -41,7 +41,13 @@ import {
   type Origin,
 } from "@prisma/client";
 
-import { guessCategory, ROUTE_FOR_CATEGORY } from "../lib/cargo";
+import {
+  BATCH_NUMBER,
+  guessCategory,
+  originFromBatchNumber,
+  ROUTE_FOR_CATEGORY,
+} from "../lib/cargo";
+import { ORIGIN_LABELS } from "../lib/constants";
 
 const prisma = new PrismaClient();
 
@@ -201,22 +207,53 @@ async function main() {
 
   if (!file) {
     console.error(
-      'Usage: npx tsx prisma/import-packing-list.ts "<file.xlsx>" --batch GZ/26-22 --date 2026-06-17 [--replace]'
+      'Usage: npx tsx prisma/import-packing-list.ts "<file.xlsx>" --batch GZ-0029 --date 2026-06-17 [--replace]'
     );
     process.exit(1);
   }
 
-  const batchNumber = flag("batch") ?? "IMPORTED";
+  /*
+    The batch number is the airport.
 
-  // The departure airport comes from the sheet, because that is where the cargo
-  // physically is. Categories are guessed from the item text, and any row whose
-  // category would normally fly from the other airport is reported rather than
-  // silently re-labelled.
-  const routeArg = (flag("route") ?? "GUANGZHOU").toUpperCase();
-  if (routeArg !== "GUANGZHOU" && routeArg !== "HONG_KONG") {
-    throw new Error('--route must be GUANGZHOU or HONG_KONG');
+    This used to take --route separately, defaulting to Guangzhou when it was
+    left off — which is how HK/26-13 came to be stored as a Guangzhou flight,
+    along with all thirty of its consignments, its labels and its manifest. A
+    default that quietly contradicts the number the operator typed is not a
+    convenience; it is a wrong answer nobody was asked to confirm.
+
+    So the airport is read out of the number instead. --route is still accepted
+    for anyone with it in their notes, but only to be checked: if it disagrees
+    with the prefix, the import stops rather than picking a winner.
+
+    Categories are still guessed from the item text, and any row whose category
+    would normally fly from the other airport is reported rather than silently
+    re-labelled — an HK packing list routinely carries cups and drawing boards.
+  */
+  const batchNumber = flag("batch")?.trim().toUpperCase() ?? "";
+  if (!batchNumber) {
+    throw new Error(
+      "--batch is required, and it names the batch: --batch GZ-0029 or --batch HK-0014."
+    );
   }
-  const route = routeArg as Origin;
+  if (!BATCH_NUMBER.test(batchNumber)) {
+    throw new Error(
+      `--batch "${batchNumber}" is not a batch number. They read GZ-0028 — ` +
+        "where it loaded, then its place in that location's run."
+    );
+  }
+  const route = originFromBatchNumber(batchNumber)!;
+
+  const routeArg = flag("route")?.toUpperCase();
+  if (routeArg && routeArg !== "GUANGZHOU" && routeArg !== "HONG_KONG") {
+    throw new Error("--route must be GUANGZHOU or HONG_KONG");
+  }
+  if (routeArg && routeArg !== route) {
+    throw new Error(
+      `${batchNumber} is a ${ORIGIN_LABELS[route]} batch, but --route says ` +
+        `${ORIGIN_LABELS[routeArg as Origin]}. Fix whichever one is wrong — ` +
+        "the cargo only left from one of them."
+    );
+  }
   const dateArg = flag("date");
   const packedAt = dateArg ? new Date(`${dateArg}T09:00:00Z`) : new Date();
   if (Number.isNaN(packedAt.getTime())) {
@@ -426,7 +463,7 @@ async function main() {
       createdById: china.id,
       createdAt: packedAt,
       notes: [
-        `Imported from the Guangzhou packing list, packed ${packedAt.toISOString().slice(0, 10)}.`,
+        `Imported from the ${ORIGIN_LABELS[route]} packing list, packed ${packedAt.toISOString().slice(0, 10)}.`,
         `${cartons.length} carton(s), ${parsed.length} shipment(s).`,
         `Line weights total ${lineWeight.toFixed(1)} kg; carton actual weights total ${cartonWeight.toFixed(1)} kg.`,
         Math.abs(lineWeight - cartonWeight) > 0.5

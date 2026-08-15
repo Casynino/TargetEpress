@@ -9,6 +9,7 @@ import {
   DAMAGE_SEVERITY_LABELS,
   EXCEPTION_OPEN_STATUSES,
   EXCEPTION_TYPE_LABELS,
+  ORIGIN_LABELS,
   PACKAGE_TYPE_LABELS,
 } from "@/lib/constants";
 import { autoPriceShipments } from "@/lib/auto-price";
@@ -32,7 +33,6 @@ import {
 } from "@/lib/cargo";
 import { t } from "@/lib/i18n";
 import { nextBatchNumber } from "@/lib/ids";
-import { nextDispatchNumber } from "@/lib/ids";
 import type { Locale } from "@/lib/locale";
 import { prisma, type TxClient } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -64,7 +64,8 @@ export async function createBatch(
     const batch = await prisma.$transaction(async (tx) => {
       const created = await tx.batch.create({
         data: {
-          batchNumber: await nextBatchNumber(tx),
+          // The number carries the airport, so these two can never disagree.
+          batchNumber: await nextBatchNumber(tx, parsed.data.origin),
           origin: parsed.data.origin,
           notes: parsed.data.notes || null,
           createdById: user.id,
@@ -464,7 +465,7 @@ export async function dispatchLoadingTable(
 
       const dispatch = await tx.batch.create({
         data: {
-          batchNumber: await nextDispatchNumber(tx, table.origin),
+          batchNumber: await nextBatchNumber(tx, table.origin),
           origin: table.origin,
           permanent: false,
           status: "IN_TRANSIT",
@@ -1967,6 +1968,8 @@ export async function moveShipmentToBatch(
           id: true,
           trackingNumber: true,
           batchId: true,
+          origin: true,
+          cargoCategory: true,
           batch: { select: { batchNumber: true, closedAt: true } },
         },
       });
@@ -1982,7 +1985,7 @@ export async function moveShipmentToBatch(
 
       const target = await tx.batch.findUnique({
         where: { id: toBatchId },
-        select: { id: true, batchNumber: true, closedAt: true },
+        select: { id: true, batchNumber: true, closedAt: true, origin: true },
       });
       if (!target) throw new Error(t(locale, "That batch no longer exists."));
       if (target.closedAt) {
@@ -1991,9 +1994,21 @@ export async function moveShipmentToBatch(
         );
       }
 
+      /*
+        The airport travels with the box.
+
+        A consignment's origin is where it physically flew from, and the schema
+        says it must match the batch it is on. Moving a piece onto a Hong Kong
+        flight while leaving it stamped Guangzhou is how a manifest, a label and
+        an invoice end up naming a city the cargo never saw. Nothing about the
+        money moves with it: the rate book is keyed on what the goods ARE, not
+        where they left from, so the price is the price either way.
+      */
+      const originMoves = piece.origin !== target.origin;
+
       await tx.shipment.update({
         where: { id: piece.id },
-        data: { batchId: target.id },
+        data: { batchId: target.id, origin: target.origin },
       });
 
       /* Field-level history as well as the audit line: "which batch" is a
@@ -2011,17 +2026,40 @@ export async function moveShipmentToBatch(
         },
       });
 
+      if (originMoves) {
+        await tx.fieldChange.create({
+          data: {
+            entity: "Shipment",
+            entityId: piece.id,
+            field: "Origin",
+            before: ORIGIN_LABELS[piece.origin],
+            after: ORIGIN_LABELS[target.origin],
+            actorId: user.id,
+            actorName: user.name ?? user.email ?? null,
+          },
+        });
+      }
+
       await recordAudit(
         {
           actor: user,
           action: "shipment.moved",
           entity: "Shipment",
           entityId: piece.id,
-          summary: `Moved ${piece.trackingNumber} from ${piece.batch?.batchNumber ?? "—"} to ${target.batchNumber} — ${reason}`,
+          summary:
+            `Moved ${piece.trackingNumber} from ${piece.batch?.batchNumber ?? "—"} to ${target.batchNumber} — ${reason}` +
+            (originMoves
+              ? `. Origin now ${ORIGIN_LABELS[target.origin]}` +
+                (categoryFitsRoute(piece.cargoCategory, target.origin)
+                  ? ""
+                  : `, and this cargo normally flies from ${ORIGIN_LABELS[routeFor(piece.cargoCategory)]}`)
+              : ""),
           metadata: {
             from: piece.batch?.batchNumber ?? null,
             to: target.batchNumber,
             reason,
+            originFrom: piece.origin,
+            originTo: target.origin,
           },
         },
         tx
