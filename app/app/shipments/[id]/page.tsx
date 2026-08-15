@@ -28,7 +28,6 @@ import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import { batchFinance } from "@/lib/batch-finance";
 import {
   COMMON_EXPENSES,
-  EXPENSE_APPROVAL_THRESHOLD_USD,
 } from "@/lib/expenses";
 import { currentRateValue } from "@/lib/fx";
 import { cargoLabel } from "@/lib/cargo";

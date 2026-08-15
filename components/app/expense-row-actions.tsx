@@ -29,7 +29,6 @@ export function ExpenseRowActions({
   currency,
   accounts,
   canApprove,
-  needsApproval,
   canReverse = false,
 }: {
   expenseId: string;
@@ -37,7 +36,6 @@ export function ExpenseRowActions({
   currency: string;
   accounts: ExpenseAccount[];
   canApprove: boolean;
-  needsApproval: boolean;
   /** Writing the opposite entry is ledger.adjust, not expense.record. */
   canReverse?: boolean;
 }) {
@@ -104,25 +102,11 @@ export function ExpenseRowActions({
   }
 
   const eligible = accounts.filter((a) => a.currency === currency);
-  const blocked = status === "PENDING" && needsApproval;
-
+  /* No cost waits for a signature: the owner removed the ceiling, so the row
+     always offers the thing that actually needs doing — paying it. */
   return (
     <div className="space-y-2">
-      {blocked ? (
-        canApprove ? (
-          <form action={approve} className="flex items-center gap-2">
-            <input type="hidden" name="expenseId" value={expenseId} />
-            <SubmitButton size="sm" variant="signal" pendingLabel="Approving…">
-              {t("Approve")}
-            </SubmitButton>
-            <FormError state={approveState} />
-          </form>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            {t("Waiting on the CEO’s approval")}
-          </p>
-        )
-      ) : (
+      {(
         <form action={pay} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="expenseId" value={expenseId} />
           <NativeSelect

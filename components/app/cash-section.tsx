@@ -10,7 +10,6 @@ import { formatDate, formatDateTime, toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
 import {
   COMMON_EXPENSES,
-  EXPENSE_APPROVAL_THRESHOLD_USD,
 } from "@/lib/expenses";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -211,7 +210,6 @@ export async function CashSection() {
               <ExpenseForm
                 accounts={cashAccounts}
                 quick={quick}
-                thresholdUsd={EXPENSE_APPROVAL_THRESHOLD_USD}
                 rate={rate}
                 alwaysOpen
               />

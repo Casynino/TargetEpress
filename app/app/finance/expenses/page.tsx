@@ -12,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { activeAccounts } from "@/lib/accounts";
 import {
   COMMON_EXPENSES,
-  EXPENSE_APPROVAL_THRESHOLD_USD,
   EXPENSE_CATEGORY_LABELS as CATEGORY_LABELS,
   EXPENSE_STATUS_LABELS as STATUS_LABEL,
 } from "@/lib/expenses";
@@ -199,18 +198,14 @@ export default async function ExpensesPage({
     })
     .slice(0, 12);
 
+  /*
+    Nothing waits for a signature any more, so what used to be "awaiting
+    approval" is simply what has not been paid — recorded, and still owed.
+  */
   const awaitingApprovalUsd = expenses
-    .filter(
-      (e) =>
-        e.status === "PENDING" &&
-        toNumber(e.amountUsd) > EXPENSE_APPROVAL_THRESHOLD_USD
-    )
+    .filter((e) => e.status === "PENDING")
     .reduce((sum, e) => sum + toNumber(e.amountUsd), 0);
-  const awaitingApproval = expenses.filter(
-    (e) =>
-      e.status === "PENDING" &&
-      toNumber(e.amountUsd) > EXPENSE_APPROVAL_THRESHOLD_USD
-  ).length;
+  const awaitingApproval = expenses.filter((e) => e.status === "PENDING").length;
 
   const accountOptions = accounts.map((a) => ({
     id: a.id,
@@ -378,7 +373,6 @@ export default async function ExpensesPage({
               label: d.batchNumber,
             }))}
             quick={quick}
-            thresholdUsd={EXPENSE_APPROVAL_THRESHOLD_USD}
             rate={rate}
           />
         </div>
@@ -515,15 +509,6 @@ export default async function ExpensesPage({
                             currency={expense.currency}
                             accounts={accountOptions}
                             canApprove={canApprove}
-                            /*
-                              A gate only exists for somebody it applies to.
-                              Finance holds expense.approve, so showing it an
-                              Approve step before it may pay is the CEO
-                              bottleneck rebuilt in the UI.
-                            */
-                            needsApproval={
-                              usd > EXPENSE_APPROVAL_THRESHOLD_USD && !canApprove
-                            }
                           />
                         </div>
                       ) : null}

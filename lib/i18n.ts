@@ -22,6 +22,8 @@ import type { Locale } from "@/lib/locale";
  */
 
 const ZH: Record<string, string> = {
+  "Leave the account blank and it is recorded as still to pay.":
+    "不填账户，则记为尚未支付。",
   "A customs receipt turned up late": "海关单据晚到了",
   "Agreed and final": "已确认，最终",
   "Ahead": "有结余",
@@ -3031,7 +3033,6 @@ const ZH: Record<string, string> = {
     "等待财务核实。财务没确认之前，账不算结清，也不会有提货单。",
   "Waiting on payment": "等待付款",
   "Waiting on the": "等待",
-  "Waiting on the CEO’s approval": "等待总经理批准",
   "Waiting on the customer": "等待客户回复",
   "Waiting on this flight": "等待这班航班",
   "Waiting on you": "等你处理",
@@ -3040,8 +3041,6 @@ const ZH: Record<string, string> = {
   "Waiting to be billed": "待开单",
   "Waiting to be collected": "待提货",
   "waiting_customer": "等待客户",
-  "waits for the CEO's approval before it can leave an account.":
-    "的支出需经总经理批准后才能从账户付出。",
   "Walk-in": "上门",
   "Wanted by": "期望时间",
   "Warehouse": "仓库",

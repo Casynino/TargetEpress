@@ -20,7 +20,6 @@ import { activeAccounts } from "@/lib/accounts";
 import { RecordIncome } from "@/components/app/record-income";
 import {
   COMMON_EXPENSES,
-  EXPENSE_APPROVAL_THRESHOLD_USD,
   EXPENSE_CATEGORY_LABELS,
 } from "@/lib/expenses";
 import { financeTabs } from "@/lib/finance-tabs";
@@ -331,7 +330,6 @@ export default async function LedgerPage({
                 accountNumber: a.accountNumber,
               }))}
               quick={COMMON_EXPENSES}
-              thresholdUsd={EXPENSE_APPROVAL_THRESHOLD_USD}
               rate={rate}
             />
             ) : null}

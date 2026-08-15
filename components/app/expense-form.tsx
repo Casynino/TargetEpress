@@ -55,7 +55,6 @@ export function ExpenseForm({
   accounts,
   dispatches,
   quick,
-  thresholdUsd,
   rate,
   alwaysOpen = false,
   fixedDispatch,
@@ -75,7 +74,6 @@ export function ExpenseForm({
   fixedDispatch?: ExpenseDispatch;
   /** Most-recorded first, then the seeded common costs. */
   quick: QuickExpense[];
-  thresholdUsd: number;
   rate: number | null;
   /** Rendered inside something that already decided it is open. */
   alwaysOpen?: boolean;
@@ -94,10 +92,6 @@ export function ExpenseForm({
   const amountRef = useRef<HTMLInputElement>(null);
 
   const eligible = accounts.filter((a) => a.currency === currency);
-  const limit =
-    currency === "TZS" && rate
-      ? `TSh ${Math.round(thresholdUsd * rate).toLocaleString()}`
-      : `USD ${thresholdUsd.toLocaleString()}`;
 
   /** One tap fills what it is and what kind it is, then asks for the amount. */
   const pick = (item: QuickExpense) => {
@@ -355,9 +349,10 @@ export function ExpenseForm({
           <SubmitButton variant="brand" size="sm" pendingLabel={t("Recording…")}>
             {t("Record cost")}
           </SubmitButton>
+          {/* Nothing waits for a signature any more; see recordExpense. What
+              is worth saying is the one thing still true of a blank account. */}
           <p className="text-xs text-muted-foreground">
-            {t("Over")} {limit}{" "}
-            {t("waits for the CEO's approval before it can leave an account.")}
+            {t("Leave the account blank and it is recorded as still to pay.")}
           </p>
         </div>
       </form>

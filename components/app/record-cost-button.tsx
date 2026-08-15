@@ -22,12 +22,10 @@ import { Button } from "@/components/ui/button";
 export function RecordCostButton({
   accounts,
   quick,
-  thresholdUsd,
   rate,
 }: {
   accounts: ExpenseAccount[];
   quick: QuickExpense[];
-  thresholdUsd: number;
   rate: number | null;
 }) {
   const t = useT();
@@ -70,7 +68,6 @@ export function RecordCostButton({
               accounts={accounts}
               dispatches={[]}
               quick={quick}
-              thresholdUsd={thresholdUsd}
               rate={rate}
               alwaysOpen
             />

@@ -18,7 +18,6 @@
  * being recorded without a second signature. Small costs are recorded and paid
  * in one action; large ones are the ones worth stopping for.
  */
-export const EXPENSE_APPROVAL_THRESHOLD_USD = 500;
 
 export const EXPENSE_CATEGORIES = [
   "AIR_FREIGHT",

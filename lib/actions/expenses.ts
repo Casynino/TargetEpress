@@ -7,7 +7,6 @@ import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
 import {
-  EXPENSE_APPROVAL_THRESHOLD_USD as APPROVAL_THRESHOLD_USD,
   EXPENSE_CATEGORIES as CATEGORIES,
   EXPENSE_CLASSES,
 } from "@/lib/expenses";
@@ -134,18 +133,20 @@ export async function recordExpense(
   try {
     const { usd, rate } = await usdValue(input.amount, input.currency, locale);
     /*
-      A cost waits for a signature only when the person recording it cannot
-      sign it themselves.
+      No ceiling. Finance spends what it needs to spend.
 
-      The threshold is not gone — it still holds for any desk that may record a
-      cost but not approve one. What has gone is Finance being stopped by it:
-      Finance now holds expense.approve, so a clearing charge at the port is
-      recorded and paid in one action instead of waiting for the CEO to open an
-      approval screen. Who approved it is still written down, and when the
-      recorder approved their own cost that is exactly what the audit log says.
+      There used to be a threshold above which a cost waited for the CEO before
+      it could leave an account. The owner removed it: this is a small company
+      where the clearing agent has to be paid at the port today, and a queue
+      for a signature is a lorry standing still. Nothing is blocked and nothing
+      waits.
+
+      What has NOT gone is the record. Every cost still names who recorded it,
+      which account it left, and when — the audit log and the ledger answer
+      "who spent this" exactly as before. The control moved from asking
+      permission to being accountable afterwards, which is the owner's call to
+      make about his own money.
     */
-    const needsApproval =
-      usd > APPROVAL_THRESHOLD_USD && !can(user.role, "expense.approve");
     const incurredAt = input.incurredAt ?? new Date();
 
     const expenseNumber = await prisma.$transaction(async (tx) => {
@@ -200,7 +201,7 @@ export async function recordExpense(
       // Paid now only if the money really left an account AND nobody needs to
       // sign it off first. Otherwise it waits, and no ledger line is written —
       // because no money has moved.
-      const paidNow = Boolean(account) && !needsApproval;
+      const paidNow = Boolean(account);
 
       const number = await nextExpenseNumber(tx, incurredAt.getFullYear());
       const expense = await tx.expense.create({
@@ -260,7 +261,7 @@ export async function recordExpense(
           entityId: expense.id,
           summary: paidNow
             ? `Paid ${input.currency} ${input.amount.toLocaleString()} from ${account!.name} — ${input.description}`
-            : `Recorded ${input.currency} ${input.amount.toLocaleString()} — ${input.description}${needsApproval ? " (awaiting approval)" : ""}`,
+            : `Recorded ${input.currency} ${input.amount.toLocaleString()} — ${input.description}`,
         },
         tx
       );
@@ -370,25 +371,8 @@ export async function payExpense(
       if (expense.status === "VOID") {
         throw new Error(`${expense.expenseNumber} was cancelled.`);
       }
-      /*
-        The threshold again, at the moment it matters — but read against the
-        person paying, not against the amount alone.
-
-        Somebody who may approve a cost should not have to approve it on one
-        screen and then pay it on another: paying it IS the sign-off, and the
-        row records that they gave it. Somebody who may not approve still
-        cannot pay an unapproved cost, whatever route the form took.
-      */
-      const overThreshold = toNumber(expense.amountUsd) > APPROVAL_THRESHOLD_USD;
-      const mayApprove = can(user.role, "expense.approve");
-
-      if (expense.status === "PENDING" && overThreshold && !mayApprove) {
-        throw new Error(
-          `${expense.expenseNumber} is over the ${APPROVAL_THRESHOLD_USD} dollar approval limit and has not been approved yet.`
-        );
-      }
-      const approvedOnPayment =
-        expense.status === "PENDING" && overThreshold && mayApprove;
+      /* No approval gate: paying it is the decision, and the row records who
+         made it. See the note in recordExpense. */
 
       const account = await tx.companyAccount.findUnique({
         where: { id: accountId },
@@ -409,9 +393,8 @@ export async function payExpense(
           status: "PAID",
           accountId: account.id,
           paidAt,
-          // Who signed it off, when the payment was itself the sign-off. An
-          // approval that happened but is not written down is not an approval.
-          ...(approvedOnPayment
+          /* Paying is the decision, so it is written down as one. */
+          ...(expense.status === "PENDING"
             ? { approvedById: user.id, approvedAt: paidAt }
             : {}),
         },
@@ -717,22 +700,6 @@ export async function editExpense(
       const nextAmount = amountChanged ? input.amount! : toNumber(before.amount);
       const nextAmountUsd =
         before.currency === "USD" ? nextAmount : rate ? nextAmount / rate : 0;
-
-      /*
-        Marking a cost paid from here is still a payment, so it meets the same
-        limit. Somebody who may not approve a large cost must not be able to
-        approve one by editing it onto an account instead of pressing Pay.
-      */
-      if (
-        nextAccount &&
-        before.status === "PENDING" &&
-        nextAmountUsd > APPROVAL_THRESHOLD_USD &&
-        !can(user.role, "expense.approve")
-      ) {
-        throw new Error(
-          `${before.expenseNumber} ${t(locale, "is over the approval limit and has not been approved yet.")}`
-        );
-      }
 
       const paidAt = new Date();
       const after = {
