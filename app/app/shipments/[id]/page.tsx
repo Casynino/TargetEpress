@@ -221,7 +221,17 @@ export default async function ShipmentPage({
     they hold cargo that has not left China, and a Dar debt does not belong on
     one.
   */
-  const carryTargets = canClose
+  /*
+    Where a mis-scanned box could go instead.
+
+    Same list the close panel uses for carrying cargo forward, and for the same
+    reason: a flight whose books are shut cannot take cargo, in either
+    direction. Fetched on shipment.move rather than batch.close, because the
+    desks that correct a wrong pile are not the desks that close flights.
+  */
+  const canMoveCargo = can(user.role, "shipment.move");
+
+  const carryTargets = canClose || canMoveCargo
     ? await prisma.batch.findMany({
         where: {
           permanent: false,
@@ -567,6 +577,8 @@ export default async function ShipmentPage({
         showPrice={finance !== null}
         canEditPrice={can(user.role, "invoice.edit")}
         canOverridePrice={can(user.role, "invoice.discount")}
+        canMoveCargo={canMoveCargo && dispatch.closedAt === null}
+        moveTargets={carryTargets}
         cargo={cargo}
         documents={documents}
         timeline={timeline}

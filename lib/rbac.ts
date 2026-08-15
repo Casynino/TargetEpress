@@ -45,6 +45,11 @@ export type Permission =
      send it back. The boss's signature, so it is his alone — Finance shuts the
      books, somebody senior agrees they are right. */
   | "statement.review"
+  /* Move one consignment from one flight to another. Narrower than
+     batch.manage on purpose: correcting which flight a box is on is an
+     everyday fix for the desks that talk to customers, and it must not carry
+     the power to seal or dispatch a batch with it. */
+  | "shipment.move"
   // Exceptions / investigations
   /// Read the Issues & Claims and the cases in it. Every department holds
   /// this, because a case is never one department's business: Dar found the
@@ -200,8 +205,6 @@ const CHINA: Permission[] = [
   "batch.view",
   "batch.create",
   "batch.manage",
-  "batch.close",
-  "statement.review",
   "customer.view",
   "customer.manage",
   // Reads the Issues & Claims, and nothing more. When Dar reports a box
@@ -288,6 +291,18 @@ const CUSTOMER_CARE: Permission[] = [
   "finance.view",
   "invoice.manage",
   "invoice.edit",
+  /*
+    The desk that agrees a price with a customer is the desk that agrees a
+    discount with them. Splitting the two meant Support could change what a
+    bill says but not move it down, so every negotiated price went through
+    Finance for a keystroke — and the reason for the change lived with whoever
+    typed it rather than whoever agreed it. Every use is audited and an
+    override still demands a reason.
+  */
+  "invoice.discount",
+  // Correcting which flight a box is on: a customer rings to say their cargo
+  // is not on the flight they were told, and this desk takes that call.
+  "shipment.move",
   // Reads and prints the note Finance issued, so a customer at the counter is
   // not sent away to find somebody from Finance. It cannot issue one — that is
   // pickupNote.issue, and it means "the bill is settled and the cargo may go".
@@ -333,6 +348,9 @@ const FINANCE: Permission[] = [
   // Finance shuts a flight's books, because closing one is a decision about
   // money owed and not about cargo.
   "batch.close",
+  // Correcting which flight a consignment is on. Finance is who notices, from
+  // a batch whose figures do not match the cargo standing in the warehouse.
+  "shipment.move",
   "finance.view",
   "invoice.manage",
   "invoice.edit",

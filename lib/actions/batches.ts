@@ -1921,3 +1921,120 @@ export async function returnCarriedCargo(
     return fail(toActionError(error));
   }
 }
+
+/**
+ * Move one consignment onto a different flight.
+ *
+ * Cargo gets put on the wrong batch — a box scanned into the wrong pile in
+ * Guangzhou, a consignment recorded against the flight before it. Until now
+ * the only fix was batch.manage, which also seals and dispatches, so the desks
+ * that actually notice the mistake could not correct it.
+ *
+ * The maths needs no help. Every batch figure — weight, revenue, collected,
+ * outstanding — is computed live from the cargo currently on the batch, so
+ * moving a piece moves its money with it in the same breath. What must not
+ * happen is a move touching a flight whose books are shut: that would change a
+ * statement the boss has already read, and the fix for a mistake found after a
+ * close is to reopen it deliberately.
+ */
+export async function moveShipmentToBatch(
+  _prev: ActionResult<{ to: string }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ to: string }>> {
+  const locale = await viewerLocale();
+
+  let user: SessionUser;
+  try {
+    user = await authorize("shipment.move");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const shipmentId = String(formData.get("shipmentId") ?? "");
+  const toBatchId = String(formData.get("toBatchId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+
+  if (!shipmentId || !toBatchId) return fail(t(locale, "Missing cargo or batch."));
+  if (reason.length < 3) {
+    return fail(t(locale, "Say why it is moving."));
+  }
+
+  try {
+    const moved = await prisma.$transaction(async (tx) => {
+      const piece = await tx.shipment.findUnique({
+        where: { id: shipmentId },
+        select: {
+          id: true,
+          trackingNumber: true,
+          batchId: true,
+          batch: { select: { batchNumber: true, closedAt: true } },
+        },
+      });
+      if (!piece) throw new Error(t(locale, "That cargo no longer exists."));
+      if (piece.batchId === toBatchId) {
+        throw new Error(t(locale, "It is already on that batch."));
+      }
+      if (piece.batch?.closedAt) {
+        throw new Error(
+          `${piece.batch.batchNumber} ${t(locale, "is closed. Reopen it before moving cargo off it.")}`
+        );
+      }
+
+      const target = await tx.batch.findUnique({
+        where: { id: toBatchId },
+        select: { id: true, batchNumber: true, closedAt: true },
+      });
+      if (!target) throw new Error(t(locale, "That batch no longer exists."));
+      if (target.closedAt) {
+        throw new Error(
+          `${target.batchNumber} ${t(locale, "is closed. Cargo cannot be moved onto shut books.")}`
+        );
+      }
+
+      await tx.shipment.update({
+        where: { id: piece.id },
+        data: { batchId: target.id },
+      });
+
+      /* Field-level history as well as the audit line: "which batch" is a
+         property of the consignment, and the cargo's own record should show
+         it changed without anybody going to the audit log to find out. */
+      await tx.fieldChange.create({
+        data: {
+          entity: "Shipment",
+          entityId: piece.id,
+          field: "Batch",
+          before: piece.batch?.batchNumber ?? null,
+          after: target.batchNumber,
+          actorId: user.id,
+          actorName: user.name ?? user.email ?? null,
+        },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "shipment.moved",
+          entity: "Shipment",
+          entityId: piece.id,
+          summary: `Moved ${piece.trackingNumber} from ${piece.batch?.batchNumber ?? "—"} to ${target.batchNumber} — ${reason}`,
+          metadata: {
+            from: piece.batch?.batchNumber ?? null,
+            to: target.batchNumber,
+            reason,
+          },
+        },
+        tx
+      );
+
+      return { from: piece.batchId, to: target.id, batchNumber: target.batchNumber };
+    });
+
+    revalidatePath("/app/shipments");
+    if (moved.from) revalidatePath(`/app/shipments/${moved.from}`);
+    revalidatePath(`/app/shipments/${moved.to}`);
+    return ok({ to: moved.batchNumber });
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}

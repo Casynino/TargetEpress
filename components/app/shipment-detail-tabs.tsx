@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
+import { MoveCargo } from "@/components/app/move-cargo";
 import { RowPriceEditor } from "@/components/app/row-price-editor";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -108,6 +109,8 @@ export function ShipmentDetailTabs({
   timeline,
   showPrice = false,
   canEditPrice = false,
+  canMoveCargo = false,
+  moveTargets = [],
   canOverridePrice = false,
 }: {
   cargo: CargoLine[];
@@ -117,6 +120,10 @@ export function ShipmentDetailTabs({
   showPrice?: boolean;
   /** invoice.edit — may adjust a bill that has had no money against it. */
   canEditPrice?: boolean;
+  /** shipment.move — correcting which flight a consignment is on. */
+  canMoveCargo?: boolean;
+  /** Open flights it could be moved to, this one excluded. */
+  moveTargets?: { id: string; batchNumber: string }[];
   /** invoice.discount — may move the freight figure itself, or discount it. */
   canOverridePrice?: boolean;
 }) {
@@ -304,6 +311,13 @@ export function ShipmentDetailTabs({
                       <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
                         {line.price ? (
                           <span className="inline-flex items-center gap-1.5">
+                            {canMoveCargo ? (
+                              <MoveCargo
+                                shipmentId={line.id}
+                                trackingNumber={line.trackingNumber}
+                                batches={moveTargets}
+                              />
+                            ) : null}
                             {line.price.edit && canEditPrice ? (
                               <RowPriceEditor
                                 weightKg={line.weightKg}
