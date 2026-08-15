@@ -160,29 +160,12 @@ export async function settleBatchIfClear(
     and the ones that went perfectly — every customer paid, nothing written
     off — would never appear on the sheet at all.
 
-    It carries whatever rates are already on the batch. If nobody has entered
-    them the payback and profit columns are blank, which is a fair reason for
-    him to send it back.
   */
-  const withRates = await tx.batch.findUnique({
-    where: { id: batchId },
-    select: { freightRatePerKg: true, customsRatePerKg: true },
-  });
   const statement = await buildStatement(
     tx,
     batchId,
     [],
     [],
-    {
-      freight:
-        withRates?.freightRatePerKg == null
-          ? null
-          : toNumber(withRates.freightRatePerKg),
-      customs:
-        withRates?.customsRatePerKg == null
-          ? null
-          : toNumber(withRates.customsRatePerKg),
-    },
     await currentRateValue()
   );
   /*
@@ -231,7 +214,6 @@ export async function buildStatement(
   batchId: string,
   moved: { shipmentId: string; owedUsd: number }[],
   writtenOffIds: string[],
-  rates: { freight: number | null; customs: number | null },
   rate: number | null
 ) {
   const cargo = await tx.shipment.findMany({
@@ -334,11 +316,6 @@ export async function buildStatement(
     .map(([category, usd]) => ({ category, usd }))
     .sort((a, b) => b.usd - a.usd);
 
-  const landed =
-    rates.freight === null && rates.customs === null
-      ? null
-      : (rates.freight ?? 0) + (rates.customs ?? 0);
-  const paybackUsd = landed === null ? null : kgReceived * landed;
 
   return {
     pieces: cargo.length + moved.length,
@@ -347,10 +324,17 @@ export async function buildStatement(
     kgReceived,
     receivedUsd,
     sellRate: kgReceived > 0 ? receivedUsd / kgReceived : null,
-    freightRatePerKg: rates.freight,
-    customsRatePerKg: rates.customs,
-    paybackUsd,
-    profitUsd: paybackUsd === null ? null : receivedUsd - paybackUsd,
+    /*
+      What the flight made, from what it actually cost.
+
+      This used to be billed minus a per-kilo freight-and-customs rate somebody
+      typed at the close. The owner's call, and the right one: do not make
+      people do extra steps, make it accurate. Customs was already recorded as
+      a real expense with a receipt, so asking for it again as a rate counted
+      the same money twice and the two never agreed. Every cost booked against
+      the flight is subtracted here, and nothing is typed.
+    */
+    profitUsd: receivedUsd - expensesUsd,
     kgSold,
     soldUsd,
     collectedUsd,

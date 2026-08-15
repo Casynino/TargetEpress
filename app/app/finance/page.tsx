@@ -224,22 +224,6 @@ export default async function FinanceOverviewPage() {
     (sum, row) => sum + (row.profitUsd === null ? 0 : toNumber(row.profitUsd)),
     0
   );
-  /*
-    The local bill, kept beside the profit rather than folded into it.
-
-    A statement's profit is billed minus payback — freight and customs per
-    kilo — which is exactly what the paper sheet's Profit Amt column is, and
-    it deliberately does not touch the clearing, permits and transport booked
-    against the flight. Those are real money and they are on the statement as
-    their own figure. The tile used to say "billed less freight, customs and
-    clearing" over a number that had never seen the clearing, so it overstated
-    every confirmed flight by its whole local bill while telling the reader it
-    had been taken off.
-  */
-  const confirmedCosts = confirmed.reduce(
-    (sum, row) => sum + toNumber(row.expensesUsd),
-    0
-  );
 
   const [flightsTotal, flightsOpen, flightsClosed] = await Promise.all([
     prisma.batch.count({ where: { permanent: false } }),
@@ -617,14 +601,10 @@ export default async function FinanceOverviewPage() {
           rate={rate}
           icon={TrendingUp}
           tone={confirmedProfit < 0 ? "bad" : "good"}
-          count={
-            confirmedCosts > 0
-              ? `${t(locale, "before")} ${formatUsd(confirmedCosts)} ${t(locale, "of local costs")}`
-              : `${confirmed.length} ${t(locale, "flights")}`
-          }
+          count={`${confirmed.length} ${t(locale, "flights")}`}
           hint={t(
             locale,
-            "Billed less freight and customs per kilo, on the flights he has signed. Clearing, permits and transport are booked separately and are not taken off this."
+            "Billed less every cost recorded against the flight, on the ones he has signed."
           )}
           href="/app/finance/income"
         />

@@ -98,7 +98,7 @@ export function IncomeSheetTable({
             <tr className="border-b">
               <th colSpan={2} className="px-3 py-1.5" />
               <th
-                colSpan={9}
+                colSpan={6}
                 className="bg-brand/10 px-3 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-brand"
               >
                 {t("Goods received")}
@@ -125,10 +125,7 @@ export function IncomeSheetTable({
               <th className={head}>{t("Rate")}</th>
               <th className={head}>$</th>
               <th className={head}>TZS</th>
-              <th className={head}>{t("Freight")}</th>
-              <th className={head}>{t("Customs")}</th>
-              <th className={head}>{t("Payback")}</th>
-              <th className={head}>{t("Profit rate")}</th>
+              <th className={head}>{t("Costs")}</th>
               <th className={head}>{t("Profit")}</th>
               <th className={cn(head, "border-l")}>{t("Kg")}</th>
               <th className={head}>$</th>
@@ -177,17 +174,8 @@ export function IncomeSheetTable({
                   </td>
                   <td className={cell}>{usd(row.worthUsd)}</td>
                   <td className={cell}>{tsh(row.worthUsd, row.rate)}</td>
-                  <td className={cn(cell, "text-muted-foreground")}>
-                    {perKg(row.freightRate)}
-                  </td>
-                  <td className={cn(cell, "text-muted-foreground")}>
-                    {perKg(row.customsRate)}
-                  </td>
                   <td className={cn(cell, "text-destructive")}>
-                    {usd(row.paybackUsd)}
-                  </td>
-                  <td className={cn(cell, "text-muted-foreground")}>
-                    {perKg(row.profitRate)}
+                    {usd(row.expensesUsd)}
                   </td>
                   <td
                     className={cn(
@@ -229,14 +217,8 @@ export function IncomeSheetTable({
                 {perKg(totals.sellRate)}
               </td>
               <td className={cell}>{usd(totals.worthUsd)}</td>
-              <td />
-              <td />
-              <td />
               <td className={cn(cell, "text-destructive")}>
-                {usd(totals.paybackUsd)}
-              </td>
-              <td className={cn(cell, "text-muted-foreground")}>
-                {perKg(totals.profitRate)}
+                {usd(totals.expensesUsd)}
               </td>
               <td className={cell}>{usd(totals.profitUsd)}</td>
               <td className={cn(cell, "border-l")}>{totals.soldKg.toFixed(1)}</td>
@@ -325,9 +307,9 @@ export function IncomeSheetTable({
                     ],
                     ["Local costs", usd(row.expensesUsd), t("clearing, transport")],
                     [
-                      "Payback",
-                      usd(row.paybackUsd),
-                      `${perKg(row.landedRate)} ${t("per kg")}`,
+                      "Profit",
+                      usd(row.profitUsd),
+                      t("billed less what it cost"),
                     ],
                   ].map(([label, big, small]) => (
                     <div key={label} className="bg-card px-4 py-3">

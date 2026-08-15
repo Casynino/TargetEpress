@@ -481,16 +481,7 @@ export default async function ShipmentPage({
             unbilled: owing.unbilled,
             rate: finance?.rate ?? null,
             carryTargets,
-            freightRate:
-              dispatch.freightRatePerKg === null
-                ? null
-                : toNumber(dispatch.freightRatePerKg),
-            customsRate:
-              dispatch.customsRatePerKg === null
-                ? null
-                : toNumber(dispatch.customsRatePerKg),
-            /* The weights the rate is about to be multiplied by, so the panel
-               can show the product as it is typed. */
+            /* The weights the summary reports. */
             kg: dispatch.shipments
               .filter((piece) => piece.deletedAt === null)
               .reduce((sum, piece) => sum + toNumber(piece.weightKg), 0),

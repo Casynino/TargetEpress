@@ -32,11 +32,6 @@ export type IncomeRow = {
   kg: number;
   worthUsd: number;
   sellRate: number | null;
-  freightRate: number | null;
-  customsRate: number | null;
-  landedRate: number | null;
-  paybackUsd: number | null;
-  profitRate: number | null;
   profitUsd: number | null;
 
   // Goods sold
@@ -62,7 +57,6 @@ export type IncomeSheet = {
   totals: {
     kg: number;
     worthUsd: number;
-    paybackUsd: number;
     profitUsd: number;
     soldKg: number;
     soldUsd: number;
@@ -71,8 +65,6 @@ export type IncomeSheet = {
     writtenOffUsd: number;
     expensesUsd: number;
     sellRate: number | null;
-    landedRate: number | null;
-    profitRate: number | null;
   };
 };
 
@@ -93,7 +85,6 @@ export async function incomeSheet(month?: string): Promise<IncomeSheet> {
       sellRate: true,
       freightRatePerKg: true,
       customsRatePerKg: true,
-      paybackUsd: true,
       profitUsd: true,
       kgSold: true,
       soldUsd: true,
@@ -117,14 +108,6 @@ export async function incomeSheet(month?: string): Promise<IncomeSheet> {
 
   const all: IncomeRow[] = statements.map((s) => {
     const kg = toNumber(s.kgReceived);
-    const freightRate =
-      s.freightRatePerKg === null ? null : toNumber(s.freightRatePerKg);
-    const customsRate =
-      s.customsRatePerKg === null ? null : toNumber(s.customsRatePerKg);
-    const landedRate =
-      freightRate === null && customsRate === null
-        ? null
-        : (freightRate ?? 0) + (customsRate ?? 0);
     const sellRate = s.sellRate === null ? null : toNumber(s.sellRate);
 
     return {
@@ -142,12 +125,6 @@ export async function incomeSheet(month?: string): Promise<IncomeSheet> {
       kg,
       worthUsd: toNumber(s.receivedUsd),
       sellRate,
-      freightRate,
-      customsRate,
-      landedRate,
-      paybackUsd: s.paybackUsd === null ? null : toNumber(s.paybackUsd),
-      profitRate:
-        sellRate === null || landedRate === null ? null : sellRate - landedRate,
       profitUsd: s.profitUsd === null ? null : toNumber(s.profitUsd),
       soldKg: toNumber(s.kgSold),
       soldUsd: toNumber(s.soldUsd),
@@ -189,10 +166,6 @@ export async function incomeSheet(month?: string): Promise<IncomeSheet> {
 
   const kg = sum((r) => r.kg);
   const worthUsd = sum((r) => r.worthUsd);
-  /* Only flights whose rates were entered can contribute to a payback total,
-     or the average per kilo would be dragged down by blanks. */
-  const priced = counted.filter((row) => row.landedRate !== null);
-  const pricedKg = priced.reduce((acc, row) => acc + row.kg, 0);
 
   return {
     rows,
@@ -201,7 +174,6 @@ export async function incomeSheet(month?: string): Promise<IncomeSheet> {
     totals: {
       kg,
       worthUsd,
-      paybackUsd: sum((r) => r.paybackUsd),
       profitUsd: sum((r) => r.profitUsd),
       soldKg: sum((r) => r.soldKg),
       soldUsd: sum((r) => r.soldUsd),
@@ -210,14 +182,6 @@ export async function incomeSheet(month?: string): Promise<IncomeSheet> {
       writtenOffUsd: sum((r) => r.writtenOffUsd),
       expensesUsd: sum((r) => r.expensesUsd),
       sellRate: kg > 0 ? worthUsd / kg : null,
-      landedRate:
-        pricedKg > 0
-          ? priced.reduce((acc, r) => acc + (r.paybackUsd ?? 0), 0) / pricedKg
-          : null,
-      profitRate:
-        pricedKg > 0
-          ? priced.reduce((acc, r) => acc + (r.profitUsd ?? 0), 0) / pricedKg
-          : null,
     },
   };
 }

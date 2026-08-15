@@ -1413,26 +1413,6 @@ export async function closeBatch(
   const carry = new Set(formData.getAll("carry").map((value) => String(value)));
   const carryTo = String(formData.get("carryTo") ?? "");
 
-  /*
-    The two figures the statement cannot work out for itself, asked for HERE.
-
-    The owner's rule: the maths happens when a batch is closed. Freight and
-    customs per kilo are negotiated per flight, and this is the moment somebody
-    who knows them is looking at the flight — not a live grid they have to
-    remember to go and fill in later.
-  */
-  const perKg = (raw: FormDataEntryValue | null) => {
-    const text = String(raw ?? "").trim().replace(/,/g, "");
-    if (text === "") return null;
-    const value = Number(text);
-    return Number.isFinite(value) && value >= 0 ? value : undefined;
-  };
-  const freight = perKg(formData.get("freightRate"));
-  const customs = perKg(formData.get("customsRate"));
-  if (freight === undefined || customs === undefined) {
-    return fail(t(locale, "Freight and customs have to be numbers, or left empty."));
-  }
-
   try {
     const result = await prisma.$transaction(async (tx) => {
       const batch = await tx.batch.findUnique({
@@ -1576,22 +1556,11 @@ export async function closeBatch(
         actually ends up, and inside the same transaction, so a statement
         cannot exist for a close that failed to save.
       */
-      await tx.batch.update({
-        where: { id: batchId },
-        data: {
-          freightRatePerKg:
-            freight === null ? null : new Prisma.Decimal(freight),
-          customsRatePerKg:
-            customs === null ? null : new Prisma.Decimal(customs),
-        },
-      });
-
       const statement = await buildStatement(
         tx,
         batchId,
         moving.map((row) => ({ shipmentId: row.shipmentId, owedUsd: row.owedUsd })),
         chosen.map((row) => row.invoiceId),
-        { freight, customs },
         await currentRateValue()
       );
       /* Overwrites a statement the boss sent back — see the note in
@@ -1743,117 +1712,6 @@ export async function reopenBatch(
     revalidatePath(`/app/shipments/${batchId}`);
     revalidatePath("/app/shipments");
     return ok({});
-  } catch (error) {
-    return fail(toActionError(error));
-  }
-}
-
-/**
- * The two rates the sheet is built on: freight per kilo and customs per kilo.
- *
- * Saved for several flights at once, because that is how they are entered —
- * Finance has the week's sheet in front of them and fills the column down. One
- * form, one save, and a flight left blank stays blank rather than being
- * written as zero, which would read as freight costing nothing.
- */
-export async function saveBatchRates(
-  _prev: ActionResult<{ saved: number }> | undefined,
-  formData: FormData
-): Promise<ActionResult<{ saved: number }>> {
-  const locale = await viewerLocale();
-
-  let user: SessionUser;
-  try {
-    user = await authorize("expense.record");
-  } catch (error) {
-    return fail(toActionError(error));
-  }
-
-  const number = (raw: FormDataEntryValue | null) => {
-    const text = String(raw ?? "").trim().replace(/,/g, "");
-    if (text === "") return null;
-    const value = Number(text);
-    if (!Number.isFinite(value) || value < 0) return undefined; // invalid
-    return value;
-  };
-
-  const ids = formData.getAll("batchId").map((value) => String(value));
-  const changes: { id: string; freight: number | null; customs: number | null }[] =
-    [];
-
-  for (const id of ids) {
-    const freight = number(formData.get(`freight:${id}`));
-    const customs = number(formData.get(`customs:${id}`));
-    if (freight === undefined || customs === undefined) {
-      return fail(t(locale, "A rate has to be a number, or left empty."));
-    }
-    changes.push({ id, freight, customs });
-  }
-
-  try {
-    const saved = await prisma.$transaction(async (tx) => {
-      let touched = 0;
-      for (const change of changes) {
-        const before = await tx.batch.findUnique({
-          where: { id: change.id },
-          select: {
-            batchNumber: true,
-            freightRatePerKg: true,
-            customsRatePerKg: true,
-          },
-        });
-        if (!before) continue;
-
-        const was = {
-          freight:
-            before.freightRatePerKg === null
-              ? null
-              : Number(before.freightRatePerKg),
-          customs:
-            before.customsRatePerKg === null
-              ? null
-              : Number(before.customsRatePerKg),
-        };
-        // Only what actually moved. Saving the whole column every time would
-        // fill the audit log with a hundred entries saying nothing changed.
-        if (was.freight === change.freight && was.customs === change.customs) {
-          continue;
-        }
-
-        await tx.batch.update({
-          where: { id: change.id },
-          data: {
-            freightRatePerKg:
-              change.freight === null
-                ? null
-                : new Prisma.Decimal(change.freight),
-            customsRatePerKg:
-              change.customs === null
-                ? null
-                : new Prisma.Decimal(change.customs),
-          },
-        });
-        touched += 1;
-
-        await recordAudit(
-          {
-            actor: user,
-            action: "batch.rates",
-            entity: "Batch",
-            entityId: change.id,
-            summary:
-              `${before.batchNumber}: freight ${was.freight ?? "—"} → ${change.freight ?? "—"}, ` +
-              `customs ${was.customs ?? "—"} → ${change.customs ?? "—"} per kg`,
-            metadata: { before: was, after: change },
-          },
-          tx
-        );
-      }
-      return touched;
-    });
-
-    revalidatePath("/app/finance/income");
-    return ok({ saved });
   } catch (error) {
     return fail(toActionError(error));
   }

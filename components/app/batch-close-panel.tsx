@@ -39,9 +39,6 @@ export type BatchCloseState = {
   carryTargets: CarryTarget[];
   /** Cargo on THIS batch that arrived from a flight that closed. */
   carriedIn: { trackingNumber: string; fromBatchNumber: string }[];
-  /** Whatever has already been entered for this flight, if anything. */
-  freightRate: number | null;
-  customsRate: number | null;
   /** Everything that landed on this flight, so the panel can show the sum. */
   kg: number;
   /** Weight whose bill is settled, and weight nobody has paid for yet. */
@@ -149,48 +146,6 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
   const writingOff = countFor("writeOff");
 
   /*
-    The payback, worked out as it is typed.
-
-    A per-kilo rate is the one field on this panel where a wrong unit is
-    invisible: 2000 and 8 look equally like numbers, and only the product says
-    which one was meant. Somebody entered shillings into a dollars box on a
-    three-kilo flight and the statement went to the boss saying it had lost
-    fourteen thousand dollars. Showing the multiplication removes the guess —
-    "3 kg × USD 5,000.00 = USD 15,000.00" is wrong on sight in a way that
-    "5000" in a box never is.
-  */
-  const [freight, setFreight] = useState<string>(
-    state.freightRate === null ? "" : String(state.freightRate)
-  );
-  const [customs, setCustoms] = useState<string>(
-    state.customsRate === null ? "" : String(state.customsRate)
-  );
-  const num = (text: string) => {
-    const value = Number(text.trim().replace(/,/g, ""));
-    return text.trim() === "" || !Number.isFinite(value) ? null : value;
-  };
-  const landed =
-    num(freight) === null && num(customs) === null
-      ? null
-      : (num(freight) ?? 0) + (num(customs) ?? 0);
-  const payback = landed === null ? null : state.kg * landed;
-  /*
-    A payback several times what the flight billed is not a rate, it is a unit
-    mistake — shillings typed into a dollars box.
-
-    Measured against what the flight is WORTH, not against what is still owed.
-    The first version compared it to the outstanding balance, which on a flight
-    where almost everyone had paid was a few dollars — so the correct rate of
-    8 + 1.8 tripped the warning and the warning became noise. A yardstick has
-    to be the thing being measured.
-
-    Three times, not two: a genuinely bad flight can cost more than it earned,
-    and that is a fact to report rather than a typo to catch.
-  */
-  const suspicious =
-    payback !== null && state.worthUsd > 0 && payback > 3 * state.worthUsd;
-
-  /*
     Cargo that did not fly in with this flight.
 
     Said on the batch that RECEIVED it, because that is the batch whose weight,
@@ -219,68 +174,6 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
         </span>
       </p>
     ) : null;
-
-  /*
-    One rate block, used by BOTH close forms.
-
-    It existed only on the money-still-owed branch. The ordinary case — every
-    bill paid, which is most flights — had two unlabelled boxes and no preview,
-    so the exact mistake the preview was built to catch was still wide open on
-    the path most closes take. It is also the path a returned statement lands
-    on: the boss sends a flight back BECAUSE the payback looked wrong, and
-    Finance retypes the rate with nothing to check it against.
-  */
-  const rateFields = (
-    <>
-              <label className="flex flex-col gap-1">
-                <span className="text-[11px] text-muted-foreground">
-                  {t("Freight")} <span className="text-foreground">USD / kg</span>
-                </span>
-                <Input
-                  name="freightRate"
-                  inputMode="decimal"
-                  value={freight}
-                  onChange={(event) => setFreight(event.target.value)}
-                  placeholder="8"
-                  className="h-9 w-24 bg-card text-sm tabular-nums"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[11px] text-muted-foreground">
-                  {t("Customs")} <span className="text-foreground">USD / kg</span>
-                </span>
-                <Input
-                  name="customsRate"
-                  inputMode="decimal"
-                  value={customs}
-                  onChange={(event) => setCustoms(event.target.value)}
-                  placeholder="1.8"
-                  className="h-9 w-24 bg-card text-sm tabular-nums"
-                />
-              </label>
-              <p className="pb-2 text-xs">
-                {payback === null ? (
-                  <span className="text-muted-foreground">
-                    {t(
-                      "Weight × these two is what has to be paid back before any of this flight is profit."
-                    )}
-                  </span>
-                ) : (
-                  <span className={suspicious ? "text-destructive" : "text-muted-foreground"}>
-                    {state.kg.toFixed(1)} kg × {formatUsd(landed!)} ={" "}
-                    <span className="font-medium">{formatUsd(payback)}</span>{" "}
-                    {t("to pay back")}
-                    {state.rate !== null
-                      ? ` (${formatLocal(payback * state.rate)})`
-                      : ""}
-                    {suspicious
-                      ? ` — ${t("that is far more than this flight earned. Are those shillings in a dollars box?")}`
-                      : ""}
-                  </span>
-                )}
-              </p>
-    </>
-  );
 
   /* ------------------------------------------------------------------ */
   /* Already closed: one line, and a way back.                           */
@@ -415,7 +308,6 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
         <span className="text-sm text-muted-foreground">
           {t("Everything on this batch is paid. Nothing is owed.")}
         </span>
-        {rateFields}
         <SubmitButton
           variant="ghost"
           className="ml-auto h-9 gap-1.5 border border-success/35 bg-success/10 px-3 text-success hover:bg-success/20 hover:text-success"
@@ -676,9 +568,8 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
             and profit columns blank, which is a fair reason for the boss to
             send it back.
           */}
-          <div className="border-t px-5 py-3">
-            {/* What the flight is, in kilos, before any rate is applied to it. */}
-            <p className="mb-2 text-xs text-muted-foreground">
+          <div className="border-t px-5 py-2.5">
+            <p className="text-xs text-muted-foreground">
               <span className="font-medium text-foreground">
                 {state.kg.toFixed(1)} kg
               </span>{" "}
@@ -691,8 +582,7 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
               {writingOff > 0 ? ` · ${writingOff} ${t("piece(s) written off")}` : ""}
             </p>
             <div className="flex flex-wrap items-end gap-2">
-            {rateFields}
-            </div>
+                </div>
           </div>
 
           <div className="flex flex-wrap items-end gap-2 border-t bg-muted/25 px-5 py-3">
