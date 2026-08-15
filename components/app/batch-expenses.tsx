@@ -15,7 +15,12 @@ import {
 } from "@/lib/actions/expenses";
 import { formatLocal, formatUsd } from "@/lib/money";
 import type { ActionResult } from "@/lib/actions/types";
-import { BATCH_COST_TYPES, EXPENSE_CLASSES } from "@/lib/expenses";
+import {
+  BATCH_COST_TYPES,
+  EXPENSE_CATEGORIES,
+  EXPENSE_CATEGORY_LABELS,
+  EXPENSE_CLASSES,
+} from "@/lib/expenses";
 import type { ExpenseAccount } from "@/components/app/expense-form";
 
 /**
@@ -42,6 +47,8 @@ export type BatchExpenseRow = {
   amountUsd: number;
   status: string;
   incurredAt: string;
+  /** Which account it left, so the editor can open on the right one. */
+  accountId: string | null;
   accountName: string | null;
   recordedBy: string | null;
   receipts: number;
@@ -340,6 +347,7 @@ export function BatchExpenses({
               <ExpenseEditor
                   row={e}
                   batchId={batchId}
+                  accounts={accounts}
                   onDone={() => setEditing(null)}
                 />
             ) : null}
@@ -504,10 +512,13 @@ export function BatchExpenses({
 function ExpenseEditor({
   row,
   batchId,
+  accounts,
   onDone,
 }: {
   row: BatchExpenseRow;
   batchId: string;
+  /** Every company account; the editor shows the ones in this cost's currency. */
+  accounts: ExpenseAccount[];
   onDone: () => void;
 }) {
   const t = useT();
@@ -537,7 +548,6 @@ function ExpenseEditor({
         <input type="hidden" name="expenseId" value={row.id} />
         {/* Unchanged fields still have to be posted: the action compares the
             whole record and writes down only what actually moved. */}
-        <input type="hidden" name="category" value={row.category} />
         <input
           type="hidden"
           name="expenseClass"
@@ -562,6 +572,30 @@ function ExpenseEditor({
         <input type="hidden" name="vendor" value={row.vendor ?? ""} />
         <input type="hidden" name="note" value={row.note ?? ""} />
 
+        {/*
+          Every field of the record, not three of them.
+
+          The owner's rule: an edit should be a complete change. A cost gets
+          recorded against the wrong category, or out of petty cash when it
+          actually left CRDB, as often as it gets a digit wrong — and having to
+          cancel a correct cost and retype it to fix its account is how a
+          register fills up with cancelled rows nobody can read.
+        */}
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-muted-foreground">{t("Expense")}</span>
+          <NativeSelect
+            name="category"
+            defaultValue={row.category}
+            className="h-9 w-44 bg-card text-sm"
+          >
+            {EXPENSE_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {t(EXPENSE_CATEGORY_LABELS[c] ?? c)}
+              </option>
+            ))}
+          </NativeSelect>
+        </label>
+
         <label className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="text-[11px] text-muted-foreground">{t("What it was")}</span>
           <Input
@@ -574,16 +608,40 @@ function ExpenseEditor({
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground">
-            {paid ? t("Amount (paid — reverse to change)") : t("Amount")}
-          </span>
+          <span className="text-[11px] text-muted-foreground">{t("Amount")}</span>
           <Input
             name="amount"
             inputMode="numeric"
             defaultValue={String(row.amount)}
-            disabled={paid}
-            className="h-9 w-32 bg-card text-sm tabular-nums disabled:opacity-60"
+            className="h-9 w-32 bg-card text-sm tabular-nums"
           />
+        </label>
+
+        {/*
+          Which account it left, including "none".
+
+          On a cost that has already been paid this moves real money, and the
+          action treats it that way: the ledger line on the wrong account is
+          reversed and a correct one posted, so a balance never quietly
+          disagrees with a bank statement. Saying so here means nobody is
+          surprised by two lines appearing in the ledger.
+        */}
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-muted-foreground">{t("Paid from")}</span>
+          <NativeSelect
+            name="accountId"
+            defaultValue={row.accountId ?? ""}
+            className="h-9 w-44 bg-card text-sm"
+          >
+            <option value="">{t("Not paid yet")}</option>
+            {accounts
+              .filter((a) => a.currency === row.currency)
+              .map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+          </NativeSelect>
         </label>
 
         <label className="flex min-w-0 flex-1 flex-col gap-1">

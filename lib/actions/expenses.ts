@@ -524,14 +524,26 @@ const editSchema = z.object({
   note: z.string().trim().optional(),
   batchId: z.string().trim().optional(),
   /**
-   * A figure typed wrong, corrected — but only while the money has not moved.
+   * Which account the money came out of, or none at all.
    *
-   * The commonest mistake by a distance is a digit: 300,000 for 30,000. Until
-   * a cost is paid there is no ledger line and no account balance depending on
-   * it, so the figure is just a figure and correcting it is honest. Once money
-   * has left an account the amount is frozen here and the only correct answer
-   * is a reversal, which is enforced in the action rather than by hiding the
-   * box.
+   * The second commonest correction after a wrong figure is a cost booked
+   * against the wrong account — petty cash when it went out of CRDB. Absent
+   * means "not paid yet", which is a real answer and not a missing one: it is
+   * how a cost marked paid by mistake is put back.
+   *
+   * This is the one field here that moves real money, so the action does not
+   * simply write it. See the ledger handling in editExpense.
+   */
+  accountId: z.string().trim().optional(),
+  /**
+   * A figure typed wrong, corrected.
+   *
+   * The commonest mistake by a distance is a digit: 300,000 for 30,000. While
+   * nothing has been paid the figure is just a figure and correcting it is
+   * honest. Once money has moved the figure is still correctable, but not by
+   * overwriting it — the old ledger line is reversed and a corrected one
+   * posted, so the account balance ends up right and both the mistake and the
+   * correction stay on the record.
    */
   amount: z
     .string()
@@ -558,8 +570,9 @@ const FIELD_LABELS: Record<string, string> = {
   description: "Description",
   vendor: "Paid to",
   note: "Note",
-  batchId: "Dispatch",
+  batchId: "Batch",
   incurredAt: "Date incurred",
+  accountId: "Paid from",
 };
 
 /**
@@ -615,8 +628,11 @@ export async function editExpense(
           batchId: true,
           incurredAt: true,
           amount: true,
+          amountUsd: true,
           currency: true,
           exchangeRate: true,
+          accountId: true,
+          account: { select: { name: true } },
           batch: { select: { batchNumber: true } },
           ledgerEntry: { select: { id: true } },
         },
@@ -628,23 +644,97 @@ export async function editExpense(
         );
       }
 
-      /*
-        The figure moves only while no money has.
-
-        A ledger line means an account balance is standing on this amount.
-        Changing it here would leave the two disagreeing with nothing to say
-        why — which is the exact failure a ledger exists to prevent. Reversal
-        is the answer there, and it is one click away in the same row.
-      */
       const amountChanged =
         input.amount !== null && input.amount !== toNumber(before.amount);
-      if (amountChanged && before.ledgerEntry) {
+      const nextAccountId = input.accountId || null;
+      const accountChanged = nextAccountId !== before.accountId;
+
+      /*
+        Money that has moved is corrected by moving it back, never by editing
+        the number it moved.
+
+        A ledger line means an account balance is standing on this figure and
+        this account. So when either changes on a cost that has been paid, the
+        live line is reversed — money back IN to the account it wrongly left —
+        and a corrected line posted OUT of the right account for the right
+        amount. The balance ends up where it should be, and the register shows
+        the mistake AND the correction, which is the whole difference between
+        a ledger and a spreadsheet.
+
+        The live line is found rather than assumed: after one correction the
+        expense's own `ledgerEntry` is a reversed line, and reversing it again
+        would put the money back twice.
+      */
+      const live =
+        amountChanged || accountChanged
+          ? await tx.ledgerEntry.findFirst({
+              where: {
+                sourceEntity: "Expense",
+                sourceId: before.id,
+                direction: "OUT",
+                reversedBy: { is: null },
+              },
+              orderBy: { occurredAt: "desc" },
+              select: {
+                id: true,
+                accountId: true,
+                amount: true,
+                amountUsd: true,
+                currency: true,
+                exchangeRate: true,
+              },
+            })
+          : null;
+
+      /*
+        The account is checked before anything is written, and checked the same
+        way paying a cost checks it: it has to exist, it has to be open, and it
+        has to be in the currency the money was actually in. A shilling cost
+        cannot have left a dollar account, and letting it say so would put a
+        figure into a balance that no bank statement will ever agree with.
+      */
+      const nextAccount = nextAccountId
+        ? await tx.companyAccount.findUnique({
+            where: { id: nextAccountId },
+            select: { id: true, name: true, currency: true, active: true },
+          })
+        : null;
+      if (nextAccountId && !nextAccount) {
+        throw new Error(t(locale, "That account no longer exists."));
+      }
+      if (nextAccount && !nextAccount.active) {
         throw new Error(
-          `${before.expenseNumber} ${t(locale, "has already been paid, so its amount cannot be edited. Reverse it and record it again.")}`
+          `${nextAccount.name} ${t(locale, "has been archived.")}`
+        );
+      }
+      if (nextAccount && nextAccount.currency !== before.currency) {
+        throw new Error(
+          `${nextAccount.name} ${t(locale, "is a")} ${nextAccount.currency} ${t(locale, "account, so a")} ${before.currency} ${t(locale, "cost cannot have left it.")}`
         );
       }
 
       const rate = toNumber(before.exchangeRate ?? 0) || null;
+      const nextAmount = amountChanged ? input.amount! : toNumber(before.amount);
+      const nextAmountUsd =
+        before.currency === "USD" ? nextAmount : rate ? nextAmount / rate : 0;
+
+      /*
+        Marking a cost paid from here is still a payment, so it meets the same
+        limit. Somebody who may not approve a large cost must not be able to
+        approve one by editing it onto an account instead of pressing Pay.
+      */
+      if (
+        nextAccount &&
+        before.status === "PENDING" &&
+        nextAmountUsd > APPROVAL_THRESHOLD_USD &&
+        !can(user.role, "expense.approve")
+      ) {
+        throw new Error(
+          `${before.expenseNumber} ${t(locale, "is over the approval limit and has not been approved yet.")}`
+        );
+      }
+
+      const paidAt = new Date();
       const after = {
         category: input.category,
         expenseClass: input.expenseClass,
@@ -653,6 +743,15 @@ export async function editExpense(
         note: input.note || null,
         batchId: input.batchId || null,
         incurredAt: input.incurredAt ?? before.incurredAt,
+        ...(accountChanged
+          ? {
+              accountId: nextAccountId,
+              // No account is not a missing answer, it is "not paid yet" —
+              // which is how a cost marked paid by mistake is put back.
+              status: nextAccountId ? ("PAID" as const) : ("PENDING" as const),
+              paidAt: nextAccountId ? paidAt : null,
+            }
+          : {}),
         ...(amountChanged
           ? {
               amount: new Prisma.Decimal(input.amount!),
@@ -678,9 +777,24 @@ export async function editExpense(
         if (value instanceof Date) return value.toISOString().slice(0, 10);
         // Decimal prints as an object unless it is asked for a number.
         if (key === "amount") return toNumber(value as never).toLocaleString();
+        /* An account id in the history tells nobody anything; its name does. */
+        if (key === "accountId") {
+          return value === before.accountId
+            ? (before.account?.name ?? String(value))
+            : (nextAccount?.name ?? String(value));
+        }
         return String(value);
       };
       for (const key of Object.keys(FIELD_LABELS)) {
+        /*
+          `after` carries only the fields actually being written — amount and
+          account are conditional. A key it omits is a field nobody touched, and
+          reading it as undefined made the history claim the opposite: every
+          edit that left the figure alone recorded "Amount 620,000 → —" in the
+          audit log of a money record, which is the one place a false entry
+          costs the most.
+        */
+        if (!(key in after)) continue;
         const a = show(key, (before as Record<string, unknown>)[key]);
         const b = show(key, (after as Record<string, unknown>)[key]);
         if (a !== b) {
@@ -693,6 +807,50 @@ export async function editExpense(
       }
 
       await tx.expense.update({ where: { id: before.id }, data: after });
+
+      /*
+        Two legs, in the order a person would explain them: put the wrong
+        payment back, then make the right one.
+      */
+      if (live) {
+        await postLedgerEntry(tx, {
+          accountId: live.accountId,
+          currency: live.currency,
+          direction: "IN",
+          kind: "ADJUSTMENT",
+          amount: toNumber(live.amount),
+          amountUsd: toNumber(live.amountUsd),
+          exchangeRate: live.exchangeRate === null ? null : toNumber(live.exchangeRate),
+          occurredAt: paidAt,
+          description: `Correction of ${before.expenseNumber} — ${input.reason}`,
+          sourceEntity: "Expense",
+          sourceId: before.id,
+          /* LedgerEntry.expenseId is unique — one line per cost is what makes
+             "money cannot move without a ledger line" a database rule rather
+             than a habit. Both correction legs link by sourceId instead. */
+          recordedById: user.id,
+          reversesId: live.id,
+        });
+      }
+
+      if (nextAccount && (amountChanged || accountChanged)) {
+        await postLedgerEntry(tx, {
+          accountId: nextAccount.id,
+          currency: nextAccount.currency,
+          direction: "OUT",
+          kind: "EXPENSE",
+          amount: nextAmount,
+          amountUsd: nextAmountUsd,
+          exchangeRate: before.exchangeRate === null ? null : toNumber(before.exchangeRate),
+          occurredAt: paidAt,
+          description: `${before.expenseNumber} — ${input.description}${input.vendor ? ` (${input.vendor})` : ""}`,
+          sourceEntity: "Expense",
+          sourceId: before.id,
+          // Only the first line for a cost may claim the unique link.
+          expenseId: before.ledgerEntry ? undefined : before.id,
+          recordedById: user.id,
+        });
+      }
 
       await tx.fieldChange.createMany({
         data: changes.map((c) => ({
