@@ -173,7 +173,12 @@ export function BatchExpenses({
       tint is 4%, which is enough to tell two surfaces apart and not enough to
       make a warning out of an ordinary clearing bill.
     */
-    <section className="mb-6 overflow-hidden rounded-xl border border-destructive/25 bg-card shadow-soft">
+    /* An id, so the close panel can send somebody straight here to fix a
+       figure instead of telling them it is "below" and leaving them to look. */
+    <section
+      id="batch-costs"
+      className="mb-6 scroll-mt-4 overflow-hidden rounded-xl border border-destructive/25 bg-card shadow-soft"
+    >
       <div className="bg-destructive/[0.04]">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b px-5 py-4">
         <div>

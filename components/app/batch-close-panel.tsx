@@ -455,12 +455,23 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
           <input type="hidden" name="batchId" value={state.batchId} />
 
           <p className="px-5 py-3 text-xs text-muted-foreground">
-            {/* Closing freezes these figures, so the moment to correct one is
-                before, not after — and the place to do it is on the same page,
-                a few inches down. */}
+            {/*
+              An instruction with a door in it.
+
+              This said "correct the cost or the price below" and gave no way
+              to — which is a sentence telling somebody to do something and
+              leaving them to hunt for it. The costs are a link now, and the
+              prices are named where they actually live.
+            */}
             <span className="text-foreground">
-              {t("Wrong figure? Correct the cost or the price below before closing —")}{" "}
-              {t("after this the statement is frozen.")}
+              {t("Wrong figure?")}{" "}
+              <a
+                href="#batch-costs"
+                className="font-medium text-brand underline underline-offset-2"
+              >
+                {t("Fix a cost")}
+              </a>{" "}
+              {t("or edit a price on the cargo list below — once this is closed the statement is frozen.")}
             </span>{" "}
             {t(
               "Every piece keeps being chased here unless you say otherwise. Carry one to a live batch and the chase moves with the cargo; write one off and its bill leaves this batch's revenue, so the profit becomes what it really made."
