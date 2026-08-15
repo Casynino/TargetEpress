@@ -15,12 +15,7 @@ import {
 } from "@/lib/actions/expenses";
 import { formatLocal, formatUsd } from "@/lib/money";
 import type { ActionResult } from "@/lib/actions/types";
-import {
-  BATCH_COST_TYPES,
-  EXPENSE_CATEGORIES,
-  EXPENSE_CATEGORY_LABELS,
-  EXPENSE_CLASSES,
-} from "@/lib/expenses";
+import { BATCH_COST_TYPES, EXPENSE_CLASSES } from "@/lib/expenses";
 import type { ExpenseAccount } from "@/components/app/expense-form";
 
 /**
@@ -524,6 +519,20 @@ function ExpenseEditor({
   const t = useT();
   const paid = row.status === "PAID";
 
+  /*
+    Which of the batch's costs this row is, resolved from what it was called.
+
+    Costs are recorded by picking a name, so the name is what identifies them
+    coming back — there is no id on the row saying "this is the Zanzibar
+    customs one". A description nobody picked from the list is "something
+    else", which is exactly what it was when it was typed.
+  */
+  const matched = BATCH_COST_TYPES.find(
+    (c) => c.label.toLowerCase() === row.description.trim().toLowerCase()
+  );
+  const [kind, setKind] = useState<string>(matched?.key ?? "other");
+  const named = BATCH_COST_TYPES.find((c) => c.key === kind) ?? null;
+
   const [editState, edit] = useActionState<
     ActionResult<{ expenseNumber: string }>,
     FormData
@@ -581,31 +590,60 @@ function ExpenseEditor({
           cancel a correct cost and retype it to fix its account is how a
           register fills up with cancelled rows nobody can read.
         */}
+        {/*
+          The same picker the row above adds with.
+
+          Editing offered raw accounting categories — "Customs duty" — while
+          adding offered the costs this business actually has: "Zanzibar
+          customs", "Transport · Zanzibar to Dar". One list, so a cost entered
+          as the wrong one is corrected by picking the right one, not by
+          retyping it and hoping the category underneath follows.
+
+          The whole list, not just the ones this batch has yet to record: the
+          cost being edited is by definition already recorded, and its own name
+          has to be in the list it is being chosen from.
+        */}
         <label className="flex flex-col gap-1">
           <span className="text-[11px] text-muted-foreground">{t("Expense")}</span>
           <NativeSelect
-            name="category"
-            defaultValue={row.category}
-            className="h-9 w-44 bg-card text-sm"
+            value={kind}
+            onChange={(e) => setKind(e.target.value)}
+            className="h-9 w-52 bg-card text-sm"
+            aria-label={t("Expense")}
           >
-            {EXPENSE_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {t(EXPENSE_CATEGORY_LABELS[c] ?? c)}
+            {BATCH_COST_TYPES.map((c) => (
+              <option key={c.key} value={c.key}>
+                {t(c.label)}
               </option>
             ))}
+            <option value="other">{t("Something else")}</option>
           </NativeSelect>
         </label>
 
-        <label className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground">{t("What it was")}</span>
-          <Input
-            name="description"
-            defaultValue={row.description}
-            required
-            minLength={3}
-            className="h-9 bg-card text-sm"
-          />
-        </label>
+        {/* A named cost carries its own wording and its own category; only
+            "something else" needs either typed. */}
+        {named ? (
+          <>
+            <input type="hidden" name="category" value={named.category} />
+            <input type="hidden" name="description" value={named.label} />
+          </>
+        ) : (
+          <>
+            <input type="hidden" name="category" value={row.category} />
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="text-[11px] text-muted-foreground">
+                {t("What it was")}
+              </span>
+              <Input
+                name="description"
+                defaultValue={row.description}
+                required
+                minLength={3}
+                className="h-9 bg-card text-sm"
+              />
+            </label>
+          </>
+        )}
 
         <label className="flex flex-col gap-1">
           <span className="text-[11px] text-muted-foreground">{t("Amount")}</span>
