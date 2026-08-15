@@ -1,6 +1,5 @@
-import {
-  TriangleAlert,
-} from "lucide-react";
+import Link from "next/link";
+import { TriangleAlert } from "lucide-react";
 
 import type { BatchFinance } from "@/lib/batch-finance";
 import { formatLocal, formatUsd } from "@/lib/fx";
@@ -85,7 +84,16 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
           { k: t(locale, "Expected revenue"), usd: billedUsd, tone: "" },
           { k: t(locale, "Collected"), usd: receivedUsd, tone: "text-success" },
           {
-            k: t(locale, "Outstanding"),
+            /*
+              Expected, like everything else derived from a bill.
+
+              It is expected revenue minus what has come in, so it inherits
+              every estimate in the first figure. Calling the other four
+              "expected" and this one a flat "Outstanding" implied it was the
+              settled one on the row, when it is the figure most likely to move
+              — a price gets confirmed, a bill gets written off, and it changes.
+            */
+            k: t(locale, "Expected outstanding"),
             usd: outstandingUsd,
             tone: outstandingUsd > 0 ? "text-destructive" : "",
           },
@@ -182,7 +190,18 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
           </span>
         ) : null}
         {rate !== null ? (
-          <span className="ml-auto">1 USD = {rate.toLocaleString()} TSh</span>
+          /* Every shilling on this page hangs off this one number, and it
+             moves. The way to move it is a click from here rather than a
+             hunt through the finance tabs. */
+          <span className="ml-auto">
+            1 USD = {rate.toLocaleString()} TSh{" "}
+            <Link
+              href="/app/finance/exchange-rate"
+              className="font-medium text-brand hover:underline"
+            >
+              {t(locale, "change")}
+            </Link>
+          </span>
         ) : (
           <span className="ml-auto text-signal">
             {t(locale, "No exchange rate published yet")}
