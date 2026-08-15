@@ -327,7 +327,7 @@ export default async function FinanceOverviewPage() {
         title={t(locale, "Overview")}
         description={t(
           locale,
-          "The department at a glance: what the business is holding, what is owed to it, and how the flights are doing. Shown in shillings; the dollar figure is what the invoice says."
+          "The department at a glance: what the business is holding, what is owed to it, and how the batches are doing. Shown in shillings; the dollar figure is what the invoice says."
         )}
         actions={
           <Button asChild variant="brand" className="rounded-lg">
@@ -351,123 +351,114 @@ export default async function FinanceOverviewPage() {
              are the three things somebody actually DOES from this desk, named
              as actions, as a toolbar under the figures rather than a column
              competing with them. */}
-      <section className="mb-6 rounded-2xl border bg-card p-6">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          <PiggyBank className="h-4 w-4 text-brand" />
-          {seesCompanyMoney
-            ? t(locale, "Cash available")
-            : t(locale, "Collected all time")}
-        </p>
-        <p className="mt-2 font-display text-[40px] font-bold leading-none tracking-tight tabular-nums">
-          {rate ? (
-            <>
-              <span className="text-xl font-semibold text-muted-foreground">
-                TSh{" "}
-              </span>
-              {Math.round(
-                (seesCompanyMoney ? cashOnHand : stats.collected) * rate
-              ).toLocaleString("en-US")}
-            </>
-          ) : (
-            formatUsd(seesCompanyMoney ? cashOnHand : stats.collected)
-          )}
-        </p>
-        <p className="mt-1.5 text-xs text-muted-foreground">
-          {seesCompanyMoney
-            ? t(
-                locale,
-                "Across every bank, till and the office tin — derived from the ledger"
-              )
-            : t(locale, "Every payment received")}{" "}
-          · {formatUsd(seesCompanyMoney ? cashOnHand : stats.collected)}{" "}
-          {t(locale, "on the invoice")}
-        </p>
+      {/*
+        The money position, as a row rather than a billboard.
 
-        <dl className="mt-5 flex flex-wrap gap-x-10 gap-y-3 border-t pt-4">
-          <div>
-            <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <ArrowDownLeft className="h-3.5 w-3.5 text-success" />
-              {t(locale, "In this month")}
-            </dt>
-            <dd className="mt-0.5 font-display text-lg font-bold tabular-nums text-success">
-              {tsh(collectedMonth)}
-            </dd>
-          </div>
-          {seesCompanyMoney ? (
-            <>
-              <div>
-                <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <ArrowUpRight className="h-3.5 w-3.5" />
-                  {t(locale, "Out this month")}
-                </dt>
-                <dd className="mt-0.5 font-display text-lg font-bold tabular-nums">
-                  {tsh(spentUsd)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">
-                  {t(locale, "Net")}
-                </dt>
-                <dd
-                  className={`mt-0.5 font-display text-lg font-bold tabular-nums ${
-                    netMonth >= 0 ? "" : "text-destructive"
-                  }`}
-                >
-                  {tsh(netMonth)}
-                </dd>
-              </div>
-            </>
-          ) : null}
-          <div className="ml-auto">
-            <dt className="text-xs text-muted-foreground">
-              {t(locale, "Rate today")}
-            </dt>
-            <dd className="mt-0.5 font-mono text-sm tabular-nums">
-              {rate ? (
-                <>
-                  1 USD ={" "}
-                  <span className="font-semibold text-brand">
-                    {rate.toLocaleString()}
-                  </span>{" "}
-                  TSh
-                </>
-              ) : (
-                <span className="text-destructive">{t(locale, "not set")}</span>
-              )}
-              <Link
-                href="/app/finance/pricing"
-                className="ml-2 text-xs font-medium text-brand hover:underline"
+        It used to open with a 40px number on a card of its own. Cash available
+        is not the most important thing on this page — it is one of four
+        figures that only mean anything beside each other, and printing it four
+        times the size of the rest pushed everything a finance clerk actually
+        DOES below the fold. The four sit on one line now, the same size, and
+        the actions sit with them instead of a screen away.
+      */}
+      <section className="mb-4 overflow-hidden rounded-xl border bg-card shadow-soft">
+        <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+          {[
+            {
+              k: seesCompanyMoney
+                ? t(locale, "Cash available")
+                : t(locale, "Collected all time"),
+              v: tsh(seesCompanyMoney ? cashOnHand : stats.collected),
+              usd: formatUsd(seesCompanyMoney ? cashOnHand : stats.collected),
+              tone: "text-foreground",
+              hint: seesCompanyMoney
+                ? t(locale, "Every bank, till and the office tin")
+                : t(locale, "Every payment received"),
+            },
+            {
+              k: t(locale, "In this month"),
+              v: tsh(collectedMonth),
+              tone: "text-success",
+              hint: t(locale, "Money that came in"),
+            },
+            ...(seesCompanyMoney
+              ? [
+                  {
+                    k: t(locale, "Out this month"),
+                    v: tsh(spentUsd),
+                    tone: "text-destructive",
+                    hint: t(locale, "Costs paid"),
+                  },
+                  {
+                    k: t(locale, "Net this month"),
+                    v: tsh(netMonth),
+                    tone: netMonth >= 0 ? "text-foreground" : "text-destructive",
+                    hint: netMonth >= 0 ? t(locale, "Ahead") : t(locale, "Behind"),
+                  },
+                ]
+              : []),
+          ].map((cell) => (
+            <div key={cell.k} className="bg-card px-5 py-3.5">
+              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                {cell.k}
+              </dt>
+              <dd
+                className={`mt-0.5 font-display text-xl font-bold tabular-nums ${cell.tone}`}
               >
-                {t(locale, "change")}
-              </Link>
-            </dd>
-          </div>
+                {cell.v}
+              </dd>
+              <p className="text-[11px] text-muted-foreground">
+                {cell.usd ?? cell.hint}
+              </p>
+            </div>
+          ))}
         </dl>
 
-        {/* Verbs, and only things that are actually done rather than merely
-            looked at. Anything that is just a page lives in the tab row. */}
-        {seesCompanyMoney ? (
-          <div className="mt-5 flex flex-wrap gap-2 border-t pt-4">
-            <Button asChild variant="brand" size="sm" className="rounded-lg">
-              <Link href="/app/finance/expenses">
-                <Receipt className="mr-2 h-4 w-4" />
-                {t(locale, "Record a cost")}
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="rounded-lg">
-              <Link href="/app/finance/accounts">
-                <ArrowLeftRight className="mr-2 h-4 w-4" />
-                {t(locale, "Move money between accounts")}
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="rounded-lg">
-              <Link href="/app/finance/accounts">
-                <Calculator className="mr-2 h-4 w-4" />
-                {t(locale, "Count the cash tin")}
-              </Link>
-            </Button>
-          </div>
-        ) : null}
+        {/* The three things done from this desk, and the one number that every
+            shilling on the page hangs off. */}
+        <div className="flex flex-wrap items-center gap-2 border-t bg-muted/20 px-5 py-2.5">
+          {seesCompanyMoney ? (
+            <>
+              <Button asChild variant="brand" size="sm" className="h-8 rounded-lg">
+                <Link href="/app/finance/expenses">
+                  <Receipt className="mr-1.5 h-3.5 w-3.5" />
+                  {t(locale, "Record a cost")}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="h-8 rounded-lg">
+                <Link href="/app/finance/accounts">
+                  <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" />
+                  {t(locale, "Move money")}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="h-8 rounded-lg">
+                <Link href="/app/finance/accounts">
+                  <Calculator className="mr-1.5 h-3.5 w-3.5" />
+                  {t(locale, "Count the cash tin")}
+                </Link>
+              </Button>
+            </>
+          ) : null}
+          <span className="ml-auto font-mono text-xs tabular-nums text-muted-foreground">
+            {rate ? (
+              <>
+                1 USD ={" "}
+                <span className="font-semibold text-brand">
+                  {rate.toLocaleString()}
+                </span>{" "}
+                TSh
+              </>
+            ) : (
+              <span className="text-destructive">{t(locale, "No rate set")}</span>
+            )}
+            <Link
+              href="/app/finance/pricing"
+              className="ml-2 font-sans font-medium text-brand hover:underline"
+            >
+              {t(locale, "change")}
+            </Link>
+          </span>
+        </div>
       </section>
 
       {/* ── The work. A list, not a card grid: each row is one job with the
@@ -520,6 +511,92 @@ export default async function FinanceOverviewPage() {
           </ul>
         )}
       </section>
+
+      {/*
+        Where to go next, with the reason to go there on it.
+
+        The tab row along the top says only what the pages are CALLED. It
+        cannot say that four payments are waiting to be verified or that the
+        boss sent a batch back this morning, so somebody had to open each tab
+        to find out — which is the opposite of an overview. Every finance
+        screen is here with the one number that decides whether it is worth
+        opening, and a number that is zero is stated as nothing to do rather
+        than left blank.
+      */}
+      <section className="mb-6">
+        <SectionLabel>{t(locale, "The finance desk")}</SectionLabel>
+        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            {
+              href: "/app/finance/payments",
+              label: t(locale, "Verify payments"),
+              why: t(locale, "What customers say they have sent"),
+              count: unattributed?._count ?? 0,
+              unit: t(locale, "waiting"),
+              urgent: true,
+            },
+            {
+              href: "/app/collections",
+              label: t(locale, "Collections"),
+              why: t(locale, "Bills nobody has paid yet"),
+              count: stats.unpaid,
+              unit: t(locale, "unpaid"),
+              urgent: true,
+            },
+            {
+              href: "/app/finance/income",
+              label: t(locale, "Closed batches"),
+              why: t(locale, "What each closed batch made"),
+              count: awaiting,
+              unit: t(locale, "with the boss"),
+            },
+            {
+              href: "/app/finance/accounts",
+              label: t(locale, "Accounts"),
+              why: t(locale, "Every bank, till and the office tin"),
+            },
+            {
+              href: "/app/finance/transactions",
+              label: t(locale, "General ledger"),
+              why: t(locale, "Every shilling in and out, in one register"),
+            },
+            {
+              href: "/app/finance/profit",
+              label: t(locale, "Profit & loss"),
+              why: t(locale, "Earned against spent, for a period"),
+            },
+          ].map((door) => (
+            <Link
+              key={door.href}
+              href={door.href}
+              className="group flex items-baseline gap-3 bg-card px-5 py-3.5 transition-colors hover:bg-accent"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium group-hover:text-brand">
+                  {door.label}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {door.why}
+                </span>
+              </span>
+              {door.count === undefined ? null : door.count > 0 ? (
+                <span
+                  className={`shrink-0 text-xs font-semibold tabular-nums ${
+                    door.urgent ? "text-destructive" : "text-signal"
+                  }`}
+                >
+                  {door.count} {door.unit}
+                </span>
+              ) : (
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {t(locale, "nothing waiting")}
+                </span>
+              )}
+            </Link>
+          ))}
+        </div>
+      </section>
+
 
       {/* One line, because it is context for the money rather than a report of
           its own. Every figure above hangs off cargo that is somewhere. */}
