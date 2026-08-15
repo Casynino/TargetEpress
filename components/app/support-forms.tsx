@@ -21,7 +21,7 @@ import {
 
 export const TICKET_CATEGORIES = [
   { value: "PRICE_INQUIRY", label: "Price inquiry" },
-  { value: "SHIPMENT_INQUIRY", label: "Shipment inquiry" },
+  { value: "SHIPMENT_INQUIRY", label: "Cargo inquiry" },
   { value: "MISSING_CARGO", label: "Missing cargo" },
   { value: "DAMAGED_CARGO", label: "Damaged cargo" },
   { value: "SOURCING", label: "Sourcing" },
@@ -237,7 +237,7 @@ export function NewTicketForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="trackingNumber">
-              {t("Shipment")}{" "}
+              {t("Cargo")}{" "}
               <span className="font-normal text-muted-foreground">
                 {t("optional")}
               </span>

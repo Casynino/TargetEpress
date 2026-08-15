@@ -165,7 +165,7 @@ export async function InvoiceDocument({
         </DocumentField>
 
         <div className="flex items-start justify-between gap-3">
-          <DocumentField label={t(locale, "Shipment")}>
+          <DocumentField label={t(locale, "Cargo")}>
             <p className="font-mono text-lg font-bold tabular text-[#182A48]">
               {shipment.trackingNumber}
             </p>

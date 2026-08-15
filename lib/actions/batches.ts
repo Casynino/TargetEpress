@@ -108,7 +108,7 @@ export async function setShipmentBatch(
 
   const shipmentId = String(formData.get("shipmentId") ?? "");
   const batchId = String(formData.get("batchId") ?? "");
-  if (!shipmentId) return fail(t(locale, "Missing shipment."));
+  if (!shipmentId) return fail(t(locale, "Missing cargo."));
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -122,7 +122,7 @@ export async function setShipmentBatch(
           batch: { select: { id: true, status: true, batchNumber: true } },
         },
       });
-      if (!shipment) throw new Error(t(locale, "Shipment not found."));
+      if (!shipment) throw new Error(t(locale, "Cargo not found."));
       if (shipment.status !== "READY_TO_DEPART") {
         throw new Error(
           t(locale, "Only cargo still in China can change batch.")
@@ -232,7 +232,7 @@ export async function sealBatch(
         throw new Error(t(locale, "This batch is already sealed."));
       }
       if (batch._count.shipments === 0) {
-        throw new Error(t(locale, "Add at least one shipment before sealing."));
+        throw new Error(t(locale, "Add at least one consignment before sealing."));
       }
 
       await tx.batch.update({
@@ -246,7 +246,7 @@ export async function sealBatch(
           action: "batch.seal",
           entity: "Batch",
           entityId: batchId,
-          summary: `Sealed ${batch.batchNumber} with ${batch._count.shipments} shipment(s)`,
+          summary: `Sealed ${batch.batchNumber} with ${batch._count.shipments} consignment(s)`,
         },
         tx
       );
@@ -928,9 +928,9 @@ export async function verifyShipment(
           },
         },
       });
-      if (!shipment) throw new Error("Shipment not found.");
+      if (!shipment) throw new Error("Cargo not found.");
       if (shipment.batchId !== batchId) {
-        throw new Error("That shipment is not in this batch.");
+        throw new Error("That cargo is not in this batch.");
       }
 
       await tx.batchVerification.upsert({
@@ -1212,7 +1212,7 @@ export async function completeVerification(
       }
       if (batch._count.verifications < batch._count.shipments) {
         throw new Error(
-          `${batch._count.shipments - batch._count.verifications} shipment(s) still unchecked.`
+          `${batch._count.shipments - batch._count.verifications} consignment(s) still unchecked.`
         );
       }
 

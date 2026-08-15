@@ -40,7 +40,7 @@ function fill(template: string, values: Record<string, string>): string {
  */
 const SIGNED_IN = "{name} signed in";
 const PACKING_LIST_IMPORT =
-  "Imported {count} shipment(s) into {batch} from the {origin} packing list";
+  "Imported {count} consignment(s) into {batch} from the {origin} packing list";
 
 const SIGNED_IN_MATCH = /^(.+?) signed in$/;
 const PACKING_LIST_MATCH =
@@ -92,7 +92,7 @@ export function auditSentence(locale: Locale, entry: AuditRow): string {
 const ACTION_LABELS: Record<string, string> = {
   "auth.login": "Signed in",
 
-  "shipment.create": "Shipment registered",
+  "shipment.create": "Cargo registered",
   "shipment.update": "Cargo edited",
   "shipment.cancel": "Cargo cancelled",
   "shipment.release": "Cargo released",

@@ -161,7 +161,7 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
   const columns: Column<IncomingRow>[] = [
     {
       id: "shipment",
-      header: t("Shipment"),
+      header: t("Batch"),
       sortValue: (row) => row.shipmentNumber,
       cell: (row) => (
         <div className="min-w-0">
@@ -342,7 +342,7 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
         ].join(" ")
       }
       searchPlaceholder={t(
-        "Shipment, waybill, flight, tracking number or customer…"
+        "Batch, waybill, flight, tracking number or customer…"
       )}
       filters={filters}
       initialSort={{ columnId: "departed", direction: "desc" }}
@@ -360,7 +360,7 @@ export function IncomingShipmentsTable({ rows }: { rows: IncomingRow[] }) {
             </p>
             <Button asChild size="sm" variant="outline">
               <Link href={`/app/shipments/${row.id}`}>
-                {t("Open shipment")}
+                {t("Open batch")}
                 <ChevronRight className="ml-1 h-3.5 w-3.5" />
               </Link>
             </Button>

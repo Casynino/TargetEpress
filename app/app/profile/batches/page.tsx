@@ -38,7 +38,7 @@ export default async function MyBatchesPage() {
         description={
           batches.length === 0
             ? "Cargo you register joins a loading table automatically."
-            : `${batches.length} batches · ${totals.shipments} shipments · ${totals.weight.toFixed(1)} kg registered by you`
+            : `${batches.length} batches · ${totals.shipments} consignments · ${totals.weight.toFixed(1)} kg registered by you`
         }
         actions={
           <Button asChild variant="ghost" size="sm">

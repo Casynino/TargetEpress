@@ -31,7 +31,7 @@ const HANDLES = [
   {
     icon: QrCode,
     title: "A QR code",
-    hint: "Scan or paste the label off the carton — package or shipment, old labels included.",
+    hint: "Scan or paste the label off the carton — package or consignment, old labels included.",
   },
   {
     icon: PackageSearch,
@@ -239,7 +239,7 @@ export default async function SearchCargoPage({
             {t(locale, "Label read")}
             {scanned.package
               ? ` — ${scanned.package.reference}, ${t(locale, "package")} ${scanned.package.sequence}`
-              : ` ${t(locale, "— shipment label")}`}
+              : ` ${t(locale, "— consignment label")}`}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {scanned.package

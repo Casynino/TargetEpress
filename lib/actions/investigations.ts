@@ -215,7 +215,7 @@ export async function markCargoFound(
       }
       if (shipment.status === "DELIVERED") {
         throw new Error(
-          `${shipment.trackingNumber} ${t(locale, "has already been handed over. Finding cargo against a delivered shipment needs the CEO.")}`
+          `${shipment.trackingNumber} ${t(locale, "has already been handed over. Finding cargo against a delivered consignment needs the CEO.")}`
         );
       }
       if (shipment.status === "CANCELLED") {

@@ -47,7 +47,7 @@ const STEPS = [
   {
     icon: Plane,
     title: "It flies with your tracking number",
-    body: "From there it is a normal Target Express shipment: a tracking number, a QR code, and collection in Dar es Salaam.",
+    body: "From there it is normal Target Express cargo: a tracking number, a QR code, and collection in Dar es Salaam.",
   },
 ];
 
@@ -157,7 +157,7 @@ export default function SourcingServicePage() {
         align="center"
         eyebrow="Kutoka soko hadi duka lako"
         title="You never leave Tanzania."
-        body="We find it, check it, photograph it and fly it — and it arrives with the same tracking number as any other shipment."
+        body="We find it, check it, photograph it and fly it — and it arrives with the same tracking number as any other cargo."
       />
     </>
   );

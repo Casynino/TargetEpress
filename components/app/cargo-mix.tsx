@@ -148,7 +148,7 @@ export async function CargoMix({
               {totalShipments.toLocaleString()}
             </span>
             <span className="mt-1 text-xs text-muted-foreground">
-              {t(locale, "shipments")}
+              {t(locale, "cargo")}
             </span>
           </div>
         </div>
@@ -204,7 +204,7 @@ export async function CargoMix({
           href="/app/shipments"
           className="mt-4 text-xs font-medium text-brand hover:underline"
         >
-          {t(locale, "All shipments →")}
+          {t(locale, "All batches →")}
         </Link>
       )}
     </section>

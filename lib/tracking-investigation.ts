@@ -196,7 +196,7 @@ export function derivePublicInvestigation(
           location: t(locale, "Held by our team"),
           note: t(
             locale,
-            "This shipment is on hold while our team checks a problem with the cargo, so it cannot be collected yet. We are working on it and will contact you as soon as it is settled."
+            "This cargo is on hold while our team checks a problem with it, so it cannot be collected yet. We are working on it and will contact you as soon as it is settled."
           ),
           since: earliest(holding),
           blocksCollection: true,
@@ -214,7 +214,7 @@ export function derivePublicInvestigation(
       location: t(locale, "With our claims team"),
       note: t(
         locale,
-        "A claim on this shipment is being processed. We will contact you with the outcome."
+        "A claim on this cargo is being processed. We will contact you with the outcome."
       ),
       since: earliest(owed),
       blocksCollection: false,

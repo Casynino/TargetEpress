@@ -57,8 +57,8 @@ const SECTIONS: NavSection[] = [
       { href: "/app/dashboard", label: "Home", icon: "LayoutDashboard", exact: true },
       // The standalone cargo list is deliberately absent. A mixed list of every
       // piece of cargo in the business tells you nothing about which shipment
-      // it is on or where it is; cargo is reached from inside a shipment or a
-      // batch, where it has context. The routes still exist so QR labels and
+      // it is on or where it is; cargo is reached from inside a batch, where
+      // it has context. The routes still exist so QR labels and
       // saved links resolve.
       {
         href: "/app/cargo/new",
@@ -76,13 +76,13 @@ const SECTIONS: NavSection[] = [
       },
       {
         href: "/app/shipments",
-        label: "Shipments",
+        label: "Arrived batches",
         icon: "PlaneTakeoff",
         permission: "batch.view",
       },
       {
         href: "/app/batches",
-        label: "Batches",
+        label: "Loading batches",
         icon: "Boxes",
         permission: "batch.view",
       },
@@ -287,7 +287,7 @@ const SECTIONS: NavSection[] = [
  * one.
  *
  * Filtering produced a menu in the wrong words: "Receive & verify" is two jobs
- * to that floor, "Shipments" is everything ever flown when what they want is
+ * to that floor, "Arrived batches" is everything ever flown when what they want is
  * what is landing this week, and "Batches" is a door into work that is China's.
  * The floor works a line — arrivals, receive, verify, store, hand over — so the
  * menu is that line, in that order.
@@ -301,7 +301,7 @@ const SECTIONS: NavSection[] = [
  * Same shape as the money desk and the support desk: Home on its own, the work
  * in the kinds it comes in, and the record at the bottom outside any heading.
  *
- * The two ways in — Scan and Search — lead the Shipments group rather than
+ * The two ways in — Scan and Search — lead the Batches group rather than
  * sitting under "handover". They are not a stage of the work; they are how
  * every job on this floor starts. A box arrives and somebody reads its label; a
  * customer rings and somebody looks the number up.
@@ -322,8 +322,8 @@ const DAR_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Shipments",
-    group: { label: "Shipments", icon: "Boxes" },
+    title: "Batches",
+    group: { label: "Batches", icon: "Boxes" },
     items: [
       {
         href: "/app/search",
@@ -428,10 +428,10 @@ const SUPPORT_SECTIONS: NavSection[] = [
   },
   {
     title: "Cargo",
-    group: { label: "Cargo & Shipments", icon: "Boxes" },
+    group: { label: "Batches", icon: "Boxes" },
     items: [
-      { href: "/app/shipments", label: "Shipments", icon: "PlaneTakeoff" },
-      { href: "/app/batches", label: "Batches", icon: "Boxes" },
+      { href: "/app/shipments", label: "Arrived batches", icon: "PlaneTakeoff" },
+      { href: "/app/batches", label: "Loading batches", icon: "Boxes" },
     ],
   },
   {
@@ -474,7 +474,7 @@ const SUPPORT_SECTIONS: NavSection[] = [
  * Finance's menu, grouped the way the desk is organised.
  *
  * They were on the shared menu, which is ordered for the desks that move
- * cargo: Shipments and Batches came first and the two screens Finance actually
+ * cargo: the batch boards came first and the two screens Finance actually
  * lives in — Collections and the ledger — sat eighth and ninth. Grouped, the
  * money is at the top where the job starts, and the cargo rows are still there
  * for the half of the day spent answering "which box is this".
@@ -529,18 +529,18 @@ const FINANCE_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Shipments",
-    group: { label: "Shipments", icon: "Boxes" },
+    title: "Batches",
+    group: { label: "Batches", icon: "Boxes" },
     items: [
       {
         href: "/app/shipments",
-        label: "Shipments",
+        label: "Arrived batches",
         icon: "PlaneTakeoff",
         permission: "batch.view",
       },
       {
         href: "/app/batches",
-        label: "Batches",
+        label: "Loading batches",
         icon: "Boxes",
         permission: "batch.view",
       },
@@ -642,18 +642,18 @@ const CHINA_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Shipments",
-    group: { label: "Shipments", icon: "PlaneTakeoff" },
+    title: "Batches",
+    group: { label: "Batches", icon: "PlaneTakeoff" },
     items: [
       {
         href: "/app/batches",
-        label: "Batches",
+        label: "Loading batches",
         icon: "Boxes",
         permission: "batch.view",
       },
       {
         href: "/app/shipments",
-        label: "Shipments",
+        label: "Arrived batches",
         icon: "PlaneTakeoff",
         permission: "batch.view",
       },
@@ -728,12 +728,12 @@ const ADMIN_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Shipments",
-    group: { label: "Shipments", icon: "PlaneTakeoff" },
+    title: "Batches",
+    group: { label: "Batches", icon: "PlaneTakeoff" },
     items: [
       { href: "/app/release", label: "Scan & release", icon: "ScanLine", permission: "shipment.release" },
-      { href: "/app/batches", label: "Batches", icon: "Boxes", permission: "batch.view" },
-      { href: "/app/shipments", label: "Shipments", icon: "PlaneTakeoff", permission: "batch.view" },
+      { href: "/app/batches", label: "Loading batches", icon: "Boxes", permission: "batch.view" },
+      { href: "/app/shipments", label: "Arrived batches", icon: "PlaneTakeoff", permission: "batch.view" },
     ],
   },
   {

@@ -536,7 +536,7 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
     if (shipment.status === "DELIVERED") {
       baseNote = "Collected. Thank you for shipping with us.";
     } else if (shipment.status === "CANCELLED") {
-      baseNote = "This shipment was cancelled. Talk to us on WhatsApp.";
+      baseNote = "This cargo was cancelled. Talk to us on WhatsApp.";
     } else if (collectable) {
       baseNote =
         "Paid and ready. Bring your pickup note or this tracking number to our Kariakoo office.";

@@ -84,7 +84,7 @@ export async function createTicket(
         select: { id: true, customerId: true },
       });
       if (!shipment) {
-        return fail(`No shipment found with tracking number ${input.trackingNumber}.`);
+        return fail(`No cargo found with tracking number ${input.trackingNumber}.`);
       }
       shipmentId = shipment.id;
       // Linking a shipment tells us who the customer is, so fill it in rather

@@ -66,7 +66,7 @@ export async function PackageList({
       {missing.length > 0 && received > 0 ? (
         <p className="border-b border-warning/30 bg-warning/5 px-5 py-3 text-sm text-warning">
           Short {missing.length} {missing.length === 1 ? unit.one : unit.many} —
-          number {missing.join(", ")} not checked in. This shipment cannot be
+          number {missing.join(", ")} not checked in. This cargo cannot be
           released until every package is here.
         </p>
       ) : null}

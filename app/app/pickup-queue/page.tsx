@@ -139,12 +139,12 @@ export default async function PickupQueuePage() {
       blockers.push(
         t(
           locale,
-          "No package labels on this shipment, so nothing can be checked in against it."
+          "No package labels on this cargo, so nothing can be checked in against it."
         )
       );
     } else if (missingPackages.length > 0) {
       blockers.push(
-        `${t(locale, "Still missing:")} ${missingPackages.map((n) => `${t(locale, "package")} ${n}`).join(", ")}. ${t(locale, "A partial shipment is never released.")}`
+        `${t(locale, "Still missing:")} ${missingPackages.map((n) => `${t(locale, "package")} ${n}`).join(", ")}. ${t(locale, "A partial consignment is never released.")}`
       );
     }
 
@@ -206,7 +206,7 @@ export default async function PickupQueuePage() {
           title={t(locale, "Nobody is waiting to collect")}
           description={t(
             locale,
-            "A shipment joins this queue the moment Finance confirms payment and issues its pickup note."
+            "Cargo joins this queue the moment Finance confirms payment and issues its pickup note."
           )}
         />
       ) : (

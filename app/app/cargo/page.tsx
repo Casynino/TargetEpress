@@ -11,7 +11,7 @@ import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Shipments" };
+export const metadata: Metadata = { title: "Cargo" };
 
 /**
  * The table filters, sorts and paginates on the client over a generous window
@@ -91,7 +91,7 @@ export default async function ShipmentsPage({
   return (
     <>
       <PageHeader
-        title={t(locale, "Shipments")}
+        title={t(locale, "Cargo")}
         description={
           statusFilter
             ? `${total.toLocaleString()} ${t(locale, SHIPMENT_STATUS_META[statusFilter].label).toLowerCase()}`

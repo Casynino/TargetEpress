@@ -158,7 +158,7 @@ export default async function MyProfilePage() {
             <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-3">
               {[
                 {
-                  label: t(locale, "Shipments registered"),
+                  label: t(locale, "Cargo registered"),
                   value: stats.totalShipments.toLocaleString(),
                 },
                 {
@@ -189,7 +189,7 @@ export default async function MyProfilePage() {
                   {t(locale, "Your last two weeks")}
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  {t(locale, "Shipments you registered, per day")}
+                  {t(locale, "Cargo you registered, per day")}
                 </p>
               </div>
               <p className="font-display text-xl font-bold tabular">
@@ -202,7 +202,7 @@ export default async function MyProfilePage() {
                   label: d.label,
                   value: d.shipments,
                 }))}
-                unit={t(locale, "shipments")}
+                unit={t(locale, "consignments")}
               />
             </div>
           </section>
@@ -298,7 +298,7 @@ export default async function MyProfilePage() {
             <div className="divide-y">
               <ProfileLink
                 href="/app/profile/shipments"
-                title={t(locale, "My shipments")}
+                title={t(locale, "My cargo")}
                 detail={`${t(locale, "Registered by you:")} ${
                   stats.totalShipments
                 }`}

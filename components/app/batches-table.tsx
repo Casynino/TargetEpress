@@ -283,7 +283,7 @@ export function BatchesTable({
             {row.airline ? ` · ${row.airline} ${row.flightNumber ?? ""}` : ""}
           </p>
           <p className="mt-1 text-xs text-muted-foreground tabular">
-            {row.shipments} {t("shipment(s)")} · {row.packages} {t("pkg")} ·{" "}
+            {row.shipments} {t("cargo")} · {row.packages} {t("pkg")} ·{" "}
             {formatWeight(row.weightKg)}
           </p>
           {STAGE_RANK[row.status] >= 3 ? (

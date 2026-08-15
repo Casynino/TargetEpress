@@ -104,7 +104,7 @@ export default function PricingPage() {
             href="/book"
             className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-5 py-3 text-sm font-medium backdrop-blur transition-colors hover:bg-white/10"
           >
-            Book a shipment
+            Book your cargo
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -196,7 +196,7 @@ export default function PricingPage() {
               href="/track"
               className="mt-5 inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-brand-foreground transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
             >
-              Track your shipment
+              Track your cargo
               <ArrowRight className="h-4 w-4" />
             </Link>
 

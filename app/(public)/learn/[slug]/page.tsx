@@ -147,14 +147,14 @@ export default async function ArticlePage({
         image={IMAGES.loadingTruck}
         eyebrow="Next step"
         title="Ready to send something?"
-        body="Book a shipment and we will tell you where to have it delivered in Guangzhou."
+        body="Book your cargo and we will tell you where to have it delivered in Guangzhou."
       >
         <div className="flex flex-wrap gap-3">
           <Link
             href="/book"
             className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-2.5 text-sm font-semibold text-signal-foreground"
           >
-            Book a shipment
+            Book your cargo
             <ArrowRight className="h-4 w-4" />
           </Link>
           <Link

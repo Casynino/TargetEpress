@@ -50,7 +50,7 @@ import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await viewerLocale();
-  return { title: t(locale, "Shipment") };
+  return { title: t(locale, "Cargo") };
 }
 
 /** URLs use the tracking number, but a cuid must still resolve. */
@@ -402,7 +402,7 @@ export default async function ShipmentDetailPage({
                 <span>
                   {t(
                     locale,
-                    "No photos on record. Every shipment registered from now on requires one; this predates that rule."
+                    "No photos on record. All cargo registered from now on requires one; this predates that rule."
                   )}
                 </span>
               </p>

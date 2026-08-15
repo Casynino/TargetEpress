@@ -206,7 +206,7 @@ async function describe(
     },
   });
 
-  if (!shipment) return fail(t(locale, "No shipment matches that code."));
+  if (!shipment) return fail(t(locale, "No cargo matches that code."));
 
   const meta = SHIPMENT_STATUS_META[shipment.status];
   const progress = packageProgress(
@@ -262,10 +262,10 @@ async function describe(
   } else if (shipment.status === "CANCELLED") {
     verdict = {
       tone: "block",
-      headline: t(locale, "Cancelled shipment"),
+      headline: t(locale, "Cancelled cargo"),
       detail: t(
         locale,
-        "Management voided this shipment. Do not move or release it."
+        "Management voided this cargo. Do not move or release it."
       ),
     };
   } else if (mayRelease) {
@@ -347,7 +347,7 @@ async function describe(
       verdict = {
         tone: "block",
         headline: `${t(locale, "Only")} ${progress.received}/${progress.total} ${t(locale, "packages here")}`,
-        detail: `${boxes} ${t(locale, "has not been checked in. Do not release a partial shipment.")}`,
+        detail: `${boxes} ${t(locale, "has not been checked in. Do not release a partial consignment.")}`,
       };
     } else {
       verdict = {
@@ -361,7 +361,7 @@ async function describe(
       verdict = {
         tone: "warn",
         headline: t(locale, "No invoice raised"),
-        detail: t(locale, "This shipment has not been billed yet."),
+        detail: t(locale, "This cargo has not been billed yet."),
       };
     } else if (shipment.invoice.status === "PAID") {
       verdict = {

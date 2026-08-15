@@ -78,7 +78,7 @@ export default async function AuditPage({
         />
         <NativeSelect name="entity" defaultValue={entity ?? ""} className="sm:w-52">
           <option value="">{t(locale, "All records")}</option>
-          <option value="Shipment">{t(locale, "Shipments")}</option>
+          <option value="Shipment">{t(locale, "Cargo")}</option>
           <option value="Batch">{t(locale, "Batches")}</option>
           <option value="Invoice">{t(locale, "Invoices")}</option>
           <option value="Payment">{t(locale, "Payments")}</option>

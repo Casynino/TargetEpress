@@ -117,7 +117,7 @@ export default async function EmployeeProfilePage({
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "Shipments registered", value: stats.totalShipments },
+          { label: "Cargo registered", value: stats.totalShipments },
           {
             label: t(locale, "Weight processed"),
             value: `${stats.totalWeightKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg`,
@@ -144,13 +144,13 @@ export default async function EmployeeProfilePage({
                 {t(locale, "Last two weeks")}
               </h2>
               <p className="text-xs text-muted-foreground">
-                {t(locale, "Shipments registered per day")}
+                {t(locale, "Cargo registered per day")}
               </p>
             </div>
             <div className="p-5">
               <ActivityBars
                 points={daily.map((d) => ({ label: d.label, value: d.shipments }))}
-                unit={t(locale, "shipments")}
+                unit={t(locale, "consignments")}
               />
             </div>
           </section>

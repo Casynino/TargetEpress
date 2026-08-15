@@ -122,7 +122,7 @@ export const ARTICLES: Article[] = [
         kind: "list",
         items: [
           "Ask your supplier to pack tightly. Air, in a carton, is something you pay to fly.",
-          "Consolidate. Three small orders arriving separately are three shipments; arriving together they are one.",
+          "Consolidate. Three small orders arriving separately are three consignments; arriving together they are one.",
           "Tell us the goods type accurately — under-declaring to get a cheaper rate is what gets a consignment held at customs.",
           "Ask us what your goods will cost before you buy, not after.",
         ],
@@ -257,7 +257,7 @@ export const ARTICLES: Article[] = [
       { kind: "h", text: "The consignment clears, not your box" },
       {
         kind: "p",
-        text: "Your cargo travels as part of a batch, and the batch clears together. One badly declared shipment can hold up everything on that flight — which is why we ask what is inside, and why declaring accurately matters to everyone, not only to you.",
+        text: "Your cargo travels as part of a batch, and the batch clears together. One badly declared consignment can hold up everything on that flight — which is why we ask what is inside, and why declaring accurately matters to everyone, not only to you.",
       },
       { kind: "h", text: "What draws attention" },
       {
@@ -340,7 +340,7 @@ export const ARTICLES: Article[] = [
     body: [
       {
         kind: "p",
-        text: "Consolidation means several orders from different suppliers arriving at our warehouse and leaving as one shipment. It is one of the more useful things a freight company does, and it is not always the right answer.",
+        text: "Consolidation means several orders from different suppliers arriving at our warehouse and leaving as one consignment. It is one of the more useful things a freight company does, and it is not always the right answer.",
       },
       { kind: "h", text: "When it helps" },
       {

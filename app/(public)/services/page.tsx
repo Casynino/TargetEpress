@@ -29,7 +29,7 @@ const HEADLINE = [
     eyebrow: "The core",
     title: "Air cargo, three times a week",
     body: "Guangzhou and Hong Kong to Dar es Salaam every Wednesday, Friday and Sunday. Your cargo travels in a numbered batch with a full manifest — never 'somewhere in transit'.",
-    cta: "Book a shipment",
+    cta: "Book your cargo",
     size: "wide" as const,
     priority: true,
   },
@@ -66,7 +66,7 @@ const SERVICES = [
     href: "/learn/consolidation",
     image: IMAGES.apron,
     eyebrow: "Consolidation",
-    title: "Several orders, one shipment",
+    title: "Several orders, one cargo",
     body: "Held free at our warehouse while the rest of your order comes together. One invoice, one collection.",
     cta: "How it works",
   },
@@ -84,7 +84,7 @@ const SERVICES = [
     eyebrow: "Tracking",
     title: "Every package, every step",
     body: "From our China counter to the counter in Dar, with the photographs taken along the way.",
-    cta: "Track a shipment",
+    cta: "Track your cargo",
   },
   {
     href: "/china/markets",
@@ -126,7 +126,7 @@ export default function ServicesPage() {
             href="/book"
             className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-3 text-sm font-semibold text-signal-foreground transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
           >
-            Book a shipment
+            Book your cargo
             <ArrowRight className="h-4 w-4" />
           </Link>
           <a

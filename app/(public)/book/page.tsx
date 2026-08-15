@@ -11,7 +11,7 @@ import { IMAGES, img } from "@/lib/imagery";
 import { COMPANY } from "@/lib/constants";
 
 export const metadata: Metadata = {
-  title: "Book a shipment",
+  title: "Book your cargo",
   description:
     "Tell us what you are sending from China and we will confirm where to send it, what it will cost and which flight it makes.",
 };
@@ -39,7 +39,7 @@ export default function BookPage() {
     <>
       <PageHero
         image={IMAGES.cargoHold}
-        eyebrow="Book a shipment"
+        eyebrow="Book your cargo"
         size="tall"
         title={<>Tell us it is coming.<br />We will do the rest.</>}
         body="No account, no deposit, nothing charged. Send us the details and we will reply with where to deliver your cargo in Guangzhou and what it will cost once we have weighed it."

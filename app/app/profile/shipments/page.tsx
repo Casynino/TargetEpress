@@ -11,7 +11,7 @@ import { requireUser } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 import type { ShipmentStatus } from "@prisma/client";
 
-export const metadata: Metadata = { title: "My shipments" };
+export const metadata: Metadata = { title: "My cargo" };
 
 /**
  * Only what this person registered.
@@ -32,7 +32,7 @@ export default async function MyShipmentsPage() {
   return (
     <>
       <PageHeader
-        title="My shipments"
+        title="My cargo"
         description={`${stats.totalShipments} registered by you · ${stats.totalWeightKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg · ${stats.totalPackages} packages`}
         actions={
           <Button asChild variant="ghost" size="sm">

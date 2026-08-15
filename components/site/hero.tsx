@@ -157,7 +157,7 @@ export function Hero() {
               {[
                 { href: "/pricing", icon: Calculator, label: "What it will cost" },
                 { href: "/china/markets", icon: Warehouse, label: "Explore China markets" },
-                { href: "/book", icon: PackagePlus, label: "Book a shipment" },
+                { href: "/book", icon: PackagePlus, label: "Book your cargo" },
               ].map((action) => (
                 <Link
                   key={action.label}

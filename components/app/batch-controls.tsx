@@ -199,7 +199,7 @@ function DeparturePanel({ batchId }: { batchId: string }) {
         Record departure
       </h2>
       <p className="mt-1.5 text-xs text-muted-foreground">
-        This moves every shipment in the batch to “In transit” and makes the
+        This moves all cargo in the batch to “In transit” and makes the
         flight visible to the whole company.
       </p>
 

@@ -29,7 +29,7 @@ export async function LiveStats() {
       icon: Boxes,
       raw: stats.delivered,
       value: stats.delivered.toLocaleString(),
-      label: "shipments delivered",
+      label: "cargo deliveries",
       sub: "Collected by their owners in Dar",
     },
     {

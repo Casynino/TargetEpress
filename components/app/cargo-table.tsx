@@ -214,7 +214,7 @@ export function ShipmentsTable({
       searchPlaceholder={t("Tracking number, customer, phone or batch…")}
       filters={filters}
       initialSort={{ columnId: "registeredAt", direction: "desc" }}
-      emptyTitle={t("No shipments match")}
+      emptyTitle={t("No cargo matches")}
       emptyDescription={t("Try a different search, or clear the filters.")}
       toolbar={
         canCreate ? (
@@ -297,7 +297,7 @@ export function ShipmentsTable({
           <div className="sm:col-span-4">
             <Button asChild size="sm" variant="outline">
               <Link href={`/app/cargo/${row.trackingNumber}`}>
-                {t("Open shipment")}
+                {t("Open cargo")}
               </Link>
             </Button>
           </div>

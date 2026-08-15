@@ -56,7 +56,7 @@ export async function generateInvoice(
   }
 
   const shipmentId = String(formData.get("shipmentId") ?? "");
-  if (!shipmentId) return fail("Missing shipment.");
+  if (!shipmentId) return fail("Missing cargo.");
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -76,7 +76,7 @@ export async function generateInvoice(
           invoice: { select: { id: true, amountPaid: true, invoiceNumber: true } },
         },
       });
-      if (!shipment) throw new Error("Shipment not found.");
+      if (!shipment) throw new Error("Cargo not found.");
 
       if (shipment.invoice && toNumber(shipment.invoice.amountPaid) > 0) {
         throw new Error(
@@ -1143,10 +1143,10 @@ export async function issuePickupNote(
         const existing = shipment.pickupNote;
         throw new Error(
           existing.status === "ACTIVE"
-            ? `A pickup note (${existing.noteNumber}) is already active for this shipment.`
+            ? `A pickup note (${existing.noteNumber}) is already active for this cargo.`
             : existing.status === "USED"
               ? `Pickup note ${existing.noteNumber} was already used to collect this cargo.`
-              : `Pickup note ${existing.noteNumber} was cancelled. This shipment cannot be issued a second note — reopen the cancelled one or raise it with the CEO.`
+              : `Pickup note ${existing.noteNumber} was cancelled. This cargo cannot be issued a second note — reopen the cancelled one or raise it with the CEO.`
         );
       }
       if (shipment.status !== "RECEIVED_AT_DAR") {
@@ -1156,7 +1156,7 @@ export async function issuePickupNote(
       }
       if (shipment.exceptions.length > 0) {
         throw new Error(
-          "This shipment is flagged as missing. Resolve the exception first."
+          "This cargo is flagged as missing. Resolve the exception first."
         );
       }
       if (!shipment.invoice) throw new Error("Raise an invoice first.");

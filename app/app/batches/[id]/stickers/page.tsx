@@ -97,7 +97,7 @@ export default async function BatchStickersPage({
           </Link>
         </Button>
         <p className="mt-1 text-sm text-muted-foreground">
-          One sticker per package, for {cargo.length} shipment
+          One sticker per package, for {cargo.length} consignment
           {cargo.length === 1 ? "" : "s"}
           {selected.length > 0 ? " selected" : " on this table"}.
         </p>

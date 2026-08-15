@@ -43,7 +43,7 @@ const STATUS_TONE: Record<string, string> = {
 
 const CATEGORY_LABEL: Record<string, string> = {
   PRICE_INQUIRY: "Price inquiry",
-  SHIPMENT_INQUIRY: "Shipment inquiry",
+  SHIPMENT_INQUIRY: "Cargo inquiry",
   MISSING_CARGO: "Missing cargo",
   DAMAGED_CARGO: "Damaged cargo",
   SOURCING: "Sourcing",

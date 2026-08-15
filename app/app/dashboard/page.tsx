@@ -546,7 +546,7 @@ async function ChinaDashboard({
         items={[
           { href: "/app/cargo/new", label: t(locale, "Receive Cargo"), icon: PackagePlus, weight: "primary", tone: "brand" },
           { href: "/app/batches", label: t(locale, "Load a batch"), icon: Plane, weight: "secondary", tone: "signal" },
-          { href: "/app/shipments", label: t(locale, "Shipments"), icon: Package, tone: "violet" },
+          { href: "/app/shipments", label: t(locale, "Batches"), icon: Package, tone: "violet" },
           // Amber wherever it appears — on this desk, the Dar floor, the money
           // desk and the support desk. Colour is only a landmark while it means
           // the same thing twice.
@@ -574,7 +574,7 @@ async function ChinaDashboard({
 
       <div>
         <SectionLabel
-          action={{ href: "/app/shipments", label: t(locale, "All shipments") }}
+          action={{ href: "/app/shipments", label: t(locale, "All batches") }}
         >
           {t(locale, "The desk · right now")}
         </SectionLabel>
@@ -603,7 +603,7 @@ async function ChinaDashboard({
         />
         <KpiCard
           delay={2}
-          label={t(locale, "Shipments in transit")}
+          label={t(locale, "Cargo in transit")}
           numeric={stats.inTransitShipments}
           hint={t(locale, "In the air to Dar")}
           icon={Plane}
@@ -705,7 +705,7 @@ async function ChinaDashboard({
                 {t(locale, "Registration volume")}
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {t(locale, "Shipments registered at the China desk,")}{" "}
+                {t(locale, "Cargo registered at the China desk,")}{" "}
                 {volume.year} {t(locale, "against")} {volume.year - 1}
               </p>
             </div>
@@ -787,7 +787,7 @@ async function ChinaDashboard({
                         </span>
                       </div>
                       <p className="mt-1.5 text-xs text-muted-foreground tabular">
-                        {batch.shipments.length} {t(locale, "shipment(s)")} ·{" "}
+                        {batch.shipments.length} {t(locale, "consignment(s)")} ·{" "}
                         {packages} {t(locale, "package(s)")} ·{" "}
                         {formatWeight(weight)}
                       </p>
@@ -1156,7 +1156,7 @@ async function DarDashboard({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           delay={0}
-          label={t(locale, "Incoming shipments")}
+          label={t(locale, "Incoming cargo")}
           numeric={stats.incoming}
           hint={
             stats.batchesInAir
@@ -1452,7 +1452,7 @@ async function DarDashboard({
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {t(locale, "Measured over the last")} {perf.sample}{" "}
-            {t(locale, "delivered shipment(s)")}
+            {t(locale, "delivered consignment(s)")}
           </p>
           <dl className="mt-5 space-y-4">
             {[
@@ -1485,7 +1485,7 @@ async function DarDashboard({
                     : `${perf.promiseRate.toFixed(0)}%`,
                 note: t(
                   locale,
-                  "Share of shipments checked in within 3 days of departure."
+                  "Share of cargo checked in within 3 days of departure."
                 ),
                 icon: Timer,
               },
@@ -2300,7 +2300,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           // Brand and violet wherever these two appear — the support desk, the
           // warehouse floors and here. Colour is only a landmark while it means
           // the same thing on every screen.
-          { href: "/app/shipments", label: t(locale, "Shipments"), icon: Package, tone: "brand" },
+          { href: "/app/shipments", label: t(locale, "Batches"), icon: Package, tone: "brand" },
           { href: "/app/batches", label: t(locale, "Batches"), icon: Plane, tone: "violet" },
           // shipment.cancel is the owner's alone: restoring something a desk
           // deleted, or purging it for good, is the one action in this app
@@ -2509,7 +2509,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
 
       <div>
         <SectionLabel
-          action={{ href: "/app/shipments", label: t(locale, "All shipments") }}
+          action={{ href: "/app/shipments", label: t(locale, "All batches") }}
         >
           {t(locale, "Volume")}
         </SectionLabel>
@@ -2517,7 +2517,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="font-display font-semibold">
-                {t(locale, "Shipment volume")}
+                {t(locale, "Cargo volume")}
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {volume.year} {t(locale, "against")} {volume.year - 1}

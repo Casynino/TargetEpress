@@ -330,7 +330,7 @@ export default async function SupportHome() {
           <p className="mt-2 text-sm text-white/80">
             {t(
               locale,
-              "Find a shipment by tracking number, a customer’s name, the number they are calling from, a batch or an invoice."
+              "Find cargo by tracking number, a customer’s name, the number they are calling from, a batch or an invoice."
             )}
           </p>
           <div className="mt-4 max-w-2xl">
@@ -347,7 +347,7 @@ export default async function SupportHome() {
             // what it costs and whether it has been paid.
             // Whatever the call is about it starts with a consignment, and the
             // next thing asked is what it costs and whether it has been paid.
-            { href: "/app/shipments", label: t(locale, "Shipments"), icon: PlaneTakeoff, weight: "primary", tone: "brand" },
+            { href: "/app/shipments", label: t(locale, "Batches"), icon: PlaneTakeoff, weight: "primary", tone: "brand" },
             { href: "/app/collections", label: t(locale, "Collections"), icon: Banknote, weight: "secondary", tone: "signal" },
             // Investigations rather than Tickets: a case where cargo is
             // missing or short is what this desk is rung about and has to
@@ -392,7 +392,7 @@ export default async function SupportHome() {
             href="/app/customers"
           />
           <KpiCard
-            label={t(locale, "Active shipments")}
+            label={t(locale, "Active cargo")}
             numeric={overview.activeShipments}
             hint={t(locale, "Registered, flying or waiting in Dar")}
             icon={Boxes}

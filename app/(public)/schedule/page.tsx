@@ -83,7 +83,7 @@ export default function SchedulePage() {
             href="/book"
             className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-3 text-sm font-semibold text-signal-foreground transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
           >
-            Book a shipment
+            Book your cargo
             <ArrowRight className="h-4 w-4" />
           </Link>
           <Link

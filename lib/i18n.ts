@@ -22,6 +22,22 @@ import type { Locale } from "@/lib/locale";
  */
 
 const ZH: Record<string, string> = {
+  "All batches →": "全部批次 →",
+  "Batch, waybill, flight, tracking number or customer…": "批次号、空运单号、航班、运单号或客户…",
+  "Boxes are checked in but the cargo still reads In transit — finish its check-in.":
+    "箱子已入库核收，但货物状态仍是“运输中”——请完成入库核对。",
+  "Cancel cargo": "取消货物",
+  "Last cargo": "最近货物",
+  "No cargo is cleared for release right now. Finance issues a pickup note once cargo is paid for.":
+    "目前没有可放的货。客户付款后财务才会开提货单。",
+  "No cargo matches": "没有匹配的货物",
+  "Open the cargo": "打开货物",
+  "Search batch number, waybill, airline or flight…": "搜索批次号、空运单号、航空公司或航班…",
+  "View cargo": "查看货物",
+  "Waybills, customs paperwork and packing photos attached to this batch appear here.":
+    "这个批次的空运单、报关单据和装箱照片会显示在这里。",
+  "— consignment label": "— 货物标签",
+  ". Do not release a partial consignment.": "。不得部分放货。",
   "% of what has been billed": "%，占已开单金额",
   "(blank = the amount above, less the charge)": "（留空＝上方金额减去手续费）",
   "(blank = today)": "（留空为今天）",
@@ -64,16 +80,19 @@ const ZH: Record<string, string> = {
     "案件登记了赔付金额但钱还没付出去时，会出现在这里。",
   "A catch-all covers anything in the category without its own price.":
     "通用价适用于该类别下没有单独定价的所有货物。",
+  "A claim on this cargo is being processed. We will contact you with the outcome.": "该货物的索赔正在处理中，结果会通知您。",
   "A customer is waiting on an answer somebody flagged as important.":
     "有客户在等一个被标为重要的答复。",
   "A customer name": "客户姓名",
   "A customer who wants us to do the buying for them becomes a":
     "需要我们代为采购的客户，请转为",
+  "a delivered consignment": "一票已提走的货",
   "a delivered shipment": "一票已提走的货",
   "A name and a phone number are needed.": "必须填写姓名和电话号码。",
   "A name or shipping mark is required.": "必须填写姓名或唛头。",
   "A note appears the moment Finance records the payment that settles a bill.":
     "财务登记了结清账单的款项后，提货单就会出现在这里。",
+  "A partial consignment is never released.": "一票货不齐绝不放货。",
   "A partial shipment is never released.": "一票货不齐绝不放货。",
   "A payment cannot be dated in the future.": "付款日期不能填将来的日期。",
   "A payment is waiting to be verified": "有一笔付款待核对",
@@ -89,6 +108,7 @@ const ZH: Record<string, string> = {
   "A tracking number": "运单号",
   "A USD 100 invoice becomes": "100 美元的账单折合",
   "A valid email is required.": "请填写有效的邮箱。",
+  "A week is counted on the date each consignment was checked in against its manifest, and each release on the date it was handed over. Independent of the period switch above.": "每票货按其对照舱单核收的日期计入当周，放货按实际交付日期计入。与上方时间段选择无关。",
   "A/C": "账号",
   "About you": "你的信息",
   "above to record it short.": "即记为短少。",
@@ -120,6 +140,7 @@ const ZH: Record<string, string> = {
   "Active": "进行中",
   "active": "启用",
   "Active batch": "当前批次",
+  "Active cargo": "在途货物",
   "Active categories": "启用中的类别",
   "Active shipments": "在途运单",
   "Active — the customer can collect.": "有效——客户可以提货。",
@@ -132,6 +153,7 @@ const ZH: Record<string, string> = {
     "添加内部备注——你试过什么、跟谁谈过。",
   "Add any unassigned cargo, then press Seal batch.":
     "把没进批次的货加进来，然后点“封批”。",
+  "Add at least one consignment before sealing.": "封批前至少要装入一票货。",
   "Add market": "新增市场",
   "Add note": "添加备注",
   "Add photos": "补充照片",
@@ -146,6 +168,7 @@ const ZH: Record<string, string> = {
   "Adjust this invoice": "调整此账单",
   "Adjustment": "调整",
   "Administration": "系统管理",
+  "After 7 days, storage charges of USD 2 per day will apply for all cargo remaining in the warehouse.": "超过 7 天后，仓库中每票货物每天收取 2 美元仓储费。",
   "After 7 days, storage charges of USD 2 per day will apply for every shipment remaining in the warehouse.":
     "超过 7 天后，仓库中每票货物每天收取 2 美元仓储费。",
   "against": "对比",
@@ -168,6 +191,7 @@ const ZH: Record<string, string> = {
   "All batches": "全部批次",
   "All cargo": "全部货物",
   "All cargo in Dar not yet collected": "达累斯萨拉姆所有未提取的货物",
+  "All cargo is settled — record a new one to try this flow.": "所有货物都已结清——新登记一票再来试这个流程。",
   "All categories": "全部类别",
   "All confirmed": "已全部核对",
   "All customers": "全部客户",
@@ -232,6 +256,7 @@ const ZH: Record<string, string> = {
     "到货 → 提货。取决于付款和客户。",
   "Arrived": "已到达",
   "arrived": "到货",
+  "Arrived batches": "到达批次",
   "Arrived in Dar": "已到达达累斯萨拉姆",
   "Arrived in Tanzania": "已到达坦桑尼亚",
   "Arrived on": "到达航班",
@@ -251,6 +276,7 @@ const ZH: Record<string, string> = {
   "At Dar warehouse": "在达累斯萨拉姆仓库",
   "At least 10 characters. This account can move other people's cargo.":
     "至少 10 个字符。该账号可以操作别人的货物。",
+  "At least one photo of the cargo is required before it can be saved.": "保存货物前至少需要一张货物照片。",
   "At least one photo of the cargo is required before the shipment can be saved.":
     "保存运单前至少需要一张货物照片。",
   "at the rate on this invoice": "按本账单汇率折算",
@@ -366,6 +392,7 @@ const ZH: Record<string, string> = {
   "Cancel this cost": "取消该笔支出",
   "Cancelled": "已取消",
   "cancelled": "已取消",
+  "Cancelled cargo": "已取消货物",
   "cancelled request(s) are kept out of the board but remain on each customer’s profile.":
     "条已取消的申请不显示在看板上，但仍保留在各客户档案中。",
   "Cancelled:": "已取消：",
@@ -373,12 +400,14 @@ const ZH: Record<string, string> = {
   "Cannot be handed over yet": "还不能放货",
   "cannot be quoted": "无法报价",
   "Cargo": "货物",
+  "Cargo & Batches": "货物与批次",
   "Cargo & Shipments": "货物与运单",
   "Cargo appears here the moment the desk registers it. Nobody has to put it here.":
     "前台一登记，货物就会出现在这里，不需要人工添加。",
   "Cargo behind the money": "钱背后的货",
   "Cargo behind the money, and who did what": "钱背后的货，以及谁做了什么",
   "Cargo being handed over": "正在交接的货物",
+  "Cargo bookings": "货物预约",
   "Cargo category": "货物类别",
   "Cargo description": "货物名称",
   "Cargo Finance has cleared for collection. Open a row to release it — the pickup note itself is issued and cancelled by Finance.":
@@ -387,8 +416,10 @@ const ZH: Record<string, string> = {
   "Cargo held": "在库货物",
   "Cargo in the warehouse": "仓库在库货物",
   "Cargo in transit": "在途货物",
+  "Cargo inquiry": "货物咨询",
   "Cargo is not cleared for release — it is still":
     "货物尚未放行——当前状态仍为",
+  "Cargo joins this queue the moment Finance confirms payment and issues its pickup note.": "财务确认收款并开出提货单后，货物就会进入这个队列。",
   "Cargo labels": "货物标签",
   "Cargo lost": "货物丢失",
   "Cargo not found.": "未找到该货物。",
@@ -398,9 +429,13 @@ const ZH: Record<string, string> = {
   "Cargo photos": "货物照片",
   "Cargo pieces": "货物件数",
   "Cargo received in China": "中国已收货",
+  "Cargo registered": "货物已登记",
   "Cargo registered against these reaches Finance with no price. Give it a price, or archive it if the business does not carry it — either clears this.":
     "按这些商品登记的货物到财务时没有价格。给它定个价，或者公司不做这类货就归档——两种都能清掉这条提示。",
+  "Cargo registered at the China desk,": "中国收货台登记的货物，",
+  "Cargo registered per day": "每日登记货物数",
   "Cargo released": "货物已放行",
+  "Cargo shown": "显示货物数",
   "Cargo sitting in Dar es Salaam, ordered by what needs a phone call most.":
     "滞留在达累斯萨拉姆的货物，按最该打电话催的排在前面。",
   "Cargo status": "货物状态",
@@ -409,13 +444,16 @@ const ZH: Record<string, string> = {
   "Cargo that has landed but not been checked in yet is on":
     "已落地但尚未入库核对的货物在",
   "Cargo that left the building today": "今天出库的货物",
+  "Cargo to check in": "待核对货物",
   "Cargo today": "今日收货",
+  "Cargo volume": "货物量",
   "Cargo waiting": "待发货物",
   "Cargo we are storing for free": "仍在免费仓储期的货物",
   "Cargo with no invoice yet is priced from the published rate book, including storage already accrued. Those figures move until Finance confirms them.":
     "尚未开单的货物按已发布的价目表计价，含已产生的仓储费。财务确认前，这些金额还会变动。",
   "Cargo you register joins a loading table automatically.":
     "你登记的货物会自动进入装货台。",
+  "Cargo you registered, per day": "你每天登记的货物数",
   "CargoType": "货物类别",
   "Carried by": "承运",
   "Carton": "纸箱",
@@ -610,7 +648,14 @@ const ZH: Record<string, string> = {
   "Consignee": "收货人",
   "consignment": "票货",
   "consignment with no photograph": "票货没有照片",
+  "consignment(s)": "票",
+  "consignment(s) loaded.": "票货。",
+  "consignment(s) still unchecked": "票货尚未核对",
+  "consignment(s) still unchecked.": "票货物尚未核对。",
+  "consignment(s) still unverified against the manifest.": "票货尚未对照舱单核对。",
+  "consignment(s) waiting in China. Seal it to get them on a flight.": "票货在中国等待。封批后即可安排航班。",
   "consignments": "票数",
+  "Consignments": "货物",
   "consignments in the warehouse": "票货在库",
   "consignments with no photograph": "票货没有照片",
   "Contact": "联系方式",
@@ -739,6 +784,7 @@ const ZH: Record<string, string> = {
   "Delivered": "已交付",
   "delivered": "票已交付",
   "Delivered cargo cannot be cancelled.": "已交付的货物无法取消。",
+  "delivered consignment(s)": "票已交付货物",
   "delivered shipment(s)": "票已交付运单",
   "Delivered this month": "本月已交付",
   "Delivery photo": "提货照片",
@@ -994,6 +1040,7 @@ const ZH: Record<string, string> = {
   "Find a shipment by tracking number, a customer’s name, the number they are calling from, a batch or an invoice.":
     "用运单号、客户姓名、来电号码、批次或账单查找运单。",
   "Find a supplier": "找供应商",
+  "Find cargo by tracking number, a customer’s name, the number they are calling from, a batch or an invoice.": "用运单号、客户姓名、来电号码、批次或账单查找货物。",
   "Find them if we have shipped for them before. If not, record them once and they are in the book from then on.":
     "以前发过货的客户可以直接查到。没有就登记一次，以后就在名单里了。",
   "Finish": "完成",
@@ -1091,6 +1138,7 @@ const ZH: Record<string, string> = {
   "handovers": "次交货中",
   "Handovers with a photo": "有照片的交货",
   "Has a phone number": "有电话号码",
+  "has already been handed over. Finding cargo against a delivered consignment needs the CEO.": "已经交付。对已交付货物标记找到货物需要总经理处理。",
   "has been handed over and marked delivered.": "已交接完毕并标记为已提货。",
   "has been on the floor for": "已在场",
   "has been permanently removed. Only the audit entry remains.":
@@ -1098,6 +1146,7 @@ const ZH: Record<string, string> = {
   "Has cargo in flight": "有货在飞",
   "Has exceptions": "有异常",
   "Has never signed in": "从未登录过",
+  "has not been checked in. Do not release a partial consignment.": "尚未核收。不得部分放货。",
   "Has not put cargo on a batch.": "尚未将货物装入批次。",
   "Has open flags": "有未处理标记",
   "Has photos": "有照片",
@@ -1152,6 +1201,7 @@ const ZH: Record<string, string> = {
   "ID number": "证件号码",
   "ID recorded": "已登记证件",
   "if you checked one": "如已查验请填写",
+  "Imported {count} consignment(s) into {batch} from the {origin} packing list": "从{origin}装箱单导入 {count} 票货物，并入批次 {batch}",
   "In & out": "收支全部",
   "In and out": "收货与发运",
   "in China": "在中国",
@@ -1180,6 +1230,7 @@ const ZH: Record<string, string> = {
   "Inbound": "在途来货",
   "Inbound & on the floor": "在途与在库",
   "includes": "含",
+  "Incoming cargo": "到货货物",
   "Incoming shipments": "到货运单",
   "Incorrect email or password, or the account is inactive.":
     "邮箱或密码错误，或账号已停用。",
@@ -1302,6 +1353,7 @@ const ZH: Record<string, string> = {
   "Load these, then seal and record the flight.":
     "把这些装上，然后封批并登记航班。",
   "Loading": "加载中",
+  "Loading batches": "装货批次",
   "Loading in China": "中国装货中",
   "Loading table": "表格加载中",
   "Local transport": "本地运输",
@@ -1327,6 +1379,7 @@ const ZH: Record<string, string> = {
   "Mama Zainab, 0762 000 111 or CUS-000123":
     "Mama Zainab、0762 000 111 或 CUS-000123",
   "Management": "管理层",
+  "Management voided this cargo. Do not move or release it.": "管理层已作废该货物。请勿移动或放行。",
   "Manifest": "舱单",
   "Manifest as registered in China": "中国登记的舱单",
   "Manifest check-off": "舱单核对",
@@ -1396,6 +1449,7 @@ const ZH: Record<string, string> = {
   "Moving…": "转账中…",
   "Must be a number.": "必须是数字。",
   "My batches": "我的批次",
+  "My cargo": "我的货物",
   "My profile": "我的资料",
   "My shipments": "我的运单",
   "Name": "姓名",
@@ -1456,6 +1510,7 @@ const ZH: Record<string, string> = {
   "No cargo matches that search.": "没有匹配的货物。",
   "No cargo selected to label.": "没有选择要打标签的货物。",
   "No cargo shipped yet": "尚无发货记录",
+  "No cargo yet.": "暂无货物。",
   "No change from the current rate.": "与当前汇率相同。",
   "No China photo": "无中国照片",
   "No costs in this period": "本期没有成本",
@@ -1487,6 +1542,7 @@ const ZH: Record<string, string> = {
   "No open requests.": "没有未处理的申请。",
   "No open tickets.": "没有未处理的工单。",
   "no own price": "无单独价格",
+  "No package labels on this cargo, so nothing can be checked in against it.": "这票货没有包裹标签，无法进行入库核对。",
   "No package labels on this shipment, so nothing can be checked in against it.":
     "这票货没有包裹标签，无法进行入库核对。",
   "No packages on record": "无件数记录",
@@ -1502,6 +1558,7 @@ const ZH: Record<string, string> = {
   "No phone recorded": "未登记电话",
   "No photo": "无照片",
   "No photos": "无照片",
+  "No photos on record. All cargo registered from now on requires one; this predates that rule.": "无照片记录。此后登记的每票货都必须有照片；这票在该规定之前。",
   "No photos on record. Every shipment registered from now on requires one; this predates that rule.":
     "无照片记录。此后登记的每票货都必须有照片；这票在该规定之前。",
   "No photos were taken in China for this shipment — check the label and the":
@@ -1713,6 +1770,7 @@ const ZH: Record<string, string> = {
   "Notifications": "通知",
   "Notifications,": "通知，",
   "Now search a batch number like": "再搜一个批次号，比如",
+  "Now try pasting a different consignment's QR: it refuses and tells you not to release it. That is the whole point of the QR system.": "再试着粘贴另一票货的二维码：系统会拒绝并提示不要放货。二维码这套机制就是为了这个。",
   "Now try pasting a different shipment's QR: it refuses and tells you not to release it. That is the whole point of the QR system.":
     "再试着粘贴另一票货的二维码：系统会拒绝并提示不要放货。二维码这套机制就是为了这个。",
   "Number": "号码",
@@ -1936,6 +1994,7 @@ const ZH: Record<string, string> = {
   "payment with no account": "笔收款未指定账户",
   "Payments": "付款记录",
   "payments": "笔收款",
+  "Payments are recorded from a cargo page once an invoice exists.": "开出账单后，在货物页面登记收款。",
   "Payments are recorded from a shipment's page once an invoice exists.":
     "开出账单后，在运单页面登记收款。",
   "payments are waiting to be verified": "笔付款待核对",
@@ -2024,6 +2083,7 @@ const ZH: Record<string, string> = {
   "Present and correct": "齐全无误",
   "preserved": "已保留",
   "Preserved photo for": "保留的照片",
+  "Press “Scan this” on any cargo in the table below — it opens the scanner with that QR already resolved.": "在下方表格里任选一票货点“扫这个”——扫码页会直接带着这个二维码打开。",
   "Press “Scan this” on any shipment in the table below — it opens the scanner with that QR already resolved.":
     "在下方表格里任选一票货点“扫这个”——扫码页会直接带着这个二维码打开。",
   "Previous": "上一页",
@@ -2189,6 +2249,7 @@ const ZH: Record<string, string> = {
     "在“支出”标签里登记成本，就会按用途分类显示在这里。",
   "Record payment": "登记收款",
   "Record the count": "登记盘点",
+  "Record the departure with an airline and waybill. All cargo inside flips to In transit, and the public tracking page updates.": "登记航空公司和空运单号发运。批次内每票货都会变成“运输中”，公开查件页同步更新。",
   "Record the departure with an airline and waybill. Every shipment inside flips to In transit, and the public tracking page updates.":
     "登记航空公司和空运单号发运。批次内每票货都会变成“运输中”，公开查件页同步更新。",
   "Record the move": "登记转账",
@@ -2328,6 +2389,7 @@ const ZH: Record<string, string> = {
   "Scan a label": "扫描标签",
   "Scan another": "扫下一件",
   "Scan another box": "扫下一个箱子",
+  "Scan or paste the label off the carton — package or consignment, old labels included.": "扫描或粘贴箱上的标签——件号或货物号，旧标签也可以。",
   "Scan or paste the label off the carton — package or shipment, old labels included.":
     "扫描或粘贴箱上的标签——件号或运单号，旧标签也可以。",
   "Scan the box": "扫描箱子",
@@ -2352,7 +2414,7 @@ const ZH: Record<string, string> = {
     "按姓名、唛头、电话或客户编号搜索",
   "Search cargo": "查询货物",
   "Search shipment number, waybill, airline or flight…":
-    "搜索运单号、空运单号、航空公司或航班…",
+    "搜索批次号、空运单号、航空公司或航班…",
   "Search summary, action or user": "搜索摘要、操作或用户",
   "Search the ledger": "搜索账本",
   "Search…": "搜索…",
@@ -2390,6 +2452,7 @@ const ZH: Record<string, string> = {
     "全额结清后会自动开出提货单，货物即可提取。",
   "Severe": "严重",
   "Share": "分享",
+  "Share of cargo checked in within 3 days of departure.": "起飞后 3 天内完成入库的货物占比。",
   "Share of floor cargo already checked in": "在场货物已核对比例",
   "Share of held cargo cleared": "在库货物已放行占比",
   "Share of held cargo cleared for collection": "在库货物中已放行可提的比例",
@@ -2410,7 +2473,7 @@ const ZH: Record<string, string> = {
   "shipment(s) still unchecked": "票货尚未核对",
   "shipment(s) still unchecked.": "票运单尚未核对。",
   "Shipment, waybill, flight, tracking number or customer…":
-    "发运编号、空运单号、航班、运单号或客户…",
+    "批次号、空运单号、航班、运单号或客户…",
   "Shipments": "运单",
   "shipments": "运单数",
   "Shipments in transit": "运输中的运单",
@@ -2696,9 +2759,14 @@ const ZH: Record<string, string> = {
   "This cargo cannot be released from here. Nothing has been changed.":
     "这票货不能在这里放货。没有做任何改动。",
   "This cargo has a problem": "这票货有问题",
+  "This cargo has already departed and can no longer be edited.": "该货物已发运，不能再修改。",
   "This cargo has already left China. Ask management to correct it.":
     "该货物已离开中国。请联系管理层更正。",
+  "This cargo has no case in this view. Try another card above.": "这票货在当前视图下没有案件。请点上方其他卡片。",
+  "This cargo has not been billed yet.": "该货物尚未开单。",
+  "This cargo is not cleared for release.": "该货物尚未获准放货。",
   "this cargo is now cleared for collection.": "该货物现在可以提货了。",
+  "This cargo is on hold while our team checks a problem with it, so it cannot be collected yet. We are working on it and will contact you as soon as it is settled.": "该货物因货物存在问题正在核查，暂时无法提货。我们正在处理，解决后会第一时间联系您。",
   "This clears the cargo for release and notifies the warehouse.":
     "这会放行该货物并通知仓库。",
   "This decides what the customer pays to fly it home.":
@@ -2756,6 +2824,7 @@ const ZH: Record<string, string> = {
   "Toggle theme": "切换主题",
   "Top": "常用",
   "Total": "合计",
+  "Total cargo": "货物总数",
   "Total cargo weight": "货物总重量",
   "Total customers": "客户总数",
   "Total loss": "全损",
@@ -2806,6 +2875,7 @@ const ZH: Record<string, string> = {
   "TX-000125, or the carton reference from the Guangzhou packing list.":
     "TX-000125，或广州装箱单上的箱号。",
   "Type": "类型",
+  "Type one of these phone numbers into the cargo form to see auto-fill recognise them.": "把其中一个电话号码填进货物表单，看看自动填充能不能认出来。",
   "Type one of these phone numbers into the shipment form to see auto-fill recognise them.":
     "把其中一个电话号码填进运单表单，看看自动填充能不能认出来。",
   "Typed the way they read it off the handset — 0757…, +255757… or the last digits.":

@@ -60,7 +60,7 @@ export default async function RequestsPage() {
           <div className="flex items-center justify-between border-b px-5 py-4">
             <h2 className="flex items-center gap-2 font-display font-semibold">
               <PackagePlus className="h-4 w-4" />
-              {t(locale, "Shipment bookings")}
+              {t(locale, "Cargo bookings")}
             </h2>
             <span className="text-xs text-muted-foreground tabular">
               {bookings.length}

@@ -79,7 +79,7 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
     },
     {
       id: "shipments",
-      header: t("Shipments"),
+      header: t("Cargo"),
       align: "right",
       sortValue: (row) => row.shipments,
       className: "tabular-nums",
@@ -120,7 +120,7 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
       : []),
     {
       id: "last",
-      header: t("Last shipment"),
+      header: t("Last cargo"),
       hideBelow: "xl",
       sortValue: (row) => (row.lastShipmentAt ? new Date(row.lastShipmentAt) : null),
       className: "text-xs text-muted-foreground",
@@ -222,7 +222,7 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
             </div>
             <div className="text-right">
               <p className="text-sm font-medium tabular-nums">{row.shipments}</p>
-              <p className="text-xs text-muted-foreground">{t("shipments")}</p>
+              <p className="text-xs text-muted-foreground">{t("cargo")}</p>
             </div>
           </div>
           {(row.outstanding ?? 0) > 0 ? (

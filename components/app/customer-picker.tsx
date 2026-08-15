@@ -161,7 +161,7 @@ export function CustomerPicker({
                 ? t(locale, "No cargo shipped yet")
                 : `${picked.shipments} ${t(
                     locale,
-                    picked.shipments === 1 ? "shipment" : "shipments"
+                    picked.shipments === 1 ? "piece of cargo" : "pieces of cargo"
                   )} ${t(locale, "with us")}`}
             </p>
             {reusedExisting ? (
@@ -260,7 +260,7 @@ export function CustomerPicker({
                       {customer.shipments}{" "}
                       {t(
                         locale,
-                        customer.shipments === 1 ? "shipment" : "shipments"
+                        customer.shipments === 1 ? "piece of cargo" : "pieces of cargo"
                       )}
                     </span>
                   </button>

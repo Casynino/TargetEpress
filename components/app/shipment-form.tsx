@@ -70,7 +70,7 @@ export function ShipmentForm({
       <div className="panel p-8 text-center">
         <CheckCircle2 className="mx-auto h-10 w-10 animate-success-pop text-success" />
         <h2 className="mt-4 font-display text-xl font-bold">
-          {t(locale, "Shipment registered")}
+          {t(locale, "Cargo registered")}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {t(locale, "Print the label and attach it to the cargo now.")}
@@ -105,7 +105,7 @@ export function ShipmentForm({
             href={`/app/cargo/${created}`}
             className="inline-flex h-10 items-center rounded-md border px-4 text-sm hover:bg-muted"
           >
-            {t(locale, "View shipment")}
+            {t(locale, "View cargo")}
           </Link>
           <a
             href="/app/cargo/new"
@@ -371,7 +371,7 @@ export function ShipmentForm({
 
       <div className="flex flex-wrap gap-3">
         <SubmitButton variant="signal" pendingLabel="Registering…">
-          {t(locale, "Register shipment")}
+          {t(locale, "Register cargo")}
         </SubmitButton>
         <Link
           href="/app/cargo"

@@ -22,7 +22,7 @@ import { viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await viewerLocale();
-  return { title: t(locale, "Incoming shipments") };
+  return { title: t(locale, "Incoming cargo") };
 }
 
 export default async function ReceivePage() {
@@ -46,7 +46,7 @@ export default async function ReceivePage() {
   return (
     <>
       <PageHeader
-        title="Incoming shipments"
+        title="Incoming cargo"
         description="Everything inbound — in the air, on the floor, and being checked off. Oldest first; cargo on the floor comes before cargo in the air."
         actions={
           next ? (
@@ -105,7 +105,7 @@ export default async function ReceivePage() {
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           delay={0}
-          label={t(locale, "Shipments to check in")}
+          label={t(locale, "Cargo to check in")}
           numeric={summary.uncheckedShipments}
           ringPct={checkedShare}
           ringLabel={t(locale, "Share of floor cargo already checked in")}
@@ -156,7 +156,7 @@ export default async function ReceivePage() {
               </p>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {next.unchecked} {t(locale, "of")} {next.shipments}{" "}
-                {t(locale, "shipment(s) still unchecked.")}{" "}
+                {t(locale, "consignment(s) still unchecked.")}{" "}
                 {t(
                   locale,
                   "Customers cannot be invoiced until their cargo is checked in."

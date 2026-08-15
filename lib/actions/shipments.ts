@@ -150,7 +150,7 @@ export async function createShipment(
   const photoFiles = filesFrom(formData, "photos");
   if (photoFiles.length === 0) {
     return fail(
-      "At least one photo of the cargo is required before the shipment can be saved."
+      "At least one photo of the cargo is required before it can be saved."
     );
   }
 
@@ -314,7 +314,7 @@ export async function updateShipment(
   }
 
   const id = String(formData.get("shipmentId") ?? "");
-  if (!id) return fail("Missing shipment.");
+  if (!id) return fail("Missing cargo.");
 
   const parsed = shipmentSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
@@ -328,12 +328,12 @@ export async function updateShipment(
         where: { id },
         select: { id: true, status: true, trackingNumber: true },
       });
-      if (!shipment) throw new Error("Shipment not found.");
+      if (!shipment) throw new Error("Cargo not found.");
       // Once cargo has left China its recorded weight is what was billed and
       // flown. Correcting it afterwards would rewrite history.
       if (shipment.status !== "READY_TO_DEPART") {
         throw new Error(
-          "This shipment has already departed and can no longer be edited."
+          "This cargo has already departed and can no longer be edited."
         );
       }
 

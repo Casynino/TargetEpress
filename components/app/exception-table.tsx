@@ -344,7 +344,7 @@ function CaseRecord({
                 {shipment.customerPhone ?? t("no phone on file")}
               </span>
             </Fact>
-            <Fact label={t("Shipment")}>
+            <Fact label={t("Cargo")}>
               <span className="font-mono tabular">
                 {shipment.trackingNumber}
               </span>

@@ -542,7 +542,7 @@ function CargoDetail({ id, shipment }: { id: string; shipment: Row }) {
       ) : (
         <p className="text-xs text-muted-foreground">
           {t(
-            "No photos were taken in China for this shipment — check the label and the"
+            "No photos were taken in China for this cargo — check the label and the"
           )}{" "}
           {unitOne} {t("count instead.")}
         </p>

@@ -34,7 +34,7 @@ import {
 } from "@/lib/tracking";
 
 export const metadata: Metadata = {
-  title: "Track your shipment",
+  title: "Track your cargo",
   description:
     "Enter your Target Express tracking number or batch number to see where your cargo is.",
 };
@@ -179,7 +179,7 @@ function InvestigationPanel({
             ) : null}
             <a
               href={`https://wa.me/${COMPANY.whatsapp}?text=${encodeURIComponent(
-                `Hello Target Express, I am asking about shipment ${trackingNumber}`
+                `Hello Target Express, I am asking about cargo ${trackingNumber}`
               )}`}
               target="_blank"
               rel="noopener noreferrer"
@@ -206,7 +206,7 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
         </p>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
           Check the number for typos. If your goods were only just handed to our
-          China warehouse, the shipment may not be registered yet.
+          China warehouse, the cargo may not be registered yet.
         </p>
         <Button asChild variant="outline" className="mt-6 rounded-xl">
           <a
@@ -243,7 +243,7 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
         <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-4">
           {[
             { label: "Origin", value: result.origin },
-            { label: "Shipments in batch", value: String(result.shipmentCount) },
+            { label: "Cargo in batch", value: String(result.shipmentCount) },
             { label: "Departed", value: formatDate(result.departureDate) },
             { label: "Arrived", value: formatDate(result.arrivalDate) },
           ].map((item) => (
@@ -277,7 +277,7 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
       <div className="flex flex-wrap items-start justify-between gap-4 border-b p-6">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Shipment
+            Cargo
           </p>
           <p className="font-mono text-2xl font-semibold tabular">
             {result.trackingNumber}
@@ -460,7 +460,7 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
       <div className="p-6">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
           <MapPin className="h-4 w-4 text-brand" />
-          Shipment timeline
+          Cargo timeline
         </h2>
 
         <TrackingTimeline
@@ -475,14 +475,14 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
         <span>Last updated {formatDateTime(result.lastUpdate)}</span>
         <a
           href={`https://wa.me/${COMPANY.whatsapp}?text=${encodeURIComponent(
-            `Hello Target Express, I am asking about shipment ${result.trackingNumber}`
+            `Hello Target Express, I am asking about cargo ${result.trackingNumber}`
           )}`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-brand"
         >
           <MessageCircle className="h-3.5 w-3.5" />
-          Ask about this shipment
+          Ask about this cargo
         </a>
       </div>
     </div>

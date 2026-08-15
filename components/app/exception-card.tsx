@@ -346,7 +346,7 @@ export function ExceptionCard({
             <p className="mt-1.5 text-xs text-warning">
               {t(
                 locale,
-                "Boxes are checked in but the shipment still reads In transit — finish its check-in."
+                "Boxes are checked in but the cargo still reads In transit — finish its check-in."
               )}
             </p>
           ) : null}

@@ -756,7 +756,7 @@ function CancelPanel({ shipmentId }: { shipmentId: string }) {
         className="flex w-full items-center gap-2 text-sm font-medium text-destructive"
       >
         <Ban className="h-4 w-4" />
-        {t("Cancel shipment")}
+        {t("Cancel cargo")}
       </button>
 
       {open ? (

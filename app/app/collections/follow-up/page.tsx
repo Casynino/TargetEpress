@@ -136,7 +136,7 @@ export default async function FollowUpPage({
       <div className="mb-4 flex flex-wrap gap-6 rounded-xl border bg-card p-4 text-sm shadow-soft">
         <div>
           <p className="text-xs text-muted-foreground">
-            {t(locale, "Shipments shown")}
+            {t(locale, "Cargo shown")}
           </p>
           <p className="font-display text-xl font-bold tabular-nums">{visible.length}</p>
         </div>
@@ -173,7 +173,7 @@ export default async function FollowUpPage({
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="p-3 font-medium">{t(locale, "Customer")}</th>
-              <th className="p-3 font-medium">{t(locale, "Shipment")}</th>
+              <th className="p-3 font-medium">{t(locale, "Cargo")}</th>
               <th className="hidden p-3 font-medium lg:table-cell">
                 {t(locale, "In warehouse")}
               </th>
@@ -262,7 +262,7 @@ export default async function FollowUpPage({
                         href={`/app/cargo/${row.trackingNumber}`}
                         className="text-xs text-brand hover:underline"
                       >
-                        {t(locale, "Open shipment")}
+                        {t(locale, "Open cargo")}
                       </Link>
                     </div>
                   )}

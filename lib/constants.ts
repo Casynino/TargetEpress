@@ -299,7 +299,7 @@ export const STORAGE_POLICY = {
   currency: "USD",
   text: [
     "Storage is FREE for 7 days only.",
-    "After 7 days, storage charges of USD 2 per day will apply for every shipment remaining in the warehouse.",
+    "After 7 days, storage charges of USD 2 per day will apply for all cargo remaining in the warehouse.",
     "Customers are advised to collect their cargo on time to avoid additional storage charges.",
     "Thank you for choosing Target Express Air Cargo.",
   ],
@@ -499,7 +499,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 };
 
 export const EXCEPTION_TYPE_LABELS: Record<ExceptionType, string> = {
-  MISSING_SHIPMENT: "Missing shipment",
+  MISSING_SHIPMENT: "Missing cargo",
   DAMAGED_CARGO: "Damaged cargo",
   WEIGHT_MISMATCH: "Weight mismatch",
   PACKAGE_COUNT_MISMATCH: "Package count mismatch",

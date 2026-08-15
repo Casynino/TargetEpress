@@ -184,7 +184,7 @@ export default async function InvoicePage({
         <Button asChild variant="ghost" size="sm">
           <Link href={`/app/cargo/${shipment.trackingNumber}`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            {t(locale, "Back to shipment")}
+            {t(locale, "Back to cargo")}
           </Link>
         </Button>
         <div className="flex flex-wrap gap-2">

@@ -196,7 +196,7 @@ export default async function PaymentsPage() {
             title={t(locale, "No payments yet")}
             description={t(
               locale,
-              "Payments are recorded from a shipment's page once an invoice exists."
+              "Payments are recorded from a cargo page once an invoice exists."
             )}
           />
         ) : (
@@ -308,7 +308,7 @@ export default async function PaymentsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t(locale, "Receipt")}</TableHead>
-                  <TableHead>{t(locale, "Shipment")}</TableHead>
+                  <TableHead>{t(locale, "Cargo")}</TableHead>
                   <TableHead className="hidden md:table-cell">
                     {t(locale, "Customer")}
                   </TableHead>

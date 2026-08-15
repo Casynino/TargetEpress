@@ -220,7 +220,7 @@ export default async function InventoryPage() {
               // must round the same way — otherwise one screen says 754.3 kg
               // and the next says 754 kg about the same stack of boxes.
               value={formatWeight(totalWeight)}
-              hint={`${t(locale, "Across")} ${rows.length} ${t(locale, rows.length === 1 ? "shipment" : "shipments")}`}
+              hint={`${t(locale, "Across")} ${rows.length} ${t(locale, rows.length === 1 ? "consignment" : "consignments")}`}
               icon={Scale}
               tone="info"
             />

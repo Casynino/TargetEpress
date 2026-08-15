@@ -16,7 +16,7 @@ import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Shipments" };
+export const metadata: Metadata = { title: "Batches" };
 
 /**
  * The dispatch archive, as a dashboard.
@@ -208,7 +208,7 @@ export default async function ShipmentsPage() {
   return (
     <>
       <PageHeader
-        title="Shipments"
+        title="Batches"
         description="Every dispatch that has left China. Open one to see its cargo, documents and full timeline."
       />
 

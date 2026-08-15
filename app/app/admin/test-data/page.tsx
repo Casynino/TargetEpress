@@ -112,13 +112,13 @@ export default async function TestDataPage() {
       steps: [
         t(
           locale,
-          "Press “Scan this” on any shipment in the table below — it opens the scanner with that QR already resolved."
+          "Press “Scan this” on any cargo in the table below — it opens the scanner with that QR already resolved."
         ),
         t(
           locale,
           "The verdict changes with your role: Finance sees the money, the Dar warehouse sees whether it may release the cargo."
         ),
-        `${t(locale, "Try")} ${delivered?.trackingNumber ?? t(locale, "a delivered shipment")} — ${t(locale, "it warns you the cargo has already been collected.")}`,
+        `${t(locale, "Try")} ${delivered?.trackingNumber ?? t(locale, "a delivered consignment")} — ${t(locale, "it warns you the cargo has already been collected.")}`,
       ],
     },
     {
@@ -140,7 +140,7 @@ export default async function TestDataPage() {
         : [
             t(
               locale,
-              "Every shipment is settled — record a new one to try this flow."
+              "All cargo is settled — record a new one to try this flow."
             ),
           ],
     },
@@ -158,7 +158,7 @@ export default async function TestDataPage() {
               ),
               t(
                 locale,
-                "Now try pasting a different shipment's QR: it refuses and tells you not to release it. That is the whole point of the QR system."
+                "Now try pasting a different consignment's QR: it refuses and tells you not to release it. That is the whole point of the QR system."
               ),
             ]
           : [
@@ -174,7 +174,7 @@ export default async function TestDataPage() {
       title: t(locale, "Check a batch in against the manifest"),
       steps: arrivedBatch
         ? [
-            `${t(locale, "Open Receive & verify →")} ${arrivedBatch.batchNumber} (${arrivedBatch._count.shipments - arrivedBatch._count.verifications} ${t(locale, "shipment(s) still unchecked")}).`,
+            `${t(locale, "Open Receive & verify →")} ${arrivedBatch.batchNumber} (${arrivedBatch._count.shipments - arrivedBatch._count.verifications} ${t(locale, "consignment(s) still unchecked")}).`,
             t(
               locale,
               "Print the manifest to see the tick-column sheet the warehouse actually uses."
@@ -208,11 +208,11 @@ export default async function TestDataPage() {
       title: t(locale, "Seal a batch and fly it"),
       steps: openBatch
         ? [
-            `${t(locale, "Open")} ${openBatch.batchNumber} — ${t(locale, "it has")} ${openBatch._count.shipments} ${t(locale, "shipment(s) loaded.")}`,
+            `${t(locale, "Open")} ${openBatch.batchNumber} — ${t(locale, "it has")} ${openBatch._count.shipments} ${t(locale, "consignment(s) loaded.")}`,
             t(locale, "Add any unassigned cargo, then press Seal batch."),
             t(
               locale,
-              "Record the departure with an airline and waybill. Every shipment inside flips to In transit, and the public tracking page updates."
+              "Record the departure with an airline and waybill. All cargo inside flips to In transit, and the public tracking page updates."
             ),
           ]
         : [t(locale, "No open batch — create one from Batches → Open batch.")],
@@ -300,7 +300,7 @@ export default async function TestDataPage() {
       {/* Shipments with scannable codes */}
       <section className="mb-8">
         <h2 className="mb-1 font-display text-lg font-semibold">
-          {t(locale, "Shipments")} ({shipments.length})
+          {t(locale, "Cargo")} ({shipments.length})
         </h2>
         <p className="mb-4 text-sm text-muted-foreground">
           {t(
@@ -410,7 +410,7 @@ export default async function TestDataPage() {
           <p className="mb-4 text-sm text-muted-foreground">
             {t(
               locale,
-              "Type one of these phone numbers into the shipment form to see auto-fill recognise them."
+              "Type one of these phone numbers into the cargo form to see auto-fill recognise them."
             )}
           </p>
           <div className="panel overflow-hidden">
@@ -421,7 +421,7 @@ export default async function TestDataPage() {
                   <TableHead>{t(locale, "Name")}</TableHead>
                   <TableHead>{t(locale, "Phone")}</TableHead>
                   <TableHead className="text-right">
-                    {t(locale, "Shipments")}
+                    {t(locale, "Cargo")}
                   </TableHead>
                 </TableRow>
               </TableHeader>

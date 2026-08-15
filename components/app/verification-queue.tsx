@@ -554,7 +554,7 @@ function BatchCard({ row }: { row: VerificationBatchRow }) {
         {t("landed")} {formatDate(row.arrivedAt, locale)}
       </p>
       <p className="mt-1 text-xs text-muted-foreground tabular">
-        {row.shipments} {t("shipment(s)")} · {formatWeight(row.weightKg)}
+        {row.shipments} {t("cargo")} · {formatWeight(row.weightKg)}
         {row.packagesTracked > 0
           ? ` · ${row.packagesPresent}/${row.packagesTracked} ${t("boxes here")}`
           : ""}

@@ -39,7 +39,7 @@ import { requirePermission } from "@/lib/session";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: t(await viewerLocale(), "Shipment") };
+  return { title: t(await viewerLocale(), "Batch") };
 }
 
 /**
@@ -408,7 +408,7 @@ export default async function ShipmentPage({
             <Button asChild variant="ghost" size="sm">
               <Link href="/app/shipments">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                {t(locale, "All shipments")}
+                {t(locale, "All batches")}
               </Link>
             </Button>
           </>

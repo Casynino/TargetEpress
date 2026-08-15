@@ -233,7 +233,7 @@ export function ShipmentsDashboard({
     tone?: string;
   }[] = [
     {
-      k: t("Shipments"),
+      k: t("Batches"),
       main: String(visible.length),
       sub: `${totals.cargo} ${t("cargo")} · ${totals.weight.toFixed(0)} kg`,
     },
@@ -288,7 +288,7 @@ export function ShipmentsDashboard({
       {!showMoney ? (
         <p className="mb-4 text-sm text-muted-foreground">
           <span className="font-medium text-foreground">{visible.length}</span>{" "}
-          {t(visible.length === 1 ? "shipment" : "shipments")} · {totals.cargo}{" "}
+          {t(visible.length === 1 ? "batch" : "batches")} · {totals.cargo}{" "}
           {t("cargo")} · {totals.weight.toFixed(0)} kg
         </p>
       ) : (
@@ -320,7 +320,7 @@ export function ShipmentsDashboard({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("Search shipment number, waybill, airline or flight…")}
+            placeholder={t("Search batch number, waybill, airline or flight…")}
             className="pl-9"
           />
         </div>

@@ -455,7 +455,7 @@ export function ShipmentDetailTabs({
               <p className="mt-3 font-medium">{t("No documents yet")}</p>
               <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
                 {t(
-                  "Waybills, customs paperwork and packing photos attached to this shipment appear here."
+                  "Waybills, customs paperwork and packing photos attached to this batch appear here."
                 )}
               </p>
             </div>

@@ -525,7 +525,7 @@ export default async function ExceptionsPage({
                 ? tracking
                   ? t(
                       locale,
-                      "This shipment has no case in this view. Try another card above."
+                      "This cargo has no case in this view. Try another card above."
                     )
                   : t(locale, copy.emptyBody)
                 : t(

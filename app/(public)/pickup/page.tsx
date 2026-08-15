@@ -80,7 +80,7 @@ export default function PickupPage() {
               Already know what you are sending?
             </h2>
             <p className="mt-1 text-sm text-white/60">
-              Book the shipment and tick the collection box — one form instead of
+              Book your cargo and tick the collection box — one form instead of
               two.
             </p>
           </div>
@@ -89,7 +89,7 @@ export default function PickupPage() {
               href="/book"
               className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-[hsl(var(--ink))] transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
             >
-              Book a shipment
+              Book your cargo
               <ArrowRight className="h-4 w-4" />
             </Link>
             <a

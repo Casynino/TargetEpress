@@ -130,7 +130,7 @@ export default async function CustomerProfilePage({
       {/* Headline numbers */}
       <dl className="mb-6 grid grid-cols-1 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3 lg:grid-cols-5">
         {[
-          { label: t(locale, "Total shipments"), value: String(stats.total) },
+          { label: t(locale, "Total cargo"), value: String(stats.total) },
           { label: t(locale, "Active"), value: String(stats.active) },
           { label: t(locale, "Completed"), value: String(stats.completed) },
           ...(showMoney
@@ -179,7 +179,7 @@ export default async function CustomerProfilePage({
           {/* Shipments */}
           <section className="rounded-xl border bg-card shadow-soft">
             <header className="border-b p-4">
-              <h2 className="font-semibold">{t(locale, "Shipments")}</h2>
+              <h2 className="font-semibold">{t(locale, "Cargo")}</h2>
             </header>
             {/*
               A customer's shipments, on a phone.
@@ -396,7 +396,7 @@ export default async function CustomerProfilePage({
                         colSpan={showMoney ? 5 : 4}
                         className="p-8 text-center text-sm text-muted-foreground"
                       >
-                        {t(locale, "No shipments yet.")}
+                        {t(locale, "No cargo yet.")}
                       </td>
                     </tr>
                   ) : null}

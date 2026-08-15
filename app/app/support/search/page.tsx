@@ -13,7 +13,7 @@ import { requirePermission } from "@/lib/session";
 import { searchShipments } from "@/lib/support";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Find a shipment" };
+export const metadata: Metadata = { title: "Find cargo" };
 
 /**
  * One box, every handle.
@@ -37,7 +37,7 @@ export default async function SupportSearchPage({
   return (
     <>
       <PageHeader
-        title="Find a shipment"
+        title="Find cargo"
         description="Search by tracking number, customer name, phone number, batch or invoice."
       />
 

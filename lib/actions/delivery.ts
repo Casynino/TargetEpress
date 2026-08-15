@@ -154,7 +154,7 @@ export async function releaseShipment(
         );
       }
       if (note.shipment.status !== "READY_FOR_PICKUP") {
-        throw new Error(t(locale, "This shipment is not cleared for release."));
+        throw new Error(t(locale, "This cargo is not cleared for release."));
       }
 
       // The investigation lock, and it is checked here rather than only in the
@@ -184,7 +184,7 @@ export async function releaseShipment(
         // "P2" on the label — so the list itself needs no translation.
         const missing = progress.missing.map((n) => `P${n}`).join(", ");
         throw new Error(
-          `${t(locale, "Only")} ${progress.received}/${progress.total} ${t(locale, "packages have been checked in. Still missing:")} ${missing}${t(locale, ". Do not release a partial shipment.")}`
+          `${t(locale, "Only")} ${progress.received}/${progress.total} ${t(locale, "packages have been checked in. Still missing:")} ${missing}${t(locale, ". Do not release a partial consignment.")}`
         );
       }
 

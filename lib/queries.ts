@@ -1232,7 +1232,7 @@ export async function attentionItems(
       id: `batch-${batch.id}`,
       severity: ageDays(batch.arrivedAt) >= 2 ? "critical" : "warning",
       title: `${batch.batchNumber} ${t(locale, "not fully checked in")}`,
-      detail: `${remaining} ${t(locale, "of")} ${batch._count.shipments} ${t(locale, "shipment(s) still unverified against the manifest.")}`,
+      detail: `${remaining} ${t(locale, "of")} ${batch._count.shipments} ${t(locale, "consignment(s) still unverified against the manifest.")}`,
       meta: `${t(locale, "Landed")} ${ageDays(batch.arrivedAt)} ${t(locale, "day(s) ago")}`,
       href: `/app/receive/${batch.id}`,
     });
@@ -1279,7 +1279,7 @@ export async function attentionItems(
       id: `open-${batch.id}`,
       severity: "info",
       title: `${batch.batchNumber} ${t(locale, "still open")}`,
-      detail: `${batch._count.shipments} ${t(locale, "shipment(s) waiting in China. Seal it to get them on a flight.")}`,
+      detail: `${batch._count.shipments} ${t(locale, "consignment(s) waiting in China. Seal it to get them on a flight.")}`,
       meta: `${t(locale, "Opened")} ${ageDays(batch.createdAt)} ${t(locale, "day(s) ago")}`,
       href: `/app/batches/${batch.id}`,
     });

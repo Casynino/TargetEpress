@@ -291,7 +291,7 @@ export default async function WarehouseReportsPage({
           <p className="border-t px-5 py-3 text-xs text-muted-foreground">
             {t(
               locale,
-              "A week is counted on the date each shipment was checked in against its manifest, and each release on the date it was handed over. Independent of the period switch above."
+              "A week is counted on the date each consignment was checked in against its manifest, and each release on the date it was handed over. Independent of the period switch above."
             )}
           </p>
         </div>
@@ -408,7 +408,7 @@ export default async function WarehouseReportsPage({
                 description={
                   zh
                     ? `近 ${window}入库的每一票货都与清单相符。`
-                    : `Every shipment checked in over the last ${window} matched its manifest.`
+                    : `Every consignment checked in over the last ${window} matched its manifest.`
                 }
               />
             </div>
@@ -451,7 +451,7 @@ export default async function WarehouseReportsPage({
                     {quality.shortPackages}
                   </strong>{" "}
                   {quality.shortPackages === 1 ? "box is" : "boxes are"} still
-                  missing off cargo already on the floor — those shipments
+                  missing off cargo already on the floor — those consignments
                   cannot be released until they are found.{" "}
                 </>
               )
@@ -653,7 +653,7 @@ export default async function WarehouseReportsPage({
             </Link>
             <Link href="/app/receive" className="text-brand hover:underline">
               <ScanLine className="mr-1 inline h-3 w-3" />
-              {t(locale, "Incoming shipments")}
+              {t(locale, "Incoming cargo")}
             </Link>
           </div>
         </div>

@@ -270,7 +270,7 @@ function ScanPrompt({
             {notes.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 {t(
-                  "No cargo is cleared for release right now. Finance issues a pickup note once a shipment is paid for."
+                  "No cargo is cleared for release right now. Finance issues a pickup note once cargo is paid for."
                 )}
               </p>
             ) : (
@@ -690,7 +690,7 @@ function BlockedActions({
         ) : null}
         <Button asChild variant="outline" className="h-11">
           <Link href={`/app/cargo/${target.trackingNumber}`}>
-            {t("Open the shipment")}
+            {t("Open the cargo")}
           </Link>
         </Button>
         <Button variant="brand" className="h-11" onClick={onDone}>

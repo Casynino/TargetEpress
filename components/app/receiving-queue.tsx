@@ -405,7 +405,7 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
             {row.airline ? ` · ${row.airline} ${row.flightNumber ?? ""}` : ""}
           </p>
           <p className="mt-1 text-xs text-muted-foreground tabular">
-            {row.shipments} {t("shipment(s)")} · {formatWeight(row.weightKg)}
+            {row.shipments} {t("cargo")} · {formatWeight(row.weightKg)}
             {row.arrivedAt
               ? ` · ${t("landed")} ${formatDate(row.arrivedAt, locale)}`
               : row.departureDate

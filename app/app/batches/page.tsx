@@ -192,7 +192,7 @@ export default async function BatchesPage() {
               href="/app/shipments"
               className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
             >
-              {t(locale, "All shipments")}
+              {t(locale, "All batches")}
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>

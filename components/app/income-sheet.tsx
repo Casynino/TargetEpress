@@ -83,7 +83,7 @@ export function IncomeSheetTable({
         <p className="font-medium">{t("No flights have been closed yet")}</p>
         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
           {t(
-            "A flight lands here when Finance shuts its books. That is when the maths is done and the figures are frozen — until then it is still moving, and it is on the Shipments board."
+            "A flight lands here when Finance shuts its books. That is when the maths is done and the figures are frozen — until then it is still moving, and it is on the Batches board."
           )}
         </p>
       </div>

@@ -175,7 +175,7 @@ export default async function ManifestPage({
             { label: "Waybill", value: batch.waybillNumber ?? "—" },
             { label: "Departed", value: formatDate(batch.departureDate, locale) },
             { label: "Arrived", value: formatDate(batch.arrivalDate, locale) },
-            { label: "Shipments", value: String(batch.shipments.length) },
+            { label: "Consignments", value: String(batch.shipments.length) },
             { label: "Total packages", value: unitBreakdown || "—" },
             { label: "Total weight", value: formatWeight(totalWeight) },
           ].map((item) => (
