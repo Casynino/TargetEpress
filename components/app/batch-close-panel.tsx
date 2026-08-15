@@ -1,13 +1,17 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ArrowRightLeft, Lock, LockOpen } from "lucide-react";
+import { ArrowRightLeft, Lock, LockOpen, Undo2 } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import { closeBatch, reopenBatch } from "@/lib/actions/batches";
+import {
+  closeBatch,
+  reopenBatch,
+  returnCarriedCargo,
+} from "@/lib/actions/batches";
 import { formatLocal, formatUsd } from "@/lib/money";
 import type { ActionResult } from "@/lib/actions/types";
 
@@ -38,7 +42,11 @@ export type BatchCloseState = {
   /** Open flights this cargo could move onto, newest first. */
   carryTargets: CarryTarget[];
   /** Cargo on THIS batch that arrived from a flight that closed. */
-  carriedIn: { trackingNumber: string; fromBatchNumber: string }[];
+  carriedIn: {
+    shipmentId: string;
+    trackingNumber: string;
+    fromBatchNumber: string;
+  }[];
   /** Everything that landed on this flight, so the panel can show the sum. */
   kg: number;
   /** Weight whose bill is settled, and weight nobody has paid for yet. */
@@ -117,6 +125,17 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
   /* One decision per piece, defaulting to the one that gives nothing away. */
   const [decisions, setDecisions] = useState<Record<string, Choice>>({});
   const [carryTo, setCarryTo] = useState<string>("");
+  /*
+    Closing is one click away from irreversible, so it is two.
+
+    The owner's rule: it should not just close, it should ask, and it should
+    show everything first — including what happens to each piece somebody has
+    just decided about. This flag flips the form from deciding to reading. The
+    decisions stay in the DOM the whole time, hidden rather than unmounted, so
+    what gets posted is exactly what was reviewed.
+  */
+  const [confirming, setConfirming] = useState(false);
+  const [note, setNote] = useState("");
   const decisionFor = (id: string): Choice => decisions[id] ?? "chase";
 
   const [closeState, close] = useActionState<
@@ -128,6 +147,10 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
     }>,
     FormData
   >(closeBatch, { ok: true });
+  const [returnState, sendBack] = useActionState<
+    ActionResult<Record<string, never>>,
+    FormData
+  >(returnCarriedCargo, { ok: true });
   const [reopenState, reopen] = useActionState<
     ActionResult<Record<string, never>>,
     FormData
@@ -174,8 +197,34 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
             ", still unpaid when those books were shut. They did not fly with this one."
           )}
         </span>
+        {/*
+          A way back.
+
+          Carrying cargo forward is decided under pressure at a close, and the
+          boss declining the statement is exactly the case where it has to be
+          undone. Each piece can go home to the flight it came from — refused
+          while that flight is shut, because putting unpaid cargo back onto
+          closed books would make a statement he has already read wrong.
+        */}
+        <span className="ml-auto flex flex-wrap items-center gap-2">
+          {state.carriedIn.map((row) => (
+            <form key={row.shipmentId} action={sendBack}>
+              <input type="hidden" name="shipmentId" value={row.shipmentId} />
+              <SubmitButton
+                variant="ghost"
+                className="h-7 gap-1 px-2 text-xs text-brand hover:bg-brand/10 hover:text-brand"
+                pendingLabel={t("Sending…")}
+              >
+                <Undo2 className="h-3 w-3" />
+                {t("Send")} {row.trackingNumber} {t("back")}
+              </SubmitButton>
+            </form>
+          ))}
+        </span>
       </p>
     ) : null;
+
+  const carriedInError = <FormError state={returnState} />;
 
   /* ------------------------------------------------------------------ */
   /* Already closed: one line, and a way back.                           */
@@ -184,6 +233,8 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
     return (
       <>
       {carriedInNote}
+    {carriedInError}
+      {carriedInError}
       <section className="mb-6 overflow-hidden rounded-xl border border-success/25 bg-card shadow-soft">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-success/[0.04] px-5 py-3 text-sm">
           <Lock className="h-4 w-4 shrink-0 text-success" />
@@ -261,7 +312,13 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
   /* ------------------------------------------------------------------ */
   /* Not yet checked off the manifest: nothing to offer.                 */
   /* ------------------------------------------------------------------ */
-  if (!state.verified) return carriedInNote;
+  if (!state.verified)
+    return (
+      <>
+        {carriedInNote}
+        {carriedInError}
+      </>
+    );
 
   /* ------------------------------------------------------------------ */
   /* Money nobody has been asked for. Closing would give it away.        */
@@ -280,6 +337,8 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
     return (
       <>
       {carriedInNote}
+    {carriedInError}
+      {carriedInError}
       {returned}
       <p className="mb-6 rounded-xl border border-dashed px-5 py-3 text-xs text-muted-foreground">
         {t("This batch cannot be closed yet —")}{" "}
@@ -301,6 +360,8 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
     return (
       <>
       {carriedInNote}
+    {carriedInError}
+      {carriedInError}
       {returned}
       <form
         action={close}
@@ -330,6 +391,7 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
   return (
     <>
     {carriedInNote}
+    {carriedInError}
     {returned}
     <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3">
@@ -600,32 +662,132 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
               </span>
               <Input
                 name="note"
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
                 placeholder={t("Chased three times, no answer")}
                 className="h-9 bg-card text-sm"
               />
             </label>
-            <SubmitButton
-              variant="ghost"
+            <button
+              type="button"
               disabled={carrying > 0 && !carryTo}
-              className="h-9 gap-1.5 border border-brand/35 bg-brand/10 px-3 text-brand hover:bg-brand/20 hover:text-brand"
-              pendingLabel={t("Closing…")}
+              onClick={() => setConfirming(true)}
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-brand/35 bg-brand/10 px-3 text-sm font-medium text-brand transition-colors hover:bg-brand/20 disabled:opacity-50"
             >
               <Lock className="h-4 w-4" />
-              {writingOff === 0 && carrying === 0
-                ? t("Close, keeping every debt")
-                : [
-                    writingOff > 0
-                      ? `${t("writing off")} ${money(totalFor("writeOff"))}`
-                      : null,
-                    carrying > 0
-                      ? `${t("carrying")} ${money(totalFor("carry"))}`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(` ${t("and")} `)
-                    .replace(/^./, (c) => `${t("Close,")} ${c}`)}
-            </SubmitButton>
+              {t("Review and close…")}
+            </button>
           </div>
+          {/*
+            The last thing anybody reads before the books shut.
+
+            Everything the close is about to do, in the words of what it does
+            to people: how many are still being chased, what is moving to which
+            flight, what is being given up on. Then one button that means it,
+            and one that goes back — because "go back" has to be as easy as
+            "confirm" or the confirmation is theatre.
+          */}
+          {confirming ? (
+            <div className="border-t bg-brand/[0.04] px-5 py-4">
+              <p className="font-display font-semibold">
+                {t("Close")} {state.batchNumber}?
+              </p>
+              <ul className="mt-2 space-y-1 text-sm">
+                <li className="text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {state.summary.pieces} {t("pieces")}
+                  </span>{" "}
+                  · {state.summary.kg.toFixed(1)} kg ·{" "}
+                  {state.summary.customers} {t("customers")} ·{" "}
+                  {t("collected")}{" "}
+                  <span className="text-success">
+                    {money(state.summary.collectedUsd)}
+                  </span>{" "}
+                  {t("of")} {money(state.summary.expectedUsd)} ·{" "}
+                  {t("costs")}{" "}
+                  <span className="text-destructive">
+                    {money(state.summary.expensesUsd)}
+                  </span>
+                </li>
+                {countFor("chase") > 0 ? (
+                  <li>
+                    <span className="font-medium">{countFor("chase")}</span>{" "}
+                    {t("still chased on this batch")} —{" "}
+                    <span className="tabular-nums text-destructive">
+                      {money(totalFor("chase"))}
+                    </span>{" "}
+                    <span className="text-muted-foreground">
+                      {t("stays owed and collectable")}
+                    </span>
+                  </li>
+                ) : null}
+                {carrying > 0 ? (
+                  <li>
+                    <span className="font-medium">{carrying}</span>{" "}
+                    {t("carried to")}{" "}
+                    <span className="font-mono">
+                      {state.carryTargets.find((b) => b.id === carryTo)
+                        ?.batchNumber ?? "—"}
+                    </span>{" "}
+                    —{" "}
+                    <span className="tabular-nums text-destructive">
+                      {money(totalFor("carry"))}
+                    </span>{" "}
+                    <span className="text-muted-foreground">
+                      {t("moves with the cargo, still owed")}
+                    </span>
+                  </li>
+                ) : null}
+                {writingOff > 0 ? (
+                  <li>
+                    <span className="font-medium">{writingOff}</span>{" "}
+                    {t("written off")} —{" "}
+                    <span className="tabular-nums text-destructive">
+                      {money(totalFor("writeOff"))}
+                    </span>{" "}
+                    <span className="text-muted-foreground">
+                      {t("leaves this batch's revenue for good")}
+                    </span>
+                  </li>
+                ) : null}
+                <li className="text-muted-foreground">
+                  {note.trim()
+                    ? `${t("Your note")}: "${note.trim()}"`
+                    : t("No note for the boss.")}
+                </li>
+                <li className="text-muted-foreground">
+                  {t(
+                    "It goes to the boss to confirm, and nothing more can be recorded against it until he does."
+                  )}
+                </li>
+              </ul>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <SubmitButton
+                  variant="ghost"
+                  className="h-9 gap-1.5 border border-brand/35 bg-brand/10 px-3 text-brand hover:bg-brand/20 hover:text-brand"
+                  pendingLabel={t("Closing…")}
+                >
+                  <Lock className="h-4 w-4" />
+                  {t("Yes, close it")}
+                </SubmitButton>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(false)}
+                  className="focus-ring h-9 rounded-md px-3 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  {t("Go back and change something")}
+                </button>
+                <a
+                  href="#batch-costs"
+                  className="text-xs font-medium text-brand underline underline-offset-2"
+                >
+                  {t("A cost is wrong")}
+                </a>
+              </div>
+            </div>
+          ) : null}
+
           <div className="px-5 pb-3">
             <FormError state={closeState} />
           </div>

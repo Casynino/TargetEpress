@@ -240,6 +240,7 @@ export default async function ShipmentPage({
     ? await prisma.shipment.findMany({
         where: { batchId: dispatch.id, carriedFromBatchId: { not: null }, deletedAt: null },
         select: {
+          id: true,
           trackingNumber: true,
           carriedFromBatch: { select: { batchNumber: true } },
         },
@@ -525,6 +526,7 @@ export default async function ShipmentPage({
             statementStatus: dispatch.statement?.status ?? null,
             reviewNote: dispatch.statement?.reviewNote ?? null,
             carriedIn: carriedIn.map((row) => ({
+              shipmentId: row.id,
               trackingNumber: row.trackingNumber,
               fromBatchNumber: row.carriedFromBatch?.batchNumber ?? "—",
             })),

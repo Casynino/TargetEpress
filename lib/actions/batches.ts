@@ -1833,3 +1833,91 @@ export async function reviewStatement(
     return fail(toActionError(error));
   }
 }
+
+/**
+ * Send a carried piece back to the flight it came from.
+ *
+ * Carrying cargo forward is a decision made under pressure at a close, and
+ * decisions made at closes get reversed — the boss declines the statement, or
+ * somebody realises the wrong consignment was moved. Without this the only way
+ * back was to edit the database.
+ *
+ * It refuses if the old flight is closed. Putting unpaid cargo back onto shut
+ * books would make a statement the boss has already read wrong, and silently
+ * reopening his flight to accept it would be worse. Reopen it deliberately —
+ * which is exactly what declining the statement already does — and then send
+ * the cargo home.
+ */
+export async function returnCarriedCargo(
+  _prev: ActionResult<Record<string, never>> | undefined,
+  formData: FormData
+): Promise<ActionResult<Record<string, never>>> {
+  const locale = await viewerLocale();
+
+  let user: SessionUser;
+  try {
+    user = await authorize("batch.close");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const shipmentId = String(formData.get("shipmentId") ?? "");
+  if (!shipmentId) return fail(t(locale, "Missing cargo."));
+
+  try {
+    const back = await prisma.$transaction(async (tx) => {
+      const piece = await tx.shipment.findUnique({
+        where: { id: shipmentId },
+        select: {
+          id: true,
+          trackingNumber: true,
+          batch: { select: { batchNumber: true } },
+          carriedFromBatch: {
+            select: { id: true, batchNumber: true, closedAt: true },
+          },
+        },
+      });
+      if (!piece) throw new Error(t(locale, "That cargo no longer exists."));
+      if (!piece.carriedFromBatch) {
+        throw new Error(t(locale, "This cargo was not carried from anywhere."));
+      }
+      if (piece.carriedFromBatch.closedAt) {
+        throw new Error(
+          `${piece.carriedFromBatch.batchNumber} ${t(locale, "is closed. Reopen it before sending this cargo back.")}`
+        );
+      }
+
+      await tx.shipment.update({
+        where: { id: piece.id },
+        data: {
+          batchId: piece.carriedFromBatch.id,
+          carriedFromBatchId: null,
+          carriedAt: null,
+        },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "shipment.carryUndone",
+          entity: "Shipment",
+          entityId: piece.id,
+          summary: `Sent ${piece.trackingNumber} back to ${piece.carriedFromBatch.batchNumber} from ${piece.batch?.batchNumber ?? "—"}`,
+          metadata: {
+            from: piece.batch?.batchNumber ?? null,
+            to: piece.carriedFromBatch.batchNumber,
+          },
+        },
+        tx
+      );
+
+      return { toBatchId: piece.carriedFromBatch.id };
+    });
+
+    revalidatePath("/app/shipments");
+    revalidatePath(`/app/shipments/${back.toBatchId}`);
+    return ok({});
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
