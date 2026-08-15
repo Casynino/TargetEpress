@@ -79,7 +79,7 @@ export function RowPriceEditor({
   }
 
   return (
-    <div className="min-w-[22rem] rounded-lg border bg-card p-3 text-left shadow-lift">
+    <div className="w-[21rem] rounded-lg border bg-card p-3 text-left shadow-lift">
       <div className="mb-2 flex items-center justify-between">
         <p className="font-mono text-xs font-semibold">{trackingNumber}</p>
         <button
@@ -92,59 +92,84 @@ export function RowPriceEditor({
         </button>
       </div>
 
-      <form action={action} className="space-y-2.5">
+      <form action={action} className="space-y-2">
         <input type="hidden" name="invoiceId" value={invoiceId} />
 
-        <div className="space-y-1">
-          <Label htmlFor={`freight-${invoiceId}`} className="text-xs">
-            {t("Freight")} ({currency})
-          </Label>
-          <MoneyInput
-            id={`freight-${invoiceId}`}
-            name="freightOverride"
-            value={freight}
-            onValueChange={setFreight}
-            placeholder={rateBookFreight.toFixed(2)}
-            disabled={!canOverride}
-            className="h-8 text-sm"
-          />
-          {/*
-            The working, not just the answer.
+        {/*
+          Three boxes on one row, not three labelled blocks down a column.
 
-            "Rate book says USD 110.70" is a figure to accept or argue with;
-            "8.2 kg × USD 13.50 a kilo" is a figure somebody can check. It is
-            the same number with the reason attached, and the reason is what
-            gets quoted to a customer asking why their bill is what it is.
-          */}
-          <p className="text-xs text-muted-foreground">
-            {t("Rate book")}:{" "}
-            {weightKg > 0 ? (
-              <>
-                <span className="tabular-nums text-foreground">
-                  {weightKg.toFixed(1)} kg × {currency}{" "}
-                  {(rateBookFreight / weightKg).toFixed(2)}
-                </span>{" "}
-                {t("a kilo")} ={" "}
-              </>
-            ) : null}
-            <span className="tabular-nums text-foreground">
-              {currency} {rateBookFreight.toFixed(2)}
-            </span>
-            . {t("Leave blank to use it.")}{" "}
-            {/*
-              The rate book can be wrong too, and this is where somebody finds
-              that out — one consignment at a time, with the working in front
-              of them. Overriding here fixes this bill; the link fixes the rate
-              every bill after it is priced from. Both, because they are
-              different mistakes.
-            */}
-            <a
-              href="/app/finance/pricing"
-              className="font-medium text-brand underline underline-offset-2"
-            >
-              {t("Rate wrong? Fix the rate book")}
-            </a>
-          </p>
+          It is a popover over a table row: every line it grows pushes the
+          cargo underneath out of view, and the thing being edited is one
+          price. Tiny captions instead of full labels, the working on its own
+          line above, and the answer on the same line as the button that
+          commits it.
+        */}
+        <p className="text-[11px] text-muted-foreground">
+          {weightKg > 0 ? (
+            <>
+              <span className="tabular-nums text-foreground">
+                {weightKg.toFixed(1)} kg × {(rateBookFreight / weightKg).toFixed(2)}
+              </span>{" "}
+              ={" "}
+            </>
+          ) : null}
+          <span className="tabular-nums text-foreground">
+            {rateBookFreight.toFixed(2)}
+          </span>{" "}
+          {t("from the rate book")} ·{" "}
+          <a
+            href="/app/finance/pricing"
+            className="text-brand underline underline-offset-2"
+          >
+            {t("fix the rate")}
+          </a>
+        </p>
+
+        <div className="flex gap-2">
+          {[
+            {
+              id: `freight-${invoiceId}`,
+              name: "freightOverride",
+              label: t("Freight"),
+              value: freight,
+              set: setFreight,
+              placeholder: rateBookFreight.toFixed(2),
+              disabled: !canOverride,
+            },
+            {
+              id: `extra-${invoiceId}`,
+              name: "otherCharges",
+              label: t("Extra"),
+              value: extra,
+              set: setExtra,
+              placeholder: "0.00",
+              disabled: false,
+            },
+            {
+              id: `off-${invoiceId}`,
+              name: "discount",
+              label: t("Discount"),
+              value: off,
+              set: setOff,
+              placeholder: "0.00",
+              disabled: !canOverride,
+            },
+          ].map((box) => (
+            <label key={box.id} className="flex-1 space-y-0.5">
+              <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                {box.label}
+              </span>
+              <MoneyInput
+                id={box.id}
+                name={box.name}
+                value={box.value}
+                onValueChange={box.set}
+                placeholder={box.placeholder}
+                disabled={box.disabled}
+                className="h-8 text-sm"
+              />
+            </label>
+          ))}
         </div>
 
         {freight.trim() !== "" && n(freight) !== rateBookFreight ? (
@@ -162,54 +187,22 @@ export function RowPriceEditor({
           </div>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1">
-            <Label htmlFor={`extra-${invoiceId}`} className="text-xs">
-              {t("Extra charge")}
-            </Label>
-            <MoneyInput
-              id={`extra-${invoiceId}`}
-              name="otherCharges"
-              value={extra}
-              onValueChange={setExtra}
-              placeholder="0.00"
-              className="h-8 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor={`off-${invoiceId}`} className="text-xs">
-              {t("Discount")}
-            </Label>
-            <MoneyInput
-              id={`off-${invoiceId}`}
-              name="discount"
-              value={off}
-              onValueChange={setOff}
-              placeholder="0.00"
-              disabled={!canOverride}
-              className="h-8 text-sm"
-            />
-          </div>
+        <div className="flex items-center gap-2">
+          <p className="min-w-0 flex-1 text-xs tabular-nums">
+            <span className="text-muted-foreground">
+              {(n(freight) || rateBookFreight).toFixed(2)}
+              {storage > 0 ? ` + ${storage.toFixed(2)} ${t("storage")}` : ""}
+              {n(extra) > 0 ? ` + ${n(extra).toFixed(2)}` : ""}
+              {n(off) > 0 ? ` − ${n(off).toFixed(2)}` : ""} ={" "}
+            </span>
+            <span className="font-semibold">
+              {currency} {preview.toFixed(2)}
+            </span>
+          </p>
+          <SubmitButton size="sm" variant="brand" pendingLabel={t("Saving…")}>
+            {t("Save")}
+          </SubmitButton>
         </div>
-
-        {/*
-          Every part that makes the total, added up in front of the reader.
-
-          A discount that does not visibly come off is a discount somebody has
-          to take on trust, and this is the box where a customer is being given
-          one. Freight, storage, extra, less the discount — then the answer.
-        */}
-        <p className="rounded border bg-muted/40 px-2 py-1.5 text-xs tabular-nums">
-          <span className="text-muted-foreground">
-            {currency} {(n(freight) || rateBookFreight).toFixed(2)}
-            {storage > 0 ? ` + ${storage.toFixed(2)} ${t("storage")}` : ""}
-            {n(extra) > 0 ? ` + ${n(extra).toFixed(2)} ${t("extra")}` : ""}
-            {n(off) > 0 ? ` − ${n(off).toFixed(2)} ${t("discount")}` : ""} ={" "}
-          </span>
-          <span className="font-semibold">
-            {t("New total")} {currency} {preview.toFixed(2)}
-          </span>
-        </p>
 
         <FormError state={state} />
         <FormSuccess
@@ -219,10 +212,6 @@ export function RowPriceEditor({
               : null
           }
         />
-
-        <SubmitButton size="sm" variant="brand" pendingLabel={t("Saving…")}>
-          {t("Save price")}
-        </SubmitButton>
       </form>
     </div>
   );
