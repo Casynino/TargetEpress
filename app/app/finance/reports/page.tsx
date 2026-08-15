@@ -143,67 +143,6 @@ export default async function FinanceReportsPage({
 
       <FinanceNav tabs={financeTabs(user.role)} />
 
-      <div className="mb-6">
-        <ReportViewer
-          report={report}
-          query={reportQuery.toString()}
-          filters={
-            <form
-              method="get"
-              className="flex flex-wrap items-end gap-3 text-xs"
-            >
-              <input type="hidden" name="report" value={reportKey} />
-              <label className="flex flex-col gap-1">
-                <span className="text-muted-foreground">{t(locale, "From")}</span>
-                <input
-                  type="date"
-                  name="from"
-                  defaultValue={from ?? ""}
-                  className="focus-ring h-8 rounded-md border bg-card px-2"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-muted-foreground">{t(locale, "To")}</span>
-                <input
-                  type="date"
-                  name="to"
-                  defaultValue={to ?? ""}
-                  className="focus-ring h-8 rounded-md border bg-card px-2"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-muted-foreground">{t(locale, "Flight")}</span>
-                <select
-                  name="batch"
-                  defaultValue={batch ?? ""}
-                  className="focus-ring h-8 rounded-md border bg-card px-2"
-                >
-                  <option value="">{t(locale, "Every batch")}</option>
-                  {flights.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.batchNumber}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                type="submit"
-                className="focus-ring h-8 rounded-md border bg-card px-3 font-medium hover:bg-accent"
-              >
-                {t(locale, "Apply")}
-              </button>
-              {from || to || batch ? (
-                <a
-                  href={`/app/finance/reports?report=${reportKey}`}
-                  className="h-8 self-end px-1 leading-8 text-muted-foreground underline"
-                >
-                  {t(locale, "Clear")}
-                </a>
-              ) : null}
-            </form>
-          }
-        />
-      </div>
 
       <div className="mb-4 flex flex-wrap gap-1.5">
         {/*
@@ -538,6 +477,144 @@ export default async function FinanceReportsPage({
           )}
         </section>
       </div>
+
+      {/* ──────────────────────── the period, in review ─────────────────── */}
+      {/*
+        The month as a paragraph, not a dashboard.
+
+        The owner asked for a monthly review he could read out: what came in,
+        what it cost, what is left. Every figure here already appears above in
+        a card or a table — this is the same set said once, in order, with the
+        comparison attached, for somebody who wants the answer rather than the
+        instrument panel.
+      */}
+      <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-5 py-3">
+          <h2 className="font-display font-semibold">
+            {t(locale, "In review")} · {window.label}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {t(locale, "against")} {picked.previous.label}
+          </p>
+        </div>
+        <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4 xl:grid-cols-7">
+          {(() => {
+            const move = (now: number, before: number) => {
+              if (before === 0) return null;
+              const p = Math.round(((now - before) / Math.abs(before)) * 100);
+              return `${p > 0 ? "+" : ""}${p}%`;
+            };
+            return [
+              {
+                k: "Cargo received",
+                v: `${dash.volume.kgReceived.toFixed(0)} kg`,
+                d: null,
+              },
+              { k: "Batches arrived", v: String(dash.volume.batchesArrived), d: null },
+              {
+                k: "Revenue",
+                v: formatUsd(pl.revenue),
+                d: move(pl.revenue, prior.revenue),
+                up: pl.revenue >= prior.revenue,
+              },
+              {
+                k: "Collected",
+                v: formatUsd(pl.cashIn),
+                d: move(pl.cashIn, prior.cashIn),
+                up: pl.cashIn >= prior.cashIn,
+              },
+              {
+                k: "Outstanding",
+                v: formatUsd(dash.revenue.outstandingUsd),
+                d: null,
+              },
+              {
+                k: "Expenses",
+                v: formatUsd(pl.costs),
+                d: move(pl.costs, prior.costs),
+                up: pl.costs <= prior.costs,
+              },
+              {
+                k: pl.profit < 0 ? "Net loss" : "Net profit",
+                v: formatUsd(Math.abs(pl.profit)),
+                d: move(pl.profit, prior.profit),
+                up: pl.profit >= prior.profit,
+              },
+            ].map((cell) => (
+              <div key={cell.k} className="bg-card px-4 py-3">
+                <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {t(locale, cell.k)}
+                </dt>
+                <dd className="mt-0.5 whitespace-nowrap font-display text-base font-bold tabular-nums">
+                  {cell.v}
+                </dd>
+                {cell.d ? (
+                  <p
+                    className={`text-[11px] tabular-nums ${
+                      "up" in cell && cell.up ? "text-success" : "text-destructive"
+                    }`}
+                  >
+                    {cell.d}
+                  </p>
+                ) : null}
+              </div>
+            ));
+          })()}
+        </dl>
+      </section>
+
+      {/* ─────────────────── which batches need attention ───────────────── */}
+      {dash.batches.length > 0 ? (
+        <div className="mb-6 grid grid-cols-1 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 xl:grid-cols-4">
+          {(() => {
+            const by = (pick: (b: (typeof dash.batches)[number]) => number, worst = false) =>
+              [...dash.batches].sort((a, b) =>
+                worst ? pick(a) - pick(b) : pick(b) - pick(a)
+              )[0];
+            const best = by((b) => b.profitUsd);
+            const worst = by((b) => b.profitUsd, true);
+            const owed = by((b) => b.outstandingUsd);
+            const heaviest = by((b) => b.kg);
+            return [
+              {
+                k: "Most profitable",
+                b: best,
+                v: formatUsd(best.profitUsd),
+                tone: "text-success",
+              },
+              {
+                k: worst.profitUsd < 0 ? "Losing money" : "Least profitable",
+                b: worst,
+                v: formatUsd(worst.profitUsd),
+                tone: worst.profitUsd < 0 ? "text-destructive" : "",
+              },
+              {
+                k: "Most owed on it",
+                b: owed,
+                v: formatUsd(owed.outstandingUsd),
+                tone: "text-signal",
+              },
+              { k: "Heaviest", b: heaviest, v: `${heaviest.kg.toFixed(0)} kg`, tone: "" },
+            ].map((cell) => (
+              <Link
+                key={cell.k}
+                href={`/app/shipments/${cell.b.id}`}
+                className="bg-card px-4 py-3 transition-colors hover:bg-accent"
+              >
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {t(locale, cell.k)}
+                </p>
+                <p className={`mt-0.5 font-display text-lg font-bold tabular-nums ${cell.tone}`}>
+                  {cell.v}
+                </p>
+                <p className="font-mono text-[11px] text-muted-foreground">
+                  {cell.b.batchNumber}
+                </p>
+              </Link>
+            ));
+          })()}
+        </div>
+      ) : null}
 
       {/* ─────────────────────────── batch performance ─────────────────── */}
       {/*
@@ -913,6 +990,85 @@ export default async function FinanceReportsPage({
             formatValue={(kg: number) => `${kg.toFixed(0)} kg`}
           />
         </section>
+      </div>
+      {/* ─────────────────────────────── reports ───────────────────────── */}
+      {/*
+        The download shelf, at the bottom where a shelf belongs.
+
+        Fourteen unexplained pills used to sit at the very top of this page,
+        above the figures somebody actually came to read, with nothing saying
+        what they were. The owner's reaction was the correct one: he could not
+        tell what it was for. Every one of them runs the same records the
+        dashboard above is built from and hands them over as a file — so it
+        goes underneath the reading, and now says so in a sentence.
+      */}
+      <SectionLabel>{t(locale, "Reports to download")}</SectionLabel>
+      <p className="mb-3 text-xs text-muted-foreground">
+        {t(
+          locale,
+          "Each one runs the same records as the figures above, over the period chosen at the top, and downloads as a spreadsheet."
+        )}
+      </p>
+      <div className="mb-6">
+        <ReportViewer
+          report={report}
+          query={reportQuery.toString()}
+          filters={
+            <form
+              method="get"
+              className="flex flex-wrap items-end gap-3 text-xs"
+            >
+              <input type="hidden" name="report" value={reportKey} />
+              <label className="flex flex-col gap-1">
+                <span className="text-muted-foreground">{t(locale, "From")}</span>
+                <input
+                  type="date"
+                  name="from"
+                  defaultValue={from ?? ""}
+                  className="focus-ring h-8 rounded-md border bg-card px-2"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-muted-foreground">{t(locale, "To")}</span>
+                <input
+                  type="date"
+                  name="to"
+                  defaultValue={to ?? ""}
+                  className="focus-ring h-8 rounded-md border bg-card px-2"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-muted-foreground">{t(locale, "Flight")}</span>
+                <select
+                  name="batch"
+                  defaultValue={batch ?? ""}
+                  className="focus-ring h-8 rounded-md border bg-card px-2"
+                >
+                  <option value="">{t(locale, "Every batch")}</option>
+                  {flights.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.batchNumber}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="submit"
+                className="focus-ring h-8 rounded-md border bg-card px-3 font-medium hover:bg-accent"
+              >
+                {t(locale, "Apply")}
+              </button>
+              {from || to || batch ? (
+                <a
+                  href={`/app/finance/reports?report=${reportKey}`}
+                  className="h-8 self-end px-1 leading-8 text-muted-foreground underline"
+                >
+                  {t(locale, "Clear")}
+                </a>
+              ) : null}
+            </form>
+          }
+        />
       </div>
     </>
   );

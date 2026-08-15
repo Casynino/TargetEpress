@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { can } from "@/lib/rbac";
+import { reportToPdf } from "@/lib/report-pdf";
 import { REPORTS, reportToCsv, runReport, type ReportKey } from "@/lib/reports";
 import { currentUser } from "@/lib/session";
 
@@ -48,12 +49,35 @@ export async function GET(request: Request) {
   });
 
   const stamp = new Date().toISOString().slice(0, 10);
-  const filename = `target-express-${key}-${stamp}.csv`;
+
+  /*
+    Two formats, one set of figures.
+
+    The spreadsheet is for working with the numbers; the PDF is for handing
+    them to somebody — the boss, the bank, an auditor. Both are rendered from
+    the same ReportResult that the page itself displays, so a printed statement
+    cannot disagree with the screen it was printed from.
+  */
+  if (params.get("format") === "pdf") {
+    const pdf = reportToPdf(report, {
+      period:
+        params.get("from") || params.get("to")
+          ? `${params.get("from") ?? "the beginning"} to ${params.get("to") ?? "today"}`
+          : undefined,
+    });
+    return new NextResponse(pdf, {
+      headers: {
+        "content-type": "application/pdf",
+        "content-disposition": `attachment; filename="target-express-${key}-${stamp}.pdf"`,
+        "cache-control": "no-store",
+      },
+    });
+  }
 
   return new NextResponse(reportToCsv(report), {
     headers: {
       "content-type": "text/csv; charset=utf-8",
-      "content-disposition": `attachment; filename="${filename}"`,
+      "content-disposition": `attachment; filename="target-express-${key}-${stamp}.csv"`,
       // A report is a snapshot of a moving thing; a cached one is a wrong one.
       "cache-control": "no-store",
     },

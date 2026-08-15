@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 
 import { t } from "@/lib/i18n";
 import { REPORTS, type ReportResult } from "@/lib/reports";
@@ -59,13 +59,27 @@ export async function ReportViewer({
             {t(locale, report.caption)}
           </p>
         </div>
-        <a
-          href={`/api/finance/reports?report=${report.key}${q}`}
-          className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
-        >
-          <Download className="h-3.5 w-3.5" />
-          {t(locale, "Download")}
-        </a>
+        {/*
+          Two formats, because they are two different jobs: a spreadsheet to
+          work the numbers in, and a PDF to put in front of the boss, the bank
+          or an auditor. Both render the same figures this table is showing.
+        */}
+        <span className="inline-flex shrink-0 overflow-hidden rounded-md border">
+          <a
+            href={`/api/finance/reports?report=${report.key}${q}`}
+            className="focus-ring inline-flex items-center gap-1.5 border-r px-3 py-1.5 text-xs font-medium hover:bg-accent"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {t(locale, "Spreadsheet")}
+          </a>
+          <a
+            href={`/api/finance/reports?report=${report.key}${q}${q ? "&" : "?"}format=pdf`}
+            className="focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-accent"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            {t(locale, "PDF")}
+          </a>
+        </span>
       </div>
 
       {report.rows.length === 0 ? (
