@@ -130,7 +130,20 @@ export function RowPriceEditor({
             <span className="tabular-nums text-foreground">
               {currency} {rateBookFreight.toFixed(2)}
             </span>
-            . {t("Leave blank to use it.")}
+            . {t("Leave blank to use it.")}{" "}
+            {/*
+              The rate book can be wrong too, and this is where somebody finds
+              that out — one consignment at a time, with the working in front
+              of them. Overriding here fixes this bill; the link fixes the rate
+              every bill after it is priced from. Both, because they are
+              different mistakes.
+            */}
+            <a
+              href="/app/finance/pricing"
+              className="font-medium text-brand underline underline-offset-2"
+            >
+              {t("Rate wrong? Fix the rate book")}
+            </a>
           </p>
         </div>
 
