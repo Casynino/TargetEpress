@@ -440,8 +440,13 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
           */}
           <dl className="grid grid-cols-2 gap-px border-b bg-border sm:grid-cols-3 lg:grid-cols-5">
             {[
-              ["Cargo", String(state.summary.pieces), `${state.summary.packages} ${t("packages")}`],
-              ["Customers", String(state.summary.customers), t("on this flight")],
+              /* Cargo and customers are one fact about the manifest, so they
+                 share a tile and free a column for the answer. */
+              [
+                "Cargo",
+                `${state.summary.pieces} · ${state.summary.customers}`,
+                `${state.summary.packages} ${t("packages")} · ${t("customers")}`,
+              ],
               /*
                 The three weights, in the order they resolve: what came in,
                 what has been paid for, what is still sitting here. They add
@@ -474,6 +479,20 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
                   state.summary.unpaidCustomers === 1 ? "customer" : "customers"
                 )}`,
               ],
+              /*
+                The answer the whole panel is working towards, on the same row
+                as the questions. Billed less every cost recorded against the
+                flight — green when it made money, red when it lost it, which
+                is the owner's call and the one place on this screen where
+                colour is asked to carry the verdict rather than the category.
+              */
+              [
+                state.summary.profitUsd < 0 ? "Expected loss" : "Expected profit",
+                money(Math.abs(state.summary.profitUsd)),
+                `${money(state.summary.expectedUsd)} ${t("less")} ${money(
+                  state.summary.expensesUsd
+                )}`,
+              ],
             ].map(([label, value, sub], i) => (
               <div key={label} className="bg-card px-4 py-2.5">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -481,7 +500,15 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
                 </dt>
                 <dd
                   className={`mt-0.5 font-display text-sm font-bold tabular-nums ${
-                    i === 4 ? "text-destructive" : i === 3 ? "text-success" : ""
+                    i === 2
+                      ? "text-success"
+                      : i === 3
+                        ? "text-destructive"
+                        : i === 4
+                          ? state.summary.profitUsd < 0
+                            ? "text-destructive"
+                            : "text-success"
+                          : ""
                   }`}
                 >
                   {value}
