@@ -362,7 +362,7 @@ export default async function FinanceOverviewPage() {
         the actions sit with them instead of a screen away.
       */}
       <section className="mb-4 overflow-hidden rounded-xl border bg-card shadow-soft">
-        <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3 xl:grid-cols-6">
+        <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3 2xl:grid-cols-6">
           {[
             {
               k: seesCompanyMoney
@@ -371,6 +371,7 @@ export default async function FinanceOverviewPage() {
               v: tsh(seesCompanyMoney ? cashOnHand : stats.collected),
               usd: formatUsd(seesCompanyMoney ? cashOnHand : stats.collected),
               tone: "text-foreground",
+              wash: "from-brand/10",
               hint: seesCompanyMoney
                 ? t(locale, "Every bank, till and the office tin")
                 : t(locale, "Every payment received"),
@@ -379,6 +380,7 @@ export default async function FinanceOverviewPage() {
               k: t(locale, "In this month"),
               v: tsh(collectedMonth),
               tone: "text-success",
+              wash: "from-success/10",
               hint: t(locale, "Money that came in"),
             },
             ...(seesCompanyMoney
@@ -387,12 +389,14 @@ export default async function FinanceOverviewPage() {
                     k: t(locale, "Out this month"),
                     v: tsh(spentUsd),
                     tone: "text-destructive",
+                    wash: "from-destructive/10",
                     hint: t(locale, "Costs paid"),
                   },
                   {
                     k: t(locale, "Net this month"),
                     v: tsh(netMonth),
                     tone: netMonth >= 0 ? "text-foreground" : "text-destructive",
+                    wash: netMonth >= 0 ? "from-success/10" : "from-destructive/10",
                     hint: netMonth >= 0 ? t(locale, "Ahead") : t(locale, "Behind"),
                   },
                 ]
@@ -412,25 +416,30 @@ export default async function FinanceOverviewPage() {
               v: tsh(stats.outstanding),
               usd: formatUsd(stats.outstanding),
               tone: stats.outstanding > 0 ? "text-signal" : "text-foreground",
+              wash: "from-signal/10",
               hint: t(locale, "Billed and not yet paid"),
             },
             {
               k: t(locale, "Held in the warehouse"),
               v: formatWeight(heldWeightKg),
               tone: "text-foreground",
+              wash: "from-info/10",
               hint: t(locale, "Landed in Dar, not handed over"),
             },
           ].map((cell) => (
-            <div key={cell.k} className="bg-card px-5 py-3.5">
+            <div
+              key={cell.k}
+              className={`bg-gradient-to-b ${cell.wash} to-transparent bg-card px-5 py-4`}
+            >
               <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                 {cell.k}
               </dt>
               <dd
-                className={`mt-0.5 font-display text-xl font-bold tabular-nums ${cell.tone}`}
+                className={`mt-1 whitespace-nowrap font-display text-xl font-bold leading-tight tabular-nums 2xl:text-2xl ${cell.tone}`}
               >
                 {cell.v}
               </dd>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
                 {cell.usd ?? cell.hint}
               </p>
             </div>
@@ -486,71 +495,66 @@ export default async function FinanceOverviewPage() {
 
 
       {/*
-        The batches, as cards rather than a strip.
+        The batches, as a strip rather than four tall cards.
 
-        Cargo sits on a batch, and a batch is the unit the boss asks about —
-        so the page that summarises the department has to answer it in the same
-        weight as it answers cash. Three states, because those are the three
-        that mean different things: still trading, shut and waiting on the
-        boss, and signed off.
+        They were the size of the money above them, and a count of three is not
+        worth a card the height of a hand — most of each one was empty. The
+        weight belongs on the figures at the top, which are the ones that
+        change every hour; these three counts and the profit are a line you
+        glance at. Same colours, a sixth of the room.
       */}
       <SectionLabel
         action={{ href: "/app/finance/income", label: t(locale, "What each one made") }}
       >
         {t(locale, "Batches")}
       </SectionLabel>
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {/*
-          Counts, not money — so they are count cards.
-
-          A MoneyTile leads with a currency figure, and three batches is not a
-          currency figure. Rendering them as money put "USD 0.00" in the largest
-          type on the card and hid the only number that mattered in the caption
-          underneath it.
-        */}
-        <KpiCard
-          label={t(locale, "Still open")}
-          numeric={flightsOpen}
-          hint={t(
-            locale,
-            "Flying, landed or being collected. Money can still move on these."
-          )}
-          icon={Plane}
-          tone="brand"
-          href="/app/shipments"
-        />
-        <KpiCard
-          label={t(locale, "With the boss")}
-          numeric={awaiting}
-          hint={t(
-            locale,
-            "Closed by Finance, and not finished until he has read the statement."
-          )}
-          icon={Hourglass}
-          tone={awaiting > 0 ? "warning" : "info"}
-          href="/app/finance/income"
-        />
-        <KpiCard
-          label={t(locale, "Confirmed")}
-          numeric={confirmed.length}
-          hint={t(locale, "The boss has agreed these figures. They are the record.")}
-          icon={CheckCircle2}
-          tone="success"
-          href="/app/finance/income"
-        />
-        <MoneyTile
-          label={t(locale, "Profit, confirmed batches")}
-          usd={confirmedProfit}
-          rate={rate}
-          icon={TrendingUp}
-          tone={confirmedProfit < 0 ? "bad" : "good"}
-          count={`${confirmed.length} ${t(locale, "batches")}`}
-          hint={t(
-            locale,
-            "Billed less every cost recorded against the batch, on the ones he has signed."
-          )}
-          href="/app/finance/income"
-        />
+      <div className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-4">
+        {[
+          {
+            label: t(locale, "Still open"),
+            value: String(flightsOpen),
+            tone: "text-brand",
+            hint: t(locale, "Money can still move"),
+            href: "/app/shipments",
+          },
+          {
+            label: t(locale, "With the boss"),
+            value: String(awaiting),
+            tone: awaiting > 0 ? "text-warning" : "text-muted-foreground",
+            hint: t(locale, "Waiting to be read"),
+            href: "/app/finance/income",
+          },
+          {
+            label: t(locale, "Confirmed"),
+            value: String(confirmed.length),
+            tone: "text-success",
+            hint: t(locale, "Agreed and final"),
+            href: "/app/finance/income",
+          },
+          {
+            label: t(locale, "Profit, confirmed"),
+            value: tsh(confirmedProfit),
+            tone: confirmedProfit < 0 ? "text-destructive" : "text-success",
+            hint: `${confirmed.length} ${t(locale, "batches")}`,
+            href: "/app/finance/income",
+          },
+        ].map((cell) => (
+          <Link
+            key={cell.label}
+            href={cell.href}
+            className="group bg-card px-4 py-3 transition-colors hover:bg-accent"
+          >
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              {cell.label}
+            </p>
+            <p
+              className={`mt-0.5 font-display text-xl font-bold tabular-nums ${cell.tone}`}
+            >
+              {cell.value}
+            </p>
+            <p className="text-[11px] text-muted-foreground">{cell.hint}</p>
+          </Link>
+        ))}
       </div>
 
       {/* ── The work. A list, not a card grid: each row is one job with the
