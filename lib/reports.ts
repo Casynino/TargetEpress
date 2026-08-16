@@ -135,15 +135,34 @@ export function presentReport(
             ])
           )
         : report.totals,
-    currencyNote: toShillings
-      ? `Money shown in shillings, converted at USD 1 = TSh ${(opts.rate as number).toLocaleString("en-US")}, the rate in force when this was printed.${
+    currencyNote: (() => {
+      /*
+        A report with nothing convertible must not claim a currency.
+
+        The ledger family — general ledger, bank, mobile money, petty cash —
+        marks no column `money`, because Debit, Credit and Balance are each in
+        the account's own currency. Nothing converts, correctly. But the note
+        was written from the reader's chosen unit alone, so a register full of
+        shilling entries printed "Money shown in dollars, as billed." under it
+        the moment somebody switched to USD — a flat untruth sitting beneath
+        the figures, in the same document whose header says "As recorded".
+      */
+      if (moneyKeys.size === 0) {
+        return native.length > 0
+          ? `${native.map((c) => c.label).join(", ")} are each in the account's own currency, shown in the Currency column. Nothing on this report is converted.`
+          : "Nothing on this report is a money figure.";
+      }
+      if (toShillings) {
+        return `Money shown in shillings, converted at USD 1 = TSh ${(opts.rate as number).toLocaleString("en-US")}, the rate in force when this was printed.${
           native.length > 0
             ? ` ${native.map((c) => c.label).join(", ")} are each in the account's own currency, shown in the Currency column, and are not converted.`
             : ""
-        }`
-      : opts.unit === "TZS"
+        }`;
+      }
+      return opts.unit === "TZS"
         ? "No exchange rate has been published, so money is shown in dollars."
-        : "Money shown in dollars, as billed.",
+        : "Money shown in dollars, as billed.";
+    })(),
   };
 }
 
@@ -609,7 +628,18 @@ function ledgerReport(
     This is the column that makes a register a register: any single line can be
     checked against the one above it, which is how somebody finds the entry
     that put an account where it should not be.
+
+    ONE CURRENCY, OR NO BALANCE. Every amount here is in its own account's
+    currency, and the company holds both shilling and dollar accounts. Running
+    them into a single figure produced a balance that added TSh 1,200,000 to
+    USD 5,000 and printed 1,205,000 — a number that is not money in any
+    currency, on a page a bank might read. When the range spans more than one,
+    the balance and the totals are withheld and the caption says how to get
+    them back, because a blank is recoverable and a wrong total is not.
   */
+  const currencies = new Set(entries.map((e) => e.currency));
+  const mixed = currencies.size > 1;
+
   let balance = 0;
   const rows = entries.map((e) => {
     const amount = toNumber(e.amount);
@@ -625,7 +655,7 @@ function ledgerReport(
       currency: e.currency,
       debit: debit ? money(debit) : null,
       credit: credit ? money(credit) : null,
-      balance: money(balance),
+      balance: mixed ? null : money(balance),
       recordedBy: e.recordedBy?.name ?? "—",
     };
   });
@@ -633,7 +663,9 @@ function ledgerReport(
   return {
     key,
     title,
-    caption,
+    caption: mixed
+      ? `${caption} These entries span accounts in ${[...currencies].sort().join(" and ")}, and each amount is in its own account's currency — so the running balance and the totals are left out rather than adding one currency to another. Filter to a single account to see them.`
+      : caption,
     columns: [
       { key: "date", label: "Date" },
       { key: "entry", label: "Entry" },
@@ -647,10 +679,12 @@ function ledgerReport(
       { key: "recordedBy", label: "Recorded by" },
     ],
     rows,
-    totals: {
-      debit: money(rows.reduce((n, r) => n + Number(r.debit ?? 0), 0)),
-      credit: money(rows.reduce((n, r) => n + Number(r.credit ?? 0), 0)),
-    },
+    totals: mixed
+      ? undefined
+      : {
+          debit: money(rows.reduce((n, r) => n + Number(r.debit ?? 0), 0)),
+          credit: money(rows.reduce((n, r) => n + Number(r.credit ?? 0), 0)),
+        },
   };
 }
 
@@ -680,7 +714,11 @@ async function cashFlow(f: ReportFilters): Promise<ReportResult> {
     key: "cash-flow",
     title: "Cash flow",
     caption:
-      "Money in and money out of every company account, by month, in USD. This includes special costs — they really did leave the bank.",
+      /* No currency named here: the column headings carry the unit and the
+         note underneath states the rate. This caption used to say "in USD"
+         and was printed unchanged above columns already restated in
+         shillings. */
+      "Money in and money out of every company account, by month. This includes special costs — they really did leave the bank.",
     columns: [
       { key: "month", label: "Month" },
       { key: "in", label: "In", numeric: true, money: true },
@@ -830,8 +868,14 @@ async function financialStatement(f: ReportFilters): Promise<ReportResult> {
     key: "financial-statement",
     title: "Position summary",
     caption: rate
-      ? `The whole position on one page, in USD, at the published rate of ${rate.toLocaleString("en-US")}. The full statement, in both currencies, is the document above.`
-      : "The whole position on one page, in USD. No exchange rate is published, so shilling balances are shown at their recorded dollar value.",
+      /*
+        The unit belongs to the column heading and the rate to the note, not
+        here. This said "in USD, at the published rate of 2,700" while the one
+        money column had already been multiplied by 2,700 — naming the wrong
+        currency and handing the reader the multiplier to apply a second time.
+      */
+      ? "The whole position on one page. Shilling balances are valued at the published rate; the full statement is the document above."
+      : "The whole position on one page. No exchange rate is published, so shilling balances are shown at their recorded dollar value.",
     columns: [
       { key: "line", label: "Line" },
       { key: "usd", label: "USD", numeric: true, money: true },

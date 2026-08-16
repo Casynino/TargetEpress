@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { currentRateValue } from "@/lib/fx";
+import { windowFor } from "@/lib/profit";
 import { can } from "@/lib/rbac";
 import { reportToPdf } from "@/lib/report-pdf";
 import {
@@ -48,18 +49,38 @@ export async function GET(request: Request) {
   */
   const unit = params.get("unit") === "tzs" ? "TZS" : "USD";
 
+  /*
+    The same stretch of time the screen was showing.
+
+    The chip at the top of the page writes `period=month` into the URL and the
+    download link carried it faithfully — but nothing here ever read it, so a
+    PDF opened from "This month" was quietly run over ALL TIME. Two people then
+    read different revenue off "the same report" and neither could see why.
+    Resolved through the identical helper the page uses, so the two cannot
+    drift apart again. Typed From/To still wins: that is somebody being
+    explicit.
+  */
+  const typedFrom = date(params.get("from"));
+  const typedTo = date(params.get("to"));
+  const typedRange = typedFrom !== null || typedTo !== null;
+  const picked = windowFor(
+    typedRange ? "custom" : (params.get("period") ?? "month"),
+    "en",
+    { from: typedFrom, to: null }
+  );
+  // Inclusive of the closing day: a person choosing 31 August means the whole
+  // of it, and the filters compare with `lt`.
+  const toExclusive = (() => {
+    if (!typedTo) return null;
+    const end = new Date(typedTo);
+    end.setDate(end.getDate() + 1);
+    return end;
+  })();
+
   const [raw, rate] = await Promise.all([
     runReport(key, {
-    from: date(params.get("from")),
-    // Inclusive of the closing day: a person choosing 31 August means the
-    // whole of it, and the filters compare with `lt`.
-    to: (() => {
-      const to = date(params.get("to"));
-      if (!to) return null;
-      const end = new Date(to);
-      end.setDate(end.getDate() + 1);
-      return end;
-    })(),
+      from: typedRange ? typedFrom : picked.window.from,
+      to: typedRange ? toExclusive : picked.window.to,
       batchId: params.get("batch"),
       accountId: params.get("account"),
       category: params.get("category"),
@@ -73,10 +94,9 @@ export async function GET(request: Request) {
   const report = presentReport(raw, { unit, rate });
 
   const stamp = new Date().toISOString().slice(0, 10);
-  const period =
-    params.get("from") || params.get("to")
-      ? `${params.get("from") ?? "the beginning"} to ${params.get("to") ?? "today"}`
-      : "All time";
+  const period = typedRange
+    ? `${params.get("from") ?? "the beginning"} to ${params.get("to") ?? "today"}`
+    : picked.window.label;
 
   /*
     Two formats, one set of figures.
