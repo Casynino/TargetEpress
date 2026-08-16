@@ -39,18 +39,28 @@ export const EXPENSE_CATEGORIES = [
   "REPAIRS",
   "CUSTOMER_COMPENSATION",
   "TAX",
+  "FUEL",
+  "CLEANING",
+  "INTERNET",
+  "ELECTRICITY",
+  "WATER",
+  "ALLOWANCE",
+  "STAFF_WELFARE",
+  "TRAINING",
+  "TRANSFER_FEES",
+  "EXCHANGE_LOSS",
   "OTHER",
 ] as const;
 
 export const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
-  AIR_FREIGHT: "Air freight",
-  CUSTOMS_DUTY: "Customs duty",
-  CLEARING_AGENT: "Clearing agent",
-  LOCAL_TRANSPORT: "Local transport",
+  AIR_FREIGHT: "Freight",
+  CUSTOMS_DUTY: "Customs",
+  CLEARING_AGENT: "Clearing charges",
+  LOCAL_TRANSPORT: "Transport",
   PORT_CHARGES: "Port charges",
-  PERMITS: "Permits",
-  WAREHOUSE_RENT: "Warehouse rent",
-  SALARIES: "Salaries",
+  PERMITS: "Special permit",
+  WAREHOUSE_RENT: "Rent",
+  SALARIES: "Salary",
   UTILITIES: "Utilities",
   COMMUNICATION: "Communication",
   BANK_CHARGES: "Bank charges",
@@ -59,11 +69,102 @@ export const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
   TRAVEL: "Travel",
   PROFESSIONAL_FEES: "Professional fees",
   EQUIPMENT: "Equipment",
-  REPAIRS: "Repairs",
+  REPAIRS: "Maintenance",
   CUSTOMER_COMPENSATION: "Customer compensation",
   TAX: "Tax",
-  OTHER: "Other",
+  FUEL: "Fuel",
+  CLEANING: "Cleaning",
+  INTERNET: "Internet",
+  ELECTRICITY: "Electricity",
+  WATER: "Water",
+  ALLOWANCE: "Allowance",
+  STAFF_WELFARE: "Staff welfare",
+  TRAINING: "Training",
+  TRANSFER_FEES: "Transfer fees",
+  EXCHANGE_LOSS: "Exchange loss",
+  OTHER: "Miscellaneous",
 };
+
+/**
+ * The categories, in the five groups the business actually thinks in.
+ *
+ * Thirty categories in one flat dropdown is a list nobody reads to the end:
+ * the same cost gets filed three ways by three people, and the report is then
+ * wrong in a way no total will reveal. Grouped, the choice is "which part of
+ * the business is this" and then one of five or six — and the groups are the
+ * headings a profit and loss wants anyway.
+ *
+ * Presentation only. The stored value is still the enum, so nothing already
+ * recorded moves and no report has to be rewritten.
+ */
+export const EXPENSE_CATEGORY_GROUPS: {
+  key: string;
+  label: string;
+  hint: string;
+  categories: string[];
+}[] = [
+  {
+    key: "batch",
+    label: "Batch operations",
+    hint: "Moving the cargo. These are what per-batch profit is made of.",
+    categories: [
+      "CUSTOMS_DUTY",
+      "AIR_FREIGHT",
+      "LOCAL_TRANSPORT",
+      "PORT_CHARGES",
+      "PERMITS",
+      "CLEARING_AGENT",
+    ],
+  },
+  {
+    key: "office",
+    label: "Office operations",
+    hint: "Keeping the business open. Belongs to no single batch.",
+    categories: [
+      "WAREHOUSE_RENT",
+      "INTERNET",
+      "ELECTRICITY",
+      "WATER",
+      "OFFICE_SUPPLIES",
+      "REPAIRS",
+      "FUEL",
+      "CLEANING",
+      "EQUIPMENT",
+      "COMMUNICATION",
+      "UTILITIES",
+    ],
+  },
+  {
+    key: "staff",
+    label: "Staff",
+    hint: "What the people cost.",
+    categories: ["SALARIES", "ALLOWANCE", "STAFF_WELFARE", "TRAINING"],
+  },
+  {
+    key: "financial",
+    label: "Financial",
+    hint: "The cost of moving and holding the money itself.",
+    categories: ["BANK_CHARGES", "TRANSFER_FEES", "EXCHANGE_LOSS"],
+  },
+  {
+    key: "other",
+    label: "Other",
+    hint: "Anything that genuinely fits nowhere above.",
+    categories: [
+      "OTHER",
+      "MARKETING",
+      "TRAVEL",
+      "PROFESSIONAL_FEES",
+      "CUSTOMER_COMPENSATION",
+      "TAX",
+    ],
+  },
+];
+
+/** Which group a category belongs to — for reporting under headings. */
+export const CATEGORY_GROUP_OF: Record<string, string> = Object.fromEntries(
+  EXPENSE_CATEGORY_GROUPS.flatMap((g) => g.categories.map((c) => [c, g.label]))
+);
 
 export const EXPENSE_STATUS_LABELS: Record<string, string> = {
   PENDING: "Not paid",
@@ -88,20 +189,80 @@ export const EXPENSE_STATUS_LABELS: Record<string, string> = {
  * it does not constrain what can be recorded.
  */
 export const COMMON_EXPENSES: { label: string; category: string }[] = [
-  { label: "Fuel", category: "LOCAL_TRANSPORT" },
-  { label: "Customs duty", category: "CUSTOMS_DUTY" },
-  { label: "Clearing agent", category: "CLEARING_AGENT" },
-  { label: "Delivery to customer", category: "LOCAL_TRANSPORT" },
-  { label: "Airline freight charge", category: "AIR_FREIGHT" },
-  { label: "Warehouse rent", category: "WAREHOUSE_RENT" },
-  { label: "Salaries", category: "SALARIES" },
-  { label: "Electricity", category: "UTILITIES" },
-  { label: "Water", category: "UTILITIES" },
-  { label: "Airtime & internet", category: "COMMUNICATION" },
-  { label: "Bank charges", category: "BANK_CHARGES" },
-  { label: "Packaging materials", category: "OFFICE_SUPPLIES" },
+  { label: "Customs", category: "CUSTOMS_DUTY" },
+  { label: "Freight", category: "AIR_FREIGHT" },
+  { label: "Port charges", category: "PORT_CHARGES" },
+  { label: "Transport", category: "LOCAL_TRANSPORT" },
+  { label: "Clearing charges", category: "CLEARING_AGENT" },
+  { label: "Special permit", category: "PERMITS" },
+  { label: "Fuel", category: "FUEL" },
+  { label: "Office rent", category: "WAREHOUSE_RENT" },
+  { label: "Internet", category: "INTERNET" },
+  { label: "Electricity", category: "ELECTRICITY" },
+  { label: "Water", category: "WATER" },
   { label: "Office supplies", category: "OFFICE_SUPPLIES" },
-  { label: "Vehicle repair", category: "REPAIRS" },
+  { label: "Maintenance", category: "REPAIRS" },
+  { label: "Cleaning", category: "CLEANING" },
+  { label: "Staff welfare", category: "STAFF_WELFARE" },
+  { label: "Salary", category: "SALARIES" },
+  { label: "Allowance", category: "ALLOWANCE" },
+  { label: "Petty cash reimbursement", category: "OTHER" },
+  { label: "Bank charges", category: "BANK_CHARGES" },
+  { label: "Other", category: "OTHER" },
+];
+
+/**
+ * The templates, grouped the way the form shows them.
+ *
+ * The same list as above, arranged so the row of one-tap picks is scannable
+ * rather than twenty chips in a heap. A template fills the description AND the
+ * category together, which is the half of it that matters: it is not the
+ * typing that costs the business, it is the same cost being filed under three
+ * different categories by three different people, which makes every report
+ * quietly wrong.
+ *
+ * Everything stays editable after a tap. This removes keystrokes; it does not
+ * constrain what can be recorded.
+ */
+export const EXPENSE_TEMPLATE_GROUPS: {
+  label: string;
+  items: { label: string; category: string }[];
+}[] = [
+  {
+    label: "Batch",
+    items: [
+      { label: "Customs", category: "CUSTOMS_DUTY" },
+      { label: "Freight", category: "AIR_FREIGHT" },
+      { label: "Port charges", category: "PORT_CHARGES" },
+      { label: "Transport", category: "LOCAL_TRANSPORT" },
+      { label: "Clearing charges", category: "CLEARING_AGENT" },
+      { label: "Special permit", category: "PERMITS" },
+    ],
+  },
+  {
+    label: "Office",
+    items: [
+      { label: "Office rent", category: "WAREHOUSE_RENT" },
+      { label: "Internet", category: "INTERNET" },
+      { label: "Electricity", category: "ELECTRICITY" },
+      { label: "Water", category: "WATER" },
+      { label: "Fuel", category: "FUEL" },
+      { label: "Office supplies", category: "OFFICE_SUPPLIES" },
+      { label: "Maintenance", category: "REPAIRS" },
+      { label: "Cleaning", category: "CLEANING" },
+    ],
+  },
+  {
+    label: "Staff & money",
+    items: [
+      { label: "Salary", category: "SALARIES" },
+      { label: "Allowance", category: "ALLOWANCE" },
+      { label: "Staff welfare", category: "STAFF_WELFARE" },
+      { label: "Petty cash reimbursement", category: "OTHER" },
+      { label: "Bank charges", category: "BANK_CHARGES" },
+      { label: "Other", category: "OTHER" },
+    ],
+  },
 ];
 
 /**
