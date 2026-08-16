@@ -428,10 +428,33 @@ export default async function ExpensesPage({
         filter row into the first answer on the page: a glance says whether the
         month went on moving cargo or on running the office.
       */}
-      <div className="mb-3 flex flex-wrap items-stretch gap-2">
+      {/*
+        The five kinds of spending, as a set rather than five grey boxes.
+
+        Each carries its own total, its share of the month as a bar, and its
+        own colour — so the row answers "where did the money go" before any
+        chart does. Gold is the boss's, the same gold that marks his rows in
+        the ledger, so the two screens agree without a caption.
+      */}
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {KINDS.map((k) => {
           const total = kindTotals.find((row) => row.key === k.key);
           const active = kind === k.key;
+          const usd = total?.usd ?? 0;
+          const share =
+            k.key === "all" || recordedUsd <= 0
+              ? 100
+              : Math.round((usd / recordedUsd) * 100);
+          const tone =
+            k.key === "executive"
+              ? { text: "text-warning", bar: "bg-warning", wash: "from-warning/[0.14]", ring: "ring-warning/40 border-warning/40" }
+              : k.key === "flight"
+                ? { text: "text-brand", bar: "bg-brand", wash: "from-brand/[0.12]", ring: "ring-brand/40 border-brand/40" }
+                : k.key === "office"
+                  ? { text: "text-signal", bar: "bg-signal", wash: "from-signal/[0.10]", ring: "ring-signal/40 border-signal/40" }
+                  : k.key === "special"
+                    ? { text: "text-muted-foreground", bar: "bg-muted-foreground/60", wash: "from-muted-foreground/[0.10]", ring: "ring-foreground/25 border-foreground/25" }
+                    : { text: "text-foreground", bar: "bg-foreground/70", wash: "from-foreground/[0.08]", ring: "ring-foreground/30 border-foreground/30" };
           return (
             <Link
               key={k.key}
@@ -439,26 +462,36 @@ export default async function ExpensesPage({
               aria-current={active ? "true" : undefined}
               title={t(locale, k.hint)}
               className={cn(
-                "focus-ring rounded-lg border px-3 py-1.5 transition-colors",
-                active
-                  ? "border-foreground/25 bg-accent"
-                  : "bg-card hover:border-foreground/20 hover:bg-accent/50"
+                "focus-ring group relative overflow-hidden rounded-xl border bg-card px-3.5 py-3 transition-all",
+                "bg-gradient-to-br to-transparent hover:-translate-y-px hover:shadow-lift",
+                tone.wash,
+                active ? cn("ring-1", tone.ring) : "hover:border-foreground/20"
               )}
             >
-              <p
-                className={cn(
-                  "text-[10px] font-semibold uppercase tracking-wide",
-                  active ? "text-foreground" : "text-muted-foreground"
-                )}
-              >
-                {t(locale, k.label)}
-              </p>
-              <p className="mt-0.5 whitespace-nowrap text-sm font-bold tabular-nums">
-                {money(total?.usd ?? 0)}
-                <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  {t(locale, k.label)}
+                </p>
+                <span className="rounded-full bg-background/70 px-1.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
                   {total?.count ?? 0}
                 </span>
+              </div>
+              <p
+                className={cn(
+                  "mt-1.5 whitespace-nowrap font-display text-[17px] font-bold leading-none tabular-nums",
+                  active ? tone.text : "text-foreground"
+                )}
+              >
+                {money(usd)}
               </p>
+              {/* Its share of everything spent, so the row reads as a
+                  breakdown and not five unrelated figures. */}
+              <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={cn("h-full rounded-full transition-all", tone.bar)}
+                  style={{ width: `${Math.max(2, Math.min(100, share))}%` }}
+                />
+              </div>
             </Link>
           );
         })}
