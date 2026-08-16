@@ -59,6 +59,19 @@ export function financeTabs(role: Role): FinanceTab[] {
       label: "General ledger",
       visible: can(role, "ledger.view"),
     },
+    {
+      /*
+        Beside the register it fills.
+
+        This page had no tab at all — reachable only by typing the URL or
+        landing on it sideways, which for the page Finance records spending on
+        every day is a door with no handle. It sits after the ledger because
+        that is the relationship: a cost recorded here becomes a line there.
+      */
+      href: "/app/finance/expenses",
+      label: "Expenses",
+      visible: can(role, "expense.view"),
+    },
     // NOTE: no Pickup notes tab. It sits in the sidebar beside Search,
     // because a pickup note is an operational document rather than a financial
     // one — Finance issues it, but the people reaching for it all day are at
