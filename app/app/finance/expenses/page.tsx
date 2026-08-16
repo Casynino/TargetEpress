@@ -4,7 +4,6 @@ import { Paperclip, Search } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { SectionLabel } from "@/components/app/section-label";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { ExpenseForm } from "@/components/app/expense-form";
 import { ExpenseRowActions } from "@/components/app/expense-row-actions";
@@ -226,7 +225,6 @@ export default async function ExpensesPage({
     paidInWindow,
     unpaid,
     byCategory,
-    byAccount,
     kindTotals,
     rateRow,
     usedMost,
@@ -287,19 +285,6 @@ export default async function ExpensesPage({
       orderBy: { _sum: { amountUsd: "desc" } },
       take: 8,
     }),
-    /* Where the money physically leaves from. Only paid costs have an account:
-       an unpaid one has not left anywhere yet. */
-    prisma.expense.groupBy({
-      by: ["accountId"],
-      where: {
-        status: "PAID",
-        accountId: { not: null },
-        ...(inWindow ? { paidAt: inWindow } : {}),
-      },
-      _sum: { amountUsd: true },
-      _count: true,
-      orderBy: { _sum: { amountUsd: "desc" } },
-    }),
     /* One total per kind, so the chips carry their own weight instead of being
        four words a reader has to click to price. */
     Promise.all(
@@ -358,7 +343,6 @@ export default async function ExpensesPage({
   const paidUsd = toNumber(paidInWindow._sum.amountUsd);
   const unpaidUsd = toNumber(unpaid._sum.amountUsd);
   const biggest = byCategory[0];
-  const accountName = new Map(accounts.map((a) => [a.id, a]));
 
   const seen = new Set<string>();
   const quick = [
@@ -812,122 +796,6 @@ export default async function ExpensesPage({
           )}
         </div>
       ) : null}
-
-      {/* The shape of the spending, under the spending itself. These are read
-          occasionally; the list is worked in every day, so it comes first. */}
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <section className="overflow-hidden rounded-xl border bg-card shadow-soft">
-          <div className="border-b px-5 py-3.5">
-            <h2 className="font-display font-semibold">
-              {t(locale, "Where the money goes")}
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(
-                locale,
-                "Every cost recorded in this period, by what it was for. Cancelled costs are excluded."
-              )}
-            </p>
-          </div>
-          {byCategory.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-muted-foreground">
-              {t(locale, "Nothing recorded in this period.")}
-            </p>
-          ) : (
-            <ul className="divide-y">
-              {byCategory.map((row) => {
-                const amount = toNumber(row._sum.amountUsd);
-                const share = recordedUsd > 0 ? (amount / recordedUsd) * 100 : 0;
-                return (
-                  <li key={row.category}>
-                    <Link
-                      href={link({ category: row.category })}
-                      className="block px-5 py-2.5 transition-colors hover:bg-accent/50"
-                    >
-                      <div className="flex items-baseline justify-between gap-3 text-sm">
-                        <span className="min-w-0 truncate">
-                          {t(locale, CATEGORY_LABELS[row.category])}
-                        </span>
-                        <span className="shrink-0 tabular-nums">
-                          {money(amount)}
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {Math.round(share)}%
-                          </span>
-                        </span>
-                      </div>
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-warning"
-                          style={{ width: `${Math.max(2, Math.min(100, share))}%` }}
-                        />
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        <section className="overflow-hidden rounded-xl border bg-card shadow-soft">
-          <div className="border-b px-5 py-3.5">
-            <h2 className="font-display font-semibold">
-              {t(locale, "Which account it left")}
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(
-                locale,
-                "Money actually paid out in this period. A cost that has not been paid has not left any account yet."
-              )}
-            </p>
-          </div>
-          {byAccount.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-muted-foreground">
-              {t(locale, "Nothing has been paid out in this period.")}
-            </p>
-          ) : (
-            <ul className="divide-y">
-              {byAccount.map((row) => {
-                const amount = toNumber(row._sum.amountUsd);
-                const share = paidUsd > 0 ? (amount / paidUsd) * 100 : 0;
-                const account = row.accountId
-                  ? accountName.get(row.accountId)
-                  : undefined;
-                return (
-                  <li key={row.accountId ?? "none"}>
-                    <Link
-                      href={link({ account: row.accountId ?? undefined })}
-                      className="block px-5 py-2.5 transition-colors hover:bg-accent/50"
-                    >
-                      <div className="flex items-baseline justify-between gap-3 text-sm">
-                        <span className="min-w-0 truncate">
-                          {account?.name ?? t(locale, "Account since closed")}
-                          {account ? (
-                            <span className="ml-1.5 text-xs text-muted-foreground">
-                              {account.currency}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="shrink-0 tabular-nums">
-                          {money(amount)}
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {row._count}
-                          </span>
-                        </span>
-                      </div>
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-brand"
-                          style={{ width: `${Math.max(2, Math.min(100, share))}%` }}
-                        />
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-      </div>
 
     </>
   );
