@@ -2165,6 +2165,15 @@ model Expense {
   @@index([expenseClass])
   @@index([accountId])
   @@index([batchId])
+  /// Filter-then-sort, which is the only way the expenses page ever reads this
+  /// table: narrow to a status, a category, a class or a batch, then order by
+  /// the day the cost was incurred. The single-column indexes above serve one
+  /// half of that or the other; these serve both at once, which is what keeps
+  /// a busy month from being a sequential scan followed by a sort.
+  @@index([status, incurredAt])
+  @@index([category, incurredAt])
+  @@index([expenseClass, incurredAt])
+  @@index([batchId, incurredAt])
 }
 
 /// The receipt, invoice or till slip behind an expense. Exactly the shape of
