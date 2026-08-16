@@ -311,9 +311,6 @@ enum ReceiverRelationship {
 // ---------------------------------------------------------------------------
 
 model User {
-  executiveEntries ExecutiveEntry[] @relation("ExecutiveRecordedBy")
-  executiveVoided  ExecutiveEntry[] @relation("ExecutiveVoidedBy")
-  executiveReceipts ExecutiveReceipt[]
   id           String     @id @default(cuid())
   name         String
   email        String     @unique
@@ -1923,7 +1920,6 @@ enum AccountKind {
 /// somebody edited afterwards. This model is the internal attribution and
 /// balance ledger. Same six accounts, two masters, on purpose.
 model CompanyAccount {
-  executiveEntries ExecutiveEntry[]
   id   String @id @default(cuid())
   /// Stable machine name — "CRDB_TZS", "MIXX", "CASH_OFFICE". Seeds and
   /// backfills address accounts by this, never by display name.
@@ -1973,10 +1969,15 @@ enum LedgerKind {
   TRANSFER_IN
   TRANSFER_OUT
   ADJUSTMENT
-  /// Company money taken for executive use, and money paid back against it.
-  /// Named rather than folded into ADJUSTMENT, because the whole point of the
-  /// executive account is that these movements can be told apart from
-  /// everything else at a glance and reported on their own.
+  /*
+    Kept for one historical row, not because the feature still exists.
+
+    A short-lived "executive account" wrote GL-2026-000024 with this kind
+    before the idea was withdrawn. The row is real money — TSh 100,000 that
+    genuinely left CRDB — so it stays, and Prisma refuses to read an enum value
+    it does not know. Removing these two would break the general ledger page on
+    a register that is otherwise correct. Nothing writes them any more.
+  */
   EXECUTIVE_DRAW
   EXECUTIVE_RETURN
 }
@@ -2028,9 +2029,6 @@ model LedgerEntry {
   payment    Payment?         @relation(fields: [paymentId], references: [id], onDelete: Restrict)
   expenseId  String?          @unique
   expense    Expense?         @relation(fields: [expenseId], references: [id], onDelete: Restrict)
-  /// A draw on or a repayment to the executive account.
-  executiveId String?         @unique
-  executive   ExecutiveEntry? @relation(fields: [executiveId], references: [id], onDelete: Restrict)
   /// A transfer writes two legs, so this is not unique — the pair below is.
   transferId String?
   transfer   AccountTransfer? @relation(fields: [transferId], references: [id], onDelete: Restrict)
@@ -2083,90 +2081,6 @@ enum ExpenseClass {
   NON_OPERATING
 }
 
-/// Money the company holds on behalf of, or is owed by, its executive.
-///
-/// A draw is not a cost. Money taken out for executive use buys the business
-/// nothing, so counting it as an expense makes a profitable month read as a
-/// poor one and hides the thing that actually matters — the running balance
-/// between the company and its director. It is a movement on that account, and
-/// this is the account.
-///
-/// Every row moves real cash, so every row writes a ledger line against the
-/// account it came from or went back into. The balance is derived from the
-/// rows, never stored: withdrawn less returned, which cannot drift.
-model ExecutiveEntry {
-  id          String @id @default(cuid())
-  entryNumber String @unique // EXD-2026-000123
-
-  direction ExecutiveDirection
-
-  /// The account the money left or returned to.
-  accountId String
-  account   CompanyAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
-
-  /// Always positive, in the account's own currency; `direction` carries the
-  /// sign, exactly as the ledger does.
-  amount       Decimal  @db.Decimal(14, 2)
-  currency     String
-  /// The same money in USD at the rate below, so a balance can be read across
-  /// accounts of different currencies.
-  amountUsd    Decimal  @db.Decimal(14, 2)
-  exchangeRate Decimal? @db.Decimal(14, 4)
-
-  /// When the money moved, not when the row was typed.
-  occurredAt DateTime
-  /// Why. Required on a draw: an unexplained withdrawal is the one row an
-  /// auditor will stop on, and the person who can answer is at the desk now.
-  reason     String
-  note       String?
-
-  receipts ExecutiveReceipt[]
-
-  recordedById String?
-  recordedBy   User?   @relation("ExecutiveRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
-
-  /// Withdrawn in error. Never deleted — reversed, like everything else that
-  /// moved money.
-  voidedAt   DateTime?
-  voidedById String?
-  voidedBy   User?     @relation("ExecutiveVoidedBy", fields: [voidedById], references: [id], onDelete: SetNull)
-  voidReason String?
-
-  ledgerEntry LedgerEntry?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([direction, occurredAt])
-  @@index([occurredAt])
-  @@index([accountId])
-}
-
-enum ExecutiveDirection {
-  /// Company money taken for executive use.
-  DRAW
-  /// Money paid back against what was taken.
-  RETURN
-}
-
-/// Evidence behind an executive movement — the slip, the transfer screenshot.
-/// Exactly the shape of ExpenseReceipt, for the same reason.
-model ExecutiveReceipt {
-  id       String @id @default(cuid())
-  entryId  String
-  entry    ExecutiveEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  url         String
-  contentType String
-  bytes       Int
-  filename    String?
-
-  uploadedById String?
-  uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
-  createdAt    DateTime @default(now())
-
-  @@index([entryId])
-}
-
 enum ExpenseCategory {
   AIR_FREIGHT
   CUSTOMS_DUTY
@@ -2205,6 +2119,15 @@ enum ExpenseCategory {
   TRAINING
   TRANSFER_FEES
   EXCHANGE_LOSS
+  /// Money the boss takes out of the business.
+  ///
+  /// An ordinary cost in every calculation — it is in the totals, in the
+  /// profit figure and in every report, exactly like fuel or rent. The only
+  /// thing this value buys is that it can be SEEN: filtered, badged and
+  /// totalled on its own, so anybody reading the month can tell at a glance
+  /// which part of the spending was this. Separation for the eye, not for the
+  /// arithmetic.
+  EXECUTIVE_DRAW
   OTHER
 }
 

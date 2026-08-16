@@ -135,18 +135,6 @@ export type Permission =
    */
   | "expense.approve"
   /**
-   * The executive account: money the company holds for, or is owed by, its
-   * director.
-   *
-   * Held by Finance and the owner alone. Not because the rows are shameful —
-   * they are recorded, reconciled and reported like everything else — but
-   * because a running balance between the company and its director is not the
-   * business of the warehouse floor or the support desk, and a permission is
-   * the only way to say so that survives somebody being shown the URL.
-   */
-  | "executive.view"
-  | "executive.record"
-  /**
    * See what the business EARNED — profit, margin, profit per flight.
    *
    * Deliberately not held by Finance. Their job is to take money in, record
@@ -406,9 +394,6 @@ const FINANCE: Permission[] = [
   */
   "expense.approve",
   "ledger.adjust",
-  // Finance records and reconciles the executive account; the owner reads it.
-  "executive.view",
-  "executive.record",
   // Finance reads the money trail on its own tab. The log is append-only and
   // shows who did what — including what Finance itself did, which is the point.
   "audit.view",

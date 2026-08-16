@@ -119,21 +119,6 @@ export async function nextExpenseNumber(
 }
 
 /**
- * A movement on the executive account: EXD-2026-000123.
- *
- * Its own series rather than a slice of the expense one, because a draw is not
- * a cost and the two are reported separately — sharing a sequence would leave
- * gaps in both registers and make either look as though it had lost rows.
- */
-export async function nextExecutiveNumber(
-  tx: TxClient,
-  year = new Date().getFullYear()
-) {
-  const n = await nextSequence(tx, `executive:${year}`);
-  return `EXD-${year}-${pad(n)}`;
-}
-
-/**
  * The number on a line in the general ledger: GL-2026-000123.
  *
  * Minted inside the caller's transaction like every other document number

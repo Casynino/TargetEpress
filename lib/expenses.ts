@@ -49,6 +49,7 @@ export const EXPENSE_CATEGORIES = [
   "TRAINING",
   "TRANSFER_FEES",
   "EXCHANGE_LOSS",
+  "EXECUTIVE_DRAW",
   "OTHER",
 ] as const;
 
@@ -82,6 +83,7 @@ export const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
   TRAINING: "Training",
   TRANSFER_FEES: "Transfer fees",
   EXCHANGE_LOSS: "Exchange loss",
+  EXECUTIVE_DRAW: "Executive draw",
   OTHER: "Miscellaneous",
 };
 
@@ -147,6 +149,12 @@ export const EXPENSE_CATEGORY_GROUPS: {
     categories: ["BANK_CHARGES", "TRANSFER_FEES", "EXCHANGE_LOSS"],
   },
   {
+    key: "executive",
+    label: "Executive",
+    hint: "Money the boss takes out. Counted like any other cost — this only makes it visible.",
+    categories: ["EXECUTIVE_DRAW"],
+  },
+  {
     key: "other",
     label: "Other",
     hint: "Anything that genuinely fits nowhere above.",
@@ -208,6 +216,7 @@ export const COMMON_EXPENSES: { label: string; category: string }[] = [
   { label: "Allowance", category: "ALLOWANCE" },
   { label: "Petty cash reimbursement", category: "OTHER" },
   { label: "Bank charges", category: "BANK_CHARGES" },
+  { label: "Executive draw", category: "EXECUTIVE_DRAW" },
   { label: "Other", category: "OTHER" },
 ];
 
@@ -260,6 +269,7 @@ export const EXPENSE_TEMPLATE_GROUPS: {
       { label: "Staff welfare", category: "STAFF_WELFARE" },
       { label: "Petty cash reimbursement", category: "OTHER" },
       { label: "Bank charges", category: "BANK_CHARGES" },
+      { label: "Executive draw", category: "EXECUTIVE_DRAW" },
       { label: "Other", category: "OTHER" },
     ],
   },

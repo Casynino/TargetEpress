@@ -40,8 +40,6 @@ export type PostEntry = {
   sourceId?: string | null;
   paymentId?: string | null;
   expenseId?: string | null;
-  /** A draw on, or a repayment to, the executive account. */
-  executiveId?: string | null;
   /** Set on both legs of a transfer; the pair (transferId, direction) is unique. */
   transferId?: string | null;
   recordedById?: string | null;
@@ -76,7 +74,6 @@ export async function postLedgerEntry(tx: TxClient, entry: PostEntry) {
       sourceId: entry.sourceId ?? null,
       paymentId: entry.paymentId ?? null,
       expenseId: entry.expenseId ?? null,
-      executiveId: entry.executiveId ?? null,
       transferId: entry.transferId ?? null,
       recordedById: entry.recordedById ?? null,
       reversesId: entry.reversesId ?? null,

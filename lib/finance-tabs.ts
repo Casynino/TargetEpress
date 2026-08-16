@@ -59,20 +59,6 @@ export function financeTabs(role: Role): FinanceTab[] {
       label: "General ledger",
       visible: can(role, "ledger.view"),
     },
-    {
-      /*
-        The executive account, on its own tab and behind its own permission.
-
-        Money advanced to the director is not a cost and does not belong inside
-        office overhead, where it had been quietly reducing profit under the
-        name "BOSS". It is a running balance between the company and one
-        person, so it gets what a running account gets: its own register, its
-        own totals, and a door only Finance and the owner can open.
-      */
-      href: "/app/finance/executive",
-      label: "Executive account",
-      visible: can(role, "executive.view"),
-    },
     // NOTE: no Pickup notes tab. It sits in the sidebar beside Search,
     // because a pickup note is an operational document rather than a financial
     // one — Finance issues it, but the people reaching for it all day are at

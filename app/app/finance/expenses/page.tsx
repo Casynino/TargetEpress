@@ -75,6 +75,20 @@ const KINDS = [
     label: "Special",
     hint: "Recorded and paid, but kept out of operating and batch profit",
   },
+  {
+    /*
+      The boss's own spending, visible without being carved out.
+
+      It counts in every total, every profit figure and every report exactly
+      like fuel or rent — nothing about the arithmetic changes. The only thing
+      this chip buys is that it can be SEEN and totalled on its own, which is
+      the whole of what was asked for: separation for the eye, not for the
+      maths.
+    */
+    key: "executive",
+    label: "Boss",
+    hint: "Money the boss took out — counted like any other cost, just easy to find",
+  },
 ] as const;
 
 const PERIODS = [
@@ -166,7 +180,9 @@ export default async function ExpensesPage({
         ? { batchId: null, expenseClass: "OPERATING" as const }
         : kind === "special"
           ? { expenseClass: "NON_OPERATING" as const }
-          : {};
+          : kind === "executive"
+            ? { category: "EXECUTIVE_DRAW" as const }
+            : {};
 
   /*
     Finding one cost among hundreds.
@@ -303,7 +319,9 @@ export default async function ExpensesPage({
               ? { batchId: null, expenseClass: "OPERATING" as const }
               : k.key === "special"
                 ? { expenseClass: "NON_OPERATING" as const }
-                : {};
+                : k.key === "executive"
+                  ? { category: "EXECUTIVE_DRAW" as const }
+                  : {};
         const agg = await prisma.expense.aggregate({
           where: {
             ...(inWindow ? { incurredAt: inWindow } : {}),
@@ -816,6 +834,14 @@ export default async function ExpensesPage({
                         {expense.expenseClass === "NON_OPERATING" ? (
                           <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground">
                             {t(locale, "Special — not in profit")}
+                          </span>
+                        ) : null}
+                        {/* Marked wherever it appears. It is an ordinary cost
+                            in every calculation; this is so a reader can tell
+                            which part of the month's spending it was. */}
+                        {expense.category === "EXECUTIVE_DRAW" ? (
+                          <span className="ml-2 rounded bg-signal/10 px-1.5 py-0.5 text-[11px] font-normal text-signal">
+                            {t(locale, "Boss")}
                           </span>
                         ) : null}
                       </p>
