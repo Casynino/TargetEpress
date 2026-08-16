@@ -1,16 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  Banknote,
-  Clock,
-  Paperclip,
-  Search,
-  TrendingDown,
-  Wallet,
-} from "lucide-react";
+import { Paperclip, Search } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
-import { MoneyTile } from "@/components/app/money-tile";
 import { PageHeader } from "@/components/app/page-header";
 import { SectionLabel } from "@/components/app/section-label";
 import { FinanceNav } from "@/components/app/finance-nav";
@@ -501,177 +493,35 @@ export default async function ExpensesPage({
       </div>
 
       {/*
-        The four figures a finance desk actually opens this page holding.
+        One line where four cards were.
 
-        Cost and payment are separated on purpose: what the period COST is
-        dated when it was incurred and is what the profit figure uses, while
-        what LEFT is dated when it was paid and is what a bank statement will
-        agree with. They are rarely the same number, and a page that shows only
-        one of them gets asked about the other.
+        The chips above already carry a total for every kind of spending, so
+        the cards were a second row of the same arithmetic — and two of them,
+        "cost of this month" and "actually paid out", printed the identical
+        figure whenever everything recorded had also been paid, which on this
+        desk is most months. What is left is the one fact the chips cannot
+        show: money recorded and still owed. It appears only when there is
+        some.
       */}
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MoneyTile
-          label={`Cost of ${t(locale, periodLabel).toLowerCase()}`}
-          usd={recordedUsd}
-          rate={rate}
-          tone="warn"
-          icon={TrendingDown}
-          count={`${recorded._count} ${t(locale, recorded._count === 1 ? "cost recorded" : "costs recorded")}`}
-          hint="Dated when the cost was incurred — the basis the profit figure uses."
-        />
-        <MoneyTile
-          label="Actually paid out"
-          usd={paidUsd}
-          rate={rate}
-          tone="default"
-          icon={Banknote}
-          count={`${paidInWindow._count} ${t(locale, paidInWindow._count === 1 ? "payment" : "payments")}`}
-          hint="Money that left an account inside this period."
-        />
-        <MoneyTile
-          label="Still owed"
-          usd={unpaidUsd}
-          rate={rate}
-          tone={unpaidUsd > 0 ? "bad" : "good"}
-          icon={Clock}
-          emphasis={unpaidUsd > 0}
-          href={link({ status: "PENDING", period: "all" })}
-          count={`${unpaid._count} ${t(locale, unpaid._count === 1 ? "cost waiting" : "costs waiting")}`}
-          hint="Recorded and not yet paid, whenever it was incurred."
-        />
-        <MoneyTile
-          label="Biggest category"
-          usd={biggest ? toNumber(biggest._sum.amountUsd) : 0}
-          rate={rate}
-          tone="brand"
-          icon={Wallet}
-          href={biggest ? link({ category: biggest.category }) : undefined}
-          count={
-            biggest
-              ? t(locale, CATEGORY_LABELS[biggest.category])
-              : t(locale, "nothing recorded yet")
-          }
-          hint={
-            biggest && recordedUsd > 0
-              ? `${Math.round((toNumber(biggest._sum.amountUsd) / recordedUsd) * 100)}% of everything spent in this period.`
-              : "Nothing has been recorded in this period."
-          }
-        />
-      </div>
-
-      {/* ───────────────────────── where the money goes ───────────────────── */}
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <section className="overflow-hidden rounded-xl border bg-card shadow-soft">
-          <div className="border-b px-5 py-3.5">
-            <h2 className="font-display font-semibold">
-              {t(locale, "Where the money goes")}
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(
-                locale,
-                "Every cost recorded in this period, by what it was for. Cancelled costs are excluded."
-              )}
-            </p>
-          </div>
-          {byCategory.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-muted-foreground">
-              {t(locale, "Nothing recorded in this period.")}
-            </p>
-          ) : (
-            <ul className="divide-y">
-              {byCategory.map((row) => {
-                const amount = toNumber(row._sum.amountUsd);
-                const share = recordedUsd > 0 ? (amount / recordedUsd) * 100 : 0;
-                return (
-                  <li key={row.category}>
-                    <Link
-                      href={link({ category: row.category })}
-                      className="block px-5 py-2.5 transition-colors hover:bg-accent/50"
-                    >
-                      <div className="flex items-baseline justify-between gap-3 text-sm">
-                        <span className="min-w-0 truncate">
-                          {t(locale, CATEGORY_LABELS[row.category])}
-                        </span>
-                        <span className="shrink-0 tabular-nums">
-                          {money(amount)}
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {Math.round(share)}%
-                          </span>
-                        </span>
-                      </div>
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-warning"
-                          style={{ width: `${Math.max(2, Math.min(100, share))}%` }}
-                        />
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        <section className="overflow-hidden rounded-xl border bg-card shadow-soft">
-          <div className="border-b px-5 py-3.5">
-            <h2 className="font-display font-semibold">
-              {t(locale, "Which account it left")}
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(
-                locale,
-                "Money actually paid out in this period. A cost that has not been paid has not left any account yet."
-              )}
-            </p>
-          </div>
-          {byAccount.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-muted-foreground">
-              {t(locale, "Nothing has been paid out in this period.")}
-            </p>
-          ) : (
-            <ul className="divide-y">
-              {byAccount.map((row) => {
-                const amount = toNumber(row._sum.amountUsd);
-                const share = paidUsd > 0 ? (amount / paidUsd) * 100 : 0;
-                const account = row.accountId
-                  ? accountName.get(row.accountId)
-                  : undefined;
-                return (
-                  <li key={row.accountId ?? "none"}>
-                    <Link
-                      href={link({ account: row.accountId ?? undefined })}
-                      className="block px-5 py-2.5 transition-colors hover:bg-accent/50"
-                    >
-                      <div className="flex items-baseline justify-between gap-3 text-sm">
-                        <span className="min-w-0 truncate">
-                          {account?.name ?? t(locale, "Account since closed")}
-                          {account ? (
-                            <span className="ml-1.5 text-xs text-muted-foreground">
-                              {account.currency}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="shrink-0 tabular-nums">
-                          {money(amount)}
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {row._count}
-                          </span>
-                        </span>
-                      </div>
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-brand"
-                          style={{ width: `${Math.max(2, Math.min(100, share))}%` }}
-                        />
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
+        <span className="text-muted-foreground">
+          {recorded._count}{" "}
+          {t(locale, recorded._count === 1 ? "cost recorded" : "costs recorded")}{" "}
+          {t(locale, periodLabel).toLowerCase()} ·{" "}
+          <span className="font-semibold text-foreground">{money(recordedUsd)}</span>
+        </span>
+        {unpaidUsd > 0 ? (
+          <Link
+            href={link({ status: "PENDING", period: "all" })}
+            className="font-medium text-destructive hover:underline"
+          >
+            {money(unpaidUsd)} {t(locale, "still to pay")} ({unpaid._count})
+          </Link>
+        ) : (
+          <span className="text-xs text-success">
+            {t(locale, "Everything recorded has been paid.")}
+          </span>
+        )}
       </div>
 
       {canRecord ? (
@@ -969,6 +819,123 @@ export default async function ExpensesPage({
           )}
         </div>
       ) : null}
+
+      {/* The shape of the spending, under the spending itself. These are read
+          occasionally; the list is worked in every day, so it comes first. */}
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="overflow-hidden rounded-xl border bg-card shadow-soft">
+          <div className="border-b px-5 py-3.5">
+            <h2 className="font-display font-semibold">
+              {t(locale, "Where the money goes")}
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t(
+                locale,
+                "Every cost recorded in this period, by what it was for. Cancelled costs are excluded."
+              )}
+            </p>
+          </div>
+          {byCategory.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-muted-foreground">
+              {t(locale, "Nothing recorded in this period.")}
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {byCategory.map((row) => {
+                const amount = toNumber(row._sum.amountUsd);
+                const share = recordedUsd > 0 ? (amount / recordedUsd) * 100 : 0;
+                return (
+                  <li key={row.category}>
+                    <Link
+                      href={link({ category: row.category })}
+                      className="block px-5 py-2.5 transition-colors hover:bg-accent/50"
+                    >
+                      <div className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="min-w-0 truncate">
+                          {t(locale, CATEGORY_LABELS[row.category])}
+                        </span>
+                        <span className="shrink-0 tabular-nums">
+                          {money(amount)}
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {Math.round(share)}%
+                          </span>
+                        </span>
+                      </div>
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-warning"
+                          style={{ width: `${Math.max(2, Math.min(100, share))}%` }}
+                        />
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        <section className="overflow-hidden rounded-xl border bg-card shadow-soft">
+          <div className="border-b px-5 py-3.5">
+            <h2 className="font-display font-semibold">
+              {t(locale, "Which account it left")}
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t(
+                locale,
+                "Money actually paid out in this period. A cost that has not been paid has not left any account yet."
+              )}
+            </p>
+          </div>
+          {byAccount.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-muted-foreground">
+              {t(locale, "Nothing has been paid out in this period.")}
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {byAccount.map((row) => {
+                const amount = toNumber(row._sum.amountUsd);
+                const share = paidUsd > 0 ? (amount / paidUsd) * 100 : 0;
+                const account = row.accountId
+                  ? accountName.get(row.accountId)
+                  : undefined;
+                return (
+                  <li key={row.accountId ?? "none"}>
+                    <Link
+                      href={link({ account: row.accountId ?? undefined })}
+                      className="block px-5 py-2.5 transition-colors hover:bg-accent/50"
+                    >
+                      <div className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="min-w-0 truncate">
+                          {account?.name ?? t(locale, "Account since closed")}
+                          {account ? (
+                            <span className="ml-1.5 text-xs text-muted-foreground">
+                              {account.currency}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="shrink-0 tabular-nums">
+                          {money(amount)}
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {row._count}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-brand"
+                          style={{ width: `${Math.max(2, Math.min(100, share))}%` }}
+                        />
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </div>
+
     </>
   );
 }
