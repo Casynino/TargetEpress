@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 
+import { currentRateValue } from "@/lib/fx";
 import { can } from "@/lib/rbac";
 import { reportToPdf } from "@/lib/report-pdf";
-import { REPORTS, reportToCsv, runReport, type ReportKey } from "@/lib/reports";
+import {
+  REPORTS,
+  presentReport,
+  reportToCsv,
+  runReport,
+  type ReportKey,
+} from "@/lib/reports";
 import { currentUser } from "@/lib/session";
 
 /**
@@ -31,7 +38,18 @@ export async function GET(request: Request) {
     return Number.isNaN(d.getTime()) ? null : d;
   };
 
-  const report = await runReport(key, {
+  /*
+    `unit`, not `currency`.
+
+    ReportFilters.currency already means something else here — it filters the
+    ledger down to entries recorded in one currency — so naming the display
+    choice `currency` would have silently thrown away most of the register
+    every time somebody asked for shillings.
+  */
+  const unit = params.get("unit") === "tzs" ? "TZS" : "USD";
+
+  const [raw, rate] = await Promise.all([
+    runReport(key, {
     from: date(params.get("from")),
     // Inclusive of the closing day: a person choosing 31 August means the
     // whole of it, and the filters compare with `lt`.
@@ -42,13 +60,23 @@ export async function GET(request: Request) {
       end.setDate(end.getDate() + 1);
       return end;
     })(),
-    batchId: params.get("batch"),
-    accountId: params.get("account"),
-    category: params.get("category"),
-    currency: params.get("currency"),
-  });
+      batchId: params.get("batch"),
+      accountId: params.get("account"),
+      category: params.get("category"),
+      currency: params.get("currency"),
+    }),
+    currentRateValue(),
+  ]);
+
+  /* Restated into the currency the reader is working in — one currency per
+     document, never two columns of the same money. */
+  const report = presentReport(raw, { unit, rate });
 
   const stamp = new Date().toISOString().slice(0, 10);
+  const period =
+    params.get("from") || params.get("to")
+      ? `${params.get("from") ?? "the beginning"} to ${params.get("to") ?? "today"}`
+      : "All time";
 
   /*
     Two formats, one set of figures.
@@ -60,10 +88,11 @@ export async function GET(request: Request) {
   */
   if (params.get("format") === "pdf") {
     const pdf = reportToPdf(report, {
-      period:
-        params.get("from") || params.get("to")
-          ? `${params.get("from") ?? "the beginning"} to ${params.get("to") ?? "today"}`
-          : undefined,
+      period,
+      currencyNote: report.currencyNote,
+      unitLabel: report.unitLabel,
+      filters: params.get("batch") ? "One batch" : undefined,
+      preparedBy: user.name,
     });
     return new NextResponse(pdf, {
       headers: {

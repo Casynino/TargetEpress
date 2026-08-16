@@ -41,6 +41,17 @@ export type ReportColumn = {
   label: string;
   /** Right-aligned and monospaced; also what the totals row sums. */
   numeric?: boolean;
+  /**
+   * A USD figure that may be restated in shillings.
+   *
+   * Not every number is money — a count of invoices, a margin percentage, an
+   * age in days must never be multiplied by an exchange rate — and not every
+   * money figure is convertible either: the ledger's debit, credit and balance
+   * are already in the account's own currency and carry a Currency column
+   * beside them, so they are deliberately NOT marked. Only columns that hold
+   * dollars, and only dollars, are flagged here.
+   */
+  money?: boolean;
 };
 
 export type ReportResult = {
@@ -53,6 +64,88 @@ export type ReportResult = {
   /** Keyed by column. Absent for reports where a total is meaningless. */
   totals?: Record<string, number>;
 };
+
+/** Which money a report is written in. The reader chooses; nothing is doubled. */
+export type ReportUnit = "USD" | "TZS";
+
+/**
+ * Restate a report in the currency the reader is working in.
+ *
+ * The owner's rule: one currency per document. "If I'm on USD I should get a
+ * USD report, if I'm on TSh I should get a TSh report — not two." Printing
+ * both columns doubles the width of every table to answer a question nobody
+ * asked twice, so the screen's switch decides, and the document says which
+ * money it is written in and at what rate.
+ *
+ * Only columns marked `money` move. Counts, ages, percentages and the ledger's
+ * native-currency amounts are left exactly as they were — multiplying a margin
+ * percentage by 2,700 is the kind of error that survives review because every
+ * figure on the page is technically a number.
+ */
+export function presentReport(
+  report: ReportResult,
+  opts: { unit: ReportUnit; rate: number | null }
+): ReportResult & { unit: ReportUnit; unitLabel: string; currencyNote: string } {
+  const toShillings = opts.unit === "TZS" && opts.rate !== null;
+  const unit: ReportUnit = toShillings ? "TZS" : "USD";
+  const unitLabel = toShillings ? "TSh" : "USD";
+
+  /* Amounts in the account's own currency, carried beside a Currency column.
+     Named so the note can say plainly why they did not move. */
+  const native = report.columns
+    .filter((c) => c.numeric && !c.money)
+    .filter((c) => ["debit", "credit", "balance"].includes(c.key));
+
+  const convert = (value: string | number | null) => {
+    if (!toShillings || typeof value !== "number") return value;
+    return Math.round(value * (opts.rate as number));
+  };
+
+  const columns = report.columns.map((c) =>
+    c.money
+      ? {
+          ...c,
+          /* "USD" as a whole label becomes "TSh"; anything else gains the unit,
+             because a spreadsheet column outlives the caption explaining it. */
+          label: c.label === "USD" ? unitLabel : `${c.label} (${unitLabel})`,
+        }
+      : c
+  );
+
+  const moneyKeys = new Set(report.columns.filter((c) => c.money).map((c) => c.key));
+
+  return {
+    ...report,
+    unit,
+    unitLabel,
+    columns,
+    rows: toShillings
+      ? report.rows.map((row) => {
+          const next: Record<string, string | number | null> = { ...row };
+          for (const key of moneyKeys) next[key] = convert(row[key] ?? null);
+          return next;
+        })
+      : report.rows,
+    totals:
+      report.totals && toShillings
+        ? Object.fromEntries(
+            Object.entries(report.totals).map(([key, value]) => [
+              key,
+              moneyKeys.has(key) ? Math.round(value * (opts.rate as number)) : value,
+            ])
+          )
+        : report.totals,
+    currencyNote: toShillings
+      ? `Money shown in shillings, converted at USD 1 = TSh ${(opts.rate as number).toLocaleString("en-US")}, the rate in force when this was printed.${
+          native.length > 0
+            ? ` ${native.map((c) => c.label).join(", ")} are each in the account's own currency, shown in the Currency column, and are not converted.`
+            : ""
+        }`
+      : opts.unit === "TZS"
+        ? "No exchange rate has been published, so money is shown in dollars."
+        : "Money shown in dollars, as billed.",
+  };
+}
 
 export const REPORTS = [
   { key: "profit-loss", label: "Profit & loss" },
@@ -129,9 +222,9 @@ async function income(f: ReportFilters): Promise<ReportResult> {
       { key: "customer", label: "Customer" },
       { key: "tracking", label: "Cargo" },
       { key: "flight", label: "Batch" },
-      { key: "billed", label: "Billed", numeric: true },
-      { key: "paid", label: "Paid", numeric: true },
-      { key: "due", label: "Still owed", numeric: true },
+      { key: "billed", label: "Billed", numeric: true, money: true },
+      { key: "paid", label: "Paid", numeric: true, money: true },
+      { key: "due", label: "Still owed", numeric: true, money: true },
     ],
     rows: rows.map((r) => {
       const billed = toNumber(r.total);
@@ -209,7 +302,7 @@ async function expenses(f: ReportFilters): Promise<ReportResult> {
       { key: "proof", label: "Proof" },
       { key: "recordedBy", label: "Recorded by" },
       { key: "original", label: "Original" },
-      { key: "usd", label: "USD", numeric: true },
+      { key: "usd", label: "USD", numeric: true, money: true },
     ],
     rows: rows.map((r) => ({
       number: r.expenseNumber,
@@ -259,7 +352,7 @@ async function expenseByCategory(f: ReportFilters): Promise<ReportResult> {
     columns: [
       { key: "category", label: "Category" },
       { key: "count", label: "Records", numeric: true },
-      { key: "usd", label: "USD", numeric: true },
+      { key: "usd", label: "USD", numeric: true, money: true },
       { key: "share", label: "Share", numeric: true },
     ],
     rows: grouped.map((g) => {
@@ -335,11 +428,11 @@ async function batchProfit(f: ReportFilters): Promise<ReportResult> {
       { key: "status", label: "Status" },
       { key: "departed", label: "Departed" },
       { key: "cargo", label: "Cargo", numeric: true },
-      { key: "revenue", label: "Expected revenue", numeric: true },
-      { key: "collected", label: "Collected", numeric: true },
-      { key: "outstanding", label: "Outstanding", numeric: true },
-      { key: "costs", label: "Costs", numeric: true },
-      { key: "profit", label: "Expected profit", numeric: true },
+      { key: "revenue", label: "Expected revenue", numeric: true, money: true },
+      { key: "collected", label: "Collected", numeric: true, money: true },
+      { key: "outstanding", label: "Outstanding", numeric: true, money: true },
+      { key: "costs", label: "Costs", numeric: true, money: true },
+      { key: "profit", label: "Expected profit", numeric: true, money: true },
       { key: "margin", label: "Expected margin %", numeric: true },
     ],
     rows,
@@ -424,7 +517,7 @@ async function receivables(f: ReportFilters): Promise<ReportResult> {
       { key: "phone", label: "Phone" },
       { key: "invoices", label: "Bills", numeric: true },
       { key: "oldest", label: "Oldest (days)", numeric: true },
-      { key: "owed", label: "Owed", numeric: true },
+      { key: "owed", label: "Owed", numeric: true, money: true },
     ],
     rows: rows.map((r) => ({
       customer: r.name,
@@ -452,9 +545,9 @@ async function outstanding(f: ReportFilters): Promise<ReportResult> {
       { key: "flight", label: "Batch" },
       { key: "issued", label: "Issued" },
       { key: "days", label: "Days", numeric: true },
-      { key: "billed", label: "Billed", numeric: true },
-      { key: "paid", label: "Paid", numeric: true },
-      { key: "owed", label: "Owed", numeric: true },
+      { key: "billed", label: "Billed", numeric: true, money: true },
+      { key: "paid", label: "Paid", numeric: true, money: true },
+      { key: "owed", label: "Owed", numeric: true, money: true },
     ],
     rows: live.map((i) => ({
       invoice: i.invoiceNumber,
@@ -590,9 +683,9 @@ async function cashFlow(f: ReportFilters): Promise<ReportResult> {
       "Money in and money out of every company account, by month, in USD. This includes special costs — they really did leave the bank.",
     columns: [
       { key: "month", label: "Month" },
-      { key: "in", label: "In", numeric: true },
-      { key: "out", label: "Out", numeric: true },
-      { key: "net", label: "Net", numeric: true },
+      { key: "in", label: "In", numeric: true, money: true },
+      { key: "out", label: "Out", numeric: true, money: true },
+      { key: "net", label: "Net", numeric: true, money: true },
     ],
     rows,
     totals: {
@@ -655,10 +748,10 @@ async function monthlySummary(f: ReportFilters): Promise<ReportResult> {
       "Revenue against operating costs, month by month. Revenue is dated when the bill was raised and costs when they were incurred, so a flight's customs lands in the month it flew.",
     columns: [
       { key: "month", label: "Month" },
-      { key: "revenue", label: "Revenue", numeric: true },
-      { key: "collected", label: "Collected", numeric: true },
-      { key: "costs", label: "Operating costs", numeric: true },
-      { key: "profit", label: "Profit", numeric: true },
+      { key: "revenue", label: "Revenue", numeric: true, money: true },
+      { key: "collected", label: "Collected", numeric: true, money: true },
+      { key: "costs", label: "Operating costs", numeric: true, money: true },
+      { key: "profit", label: "Profit", numeric: true, money: true },
       { key: "margin", label: "Margin %", numeric: true },
     ],
     rows,
@@ -741,7 +834,7 @@ async function financialStatement(f: ReportFilters): Promise<ReportResult> {
       : "The whole position on one page, in USD. No exchange rate is published, so shilling balances are shown at their recorded dollar value.",
     columns: [
       { key: "line", label: "Line" },
-      { key: "usd", label: "USD", numeric: true },
+      { key: "usd", label: "USD", numeric: true, money: true },
     ],
     rows: lines.map(([line, usd]) => ({ line, usd })),
   };

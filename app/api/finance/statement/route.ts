@@ -107,6 +107,9 @@ export async function GET(request: Request) {
     };
   })();
 
+  /* One currency per document, chosen on the screen this was opened from. */
+  const unit = params.get("unit") === "tzs" ? "TZS" : "USD";
+
   const [pl, prior, dash, rate] = await Promise.all([
     profitAndLoss(built.window),
     profitAndLoss(built.previous),
@@ -122,6 +125,7 @@ export async function GET(request: Request) {
     pl,
     prior,
     rate,
+    unit,
     periodLabel: built.window.label,
     periodDates: built.dates,
     previousLabel: built.previous.label,

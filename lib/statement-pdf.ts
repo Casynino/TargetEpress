@@ -1,40 +1,43 @@
 import "server-only";
 
-import { jsPDF } from "jspdf";
-
-import { COMPANY, ORIGIN_LABELS } from "@/lib/constants";
+import { ORIGIN_LABELS } from "@/lib/constants";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import type { FinanceDashboard } from "@/lib/finance-dashboard";
+import {
+  AMBER,
+  BAND,
+  GREEN,
+  HAIR,
+  INK,
+  MUTED,
+  NAVY,
+  RED,
+  type RGB,
+  TINT,
+  WHITE,
+  createSheet,
+} from "@/lib/pdf-kit";
+import type { ReportUnit } from "@/lib/reports";
 
 /**
  * The whole set of books for one period, as a document somebody can hand over.
  *
- * A single report table printed to PDF is a page from the books, not the books.
- * What the boss, a bank or an auditor asks for is one document that answers
- * every question in order: what came in, what it cost, what is left, who owes
- * us, where the money sits, and which batches earned it. That is this.
+ * A single report table is a page from the books, not the books. What the
+ * boss, a bank or an auditor asks for is one document that answers every
+ * question in order: what came in, what it cost, what is left, who owes us,
+ * where the money sits, and which batches earned it.
  *
- * TWO CURRENCIES, ALWAYS. Shillings lead because that is the money in the
- * room — the till, the salary, the customer's hand. Dollars sit beside them
- * because that is what the invoice says and what the rate book is written in.
- * A statement that shows only one of the two forces its reader to convert, and
- * a reader converting in their head at a rate they half-remember is how two
- * people end up arguing about the same figure.
+ * ONE CURRENCY. It used to print shillings and dollars side by side, and the
+ * owner's instruction was to stop: "if I'm on USD I should get a USD report,
+ * if I'm on TSh I should get a TSh report — not two." The switch on the profit
+ * screen decides, the document states which money it is written in and at what
+ * rate, and every figure inside it agrees.
  *
- * Every number is derived from the operational record at the moment of
- * printing. Nothing here is stored, so a statement cannot drift away from the
- * screen it was printed from — and the rate it was converted at is stamped on
- * it, so two printings a month apart can be told apart rather than silently
- * disagreeing.
+ * Colour carries meaning here and nowhere else: money in is green, money out
+ * is red, the headline panel turns red when the period lost money, and the
+ * share bars are the only decoration on the page. Everything else is navy on
+ * white, because a financial statement earns trust by being legible.
  */
-
-const PAGE = { width: 595.28, height: 841.89 };
-const M = { left: 42, right: 42, top: 52, bottom: 54 };
-const RIGHT = PAGE.width - M.right;
-
-/** Where the two money columns end. Right-aligned, so digits line up. */
-const COL_USD = RIGHT;
-const COL_TSH = RIGHT - 118;
 
 type Pl = FinanceDashboard["pl"];
 
@@ -44,514 +47,575 @@ export function statementToPdf(input: {
   prior: Pl;
   /** USD → TZS in force when this was printed. Null when none is published. */
   rate: number | null;
-  /** "August 2026", "2026", "12 Aug 2026 – 15 Aug 2026". */
+  /** Which money the reader is working in. */
+  unit: ReportUnit;
+  /** "August 2026", "2026". */
   periodLabel: string;
-  /** The dates themselves, printed under the title so there is no ambiguity. */
+  /** The dates themselves, so the period can never be misread. */
   periodDates: string;
   previousLabel: string;
   producedBy: string;
 }) {
   const { dash, pl, prior, rate, periodLabel, periodDates, previousLabel } = input;
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
-  let y = M.top;
-  let page = 1;
 
-  // ─────────────────────────────────────────────────────────── primitives ──
-  const setFont = (style: "normal" | "bold", size: number, grey = 0) => {
-    doc.setFont("helvetica", style);
-    doc.setFontSize(size);
-    doc.setTextColor(grey);
-  };
+  const inShillings = input.unit === "TZS" && rate !== null;
+  const unitLabel = inShillings ? "TSh" : "USD";
 
-  /** Shillings, rounded — a fraction of a shilling has no physical form. */
-  const tsh = (usd: number) =>
-    rate === null ? "—" : `TSh ${Math.round(usd * rate).toLocaleString("en-US")}`;
-  const usd = (n: number) =>
-    `USD ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  /** Every figure on the page, in the one currency this document is written in. */
+  const fmt = (usd: number) =>
+    inShillings
+      ? `TSh ${Math.round(usd * (rate as number)).toLocaleString("en-US")}`
+      : `USD ${usd.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`;
 
-  const footer = () => {
-    setFont("normal", 7.5, 140);
-    doc.text(
-      `${COMPANY.name} · financial statement · ${periodLabel}`,
-      M.left,
-      PAGE.height - 32
-    );
-    doc.text(`${page}`, RIGHT, PAGE.height - 32, { align: "right" });
-  };
+  const sheet = createSheet({
+    kind: "Financial statement",
+    title: periodLabel,
+    subtitle: periodDates,
+    reference: `Statement · ${periodLabel}`,
+    facts: [
+      { label: "Period", value: periodDates },
+      { label: "Money in", value: inShillings ? "Shillings (TSh)" : "Dollars (USD)" },
+      {
+        label: inShillings ? "At the rate" : "Rate on file",
+        value: rate === null ? "none published" : `USD 1 = TSh ${rate.toLocaleString("en-US")}`,
+      },
+      { label: "Prepared by", value: input.producedBy },
+    ],
+  });
 
-  /** Break before writing something that will not fit whole. */
-  const room = (needed: number) => {
-    if (y + needed <= PAGE.height - M.bottom) return;
-    footer();
-    doc.addPage();
-    page += 1;
-    y = M.top;
-  };
+  const { doc, put, label, rule, need, setFill, geometry } = sheet;
+  const { MARGIN, RIGHT, CONTENT } = geometry;
 
-  const rule = (weight = 0.5, grey = 205) => {
-    doc.setDrawColor(grey);
-    doc.setLineWidth(weight);
-    doc.line(M.left, y, RIGHT, y);
-  };
+  /* ───────────────────────────────────────────────────────────── primitives */
 
+  /** A numbered section header: a navy bar the eye can find when flicking. */
   const section = (n: number, title: string, note?: string) => {
-    room(note ? 62 : 48);
-    y += 16;
-    setFont("bold", 10.5, 0);
-    doc.text(`${n}. ${title.toUpperCase()}`, M.left, y);
-    y += 5;
-    rule(0.8, 60);
-    y += 13;
+    need(note ? 76 : 54);
+    sheet.y += 14;
+    setFill(NAVY);
+    doc.rect(MARGIN, sheet.y, CONTENT, 20, "F");
+    setFill(RED);
+    doc.rect(MARGIN, sheet.y, 3.5, 20, "F");
+    put(`${n}.  ${title.toUpperCase()}`, MARGIN + 14, sheet.y + 13.5, {
+      size: 8.5,
+      style: "bold",
+      colour: WHITE,
+    });
+    sheet.y += 20 + 12;
     if (note) {
-      setFont("normal", 7.8, 120);
-      const lines = doc.splitTextToSize(note, RIGHT - M.left);
-      doc.text(lines, M.left, y);
-      y += lines.length * 9 + 5;
+      const lines = doc.splitTextToSize(note, CONTENT);
+      doc.setFontSize(7.8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+      doc.text(lines, MARGIN, sheet.y);
+      sheet.y += lines.length * 9.5 + 8;
     }
   };
 
-  /** Column captions over the two money columns. */
-  const moneyHeads = () => {
-    /* Never last on a page: a caption whose figures are overleaf is worse than
-       no caption, because the reader trusts it and reads the wrong column. */
-    room(56);
-    setFont("bold", 7, 130);
-    doc.text("SHILLINGS", COL_TSH, y, { align: "right" });
-    doc.text("DOLLARS", COL_USD, y, { align: "right" });
-    y += 11;
+  /** The coloured cards at the top: the four figures anybody asks for first. */
+  const cards = (
+    items: { k: string; v: string; note?: string; fill: RGB }[]
+  ) => {
+    need(76);
+    const gap = 9;
+    const w = (CONTENT - gap * (items.length - 1)) / items.length;
+    items.forEach((item, i) => {
+      const x = MARGIN + (w + gap) * i;
+      setFill(item.fill);
+      doc.roundedRect(x, sheet.y, w, 62, 4, 4, "F");
+      put(item.k.toUpperCase(), x + 12, sheet.y + 17, {
+        size: 6.6,
+        style: "bold",
+        colour: WHITE,
+      });
+      /* The figure shrinks to fit its card rather than running off it: a
+         shilling figure in the tens of millions is a lot of digits. */
+      let size = 14;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(size);
+      while (doc.getTextWidth(item.v) > w - 24 && size > 8) {
+        size -= 0.5;
+        doc.setFontSize(size);
+      }
+      put(item.v, x + 12, sheet.y + 38, { size, style: "bold", colour: WHITE });
+      if (item.note) {
+        put(item.note, x + 12, sheet.y + 52, { size: 6.8, colour: [235, 238, 244] });
+      }
+    });
+    sheet.y += 62 + 14;
   };
 
-  /**
-   * One line of the statement: what it is, in both currencies, and — when
-   * there is one — how it moved against the period before.
-   */
+  /** One line of the statement: what it is, and what it came to. */
   const line = (
-    label: string,
+    text: string,
     amountUsd: number | null,
     opts: {
       strong?: boolean;
       indent?: number;
       note?: string;
-      /** Printed in the right margin, e.g. "up 12% on last month". */
-      move?: string | null;
-      /** Neither currency — a count, a percentage, a weight. */
       plain?: string;
+      colour?: RGB;
     } = {}
   ) => {
-    room(18);
-    setFont(opts.strong ? "bold" : "normal", opts.strong ? 9.5 : 9, opts.strong ? 0 : 45);
-    doc.text(label, M.left + (opts.indent ?? 0), y);
-
-    if (opts.plain !== undefined) {
-      doc.text(opts.plain, COL_USD, y, { align: "right" });
-    } else if (amountUsd !== null) {
-      doc.text(tsh(amountUsd), COL_TSH, y, { align: "right" });
-      doc.text(usd(amountUsd), COL_USD, y, { align: "right" });
+    need(20);
+    put(text, MARGIN + (opts.indent ?? 0), sheet.y, {
+      size: opts.strong ? 9.5 : 9,
+      style: opts.strong ? "bold" : "normal",
+      colour: opts.strong ? INK : [58, 62, 70],
+    });
+    const value = opts.plain ?? (amountUsd === null ? "" : fmt(amountUsd));
+    if (value) {
+      put(value, RIGHT, sheet.y, {
+        size: opts.strong ? 9.5 : 9,
+        style: opts.strong ? "bold" : "normal",
+        align: "right",
+        colour: opts.colour ?? (opts.strong ? NAVY : INK),
+      });
     }
-
-    if (opts.note || opts.move) {
-      setFont("normal", 7.2, 140);
-      doc.text(opts.note ?? opts.move ?? "", M.left + (opts.indent ?? 0) + 4, y + 8.5);
-      y += 8.5;
+    if (opts.note) {
+      put(opts.note, MARGIN + (opts.indent ?? 0) + 2, sheet.y + 8.5, {
+        size: 7,
+        colour: MUTED,
+      });
+      sheet.y += 8.5;
     }
-    y += 15;
+    sheet.y += 15;
   };
 
-  const total = (label: string, amountUsd: number) => {
-    room(26);
-    y += 2;
-    rule(0.5, 150);
-    y += 13;
-    setFont("bold", 10, 0);
-    doc.text(label, M.left, y);
-    doc.text(tsh(amountUsd), COL_TSH, y, { align: "right" });
-    doc.text(usd(amountUsd), COL_USD, y, { align: "right" });
-    y += 6;
-    rule(0.8, 60);
-    y += 14;
+  /** A ruled total — the line a reader's eye stops on. */
+  const total = (text: string, amountUsd: number, tone: RGB = NAVY) => {
+    need(34);
+    sheet.y += 3;
+    rule(sheet.y, MARGIN, RIGHT, HAIR, 0.6);
+    sheet.y += 6;
+    setFill(BAND);
+    doc.rect(MARGIN, sheet.y, CONTENT, 21, "F");
+    put(text, MARGIN + 10, sheet.y + 14, { size: 9.5, style: "bold", colour: NAVY });
+    put(fmt(amountUsd), RIGHT - 10, sheet.y + 14, {
+      size: 10.5,
+      style: "bold",
+      align: "right",
+      colour: tone,
+    });
+    sheet.y += 21 + 12;
   };
 
-  /** A real table, for the rows that are genuinely tabular. */
-  const table = (
-    heads: { label: string; width: number; align?: "right" }[],
-    rows: string[][]
+  /**
+   * A share, as a bar.
+   *
+   * The only decoration on the page, and it still carries a number. Drawn
+   * against the line it belongs to rather than on its own row — a full-width
+   * bar between two labels reads as belonging to the one underneath it, which
+   * is exactly how the first draft mislabelled every cost in the breakdown.
+   */
+  const shareBar = (share: number, colour: RGB, width = 190, indent = 12) => {
+    const h = 3;
+    const top = sheet.y - 11;
+    const x = MARGIN + indent;
+    setFill(HAIR);
+    doc.roundedRect(x, top, width, h, 1.5, 1.5, "F");
+    const filled = Math.max(1.5, Math.min(100, share)) / 100;
+    setFill(colour);
+    doc.roundedRect(x, top, width * filled, h, 1.5, 1.5, "F");
+    sheet.y += 5;
+  };
+
+  /** A wide progress bar on its own line, for a single headline percentage. */
+  const rateBar = (share: number, colour: RGB) => {
+    need(20);
+    const h = 5;
+    setFill(HAIR);
+    doc.roundedRect(MARGIN, sheet.y, CONTENT, h, 2.5, 2.5, "F");
+    const filled = Math.max(0, Math.min(100, share)) / 100;
+    if (filled > 0) {
+      setFill(colour);
+      doc.roundedRect(MARGIN, sheet.y, Math.max(6, CONTENT * filled), h, 2.5, 2.5, "F");
+    }
+    sheet.y += h + 12;
+  };
+
+  /** A compact table for the tabular sections. */
+  const grid = (
+    columns: { label: string; width: number; numeric?: boolean }[],
+    rows: string[][],
+    tone: RGB = NAVY
   ) => {
     const xs: number[] = [];
-    let cursor = M.left;
-    for (const h of heads) {
+    let cursor = MARGIN;
+    for (const c of columns) {
       xs.push(cursor);
-      cursor += h.width;
+      cursor += c.width;
     }
-    const head = () => {
-      room(30);
-      setFont("bold", 7, 130);
-      heads.forEach((h, i) => {
-        doc.text(
-          h.label.toUpperCase(),
-          h.align === "right" ? xs[i] + h.width - 2 : xs[i],
-          y,
-          { align: h.align === "right" ? "right" : "left" }
-        );
-      });
-      y += 5;
-      rule(0.5, 200);
-      y += 11;
-    };
-    head();
-    for (const row of rows) {
-      if (y + 14 > PAGE.height - M.bottom) {
-        footer();
-        doc.addPage();
-        page += 1;
-        y = M.top;
-        head();
-      }
-      heads.forEach((h, i) => {
-        /*
-          Shrink to fit, never drop.
+    const tableW = columns.reduce((a, b) => a + b.width, 0);
+    const at = (i: number) =>
+      columns[i].numeric ? xs[i] + columns[i].width - 6 : xs[i] + 6;
 
-          This used to keep only the first line of a wrapped cell, so a figure
-          wider than its column printed as "TSh" with the number gone — a
-          silent, confident lie in a financial document. Now the cell steps its
-          type down until the value fits, and only clips (visibly, with an
-          ellipsis) when even that fails.
-        */
-        const raw = row[i] ?? "";
-        let size = 8.2;
-        setFont("normal", size, 30);
-        while (doc.getTextWidth(raw) > h.width - 4 && size > 6) {
-          size -= 0.3;
-          setFont("normal", size, 30);
-        }
-        let text = raw;
-        while (text.length > 1 && doc.getTextWidth(text) > h.width - 4) {
-          text = `${text.slice(0, -2)}…`;
-        }
-        doc.text(text, h.align === "right" ? xs[i] + h.width - 2 : xs[i], y, {
-          align: h.align === "right" ? "right" : "left",
+    const head = () => {
+      need(40);
+      setFill(tone);
+      doc.rect(MARGIN, sheet.y, tableW, 17, "F");
+      columns.forEach((c, i) => {
+        put(c.label.toUpperCase(), at(i), sheet.y + 11.5, {
+          size: 6.6,
+          style: "bold",
+          align: c.numeric ? "right" : "left",
+          colour: WHITE,
         });
       });
-      y += 14;
-    }
-    y += 4;
+      sheet.y += 17;
+    };
+
+    head();
+    rows.forEach((row, index) => {
+      if (sheet.y + 16 > geometry.FOOT_TOP) {
+        sheet.newPage();
+        head();
+      }
+      if (index % 2 === 1) {
+        setFill(TINT);
+        doc.rect(MARGIN, sheet.y, tableW, 16, "F");
+      }
+      columns.forEach((c, i) => {
+        let size = 8;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(size);
+        let shown = row[i] ?? "";
+        while (doc.getTextWidth(shown) > c.width - 12 && size > 6) {
+          size -= 0.3;
+          doc.setFontSize(size);
+        }
+        while (shown.length > 1 && doc.getTextWidth(shown) > c.width - 12) {
+          shown = `${shown.slice(0, -2)}…`;
+        }
+        put(shown, at(i), sheet.y + 11, {
+          size,
+          align: c.numeric ? "right" : "left",
+          colour: shown.trim().startsWith("-") && c.numeric ? RED : INK,
+        });
+      });
+      sheet.y += 16;
+      rule(sheet.y, MARGIN, MARGIN + tableW, HAIR, 0.35);
+    });
+    sheet.y += 10;
   };
 
   const move = (now: number, before: number) => {
-    if (before === 0) return now === 0 ? null : `nothing comparable in ${previousLabel}`;
+    if (before === 0) return `no ${previousLabel} to compare`;
     const p = Math.round(((now - before) / Math.abs(before)) * 100);
-    if (p === 0) return `unchanged on ${previousLabel}`;
+    if (p === 0) return `same as ${previousLabel}`;
     return `${p > 0 ? "up" : "down"} ${Math.abs(p)}% on ${previousLabel}`;
   };
 
-  // ────────────────────────────────────────────────────────────── heading ──
-  setFont("bold", 17, 0);
-  doc.text(COMPANY.name, M.left, y);
-  setFont("bold", 9, 0);
-  doc.text("FINANCIAL STATEMENT", RIGHT, y - 9, { align: "right" });
-  setFont("normal", 12, 0);
-  doc.text(periodLabel, RIGHT, y + 8, { align: "right" });
+  /* ─────────────────────────────────────────────────────────────── the page */
 
-  /* Clear of the period above it: at 12pt the month name's descenders were
-     landing on the date range printed underneath. */
-  y += 22;
-  setFont("normal", 8.5, 110);
-  doc.text(`${COMPANY.taglineEn} · ${COMPANY.phone} · ${COMPANY.email}`, M.left, y);
-  doc.text(periodDates, RIGHT, y, { align: "right" });
+  sheet.heading();
 
-  y += 10;
-  rule(1.2, 30);
-  y += 8;
-  setFont("normal", 7.5, 130);
-  doc.text(
-    rate === null
-      ? "No exchange rate has been published, so figures are shown in dollars only."
-      : `Shillings converted at USD 1 = TSh ${rate.toLocaleString("en-US")}, the rate in force when this was printed. Dollars are what the invoices say.`,
-    M.left,
-    y + 8
+  const profitable = pl.profit >= 0;
+
+  cards([
+    {
+      k: "Revenue billed",
+      v: fmt(pl.revenue),
+      note: move(pl.revenue, prior.revenue),
+      fill: NAVY,
+    },
+    {
+      k: "Costs incurred",
+      v: fmt(pl.costs),
+      note: move(pl.costs, prior.costs),
+      fill: RED,
+    },
+    {
+      k: profitable ? "Net profit" : "Net loss",
+      v: fmt(Math.abs(pl.profit)),
+      note: pl.margin === null ? "no margin yet" : `${pl.margin.toFixed(1)}% margin`,
+      fill: profitable ? GREEN : RED,
+    },
+    {
+      k: "Collected",
+      v: fmt(pl.cashIn),
+      note: move(pl.cashIn, prior.cashIn),
+      fill: GREEN,
+    },
+  ]);
+
+  /* The sentence under the cards. Somebody reading only the first inch of this
+     document should still leave with the right answer — so it wraps to the
+     panel rather than running off the edge of it. */
+  const verdict = `${fmt(pl.revenue)} billed on ${pl.invoices} confirmed ${
+    pl.invoices === 1 ? "invoice" : "invoices"
+  }, less ${fmt(pl.costs)} of costs incurred. Counted from the day the work happened, not the day the money moved.`;
+  doc.setFontSize(7.8);
+  doc.setFont("helvetica", "normal");
+  const verdictLines = doc.splitTextToSize(verdict, CONTENT - 28);
+  const panelH = 30 + verdictLines.length * 10;
+  need(panelH + 10);
+  setFill(profitable ? [240, 248, 244] : [253, 242, 242]);
+  doc.roundedRect(MARGIN, sheet.y, CONTENT, panelH, 4, 4, "F");
+  setFill(profitable ? GREEN : RED);
+  doc.rect(MARGIN, sheet.y, 3.5, panelH, "F");
+  put(
+    profitable
+      ? `${periodLabel} made a profit of ${fmt(pl.profit)}.`
+      : `${periodLabel} lost ${fmt(Math.abs(pl.profit))}.`,
+    MARGIN + 14,
+    sheet.y + 18,
+    { size: 10.5, style: "bold", colour: profitable ? GREEN : RED }
   );
-  y += 16;
+  doc.setFontSize(7.8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+  doc.text(verdictLines, MARGIN + 14, sheet.y + 32);
+  sheet.y += panelH + 6;
 
-  // ───────────────────────────────────────────────────────── 1. the answer ──
+  // ───────────────────────────────────────────────── 1. profit and loss ──
   section(
     1,
-    "The period at a glance",
-    "Every figure below is derived from the invoices, payments and costs already on record. There is no separate set of books."
-  );
-  moneyHeads();
-  line("Revenue billed", pl.revenue, { move: move(pl.revenue, prior.revenue) });
-  line("Costs incurred", pl.costs, { move: move(pl.costs, prior.costs) });
-  total(pl.profit < 0 ? "Net loss for the period" : "Net profit for the period", pl.profit);
-  line(
-    "Profit margin",
-    null,
-    { plain: pl.margin === null ? "—" : `${pl.margin.toFixed(1)}%`, strong: false }
-  );
-  line("Money collected", pl.cashIn, { move: move(pl.cashIn, prior.cashIn) });
-  line("Money paid out", pl.cashOut, { move: move(pl.cashOut, prior.cashOut) });
-  line("Net cash movement", pl.netCash, { strong: true });
-
-  // ──────────────────────────────────────────────── 2. profit and loss ──
-  section(
-    2,
     "Profit & loss — did the work make money",
     "Accrual basis: bills raised and costs incurred inside the period, whether or not anybody has paid yet. This is the figure that says whether the business works."
   );
-  moneyHeads();
-  line("Freight billed on confirmed invoices", pl.revenue, {
-    note: `${pl.invoices} ${pl.invoices === 1 ? "invoice" : "invoices"}`,
-  });
-  y += 4;
-  setFont("bold", 8, 90);
-  doc.text("LESS COSTS", M.left, y);
-  y += 13;
+  line(`Freight billed on ${pl.invoices} confirmed invoices`, pl.revenue);
+  sheet.y += 2;
+  label("Less costs", MARGIN, sheet.y);
+  sheet.y += 13;
+  const biggestCost = pl.categories[0]?.amount ?? 0;
   for (const row of pl.categories) {
-    line(
-      EXPENSE_CATEGORY_LABELS[row.category] ?? row.category,
-      row.amount,
-      { indent: 12 }
-    );
+    line(EXPENSE_CATEGORY_LABELS[row.category] ?? row.category, row.amount, {
+      indent: 12,
+    });
+    shareBar(biggestCost > 0 ? (row.amount / biggestCost) * 100 : 0, AMBER);
   }
-  total("Total costs", pl.costs);
-  total(pl.profit < 0 ? "NET LOSS" : "NET PROFIT", pl.profit);
+  total("Total costs", pl.costs, RED);
+  total(profitable ? "Net profit" : "Net loss", pl.profit, profitable ? GREEN : RED);
   if (pl.specialCosts > 0) {
     line("Non-operating payments, kept out of the margin", pl.specialCosts, {
-      note: `${pl.specialCount} ${pl.specialCount === 1 ? "payment" : "payments"} — real money out, but not a cost of moving cargo`,
+      note: `${pl.specialCount} ${
+        pl.specialCount === 1 ? "payment" : "payments"
+      } — real money out, but not a cost of moving cargo`,
     });
     line("Profit after those payments", pl.profitAfterSpecial, { strong: true });
   }
 
-  // ──────────────────────────────────────────────────── 3. cash movement ──
+  // ─────────────────────────────────────────────────────── 2. cash moved ──
   section(
-    3,
+    2,
     "Cash — did the money move",
     "What customers actually paid and what actually left an account inside the period. This is the figure that decides whether payroll can be met."
   );
-  moneyHeads();
-  line("Collected from customers", pl.cashIn);
-  line("Paid out", pl.cashOut);
-  total("Net cash movement", pl.netCash);
+  line("Collected from customers", pl.cashIn, { colour: GREEN });
+  line("Paid out", pl.cashOut, { colour: RED });
+  total("Net cash movement", pl.netCash, pl.netCash >= 0 ? GREEN : RED);
 
-  // ─────────────────────────────────────────────── 4. revenue analysis ──
+  // ─────────────────────────────────────────────── 3. where revenue came ──
   section(
-    4,
+    3,
     "Where the revenue comes from",
     "Freight billed in this period. Every invoice belongs to a consignment — there is no other kind of income in the system."
   );
-  moneyHeads();
   line("Expected", dash.revenue.expectedUsd);
-  line("Collected", dash.revenue.collectedUsd);
+  line("Collected", dash.revenue.collectedUsd, { colour: GREEN });
   line("Still outstanding", dash.revenue.outstandingUsd, {
+    colour: dash.revenue.outstandingUsd > 0 ? RED : INK,
     note:
       dash.revenue.collectionRate === null
         ? undefined
         : `${dash.revenue.collectionRate}% of what was billed has come in`,
   });
+  if (dash.revenue.collectionRate !== null) {
+    rateBar(dash.revenue.collectionRate, GREEN);
+  }
   if (dash.revenue.byOrigin.length > 0) {
-    y += 6;
-    table(
+    grid(
       [
         { label: "Origin", width: 180 },
-        { label: "Billed (TSh)", width: 110, align: "right" },
-        { label: "Billed (USD)", width: 95, align: "right" },
-        { label: "Collected (USD)", width: 126, align: "right" },
+        { label: `Billed (${unitLabel})`, width: 164, numeric: true },
+        { label: `Collected (${unitLabel})`, width: 163, numeric: true },
       ],
       dash.revenue.byOrigin.map((r) => [
         ORIGIN_LABELS[r.origin as keyof typeof ORIGIN_LABELS] ?? r.origin,
-        tsh(r.expectedUsd),
-        usd(r.expectedUsd),
-        usd(r.collectedUsd),
+        fmt(r.expectedUsd),
+        fmt(r.collectedUsd),
       ])
     );
   }
   if (dash.revenue.topCustomers.length > 0) {
-    room(40);
-    setFont("bold", 8, 90);
-    doc.text("LARGEST CUSTOMERS THIS PERIOD", M.left, y);
-    y += 12;
-    table(
+    label("Largest customers this period", MARGIN, sheet.y);
+    sheet.y += 12;
+    grid(
       [
         { label: "Customer", width: 200 },
-        { label: "Billed (TSh)", width: 110, align: "right" },
-        { label: "Billed (USD)", width: 95, align: "right" },
-        { label: "Owed (USD)", width: 106, align: "right" },
+        { label: `Billed (${unitLabel})`, width: 154, numeric: true },
+        { label: `Owed (${unitLabel})`, width: 153, numeric: true },
       ],
-      dash.revenue.topCustomers.slice(0, 10).map((c) => [
-        c.name,
-        tsh(c.expectedUsd),
-        usd(c.expectedUsd),
-        c.outstandingUsd > 0 ? usd(c.outstandingUsd) : "settled",
-      ])
+      dash.revenue.topCustomers
+        .slice(0, 10)
+        .map((c) => [
+          c.name,
+          fmt(c.expectedUsd),
+          c.outstandingUsd > 0 ? fmt(c.outstandingUsd) : "settled",
+        ])
     );
   }
 
-  // ─────────────────────────────────────────────── 5. expense analysis ──
+  // ──────────────────────────────────────────────── 4. where it was spent ──
   section(
-    5,
+    4,
     "Where the money is spent",
     "A cost with a batch against it is a batch cost; one without is treated as office overhead. That is a reading of the record, not a field somebody sets."
   );
-  moneyHeads();
   line("Batch costs — moving the cargo", dash.expenses.batchUsd);
   line("Office costs — running the business", dash.expenses.officeUsd);
-  if (dash.expenses.specialUsd > 0) {
-    line("Non-operating", dash.expenses.specialUsd);
-  }
-  total("Total spent", dash.expenses.totalUsd);
+  if (dash.expenses.specialUsd > 0) line("Non-operating", dash.expenses.specialUsd);
+  total("Total spent", dash.expenses.totalUsd, RED);
   if (dash.expenses.byCategory.length > 0) {
-    table(
-      [
-        { label: "Category", width: 200 },
-        { label: "Amount (TSh)", width: 115, align: "right" },
-        { label: "Amount (USD)", width: 100, align: "right" },
-        { label: "Share", width: 96, align: "right" },
-      ],
-      dash.expenses.byCategory.map((c) => [
-        EXPENSE_CATEGORY_LABELS[c.category] ?? c.category,
-        tsh(c.amount),
-        usd(c.amount),
-        `${Math.round(c.share)}%`,
-      ])
-    );
+    for (const row of dash.expenses.byCategory.slice(0, 10)) {
+      line(EXPENSE_CATEGORY_LABELS[row.category] ?? row.category, row.amount, {
+        plain: `${fmt(row.amount)}    ${Math.round(row.share)}%`,
+      });
+      shareBar(row.share, AMBER);
+    }
   }
 
-  // ────────────────────────────────────────────── 6. batch performance ──
+  // ─────────────────────────────────────────────── 5. batch performance ──
   section(
-    6,
+    5,
     "Batch performance",
     "Cargo is the business and a batch is the unit it arrives in. Only costs tied to a dispatch are charged to it — rent and salaries belong to the company, not to one aeroplane."
   );
   if (dash.batches.length === 0) {
-    line("No batches fall inside this period.", null, { plain: "" });
+    line("No batches fall inside this period.", null, { plain: "—" });
   } else {
-    /* Widths sized to the widest figure these columns actually hold — a
-       shilling total on a good batch runs to "TSh 22,913,415", and a column
-       too narrow for it silently printed "TSh" and dropped the number. */
-    table(
+    grid(
       [
-        { label: "Batch", width: 60 },
-        { label: "From", width: 62 },
-        { label: "Kg", width: 36, align: "right" },
-        { label: "Billed (TSh)", width: 90, align: "right" },
-        { label: "Collected (TSh)", width: 90, align: "right" },
-        { label: "Owed (TSh)", width: 87, align: "right" },
-        { label: "Profit (TSh)", width: 86, align: "right" },
+        { label: "Batch", width: 62 },
+        { label: "From", width: 66 },
+        { label: "Kg", width: 38, numeric: true },
+        { label: `Billed (${unitLabel})`, width: 87, numeric: true },
+        { label: `Collected (${unitLabel})`, width: 87, numeric: true },
+        { label: `Owed (${unitLabel})`, width: 84, numeric: true },
+        { label: `Profit (${unitLabel})`, width: 83, numeric: true },
       ],
       dash.batches.map((b) => [
         b.batchNumber,
         ORIGIN_LABELS[b.origin as keyof typeof ORIGIN_LABELS] ?? b.origin,
         b.kg.toFixed(0),
-        tsh(b.expectedUsd),
-        tsh(b.collectedUsd),
-        tsh(b.outstandingUsd),
-        tsh(b.profitUsd),
+        fmt(b.expectedUsd),
+        fmt(b.collectedUsd),
+        fmt(b.outstandingUsd),
+        fmt(b.profitUsd),
       ])
     );
-    setFont("normal", 7.2, 140);
-    doc.text(
-      "In dollars, the same batches: " +
-        dash.batches
-          .slice(0, 6)
-          .map((b) => `${b.batchNumber} ${usd(b.profitUsd)}`)
-          .join("  ·  "),
-      M.left,
-      y
-    );
-    y += 12;
   }
 
-  // ───────────────────────────────────────────── 7. financial position ──
+  // ──────────────────────────────────────────────── 6. financial position ──
   section(
-    7,
+    6,
     "Financial position",
     "Where the money is right now, derived from the ledger. Not a period figure — this is today's answer whichever period the statement covers."
   );
   if (dash.position.accounts.length > 0) {
-    table(
+    grid(
       [
-        { label: "Account", width: 220 },
-        { label: "Currency", width: 80 },
-        { label: "Balance", width: 105, align: "right" },
-        { label: "In dollars", width: 106, align: "right" },
+        { label: "Account", width: 200 },
+        { label: "Currency", width: 74 },
+        { label: "Balance, as held", width: 120, numeric: true },
+        { label: `Worth (${unitLabel})`, width: 113, numeric: true },
       ],
       dash.position.accounts.map((a) => [
         a.name,
         a.currency,
         a.balance.toLocaleString("en-US", { maximumFractionDigits: 0 }),
-        usd(a.balanceUsd),
+        fmt(a.balanceUsd),
       ])
     );
   }
-  moneyHeads();
   line("Cash and bank", dash.position.cashUsd);
-  line("Owed to us by customers", dash.position.receivableUsd);
-  line("Owed by us", dash.position.payableUsd);
-  total("Net position", dash.position.netUsd);
+  line("Owed to us by customers", dash.position.receivableUsd, { colour: GREEN });
+  line("Owed by us", dash.position.payableUsd, { colour: RED });
+  total(
+    "Net position",
+    dash.position.netUsd,
+    dash.position.netUsd >= 0 ? GREEN : RED
+  );
 
-  // ────────────────────────────────────────── 8. collection performance ──
+  // ─────────────────────────────────────────── 7. collection performance ──
   section(
-    8,
+    7,
     "Collection performance",
     "What was billed in this period against what has come in for it."
   );
-  moneyHeads();
   line("Billed", dash.collections.expectedUsd);
-  line("Collected", dash.collections.collectedUsd);
-  line("Outstanding", dash.collections.outstandingUsd);
+  line("Collected", dash.collections.collectedUsd, { colour: GREEN });
+  line("Outstanding", dash.collections.outstandingUsd, {
+    colour: dash.collections.outstandingUsd > 0 ? RED : INK,
+  });
   line("Collection rate", null, {
     plain: dash.collections.rate === null ? "—" : `${dash.collections.rate}%`,
     strong: true,
   });
-  line("Invoices paid in full", null, { plain: String(dash.collections.paid) });
-  line("Part paid", null, { plain: String(dash.collections.partiallyPaid) });
-  line("Not paid at all", null, { plain: String(dash.collections.unpaid) });
-  line("Payments awaiting verification", null, {
-    plain: String(dash.collections.awaitingVerification),
-  });
+  rateBar(dash.collections.rate ?? 0, GREEN);
+  grid(
+    [
+      { label: "Paid in full", width: 127, numeric: true },
+      { label: "Part paid", width: 127, numeric: true },
+      { label: "Not paid at all", width: 127, numeric: true },
+      { label: "Awaiting verification", width: 126, numeric: true },
+    ],
+    [
+      [
+        String(dash.collections.paid),
+        String(dash.collections.partiallyPaid),
+        String(dash.collections.unpaid),
+        String(dash.collections.awaitingVerification),
+      ],
+    ]
+  );
 
-  // ───────────────────────────────────────────────── 9. business volume ──
-  section(9, "Business volume", "What was physically moved and billed for.");
-  line("Cargo received", null, { plain: `${dash.volume.kgReceived.toFixed(1)} kg` });
-  line("Cargo billed", null, { plain: `${dash.volume.kgBilled.toFixed(1)} kg` });
-  line("Cargo paid for", null, { plain: `${dash.volume.kgCollected.toFixed(1)} kg` });
-  line("Packages handled", null, { plain: String(dash.volume.packages) });
-  line("Customers served", null, { plain: String(dash.volume.customers) });
-  line("Batches arrived", null, { plain: String(dash.volume.batchesArrived) });
-  line("Batches closed", null, { plain: String(dash.volume.batchesClosed) });
+  // ─────────────────────────────────────────────────── 8. business volume ──
+  section(8, "Business volume", "What was physically moved and billed for.");
+  grid(
+    [
+      { label: "Cargo received", width: 88, numeric: true },
+      { label: "Cargo billed", width: 84, numeric: true },
+      { label: "Cargo paid for", width: 86, numeric: true },
+      { label: "Packages", width: 62, numeric: true },
+      { label: "Customers", width: 66, numeric: true },
+      { label: "Arrived", width: 60, numeric: true },
+      { label: "Closed", width: 61, numeric: true },
+    ],
+    [
+      [
+        `${dash.volume.kgReceived.toFixed(0)} kg`,
+        `${dash.volume.kgBilled.toFixed(0)} kg`,
+        `${dash.volume.kgCollected.toFixed(0)} kg`,
+        String(dash.volume.packages),
+        String(dash.volume.customers),
+        String(dash.volume.batchesArrived),
+        String(dash.volume.batchesClosed),
+      ],
+    ]
+  );
 
-  // ──────────────────────────────────────────────── 10. financial health ──
+  // ──────────────────────────────────────────────────── 9. financial health ──
   if (dash.health.length > 0) {
     section(
-      10,
+      9,
       "Financial health",
       "The same measures the finance screen shows, each with what it means."
     );
     for (const metric of dash.health) {
-      line(metric.label, null, { plain: metric.value, note: metric.explain });
+      line(metric.label, null, {
+        plain: metric.value,
+        note: metric.explain,
+        colour:
+          metric.tone === "good" ? GREEN : metric.tone === "bad" ? RED : metric.tone === "warn" ? AMBER : INK,
+      });
     }
   }
 
-  // ─────────────────────────────────────────────────────────── signature ──
-  room(80);
-  y += 18;
-  rule(0.5, 200);
-  y += 16;
-  setFont("normal", 8, 90);
-  doc.text(`Prepared by ${input.producedBy}`, M.left, y);
-  doc.text(
-    `Printed ${new Date().toISOString().slice(0, 16).replace("T", " ")}`,
-    RIGHT,
-    y,
-    { align: "right" }
-  );
-  y += 30;
-  doc.setDrawColor(170);
-  doc.line(M.left, y, M.left + 170, y);
-  doc.line(RIGHT - 170, y, RIGHT, y);
-  y += 11;
-  setFont("normal", 7.5, 130);
-  doc.text("Finance", M.left, y);
-  doc.text("Approved by", RIGHT - 170, y);
-
-  footer();
-  return Buffer.from(doc.output("arraybuffer"));
+  sheet.signature(input.producedBy);
+  return sheet.finish();
 }

@@ -16,25 +16,53 @@ import { viewerLocale } from "@/lib/viewer";
 export async function ReportViewer({
   report,
   query,
+  linkQuery,
   filters,
+  note,
 }: {
   report: ReportResult;
-  /** The current filters as a query string, so links and the download agree. */
+  /**
+   * The filters as the DOWNLOAD needs them — including `unit`, which restates
+   * money in the reader's currency.
+   */
   query: string;
+  /**
+   * The filters as a LINK back into this page needs them — including
+   * `currency`, the screen's own switch.
+   *
+   * Two strings rather than one, because the two consumers disagree on a name:
+   * the report engine already has a `currency` filter that narrows the ledger
+   * to entries recorded in one currency, so handing `currency=usd` to the API
+   * would silently drop most of the register. Sharing one query string meant
+   * either the pills lost the currency or the download filtered the ledger to
+   * nothing.
+   */
+  linkQuery?: string;
   /** Rendered above the table — dates, flight, account, category. */
   filters?: React.ReactNode;
+  /** Which money the figures are in, and at what rate. */
+  note?: string;
 }) {
   const locale = await viewerLocale();
   const q = query ? `&${query}` : "";
+  const linkQ = (linkQuery ?? query) ? `&${linkQuery ?? query}` : "";
 
   return (
-    <section className="panel overflow-hidden">
+    /*
+      Anchored, and every link into it keeps the anchor.
+
+      Picking a report is a navigation, so the browser was landing the reader
+      back at the top of a very long page and making them scroll down again to
+      see what they had just chosen. The section names itself and the links
+      point at that name, so the page comes back where the reader was working.
+    */
+    <section id="reports" className="panel scroll-mt-4 overflow-hidden">
       <div className="border-b px-5 py-4">
         <div className="flex flex-wrap items-center gap-1.5">
           {REPORTS.map((r) => (
             <Link
               key={r.key}
-              href={`/app/finance/reports?report=${r.key}${q}`}
+              href={`/app/finance/reports?report=${r.key}${linkQ}#reports`}
               aria-current={report.key === r.key ? "true" : undefined}
               className={`focus-ring rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                 report.key === r.key
@@ -58,15 +86,22 @@ export async function ReportViewer({
           <p className="mt-0.5 max-w-3xl text-xs text-muted-foreground">
             {t(locale, report.caption)}
           </p>
+          {note ? (
+            <p className="mt-1 max-w-3xl text-[11px] text-muted-foreground">{note}</p>
+          ) : null}
         </div>
         {/*
           Two formats, because they are two different jobs: a spreadsheet to
           work the numbers in, and a PDF to put in front of the boss, the bank
           or an auditor. Both render the same figures this table is showing.
         */}
+        {/* Both open in their own tab: a document is something you look at
+            beside the page, not instead of it. */}
         <span className="inline-flex shrink-0 overflow-hidden rounded-md border">
           <a
             href={`/api/finance/reports?report=${report.key}${q}`}
+            target="_blank"
+            rel="noopener"
             className="focus-ring inline-flex items-center gap-1.5 border-r px-3 py-1.5 text-xs font-medium hover:bg-accent"
           >
             <Download className="h-3.5 w-3.5" />
@@ -84,6 +119,8 @@ export async function ReportViewer({
           */}
           <a
             href={`/api/finance/reports?report=${report.key}${q}&format=pdf`}
+            target="_blank"
+            rel="noopener"
             className="focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-accent"
           >
             <FileText className="h-3.5 w-3.5" />
@@ -154,7 +191,15 @@ export async function ReportViewer({
                         ? t(locale, "Total")
                         : report.totals?.[c.key] !== undefined
                           ? report.totals[c.key].toLocaleString("en-US", {
-                              minimumFractionDigits: 2,
+                              /* Shillings have no cents: a converted total was
+                                 printing "5,407,506.00", two digits of noise on
+                                 a figure nobody quotes that way. Matches the
+                                 rows above, which already decide by value. */
+                              minimumFractionDigits: Number.isInteger(
+                                report.totals[c.key]
+                              )
+                                ? 0
+                                : 2,
                               maximumFractionDigits: 2,
                             })
                           : ""}

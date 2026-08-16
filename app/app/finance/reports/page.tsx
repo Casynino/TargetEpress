@@ -19,7 +19,7 @@ import { t } from "@/lib/i18n";
 import { financeDashboard } from "@/lib/finance-dashboard";
 import { profitAndLoss, profitByDispatch, windowFor } from "@/lib/profit";
 import { prisma } from "@/lib/prisma";
-import { REPORTS, runReport, type ReportKey } from "@/lib/reports";
+import { REPORTS, presentReport, runReport, type ReportKey } from "@/lib/reports";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -114,8 +114,21 @@ export default async function FinanceReportsPage({
   if (to) reportQuery.set("to", to);
   if (batch) reportQuery.set("batch", batch);
   if (period) reportQuery.set("period", period);
+  /*
+    Two query strings, because the API and this page use the word differently.
 
-  const [pl, dispatches, report, flights, prior, dash, rateRow] = await Promise.all([
+    The DOWNLOAD takes `unit`, which restates money in the reader's currency —
+    it must not take `currency`, which the report engine reads as "only ledger
+    entries recorded in this currency" and would use to throw away most of the
+    register. A LINK back into this page takes `currency`, which is the switch
+    at the top. Sharing one string meant the pills lost the currency in dollar
+    mode and flipped the reader back to shillings.
+  */
+  const linkQuery = new URLSearchParams(reportQuery);
+  if (currency === "usd") linkQuery.set("currency", "usd");
+  if (currency !== "usd") reportQuery.set("unit", "tzs");
+
+  const [pl, dispatches, rawReportResult, flights, prior, dash, rateRow] = await Promise.all([
     profitAndLoss(window),
     profitByDispatch(8),
     runReport(reportKey, {
@@ -165,6 +178,18 @@ export default async function FinanceReportsPage({
   /** The same figure in the other currency — null when there is no rate. */
   const alt = (amount: number) =>
     rate === null ? null : inUsd ? formatShillings(amount, rate) : formatUsd(amount);
+
+  /*
+    The report table, restated in the currency the page is reading in.
+
+    One currency, never two columns of the same money — and because the table
+    on screen and the file that downloads both come from this one call, they
+    cannot disagree about which money they are in.
+  */
+  const report = presentReport(rawReportResult, {
+    unit: inUsd ? "USD" : "TZS",
+    rate,
+  });
 
   /*
     What the statement can be run for: the last eighteen months, and the last
@@ -1198,8 +1223,11 @@ export default async function FinanceReportsPage({
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               {t(
                 locale,
-                "Profit and loss, cash, where revenue came from, where money was spent, every batch, the position today, collections and volume — for the month or year you pick, in shillings and dollars, with a line for Finance and a line for approval."
+                "Profit and loss, cash, where revenue came from, where money was spent, every batch, the position today, collections and volume — for the month or year you pick, with a line for Finance and a line for approval."
               )}
+              {rate === null
+                ? ""
+                : ` ${t(locale, "Written in")} ${inUsd ? t(locale, "dollars") : t(locale, "shillings")}, ${t(locale, "to match the switch at the top of this page.")}`}
             </p>
           </div>
           <form
@@ -1208,6 +1236,8 @@ export default async function FinanceReportsPage({
             target="_blank"
             className="flex flex-wrap items-end gap-2"
           >
+            {/* The statement is written in the currency the page is reading in. */}
+            {inUsd ? null : <input type="hidden" name="unit" value="tzs" />}
             <label className="flex flex-col gap-1 text-xs">
               <span className="text-muted-foreground">{t(locale, "Period")}</span>
               <select
@@ -1252,13 +1282,25 @@ export default async function FinanceReportsPage({
       <div className="mb-6">
         <ReportViewer
           report={report}
+          note={report.currencyNote}
           query={reportQuery.toString()}
+          linkQuery={linkQuery.toString()}
           filters={
+            /* The action carries the anchor: a GET form replaces the query
+               string but keeps the fragment, so applying a filter comes back
+               to the table instead of the top of the page. */
             <form
               method="get"
+              action="/app/finance/reports#reports"
               className="flex flex-wrap items-end gap-3 text-xs"
             >
               <input type="hidden" name="report" value={reportKey} />
+              {currency === "usd" ? (
+                <input type="hidden" name="currency" value="usd" />
+              ) : null}
+              {period ? (
+                <input type="hidden" name="period" value={period} />
+              ) : null}
               <label className="flex flex-col gap-1">
                 <span className="text-muted-foreground">{t(locale, "From")}</span>
                 <input
@@ -1300,7 +1342,7 @@ export default async function FinanceReportsPage({
               </button>
               {from || to || batch ? (
                 <a
-                  href={`/app/finance/reports?report=${reportKey}`}
+                  href={`${withParams({ from: undefined, to: undefined, batch: undefined })}#reports`}
                   className="h-8 self-end px-1 leading-8 text-muted-foreground underline"
                 >
                   {t(locale, "Clear")}
