@@ -419,6 +419,20 @@ export default async function ExpensesPage({
           locale,
           "What the business spends, and what it has already paid. Costs are dated when they were incurred; the money is dated when it left."
         )}
+        actions={
+          canRecord ? (
+            <ExpenseForm
+              categories={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
+                value,
+                label: t(locale, label),
+              }))}
+              accounts={accountOptions}
+              dispatches={dispatches.map((d) => ({ id: d.id, label: d.batchNumber }))}
+              quick={quick}
+              rate={rate}
+            />
+          ) : null
+        }
       />
 
       <FinanceNav tabs={financeTabs(user.role)} />
@@ -441,7 +455,7 @@ export default async function ExpensesPage({
               aria-current={active ? "true" : undefined}
               title={t(locale, k.hint)}
               className={cn(
-                "focus-ring min-w-[8.5rem] rounded-xl border px-3.5 py-2 transition-colors",
+                "focus-ring rounded-lg border px-3 py-1.5 transition-colors",
                 active
                   ? "border-foreground/25 bg-accent"
                   : "bg-card hover:border-foreground/20 hover:bg-accent/50"
@@ -449,18 +463,17 @@ export default async function ExpensesPage({
             >
               <p
                 className={cn(
-                  "text-[11px] font-semibold uppercase tracking-wide",
+                  "text-[10px] font-semibold uppercase tracking-wide",
                   active ? "text-foreground" : "text-muted-foreground"
                 )}
               >
                 {t(locale, k.label)}
               </p>
-              <p className="mt-0.5 whitespace-nowrap font-display text-base font-bold tabular-nums">
+              <p className="mt-0.5 whitespace-nowrap text-sm font-bold tabular-nums">
                 {money(total?.usd ?? 0)}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {total?.count ?? 0}{" "}
-                {t(locale, (total?.count ?? 0) === 1 ? "cost" : "costs")}
+                <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
+                  {total?.count ?? 0}
+                </span>
               </p>
             </Link>
           );
@@ -524,27 +537,7 @@ export default async function ExpensesPage({
         )}
       </div>
 
-      {canRecord ? (
-        <div className="mb-6">
-          <ExpenseForm
-            categories={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
-              value,
-              label: t(locale, label),
-            }))}
-            accounts={accountOptions}
-            dispatches={dispatches.map((d) => ({
-              id: d.id,
-              label: d.batchNumber,
-            }))}
-            quick={quick}
-            rate={rate}
-          />
-        </div>
-      ) : null}
-
       {/* ────────────────────────────── the list ──────────────────────────── */}
-      <SectionLabel>{t(locale, "Every cost")}</SectionLabel>
-
       {/*
         Find one, or narrow to a kind.
 
