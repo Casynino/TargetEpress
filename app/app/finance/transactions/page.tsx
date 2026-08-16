@@ -29,6 +29,7 @@ import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { cn } from "@/lib/utils";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -518,11 +519,22 @@ export default async function LedgerPage({
               <li key={entry.id} className="relative">
                 <Link
                   href={`/app/finance/transactions/${entry.id}`}
-                  className="block p-4 transition-colors hover:bg-accent/40"
+                  className={cn(
+                    "block p-4 transition-colors hover:bg-accent/40",
+                    entry.expense?.category === "EXECUTIVE_DRAW" &&
+                      "bg-warning/[0.07] shadow-[inset_3px_0_0_0_hsl(var(--warning))]"
+                  )}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{title}</p>
+                      <p className="truncate text-sm font-medium">
+                        {entry.expense?.category === "EXECUTIVE_DRAW" ? (
+                          <span className="mr-1.5 rounded bg-warning px-1.5 py-0.5 text-[10px] font-bold text-warning-foreground">
+                            {t(locale, "BOSS")}
+                          </span>
+                        ) : null}
+                        {title}
+                      </p>
                       {purpose ? (
                         <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                           {purpose}
@@ -666,10 +678,28 @@ export default async function LedgerPage({
                       ? t(locale, "Between accounts")
                       : t(locale, KIND_LABEL[entry.kind] ?? entry.kind);
 
+                /*
+                  The boss taking money out is marked in gold, and only that.
+
+                  On a register where every debit is already red, a boss
+                  withdrawal read exactly like a customs bill — the owner's
+                  point. Red is spoken for (money out) and green is spoken for
+                  (money in), so this gets the one colour the money columns
+                  never use: a gold rail down the edge of the row, a warm tint
+                  behind it, and the category as a filled gold pill. It is not
+                  a warning and nothing about the figure changes; it is simply
+                  the row you can find without reading.
+                */
+                const bossDraw = entry.expense?.category === "EXECUTIVE_DRAW";
+
                 return (
                   <TableRow
                     key={entry.id}
-                    className="group relative cursor-pointer transition-colors hover:bg-accent/40"
+                    className={cn(
+                      "group relative cursor-pointer transition-colors hover:bg-accent/40",
+                      bossDraw &&
+                        "bg-warning/[0.07] hover:bg-warning/[0.12] shadow-[inset_3px_0_0_0_hsl(var(--warning))]"
+                    )}
                   >
                     <TableCell className="whitespace-nowrap py-2.5 text-xs text-muted-foreground">
                       {formatDate(entry.occurredAt, locale)}
@@ -713,7 +743,13 @@ export default async function LedgerPage({
                     </TableCell>
 
                     <TableCell className="hidden whitespace-nowrap py-2.5 text-xs lg:table-cell">
-                      {category}
+                      {bossDraw ? (
+                        <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-warning px-2 py-0.5 text-[11px] font-bold text-warning-foreground">
+                          {t(locale, "BOSS")} · {category}
+                        </span>
+                      ) : (
+                        category
+                      )}
                     </TableCell>
                     <TableCell className="hidden md:table-cell py-2.5 text-xs">
                       <Link

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft, FileText, Paperclip } from "lucide-react";
 
+import { LedgerEntryActions } from "@/components/app/ledger-entry-actions";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
@@ -10,6 +11,7 @@ import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -48,7 +50,7 @@ export default async function LedgerEntryPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePermission("ledger.view");
+  const user = await requirePermission("ledger.view");
   const locale = await viewerLocale();
   const { id } = await params;
 
@@ -82,6 +84,10 @@ export default async function LedgerEntryPage({
 
   // A payment's own page already tells the fuller story.
   if (entry.payment) redirect(`/app/finance/payments/${entry.payment.id}`);
+
+  /* Correcting the register is the one permission the owner deliberately gave
+     Finance as well as himself — see ledger.adjust in rbac.ts. */
+  const canFix = can(user.role, "ledger.adjust");
 
   const inbound = entry.direction === "IN";
   const receipts = entry.expense?.receipts ?? [];
@@ -345,12 +351,27 @@ export default async function LedgerEntryPage({
               .{" "}
               {t(
                 locale,
-                "Nothing here can be edited — a wrong line is cancelled by a reversing one, so the register keeps both what was believed and what corrected it."
+                "A wrong line is put right rather than removed: correct the figure on the document behind it, or cancel the movement. Both leave the register able to explain the balance."
               )}
             </p>
-            <Badge variant="outline" className="mt-3 font-normal">
-              {t(locale, "append-only")}
-            </Badge>
+
+            {/* The two ways to put a line right, on the page where somebody
+                has just finished reading it and decided it is wrong. */}
+            {canFix ? (
+              <div className="mt-4">
+                <LedgerEntryActions
+                  entryId={entry.id}
+                  editHref={
+                    entry.expense
+                      ? `/app/finance/expenses?q=${entry.expense.expenseNumber}`
+                      : null
+                  }
+                  editLabel={t(locale, "Edit the cost")}
+                  cancelled={Boolean(entry.reversedBy)}
+                  isReversal={Boolean(entry.reverses)}
+                />
+              </div>
+            ) : null}
           </section>
         </div>
       </div>
