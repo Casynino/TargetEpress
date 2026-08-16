@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Prisma } from "@prisma/client";
-import { ChevronRight, Paperclip } from "lucide-react";
+import { Ban, ChevronRight, Paperclip, Pencil } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -97,6 +97,8 @@ export default async function LedgerPage({
   }>;
 }) {
   const user = await requirePermission("ledger.view");
+  /* Correcting the register: Finance and the owner, per ledger.adjust. */
+  const canFix = can(user.role, "ledger.adjust");
   const locale = await viewerLocale();
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
@@ -530,7 +532,7 @@ export default async function LedgerPage({
                       <p className="truncate text-sm font-medium">
                         {entry.expense?.category === "EXECUTIVE_DRAW" ? (
                           <span className="mr-1.5 rounded bg-warning px-1.5 py-0.5 text-[10px] font-bold text-warning-foreground">
-                            {t(locale, "BOSS")}
+                            {t(locale, "Executive draw")}
                           </span>
                         ) : null}
                         {title}
@@ -601,6 +603,11 @@ export default async function LedgerPage({
                 <TableHead className="hidden sm:table-cell text-right">
                   {t(locale, "Proof")}
                 </TableHead>
+                {canFix ? (
+                  <TableHead className="w-20 text-right">
+                    {t(locale, "Fix")}
+                  </TableHead>
+                ) : null}
                 <TableHead className="w-8" aria-label={t(locale, "Open")} />
               </TableRow>
             </TableHeader>
@@ -743,9 +750,12 @@ export default async function LedgerPage({
                     </TableCell>
 
                     <TableCell className="hidden whitespace-nowrap py-2.5 text-xs lg:table-cell">
+                      {/* The gold already says whose row it is; spelling out
+                          "BOSS" as well was the colour and the caption doing
+                          the same job twice. */}
                       {bossDraw ? (
-                        <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-warning px-2 py-0.5 text-[11px] font-bold text-warning-foreground">
-                          {t(locale, "BOSS")} · {category}
+                        <span className="inline-flex items-center whitespace-nowrap rounded-full bg-warning px-2 py-0.5 text-[11px] font-bold text-warning-foreground">
+                          {category}
                         </span>
                       ) : (
                         category
@@ -797,6 +807,42 @@ export default async function LedgerPage({
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
+
+                    {/*
+                      Put a line right without opening it first.
+
+                      Both are links, not one-click actions: the pencil goes to
+                      the cost that owns the figure, and the cancel goes to the
+                      entry's own page where a reason has to be typed. A
+                      one-tap cancel in a dense register is how the wrong row
+                      gets reversed on a Friday afternoon.
+
+                      z-10 because the whole row is already a stretched link.
+                    */}
+                    {canFix ? (
+                      <TableCell className="w-20 py-2.5 pr-1 text-right">
+                        <span className="relative z-10 inline-flex items-center gap-1">
+                          {entry.expense ? (
+                            <Link
+                              href={`/app/finance/expenses?q=${entry.expense.expenseNumber}`}
+                              title={t(locale, "Edit the cost")}
+                              aria-label={t(locale, "Edit the cost")}
+                              className="focus-ring rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Link>
+                          ) : null}
+                          <Link
+                            href={`/app/finance/transactions/${entry.id}`}
+                            title={t(locale, "Cancel this movement")}
+                            aria-label={t(locale, "Cancel this movement")}
+                            className="focus-ring rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Ban className="h-3.5 w-3.5" />
+                          </Link>
+                        </span>
+                      </TableCell>
+                    ) : null}
 
                     <TableCell className="w-8 py-2.5 pr-3 text-right">
                       <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-brand" />
