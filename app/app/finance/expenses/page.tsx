@@ -523,38 +523,28 @@ export default async function ExpensesPage({
       </div>
 
       {/*
-        One line where four cards were.
+        The one thing the cards above cannot say.
 
-        The chips above already carry a total for every kind of spending, so
-        the cards were a second row of the same arithmetic — and two of them,
-        "cost of this month" and "actually paid out", printed the identical
-        figure whenever everything recorded had also been paid, which on this
-        desk is most months. What is left is the one fact the chips cannot
-        show: money recorded and still owed. It appears only when there is
-        some.
+        This line used to open "17 costs recorded this month · TSh 39,409,011"
+        — both of which the Everything card already carries, in bigger type,
+        four inches higher. What is left is the only fact that is not up
+        there: whether any of it is still owed.
       */}
-      <div className="mb-4 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
-        <span className="text-muted-foreground">
-          {recorded._count}{" "}
-          {t(locale, recorded._count === 1 ? "cost recorded" : "costs recorded")}{" "}
-          {t(locale, periodLabel).toLowerCase()} ·{" "}
-          <span className="font-semibold text-foreground">{money(recordedUsd)}</span>
-        </span>
-        {unpaidUsd > 0 ? (
+      {unpaidUsd > 0 ? (
+        <p className="mb-3">
           <Link
             href={link({ status: "PENDING", period: "all" })}
-            className="font-medium text-destructive hover:underline"
+            className="text-sm font-medium text-destructive hover:underline"
           >
             {money(unpaidUsd)} {t(locale, "still to pay")} ({unpaid._count})
           </Link>
-        ) : (
-          <span className="text-xs text-success">
-            {t(locale, "Everything recorded has been paid.")}
-          </span>
-        )}
-      </div>
+        </p>
+      ) : (
+        <p className="mb-3 text-xs text-success">
+          {t(locale, "Everything recorded has been paid.")}
+        </p>
+      )}
 
-      {/* ────────────────────────────── the list ──────────────────────────── */}
       {/*
         Find one, or narrow to a kind.
 
