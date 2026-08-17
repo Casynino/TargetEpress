@@ -7,6 +7,7 @@ import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { STORAGE_POLICY, storageStatus } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
+import { toLocal } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { authorize } from "@/lib/session";
@@ -31,6 +32,18 @@ import { firstError } from "@/lib/validation";
  *
  * The freight price is never touched by either action. Storage is its own line
  * and its own decision.
+ *
+ * BOTH ACTIONS MOVE `total`, SO BOTH MOVE `totalLocal` WITH IT. That field is
+ * the shilling figure the customer was quoted, stored so it can never drift
+ * from the bill, and storage was the one path that rewrote the total and left
+ * it behind: the PDF and the invoice hero derived shillings live from the new
+ * total while the WhatsApp text and the public tracking page printed the stale
+ * stored one, so a single message quoted two different shilling amounts for the
+ * same dollar total and the customer sent the smaller. It is recomputed at the
+ * invoice's OWN frozen rate, never today's published one — the point of
+ * freezing a rate is that a quoted figure cannot move under the customer — and
+ * an invoice carrying no rate keeps a null `totalLocal` rather than one
+ * invented from today's.
  */
 
 const schema = z.object({
@@ -55,6 +68,7 @@ async function currentStorage(invoiceId: string) {
       freightOverride: true,
       otherCharges: true,
       discount: true,
+      exchangeRate: true,
       shipment: {
         select: {
           trackingNumber: true,
@@ -114,6 +128,10 @@ export async function chargeStorageFee(
       status.chargeUsd +
       toNumber(invoice.otherCharges) -
       toNumber(invoice.discount);
+    /* This invoice's own rate — see the note at the top of the file. */
+    const rate =
+      invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
+    const totalLocal = rate === null ? null : toLocal(total, rate);
 
     await prisma.$transaction(async (tx) => {
       await tx.invoice.update({
@@ -128,6 +146,8 @@ export async function chargeStorageFee(
           storageWaivedById: null,
           storageWaiveReason: null,
           total: new Prisma.Decimal(total),
+          totalLocal:
+            totalLocal === null ? null : new Prisma.Decimal(totalLocal),
         },
       });
 
@@ -147,6 +167,8 @@ export async function chargeStorageFee(
             storageUsd: status.chargeUsd,
             previousStorageUsd: before,
             newTotal: total,
+            exchangeRate: rate,
+            newTotalLocal: totalLocal,
           },
         },
         tx
@@ -204,6 +226,10 @@ export async function waiveStorageFee(
        exactly as they were. The waived figure is kept, not subtracted twice. */
     const total =
       freight + toNumber(invoice.otherCharges) - toNumber(invoice.discount);
+    /* This invoice's own rate — see the note at the top of the file. */
+    const rate =
+      invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
+    const totalLocal = rate === null ? null : toLocal(total, rate);
 
     await prisma.$transaction(async (tx) => {
       await tx.invoice.update({
@@ -216,6 +242,8 @@ export async function waiveStorageFee(
           storageWaivedById: user.id,
           storageWaiveReason: parsed.data.reason,
           total: new Prisma.Decimal(total),
+          totalLocal:
+            totalLocal === null ? null : new Prisma.Decimal(totalLocal),
         },
       });
 
@@ -233,6 +261,8 @@ export async function waiveStorageFee(
             waivedUsd: waived,
             reason: parsed.data.reason,
             newTotal: total,
+            exchangeRate: rate,
+            newTotalLocal: totalLocal,
           },
         },
         tx

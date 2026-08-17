@@ -26,6 +26,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t(await viewerLocale(), "Search cargo") };
 }
 
+/** As many rows as are worth scrolling. Anything past this is a narrower search. */
+const LIMIT = 60;
+
 /** The four handles a warehouse clerk actually has when hunting for a box. */
 const HANDLES = [
   {
@@ -85,7 +88,22 @@ export default async function SearchCargoPage({
   const scanned = query ? await resolveScannedCode(query) : null;
   const looksLikeLabel = query ? parseQrPayload(query) !== null : false;
 
-  const matches = query ? await searchShipments(query, 60) : [];
+  /*
+    Sixty rows, and one more so the count above them can be honest.
+
+    The page printed `rows.length` as the number of results, so a search for a
+    common Dar name that matched a hundred and forty consignments announced "60
+    results for Mohamed" as a fact — and the clerk, having scrolled the whole
+    list, told the customer their cargo was not in the system. `searchShipments`
+    has no total to hand back and duplicating its `where` here would be the
+    second, divergent search this page exists to avoid, so it is asked for one
+    row beyond the cap instead: if that row comes back there are more matches
+    than are shown, and the line below says so rather than naming a number it
+    cannot know.
+  */
+  const hits = query ? await searchShipments(query, LIMIT + 1) : [];
+  const more = hits.length > LIMIT;
+  const matches = more ? hits.slice(0, LIMIT) : hits;
 
   let found = matches;
   if (scanned && !matches.some((match) => match.id === scanned.shipmentId)) {
@@ -256,9 +274,22 @@ export default async function SearchCargoPage({
 
       {query ? (
         <p className="mb-3 text-sm text-muted-foreground">
-          {rows.length}{" "}
-          {t(locale, rows.length === 1 ? "result for" : "results for")}{" "}
-          <span className="font-medium text-foreground">{query}</span>
+          {more ? (
+            <>
+              {t(locale, "Showing")} {rows.length} {t(locale, "matches for")}{" "}
+              <span className="font-medium text-foreground">{query}</span>
+              {" — "}
+              <span className="font-medium text-warning">
+                {t(locale, "there are more than this. Narrow the search.")}
+              </span>
+            </>
+          ) : (
+            <>
+              {rows.length}{" "}
+              {t(locale, rows.length === 1 ? "result for" : "results for")}{" "}
+              <span className="font-medium text-foreground">{query}</span>
+            </>
+          )}
         </p>
       ) : null}
 

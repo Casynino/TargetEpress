@@ -937,13 +937,25 @@ function ReleaseForm({
         </div>
 
         <div className="border-t pt-5">
+          {/*
+            "Expected", not "Required *".
+
+            This panel said Required, with a red asterisk, while PhotoCapture
+            four lines below it says you can still save without one — and the
+            softening below was the deliberate half. releaseCargo will not
+            block a handover on a flat battery ("Evidence is expected, never
+            enforced", lib/actions/delivery.ts), because a paying customer sent
+            away from the counter is strictly worse than a consignment recorded
+            without a picture. A clerk who cannot tell which of the two lines
+            is true either turns that customer away or learns that this app's
+            "Required" labels are decorative, and the second is worse.
+          */}
           <h3 className="mb-1 text-sm font-semibold">
-            {t("Photograph the handover")}{" "}
-            <span className="text-signal">*</span>
+            {t("Photograph the handover")}
           </h3>
           <p className="mb-4 text-xs text-muted-foreground">
             {t(
-              "Required. This is your proof the cargo was collected, and what settles a dispute later."
+              "Expected. This is your proof the cargo was collected, and what settles a dispute later — you can still save without one."
             )}
           </p>
           <PhotoCapture

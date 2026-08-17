@@ -787,6 +787,44 @@ async function attachArrivalPhotos(
 }
 
 /**
+ * Pricing, walled off from the check-in that triggered it.
+ *
+ * Both check-in actions ran `autoPriceShipments` outside their transaction but
+ * inside their `try`, so a throw in there — a connection reset mid-request, a
+ * statement timeout on one of the per-consignment transactions, `nextInvoiceNumber`
+ * losing a race — fell through to the outer `catch` and returned `fail(...)`.
+ * The clerk was told the check-in had not happened, seconds after it had
+ * committed: packages received, shipment at RECEIVED_AT_DAR, history and audit
+ * written. That is how a manifest gets scanned in twice or abandoned. The
+ * comment above each call already promised pricing could never fail a check-in;
+ * this is what makes the promise true, and it keeps `revalidatePath` reachable
+ * so the row on screen still ticks over.
+ *
+ * Reports back rather than swallowing, because the draft will NOT appear by
+ * itself later: re-running check-in finds nothing unverified (`verifications:
+ * none`) and prices nothing, so an unraised bill would simply never exist and
+ * nobody would know to look for it. A rate book with no rate for the cargo is
+ * a different and already-handled case — lib/auto-price records that on the
+ * shipment and returns normally.
+ */
+async function priceAfterCheckIn(
+  shipmentIds: string[],
+  actorId: string
+): Promise<boolean> {
+  if (shipmentIds.length === 0) return true;
+  try {
+    await autoPriceShipments(shipmentIds, actorId);
+    return true;
+  } catch (error) {
+    console.error("Auto-pricing failed after a Dar check-in", {
+      shipmentIds,
+      error,
+    });
+    return false;
+  }
+}
+
+/**
  * Ticking one shipment off the printed manifest.
  *
  * The clerk gives one of six answers — Received, Missing, Damaged, Wrong item,
@@ -1163,8 +1201,8 @@ export async function verifyShipment(
     });
 
     // Outside the transaction, and never able to fail the check-in. See
-    // lib/auto-price.
-    if (landed) await autoPriceShipments([landed], user.id);
+    // lib/auto-price and priceAfterCheckIn.
+    const priced = await priceAfterCheckIn(landed ? [landed] : [], user.id);
 
     revalidatePath(`/app/receive/${batchId}`);
     revalidatePath("/app/receive");
@@ -1174,6 +1212,19 @@ export async function verifyShipment(
     revalidatePath("/app/inventory");
     revalidatePath("/app/dashboard");
     revalidatePath("/app/finance/invoices");
+
+    // Two outcomes, and they are not the same one. The cargo is in — the row
+    // above has already gone green — so the message leads with that and then
+    // says the one thing that did not happen, rather than colouring the whole
+    // check-in a failure the clerk will answer by scanning the box again.
+    if (!priced) {
+      return fail(
+        t(
+          locale,
+          "This cargo is checked in — do not check it in again. Working out its price failed, so no invoice was raised: ask Finance to raise it."
+        )
+      );
+    }
     return ok();
   } catch (error) {
     return fail(toActionError(error));
@@ -1345,8 +1396,11 @@ export async function verifyBatchAll(
 
     // Priced AFTER the transaction commits, never inside it. See lib/auto-price:
     // a rate book gap must not be able to stop a physical check-in, and eighty
-    // seven extra queries do not belong inside one lock.
-    await autoPriceShipments(checkedIn, user.id);
+    // seven extra queries do not belong inside one lock. And never inside this
+    // `try` either — see priceAfterCheckIn: one throw in here used to make an
+    // eighty-seven-line manifest that HAD been checked in report as though it
+    // had done nothing at all.
+    const priced = await priceAfterCheckIn(checkedIn, user.id);
 
     revalidatePath(`/app/receive/${batchId}`);
     revalidatePath("/app/receive");
@@ -1355,7 +1409,14 @@ export async function verifyBatchAll(
     revalidatePath("/app/finance/invoices");
 
     // ActionResult carries no message channel, and the page re-reads the batch
-    // on revalidate, so the new counts are the feedback.
+    // on revalidate, so the new counts are the feedback. The exception is a
+    // pricing failure, which the counts cannot show: the manifest is in either
+    // way, so the message says that first and then names what is missing.
+    if (!priced) {
+      return fail(
+        "The manifest is checked in — do not check it in again. Working out the prices failed, so some invoices were not raised: ask Finance to raise them."
+      );
+    }
     return ok();
   } catch (error) {
     return fail(toActionError(error));

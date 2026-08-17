@@ -79,10 +79,14 @@ export type InvoiceDocumentProps = {
   /**
    * What was calculated and then forgiven.
    *
-   * Shown as its own negative line rather than by quietly reducing the storage
-   * charge, because the customer asked for the calculation to be transparent:
-   * they can see the fee that accrued, see it taken off, and see that the
-   * freight price was never touched.
+   * Printed on the face of the bill, never in the Amount column. It went out as
+   * a negative line item — "− USD 16.00" — against a total the waiver had never
+   * been inside: waiveStorageFee drops the charge rather than deducting it
+   * (lib/actions/storage.ts), so the rows a customer adds up with a finger came
+   * to less than the figure they were being asked to pay, and Finance had no
+   * line on the document to point at in the argument. The waiver is
+   * information: the fee accrued, it is not being charged, and the freight
+   * price was never touched.
    */
   storageWaived?: number;
   otherCharges: number;
@@ -96,7 +100,22 @@ export type InvoiceDocumentProps = {
   heroUsd: number;
   heroLocal: number | null;
 
-  payments: { id: string; line: string; amount: string }[];
+  payments: {
+    id: string;
+    line: string;
+    amount: string;
+    /**
+     * Cancelled, and struck through rather than removed.
+     *
+     * A payment that was recorded in error still happened as an event — a
+     * receipt was printed and somebody may be holding it — so the row stays and
+     * says so. Dropping it would leave a receipt number with nothing behind it.
+     */
+    voided?: boolean;
+    voidNote?: string | null;
+    /** The correction controls, when the reader is allowed to make one. */
+    action?: React.ReactNode;
+  }[];
   accounts: CollectionAccount[];
   qrDataUrl: string;
 
@@ -276,10 +295,16 @@ export async function InvoiceDocument({
             </tr>
           ) : null}
 
-          {/* Forgiven, on the face of the bill. A waiver that simply removed
-              the charge would leave the customer unable to see that it was
-              ever calculated — and the business unable to show what it gave
-              away. */}
+          {/* Forgiven, on the face of the bill — and nil in the Amount column,
+              because that column has to add up to the total underneath it.
+
+              This row carried "− USD 16.00" while `total` was freight + other −
+              discount with no storage in it at all (lib/actions/storage.ts), so
+              the charges printed here came to less than the amount due and a
+              customer adding them up paid the difference short. The forgiven
+              figure belongs in the sentence, where it says what the business
+              gave away, and not in the column, where it would say the bill is
+              smaller than it is. */}
           {storageWaived > 0 ? (
             <tr className="border-b border-black/15">
               <td className="py-2.5 pl-4">
@@ -291,12 +316,18 @@ export async function InvoiceDocument({
                 </p>
                 <p className="text-xs text-black/55">
                   {storageDays > 0
-                    ? `${storageDays} ${t(locale, "chargeable day(s), not charged")}`
-                    : t(locale, "Not charged")}
+                    ? `${storageDays} ${t(locale, "chargeable day(s)")} — ${money(
+                        storageWaived,
+                        currency
+                      )} ${t(locale, "waived, not charged")}`
+                    : `${money(storageWaived, currency)} ${t(
+                        locale,
+                        "waived, not charged"
+                      )}`}
                 </p>
               </td>
               <td className="py-2.5 pr-4 text-right font-mono tabular">
-                − {money(storageWaived, currency)}
+                {money(0, currency)}
               </td>
             </tr>
           ) : null}
@@ -388,9 +419,23 @@ export async function InvoiceDocument({
       {payments.length > 0 ? (
         <ul className="mt-4 space-y-0.5 border-t border-black/15 pt-3 text-xs text-black/70">
           {payments.map((payment) => (
-            <li key={payment.id} className="flex justify-between gap-4">
-              <span>{payment.line}</span>
-              <span className="font-mono tabular">{payment.amount}</span>
+            <li key={payment.id}>
+              <div className="flex justify-between gap-4">
+                <span className={payment.voided ? "line-through opacity-60" : ""}>
+                  {payment.line}
+                  {payment.voided ? ` · ${payment.voidNote ?? "cancelled"}` : ""}
+                </span>
+                <span
+                  className={
+                    payment.voided
+                      ? "font-mono tabular line-through opacity-60"
+                      : "font-mono tabular"
+                  }
+                >
+                  {payment.amount}
+                </span>
+              </div>
+              {payment.action}
             </li>
           ))}
         </ul>

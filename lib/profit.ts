@@ -1,7 +1,8 @@
 import "server-only";
 
+import { BILLED_INVOICE_STATUSES } from "@/lib/constants";
 import { formatMonthYear, toNumber } from "@/lib/format";
-import { currentRateValue } from "@/lib/fx";
+import { BASE_CURRENCY, currentRateValue } from "@/lib/fx";
 import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
 
@@ -21,6 +22,12 @@ import { prisma } from "@/lib/prisma";
  *
  * DRAFT invoices are excluded everywhere: a price Finance has not confirmed is
  * a working figure, not revenue.
+ *
+ * VOID and WRITTEN_OFF are excluded on the same terms lib/batch-finance.ts
+ * already uses, because revenue meaning one thing here and another on the batch
+ * band printed beside it is a worse bug than either figure being wrong on its
+ * own. A written-off bill contributes whatever the customer paid before it was
+ * given up on — that money is in the bank — and nothing else.
  */
 export type ProfitWindow = {
   from: Date;
@@ -156,12 +163,41 @@ export function windowFor(
 export async function profitAndLoss(window: ProfitWindow) {
   const range = { gte: window.from, lt: window.to };
 
-  const [billed, collected, incurred, paidOut, byCategory, special, transferFees] =
-    await Promise.all([
+  const [
+    billed,
+    writtenOff,
+    collected,
+    incurred,
+    paidOut,
+    byCategory,
+    special,
+    transferFees,
+  ] = await Promise.all([
     // Accrual revenue: bills raised in the window that Finance has confirmed.
+    // BILLED_INVOICE_STATUSES rather than a local notIn list, so this asks the
+    // question the same way every other revenue total in the app asks it.
     prisma.invoice.aggregate({
-      where: { issuedAt: range, status: { notIn: ["DRAFT", "VOID"] } },
+      where: { issuedAt: range, status: { in: [...BILLED_INVOICE_STATUSES] } },
       _sum: { total: true },
+      _count: true,
+    }),
+    /*
+      Bills the company decided it will never collect.
+
+      These used to sit inside the revenue line above, which overstated profit
+      by exactly the debt that had been given up on — costs are unaffected, so
+      the whole write-off fell straight through to the bottom line, and to the
+      margin, the expense ratio, the growth comparison and the statement PDF.
+      Meanwhile the batch band for the same flight (lib/batch-finance.ts:221)
+      was pulling it out, so one batch had two revenue figures.
+
+      Split out rather than simply dropped: what the customer paid before the
+      write-off is real money and still revenue, and the part nobody will ever
+      pay is a fact about the period worth reporting on its own line.
+    */
+    prisma.invoice.aggregate({
+      where: { issuedAt: range, status: "WRITTEN_OFF" },
+      _sum: { total: true, amountPaid: true },
       _count: true,
     }),
     /*
@@ -176,7 +212,10 @@ export async function profitAndLoss(window: ProfitWindow) {
       COALESCE(creditedAmount, amount); this now agrees with it.
     */
     prisma.payment.findMany({
-      where: { paidAt: range },
+      /* Cancelled payments never reached the company, so they are not collected
+         revenue. The reversal on the ledger says the same thing on the cash
+         side; this keeps the P&L agreeing with it. */
+      where: { paidAt: range, voidedAt: null },
       select: { creditedAmount: true, amount: true },
     }),
     // Accrual costs: dated when the cost was incurred, which is what puts a
@@ -227,28 +266,48 @@ export async function profitAndLoss(window: ProfitWindow) {
     // reduces cash and appears in no cost line overstates profit by exactly
     // its own size, every single time — small per transfer and relentless
     // over a year. Counted here rather than left out.
-    prisma.accountTransfer.aggregate({
+    //
+    // Row by row, with the source account's currency, because AccountTransfer
+    // has no currency column of its own — see the conversion below.
+    prisma.accountTransfer.findMany({
       where: { occurredAt: range, fee: { gt: 0 } },
-      _sum: { fee: true },
-      _count: true,
+      select: { fee: true, fromAccount: { select: { currency: true } } },
     }),
   ]);
 
-  const revenue = toNumber(billed._sum.total);
+  const writtenOffPaid = toNumber(writtenOff._sum.amountPaid);
+  const revenue = toNumber(billed._sum.total) + writtenOffPaid;
+  const writtenOffUsd = toNumber(writtenOff._sum.total) - writtenOffPaid;
   const cashIn = collected.reduce(
     (sum, payment) =>
       sum + toNumber(payment.creditedAmount ?? payment.amount),
     0
   );
 
-  // Fees are recorded in the source account's currency, which for every
-  // account but one is shillings. Valued at the rate on the day would be more
-  // precise; at this size the published rate is close enough, and a fee that
-  // cannot be valued at all would simply be dropped — which is the failure
-  // this exists to prevent.
+  /*
+    A fee is recorded in the source account's currency: dollars on the one USD
+    bank account, shillings on the other five.
+
+    Summing them in SQL and dividing the total by the USD→TZS rate produced a
+    figure in neither currency — a USD 25 wire fee beside a TSh 5,000 mobile
+    fee came out as USD 1.86, so the cost line written specifically to stop
+    profit being overstated was itself understating cost by the wire fee. Each
+    fee is converted on its own now, and only a shilling fee with no published
+    rate at all can still be dropped.
+
+    Valued at today's published rate rather than the rate on the day: at this
+    size that is close enough, and dropping the fee entirely is the failure
+    this code exists to prevent.
+  */
   const rate = await currentRateValue();
-  const feeLocal = toNumber(transferFees._sum.fee);
-  const feeUsd = rate ? Math.round((feeLocal / rate) * 100) / 100 : 0;
+  const feeUsd =
+    Math.round(
+      transferFees.reduce((sum, transfer) => {
+        const fee = toNumber(transfer.fee);
+        if (transfer.fromAccount.currency === BASE_CURRENCY) return sum + fee;
+        return rate ? sum + fee / rate : sum;
+      }, 0) * 100
+    ) / 100;
 
   const costs = toNumber(incurred._sum.amountUsd) + feeUsd;
   const cashOut = toNumber(paidOut._sum.amountUsd) + feeUsd;
@@ -257,8 +316,21 @@ export async function profitAndLoss(window: ProfitWindow) {
 
   return {
     window,
+    // Confirmed bills only, so the count and the revenue figure printed beside
+    // it ("billed on N confirmed invoices") are counting the same invoices.
     invoices: billed._count,
     revenue,
+    /*
+      Billed, and given up on.
+
+      Kept out of revenue and out of the margin, reported on its own line — the
+      treatment lib/batch-finance.ts gives it per flight, and for the same
+      reason: a month that made its number by collecting what it billed and one
+      that made it after abandoning a fifth of the billing are not the same
+      month, and a single revenue figure cannot say which happened.
+    */
+    writtenOff: writtenOffUsd,
+    writtenOffCount: writtenOff._count,
     costs,
     profit: revenue - costs,
     /*
@@ -327,12 +399,27 @@ export async function profitByDispatch(take = 10) {
   });
 
   return batches.map((batch) => {
+    /*
+      Same definition of revenue as the P&L above and as the batch band in
+      lib/batch-finance.ts: a written-off bill is worth what was collected
+      before it was abandoned, not its face value. Counting the face value here
+      made a flight that closed by writing off its billing look exactly as
+      profitable as one that collected all of it.
+    */
     const revenue = batch.shipments.reduce((sum, shipment) => {
       const invoice = shipment.invoice;
       if (!invoice || invoice.status === "DRAFT" || invoice.status === "VOID") {
         return sum;
       }
+      if (invoice.status === "WRITTEN_OFF") {
+        return sum + toNumber(invoice.amountPaid);
+      }
       return sum + toNumber(invoice.total);
+    }, 0);
+    const writtenOff = batch.shipments.reduce((sum, shipment) => {
+      const invoice = shipment.invoice;
+      if (!invoice || invoice.status !== "WRITTEN_OFF") return sum;
+      return sum + toNumber(invoice.total) - toNumber(invoice.amountPaid);
     }, 0);
     const drafts = batch.shipments.filter(
       (s) => s.invoice?.status === "DRAFT"
@@ -342,6 +429,9 @@ export async function profitByDispatch(take = 10) {
       0
     );
 
+    // A write-off belongs here at whatever was paid before it: that money was
+    // received and never handed back. Which is also why `outstanding` below
+    // lands on nothing owed for it — revenue and collected agree.
     const collected = batch.shipments.reduce((sum, shipment) => {
       const invoice = shipment.invoice;
       if (!invoice || invoice.status === "DRAFT" || invoice.status === "VOID") {
@@ -358,6 +448,9 @@ export async function profitByDispatch(take = 10) {
       revenue,
       collected,
       outstanding: Math.max(0, revenue - collected),
+      // Kept as its own total rather than left inside revenue, so the flight
+      // can say it gave up on money instead of quietly looking smaller.
+      writtenOff,
       costs,
       profit: revenue - costs,
       // Guarded: a flight that has billed nothing has no margin, not an

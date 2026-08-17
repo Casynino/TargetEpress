@@ -162,14 +162,14 @@ const decideSchema = z.object({
 export async function approveCredit(
   _prev: ActionResult | undefined,
   formData: FormData
-): Promise<ActionResult<{ invoiceNumber: string; dueDate: Date; exceeded: boolean }>> {
+): Promise<ActionResult> {
   const locale = await viewerLocale();
   try {
     const user = await authorize("credit.approve");
     const parsed = decideSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
 
-    const result = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.findUnique({
         where: { id: parsed.data.invoiceId },
         select: {
@@ -288,14 +288,13 @@ export async function approveCredit(
         tx
       );
 
-      return { invoiceNumber: invoice.invoiceNumber, dueDate, exceeded: check.exceedsLimit };
     });
 
     revalidatePath(`/app/finance/invoices/${parsed.data.invoiceId}`);
     revalidatePath("/app/finance/credit");
     revalidatePath("/app/credit");
     revalidatePath("/app/collections/follow-up");
-    return ok(result);
+    return ok();
   } catch (error) {
     return fail(t(locale, toActionError(error)));
   }

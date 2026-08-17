@@ -54,9 +54,17 @@ export type DispatchRow = {
     outstanding: number;
     /** Prices nobody in Finance has signed off yet. */
     drafts: number;
-    /** What clearing this flight has cost, in dollars and in shillings. */
-    spentUsd: number;
-    spentTzs: number;
+    /**
+     * What clearing this flight has cost, in dollars and in shillings.
+     *
+     * Optional, and absent rather than zero for a reader without expense.view.
+     * Customer Care holds finance.view so it can chase a bill, which is why the
+     * three figures above are here for them — what the clearing agent charged
+     * is not the same question, and a zero would still be a cost figure with an
+     * Expected profit built on top of it.
+     */
+    spentUsd?: number;
+    spentTzs?: number;
   } | null;
 };
 
@@ -148,12 +156,21 @@ export function ShipmentsDashboard({
   rows,
   months,
   rate,
+  showCosts = true,
 }: {
   rows: DispatchRow[];
   /** Every month that actually flew, newest first. */
   months: { key: string; label: string }[];
   /** USD → TZS. Null when no rate is published; the board falls back to USD. */
   rate: number | null;
+  /**
+   * Whether this reader may see what the flights COST.
+   *
+   * The same flag the Financial overview band takes, for the same reason: money
+   * columns on this board follow finance.view, but the Expenses column and the
+   * Expected profit built on it follow expense.view — Finance and the owner.
+   */
+  showCosts?: boolean;
 }) {
   const t = useT();
   const [filter, setFilter] = useState<string>("active");
@@ -240,7 +257,6 @@ export function ShipmentsDashboard({
   ];
 
   if (showMoney) {
-    const profitUsd = totals.expected - totals.spentUsd;
     cells.push(
       {
         k: t("Expected"),
@@ -258,7 +274,17 @@ export function ShipmentsDashboard({
         main: tsh(totals.outstanding),
         sub: formatUsd(totals.outstanding),
         tone: totals.outstanding > 0 ? "text-destructive" : undefined,
-      },
+      }
+    );
+  }
+
+  /* What the flights cost, and the profit that is only ever expected minus
+     that cost. Pushed separately so a desk without expense.view gets a band
+     that stops at Outstanding, rather than one carrying a profit figure
+     computed against a spend it was never sent. */
+  if (showMoney && showCosts) {
+    const profitUsd = totals.expected - totals.spentUsd;
+    cells.push(
       {
         // Shillings summed at face value where they were paid in shillings,
         // exactly as a flight's own expenses panel does it.
@@ -292,7 +318,17 @@ export function ShipmentsDashboard({
           {t("cargo")} · {totals.weight.toFixed(0)} kg
         </p>
       ) : (
-      <dl className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border shadow-soft sm:grid-cols-3 lg:grid-cols-6">
+      <dl
+        className={cn(
+          "mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border shadow-soft",
+          /* Sized to the tiles that exist. Six columns holding four left a
+             slab of border colour across the end of the band on every screen
+             Support opened. */
+          showCosts
+            ? "sm:grid-cols-3 lg:grid-cols-6"
+            : "sm:grid-cols-2 lg:grid-cols-4"
+        )}
+      >
         {cells.map((cell) => (
           <div key={cell.k} className="bg-card px-4 py-3">
             <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -402,7 +438,9 @@ export function ShipmentsDashboard({
                 <span className={COL.moneySm}>{t("Expected")}</span>
                 <span className={COL.moneyLg}>{t("Collected")}</span>
                 <span className={COL.money}>{t("Outstanding")}</span>
-                <span className={COL.moneyLg}>{t("Expenses")}</span>
+                {showCosts ? (
+                  <span className={COL.moneyLg}>{t("Expenses")}</span>
+                ) : null}
               </>
             ) : null}
             <span aria-hidden className="w-4 shrink-0" />
@@ -483,21 +521,27 @@ export function ShipmentsDashboard({
                       >
                         {tshCompact(row.money.outstanding)}
                       </span>
-                      <span
-                        className={cn(
-                          COL.moneyLg,
-                          "tabular-nums",
-                          row.money.spentUsd > 0
-                            ? "text-destructive"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        {row.money.spentUsd === 0
-                          ? "—"
-                          : rate === null
-                            ? compact(row.money.spentUsd)
-                            : compact(row.money.spentTzs)}
-                      </span>
+                      {/* The cost column is absent for a desk without
+                          expense.view, not blanked — nothing is sent to the
+                          browser for it, so there is no figure in the payload
+                          for a later edit to surface. */}
+                      {showCosts ? (
+                        <span
+                          className={cn(
+                            COL.moneyLg,
+                            "tabular-nums",
+                            (row.money.spentUsd ?? 0) > 0
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                          )}
+                        >
+                          {!row.money.spentUsd
+                            ? "—"
+                            : rate === null
+                              ? compact(row.money.spentUsd)
+                              : compact(row.money.spentTzs ?? 0)}
+                        </span>
+                      ) : null}
                     </>
                   ) : null}
                   <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />

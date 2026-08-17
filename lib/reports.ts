@@ -1,8 +1,12 @@
 import "server-only";
 
-import type { InvoiceStatus } from "@prisma/client";
+import type { InvoiceStatus, Prisma } from "@prisma/client";
 
-import { STORAGE_POLICY, storageStatus } from "@/lib/constants";
+import {
+  BILLED_INVOICE_STATUSES,
+  STORAGE_POLICY,
+  storageStatus,
+} from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
@@ -15,7 +19,7 @@ import { prisma } from "@/lib/prisma";
  * the table and the download are written once and a new report is a query
  * rather than a page.
  *
- * Two rules hold across all of them.
+ * Three rules hold across all of them.
  *
  * Money is reported in USD, because the business bills in dollars and holds
  * shillings, and a column that silently mixes the two is worse than no column.
@@ -26,6 +30,11 @@ import { prisma } from "@/lib/prisma";
  * A draft invoice is not revenue. It is the system's own price, not something
  * a customer has agreed to, so every revenue figure here counts confirmed
  * bills only. That is the single most common way a report flatters a month.
+ *
+ * A written-off bill is neither revenue nor a debt — see `earned` below. It was
+ * both here until now, which is the second most common way, and the one that
+ * also sends somebody to ring a customer about money the office had already
+ * given up on.
  */
 
 export type ReportFilters = {
@@ -193,6 +202,35 @@ export type ReportKey = (typeof REPORTS)[number]["key"];
 
 const money = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * What one bill earned, and what was given up on.
+ *
+ * A written-off bill is money the company has decided in writing it will never
+ * see. Every report here counted its `total` as revenue, and every one with a
+ * debt column counted `total − amountPaid` as still owed on top — so a month
+ * that abandoned USD 1,240 read as a month that billed it and was still chasing
+ * it, while the flight's own band (lib/batch-finance.ts:221) printed a different
+ * revenue figure for the same batch.
+ *
+ * So it earns what was collected before the decision was taken, it owes
+ * nothing, and the abandoned part is reported in its own column rather than
+ * folded into either. Keeping it out of revenue is the schema's rule; keeping
+ * it visible is the storage report's lesson — a month where the desk forgave
+ * two million shillings must not read like a month where nothing happened.
+ */
+function earned(invoice: {
+  status: InvoiceStatus;
+  total: Prisma.Decimal;
+  amountPaid: Prisma.Decimal;
+}) {
+  const total = toNumber(invoice.total);
+  const paid = toNumber(invoice.amountPaid);
+  if (invoice.status === "WRITTEN_OFF") {
+    return { billed: paid, paid, due: 0, writtenOff: Math.max(0, total - paid) };
+  }
+  return { billed: total, paid, due: Math.max(0, total - paid), writtenOff: 0 };
+}
+
 /** The date window, as a Prisma filter, or undefined when unbounded. */
 function range(f: ReportFilters) {
   if (!f.from && !f.to) return undefined;
@@ -206,12 +244,16 @@ function range(f: ReportFilters) {
 
 async function income(f: ReportFilters): Promise<ReportResult> {
   const where = {
+    /* A written-off bill stays in the row set on purpose and is neutralised per
+       row by `earned`. Dropping it from the query instead would take the money
+       collected before the write-off out of Paid as well, which really did come
+       in and really is in the bank. */
     status: { notIn: ["DRAFT", "VOID"] as InvoiceStatus[] },
     ...(range(f) ? { issuedAt: range(f) } : {}),
     ...(f.batchId ? { shipment: { batchId: f.batchId } } : {}),
     ...(f.currency ? { currency: f.currency } : {}),
   };
-  const rows = await prisma.invoice.findMany({
+  const invoices = await prisma.invoice.findMany({
     where,
     orderBy: { issuedAt: "desc" },
     take: 2000,
@@ -232,11 +274,15 @@ async function income(f: ReportFilters): Promise<ReportResult> {
     },
   });
 
+  /* Worked out once per bill and read by both the rows and the totals line, so
+     the two cannot answer "what did this month earn" differently. */
+  const lines = invoices.map((invoice) => ({ invoice, ...earned(invoice) }));
+
   return {
     key: "income",
     title: "Income",
     caption:
-      "Every confirmed bill raised in the window. Drafts are excluded — a draft is the system's price, not one a customer has agreed to.",
+      "Every confirmed bill raised in the window. Drafts are excluded — a draft is the system's price, not one a customer has agreed to. A bill that was later written off earns only what was collected before it was given up on; the rest is in Written off, which is neither income nor a debt.",
     columns: [
       { key: "invoice", label: "Invoice" },
       { key: "date", label: "Issued" },
@@ -246,30 +292,24 @@ async function income(f: ReportFilters): Promise<ReportResult> {
       { key: "billed", label: "Billed", numeric: true, money: true },
       { key: "paid", label: "Paid", numeric: true, money: true },
       { key: "due", label: "Still owed", numeric: true, money: true },
+      { key: "writtenOff", label: "Written off", numeric: true, money: true },
     ],
-    rows: rows.map((r) => {
-      const billed = toNumber(r.total);
-      const paid = toNumber(r.amountPaid);
-      return {
-        invoice: r.invoiceNumber,
-        date: r.issuedAt.toISOString().slice(0, 10),
-        customer: r.shipment?.customer?.name ?? "—",
-        tracking: r.shipment?.trackingNumber ?? "—",
-        flight: r.shipment?.batch?.batchNumber ?? "—",
-        billed: money(billed),
-        paid: money(paid),
-        due: money(Math.max(0, billed - paid)),
-      };
-    }),
+    rows: lines.map((l) => ({
+      invoice: l.invoice.invoiceNumber,
+      date: l.invoice.issuedAt.toISOString().slice(0, 10),
+      customer: l.invoice.shipment?.customer?.name ?? "—",
+      tracking: l.invoice.shipment?.trackingNumber ?? "—",
+      flight: l.invoice.shipment?.batch?.batchNumber ?? "—",
+      billed: money(l.billed),
+      paid: money(l.paid),
+      due: money(l.due),
+      writtenOff: money(l.writtenOff),
+    })),
     totals: {
-      billed: money(rows.reduce((n, r) => n + toNumber(r.total), 0)),
-      paid: money(rows.reduce((n, r) => n + toNumber(r.amountPaid), 0)),
-      due: money(
-        rows.reduce(
-          (n, r) => n + Math.max(0, toNumber(r.total) - toNumber(r.amountPaid)),
-          0
-        )
-      ),
+      billed: money(lines.reduce((n, l) => n + l.billed, 0)),
+      paid: money(lines.reduce((n, l) => n + l.paid, 0)),
+      due: money(lines.reduce((n, l) => n + l.due, 0)),
+      writtenOff: money(lines.reduce((n, l) => n + l.writtenOff, 0)),
     },
   };
 }
@@ -425,20 +465,36 @@ async function batchProfit(f: ReportFilters): Promise<ReportResult> {
   });
 
   const rows = batches.map((b) => {
-    const confirmed = b.shipments.filter(
-      (s) => s.invoice && s.invoice.status !== "DRAFT" && s.invoice.status !== "VOID"
-    );
-    const revenue = confirmed.reduce((n, s) => n + toNumber(s.invoice!.total), 0);
-    const collected = confirmed.reduce(
-      (n, s) => n + toNumber(s.invoice!.amountPaid),
-      0
-    );
+    const confirmed = b.shipments
+      .map((s) => s.invoice)
+      .filter(
+        (invoice): invoice is NonNullable<typeof invoice> =>
+          !!invoice && invoice.status !== "DRAFT" && invoice.status !== "VOID"
+      );
+    /* Revenue, collection and debt per bill rather than in three sweeps: a
+       written-off bill contributes only what it collected and owes nothing, and
+       the part given up on is its own column. A flight that closed by
+       abandoning a fifth of its revenue used to show that fifth as revenue AND
+       as outstanding, so its profit and its margin both read as if the debt
+       were still coming. */
+    let revenue = 0;
+    let collected = 0;
+    let outstanding = 0;
+    let writtenOff = 0;
+    for (const invoice of confirmed) {
+      const line = earned(invoice);
+      revenue += line.billed;
+      collected += line.paid;
+      outstanding += line.due;
+      writtenOff += line.writtenOff;
+    }
     const costs = b.expenses.reduce((n, e) => n + toNumber(e.amountUsd), 0);
     /* Part of revenue, not on top of it — shown separately because a batch
        that made its margin on late collection is a different business result
-       from one that priced its freight well. */
+       from one that priced its freight well. What reached a bill, which is what
+       the batch band and the storage report both count. */
     const storageRevenue = confirmed.reduce(
-      (n, s) => n + toNumber(s.invoice!.storageCharge),
+      (n, invoice) => n + toNumber(invoice.storageCharge),
       0
     );
     return {
@@ -449,7 +505,8 @@ async function batchProfit(f: ReportFilters): Promise<ReportResult> {
       revenue: money(revenue),
       storage: money(storageRevenue),
       collected: money(collected),
-      outstanding: money(Math.max(0, revenue - collected)),
+      outstanding: money(outstanding),
+      writtenOff: money(writtenOff),
       costs: money(costs),
       profit: money(revenue - costs),
       margin: revenue > 0 ? Math.round(((revenue - costs) / revenue) * 100) : 0,
@@ -460,7 +517,7 @@ async function batchProfit(f: ReportFilters): Promise<ReportResult> {
     key: "batch-profit",
     title: "Batch profitability",
     caption:
-      "What each batch billed, collected and cost. Revenue is billed rather than banked, so profit and margin here are expectations — only Collected is money in the bank. A batch with no costs recorded reads as pure profit, so check that column before believing the margin.",
+      "What each batch billed, collected and cost. Revenue is billed rather than banked, so profit and margin here are expectations — only Collected is money in the bank. A batch with no costs recorded reads as pure profit, so check that column before believing the margin. Written off is debt this flight gave up on when it closed: it is out of revenue and out of Outstanding, and it is the column that explains a flight whose margin fell.",
     columns: [
       { key: "flight", label: "Batch" },
       { key: "status", label: "Status" },
@@ -470,6 +527,7 @@ async function batchProfit(f: ReportFilters): Promise<ReportResult> {
       { key: "storage", label: "of which storage", numeric: true, money: true },
       { key: "collected", label: "Collected", numeric: true, money: true },
       { key: "outstanding", label: "Outstanding", numeric: true, money: true },
+      { key: "writtenOff", label: "Written off", numeric: true, money: true },
       { key: "costs", label: "Costs", numeric: true, money: true },
       { key: "profit", label: "Expected profit", numeric: true, money: true },
       { key: "margin", label: "Expected margin %", numeric: true },
@@ -480,6 +538,7 @@ async function batchProfit(f: ReportFilters): Promise<ReportResult> {
       storage: money(rows.reduce((n, r) => n + Number(r.storage), 0)),
       collected: money(rows.reduce((n, r) => n + Number(r.collected), 0)),
       outstanding: money(rows.reduce((n, r) => n + Number(r.outstanding), 0)),
+      writtenOff: money(rows.reduce((n, r) => n + Number(r.writtenOff), 0)),
       costs: money(rows.reduce((n, r) => n + Number(r.costs), 0)),
       profit: money(rows.reduce((n, r) => n + Number(r.profit), 0)),
     },
@@ -532,8 +591,13 @@ async function storage(f: ReportFilters): Promise<ReportResult> {
 
   const rows = shipments.map((s) => {
     const st = storageStatus(s.arrivedAt, s.deliveredAt);
-    const charged = toNumber(s.invoice?.storageCharge ?? 0);
-    const waived = toNumber(s.invoice?.storageWaivedUsd ?? 0);
+    /* A voided bill charged nobody and forgave nobody — it was a bill that
+       should not have existed. Its status was read here and then ignored, so
+       the same waiver appeared on this report and was refused by the flight's
+       own band (lib/batch-finance.ts:192), giving one waiver two figures. */
+    const live = s.invoice && s.invoice.status !== "VOID" ? s.invoice : null;
+    const charged = toNumber(live?.storageCharge ?? 0);
+    const waived = toNumber(live?.storageWaivedUsd ?? 0);
     /* Waived cargo is not "at risk" and not free either — it is forgiven, and
        it says so, because every other state here is a state of the clock. */
     const state = s.deliveredAt
@@ -591,10 +655,27 @@ async function storage(f: ReportFilters): Promise<ReportResult> {
 /* ------------------------------------------------------------ receivables */
 
 
+/**
+ * Every bill somebody still owes money on. Both the receivable and the call
+ * list are built from this, so the boss's total and the phone list can never be
+ * two different sets of invoices.
+ *
+ * NAMED STATUSES, NOT "EVERYTHING EXCEPT". This asked for anything that was not
+ * DRAFT, VOID or PAID, which let a WRITTEN_OFF bill through: the company had
+ * decided in writing it would never collect that money and the row still had
+ * `total − amountPaid > 0`, so it was printed as an asset the owner reads as
+ * receivable and put on the call list with the customer's phone beside it —
+ * somebody ringing to chase a debt the office had already abandoned. The
+ * dashboard's ageing panel (lib/queries.ts:205) asks the question this way and
+ * dropped it correctly, so the business had two answers to "how much are we
+ * owed" and the bigger one was the one printed. Asking for the two statuses
+ * that ARE a debt also means a status added to the enum later cannot silently
+ * become one.
+ */
 async function outstandingInvoices(f: ReportFilters, byCustomer: boolean) {
   const invoices = await prisma.invoice.findMany({
     where: {
-      status: { notIn: ["DRAFT", "VOID", "PAID"] as InvoiceStatus[] },
+      status: { in: ["UNPAID", "PARTIALLY_PAID"] as InvoiceStatus[] },
       ...(range(f) ? { issuedAt: range(f) } : {}),
       ...(f.batchId ? { shipment: { batchId: f.batchId } } : {}),
     },
@@ -654,7 +735,7 @@ async function receivables(f: ReportFilters): Promise<ReportResult> {
     key: "receivables",
     title: "Accounts receivable",
     caption:
-      "What each customer owes, and how long the oldest of it has been outstanding. Drafts are excluded — nobody owes an estimate.",
+      "What each customer owes, and how long the oldest of it has been outstanding. Drafts are excluded — nobody owes an estimate — and so are bills that have been written off, which the company has decided it will never collect.",
     columns: [
       { key: "customer", label: "Customer" },
       { key: "phone", label: "Phone" },
@@ -679,7 +760,7 @@ async function outstanding(f: ReportFilters): Promise<ReportResult> {
     key: "outstanding",
     title: "Outstanding customer payments",
     caption:
-      "Every unpaid or part-paid bill, oldest first — the call list, one line per invoice.",
+      "Every unpaid or part-paid bill, oldest first — the call list, one line per invoice. A written-off bill is not on it: nobody should be rung about money the office has already given up on.",
     columns: [
       { key: "invoice", label: "Invoice" },
       { key: "customer", label: "Customer" },
@@ -865,7 +946,10 @@ async function monthlySummary(f: ReportFilters): Promise<ReportResult> {
         status: { notIn: ["DRAFT", "VOID"] as InvoiceStatus[] },
         ...(range(f) ? { issuedAt: range(f) } : {}),
       },
-      select: { issuedAt: true, total: true, amountPaid: true },
+      // `status` is here so `earned` can neutralise a written-off bill: it used
+      // to add the abandoned debt to the month's revenue, which raised that
+      // month's profit and its margin by exactly what the business gave up on.
+      select: { issuedAt: true, total: true, amountPaid: true, status: true },
     }),
     prisma.expense.findMany({
       where: {
@@ -877,19 +961,30 @@ async function monthlySummary(f: ReportFilters): Promise<ReportResult> {
     }),
   ]);
 
-  const months = new Map<
-    string,
-    { revenue: number; collected: number; costs: number }
-  >();
+  type Month = {
+    revenue: number;
+    collected: number;
+    writtenOff: number;
+    costs: number;
+  };
+  const blank = (): Month => ({
+    revenue: 0,
+    collected: 0,
+    writtenOff: 0,
+    costs: 0,
+  });
+  const months = new Map<string, Month>();
   const at = (d: Date) => d.toISOString().slice(0, 7);
   for (const i of invoices) {
-    const row = months.get(at(i.issuedAt)) ?? { revenue: 0, collected: 0, costs: 0 };
-    row.revenue += toNumber(i.total);
-    row.collected += toNumber(i.amountPaid);
+    const row = months.get(at(i.issuedAt)) ?? blank();
+    const line = earned(i);
+    row.revenue += line.billed;
+    row.collected += line.paid;
+    row.writtenOff += line.writtenOff;
     months.set(at(i.issuedAt), row);
   }
   for (const c of costs) {
-    const row = months.get(at(c.incurredAt)) ?? { revenue: 0, collected: 0, costs: 0 };
+    const row = months.get(at(c.incurredAt)) ?? blank();
     row.costs += toNumber(c.amountUsd);
     months.set(at(c.incurredAt), row);
   }
@@ -898,6 +993,7 @@ async function monthlySummary(f: ReportFilters): Promise<ReportResult> {
     month,
     revenue: money(v.revenue),
     collected: money(v.collected),
+    writtenOff: money(v.writtenOff),
     costs: money(v.costs),
     profit: money(v.revenue - v.costs),
     margin: v.revenue > 0 ? Math.round(((v.revenue - v.costs) / v.revenue) * 100) : 0,
@@ -907,11 +1003,12 @@ async function monthlySummary(f: ReportFilters): Promise<ReportResult> {
     key: "monthly-summary",
     title: "Monthly summary",
     caption:
-      "Revenue against operating costs, month by month. Revenue is dated when the bill was raised and costs when they were incurred, so a flight's customs lands in the month it flew.",
+      "Revenue against operating costs, month by month. Revenue is dated when the bill was raised and costs when they were incurred, so a flight's customs lands in the month it flew. Written off is billed money the business later gave up on: it is out of revenue and out of profit, and it is dated to the month the bill was raised rather than the month of the decision.",
     columns: [
       { key: "month", label: "Month" },
       { key: "revenue", label: "Revenue", numeric: true, money: true },
       { key: "collected", label: "Collected", numeric: true, money: true },
+      { key: "writtenOff", label: "Written off", numeric: true, money: true },
       { key: "costs", label: "Operating costs", numeric: true, money: true },
       { key: "profit", label: "Profit", numeric: true, money: true },
       { key: "margin", label: "Margin %", numeric: true },
@@ -920,6 +1017,7 @@ async function monthlySummary(f: ReportFilters): Promise<ReportResult> {
     totals: {
       revenue: money(rows.reduce((n, r) => n + Number(r.revenue), 0)),
       collected: money(rows.reduce((n, r) => n + Number(r.collected), 0)),
+      writtenOff: money(rows.reduce((n, r) => n + Number(r.writtenOff), 0)),
       costs: money(rows.reduce((n, r) => n + Number(r.costs), 0)),
       profit: money(rows.reduce((n, r) => n + Number(r.profit), 0)),
     },
@@ -929,10 +1027,23 @@ async function monthlySummary(f: ReportFilters): Promise<ReportResult> {
 /* --------------------------------------------------- statements of position */
 
 async function financialStatement(f: ReportFilters): Promise<ReportResult> {
-  const [invoices, operating, special, entries, rate] = await Promise.all([
+  const [invoices, abandoned, operating, special, entries, rate] = await Promise.all([
     prisma.invoice.aggregate({
       where: {
-        status: { notIn: ["DRAFT", "VOID"] as InvoiceStatus[] },
+        /* The three statuses that are a real demand for money. This was
+           "anything but DRAFT and VOID", so a written-off bill was summed into
+           revenue and into the receivable — the position overstated both by
+           exactly the debt the company had given up on. */
+        status: { in: [...BILLED_INVOICE_STATUSES] },
+        ...(range(f) ? { issuedAt: range(f) } : {}),
+      },
+      _sum: { total: true, amountPaid: true },
+    }),
+    /* Counted separately rather than dropped, so a period that wrote off USD
+       1,240 cannot read like one that never billed it. */
+    prisma.invoice.aggregate({
+      where: {
+        status: "WRITTEN_OFF",
         ...(range(f) ? { issuedAt: range(f) } : {}),
       },
       _sum: { total: true, amountPaid: true },
@@ -966,8 +1077,17 @@ async function financialStatement(f: ReportFilters): Promise<ReportResult> {
     held[kind] = (held[kind] ?? 0) + (e.direction === "IN" ? usd : -usd);
   }
 
-  const revenue = toNumber(invoices._sum.total);
-  const collected = toNumber(invoices._sum.amountPaid);
+  /* What a written-off bill collected before it was given up on is still money
+     that came in and is still revenue — the same split lib/batch-finance.ts:221
+     makes. Only the part nobody will ever pay leaves both figures, and it gets
+     its own line below rather than being netted off either of them. */
+  const abandonedPaid = toNumber(abandoned._sum.amountPaid);
+  const revenue = toNumber(invoices._sum.total) + abandonedPaid;
+  const collected = toNumber(invoices._sum.amountPaid) + abandonedPaid;
+  const writtenOff = Math.max(
+    0,
+    toNumber(abandoned._sum.total) - abandonedPaid
+  );
   const opCosts = toNumber(operating._sum.amountUsd);
   const spCosts = toNumber(special._sum.amountUsd);
 
@@ -979,6 +1099,12 @@ async function financialStatement(f: ReportFilters): Promise<ReportResult> {
     ["Profit after special costs", money(revenue - opCosts - spCosts)],
     ["Collected from customers", money(collected)],
     ["Receivable (billed, not collected)", money(Math.max(0, revenue - collected))],
+    /* Below the receivable and outside the profit block above, deliberately. It
+       is not a cost and it is not owed to us any more — it is a memo saying what
+       the receivable would have been. Putting a figure inside a run of lines
+       that read as a sum, where the sum does not honour it, is how a reader ends
+       up subtracting it a second time. */
+    ["Written off (given up on)", money(writtenOff)],
     ["Held in bank accounts", money(held.BANK ?? 0)],
     ["Held in mobile money", money(held.MOBILE_MONEY ?? 0)],
     ["Held as cash", money(held.CASH ?? 0)],
@@ -1010,13 +1136,20 @@ async function financialStatement(f: ReportFilters): Promise<ReportResult> {
 
 async function profitLoss(f: ReportFilters): Promise<ReportResult> {
   const statement = await financialStatement(f);
+  /* Down to the profit line, found by name rather than counted. The position
+     summary grew a Written off line beneath its receivable, and "the first five
+     rows" is a promise about the order of a list edited somewhere else — the
+     kind that turns into a P&L quietly printing a cash balance as profit. */
+  const end = statement.rows.findIndex(
+    (r) => r.line === "Profit after special costs"
+  );
   return {
     ...statement,
     key: "profit-loss",
     title: "Profit & loss",
     caption:
       "Revenue against costs. Operating profit is the figure the business is judged on; special costs are shown beneath it rather than mixed into it.",
-    rows: statement.rows.slice(0, 5),
+    rows: statement.rows.slice(0, end < 0 ? 5 : end + 1),
   };
 }
 

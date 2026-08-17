@@ -359,33 +359,85 @@ export async function verifyPaymentSubmission(
   const rate = String(formData.get("exchangeRate") ?? "");
   if (rate) handover.set("exchangeRate", rate);
 
+  /*
+    The row is claimed before a shilling moves.
+
+    The read above is not a gate. Two clerks with the verify queue open — or one
+    clerk double-clicking "Confirm and record" on a slow connection — both saw
+    PENDING, both went on, and the customer's one USD 150 transfer became two
+    Payments, two receipt numbers and two CUSTOMER_PAYMENT lines against the
+    named account: cash the business does not have, in a balance that can never
+    be reconciled against the bank statement. recordPayment cannot catch it
+    either, because its own guard only refuses money beyond what is outstanding,
+    and on a part-paid bill the second 150 still fits.
+
+    So the status goes in the WHERE clause and the money happens only for the
+    caller that actually moved the row — the same claim a credit decision makes
+    (lib/actions/credit.ts:222) and the same one the warehouse makes before
+    writing a status history line (lib/actions/batches.ts:992). The loser is told
+    it has already been dealt with, and recordPayment is called exactly once.
+  */
+  const claimed = await prisma.paymentSubmission.updateMany({
+    where: { id: submission.id, status: "PENDING" },
+    data: { status: "VERIFIED", reviewedById: user.id, reviewedAt: new Date() },
+  });
+  if (claimed.count === 0) {
+    return fail(`${submission.submissionNumber} has already been dealt with.`);
+  }
+
   const { recordPayment } = await import("@/lib/actions/finance");
   const recorded = await recordPayment(undefined, handover);
-  if (!recorded.ok) return recorded as ActionResult<{ receiptNumber: string }>;
+  if (!recorded.ok) {
+    /*
+      Refused, so the claim goes back.
 
-  // The payment now exists. Tie the submission to it, move the evidence across
-  // so the customer's screenshot hangs off the money rather than off a claim,
-  // and close the loop for the desk that submitted it.
-  const payment = await prisma.payment.findFirst({
-    where: { invoiceId: submission.invoiceId },
-    orderBy: { createdAt: "desc" },
-    select: { id: true },
-  });
+      Every refusal recordPayment can answer with is raised before or inside its
+      own transaction — no permission, a figure that does not parse, a proof that
+      would not store, a bill somebody settled at the counter first — so nothing
+      was written and the claim must not outlive the attempt. Most of them are
+      fixable, and the submission returns to the queue exactly as Support left it
+      rather than being burnt: without this, forgetting to name the receiving
+      account would cost the desk the claim and the customer's evidence with it.
+      Guarded on paymentId being null so it can never un-verify a claim that has
+      already been tied to money.
+    */
+    await prisma.paymentSubmission.updateMany({
+      where: { id: submission.id, status: "VERIFIED", paymentId: null },
+      data: { status: "PENDING", reviewedById: null, reviewedAt: null },
+    });
+    return recorded as ActionResult<{ receiptNumber: string }>;
+  }
+
+  /*
+    The payment now exists. Tie the submission to it, move the evidence across so
+    the customer's screenshot hangs off the money rather than off a claim, and
+    close the loop for the desk that submitted it.
+
+    Found by the receipt this call just issued, which belongs to exactly one
+    payment. It used to be "the newest payment against this invoice", which is
+    not necessarily ours: a part-paid bill being settled at the counter in the
+    same minute would hand the customer's screenshot to somebody else's money,
+    and paymentId is unique on a submission, so it would eventually collide.
+  */
+  const receipt = recorded.data?.receiptNumber
+    ? await prisma.receipt.findUnique({
+        where: { receiptNumber: recorded.data.receiptNumber },
+        select: { paymentId: true },
+      })
+    : null;
+  const paymentId = receipt?.paymentId ?? null;
 
   await prisma.$transaction(async (tx) => {
+    // Status and reviewer were written by the claim above; this is what the
+    // claim could not know yet.
     await tx.paymentSubmission.update({
       where: { id: submission.id },
-      data: {
-        status: "VERIFIED",
-        reviewedById: user.id,
-        reviewedAt: new Date(),
-        paymentId: payment?.id ?? null,
-      },
+      data: { paymentId },
     });
-    if (payment && submission.proofs.length > 0) {
+    if (paymentId && submission.proofs.length > 0) {
       await tx.paymentProof.updateMany({
         where: { submissionId: submission.id },
-        data: { paymentId: payment.id },
+        data: { paymentId },
       });
     }
     await recordAudit(

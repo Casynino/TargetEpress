@@ -48,17 +48,51 @@ const PAGE_SIZE = 60;
 export default async function FinanceAuditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ entity?: string; page?: string }>;
+  searchParams: Promise<{ entity?: string; page?: string; view?: string }>;
 }) {
   const user = await requirePermission("audit.view");
   const locale = await viewerLocale();
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
 
+  /*
+    "Show me what was deleted, and who did it."
+
+    Mistakes get corrected all day — a payment cancelled, a cost voided, a
+    consignment deleted, a credit refused after being granted. Each of those
+    already writes its own audit row inside the transaction that did the work, so
+    the deleted history was in here the whole time; what was missing was a way to
+    ask for only it, without reading past a hundred ordinary rows first.
+
+    Every action whose meaning is "this record no longer stands". Kept as one
+    explicit list rather than a pattern match on the word "delete", because
+    `expense.void`, `payment.void`, `ledger.cancel` and `credit.rejected` all
+    mean it without containing the word — and a filter that silently misses one
+    is worse than no filter, since it reads as proof nothing happened.
+  */
+  const UNDONE_ACTIONS = [
+    "payment.void",
+    "payment.restore",
+    "expense.void",
+    "expense.reverse",
+    "ledger.cancel",
+    "cargo.delete",
+    "cargo.restore",
+    "cargo.purge",
+    "shipment.cancel",
+    "pickupNote.cancel",
+    "credit.rejected",
+    "credit.facility.withdrawn",
+    "storage.waived",
+    "submission.rejected",
+  ];
+  const undoneOnly = params.view === "undone";
+
   const where: Prisma.AuditLogWhereInput = {
     entity: params.entity && MONEY_ENTITIES.includes(params.entity)
       ? params.entity
       : { in: MONEY_ENTITIES },
+    ...(undoneOnly ? { action: { in: UNDONE_ACTIONS } } : {}),
   };
 
   const [entries, total] = await Promise.all([
@@ -73,9 +107,10 @@ export default async function FinanceAuditPage({
   ]);
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const linkFor = (entity?: string, nextPage?: number) => {
+  const linkFor = (entity?: string, nextPage?: number, view = params.view) => {
     const qs = new URLSearchParams();
     if (entity) qs.set("entity", entity);
+    if (view) qs.set("view", view);
     if (nextPage && nextPage > 1) qs.set("page", String(nextPage));
     const s = qs.toString();
     return s ? `/app/finance/audit?${s}` : "/app/finance/audit";
@@ -94,9 +129,16 @@ export default async function FinanceAuditPage({
       <FinanceNav tabs={financeTabs(user.role)} />
 
       <div className="mb-4 flex flex-wrap gap-1.5">
-        <Chip href={linkFor()} active={!params.entity}>
+        <Chip href={linkFor(undefined, undefined, undefined)} active={!params.entity && !undoneOnly}>
           {t(locale, "Everything")}
         </Chip>
+        {/* The deleted history, in one press. Separated from the entity chips by
+            a gap because it asks a different question: those ask "what kind of
+            record", this asks "what was taken back". */}
+        <Chip href={linkFor(params.entity, undefined, "undone")} active={undoneOnly}>
+          {t(locale, "Cancelled & deleted")}
+        </Chip>
+        <span className="w-2" aria-hidden="true" />
         {MONEY_ENTITIES.map((entity) => (
           <Chip
             key={entity}
@@ -107,6 +149,15 @@ export default async function FinanceAuditPage({
           </Chip>
         ))}
       </div>
+
+      {undoneOnly ? (
+        <p className="mb-3 text-xs text-muted-foreground">
+          {t(
+            locale,
+            "Everything that was cancelled, voided, refused or deleted — with the name of whoever did it and the reason they gave. Nothing here was removed from the system; each of these is a record that still exists and no longer counts."
+          )}
+        </p>
+      ) : null}
 
       {entries.length === 0 ? (
         <EmptyState

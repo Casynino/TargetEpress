@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, Download, MessageCircle } from "lucide-react";
+import { ArrowLeft, Download, FileClock, MessageCircle } from "lucide-react";
 
 import { InvoiceDocument } from "@/components/app/invoice-document";
 import { InvoiceEditor } from "@/components/app/invoice-editor";
 import { MessageComposer } from "@/components/app/message-composer";
+import { PaymentCorrection } from "@/components/app/payment-correction";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
 import { formatPackages } from "@/lib/constants";
@@ -46,6 +47,9 @@ export default async function InvoicePage({
   const canEdit = can(user.role, "invoice.edit");
   const canDiscount = can(user.role, "invoice.discount");
   const canMessage = can(user.role, "message.send");
+  /* Un-recording money is a different authority from recording it: it restates
+     a figure the ledger has already reported. Same gate adjustInvoice uses. */
+  const canCorrectPayments = can(user.role, "ledger.adjust");
   const { id } = await params;
 
   const invoice = await prisma.invoice.findFirst({
@@ -55,7 +59,13 @@ export default async function InvoicePage({
       issuedBy: { select: { name: true } },
       payments: {
         orderBy: { paidAt: "asc" },
-        include: { receipt: true, receivedBy: { select: { name: true } } },
+        include: {
+          receipt: true,
+          receivedBy: { select: { name: true } },
+          /* Who cancelled it and why, so a struck-through line can say so
+             instead of just going quiet. */
+          voidedBy: { select: { name: true } },
+        },
       },
       shipment: {
         include: {
@@ -98,6 +108,21 @@ export default async function InvoicePage({
   const heroUsd = paidInFull ? toNumber(invoice.total) : Math.max(0, outstanding);
   const heroLocal =
     invoiceRate === null ? null : toLocal(heroUsd, invoiceRate);
+
+  /*
+    A draft is the system's own working figure and must not leave the building.
+
+    lib/auto-price raises every invoice as a DRAFT at Dar check-in, so this is
+    the state Finance opens most often — and both ways of sending it out were
+    offered here regardless. "Download PDF" is a plain <a>, so the route's
+    honest 409 took the browser out of the app and onto a raw JSON body the
+    user had to press Back to escape; "Send on WhatsApp" had no draft guard at
+    all and would have quoted the customer an unconfirmed total. The cargo
+    screen already draws exactly this line (components/app/shipment-actions),
+    so this page now agrees with it, and the route's 409 stays as the net
+    behind both.
+  */
+  const isDraft = invoice.status === "DRAFT";
 
   // What this invoice was issued with, not what Settings says today.
   const accounts = accountsForInvoice(invoice.paymentSnapshot);
@@ -187,28 +212,54 @@ export default async function InvoicePage({
             {t(locale, "Back to cargo")}
           </Link>
         </Button>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <a
-              href={`https://wa.me/${(invoice.customer.phone ?? "").replace(/\D/g, "")}?text=${encodeURIComponent(whatsappText)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <MessageCircle className="mr-2 h-4 w-4" />
-              {t(locale, "Send on WhatsApp")}
-            </a>
-          </Button>
-          {/* A real file, not a print dialog — the point is something that can
-              be attached to a WhatsApp message. Refused on a draft. */}
-          <Button asChild variant="brand">
-            <a href={`/app/finance/invoices/${invoice.invoiceNumber}/pdf`}>
-              <Download className="mr-2 h-4 w-4" />
-              {t(locale, "Download PDF")}
-            </a>
-          </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {isDraft ? null : (
+            <>
+              <Button asChild variant="outline">
+                <a
+                  href={`https://wa.me/${(invoice.customer.phone ?? "").replace(/\D/g, "")}?text=${encodeURIComponent(whatsappText)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  {t(locale, "Send on WhatsApp")}
+                </a>
+              </Button>
+              {/* A real file, not a print dialog — the point is something that
+                  can be attached to a WhatsApp message. */}
+              <Button asChild variant="brand">
+                <a href={`/app/finance/invoices/${invoice.invoiceNumber}/pdf`}>
+                  <Download className="mr-2 h-4 w-4" />
+                  {t(locale, "Download PDF")}
+                </a>
+              </Button>
+            </>
+          )}
           <PrintButton label={t(locale, "Print")} />
         </div>
       </div>
+
+      {/* Said on the screen the reader is already on, in place of the two
+          buttons, rather than discovered on a JSON error page after a full
+          navigation out of the app. The confirm control itself lives on the
+          cargo screen — one place re-prices, deliberately — so this points
+          there rather than becoming a second door to the same action. */}
+      {isDraft ? (
+        <div className="no-print mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-signal/40 bg-signal/5 p-4">
+          <FileClock className="h-5 w-5 shrink-0 text-signal" />
+          <p className="min-w-0 flex-1 text-sm text-signal">
+            {t(
+              locale,
+              "This price has not been confirmed yet. Confirm it before downloading or sending the invoice."
+            )}
+          </p>
+          <Button asChild variant="signal" size="sm">
+            <Link href={`/app/cargo/${shipment.trackingNumber}`}>
+              {t(locale, "Confirm the price")}
+            </Link>
+          </Button>
+        </div>
+      ) : null}
 
       {canEdit ? (
         <div className="mb-6">
@@ -284,13 +335,40 @@ export default async function InvoicePage({
             .filter(Boolean)
             .join(" · "),
           amount: money(toNumber(payment.amount), payment.currency),
+          voided: payment.voidedAt !== null,
+          voidNote: payment.voidedAt
+            ? `${t(locale, "cancelled")} ${formatDate(payment.voidedAt, locale)}`
+            : null,
+          /*
+            Mistakes happen at a counter, and until now a recorded payment was
+            the one money record with no way back — so the only fix was to
+            invent another record somewhere else.
+
+            Offered only to whoever may adjust the ledger. Reversing a payment
+            restates a figure the ledger has already reported, which is a
+            different authority from taking the money in the first place.
+          */
+          action: canCorrectPayments ? (
+            <PaymentCorrection
+              paymentId={payment.id}
+              reference={payment.reference}
+              note={payment.note}
+              paidAt={payment.paidAt.toISOString().slice(0, 10)}
+              voided={payment.voidedAt !== null}
+              voidReason={payment.voidReason}
+              voidedBy={payment.voidedBy?.name ?? null}
+            />
+          ) : null,
         }))}
         accounts={accounts}
         qrDataUrl={qr}
         money={money}
         formatLocal={formatLocal}
       />
-      {canMessage ? (
+      {/* The third door out of this page, closed on a draft for the same
+          reason as the other two: recording a send marks the invoice sent, and
+          the follow-up queue would then be chasing a figure nobody signed. */}
+      {canMessage && !isDraft ? (
         <section className="no-print mt-6 rounded-xl border bg-card p-5 shadow-soft">
           <h2 className="mb-1 font-semibold">
             {t(locale, "Send this invoice")}

@@ -72,6 +72,21 @@ export function financeTabs(role: Role): FinanceTab[] {
       label: "Expenses",
       visible: can(role, "expense.view"),
     },
+    {
+      /*
+        The credit book, next to the money it is not.
+
+        It sits here rather than under Collections because the question it
+        answers is a financial-position question — how much of what we have sold
+        is still outside the building — and because Support reaches it from its
+        own workspace anyway. Visible on credit.view, which Support holds: the
+        difference between the desks is what the page lets them press, not
+        whether they may look.
+      */
+      href: "/app/finance/credit",
+      label: "Credit",
+      visible: can(role, "credit.view"),
+    },
     // NOTE: no Pickup notes tab. It sits in the sidebar beside Search,
     // because a pickup note is an operational document rather than a financial
     // one — Finance issues it, but the people reaching for it all day are at

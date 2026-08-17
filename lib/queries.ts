@@ -544,7 +544,10 @@ export async function ownerAttention(
     (async () => {
       const [drafts, unattributed, unpaid, unpaidValue] = await Promise.all([
         prisma.invoice.count({ where: { status: "DRAFT" } }),
-        prisma.payment.count({ where: { accountId: null } }),
+        /* Unattributed money still waiting to be told which account it went
+           into — but a cancelled payment went into none of them by definition,
+           so chasing it would be chasing nothing. */
+        prisma.payment.count({ where: { accountId: null, voidedAt: null } }),
         prisma.invoice.count({ where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } } }),
         prisma.invoice.aggregate({
           where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
@@ -893,10 +896,16 @@ export async function executiveStats() {
     // USD, both of them: `creditedAmount` is the payment restated in the
     // invoice's currency. Summing `amount` would add shillings to dollars.
     prisma.payment.aggregate({
-      where: { paidAt: { gte: monthStart } },
+      /* A cancelled payment is money that turned out never to have arrived, so
+         it is not collected cash. Excluded here rather than subtracted later:
+         a total that counts it and then corrects itself is two figures. */
+      where: { paidAt: { gte: monthStart }, voidedAt: null },
       _sum: { creditedAmount: true },
     }),
-    prisma.payment.aggregate({ _sum: { creditedAmount: true } }),
+    prisma.payment.aggregate({
+      where: { voidedAt: null },
+      _sum: { creditedAmount: true },
+    }),
     prisma.invoice.aggregate({
       where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
       _sum: { total: true, amountPaid: true },

@@ -24,6 +24,7 @@ import { batchFinance } from "@/lib/batch-finance";
 import { formatLocal, formatUsd } from "@/lib/money";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { cn } from "@/lib/utils";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -73,16 +74,22 @@ export default async function ManifestPage({
 
   if (!batch) notFound();
 
-
   // Same gate as the batch screen: the desk that checks cargo off does not
-
   // need what it is worth, and a figure never fetched cannot leak.
-
   const finance = can(user.role, "finance.view")
-
     ? await batchFinance(batch.id, locale)
-
     : null;
+  /*
+    What the flight COST is a narrower question than what it is worth.
+
+    This sheet was gated on finance.view alone. Customer Care holds that so it
+    can price and chase a bill — and it came with the clearing agent's fee, the
+    expected profit and the margin attached, printed onto a document built to be
+    carried out of the building. The batch screen already splits the two on
+    expense.view; the manifest, reading the same batchFinance() object, never
+    did.
+  */
+  const showCosts = can(user.role, "expense.view");
 
   const totalWeight = batch.shipments.reduce(
     (sum, s) => sum + toNumber(s.weightKg),
@@ -204,7 +211,15 @@ export default async function ManifestPage({
             <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-black/55">
               {t(locale, "Financial position")}
             </p>
-            <dl className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            <dl
+              className={cn(
+                "mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3",
+                /* Sized to what is actually printed, as the batch band is:
+                   six columns holding three cells left half the row blank on
+                   every sheet Support printed. */
+                showCosts ? "lg:grid-cols-6" : "lg:grid-cols-3"
+              )}
+            >
               {[
                 {
                   label: "Expected revenue",
@@ -221,25 +236,35 @@ export default async function ManifestPage({
                   tsh: finance.rate ? finance.outstandingUsd * finance.rate : null,
                   usd: finance.outstandingUsd,
                 },
-                {
-                  label: "Expenses",
-                  tsh: finance.expensesTzs,
-                  usd: finance.expensesUsd,
-                },
-                {
-                  label: finance.atALoss ? "Expected loss" : "Expected profit",
-                  tsh: finance.rate
-                    ? Math.abs(finance.netProfitUsd) * finance.rate
-                    : null,
-                  usd: Math.abs(finance.netProfitUsd),
-                },
-                {
-                  label: "Expected margin",
-                  text:
-                    finance.marginPct === null
-                      ? "—"
-                      : `${Math.round(finance.marginPct)}%`,
-                },
+                /* Costs, profit and margin follow expense.view — absent from
+                   the sheet rather than hidden on it, so there is no figure
+                   sitting in the markup for a stylesheet or a print rule to
+                   put back. */
+                ...(showCosts
+                  ? [
+                      {
+                        label: "Expenses",
+                        tsh: finance.expensesTzs,
+                        usd: finance.expensesUsd,
+                      },
+                      {
+                        label: finance.atALoss
+                          ? "Expected loss"
+                          : "Expected profit",
+                        tsh: finance.rate
+                          ? Math.abs(finance.netProfitUsd) * finance.rate
+                          : null,
+                        usd: Math.abs(finance.netProfitUsd),
+                      },
+                      {
+                        label: "Expected margin",
+                        text:
+                          finance.marginPct === null
+                            ? "—"
+                            : `${Math.round(finance.marginPct)}%`,
+                      },
+                    ]
+                  : []),
               ].map((cell) => (
                 <div key={cell.label}>
                   <dt className="text-xs font-semibold uppercase tracking-widest text-black/55">

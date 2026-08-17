@@ -103,6 +103,16 @@ const ACTION_LABELS: Record<string, string> = {
   "shipment.removeDocument": "Paperwork removed from cargo",
   "label.print": "Labels printed",
 
+  "payment.void": "Payment cancelled",
+  "payment.restore": "Cancelled payment reinstated",
+  "payment.edit": "Payment details corrected",
+
+  "credit.requested": "Credit requested",
+  "credit.approved": "Credit approved",
+  "credit.rejected": "Credit refused",
+  "credit.facility.set": "Credit limit set",
+  "credit.facility.withdrawn": "Credit facility withdrawn",
+
   "storage.charged": "Storage fee charged",
   "storage.waived": "Storage fee waived",
 

@@ -72,6 +72,17 @@ export default async function ShipmentsPage() {
   const user = await requirePermission("batch.view");
   const locale = await viewerLocale();
   const showMoney = can(user.role, "finance.view");
+  /*
+    What the flights COST is a different question from what they are worth.
+
+    This board was gated on showMoney alone, and Customer Care holds
+    finance.view so it can price and chase a bill. That handed the desk an
+    Expenses column and an Expected profit tile across three hundred flights —
+    and because the board is a client component, the per-flight cost figures
+    were serialised into the page payload as well as painted on screen. The
+    batch screen and the finance band already split the two on expense.view.
+  */
+  const showCosts = can(user.role, "expense.view");
 
   const dispatches = await prisma.batch.findMany({
     where: { permanent: false },
@@ -131,9 +142,14 @@ export default async function ShipmentsPage() {
     same number on this board as on its own page — and OPERATING only, again
     matching batch profit, because a special cost is real money deliberately
     kept out of the figure the business is judged on.
+
+    Asked for on showCosts and not showMoney: a cost never fetched cannot be
+    put back on screen later by somebody rendering a field that was already in
+    scope. The rate itself stays on showMoney — every desk that may see what a
+    flight is worth reads it in shillings.
   */
   const rate = showMoney ? await currentRateValue() : null;
-  const costs = showMoney
+  const costs = showCosts
     ? await prisma.expense.findMany({
         where: {
           batchId: { in: dispatches.map((d) => d.id) },
@@ -181,8 +197,16 @@ export default async function ShipmentsPage() {
     money: showMoney
       ? {
           ...moneyFor(dispatch.shipments),
-          spentUsd: spend.get(dispatch.id)?.usd ?? 0,
-          spentTzs: spend.get(dispatch.id)?.tzs ?? 0,
+          /* Absent for a desk without expense.view, not zeroed. A zero is
+             still a cost figure, and Expected profit is expected minus spend —
+             so a zeroed row would print the whole of expected revenue as this
+             flight's profit. */
+          ...(showCosts
+            ? {
+                spentUsd: spend.get(dispatch.id)?.usd ?? 0,
+                spentTzs: spend.get(dispatch.id)?.tzs ?? 0,
+              }
+            : {}),
         }
       : null,
   }));
@@ -212,7 +236,12 @@ export default async function ShipmentsPage() {
         description="Every dispatch that has left China. Open one to see its cargo, documents and full timeline."
       />
 
-      <ShipmentsDashboard rows={rows} months={months} rate={rate} />
+      <ShipmentsDashboard
+        rows={rows}
+        months={months}
+        rate={rate}
+        showCosts={showCosts}
+      />
 
       <p className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
         <PackageCheck className="h-4 w-4" />

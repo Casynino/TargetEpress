@@ -83,6 +83,32 @@ export default async function AccountsPage() {
   });
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
+
+  /*
+    What one account holds, in a unit the whole page can add up and sort on.
+
+    The band below used to total the ledger's dollar column and multiply it by
+    today's rate. Five of the six accounts hold shillings (lib/accounts.ts)
+    that never needed converting at all, so each of those balances went out
+    through the rate that was in force when it was posted and came back in at
+    the current one — two rates for one balance. The morning the CEO published
+    a new rate the headline moved and the cards under it, which print `net`
+    exactly as it stands, did not: a total that disagreed with its own parts.
+
+    So shillings are added as they are, and only the dollar account is
+    converted, once. Same method as `expensesTzs` in lib/batch-finance.ts.
+
+    With no rate published there is nothing honest to value the dollar account
+    with, so the ledger's own frozen dollar figure stands in and the band
+    prints dollars — which is what it did before any rate existed.
+  */
+  const held = (row: (typeof rows)[number]) =>
+    rate === null
+      ? row.netUsd
+      : row.account.currency === "TZS"
+        ? row.net
+        : row.net * rate;
+
   // Accounts holding money, biggest first; the empty ones are listed after,
   // compactly. Six equal cards where four said "TSh 0 · no movement yet" gave
   // two-thirds of the page to nothing and made the account holding TSh 357,615
@@ -90,10 +116,16 @@ export default async function AccountsPage() {
   // Every account, always — an empty M-Pesa till is a different fact from no
   // M-Pesa till, and this page has to be able to say both. Funded first so the
   // money leads the eye; nothing is dropped to achieve that.
+  // Ranked on the figure printed on the card rather than on the ledger's dollar
+  // column, so the order is the one the reader can see.
   const ordered = [...rows].sort((a, c) => {
     const fundedFirst = (c.entries > 0 ? 1 : 0) - (a.entries > 0 ? 1 : 0);
-    return fundedFirst !== 0 ? fundedFirst : c.netUsd - a.netUsd;
+    return fundedFirst !== 0 ? fundedFirst : held(c) - held(a);
   });
+  // The arithmetic sum of the cards further down the page.
+  const total = rows.reduce((sum, row) => sum + held(row), 0);
+  // The ledger's own dollar column — what this money was worth at the rate on
+  // each movement, which is the figure the small print under each card carries.
   const totalUsd = rows.reduce((sum, row) => sum + row.netUsd, 0);
   const unattributedUsd = toNumber(unattributed._sum.creditedAmount);
   const needsOpening = accounts.filter((a) => a.active && a.openingSetAt === null);
@@ -178,10 +210,10 @@ export default async function AccountsPage() {
                 <span className="text-lg font-semibold text-muted-foreground">
                   TSh{" "}
                 </span>
-                {Math.round(totalUsd * rate).toLocaleString("en-US")}
+                {Math.round(total).toLocaleString("en-US")}
               </>
             ) : (
-              formatUsd(totalUsd)
+              formatUsd(total)
             )}
           </p>
           <p className="mt-1.5 text-xs text-muted-foreground">

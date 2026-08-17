@@ -478,3 +478,76 @@ export async function creditByMonth(months = 12, now = new Date()) {
     .sort((a, b) => a.month.localeCompare(b.month))
     .slice(-months);
 }
+
+/* --------------------------------------------- one customer, two more answers */
+
+/**
+ * The two things a customer's credit page asks that their position cannot answer.
+ *
+ * `customerCreditProfile` returns `lastSettled`, the most recent credit carrying
+ * money — and its date is the date credit was GRANTED, not the date the customer
+ * paid. Printed under the words "last payment" that tells the desk a customer
+ * paid on the day they took the cargo, which is the one thing the row proves
+ * untrue, so the payment date is read from the payment rows themselves.
+ *
+ * `waivedUsd` is here for the opposite reason. Written-off credit is excluded
+ * from exposure by `customerCredit`, correctly — but a customer the desk has
+ * forgiven two million shillings for must not read like a customer who has
+ * simply never borrowed. Only the WRITTEN_OFF bills are fetched rather than the
+ * whole row set again, and the figure still comes out of `creditLine` rather
+ * than out of two columns subtracted here.
+ */
+export async function customerCreditOutcomes(customerId: string, now = new Date()) {
+  const [payment, waived] = await Promise.all([
+    prisma.payment.findFirst({
+      where: {
+        invoice: {
+          customerId,
+          creditStatus: "APPROVED",
+          status: { notIn: ["DRAFT", "VOID"] },
+        },
+      },
+      orderBy: { paidAt: "desc" },
+      select: {
+        paidAt: true,
+        amount: true,
+        creditedAmount: true,
+        exchangeRate: true,
+        method: true,
+        invoice: { select: { id: true, invoiceNumber: true, exchangeRate: true } },
+      },
+    }),
+    prisma.invoice.findMany({
+      where: { customerId, creditStatus: "APPROVED", status: "WRITTEN_OFF" },
+      select: CREDIT_SELECT,
+    }),
+  ]);
+
+  return {
+    lastPayment: payment
+      ? {
+          paidAt: payment.paidAt,
+          /* The debt's currency, not the till's: a customer hands over shillings
+             against a dollar bill, and `creditedAmount` is that same money
+             restated in the currency the debt is denominated in. */
+          usd: toNumber(payment.creditedAmount ?? payment.amount),
+          /* The rate this money actually moved at, falling back to the bill's
+             own frozen rate when they paid in dollars. Either way it is a rate
+             from the past — today's published one would restate a receipt the
+             customer is holding. */
+          rate:
+            payment.exchangeRate !== null
+              ? toNumber(payment.exchangeRate)
+              : payment.invoice.exchangeRate !== null
+                ? toNumber(payment.invoice.exchangeRate)
+                : null,
+          method: payment.method,
+          invoiceId: payment.invoice.id,
+          invoiceNumber: payment.invoice.invoiceNumber,
+        }
+      : null,
+    waivedUsd: waived
+      .map((i) => creditLine(i, now))
+      .reduce((n, l) => n + l.outstandingUsd, 0),
+  };
+}

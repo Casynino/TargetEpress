@@ -430,6 +430,7 @@ model User {
   /// Credit: who asked, who decided, and whose customers hold a facility. Three
   /// separate relations because "requested by me" and "approved by me" must
   /// never collapse into one — the split IS the control.
+  voidedPayments        Payment[]               @relation("PaymentVoidedBy")
   creditRequests        Invoice[]               @relation("CreditRequestedBy")
   creditDecisions       Invoice[]               @relation("CreditDecidedBy")
   creditFacilities      Customer[]              @relation("CustomerCreditApprovedBy")
@@ -1263,6 +1264,26 @@ model Payment {
   receivedBy   User?    @relation(fields: [receivedById], references: [id], onDelete: SetNull)
   paidAt       DateTime @default(now())
 
+  /*
+    A payment recorded by mistake, and the trail of the correction.
+
+    NOT a deletion. A payment that reached this table changed an invoice, moved a
+    company account and printed a receipt somebody may be holding, so removing
+    the row would leave four other records describing money that no longer
+    exists anywhere. It is marked void instead: the ledger gets a reversing line,
+    the invoice gives back exactly what this payment settled, and the row stays
+    with the name of whoever corrected it and why.
+
+    A void can itself be a mistake, so it can be lifted — which is why these are
+    nullable fields rather than a status flip. Both halves stay in the audit log.
+  */
+  voidedAt    DateTime?
+  voidedById  String?
+  voidedBy    User?     @relation("PaymentVoidedBy", fields: [voidedById], references: [id], onDelete: SetNull)
+  /// Required to void. "Why is there no payment against a receipt we printed"
+  /// is the first question anybody asks about this record later.
+  voidReason  String?
+
   createdAt DateTime @default(now())
 
   receipt     Receipt?
@@ -1281,6 +1302,8 @@ model Payment {
   @@index([paidAt])
   @@index([method])
   @@index([accountId])
+  /// Every money total in the app filters voided payments out, so it is indexed.
+  @@index([voidedAt])
 }
 
 /// Proof that a payment happened: an M-Pesa screenshot, a bank slip, a

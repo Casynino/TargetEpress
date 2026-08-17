@@ -14,6 +14,18 @@ import { authorize, type SessionUser } from "@/lib/session";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { firstError } from "@/lib/validation";
 
+/*
+  What a USD→TZS rate can plausibly be.
+
+  Wide enough to survive a decade of the shilling, narrow enough to catch the
+  mistake that actually happens: a shilling figure typed into the dollar box, or
+  the same amount entered on both sides of a conversion. Applied to a rate the
+  desk types and to one derived from the two amounts alike — a derived rate that
+  nobody sanity-checked is the easier of the two to get catastrophically wrong.
+*/
+const RATE_FLOOR = 100;
+const RATE_CEILING = 100_000;
+
 const transferSchema = z.object({
   fromAccountId: z.string().min(1, "Say which account the money left."),
   toAccountId: z.string().min(1, "Say which account it went into."),
@@ -45,7 +57,9 @@ const transferSchema = z.object({
     .optional()
     .transform((v) => (v && v.length > 0 ? Number(v) : null))
     .refine(
-      (v) => v === null || (Number.isFinite(v) && v >= 100 && v <= 100_000),
+      (v) =>
+        v === null ||
+        (Number.isFinite(v) && v >= RATE_FLOOR && v <= RATE_CEILING),
       "That rate looks wrong for USD→TZS. Check the number of digits."
     ),
   reason: z.string().trim().optional(),
@@ -136,27 +150,86 @@ export async function recordTransfer(
 
       const occurredAt = input.occurredAt ?? new Date();
 
-      // The USD value of each leg, so company-wide totals can cross currencies.
-      const rate = input.exchangeRate;
-      const usdOut =
-        from.currency === "USD"
-          ? input.amountOut
-          : rate
-            ? Math.round((input.amountOut / rate) * 100) / 100
-            : null;
-      const usdIn =
-        to.currency === "USD"
-          ? amountIn
-          : rate
-            ? Math.round((amountIn / rate) * 100) / 100
-            : null;
+      /*
+        The rate both legs are valued at.
 
-      // When no rate is in play and neither side is USD, both legs are the same
-      // shillings — valuing them needs today's published rate, and if there
-      // isn't one the transfer still happens. A transfer nets to zero across
-      // the company, so an unknown USD value never distorts a total.
-      const fallbackUsdOut = usdOut ?? 0;
-      const fallbackUsdIn = usdIn ?? 0;
+        A shilling leg cannot be valued in dollars without one, and the form only
+        asks for a rate when the two accounts differ in currency — so banking the
+        day's mobile-money take, TZS into TZS and the commonest move this
+        business makes, arrived with no rate and posted USD 0 on both legs. Every
+        balance on screen reads amountUsd, so the money left one account's dollar
+        column and never reached the other's: one card printed TSh 0 against
+        USD 2,000 and the other TSh 5,200,000 against USD 0.00, each card
+        contradicting itself, and the statement handed to the boss carried the
+        same contradiction. The comment that used to sit here claimed today's
+        published rate valued these legs; nothing on the path ever asked for it.
+
+        Three sources, in order of how close each is to what actually happened:
+        the rate the desk typed; the rate the move itself implies when both
+        amounts are known and the currencies differ — that is the rate the bank
+        really gave, and today's published one would paper over the difference as
+        an exchange gain nobody made; and failing both, the published rate.
+
+        The implied one is rounded to the four decimals the column holds, so the
+        rate stored on the transfer is the same number its legs were valued at —
+        otherwise recomputing a leg from the stored rate lands a cent off it.
+      */
+      const impliedRate =
+        converting &&
+        input.exchangeRate === null &&
+        input.amountIn !== null &&
+        input.amountOut > input.fee
+          ? Math.round(
+              (from.currency === "USD"
+                ? amountIn / (input.amountOut - input.fee)
+                : (input.amountOut - input.fee) / amountIn) * 10_000
+            ) / 10_000
+          : null;
+      if (
+        impliedRate !== null &&
+        (impliedRate < RATE_FLOOR || impliedRate > RATE_CEILING)
+      ) {
+        throw new Error(
+          `Those two amounts imply a rate of ${Math.round(impliedRate).toLocaleString()} to the dollar, which cannot be right. Check what actually arrived, or give the rate.`
+        );
+      }
+
+      const needsRate = from.currency !== "USD" || to.currency !== "USD";
+      const valuationRate =
+        input.exchangeRate ??
+        impliedRate ??
+        (needsRate ? await currentRateValue() : null);
+      if (needsRate && !valuationRate) {
+        throw new Error(
+          "No exchange rate is published, so a shilling transfer cannot be valued in dollars. Publish one on Pricing & configuration first."
+        );
+      }
+
+      // Kept on the transfer only when the money really crossed currencies. A
+      // same-currency move has no rate of its own — the published one values it
+      // in dollars but converted nothing, and storing it here would read as
+      // though it had.
+      const rate = converting ? valuationRate : null;
+
+      /*
+        The USD value of each leg, so company-wide totals can cross currencies.
+
+        Both legs at the one rate, which is what makes the gap between them the
+        bank charge and nothing else. Value them at different rates — the
+        shilling side at today's, the dollar side at its face amount — and the
+        charge silently absorbs an exchange difference as well.
+      */
+      const usdValueOf = (amount: number, currency: string) =>
+        currency === "USD"
+          ? amount
+          : Math.round((amount / valuationRate!) * 100) / 100;
+      const usdOut = usdValueOf(input.amountOut, from.currency);
+      const usdIn = usdValueOf(amountIn, to.currency);
+      if (usdOut <= 0 || usdIn <= 0) {
+        throw new Error(
+          "That move cannot be valued in dollars. Check the amounts, the bank charge and the published rate."
+        );
+      }
 
       const number = await nextTransferNumber(tx, occurredAt.getFullYear());
       const transfer = await tx.accountTransfer.create({
@@ -181,8 +254,11 @@ export async function recordTransfer(
         direction: "OUT",
         kind: "TRANSFER_OUT",
         amount: input.amountOut,
-        amountUsd: fallbackUsdOut,
-        exchangeRate: rate,
+        amountUsd: usdOut,
+        // Per leg, not the transfer's: the rate on a ledger line is how that
+        // line's own amount became its amountUsd, which is nothing for a leg
+        // already in dollars.
+        exchangeRate: from.currency === "USD" ? null : valuationRate,
         occurredAt,
         description: `${number} — to ${to.name}${label}`,
         sourceEntity: "AccountTransfer",
@@ -196,8 +272,8 @@ export async function recordTransfer(
         direction: "IN",
         kind: "TRANSFER_IN",
         amount: amountIn,
-        amountUsd: fallbackUsdIn,
-        exchangeRate: rate,
+        amountUsd: usdIn,
+        exchangeRate: to.currency === "USD" ? null : valuationRate,
         occurredAt,
         description: `${number} — from ${from.name}${label}`,
         sourceEntity: "AccountTransfer",
@@ -411,17 +487,33 @@ export async function setOpeningBalance(
 
       const occurredAt = input.asOf ?? new Date();
 
-      // Valued in USD like every other line, so company-wide totals can cross
-      // currencies. A shilling opening balance with no published rate is still
-      // recorded — the shilling figure is the true one and must not be lost
-      // because a rate happens to be missing today.
+      /*
+        Valued in USD like every other line, so company-wide totals can cross
+        currencies.
+
+        This used to record the shillings anyway and value them at zero, on the
+        grounds that the shilling figure is the true one and must not be lost
+        because a rate happens to be missing. But an account takes an opening
+        balance exactly once, so a zero here is not a gap that closes when a rate
+        appears — it is a card that prints TSh 5,000,000 above USD 0.00 for good,
+        and the only way back is a manual adjustment. A shilling cost is already
+        refused in this state (lib/actions/expenses.ts), so refusing here is the
+        same answer the rest of the app gives: publish the rate, then post.
+      */
       const rate = account.currency === "USD" ? null : await currentRateValue();
+      // An account that started empty is worth zero in either currency, so that
+      // one is still recordable with no rate published.
+      if (input.amount > 0 && account.currency !== "USD" && !rate) {
+        throw new Error(
+          "No exchange rate is published, so a shilling opening balance cannot be valued in dollars. Publish one on Pricing & configuration first."
+        );
+      }
       const amountUsd =
         account.currency === "USD"
           ? input.amount
           : rate
             ? Math.round((input.amount / rate) * 100) / 100
-            : 0;
+            : 0; // Only a zero opening balance can reach this — see the guard.
 
       await tx.companyAccount.update({
         where: { id: account.id },

@@ -190,7 +190,8 @@ export async function financeDashboard(
     }),
 
     prisma.payment.findMany({
-      where: { paidAt: range },
+      /* Cancelled payments are not collections. */
+      where: { paidAt: range, voidedAt: null },
       select: { amount: true, creditedAmount: true },
     }),
 
@@ -278,6 +279,10 @@ export async function financeDashboard(
       prisma.payment.findMany({
         where: {
           paidAt: { gte: new Date(window.to.getFullYear() - 1, window.to.getMonth(), 1) },
+          /* The twelve-month trend excludes cancelled payments too, or a
+             correction made today would leave a phantom spike in a past month
+             that no other screen agrees with. */
+          voidedAt: null,
         },
         select: { paidAt: true, amount: true, creditedAmount: true },
       }),

@@ -609,7 +609,18 @@ async function ChinaDashboard({
           hint={t(locale, "In the air to Dar")}
           icon={Plane}
           tone="success"
-          href="/app/batches?status=IN_TRANSIT"
+          /*
+            The consignments this card counted, not the flights carrying them.
+
+            It pointed at /app/batches?status=IN_TRANSIT. That page declares no
+            searchParams, so the filter was discarded and it showed the two
+            permanent China loading tables — cargo that has NOT flown. Pressing
+            "what is in the air" landed on the opposite answer with a number
+            that matched nothing on screen. /app/cargo narrows on ?status=
+            server-side, and counts the same IN_TRANSIT shipments chinaStats
+            does, so the figure on the card is the length of the list.
+          */
+          href="/app/cargo?status=IN_TRANSIT"
         />
         </div>
       </div>

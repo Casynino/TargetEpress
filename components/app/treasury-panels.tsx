@@ -125,8 +125,20 @@ export function TransferPanel({ accounts }: { accounts: TreasuryAccount[] }) {
             <MoneyInput id="amountOut" name="amountOut" required />
           </div>
           <div className="space-y-1.5">
+            {/*
+              The charge is in the currency the money left in, because that is
+              where the bank takes it off the top. This label named no currency
+              while the one beside it did, so on a dollars-into-shillings move
+              the desk had to guess which side to enter it in — and a charge put
+              in on the wrong side misvalues the whole move.
+            */}
             <Label htmlFor="fee" className="text-xs">
               {t("Bank charge")}{" "}
+              {fromAccount ? (
+                <span className="text-muted-foreground">
+                  ({fromAccount.currency === "TZS" ? "TSh" : fromAccount.currency})
+                </span>
+              ) : null}{" "}
               <span className="text-muted-foreground">{t("(optional)")}</span>
             </Label>
             <MoneyInput id="fee" name="fee" placeholder="0" />
