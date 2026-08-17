@@ -104,6 +104,35 @@ export function RecordCollectionForm({
         : outstanding;
   const [amount, setAmount] = useState(String(suggested));
 
+  /*
+    Only accounts that could really have received THIS money.
+
+    An account holds one currency, so shillings cannot land in the dollar
+    account. A picker that offers impossible answers is a picker people stop
+    reading — the same filter the cargo page's payment panel applies.
+  */
+  const eligible = (banks ?? []).filter((a) => a.currency === currencyChoice);
+  const [accountId, setAccountId] = useState("");
+  /*
+    Derived, not corrected in an effect.
+
+    Switching the currency can strand a selection on an account that no longer
+    accepts it, and the honest fix is to read through to the first account that
+    does — not to write state during a render, which loops.
+  */
+  const chosen = eligible.some((a) => a.id === accountId)
+    ? accountId
+    : (eligible[0]?.id ?? "");
+
+  /** The mechanism, read off the place. Never asked separately. */
+  const methodOf = (id: string) => {
+    const account = eligible.find((a) => a.id === id);
+    if (!account) return "BANK_TRANSFER";
+    if (account.kind === "CASH") return "CASH";
+    if (account.kind === "MOBILE_MONEY") return "MOBILE_MONEY";
+    return "BANK_TRANSFER";
+  };
+
   const addFiles = (incoming: FileList | null) => {
     if (!incoming) return;
     setFiles((current) => [...current, ...Array.from(incoming)]);
@@ -189,45 +218,54 @@ export function RecordCollectionForm({
             <option value="USD">USD</option>
           </NativeSelect>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="collectionMethod" className="text-xs">
-            {t("How")}
-          </Label>
-          <NativeSelect id="collectionMethod" name="method" className="h-11">
-            {METHODS.map((method) => (
-              <option key={method.value} value={method.value}>
-                {t(method.label)}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
-      </div>
+        {/*
+          WHERE the money went, not HOW it travelled.
 
-      {/*
-        Where the money landed — only when the money is actually being banked.
+          This asked both, which is the same question twice: the accounts are
+          named — the CRDB Lipa number, the Mixx till, the cash tin — and naming
+          one already says whether it was a bank transfer, mobile money or cash.
+          Two pickers meant somebody could also answer them inconsistently, and
+          then no report could say which half to believe.
 
-        Optional, deliberately: the desk records the payment exactly as it always
-        has, and an unattributed payment is still a recorded payment. Money in
-        hand that nobody has said where it went is the thing a finance system
-        should surface rather than refuse, which is what the Accounts page's
-        "Unattributed" bucket is for.
-      */}
-      {direct && banks && banks.length > 0 ? (
+          So the account is the choice and the method is derived from it. A desk
+          that has just watched money land knows the place; it should not have to
+          classify the mechanism as well.
+        */}
         <div className="space-y-1.5">
           <Label htmlFor="collectionAccount" className="text-xs">
-            {t("Which account received it")}{" "}
-            <span className="text-muted-foreground">({t("optional")})</span>
+            {direct ? t("Where it went") : t("How they sent it")}
           </Label>
-          <NativeSelect id="collectionAccount" name="accountId" className="h-11">
-            <option value="">{t("Not saying yet")}</option>
-            {banks.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name} · {account.currency}
-              </option>
-            ))}
-          </NativeSelect>
+          {direct && eligible.length > 0 ? (
+            <>
+              <NativeSelect
+                id="collectionAccount"
+                name="accountId"
+                value={chosen}
+                onChange={(event) => setAccountId(event.target.value)}
+                className="h-11"
+              >
+                {eligible.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+                <option value="">{t("Not sure yet")}</option>
+              </NativeSelect>
+              {/* Derived, never asked. Cash tin → CASH, a till → mobile money,
+                  anything else → a transfer into the bank. */}
+              <input type="hidden" name="method" value={methodOf(chosen)} />
+            </>
+          ) : (
+            <NativeSelect id="collectionMethod" name="method" className="h-11">
+              {METHODS.map((method) => (
+                <option key={method.value} value={method.value}>
+                  {t(method.label)}
+                </option>
+              ))}
+            </NativeSelect>
+          )}
         </div>
-      ) : null}
+      </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="collectionReference" className="text-xs">
