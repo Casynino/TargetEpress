@@ -147,6 +147,9 @@ export default async function ShipmentPage({
             amount: toNumber(item.invoice.total),
             currency: item.invoice.currency,
             confirmed: item.invoice.status !== "DRAFT",
+            /* Settled in full — the fact every desk was opening a consignment
+               to find out. */
+            paid: item.invoice.status === "PAID",
             // Editable only while no money has landed — the same lock
             // adjustInvoice enforces, so the pencil never appears on a bill
             // the server would refuse to change.

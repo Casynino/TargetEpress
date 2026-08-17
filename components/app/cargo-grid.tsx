@@ -43,7 +43,19 @@ export type CargoCell = {
    * price off. Absent for desks that may not see money — the warehouse opens
    * this same table.
    */
-  price?: { amount: number; currency: string; confirmed: boolean } | null;
+  price?: {
+    amount: number;
+    currency: string;
+    confirmed: boolean;
+    /**
+     * Settled in full.
+     *
+     * The one fact every desk was opening a consignment to find out. It lives
+     * on the price rather than beside it because it IS a fact about the bill,
+     * and it is absent for the warehouse for the same reason the amount is.
+     */
+    paid?: boolean;
+  } | null;
   packages: number;
   /** Pre-formatted with its unit — a count is never shown bare. */
   packagesLabel: string;
@@ -434,6 +446,12 @@ export function CargoGrid({
             key={cell.id}
             className={cn(
               "rounded-xl border bg-card p-3 shadow-soft",
+              /* Settled, at a glance. A green rail down the edge and a faint
+                 wash — enough to pick out of fifty rows without reading a
+                 single figure, which is the whole point. An exception still
+                 wins: a problem outranks a paid bill. */
+              cell.price?.paid &&
+                "border-success/30 bg-success/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--success))]",
               cell.verification === "EXCEPTION" && "border-destructive/40 bg-destructive/5"
             )}
           >
@@ -474,6 +492,13 @@ export function CargoGrid({
                   {!cell.price.confirmed ? (
                     <span className="ml-1 rounded bg-signal/10 px-1 py-0.5 text-xs font-medium text-signal">
                       {t("draft")}
+                    </span>
+                  ) : null}
+                  {/* Settled, said on the row. Green, because on this screen
+                      green has only ever meant money the business is holding. */}
+                  {cell.price.paid ? (
+                    <span className="ml-1 rounded bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success">
+                      {t("Paid")}
                     </span>
                   ) : null}
                 </span>
@@ -534,6 +559,8 @@ export function CargoGrid({
                     key={cell.id}
                     className={cn(
                       "border-t",
+                      cell.price?.paid &&
+                        "bg-success/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--success))]",
                       cell.verification === "EXCEPTION" && "bg-destructive/5"
                     )}
                   >

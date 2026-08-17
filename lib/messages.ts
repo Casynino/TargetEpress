@@ -155,6 +155,21 @@ function moneyMessage(context: MessageContext, opening: string) {
       : []),
     `• ${bold("Kiasi:")} ${bold(money(context))}`,
     ``,
+    /*
+      The storage policy, in the message itself.
+
+      It was one line near the bottom — "chukua mzigo wako mapema" — with no
+      number attached, sitting under the payment accounts where nobody reads.
+      A customer who does not know the clock has started cannot beat it, and
+      the first they hear of a charge is when it is on the bill. So it is the
+      owner's own wording, high up, right after the amount, with the free days
+      and the daily fee taken from STORAGE_POLICY so they cannot drift.
+    */
+    `📦 ${bold("STORAGE POLICY")}`,
+    `Kutokana na wingi wa mizigo katika warehouse yetu, mzigo wako unapata siku ${STORAGE_POLICY.freeDays} za kuhifadhi bure (${bold("Free Storage")}) kuanzia siku unapofika Dar es Salaam.`,
+    `⚠️ Baada ya siku ${STORAGE_POLICY.freeDays}, ${bold(`Storage Fee ya USD ${STORAGE_POLICY.perDayUsd} kwa siku`)} itatozwa hadi utakapochukua mzigo wako.`,
+    `Tafadhali chukua mzigo wako mapema ili kuepuka gharama za ziada za storage.`,
+    ``,
     `📄 ${bold("Angalia invoice yako kamili:")}`,
     `🔗 ${TRACK_URL}${tracking ? `?q=${encodeURIComponent(tracking)}` : ""}`,
     ``,
@@ -162,8 +177,6 @@ function moneyMessage(context: MessageContext, opening: string) {
     ``,
     ...paymentBlock(bold),
     `Baada ya kufanya malipo, tafadhali tuma ${bold("uthibitisho wa malipo")} ili timu yetu iweze kuuhakiki. Malipo yakishathibitishwa, utapokea ${bold("Pickup Note")} ya kuchukua mzigo wako.`,
-    ``,
-    `⚠️ ${bold("Tafadhali chukua mzigo wako mapema ili kuepuka gharama za storage.")}`,
     ``,
     ...officeBlock(bold),
     `Asante kwa kutumia ${bold(COMPANY.name)}.`,
