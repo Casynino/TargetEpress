@@ -343,11 +343,23 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
               result.storage.collected
                 ? { k: "Status", v: "Collected — the clock has stopped" }
                 : result.storage.expired
-                  ? { k: "Free storage", v: "Expired" }
+                  ? {
+                      /* "Expired" told the customer nothing they could act on.
+                         The number of days they are over is already computed
+                         and is the figure that explains the charge. */
+                      k: "Days overdue",
+                      v: `${result.storage.chargeableDays} ${
+                        result.storage.chargeableDays === 1 ? "day" : "days"
+                      } · USD ${result.storage.perDayUsd}/day`,
+                      tone: "text-destructive",
+                    }
                   : {
                       k: "Free storage remaining",
-                      v: `${result.storage.freeDaysRemaining} ${
-                        result.storage.freeDaysRemaining === 1 ? "day" : "days"
+                      /* On the last free day the remaining count is 0, which
+                         read as "your free storage has run out" directly above
+                         a line saying today is still free. Today counts. */
+                      v: `${Math.max(result.storage.freeDaysRemaining, result.storage.lastFreeDay ? 1 : 0)} ${
+                        Math.max(result.storage.freeDaysRemaining, result.storage.lastFreeDay ? 1 : 0) === 1 ? "day" : "days"
                       }`,
                     },
               {

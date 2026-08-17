@@ -2,6 +2,7 @@ import "server-only";
 
 import type { InvoiceStatus } from "@prisma/client";
 
+import { STORAGE_POLICY, storageStatus } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
@@ -172,6 +173,7 @@ export const REPORTS = [
   { key: "expenses", label: "Expenses" },
   { key: "expense-by-category", label: "Expenses by category" },
   { key: "batch-profit", label: "Batch profitability" },
+  { key: "storage", label: "Warehouse storage" },
   { key: "receivables", label: "Accounts receivable" },
   { key: "outstanding", label: "Outstanding customer payments" },
   { key: "cash-flow", label: "Cash flow" },
@@ -404,7 +406,16 @@ async function batchProfit(f: ReportFilters): Promise<ReportResult> {
       departedAt: true,
       shipments: {
         where: { deletedAt: null },
-        select: { invoice: { select: { total: true, amountPaid: true, status: true } } },
+        select: {
+          invoice: {
+            select: {
+              total: true,
+              amountPaid: true,
+              status: true,
+              storageCharge: true,
+            },
+          },
+        },
       },
       expenses: {
         where: { status: { not: "VOID" }, expenseClass: "OPERATING" },
@@ -423,12 +434,20 @@ async function batchProfit(f: ReportFilters): Promise<ReportResult> {
       0
     );
     const costs = b.expenses.reduce((n, e) => n + toNumber(e.amountUsd), 0);
+    /* Part of revenue, not on top of it — shown separately because a batch
+       that made its margin on late collection is a different business result
+       from one that priced its freight well. */
+    const storageRevenue = confirmed.reduce(
+      (n, s) => n + toNumber(s.invoice!.storageCharge),
+      0
+    );
     return {
       flight: b.batchNumber,
       status: b.status,
       departed: b.departedAt ? b.departedAt.toISOString().slice(0, 10) : "—",
       cargo: b.shipments.length,
       revenue: money(revenue),
+      storage: money(storageRevenue),
       collected: money(collected),
       outstanding: money(Math.max(0, revenue - collected)),
       costs: money(costs),
@@ -448,6 +467,7 @@ async function batchProfit(f: ReportFilters): Promise<ReportResult> {
       { key: "departed", label: "Departed" },
       { key: "cargo", label: "Cargo", numeric: true },
       { key: "revenue", label: "Expected revenue", numeric: true, money: true },
+      { key: "storage", label: "of which storage", numeric: true, money: true },
       { key: "collected", label: "Collected", numeric: true, money: true },
       { key: "outstanding", label: "Outstanding", numeric: true, money: true },
       { key: "costs", label: "Costs", numeric: true, money: true },
@@ -457,6 +477,7 @@ async function batchProfit(f: ReportFilters): Promise<ReportResult> {
     rows,
     totals: {
       revenue: money(rows.reduce((n, r) => n + Number(r.revenue), 0)),
+      storage: money(rows.reduce((n, r) => n + Number(r.storage), 0)),
       collected: money(rows.reduce((n, r) => n + Number(r.collected), 0)),
       outstanding: money(rows.reduce((n, r) => n + Number(r.outstanding), 0)),
       costs: money(rows.reduce((n, r) => n + Number(r.costs), 0)),
@@ -465,7 +486,110 @@ async function batchProfit(f: ReportFilters): Promise<ReportResult> {
   };
 }
 
+/* ----------------------------------------------------------------- storage */
+
+/**
+ * What the warehouse clock earned, and what the desk let go.
+ *
+ * Storage was the one charge with no report behind it: the fee accrues by
+ * itself off two dates, so nobody enters it and nobody could see it either —
+ * a month where the counter forgave two million shillings looked exactly like
+ * a month where nothing sat past its free days.
+ *
+ * Three separate figures, never merged. CALCULATED is what the policy
+ * produced. CHARGED is what reached a bill. WAIVED is what somebody decided
+ * not to collect, and it is the column to read: it is the only place the cost
+ * of goodwill, or of our own delays, is visible at all.
+ *
+ * Days come from the same `storageStatus` the invoice and the customer's phone
+ * use, so this report cannot drift from what either of them shows.
+ */
+async function storage(f: ReportFilters): Promise<ReportResult> {
+  const shipments = await prisma.shipment.findMany({
+    where: {
+      deletedAt: null,
+      arrivedAt: { not: null },
+      ...(f.batchId ? { batchId: f.batchId } : {}),
+      ...(range(f) ? { arrivedAt: range(f) } : {}),
+    },
+    orderBy: { arrivedAt: "desc" },
+    take: 400,
+    select: {
+      trackingNumber: true,
+      arrivedAt: true,
+      deliveredAt: true,
+      customer: { select: { name: true } },
+      batch: { select: { batchNumber: true } },
+      invoice: {
+        select: {
+          storageCharge: true,
+          storageWaivedUsd: true,
+          status: true,
+        },
+      },
+    },
+  });
+
+  const rows = shipments.map((s) => {
+    const st = storageStatus(s.arrivedAt, s.deliveredAt);
+    const charged = toNumber(s.invoice?.storageCharge ?? 0);
+    const waived = toNumber(s.invoice?.storageWaivedUsd ?? 0);
+    /* Waived cargo is not "at risk" and not free either — it is forgiven, and
+       it says so, because every other state here is a state of the clock. */
+    const state = s.deliveredAt
+      ? "Collected"
+      : waived > 0
+        ? "Waived"
+        : st.expired
+          ? "Charging"
+          : st.lastFreeDay
+            ? "Last free day"
+            : "Free";
+    return {
+      tracking: s.trackingNumber,
+      customer: s.customer?.name ?? "—",
+      batch: s.batch?.batchNumber ?? "—",
+      arrived: s.arrivedAt ? s.arrivedAt.toISOString().slice(0, 10) : "—",
+      days: st.daysInWarehouse,
+      over: st.chargeableDays,
+      state,
+      calculated: money(Math.max(st.chargeUsd, charged, waived)),
+      charged: money(charged),
+      waived: money(waived),
+    };
+  });
+
+  const held = rows.filter((r) => r.state === "Charging").length;
+  const forgiven = rows.filter((r) => r.state === "Waived").length;
+
+  return {
+    key: "storage",
+    title: "Warehouse storage",
+    caption:
+      `Every consignment that landed in Dar in this period, how long it stayed and what that cost. ${STORAGE_POLICY.freeDays} days are free from the day it arrives; USD ${STORAGE_POLICY.perDayUsd} a day after that, and the clock stops when the cargo is collected. Calculated is what the policy produced, Charged is what reached a bill, and Waived is what the desk chose not to collect — read that column, it is the only record of what goodwill and our own delays cost. ${held} consignment(s) are charging right now; ${forgiven} had the fee waived.`,
+    columns: [
+      { key: "tracking", label: "Tracking" },
+      { key: "customer", label: "Customer" },
+      { key: "batch", label: "Batch" },
+      { key: "arrived", label: "Arrived Dar" },
+      { key: "days", label: "Days held", numeric: true },
+      { key: "over", label: "Days over", numeric: true },
+      { key: "state", label: "Status" },
+      { key: "calculated", label: "Calculated", numeric: true, money: true },
+      { key: "charged", label: "Charged", numeric: true, money: true },
+      { key: "waived", label: "Waived", numeric: true, money: true },
+    ],
+    rows,
+    totals: {
+      calculated: money(rows.reduce((n, r) => n + Number(r.calculated), 0)),
+      charged: money(rows.reduce((n, r) => n + Number(r.charged), 0)),
+      waived: money(rows.reduce((n, r) => n + Number(r.waived), 0)),
+    },
+  };
+}
+
 /* ------------------------------------------------------------ receivables */
+
 
 async function outstandingInvoices(f: ReportFilters, byCustomer: boolean) {
   const invoices = await prisma.invoice.findMany({
@@ -911,6 +1035,8 @@ export async function runReport(
       return expenseByCategory(filters);
     case "batch-profit":
       return batchProfit(filters);
+    case "storage":
+      return storage(filters);
     case "receivables":
       return receivables(filters);
     case "outstanding":

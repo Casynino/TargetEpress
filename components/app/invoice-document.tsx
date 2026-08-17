@@ -259,7 +259,7 @@ export async function InvoiceDocument({
             </td>
           </tr>
 
-          {storageDays > 0 ? (
+          {storageDays > 0 && storageCharge > 0 ? (
             <tr className="border-b border-black/15">
               <td className="py-2.5 pl-4">
                 <p className="font-semibold">{t(locale, "Storage")}</p>

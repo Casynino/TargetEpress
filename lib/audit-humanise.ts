@@ -101,6 +101,9 @@ const ACTION_LABELS: Record<string, string> = {
   "cargo.purge": "Cargo permanently removed",
   "label.print": "Labels printed",
 
+  "storage.charged": "Storage fee charged",
+  "storage.waived": "Storage fee waived",
+
   "batch.create": "Batch opened",
   "batch.addShipment": "Cargo added to a batch",
   "batch.removeShipment": "Cargo removed from a batch",
