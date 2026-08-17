@@ -47,7 +47,28 @@ export function StatCard({
           </span>
         ) : null}
       </div>
-      <p className="mt-2 font-display text-2xl font-bold tabular">{value}</p>
+      {/*
+        Sized by how long the figure is, not by hope.
+
+        A fixed text-2xl fits "TSh 1,476,765" and runs off the edge of its own
+        card at "TSh -37,932,246" — and a money headline that silently drops its
+        last digits is worse than a slightly smaller one. Same rule as the
+        finance overview band; shillings are simply longer than dollars, so the
+        figures this app shows are the long kind by default.
+      */}
+      <p
+        className={`mt-2 font-display font-bold tabular ${(() => {
+          /* A number arrives here as often as a string, and Number has no
+             length — measure what will actually be painted. */
+          const n = String(value).length;
+          if (n <= 11) return "text-2xl";
+          if (n <= 14) return "text-xl";
+          if (n <= 17) return "text-lg";
+          return "text-base";
+        })()}`}
+      >
+        {value}
+      </p>
       {hint ? (
         <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
       ) : null}

@@ -319,6 +319,27 @@ export default async function FinanceOverviewPage() {
 
   const agingDrafts = aging.filter((s) => s.invoice?.status === "DRAFT").length;
 
+  /**
+   * The type size, chosen by how long the figure actually is.
+   *
+   * These cells were a fixed text-2xl with whitespace-nowrap inside a section
+   * that clips its overflow, so the moment a number reached "TSh -10,882,296"
+   * it ran under the cell's own edge and lost its last digits. A finance
+   * headline that silently drops digits is worse than a smaller one.
+   *
+   * Sized by string length rather than measured, because the alternative is a
+   * layout effect that reflows after paint — and this is server-rendered.
+   * Millions and a minus sign step down one notch; billions step down two, and
+   * still read as the same row.
+   */
+  const figureSize = (value: string) => {
+    const n = value.length;
+    if (n <= 11) return "text-xl 2xl:text-2xl";
+    if (n <= 14) return "text-lg 2xl:text-xl";
+    if (n <= 17) return "text-base 2xl:text-lg";
+    return "text-sm 2xl:text-base";
+  };
+
   const tsh = (usd: number) =>
     rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : formatUsd(usd);
 
@@ -430,13 +451,13 @@ export default async function FinanceOverviewPage() {
           ].map((cell) => (
             <div
               key={cell.k}
-              className={`bg-gradient-to-b ${cell.wash} to-transparent bg-card px-5 py-4`}
+              className={`min-w-0 bg-gradient-to-b ${cell.wash} to-transparent bg-card px-4 py-4`}
             >
-              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              <dt className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">
                 {cell.k}
               </dt>
               <dd
-                className={`mt-1 whitespace-nowrap font-display text-xl font-bold leading-tight tabular-nums 2xl:text-2xl ${cell.tone}`}
+                className={`mt-1 whitespace-nowrap font-display font-bold leading-tight tabular-nums ${figureSize(cell.v)} ${cell.tone}`}
               >
                 {cell.v}
               </dd>
