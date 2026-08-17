@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Banknote,
   Boxes,
+  CalendarClock,
   Headset,
   MessageSquare,
   PlaneTakeoff,
@@ -429,8 +430,12 @@ export default async function SupportHome() {
             // Sourcing came out: it has a sidebar row and is a slow job worked
             // through a queue, not something reached with a customer waiting.
             { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), icon: QrCode, tone: "success" },
-            { href: "/app/customers", label: t(locale, "Customers"), icon: Users, tone: "info" },
-            { href: "/app/batches", label: t(locale, "Loading batches"), icon: Boxes, tone: "violet" },
+            // Credit replaces Customers and Loading batches here. Both of those
+            // have their own sidebar rows and are browsing, not doing — while
+            // "who owes us and when is it due" is asked on this desk mid-call,
+            // and a row of six pills where two are duplicates is a row nobody
+            // reads to the end of.
+            { href: "/app/finance/credit", label: t(locale, "Credit"), icon: CalendarClock, tone: "violet" },
           ]}
         />
       </div>
