@@ -27,7 +27,6 @@ import { batchOwing } from "@/lib/batch-close";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import { batchFinance } from "@/lib/batch-finance";
 import {
-  COMMON_EXPENSES,
 } from "@/lib/expenses";
 import { currentRateValue } from "@/lib/fx";
 import { cargoLabel } from "@/lib/cargo";
@@ -286,7 +285,7 @@ export default async function ShipmentPage({
     person who just paid its clearing agent.
   */
   const canRecordCost = can(user.role, "expense.record");
-  const [batchCosts, costAccounts, usedMost, costRate] = finance
+  const [batchCosts, costAccounts, costRate] = finance
     ? await Promise.all([
         prisma.expense.findMany({
           where: { batchId: dispatch.id },
@@ -323,36 +322,21 @@ export default async function ShipmentPage({
               },
             })
           : Promise.resolve([]),
-        canRecordCost
-          ? prisma.expense.groupBy({
-              by: ["description", "category"],
-              where: { status: { not: "VOID" } },
-              _count: true,
-              orderBy: { _count: { description: "desc" } },
-              take: 8,
-            })
-          : Promise.resolve([]),
         canRecordCost ? currentRateValue() : Promise.resolve(null),
       ])
-    : [[], [], [], null];
+    : [[], [], null];
 
-  const quickCosts = (() => {
-    const seen = new Set<string>();
-    return [
-      ...usedMost.map((row) => ({
-        label: row.description,
-        category: row.category as string,
-      })),
-      ...COMMON_EXPENSES,
-    ]
-      .filter((item) => {
-        const key = item.label.toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, 12);
-  })();
+  /*
+    A "most-used cost descriptions" query used to run here and its result was
+    thrown away.
+
+    It fed a quick-entry chip list that this page never rendered — the cost panel
+    is BatchExpenses, which takes no such prop. So every batch page load, for
+    anybody allowed to record a cost, ran a groupBy across the ENTIRE company
+    expense table with no batch filter and no date bound, and discarded the
+    answer. The equivalent query on the expenses page is bounded to six months
+    and is actually used; this one was neither.
+  */
 
   const weight = cargo.reduce((sum, line) => sum + line.weightKg, 0);
   const packages = cargo.reduce((sum, line) => sum + line.packages, 0);
