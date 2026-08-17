@@ -46,6 +46,9 @@ import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { StorageStatusCard } from "@/components/app/storage-status-card";
+import { STORAGE_POLICY, storageStatus } from "@/lib/constants";
+import { currentRateValue } from "@/lib/fx";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -92,6 +95,8 @@ export default async function ShipmentDetailPage({
       },
       invoice: {
         include: {
+          /* Who forgave a storage fee, so the card can say so by name. */
+          storageWaivedBy: { select: { name: true } },
           // What Customer Support has handed up and Finance has not agreed to
           // yet. Fetched here because this page offers a Record payment form
           // with the full balance pre-filled, and money already in the
@@ -132,6 +137,19 @@ export default async function ShipmentDetailPage({
   });
 
   if (!shipment) notFound();
+
+  /*
+    The storage clock, derived — never stored, never typed.
+
+    Two dates decide everything: when it landed in Dar and whether it has been
+    collected. STORAGE_POLICY holds the 7 free days and the USD 2, so the card,
+    the invoice, the tracking page and the reminder all quote one rule.
+  */
+  const storage = storageStatus(shipment.arrivedAt, shipment.deliveredAt);
+  const storageRate = await currentRateValue();
+  /* Seeing the status is everybody's business; deciding it is Finance's. */
+  const canBill = can(user.role, "finance.view");
+  const canWaive = can(user.role, "invoice.discount");
 
   const openExceptions = shipment.exceptions.filter((exception) =>
     blocksPickup(exception.status)
@@ -219,6 +237,37 @@ export default async function ShipmentDetailPage({
           </>
         }
       />
+
+      {/*
+        How long it has been here, and what that costs — above everything else.
+
+        This is the question the desk asks before any other on a consignment
+        that has landed, and until now the answer lived in two dates on two
+        screens. Finance sees the charge/waive decision on the same card;
+        Support sees the same figures without it, so both desks quote the
+        customer the same number.
+      */}
+      {storage.arrivedAt ? (
+        <StorageStatusCard
+          className="mb-6"
+          status={storage}
+          locale={locale}
+          rate={storageRate}
+          decision={
+            shipment.invoice && canBill
+              ? {
+                  invoiceId: shipment.invoice.id,
+                  chargedUsd: toNumber(shipment.invoice.storageCharge),
+                  waivedUsd: toNumber(shipment.invoice.storageWaivedUsd),
+                  waivedBy: shipment.invoice.storageWaivedBy?.name ?? null,
+                  waivedAt: shipment.invoice.storageWaivedAt,
+                  waiveReason: shipment.invoice.storageWaiveReason,
+                  canDecide: canWaive,
+                }
+              : undefined
+          }
+        />
+      ) : null}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">

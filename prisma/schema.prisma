@@ -311,6 +311,7 @@ enum ReceiverRelationship {
 // ---------------------------------------------------------------------------
 
 model User {
+  storageWaivers Invoice[] @relation("StorageWaivedBy")
   id           String     @id @default(cuid())
   name         String
   email        String     @unique
@@ -988,6 +989,21 @@ model Invoice {
   /// re-explained months later, when "today" is a different date.
   storageDays           Int           @default(0)
   storageCharge         Decimal       @default(0) @db.Decimal(12, 2)
+  /// What was calculated, what was forgiven, and by whom.
+  ///
+  /// A waiver is never a deletion. `storageCharge` keeps the figure the policy
+  /// produced and this keeps the part the business chose not to collect, so the
+  /// three numbers Finance reports on — calculated, charged, waived — are all
+  /// derivable from one row. Silently zeroing the charge would make waived
+  /// storage indistinguishable from storage that never accrued, and those are
+  /// very different facts about a month.
+  storageWaivedUsd      Decimal       @default(0) @db.Decimal(12, 2)
+  storageWaivedAt       DateTime?
+  storageWaivedById     String?
+  storageWaivedBy       User?         @relation("StorageWaivedBy", fields: [storageWaivedById], references: [id], onDelete: SetNull)
+  /// Required whenever anything is waived — "why" is the whole point of keeping
+  /// the record, and it is the first question asked months later.
+  storageWaiveReason    String?
   otherCharges          Decimal       @default(0) @db.Decimal(12, 2)
   discount              Decimal       @default(0) @db.Decimal(12, 2)
   total                 Decimal       @db.Decimal(12, 2)
