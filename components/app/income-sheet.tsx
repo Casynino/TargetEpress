@@ -109,7 +109,164 @@ export function IncomeSheetTable({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-xl border bg-card shadow-soft">
+      {/*
+        Thirteen columns under three banded headings, and a 1,320px floor to
+        keep them legible. That is the paper sheet the department has always
+        drawn, and it cannot be squeezed onto a handset — so below md each batch
+        becomes a card carrying the same three bands as labelled groups, and the
+        Total row becomes the last card rather than a `tfoot` 1,320px to the
+        right of where the reader is looking.
+      */}
+      <ul className="space-y-2 md:hidden">
+        {rows.map((row) => {
+          const mark = STATE[row.status];
+          const Icon = mark.icon;
+          const bands = [
+            {
+              band: t("Goods received"),
+              tone: "text-brand",
+              facts: [
+                { k: t("Kg"), v: row.kg.toFixed(1), tone: "" },
+                { k: t("Rate"), v: perKg(row.sellRate), tone: "text-muted-foreground" },
+                { k: "$", v: usd(row.worthUsd), tone: "" },
+                { k: "TZS", v: tsh(row.worthUsd, row.rate), tone: "" },
+                { k: t("Costs"), v: usd(row.expensesUsd), tone: "text-destructive" },
+                {
+                  k: t("Profit"),
+                  v: usd(row.profitUsd),
+                  tone:
+                    row.profitUsd !== null && row.profitUsd < 0
+                      ? "font-medium text-destructive"
+                      : "font-medium",
+                },
+              ],
+            },
+            {
+              band: t("Goods sold"),
+              tone: "text-success",
+              facts: [
+                { k: t("Kg"), v: row.soldKg.toFixed(1), tone: "" },
+                { k: "$", v: usd(row.soldUsd), tone: "" },
+                {
+                  k: t("Actual received"),
+                  v: tsh(row.collectedUsd, row.rate),
+                  tone: "text-success",
+                },
+              ],
+            },
+            {
+              band: t("Left unpaid"),
+              tone: "text-muted-foreground",
+              facts: [
+                {
+                  k: t("Carried kg"),
+                  v: row.carriedKg > 0 ? row.carriedKg.toFixed(1) : "—",
+                  tone: "text-muted-foreground",
+                },
+                {
+                  k: t("Written off"),
+                  v: row.writtenOffUsd > 0 ? usd(row.writtenOffUsd) : "—",
+                  tone: "text-destructive",
+                },
+              ],
+            },
+          ];
+
+          return (
+            <li key={row.batchId} className="rounded-xl border bg-card p-3 shadow-soft">
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/app/shipments/${row.batchId}`}
+                  className="focus-ring rounded font-mono text-sm font-semibold hover:underline"
+                >
+                  {row.batchNumber}
+                </Link>
+                <span
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px]",
+                    mark.tone
+                  )}
+                >
+                  <Icon className="h-2.5 w-2.5" />
+                  {t(mark.label)}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {row.closedLabel}
+                </span>
+              </div>
+
+              {bands.map((group) => (
+                <div key={group.band} className="mt-2.5">
+                  <p
+                    className={cn(
+                      "text-[11px] font-semibold uppercase tracking-wide",
+                      group.tone
+                    )}
+                  >
+                    {group.band}
+                  </p>
+                  <dl className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    {group.facts.map((fact) => (
+                      <div key={fact.k} className="min-w-0">
+                        <dt className="text-xs text-muted-foreground">{fact.k}</dt>
+                        <dd className={cn("truncate tabular-nums", fact.tone)}>
+                          {fact.v}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setOpen(open === row.batchId ? null : row.batchId)}
+                aria-expanded={open === row.batchId}
+                className="focus-ring mt-3 flex min-h-[44px] w-full items-center justify-center rounded-lg border text-sm font-medium text-muted-foreground hover:bg-muted"
+              >
+                {open === row.batchId
+                  ? t("Hide the statement")
+                  : t("Open the statement")}
+              </button>
+            </li>
+          );
+        })}
+
+        <li className="rounded-xl border bg-muted/30 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide">
+            {t("Total")}
+            {excluded > 0 ? (
+              <span className="ml-1.5 text-[11px] font-normal normal-case tracking-normal text-muted-foreground">
+                {t("without")} {excluded} {t("sent back")}
+              </span>
+            ) : null}
+          </p>
+          <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm font-medium">
+            {[
+              { k: t("Kg"), v: totals.kg.toFixed(1), tone: "" },
+              /* Weighted, not summed: dollars-per-kilo cannot be added to
+                 dollars-per-kilo and mean anything. */
+              { k: t("Rate"), v: perKg(totals.sellRate), tone: "text-muted-foreground" },
+              { k: "$", v: usd(totals.worthUsd), tone: "" },
+              { k: t("Costs"), v: usd(totals.expensesUsd), tone: "text-destructive" },
+              { k: t("Profit"), v: usd(totals.profitUsd), tone: "" },
+              { k: t("Goods sold"), v: `${totals.soldKg.toFixed(1)} kg`, tone: "" },
+              { k: t("Actual received"), v: usd(totals.collectedUsd), tone: "text-success" },
+              { k: t("Carried kg"), v: totals.carriedKg.toFixed(1), tone: "text-muted-foreground" },
+              { k: t("Written off"), v: usd(totals.writtenOffUsd), tone: "text-destructive" },
+            ].map((fact) => (
+              <div key={fact.k} className="min-w-0">
+                <dt className="text-xs font-normal text-muted-foreground">
+                  {fact.k}
+                </dt>
+                <dd className={cn("truncate tabular-nums", fact.tone)}>{fact.v}</dd>
+              </div>
+            ))}
+          </dl>
+        </li>
+      </ul>
+
+      <div className="hidden overflow-x-auto rounded-xl border bg-card shadow-soft md:block">
         <table className="w-full min-w-[1320px] text-sm">
           <thead>
             <tr className="border-b">

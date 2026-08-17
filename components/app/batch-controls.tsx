@@ -218,7 +218,10 @@ function DeparturePanel({ batchId }: { batchId: string }) {
           </datalist>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        {/* Side by side these were two 155px fields on a handset, and one of
+            them is a native date picker whose own mm/dd/yyyy is wider than
+            that. Departure gets recorded from the China floor, on a phone. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="flightNumber" className="text-xs">
               Flight number

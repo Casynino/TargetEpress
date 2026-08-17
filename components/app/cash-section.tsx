@@ -234,7 +234,56 @@ export async function CashSection() {
                 {t(locale, "Nothing has moved through a cash account yet.")}
               </p>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              {/* Seven columns, two of them a matched In/Out pair. Below md
+                  each entry becomes a card and the amount is signed instead —
+                  a pair of columns where one is always blank is the first
+                  thing to break when the table has to fit a handset. */}
+              <ul className="divide-y md:hidden">
+                {entries.map((e) => {
+                  const amount = toNumber(e.amount);
+                  const isIn = e.direction === "IN";
+                  return (
+                    <li key={e.id} className="px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="min-w-0 text-sm">
+                          {e.description}
+                          {e.reversesId ? (
+                            <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                              {t(locale, "correction")}
+                            </span>
+                          ) : null}
+                          {e.expense && e.expense._count.receipts === 0 ? (
+                            <span className="ml-2 rounded bg-warning/10 px-1.5 py-0.5 text-[11px] text-warning">
+                              {t(locale, "no receipt")}
+                            </span>
+                          ) : null}
+                        </p>
+                        <p
+                          className={`shrink-0 text-sm font-medium tabular-nums ${
+                            isIn ? "text-success" : "text-destructive"
+                          }`}
+                        >
+                          {isIn ? "+" : "−"}
+                          {amount.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        <span className="font-mono">{e.entryNumber}</span> ·{" "}
+                        {formatDateTime(e.occurredAt, locale)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {e.account?.name ?? "—"} · {t(locale, "Recorded by")}{" "}
+                        {e.recordedBy?.name ?? "—"}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -292,6 +341,7 @@ export async function CashSection() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </section>
         </>

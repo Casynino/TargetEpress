@@ -6,6 +6,24 @@ import { REPORTS, type ReportResult } from "@/lib/reports";
 import { viewerLocale } from "@/lib/viewer";
 
 /**
+ * A cell, as text.
+ *
+ * Pulled out when the phone cards arrived: the table and the cards were each
+ * deciding how many decimals a figure gets, which is how the same number ends
+ * up reading "5,407,506" on a laptop and "5407506" on a handset.
+ */
+function cellText(value: unknown) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "number") {
+    return value.toLocaleString("en-US", {
+      minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+      maximumFractionDigits: 2,
+    });
+  }
+  return value as React.ReactNode;
+}
+
+/**
  * Any report, on one screen.
  *
  * Fourteen reports do not need fourteen pages. They need one picker, one set
@@ -58,13 +76,16 @@ export async function ReportViewer({
     */
     <section id="reports" className="panel scroll-mt-4 overflow-hidden">
       <div className="border-b px-5 py-4">
-        <div className="flex flex-wrap items-center gap-1.5">
+        {/* Fourteen pills at 26px tall and 6px apart is a picker you tap the
+            wrong report on. They keep their desk size and grow to a thumb's
+            worth below sm. */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-1.5">
           {REPORTS.map((r) => (
             <Link
               key={r.key}
               href={`/app/finance/reports?report=${r.key}${linkQ}#reports`}
               aria-current={report.key === r.key ? "true" : undefined}
-              className={`focus-ring rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              className={`focus-ring inline-flex min-h-[44px] items-center rounded-full border px-3 text-xs font-medium transition-colors sm:min-h-0 sm:py-1 ${
                 report.key === r.key
                   ? "border-brand bg-brand text-brand-foreground"
                   : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -102,7 +123,7 @@ export async function ReportViewer({
             href={`/api/finance/reports?report=${report.key}${q}`}
             target="_blank"
             rel="noopener"
-            className="focus-ring inline-flex items-center gap-1.5 border-r px-3 py-1.5 text-xs font-medium hover:bg-accent"
+            className="focus-ring inline-flex min-h-[44px] items-center gap-1.5 border-r px-3 text-xs font-medium hover:bg-accent sm:min-h-0 sm:py-1.5"
           >
             <Download className="h-3.5 w-3.5" />
             {t(locale, "Spreadsheet")}
@@ -121,7 +142,7 @@ export async function ReportViewer({
             href={`/api/finance/reports?report=${report.key}${q}&format=pdf`}
             target="_blank"
             rel="noopener"
-            className="focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium hover:bg-accent"
+            className="focus-ring inline-flex min-h-[44px] items-center gap-1.5 px-3 text-xs font-medium hover:bg-accent sm:min-h-0 sm:py-1.5"
           >
             <FileText className="h-3.5 w-3.5" />
             {t(locale, "PDF")}
@@ -134,7 +155,66 @@ export async function ReportViewer({
           {t(locale, "Nothing to report for these filters.")}
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        {/*
+          A report is as wide as it has columns — the ledger ones reach eleven.
+          Below md each row becomes a card: the first column is the heading
+          somebody scans for, everything else is labelled underneath, and the
+          totals row becomes a panel at the foot rather than a `tfoot` that has
+          scrolled out of sight.
+        */}
+        <ul className="divide-y border-y md:hidden">
+          {report.rows.map((row, i) => (
+            <li key={i} className="px-4 py-3">
+              <p className="font-medium">{cellText(row[report.columns[0].key])}</p>
+              <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                {report.columns.slice(1).map((c) => {
+                  const value = row[c.key];
+                  return (
+                    <div key={c.key} className="min-w-0">
+                      <dt className="text-xs text-muted-foreground">
+                        {t(locale, c.label)}
+                      </dt>
+                      <dd
+                        className={`truncate ${c.numeric ? "tabular-nums" : ""} ${
+                          c.numeric && typeof value === "number" && value < 0
+                            ? "text-destructive"
+                            : ""
+                        }`}
+                      >
+                        {cellText(value)}
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+            </li>
+          ))}
+          {report.totals ? (
+            <li className="bg-muted/40 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {t(locale, "Total")}
+              </p>
+              <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm font-medium">
+                {report.columns
+                  .slice(1)
+                  .filter((c) => report.totals?.[c.key] !== undefined)
+                  .map((c) => (
+                    <div key={c.key} className="min-w-0">
+                      <dt className="text-xs font-normal text-muted-foreground">
+                        {t(locale, c.label)}
+                      </dt>
+                      <dd className="truncate tabular-nums">
+                        {cellText(report.totals?.[c.key])}
+                      </dd>
+                    </div>
+                  ))}
+              </dl>
+            </li>
+          ) : null}
+        </ul>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-y bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -165,14 +245,7 @@ export async function ReportViewer({
                             : ""
                         }`}
                       >
-                        {value === null || value === undefined || value === ""
-                          ? "—"
-                          : typeof value === "number"
-                            ? value.toLocaleString("en-US", {
-                                minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
-                                maximumFractionDigits: 2,
-                              })
-                            : value}
+                        {cellText(value)}
                       </td>
                     );
                   })}
@@ -187,21 +260,14 @@ export async function ReportViewer({
                       key={c.key}
                       className={`px-3 py-2 ${c.numeric ? "text-right tabular-nums" : ""}`}
                     >
+                      {/* Shillings have no cents: a converted total was
+                          printing "5,407,506.00", two digits of noise on a
+                          figure nobody quotes that way. `cellText` decides by
+                          value, the same way the rows above do. */}
                       {i === 0
                         ? t(locale, "Total")
                         : report.totals?.[c.key] !== undefined
-                          ? report.totals[c.key].toLocaleString("en-US", {
-                              /* Shillings have no cents: a converted total was
-                                 printing "5,407,506.00", two digits of noise on
-                                 a figure nobody quotes that way. Matches the
-                                 rows above, which already decide by value. */
-                              minimumFractionDigits: Number.isInteger(
-                                report.totals[c.key]
-                              )
-                                ? 0
-                                : 2,
-                              maximumFractionDigits: 2,
-                            })
+                          ? cellText(report.totals[c.key])
                           : ""}
                     </td>
                   ))}
@@ -210,6 +276,7 @@ export async function ReportViewer({
             ) : null}
           </table>
         </div>
+        </>
       )}
     </section>
   );

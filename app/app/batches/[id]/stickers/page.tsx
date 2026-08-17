@@ -13,7 +13,7 @@ import { prisma } from "@/lib/prisma";
 import { LABEL_MM } from "@/lib/print";
 import { packageQrDataUrl } from "@/lib/qr";
 import { requirePermission } from "@/lib/session";
-import { viewerLocale } from "@/lib/viewer";
+import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Print stickers" };
 
@@ -73,7 +73,12 @@ export default async function BatchStickersPage({
       item.packageList.map(async (pkg) => ({
         trackingNumber: item.trackingNumber,
         customerName: item.customer.name,
-        description: item.description,
+        // The label carries the language of whoever printed it, same as the
+        // single-cargo label and the PDF of this same selection. This handed
+        // the sticker the stored text instead, so the one route that prints a
+        // whole batch at once — the most used one in the warehouse — came out
+        // in Chinese for a Dar bench while its own PDF came out in English.
+        description: cargoText(locale, item, "description"),
         packages: item.packageList.length,
         packagesLabel: formatPackages(item.packageList.length, item.packageType, locale),
         weightLabel: formatWeight(item.weightKg),

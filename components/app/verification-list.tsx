@@ -162,10 +162,29 @@ export function VerificationList({
         </p>
       ) : null}
 
+      {/*
+        Eleven columns. This is the screen a receiving clerk holds in one hand
+        while the other opens cartons, so below md the row becomes a card: the
+        two answers as full-width buttons instead of 32px icons, and the column
+        headings said inline beside their figures.
+      */}
+      <ul className="space-y-2 md:hidden">
+        {shipments.map((shipment) => (
+          <li key={shipment.id}>
+            <VerificationCard
+              batchId={batchId}
+              shipment={shipment}
+              locked={batchStatus !== "ARRIVED"}
+              photosDurable={photosDurable}
+            />
+          </li>
+        ))}
+      </ul>
+
       {/* The same table the China desk reads, so a person who works both ends
           is looking at one layout. The only additions are the two actions and
           the row expander — check-in is the China cargo list plus a decision. */}
-      <div className="overflow-hidden rounded-xl border bg-card">
+      <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
         <div className="max-h-[70vh] overflow-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -245,6 +264,193 @@ function AcceptAllButton({
   );
 }
 
+/**
+ * What the row and the card both read the shipment's look from.
+ *
+ * Untouched rows are deliberately excluded from `investigate`: their boxes read
+ * "not received" simply because nobody has checked them in yet, and offering a
+ * case link on all eighty-seven of them makes the real ones invisible.
+ */
+function verificationState(shipment: Row) {
+  const flagged = shipment.verification?.result === "EXCEPTION";
+  const short = shipment.packageList.filter((pkg) => !pkg.received).length;
+  return {
+    done: shipment.verification?.result === "VERIFIED",
+    flagged,
+    short,
+    investigate: Boolean(shipment.verification) && (flagged || short > 0),
+  };
+}
+
+/**
+ * One consignment to check in, on a phone.
+ *
+ * The two answers are the point of the card, so they are the widest thing on
+ * it. "Present & correct" was a 32px icon in an eleven-column row — a tap that
+ * misses it either opens the detail or hits ⚠ and starts a damage report, which
+ * is the worst possible mis-tap on this screen.
+ */
+function VerificationCard({
+  batchId,
+  shipment,
+  locked,
+  photosDurable,
+}: {
+  batchId: string;
+  shipment: Row;
+  locked: boolean;
+  photosDurable: boolean;
+}) {
+  const t = useT();
+  const locale = useLocale();
+  const [state, action] = useActionState<ActionResult, FormData>(
+    verifyShipment,
+    { ok: true }
+  );
+  const [flagging, setFlagging] = useState(false);
+  const [open, setOpen] = useState(false);
+  const detailId = useId();
+
+  const { done, flagged, short, investigate } = verificationState(shipment);
+
+  return (
+    <div
+      className={`rounded-xl border bg-card p-3 shadow-soft ${
+        done
+          ? "border-success/30 bg-success/[0.05]"
+          : flagged
+            ? "border-destructive/40 bg-destructive/[0.06]"
+            : ""
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-2">
+          {done ? (
+            <Check className="h-4 w-4 shrink-0 text-success" />
+          ) : flagged ? (
+            <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />
+          ) : null}
+          <span className="truncate font-mono text-sm font-semibold tabular">
+            {shipment.trackingNumber}
+          </span>
+        </span>
+        {flagged ? (
+          <Badge variant="destructive">{t("Exception")}</Badge>
+        ) : (
+          <ShipmentStatusBadge status={shipment.status} />
+        )}
+      </div>
+
+      <p className="mt-1.5 truncate text-sm">{shipment.customerName}</p>
+      <p className="line-clamp-2 text-xs text-muted-foreground">
+        {cargoDescription(locale, shipment)}
+      </p>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <span className="tabular">{formatWeight(shipment.weightKg)}</span>
+        <span className="tabular">
+          {short > 0 && shipment.verification ? (
+            <span className="font-semibold text-warning">
+              {shipment.packages - short} {t("of")}{" "}
+              {formatPackagesShort(shipment.packages, shipment.packageType, locale)}
+            </span>
+          ) : (
+            formatPackagesShort(shipment.packages, shipment.packageType, locale)
+          )}
+        </span>
+        <span>{t(GOODS_TYPE_LABELS[shipment.goodsType] ?? shipment.goodsType)}</span>
+        {shipment.photos.length > 0 ? (
+          <span className="flex items-center gap-1 tabular">
+            <Camera className="h-3.5 w-3.5" />
+            {shipment.photos.length}
+          </span>
+        ) : null}
+      </div>
+
+      {/* The decision. Full width, 48px, with the flag beside it rather than
+          under it — one thumb, no scrolling between reading and answering. */}
+      {locked ? null : (
+        <div className="mt-3 flex items-stretch gap-2">
+          <form action={action} className="flex-1">
+            <input type="hidden" name="batchId" value={batchId} />
+            <input type="hidden" name="shipmentId" value={shipment.id} />
+            <input type="hidden" name="outcome" value="RECEIVED" />
+            <SubmitButton
+              variant={done ? "outline" : "brand"}
+              className="h-12 w-full rounded-lg"
+            >
+              <Check className="mr-2 h-4 w-4" />
+              {t("Present & correct")}
+            </SubmitButton>
+          </form>
+          <button
+            type="button"
+            onClick={() => setFlagging((v) => !v)}
+            aria-expanded={flagging}
+            className="focus-ring inline-flex h-12 min-w-[48px] items-center justify-center rounded-lg border px-4 text-destructive hover:bg-destructive/5"
+          >
+            <AlertTriangle className="h-5 w-5" />
+            <span className="sr-only">
+              {t("Something is wrong")} — {shipment.trackingNumber}
+            </span>
+          </button>
+        </div>
+      )}
+
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls={detailId}
+          className="focus-ring inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted"
+        >
+          <ChevronRight
+            className={`h-4 w-4 transition-transform motion-reduce:transition-none ${
+              open ? "rotate-90" : ""
+            }`}
+          />
+          {open ? t("Hide cargo detail") : t("Show cargo detail")}
+        </button>
+        {investigate ? (
+          <Link
+            href={`/app/exceptions?tracking=${shipment.trackingNumber}`}
+            className="focus-ring inline-flex min-h-[44px] items-center gap-1 rounded-lg border px-3 text-sm font-medium text-destructive hover:bg-destructive/5"
+          >
+            <Search className="h-3.5 w-3.5" />
+            {t("Case")}
+          </Link>
+        ) : (
+          <Link
+            href={`/app/cargo/${shipment.trackingNumber}`}
+            className="focus-ring inline-flex min-h-[44px] items-center rounded-lg border px-3 text-sm font-medium text-brand hover:bg-accent"
+          >
+            {t("Open")}
+          </Link>
+        )}
+      </div>
+
+      {open ? <CargoDetail id={detailId} shipment={shipment} /> : null}
+
+      {flagging && !locked ? (
+        <ReceivingOutcomePanel
+          batchId={batchId}
+          shipmentId={shipment.id}
+          trackingNumber={shipment.trackingNumber}
+          packageType={shipment.packageType}
+          packageList={shipment.packageList}
+          photosDurable={photosDurable}
+          action={action}
+        />
+      ) : null}
+
+      <div className="mt-2">
+        <FormError state={state} />
+      </div>
+    </div>
+  );
+}
+
 function VerificationRow({
   batchId,
   shipment,
@@ -269,15 +475,10 @@ function VerificationRow({
   const [open, setOpen] = useState(false);
   const detailId = useId();
 
-  const done = shipment.verification?.result === "VERIFIED";
-  const flagged = shipment.verification?.result === "EXCEPTION";
-  const short = shipment.packageList.filter((pkg) => !pkg.received).length;
   // Anything flagged, or checked in short, now lives in the investigation
   // queue. The row it was flagged on is where somebody stands when they ask
   // "and where did that carton go?", so the answer is one click from here.
-  // Untouched rows are excluded: their boxes read "not received" simply
-  // because nobody has checked them in yet.
-  const investigate = Boolean(shipment.verification) && (flagged || short > 0);
+  const { done, flagged, short, investigate } = verificationState(shipment);
 
   return (
     <>

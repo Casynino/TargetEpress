@@ -276,24 +276,26 @@ export default async function PickupNotesPage({
 
                     <TableCell className="whitespace-nowrap py-2.5 text-right">
                       {/* A press, not something to copy out. This desk rings
-                          these people all day. */}
+                          these people all day — and often from a phone, where
+                          two 28px squares 4px apart make "Call" and "WhatsApp"
+                          a coin toss. Thumb-sized below sm, desk-sized above. */}
                       {digits ? (
-                        <span className="inline-flex gap-1">
+                        <span className="inline-flex gap-2 sm:gap-1">
                           <a
                             href={`tel:${note.customer.phone}`}
                             aria-label={`${t(locale, "Call")} ${note.customer.name}`}
-                            className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors hover:border-brand/40 hover:text-brand"
+                            className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-md border transition-colors hover:border-brand/40 hover:text-brand sm:h-7 sm:w-7"
                           >
-                            <Phone className="h-3.5 w-3.5" />
+                            <Phone className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                           </a>
                           <a
                             href={`https://wa.me/${digits}`}
                             target="_blank"
                             rel="noreferrer"
                             aria-label={`WhatsApp ${note.customer.name}`}
-                            className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors hover:border-success/40 hover:text-success"
+                            className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-md border transition-colors hover:border-success/40 hover:text-success sm:h-7 sm:w-7"
                           >
-                            <MessageCircle className="h-3.5 w-3.5" />
+                            <MessageCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                           </a>
                         </span>
                       ) : (
@@ -307,7 +309,7 @@ export default async function PickupNotesPage({
                       <span className="inline-flex items-center gap-2">
                         <Link
                           href={`/app/finance/pickup-notes/${note.id}`}
-                          className="focus-ring inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition-colors hover:bg-brand/90"
+                          className="focus-ring inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-brand px-4 text-xs font-semibold text-brand-foreground transition-colors hover:bg-brand/90 sm:min-h-0 sm:px-3 sm:py-1.5"
                         >
                           <QrCode className="h-3.5 w-3.5" />
                           {t(locale, "Print")}

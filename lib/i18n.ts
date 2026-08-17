@@ -3751,6 +3751,45 @@ const ZH: Record<string, string> = {
   "hrs": "小时",
   // -- shell-status
   "pieces landed": "件已到货",
+  // -- cargo paperwork (the attachment panel on a cargo record)
+  "Paperwork": "单据",
+  "Supplier invoice": "供货商发票",
+  "Packing list": "装箱单",
+  "Customs paperwork": "清关单据",
+  "Damage report": "破损报告",
+  "Other paperwork": "其他单据",
+  "Nothing filed yet. The supplier's invoice, the packing list and the customs paperwork belong here, so the next person does not have to ask in a group chat for them.":
+    "还没有归档任何单据。供货商发票、装箱单和清关单据都应放在这里，下一个人就不必再去群里要了。",
+  "What is it?": "这是什么单据？",
+  "Note on it": "备注",
+  "e.g. Duty receipt, entry TZ-4471": "例如：关税收据，报关单 TZ-4471",
+  "The file": "文件",
+  "PDF or a photograph of the paper. Attach it if you have it — nothing here is required, and no other screen waits on it.":
+    "PDF 或纸质单据的照片。有就上传——这里没有必填项，其他页面也不会因此卡住。",
+  "chosen": "个已选",
+  "too much to send at once. Attach them one at a time; the limit is":
+    "一次发送过大。请逐份上传；上限为",
+  "Attach": "上传",
+  "Attaching…": "上传中…",
+  "Files are being saved to this machine only and may be lost. Tell the office before relying on them as the record.":
+    "文件仅保存在本机，可能会丢失。在把它们当作正式记录使用前，请先通知办公室。",
+  "file(s) attached to this cargo.": "份文件已附到这票货物。",
+  // "Keep it" is already in the dictionary above — the cancel word on the
+  // storage-waiver panel, and the same word here.
+  "Why is it coming off?": "为什么要移除？",
+  "e.g. Wrong month's invoice — the right one is attached":
+    "例如：月份不对的发票——正确的那份已上传",
+  "Kept permanently in the audit log, with the file name, so a removal can always be answered for.":
+    "移除记录连同文件名永久保存在审计日志中，任何一次移除都可追责。",
+  "Choose a file first — nothing was attached.":
+    "请先选择文件——目前没有上传任何内容。",
+  "That file has already been removed.": "该文件已被移除。",
+  "Somebody else attached this file, so only management can take it off. Attach the right one instead — the list shows both.":
+    "这份文件是别人上传的，只有管理层可以移除。请直接上传正确的那份——列表会同时显示两份。",
+  "Say why it is coming off — it is kept on the record.":
+    "请说明移除原因——该说明会留在记录中。",
+  "Paperwork attached to cargo": "已为货物附上单据",
+  "Paperwork removed from cargo": "已从货物移除单据",
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = {

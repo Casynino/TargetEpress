@@ -58,13 +58,19 @@ export function NewBatchForm() {
 
       <FormError state={state} />
 
-      <div className="flex gap-3">
-        <SubmitButton variant="brand" pendingLabel="Opening…">
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <SubmitButton
+          variant="brand"
+          pendingLabel="Opening…"
+          className="w-full sm:w-auto"
+        >
           {t("Open batch")}
         </SubmitButton>
+        {/* h-11 like every other control it stands next to. At h-10 it was the
+            one thing on the form under the 44px line. */}
         <Link
           href="/app/batches"
-          className="inline-flex h-10 items-center rounded-md border px-4 text-sm hover:bg-muted"
+          className="inline-flex h-11 items-center justify-center rounded-md border px-4 text-sm hover:bg-muted sm:justify-start"
         >
           {t("Cancel")}
         </Link>

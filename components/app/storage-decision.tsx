@@ -97,11 +97,17 @@ export function StorageDecision({
 
       {canDecide ? (
         <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Money decisions at 28px, taken at the counter with a customer
+              waiting. Full width and thumb-tall below sm; the desk keeps its
+              compact inline pair. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             {accruedUsd > 0 && chargedUsd !== accruedUsd ? (
               <form action={charge}>
                 <input type="hidden" name="invoiceId" value={invoiceId} />
-                <SubmitButton size="sm" className="h-7 px-2.5 text-[11px]">
+                <SubmitButton
+                  size="sm"
+                  className="h-11 w-full px-2.5 text-[11px] sm:h-7 sm:w-auto"
+                >
                   <BadgeCheck className="mr-1.5 h-3.5 w-3.5" />
                   {waivedUsd > 0
                     ? `${t("Charge it after all")} · ${money(accruedUsd)}`
@@ -115,7 +121,7 @@ export function StorageDecision({
                 type="button"
                 onClick={() => setWaiving((v) => !v)}
                 aria-expanded={waiving}
-                className="focus-ring inline-flex h-7 items-center gap-1.5 rounded-md border border-warning/40 px-2.5 text-[11px] font-medium text-warning hover:bg-warning/10"
+                className="focus-ring inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-md border border-warning/40 px-2.5 text-[11px] font-medium text-warning hover:bg-warning/10 sm:h-7 sm:w-auto"
               >
                 <Ban className="h-3.5 w-3.5" />
                 {t("Waive storage fee")}
@@ -139,7 +145,7 @@ export function StorageDecision({
                 name="reason"
                 required
                 placeholder={t("Customer consideration, our delay, goodwill…")}
-                className="h-9 text-sm"
+                className="h-11 text-sm sm:h-9"
               />
               <p className="text-[11px] text-muted-foreground">
                 {t(
@@ -147,7 +153,10 @@ export function StorageDecision({
                 )}
               </p>
               <FormError state={waiveState} />
-              <SubmitButton size="sm" className="h-8 bg-warning text-xs text-white">
+              <SubmitButton
+                size="sm"
+                className="h-11 w-full bg-warning text-xs text-white sm:h-8 sm:w-auto"
+              >
                 {t("Waive it")}
               </SubmitButton>
             </form>

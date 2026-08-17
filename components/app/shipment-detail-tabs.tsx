@@ -383,10 +383,11 @@ export function ShipmentDetailTabs({
                   !line.price.paid ? (
                     <Link
                       href={`/app/collections/record/${line.price.invoiceId}`}
-                      className="focus-ring inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-success/40 bg-success/10 px-3 text-sm font-semibold text-success transition-colors hover:bg-success/20"
+                      aria-label={`${t("Record payment")} ${line.trackingNumber}`}
+                      title={t("Record payment")}
+                      className="focus-ring inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-success/40 text-success transition-colors hover:bg-success/10"
                     >
-                      <Banknote className="h-4 w-4" />
-                      {t("Pay")}
+                      <Banknote className="h-5 w-5" />
                     </Link>
                   ) : null}
                   {canMoveCargo && moveTargets.length > 0 ? (
@@ -621,10 +622,10 @@ export function ShipmentDetailTabs({
                         <Link
                           href={`/app/collections/record/${line.price.invoiceId}`}
                           title={`${t("Record payment")} · ${line.trackingNumber}`}
-                          className="mr-1 inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/10 px-2 py-1.5 text-xs font-semibold text-success transition-colors hover:bg-success/20"
+                          aria-label={`${t("Record payment")} ${line.trackingNumber}`}
+                          className="mr-0.5 inline-flex items-center rounded-md px-2 py-1.5 text-success/80 transition-colors hover:bg-success/10 hover:text-success"
                         >
-                          <Banknote className="h-3.5 w-3.5" />
-                          {t("Pay")}
+                          <Banknote className="h-4 w-4" />
                         </Link>
                       ) : null}
                       <Link

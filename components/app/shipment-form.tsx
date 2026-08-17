@@ -94,22 +94,26 @@ export function ShipmentForm({
           </p>
         ) : null}
 
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
+        {/* The China desk's loop: register, print the label, register the next
+            one. Three 40px pills wrapping awkwardly mid-row is not what that
+            deserves on the phone it is done from — stacked and thumb-sized
+            below sm, the same row as before above it. */}
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
           <Link
             href={`/app/cargo/${created}/label`}
-            className="inline-flex h-10 items-center rounded-md bg-signal px-4 text-sm font-medium text-signal-foreground hover:bg-signal/90"
+            className="inline-flex h-11 items-center justify-center rounded-md bg-signal px-4 text-sm font-medium text-signal-foreground hover:bg-signal/90"
           >
             {t(locale, "Print QR label")}
           </Link>
           <Link
             href={`/app/cargo/${created}`}
-            className="inline-flex h-10 items-center rounded-md border px-4 text-sm hover:bg-muted"
+            className="inline-flex h-11 items-center justify-center rounded-md border px-4 text-sm hover:bg-muted"
           >
             {t(locale, "View cargo")}
           </Link>
           <a
             href="/app/cargo/new"
-            className="inline-flex h-10 items-center rounded-md border px-4 text-sm hover:bg-muted"
+            className="inline-flex h-11 items-center justify-center rounded-md border px-4 text-sm hover:bg-muted"
           >
             {t(locale, "Register another")}
           </a>
@@ -369,13 +373,21 @@ export function ShipmentForm({
 
       <FormError state={state} />
 
-      <div className="flex flex-wrap gap-3">
-        <SubmitButton variant="signal" pendingLabel="Registering…">
+      {/* Fifteen fields end here, and on a phone that is a long way down. The
+          primary takes the full width so it cannot be mistaken for one more
+          field, and Cancel gets the same 44px as everything else it sits beside
+          — it was 40, the one control on the screen under the line. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <SubmitButton
+          variant="signal"
+          pendingLabel="Registering…"
+          className="w-full sm:w-auto"
+        >
           {t(locale, "Register cargo")}
         </SubmitButton>
         <Link
           href="/app/cargo"
-          className="inline-flex h-10 items-center rounded-md border px-4 text-sm hover:bg-muted"
+          className="inline-flex h-11 items-center justify-center rounded-md border px-4 text-sm hover:bg-muted sm:justify-start"
         >
           {t(locale, "Cancel")}
         </Link>

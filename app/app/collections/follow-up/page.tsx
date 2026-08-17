@@ -8,7 +8,7 @@ import { financeTabs } from "@/lib/finance-tabs";
 import { PageHeader } from "@/components/app/page-header";
 import { can } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
-import { currentRate, formatUsd } from "@/lib/fx";
+import { currentRate, formatLocal, formatShillings, formatUsd } from "@/lib/fx";
 import { toNumber } from "@/lib/format";
 import { collectionsOverview } from "@/lib/collections";
 import { t } from "@/lib/i18n";
@@ -64,14 +64,25 @@ export default async function FollowUpPage({
    * rate to use, so it converts at today's published one and is a live
    * estimate rather than a sum of quoted figures. The dollar figure beneath it
    * is the exact one.
+   *
+   * Through formatShillings rather than the `rate ? … : …` this page used to
+   * carry, which wrote the amount as "TZS 202,500" — the stored ISO code, not
+   * the "TSh" the ledger and every dashboard print. One list quoting a currency
+   * the screen beside it does not is the exact thing lib/money.ts exists to
+   * stop.
    */
   const [rateRow, overview] = await Promise.all([
     currentRate(),
     collectionsOverview(),
   ]);
   const liveRate = rateRow ? toNumber(rateRow.rate) : null;
-  const tsh = (usd: number) =>
-    liveRate ? `TZS ${Math.round(usd * liveRate).toLocaleString("en-US")}` : formatUsd(usd);
+  const money = (usd: number) => formatShillings(usd, liveRate);
+  /**
+   * The exact dollar figure, printed only where the line above it is a
+   * conversion. With no rate published formatShillings prints dollars itself,
+   * and the same figure twice reads as two different currencies.
+   */
+  const inUsd = (usd: number) => (liveRate === null ? null : formatUsd(usd));
 
   /**
    * What the customer reads. Built here so the figures come off the same row
@@ -193,8 +204,10 @@ export default async function FollowUpPage({
             },
             {
               k: t(locale, "Expected to come in"),
-              v: tsh(totalOutstanding),
-              sub: `${formatUsd(totalOutstanding)} ${t(locale, "billed and not yet paid")}`,
+              v: money(totalOutstanding),
+              sub: [inUsd(totalOutstanding), t(locale, "billed and not yet paid")]
+                .filter(Boolean)
+                .join(" "),
               tone: "text-signal",
               wash: "from-signal/10",
             },
@@ -217,8 +230,13 @@ export default async function FollowUpPage({
             },
             {
               k: t(locale, "Storage accrued so far"),
-              v: tsh(storageAtRisk),
-              sub: t(locale, "Already inside the bill — it keeps running"),
+              v: money(storageAtRisk),
+              sub: [
+                inUsd(storageAtRisk),
+                t(locale, "Already inside the bill — it keeps running"),
+              ]
+                .filter(Boolean)
+                .join(" · "),
               tone: "text-foreground",
               wash: "from-info/10",
             },
@@ -284,13 +302,27 @@ export default async function FollowUpPage({
                 </td>
                 <td className="hidden p-3 lg:table-cell">
                   <span className="tabular-nums">{row.daysInWarehouse}d</span>
+                  {/* The clock, in the money the customer will hand over.
+                      This badge was the last dollar-only figure on the list —
+                      the one number on the row a clerk reads out loud on the
+                      phone, in the one currency nobody in the office holds. The
+                      amount itself is untouched: it is what has already been
+                      added to the bill, converted at today's rate like the
+                      totals above, with the exact dollar figure beneath it. */}
                   {row.storageDays > 0 ? (
-                    <Badge
-                      variant="outline"
-                      className="ml-2 border-destructive/40 text-destructive"
-                    >
-                      +{formatUsd(row.storageCharge)}
-                    </Badge>
+                    <>
+                      <Badge
+                        variant="outline"
+                        className="ml-2 border-destructive/40 text-destructive"
+                      >
+                        +{money(row.storageCharge)}
+                      </Badge>
+                      {inUsd(row.storageCharge) ? (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {inUsd(row.storageCharge)}
+                        </div>
+                      ) : null}
+                    </>
                   ) : null}
                 </td>
                 <td className="p-3 font-mono tabular-nums">
@@ -302,13 +334,25 @@ export default async function FollowUpPage({
                     <span className="text-success">{t(locale, "paid")}</span>
                   ) : (
                     <>
-                      {/* What the customer will actually send, first. */}
+                      {/* What the customer will actually send, first — at the
+                          invoice's own frozen rate, never today's, because this
+                          is the figure they were quoted. Written by formatLocal
+                          so it says "TSh" like the rest of the app; spelled out
+                          here it said "TZS", which made the same amount look
+                          like two currencies between this list and the bill. */}
                       <div className="font-semibold">
                         {row.outstandingLocal !== null
-                          ? `${row.localCurrency ?? "TZS"} ${row.outstandingLocal.toLocaleString()}`
-                          : formatUsd(row.outstanding)}
+                          ? formatLocal(
+                              row.outstandingLocal,
+                              row.localCurrency ?? undefined
+                            )
+                          : money(row.outstanding)}
                       </div>
-                      {row.outstandingLocal !== null ? (
+                      {/* The exact dollar figure underneath, whichever rate did
+                          the converting above — dropped only when no rate is
+                          published at all and the line above is already
+                          dollars. */}
+                      {row.outstandingLocal !== null || liveRate !== null ? (
                         <div className="text-xs text-muted-foreground">
                           {formatUsd(row.outstanding)}
                         </div>

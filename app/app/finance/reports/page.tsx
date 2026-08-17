@@ -831,7 +831,78 @@ export default async function FinanceReportsPage({
             ? t(locale, "In dollars. Switch to shillings at the top of the page.")
             : `${t(locale, "In shillings, converted at")} USD 1 = TSh ${rate.toLocaleString("en-US")}. ${t(locale, "Switch to dollars at the top of the page.")}`}
       </p>
-      <div className="mb-6 overflow-x-auto rounded-xl border bg-card shadow-soft">
+      {/* Ten columns and a 900px floor. That floor is what stopped the page
+          body scrolling sideways, but it still meant dragging a table to read
+          a batch — below md each batch becomes a card with its figures
+          labelled. */}
+      <ul className="mb-6 divide-y overflow-hidden rounded-xl border bg-card shadow-soft md:hidden">
+        {dash.batches.length === 0 ? (
+          <li className="px-4 py-8 text-center text-muted-foreground">
+            {t(locale, "No batches to show.")}
+          </li>
+        ) : (
+          dash.batches.map((b) => (
+            <li key={b.id} className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <Link
+                  href={`/app/shipments/${b.id}`}
+                  className="focus-ring rounded font-mono text-sm font-semibold hover:underline"
+                >
+                  {b.batchNumber}
+                </Link>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {t(
+                    locale,
+                    ORIGIN_LABELS[b.origin as keyof typeof ORIGIN_LABELS] ??
+                      b.origin
+                  )}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+                {b.cargo} {t(locale, "Cargo")} · {b.kg.toFixed(1)}{" "}
+                {t(locale, "Kg")}
+              </p>
+              <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                {[
+                  { k: t(locale, "Expected"), v: money(b.expectedUsd), tone: "" },
+                  {
+                    k: t(locale, "Collected"),
+                    v: money(b.collectedUsd),
+                    tone: "text-success",
+                  },
+                  {
+                    k: t(locale, "Outstanding"),
+                    v: money(b.outstandingUsd),
+                    tone: "text-destructive",
+                  },
+                  {
+                    k: t(locale, "Expenses"),
+                    v: money(b.expensesUsd),
+                    tone: "text-destructive",
+                  },
+                  {
+                    k: t(locale, "Net profit"),
+                    v: money(b.profitUsd),
+                    tone: b.profitUsd < 0 ? "font-medium text-destructive" : "font-medium",
+                  },
+                  {
+                    k: t(locale, "Margin"),
+                    v: b.marginPct === null ? "—" : `${b.marginPct}%`,
+                    tone: "text-muted-foreground",
+                  },
+                ].map((f) => (
+                  <div key={f.k} className="min-w-0">
+                    <dt className="text-xs text-muted-foreground">{f.k}</dt>
+                    <dd className={`truncate tabular-nums ${f.tone}`}>{f.v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </li>
+          ))
+        )}
+      </ul>
+
+      <div className="mb-6 hidden overflow-x-auto rounded-xl border bg-card shadow-soft md:block">
         <table className="w-full min-w-[900px] text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
@@ -1234,7 +1305,7 @@ export default async function FinanceReportsPage({
             method="get"
             action="/api/finance/statement"
             target="_blank"
-            className="flex flex-wrap items-end gap-2"
+            className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-end"
           >
             {/* The statement is written in the currency the page is reading in. */}
             {inUsd ? null : <input type="hidden" name="unit" value="tzs" />}
@@ -1243,7 +1314,7 @@ export default async function FinanceReportsPage({
               <select
                 name="period"
                 defaultValue={statementPeriods.months[0]?.value}
-                className="focus-ring h-9 min-w-[11rem] rounded-md border bg-card px-2 text-sm"
+                className="focus-ring h-11 w-full rounded-md border bg-card px-2 text-sm sm:h-9 sm:w-auto sm:min-w-[11rem]"
               >
                 <optgroup label={t(locale, "Month")}>
                   {statementPeriods.months.map((m) => (
@@ -1263,7 +1334,7 @@ export default async function FinanceReportsPage({
             </label>
             <button
               type="submit"
-              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-brand px-4 text-sm font-semibold text-brand-foreground transition-colors hover:opacity-90"
+              className="focus-ring inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-md bg-brand px-4 text-sm font-semibold text-brand-foreground transition-colors hover:opacity-90 sm:h-9 sm:w-auto"
             >
               <FileText className="h-4 w-4" />
               {t(locale, "Open the statement")}
@@ -1289,10 +1360,14 @@ export default async function FinanceReportsPage({
             /* The action carries the anchor: a GET form replaces the query
                string but keeps the fragment, so applying a filter comes back
                to the table instead of the top of the page. */
+            /* One column on a phone, a filter bar from sm up. Wrapped flex put
+               a 32px date field beside a flight picker at 375px, which is two
+               controls nobody can hit and a label that wraps under its own
+               input. */
             <form
               method="get"
               action="/app/finance/reports#reports"
-              className="flex flex-wrap items-end gap-3 text-xs"
+              className="grid grid-cols-1 gap-3 text-xs sm:flex sm:flex-wrap sm:items-end"
             >
               <input type="hidden" name="report" value={reportKey} />
               {currency === "usd" ? (
@@ -1307,7 +1382,7 @@ export default async function FinanceReportsPage({
                   type="date"
                   name="from"
                   defaultValue={from ?? ""}
-                  className="focus-ring h-8 rounded-md border bg-card px-2"
+                  className="focus-ring h-11 w-full rounded-md border bg-card px-2 sm:h-8 sm:w-auto"
                 />
               </label>
               <label className="flex flex-col gap-1">
@@ -1316,7 +1391,7 @@ export default async function FinanceReportsPage({
                   type="date"
                   name="to"
                   defaultValue={to ?? ""}
-                  className="focus-ring h-8 rounded-md border bg-card px-2"
+                  className="focus-ring h-11 w-full rounded-md border bg-card px-2 sm:h-8 sm:w-auto"
                 />
               </label>
               <label className="flex flex-col gap-1">
@@ -1324,7 +1399,7 @@ export default async function FinanceReportsPage({
                 <select
                   name="batch"
                   defaultValue={batch ?? ""}
-                  className="focus-ring h-8 rounded-md border bg-card px-2"
+                  className="focus-ring h-11 w-full rounded-md border bg-card px-2 sm:h-8 sm:w-auto"
                 >
                   <option value="">{t(locale, "Every batch")}</option>
                   {flights.map((f) => (
@@ -1336,14 +1411,14 @@ export default async function FinanceReportsPage({
               </label>
               <button
                 type="submit"
-                className="focus-ring h-8 rounded-md border bg-card px-3 font-medium hover:bg-accent"
+                className="focus-ring h-11 w-full rounded-md border bg-card px-3 font-medium hover:bg-accent sm:h-8 sm:w-auto"
               >
                 {t(locale, "Apply")}
               </button>
               {from || to || batch ? (
                 <a
                   href={`${withParams({ from: undefined, to: undefined, batch: undefined })}#reports`}
-                  className="h-8 self-end px-1 leading-8 text-muted-foreground underline"
+                  className="inline-flex min-h-[44px] items-center justify-center px-1 text-muted-foreground underline sm:min-h-0 sm:h-8 sm:self-end sm:leading-8"
                 >
                   {t(locale, "Clear")}
                 </a>

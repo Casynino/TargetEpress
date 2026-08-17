@@ -1443,7 +1443,12 @@ async function DarDashboard({
           stays away until then, leaving the activity feed the full width. */}
       <div
         className={
-          perf.sample > 0 ? "grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.minmax(0,4fr)]" : "grid gap-6"
+          /* `1.minmax(0,4fr)` was what a find-and-replace made of `1.4fr`
+             while adding the minmax guard. Tailwind cannot parse it, so the
+             lg: rule never generated and the feed never got its two columns. */
+          perf.sample > 0
+            ? "grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]"
+            : "grid gap-6"
         }
       >
         {perf.sample > 0 ? (
@@ -2341,8 +2346,12 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
           // Brand and violet wherever these two appear — the support desk, the
           // warehouse floors and here. Colour is only a landmark while it means
           // the same thing on every screen.
-          { href: "/app/shipments", label: t(locale, "Batches"), icon: Package, tone: "brand" },
-          { href: "/app/batches", label: t(locale, "Batches"), icon: Plane, tone: "violet" },
+          //
+          // Named apart, in the sidebar's own words. Both of these read
+          // "Batches", which is one word for two different places: what has
+          // left China, and the two tables cargo is still waiting on there.
+          { href: "/app/shipments", label: t(locale, "Arrived batches"), icon: Package, tone: "brand" },
+          { href: "/app/batches", label: t(locale, "Loading batches"), icon: Plane, tone: "violet" },
           // shipment.cancel is the owner's alone: restoring something a desk
           // deleted, or purging it for good, is the one action in this app
           // nobody else can take back.

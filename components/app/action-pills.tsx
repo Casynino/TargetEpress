@@ -70,9 +70,19 @@ export function ActionPills({
 
   return (
     <nav aria-label={label} className="flex flex-wrap gap-2">
+      {/*
+        Keyed by where it goes, not by what it says.
+
+        The support desk's row and the owner's each carried two pills labelled
+        "Batches" — the loading tables and what has already flown — so React saw
+        the same key twice, warned, and reconciled the pair as one: a row that
+        looked complete with a button nobody could trust. A label is copy that
+        gets rewritten and translated; the href is what a pill IS. Same rule the
+        Finance tab row already follows.
+      */}
       {items.map((item) => (
         <Link
-          key={item.label}
+          key={item.href}
           href={item.href}
           className={`focus-ring inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
             item.weight === "primary"

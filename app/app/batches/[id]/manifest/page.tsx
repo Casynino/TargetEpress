@@ -262,7 +262,18 @@ export default async function ManifestPage({
           </>
         ) : null}
 
-        <table className="mt-7 w-full border-collapse text-xs">
+        {/*
+          The manifest stays a manifest.
+
+          Eleven columns get printed, carried onto the floor and ticked with a
+          pen, so this one does not become a stack of cards — but `DocumentSheet`
+          clips what overflows it, which meant that on a phone the last columns
+          (Received by, Problem, and the tick box itself) were simply cut off the
+          right edge with no way to reach them. The table now scrolls inside its
+          own frame instead, leaving the printed sheet untouched.
+        */}
+        <div className="-mx-2 mt-7 overflow-x-auto px-2 print:mx-0 print:overflow-visible print:px-0">
+        <table className="w-full min-w-[720px] border-collapse text-xs print:min-w-0">
           <thead>
             {/* The same navy band the invoice puts over its charges. Two
                 documents from two desks should look like they came from one
@@ -369,6 +380,7 @@ export default async function ManifestPage({
             </tr>
           </tfoot>
         </table>
+        </div>
 
         <div className="mt-10 grid grid-cols-2 gap-10 text-xs">
           <div>

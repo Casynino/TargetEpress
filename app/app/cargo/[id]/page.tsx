@@ -14,6 +14,7 @@ import {
 
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
+import { CargoDocuments } from "@/components/app/cargo-documents";
 import { DeleteCargoForm } from "@/components/app/cargo-delete";
 import { PendingSubmissionNotice } from "@/components/app/pending-submission-notice";
 import { ShipmentActions } from "@/components/app/shipment-actions";
@@ -49,6 +50,7 @@ import { requirePermission } from "@/lib/session";
 import { StorageStatusCard } from "@/components/app/storage-status-card";
 import { STORAGE_POLICY, storageStatus } from "@/lib/constants";
 import { currentRateValue } from "@/lib/fx";
+import { storageIsDurable } from "@/lib/storage";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -80,6 +82,13 @@ export default async function ShipmentDetailPage({
       createdBy: { select: { name: true } },
       photos: {
         orderBy: { createdAt: "asc" },
+        include: { uploadedBy: { select: { name: true } } },
+      },
+      // The consignment's own paperwork — the supplier invoice, the packing
+      // list, the customs entry. Newest first: the customs entry that arrived
+      // yesterday is what somebody is looking for, not the invoice from March.
+      documents: {
+        orderBy: { createdAt: "desc" },
         include: { uploadedBy: { select: { name: true } } },
       },
       statusHistory: {
@@ -155,6 +164,10 @@ export default async function ShipmentDetailPage({
     blocksPickup(exception.status)
   );
   const showInternal = can(user.role, "shipment.viewInternal");
+  /* Filing the consignment's paperwork. Every department holds this and none of
+     it touches the cargo record — see shipment.attach in lib/rbac.ts for why it
+     is deliberately not shipment.edit. */
+  const canAttach = can(user.role, "shipment.attach");
   const canPrintLabel = can(user.role, "label.print");
   // Rendered only for the desk that owns the label. Not fetched at all for
   // anyone else — a code never generated cannot be screenshotted off a page
@@ -430,6 +443,35 @@ export default async function ShipmentDetailPage({
               </p>
             </section>
           )}
+
+          {/* The paperwork behind the consignment.
+              Beside the photos, because the two are the same thing to whoever
+              is arguing about this cargo six weeks later: one is what it looked
+              like, the other is what it was declared as. Shown to every desk
+              that can open the record — the whole point is that the customs
+              entry stops being in one person's WhatsApp. */}
+          <CargoDocuments
+            shipmentId={shipment.id}
+            documents={shipment.documents.map((doc) => ({
+              id: doc.id,
+              kind: doc.kind,
+              label: doc.label,
+              url: doc.url,
+              filename: doc.filename,
+              contentType: doc.contentType,
+              bytes: doc.bytes,
+              createdAt: doc.createdAt,
+              uploadedByName: doc.uploadedBy?.name ?? null,
+              // Resolved here rather than in the browser: whether the reader
+              // attached a file decides whether they are offered Remove, and
+              // that is not a question a client component should answer.
+              mine: doc.uploadedById === user.id,
+            }))}
+            canAttach={canAttach}
+            canRemoveAny={can(user.role, "shipment.purge")}
+            showNames={showInternal}
+            durable={storageIsDurable()}
+          />
 
           {/* What is wrong with this cargo.
               Kept above the money and below the boxes: whoever opens a
@@ -754,7 +796,12 @@ export default async function ShipmentDetailPage({
                     composeMessage("INVOICE_ISSUED", {
                       customerName: shipment.customer.name,
                       trackingNumber: shipment.trackingNumber,
-                      description: shipment.description,
+                      // The message is Swahili and goes to a Tanzanian trader,
+                      // so the cargo line follows the CUSTOMER rather than
+                      // whoever is at the screen. This sent the stored text,
+                      // which meant a Guangzhou clerk sharing a bill from this
+                      // page put 手机配件 in front of somebody in Dar.
+                      description: cargoText("en", shipment, "description"),
                       invoiceNumber: shipment.invoice.invoiceNumber,
                       amountUsd: toNumber(shipment.invoice.total),
                       amountLocal:

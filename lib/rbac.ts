@@ -22,6 +22,23 @@ export type Permission =
   | "shipment.purge"
   | "shipment.viewInternal" // internal notes, cost inputs, staff names
   | "shipment.scan" // holds physical cargo and reads its label
+  /**
+   * Attach the consignment's supporting paperwork, and take a file back off it.
+   *
+   * Not folded into `shipment.edit`, and the reason is the Dar floor. Editing is
+   * gated on the cargo still sitting in China precisely so Dar cannot rewrite
+   * China's weights and counts — but Dar is the desk holding the customs entry
+   * and the signed damage report. Reusing shipment.edit here would have forced a
+   * choice between "Dar cannot file the paperwork it is holding" and "Dar can
+   * rewrite the manifest", and the paperwork would have stayed in WhatsApp,
+   * which is the whole thing this is for.
+   *
+   * Every department that talks about a consignment holds it, because every one
+   * of them ends up holding one of its documents. What it does NOT carry is any
+   * power over the cargo record itself: a file is added beside the record, never
+   * into it, and nothing about the shipment changes when one is.
+   */
+  | "shipment.attach"
   /// Produce the label sticker, and see the code that is printed on it.
   ///
   /// The sticker is made once, in Guangzhou, and travels on the box. Every desk
@@ -199,6 +216,9 @@ const CHINA: Permission[] = [
   "shipment.delete",
   "shipment.depart",
   "shipment.viewInternal",
+  // The supplier's invoice and the packing list arrive at this desk, with the
+  // cargo. Filing them here is the earliest either can be filed.
+  "shipment.attach",
   // The desk that packs the box is the desk that labels it, and the only one
   // that reprints a damaged sticker.
   "label.print",
@@ -240,6 +260,10 @@ const CHINA: Permission[] = [
 const DAR: Permission[] = [
   "shipment.view",
   "shipment.viewInternal",
+  // The customs entry, the duty receipt, the inspection note. This floor is
+  // where that paper physically is, and it is not shipment.edit — see the
+  // permission's own note for why the two had to be separated.
+  "shipment.attach",
   "shipment.scan",
   // Batch data is readable because a shipment names its batch and flight; there
   // is no batch.create / batch.manage here, so there is no way in to managing
@@ -287,6 +311,9 @@ const CUSTOMER_CARE: Permission[] = [
   // Needed to answer "is my cargo damaged" from the receiving photos and the
   // status history — which is the whole point of the desk existing.
   "shipment.viewInternal",
+  // The desk customers send things to. A supplier invoice arrives on WhatsApp
+  // and this is where it stops being a message and becomes part of the record.
+  "shipment.attach",
   "batch.view",
   "finance.view",
   "invoice.manage",
@@ -340,6 +367,10 @@ const FINANCE: Permission[] = [
   "collections.view",
   "shipment.view",
   "shipment.viewInternal",
+  // Finance ends up holding the customs entry and the clearing agent's paper
+  // for a consignment, and files it against the cargo rather than only against
+  // the cost.
+  "shipment.attach",
   // No shipment.scan. Scanning is a warehouse action — somebody standing in
   // front of a box, reading the sticker on it. Finance never has the cargo in
   // their hands; they work from the tracking number a customer reads out, and

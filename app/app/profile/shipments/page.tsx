@@ -25,7 +25,10 @@ export default async function MyShipmentsPage() {
   const me = await requireUser();
   const locale = await viewerLocale();
   const [rows, stats] = await Promise.all([
-    myShipments(me.id),
+    // The locale was computed here for the page furniture but never handed to
+    // the query, so the rows themselves — cargo, status, the unit on the count —
+    // came back in English on a Chinese screen.
+    myShipments(me.id, 200, locale),
     profileStats(me.id),
   ]);
 

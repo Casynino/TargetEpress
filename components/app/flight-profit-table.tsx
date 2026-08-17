@@ -67,7 +67,99 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
         </p>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Seven money columns. `overflow-x-auto` kept them off the body's
+          scrollbar but still asked the boss to drag a table sideways to find
+          out whether a flight paid for itself; below md each batch becomes a
+          card with its figures labelled. */}
+      <ul className="divide-y md:hidden">
+        {flights.map((f) => {
+          const loss = f.profit < 0;
+          return (
+            <li key={f.id} className="px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/app/shipments/${f.id}`}
+                  className="focus-ring rounded font-medium hover:underline"
+                >
+                  {f.batchNumber}
+                </Link>
+                {!f.hasCosts ? (
+                  <span className="inline-flex items-center gap-1 rounded bg-signal/10 px-1.5 py-0.5 text-[11px] text-signal">
+                    <TriangleAlert className="h-3 w-3" />
+                    {t(locale, "no costs recorded")}
+                  </span>
+                ) : null}
+                {f.unconfirmed > 0 ? (
+                  <span className="rounded bg-warning/10 px-1.5 py-0.5 text-[11px] text-warning">
+                    {f.unconfirmed} {t(locale, "still a draft")}
+                  </span>
+                ) : null}
+              </div>
+
+              <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                <div className="min-w-0">
+                  <dt className="text-xs text-muted-foreground">
+                    {t(locale, "Expected revenue")}
+                  </dt>
+                  <dd className="truncate tabular-nums">{money(f.revenue)}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-muted-foreground">
+                    {t(locale, "Collected")}
+                  </dt>
+                  <dd className="truncate tabular-nums text-success">
+                    {money(f.collected)}
+                  </dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-muted-foreground">
+                    {t(locale, "Outstanding")}
+                  </dt>
+                  <dd
+                    className={`truncate tabular-nums ${
+                      f.outstanding > 0
+                        ? "text-destructive"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {money(f.outstanding)}
+                  </dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-muted-foreground">
+                    {t(locale, "Expenses")}
+                  </dt>
+                  <dd className="truncate tabular-nums text-destructive">
+                    {money(f.costs)}
+                  </dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-muted-foreground">
+                    {t(locale, "Expected profit")}
+                  </dt>
+                  <dd
+                    className={`truncate font-medium tabular-nums ${
+                      loss ? "text-destructive" : ""
+                    }`}
+                  >
+                    {loss ? `(${money(Math.abs(f.profit))})` : money(f.profit)}
+                  </dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-muted-foreground">
+                    {t(locale, "Expected margin")}
+                  </dt>
+                  <dd className="truncate tabular-nums">
+                    {f.margin === null ? "—" : `${Math.round(f.margin)}%`}
+                  </dd>
+                </div>
+              </dl>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">

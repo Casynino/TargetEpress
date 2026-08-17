@@ -81,7 +81,12 @@ export function CollectionsNav({
 
         return (
           <Link
-            key={tab.label}
+            // The route, not the label. Two of these tabs are the same
+            // submissions page under different filters, and the label is the
+            // one part of a tab that gets rewritten and translated — keying on
+            // it means any pair of tabs that ever reads the same collapses into
+            // one.
+            key={tab.href}
             href={tab.href}
             aria-current={active ? "page" : undefined}
             className={cn(

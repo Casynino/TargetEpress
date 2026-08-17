@@ -23,7 +23,7 @@ import { CargoSearch } from "@/components/app/cargo-search";
 import { QuickAction } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime, formatWeekdayDate, toNumber } from "@/lib/format";
-import { currentRate, formatUsd } from "@/lib/fx";
+import { currentRate, formatLocal, formatShillings, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -133,6 +133,22 @@ export default async function SupportHome() {
 
   const topOfQueue = queue.slice(0, 6);
   const rate = rateRow ? toNumber(rateRow.rate) : null;
+
+  /**
+   * Every figure on this desk, in the money the customer actually sends.
+   *
+   * Three places on this page each wrote their own `rate ? "TSh …" : USD`, and
+   * the call list below wrote none at all — so the one screen this desk has open
+   * while the phone is ringing quoted dollars for what a customer owes. One
+   * helper, the same one the ledger and the finance pages use.
+   */
+  const money = (usd: number) => formatShillings(usd, rate);
+  /**
+   * The exact dollar figure, only where the line above it is a conversion. With
+   * no rate published formatShillings prints dollars itself, and the same amount
+   * twice reads as two currencies.
+   */
+  const inUsd = (usd: number) => (rate === null ? null : formatUsd(usd));
 
   /**
    * What this desk is holding up.
@@ -284,11 +300,8 @@ export default async function SupportHome() {
     label: job.label,
     detail: job.detail,
     href: job.href,
-    value:
-      job.usd !== undefined && rate
-        ? `TSh ${Math.round(job.usd * rate).toLocaleString("en-US")}`
-        : job.aside,
-    valueSub: job.usd !== undefined ? formatUsd(job.usd) : undefined,
+    value: job.usd !== undefined ? money(job.usd) : job.aside,
+    valueSub: job.usd !== undefined ? (inUsd(job.usd) ?? undefined) : undefined,
   }));
 
   return (
@@ -342,12 +355,16 @@ export default async function SupportHome() {
       <div className="mb-7">
         <ActionPills
           items={[
-            // Shipments first: whatever the call is about, it starts with a
-            // consignment. Collections second, because the next thing asked is
-            // what it costs and whether it has been paid.
             // Whatever the call is about it starts with a consignment, and the
             // next thing asked is what it costs and whether it has been paid.
-            { href: "/app/shipments", label: t(locale, "Batches"), icon: PlaneTakeoff, weight: "primary", tone: "brand" },
+            //
+            // "Arrived batches" and "Loading batches", the names this desk's own
+            // sidebar already uses. Both pills read "Batches" before, which was
+            // two buttons claiming the same page: one goes to every dispatch
+            // that has left China, the other to the two tables cargo is still
+            // waiting on there — and "has mine flown yet" is the whole
+            // difference between them, asked on this desk all day.
+            { href: "/app/shipments", label: t(locale, "Arrived batches"), icon: PlaneTakeoff, weight: "primary", tone: "brand" },
             { href: "/app/collections", label: t(locale, "Collections"), icon: Banknote, weight: "secondary", tone: "signal" },
             // Investigations rather than Tickets: a case where cargo is
             // missing or short is what this desk is rung about and has to
@@ -357,7 +374,7 @@ export default async function SupportHome() {
             // through a queue, not something reached with a customer waiting.
             { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), icon: QrCode, tone: "success" },
             { href: "/app/customers", label: t(locale, "Customers"), icon: Users, tone: "info" },
-            { href: "/app/batches", label: t(locale, "Batches"), icon: Boxes, tone: "violet" },
+            { href: "/app/batches", label: t(locale, "Loading batches"), icon: Boxes, tone: "violet" },
           ]}
         />
       </div>
@@ -449,7 +466,9 @@ export default async function SupportHome() {
               />
               <ul className="min-w-[13rem] flex-1 space-y-1">
                 {split.map((slice) => {
-                  const money = sum(slice.rows);
+                  // `owed`, not `money`: the page-level money() writes a figure,
+                  // and a local of the same name here shadowed it.
+                  const owed = sum(slice.rows);
                   return (
                     <li key={slice.label}>
                       <Link
@@ -467,11 +486,9 @@ export default async function SupportHome() {
                           <span className="block text-sm font-semibold tabular">
                             {slice.rows.length}
                           </span>
-                          {money > 0 ? (
+                          {owed > 0 ? (
                             <span className="block font-mono text-xs text-muted-foreground">
-                              {rate
-                                ? `TSh ${Math.round(money * rate).toLocaleString("en-US")}`
-                                : formatUsd(money)}
+                              {money(owed)}
                             </span>
                           ) : null}
                         </span>
@@ -585,10 +602,32 @@ export default async function SupportHome() {
                       ) : null}
                       <div className="text-right">
                         <p className="text-sm font-medium">{t(locale, row.nextAction)}</p>
+                        {/* What is owed, in shillings — this is the number read
+                            down the phone. The whole call list printed it in
+                            dollars, so the clerk was converting in their head
+                            mid-call at whatever rate they remembered.
+
+                            The row's own invoice froze a rate and that is the
+                            figure the customer was quoted, so it leads; only a
+                            consignment with no rate on its bill falls back to
+                            today's published one. */}
                         {row.outstanding !== null && row.outstanding > 0 ? (
-                          <p className="font-mono text-xs tabular-nums text-muted-foreground">
-                            {formatUsd(row.outstanding)} {t(locale, "owed")}
-                          </p>
+                          <>
+                            <p className="font-mono text-xs tabular-nums text-muted-foreground">
+                              {row.outstandingLocal !== null
+                                ? formatLocal(
+                                    row.outstandingLocal,
+                                    row.localCurrency ?? undefined
+                                  )
+                                : money(row.outstanding)}{" "}
+                              {t(locale, "owed")}
+                            </p>
+                            {row.outstandingLocal !== null || rate !== null ? (
+                              <p className="font-mono text-[11px] tabular-nums text-muted-foreground/70">
+                                {formatUsd(row.outstanding)}
+                              </p>
+                            ) : null}
+                          </>
                         ) : null}
                       </div>
                     </div>

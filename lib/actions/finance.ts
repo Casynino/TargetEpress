@@ -25,6 +25,7 @@ import { prisma } from "@/lib/prisma";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { firstError, paymentSchema } from "@/lib/validation";
 
@@ -1567,6 +1568,11 @@ export async function searchBillable(query: string): Promise<BillableHit[]> {
   const q = query.trim();
   if (q.length < 2) return [];
 
+  // The clerk picking a bill out of these hits is the reader, so the cargo line
+  // is theirs. It was the stored text, which put 手机配件 in the one place a
+  // Dar desk has to recognise the right consignment before taking money for it.
+  const locale = await viewerLocale();
+
   const invoices = await prisma.invoice.findMany({
     where: {
       status: { not: "WRITTEN_OFF" },
@@ -1589,7 +1595,9 @@ export async function searchBillable(query: string): Promise<BillableHit[]> {
       status: true,
       exchangeRate: true,
       customer: { select: { name: true } },
-      shipment: { select: { trackingNumber: true, description: true } },
+      shipment: {
+        select: { trackingNumber: true, ...selectText("description") },
+      },
     },
   });
 
@@ -1601,7 +1609,7 @@ export async function searchBillable(query: string): Promise<BillableHit[]> {
       invoiceNumber: inv.invoiceNumber,
       trackingNumber: inv.shipment.trackingNumber,
       customerName: inv.customer.name,
-      goods: inv.shipment.description,
+      goods: cargoText(locale, inv.shipment, "description"),
       currency: inv.currency,
       total,
       paid,

@@ -70,7 +70,7 @@ export function RowPriceEditor({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="focus-ring inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"
+        className="focus-ring inline-flex min-h-[44px] items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand sm:min-h-0 sm:py-1"
       >
         <Pencil className="h-3 w-3" />
         {t("Edit")}
@@ -79,7 +79,10 @@ export function RowPriceEditor({
   }
 
   return (
-    <div className="w-[21rem] rounded-lg border bg-card p-3 text-left shadow-lift">
+    // 21rem is what the panel wants beside a price column. On a 375px phone it
+    // is wider than the card it now opens inside, so the width is a preference
+    // clamped by the viewport rather than a promise the layout cannot keep.
+    <div className="w-[21rem] max-w-full rounded-lg border bg-card p-3 text-left shadow-lift">
       <div className="mb-2 flex items-center justify-between">
         <p className="font-mono text-xs font-semibold">{trackingNumber}</p>
         <button

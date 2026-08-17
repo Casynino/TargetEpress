@@ -193,6 +193,26 @@ enum PhotoKind {
   ARRIVAL
 }
 
+/// What a piece of consignment paperwork is, in the words the desks use for it.
+///
+/// Deliberately short. A long list makes people pick the nearest wrong one, and
+/// the free-text label beside the kind is where the specifics belong — "Duty
+/// receipt, entry TZ-4471" says more than any enum value ever would.
+enum ShipmentDocumentKind {
+  /// What the customer's supplier in China billed them. The commonest one, and
+  /// the one Support is sent on WhatsApp all day.
+  SUPPLIER_INVOICE
+  PACKING_LIST
+  /// The entry, the duty receipt, the release order — anything the authorities
+  /// issued or demanded for this consignment.
+  CUSTOMS
+  /// Paperwork about a problem: an inspection note, a signed damage report, a
+  /// claim letter. Not a photograph of the damage — that is a ShipmentPhoto with
+  /// kind DAMAGE, and it is taken on the floor rather than filed afterwards.
+  DAMAGE
+  OTHER
+}
+
 enum InvoiceStatus {
   /// Priced by the system, not yet reviewed by Finance. A draft is a working
   /// figure, never a demand for money: it is not chased, not counted as
@@ -358,6 +378,7 @@ model User {
   statementsReviewed    BatchStatement[]        @relation("StatementReviewedBy")
   statusChanges         ShipmentStatusHistory[]
   uploadedPhotos        ShipmentPhoto[]
+  uploadedDocuments     ShipmentDocument[]
   verifications         BatchVerification[]
   raisedExceptions      ShipmentException[]     @relation("ExceptionRaisedBy")
   resolvedExceptions    ShipmentException[]     @relation("ExceptionResolvedBy")
@@ -753,6 +774,7 @@ model Shipment {
 
   statusHistory ShipmentStatusHistory[]
   photos        ShipmentPhoto[]
+  documents     ShipmentDocument[]
   verifications BatchVerification[]
   exceptions    ShipmentException[]
   invoice       Invoice?
@@ -813,6 +835,44 @@ model ShipmentPhoto {
 
   @@index([shipmentId])
   @@index([exceptionId])
+}
+
+/// The consignment's supporting paperwork: the supplier's invoice, the packing
+/// list, the customs entry, a signed damage report.
+///
+/// Exactly the shape of PaymentProof and ExpenseReceipt, and for the same
+/// reason — but the gap it fills is different. Those two hang off a payment or
+/// a cost, so a document that belongs to the *cargo* had nowhere to live and was
+/// kept in WhatsApp instead: which meant the only person who had the customs
+/// entry was whoever happened to be in the group that day, and it was gone the
+/// moment somebody cleared their chats.
+///
+/// Cascades with its shipment. A purge already destroys the photos and the
+/// packages, and paperwork for a consignment that no longer exists is paperwork
+/// nobody can ever match to anything.
+model ShipmentDocument {
+  id String @id @default(cuid())
+
+  shipmentId String
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  kind ShipmentDocumentKind @default(OTHER)
+  /// The "what is this" line, in whoever-attached-it's own words. Optional: the
+  /// filename usually says it, and demanding a description is how an attachment
+  /// stops being attached.
+  label String?
+
+  url         String
+  contentType String
+  bytes       Int
+  /// The name the file arrived with, so a clerk recognises their own upload.
+  filename    String?
+
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([shipmentId, createdAt])
 }
 
 // ---------------------------------------------------------------------------

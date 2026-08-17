@@ -64,6 +64,26 @@ function daysOpen(raisedAt: Date, resolvedAt: Date | null) {
 
 const COLUMNS = 9;
 
+/**
+ * The five figures every view of a case needs, worked out once.
+ *
+ * The row and the phone card were each deriving these from the shipment, which
+ * is how a card ends up saying "3 of 4" where the row says "3 of 5" the day
+ * somebody changes one of them.
+ */
+function caseFacts(exception: InvestigationRecord) {
+  const { shipment } = exception;
+  const total = shipment.packages.length || shipment.declaredPackages;
+  return {
+    unit:
+      PACKAGE_TYPE_LABELS[shipment.packageType] ?? PACKAGE_TYPE_LABELS.PACKAGE,
+    total,
+    onFloor: shipment.packages.filter((p) => p.receivedAt).length,
+    absent: shipment.packages.filter((p) => !p.receivedAt).map((p) => p.sequence),
+    age: daysOpen(exception.raisedAt, exception.resolvedAt),
+  };
+}
+
 export function ExceptionTable({
   exceptions,
   allow,
@@ -82,43 +102,195 @@ export function ExceptionTable({
   if (exceptions.length === 0) return null;
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
-      <div className="max-h-[70vh] overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="w-8 px-2 py-2" />
-              <th className="px-3 py-2 font-medium">{t("Problem")}</th>
-              <th className="px-3 py-2 font-medium">{t("Case")}</th>
-              <th className="px-3 py-2 font-medium">{t("Tracking")}</th>
-              <th className="px-3 py-2 font-medium">{t("Customer")}</th>
-              <th className="hidden px-3 py-2 font-medium xl:table-cell">
-                {t("Goods")}
-              </th>
-              <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
-                {t("Boxes here")}
-              </th>
-              <th className="hidden px-3 py-2 font-medium lg:table-cell">
-                {t("Cargo status")}
-              </th>
-              <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
-                {closed ? t("Closed") : t("Open for")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {exceptions.map((exception) => (
-              <ExceptionRow
-                key={exception.id}
-                exception={exception}
-                allow={allow}
-                assignees={assignees}
-                closed={closed}
-              />
-            ))}
-          </tbody>
-        </table>
+    <>
+      {/* Nine columns of case. Below md the row becomes a card and the column
+          headings are said inline — a damaged consignment is usually reported
+          from the floor, on the phone that took the photograph. */}
+      <ul className="space-y-2 md:hidden">
+        {exceptions.map((exception) => (
+          <li key={exception.id}>
+            <ExceptionCard
+              exception={exception}
+              allow={allow}
+              assignees={assignees}
+              closed={closed}
+            />
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
+        <div className="max-h-[70vh] overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th className="w-8 px-2 py-2" />
+                <th className="px-3 py-2 font-medium">{t("Problem")}</th>
+                <th className="px-3 py-2 font-medium">{t("Case")}</th>
+                <th className="px-3 py-2 font-medium">{t("Tracking")}</th>
+                <th className="px-3 py-2 font-medium">{t("Customer")}</th>
+                <th className="hidden px-3 py-2 font-medium xl:table-cell">
+                  {t("Goods")}
+                </th>
+                <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
+                  {t("Boxes here")}
+                </th>
+                <th className="hidden px-3 py-2 font-medium lg:table-cell">
+                  {t("Cargo status")}
+                </th>
+                <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
+                  {closed ? t("Closed") : t("Open for")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {exceptions.map((exception) => (
+                <ExceptionRow
+                  key={exception.id}
+                  exception={exception}
+                  allow={allow}
+                  assignees={assignees}
+                  closed={closed}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
+    </>
+  );
+}
+
+/**
+ * One case, on a phone.
+ *
+ * Same five deciding facts as the row, same record folded away behind the same
+ * chevron. Nothing is dropped: a case somebody can only half-read on the floor
+ * is a case that gets escalated by phone call instead.
+ */
+function ExceptionCard({
+  exception,
+  allow,
+  assignees,
+  closed,
+}: {
+  exception: InvestigationRecord;
+  allow: InvestigationAllowances;
+  assignees: { id: string; name: string; roleLabel: string }[];
+  closed: boolean;
+}) {
+  const t = useT();
+  const locale = useLocale();
+  const [open, setOpen] = useState(false);
+  const detailId = `case-card-${exception.id}`;
+
+  const meta = TYPE_META[exception.type];
+  const Icon = meta.icon;
+  const { shipment } = exception;
+  const { unit, total, onFloor, absent, age } = caseFacts(exception);
+
+  return (
+    <div
+      id={`exception-card-${exception.id}`}
+      className={`scroll-mt-24 rounded-xl border bg-card p-3 shadow-soft ${
+        closed ? "text-muted-foreground" : ""
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <span className="flex items-center gap-2">
+          <Icon
+            className={`h-4 w-4 shrink-0 ${
+              closed ? "text-muted-foreground" : "text-destructive"
+            }`}
+          />
+          <Badge variant={closed ? "muted" : "destructive"}>
+            {t(EXCEPTION_TYPE_LABELS[exception.type])}
+          </Badge>
+        </span>
+        {/* Labelled with the column heading the desk table uses, so the two
+            views cannot drift into two different words for the same figure —
+            and so the phrase is one the dictionary already carries. */}
+        <span className="shrink-0 text-right text-xs">
+          <span className="block text-muted-foreground">
+            {closed ? t("Closed") : t("Open for")}
+          </span>
+          {closed ? (
+            <span className="tabular">
+              {formatDate(exception.resolvedAt, locale)}
+            </span>
+          ) : (
+            <span
+              className={`tabular ${age >= 7 ? "font-semibold text-destructive" : ""}`}
+            >
+              {age === 0 ? t("today") : `${age}d`}
+            </span>
+          )}
+        </span>
+      </div>
+
+      <div className="mt-2 flex items-center gap-1.5">
+        <Badge variant={EXCEPTION_STATUS_TONES[exception.status]}>
+          {t(EXCEPTION_STATUS_LABELS[exception.status])}
+        </Badge>
+        {exception.compensation && !exception.compensation.paidAt ? (
+          <Coins
+            className="h-3.5 w-3.5 text-warning"
+            aria-label={t("Payout recorded, not yet paid")}
+          />
+        ) : null}
+      </div>
+
+      <p className="mt-2">
+        <Link
+          href={`/app/cargo/${shipment.trackingNumber}`}
+          className="focus-ring rounded font-mono text-sm font-semibold tabular hover:text-brand"
+        >
+          {shipment.trackingNumber}
+        </Link>
+      </p>
+      <p className="truncate text-sm">{shipment.customerName}</p>
+      <p className="line-clamp-2 text-xs text-muted-foreground">
+        {shipment.description}
+      </p>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+        <span className="text-muted-foreground">
+          {t("Boxes here")}{" "}
+          <span
+            className={`tabular ${absent.length > 0 ? "font-semibold text-warning" : "text-foreground"}`}
+          >
+            {onFloor} {t("of")} {total}
+          </span>
+        </span>
+        <ShipmentStatusBadge status={shipment.status} />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={detailId}
+        className="focus-ring mt-3 flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+      >
+        <ChevronRight
+          className={`h-4 w-4 transition-transform motion-reduce:transition-none ${
+            open ? "rotate-90" : ""
+          }`}
+        />
+        {open ? t("Hide case detail") : t("Show case detail")}
+      </button>
+
+      {open ? (
+        <div id={detailId} className="mt-1">
+          <CaseRecord
+            exception={exception}
+            allow={allow}
+            assignees={assignees}
+            absent={absent}
+            unit={unit}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -143,14 +315,7 @@ function ExceptionRow({
   const Icon = meta.icon;
   const { shipment } = exception;
 
-  const unit =
-    PACKAGE_TYPE_LABELS[shipment.packageType] ?? PACKAGE_TYPE_LABELS.PACKAGE;
-  const total = shipment.packages.length || shipment.declaredPackages;
-  const onFloor = shipment.packages.filter((p) => p.receivedAt).length;
-  const absent = shipment.packages
-    .filter((p) => !p.receivedAt)
-    .map((p) => p.sequence);
-  const age = daysOpen(exception.raisedAt, exception.resolvedAt);
+  const { unit, total, onFloor, absent, age } = caseFacts(exception);
 
   return (
     <>

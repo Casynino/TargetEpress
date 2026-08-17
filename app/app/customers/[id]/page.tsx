@@ -71,8 +71,12 @@ export default async function CustomerProfilePage({
     body: composeMessage(kind, {
       customerName: customer.name,
       trackingNumber: latestShipment?.trackingNumber ?? null,
+      // "en", never the viewer's locale: these are Swahili messages for the
+      // customer, and the customer is in Tanzania. Resolved against the reader,
+      // a Guangzhou desk opening a Dar customer to chase them composed the
+      // cargo line in Chinese — the same rule the invoice page already states.
       description: latestShipment
-        ? cargoText(locale, latestShipment, "description")
+        ? cargoText("en", latestShipment, "description")
         : null,
       batchNumber: latestShipment?.batch?.batchNumber ?? null,
       invoiceNumber: latestShipment?.invoice?.invoiceNumber ?? null,
@@ -261,7 +265,10 @@ export default async function CustomerProfilePage({
                                     ? `/app/cargo/${shipment.trackingNumber}`
                                     : `/app/collections/record/${shipment.invoice.id}`
                                 }
-                                className="focus-ring inline-flex items-center rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground"
+                                /* The action the phone card exists for, at a
+                                   thumb's height rather than the 28px pill it
+                                   inherited from the desk table. */
+                                className="focus-ring inline-flex min-h-[44px] items-center rounded-full bg-brand px-4 text-xs font-semibold text-brand-foreground"
                               >
                                 {t(locale, "Record payment")}
                               </Link>

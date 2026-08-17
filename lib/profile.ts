@@ -7,6 +7,7 @@ import { auditSentence } from "@/lib/audit-humanise";
 import { formatDate, formatDateTime, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
+import { cargoText, selectText } from "@/lib/viewer";
 
 /**
  * Everything a warehouse employee's profile shows.
@@ -178,7 +179,7 @@ export async function myShipments(
     select: {
       id: true,
       trackingNumber: true,
-      description: true,
+      ...selectText("description"),
       weightKg: true,
       packages: true,
       packageType: true,
@@ -196,7 +197,16 @@ export async function myShipments(
       id: row.id,
       trackingNumber: row.trackingNumber,
       customerName: row.customer.name,
-      item: cargoLabel(row.cargoType?.name, row.description),
+      // Every other field on this row already followed the reader — status,
+      // date, the unit on the count — while the one that says what the cargo IS
+      // stayed in whatever language it was typed in. That is the wrong field to
+      // leave behind: on "My cargo" it is the only thing distinguishing two
+      // rows for the same customer.
+      item: cargoLabel(
+        row.cargoType?.name,
+        cargoText(locale, row, "description"),
+        locale
+      ),
       weightKg: toNumber(row.weightKg),
       // The count is put back in front of a translated unit; a count and its
       // unit joined before the lookup could never be found in a dictionary.

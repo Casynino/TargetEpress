@@ -94,12 +94,15 @@ export function LedgerFilters({
         />
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      {/* Six 36px pickers wrapped two-to-a-row at 375px, each one narrower
+          than the option text inside it. One per line and a thumb tall
+          below sm; the desk keeps its single filter bar. */}
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
         <NativeSelect
           aria-label={t("Type")}
           value={value("kind")}
           onChange={(e) => push({ kind: e.target.value })}
-          className="h-9 w-auto min-w-[9rem] text-sm"
+          className="h-11 w-full min-w-[9rem] text-sm sm:h-9 sm:w-auto"
         >
           <option value="">{t("All types")}</option>
           {kinds.map((k) => (
@@ -113,7 +116,7 @@ export function LedgerFilters({
           aria-label={t("Direction")}
           value={value("direction")}
           onChange={(e) => push({ direction: e.target.value })}
-          className="h-9 w-auto min-w-[8rem] text-sm"
+          className="h-11 w-full min-w-[8rem] text-sm sm:h-9 sm:w-auto"
         >
           <option value="">{t("In & out")}</option>
           <option value="IN">{t("In only")}</option>
@@ -124,7 +127,7 @@ export function LedgerFilters({
           aria-label={t("Account")}
           value={value("account")}
           onChange={(e) => push({ account: e.target.value })}
-          className="h-9 w-auto min-w-[10rem] text-sm"
+          className="h-11 w-full min-w-[10rem] text-sm sm:h-9 sm:w-auto"
         >
           <option value="">{t("All accounts")}</option>
           {accounts.map((a) => (
@@ -138,7 +141,7 @@ export function LedgerFilters({
           aria-label={t("Cost category")}
           value={value("category")}
           onChange={(e) => push({ category: e.target.value })}
-          className="h-9 w-auto min-w-[10rem] text-sm"
+          className="h-11 w-full min-w-[10rem] text-sm sm:h-9 sm:w-auto"
         >
           <option value="">{t("All categories")}</option>
           {categories.map((c) => (
@@ -152,7 +155,7 @@ export function LedgerFilters({
           aria-label={t("Recorded by")}
           value={value("person")}
           onChange={(e) => push({ person: e.target.value })}
-          className="h-9 w-auto min-w-[9rem] text-sm"
+          className="h-11 w-full min-w-[9rem] text-sm sm:h-9 sm:w-auto"
         >
           <option value="">{t("Anyone")}</option>
           {people.map((p) => (
@@ -166,7 +169,7 @@ export function LedgerFilters({
           aria-label={t("When")}
           value={value("period")}
           onChange={(e) => push({ period: e.target.value })}
-          className="h-9 w-auto min-w-[9rem] text-sm"
+          className="h-11 w-full min-w-[9rem] text-sm sm:h-9 sm:w-auto"
         >
           {PERIODS.map((p) => (
             <option key={p.value} value={p.value}>
@@ -182,7 +185,7 @@ export function LedgerFilters({
               setTerm("");
               router.push("/app/finance/transactions");
             }}
-            className="focus-ring inline-flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+            className="focus-ring inline-flex h-11 items-center justify-center gap-1 rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground sm:h-9"
           >
             <X className="h-3.5 w-3.5" />
             {t("Clear")}

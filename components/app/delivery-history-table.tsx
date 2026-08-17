@@ -259,7 +259,10 @@ function DeliveryDetail({ row }: { row: DeliveryHistoryRow }) {
   const locale = useLocale();
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.minmax(0,1fr)]">
+    // `1.minmax(0,1fr)` — what a find-and-replace made of `1.4fr` while adding
+    // the minmax guard. Tailwind cannot parse it, so the lg: rule never
+    // generated and the detail stayed one column on every width.
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
       <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
         <Field label={t("Cargo")}>
           {cargoDescription(locale, row)}

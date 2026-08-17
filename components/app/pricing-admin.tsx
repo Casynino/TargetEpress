@@ -168,7 +168,133 @@ export function RateBook({ rules }: { rules: AdminRule[] }) {
         </p>
       ) : null}
 
-      <div className="overflow-x-auto">
+      {/* Below md the rule becomes a card. The price stays editable in place —
+          the whole reason it is a button rather than a read-only figure is that
+          "what are we charging for this" and "change it" are one action, and
+          that does not stop being true on a phone. */}
+      <ul className="divide-y md:hidden">
+        {visible.map((rule) => (
+          <li key={rule.id} className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-medium">
+                  {rule.productName ??
+                    `${t("Every")} ${t(CATEGORY_LABEL[rule.category] ?? rule.category)}`}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t(CATEGORY_LABEL[rule.category] ?? rule.category)}
+                  {rule.productName ? "" : ` — ${t("catch-all")}`}
+                </p>
+              </div>
+              {rule.active ? null : (
+                <Badge variant="outline" className="shrink-0 text-muted-foreground">
+                  {t("Withdrawn")}
+                </Badge>
+              )}
+            </div>
+            {rule.notes ? (
+              <p className="mt-1 text-xs text-muted-foreground">{rule.notes}</p>
+            ) : null}
+
+            <p className="mt-2 text-xs text-muted-foreground">
+              {t("Tier")}: <span className="text-foreground">{tierLabel(rule, t)}</span>
+            </p>
+
+            <div className="mt-2 font-mono font-medium tabular-nums">
+              {editing === rule.id ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">
+                      {rule.currency}
+                    </span>
+                    <input
+                      autoFocus
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") save(rule);
+                        if (e.key === "Escape") setEditing(null);
+                      }}
+                      className="focus-ring h-11 w-full rounded-md border bg-background px-2 text-sm tabular-nums"
+                      aria-label={t("New price")}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="brand"
+                      className="flex-1"
+                      disabled={pending}
+                      onClick={() => save(rule)}
+                    >
+                      {t("Save")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setEditing(null)}
+                    >
+                      {t("Cancel")}
+                    </Button>
+                  </div>
+                </div>
+              ) : rule.active ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(rule.id);
+                    setDraft(rule.price);
+                  }}
+                  className="focus-ring inline-flex min-h-[44px] items-center rounded-md px-1 underline decoration-dotted underline-offset-4 hover:text-brand"
+                  title={t("Change this price")}
+                >
+                  {priceLabel(rule, t)}
+                </button>
+              ) : (
+                priceLabel(rule, t)
+              )}
+            </div>
+
+            <p className="mt-1 text-xs text-muted-foreground">
+              {rule.minChargeableKg
+                ? `${t("min")} ${Number(rule.minChargeableKg)} kg`
+                : null}
+              {rule.minChargeableKg && rule.minCharge ? " · " : null}
+              {rule.minCharge
+                ? `${t("min")} ${rule.currency} ${Number(rule.minCharge)}`
+                : null}
+              {/* "—", the same as the Floor column says on the desk, rather
+                  than a new phrase only the phone would ever have used. */}
+              {!rule.minChargeableKg && !rule.minCharge ? "—" : null} ·{" "}
+              {t("Since")} {formatDate(rule.effectiveFrom, locale)}
+            </p>
+
+            {rule.active ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="mt-2 w-full"
+                disabled={pending}
+                onClick={() => withdraw(rule)}
+              >
+                <X className="mr-1 h-3.5 w-3.5" />
+                {t("Withdraw")}
+              </Button>
+            ) : null}
+          </li>
+        ))}
+        {visible.length === 0 ? (
+          <li className="p-6 text-center text-sm text-muted-foreground">
+            {t("No prices match that filter.")}
+          </li>
+        ) : null}
+      </ul>
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
@@ -448,7 +574,7 @@ export function PublishPriceForm({ products }: { products: AdminProduct[] }) {
 
             {method === "WEIGHT_BASED" ? (
               <>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="rule-min">{t("From (kg)")}</Label>
                     <Input id="rule-min" name="minWeightKg" inputMode="decimal" placeholder="10" />
@@ -458,7 +584,7 @@ export function PublishPriceForm({ products }: { products: AdminProduct[] }) {
                     <Input id="rule-max" name="maxWeightKg" inputMode="decimal" placeholder="—" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3 sm:col-span-2">
+                <div className="grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="rule-minkg">{t("Minimum billable kg")}</Label>
                     <Input

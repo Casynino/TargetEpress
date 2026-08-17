@@ -99,6 +99,8 @@ const ACTION_LABELS: Record<string, string> = {
   "cargo.delete": "Cargo deleted",
   "cargo.restore": "Cargo restored",
   "cargo.purge": "Cargo permanently removed",
+  "shipment.attachDocument": "Paperwork attached to cargo",
+  "shipment.removeDocument": "Paperwork removed from cargo",
   "label.print": "Labels printed",
 
   "storage.charged": "Storage fee charged",
