@@ -429,21 +429,36 @@ export function storageNotice(): {
   sw: { heading: string; body: string };
 } {
   const { freeDays, perDayUsd } = STORAGE_POLICY;
+  /*
+    The owner's own wording, both languages, and Swahili first.
+
+    Kiswahili leads because the customer holding this document reads Kiswahili
+    — the English is there for the freight forwarder and the file. The reason
+    for the rule is stated ("wingi wa mizigo" / high volume) rather than only
+    the penalty, which is what makes it read as a warehouse policy instead of
+    a threat, and the ask is at the end: collect early.
+
+    The two numbers still come from STORAGE_POLICY above, so the 7 days and
+    the USD 2 cannot drift from what the storage clock actually charges.
+  */
   return {
-    en: {
-      heading: "Warehouse Storage Policy",
-      body:
-        `Your cargo includes ${freeDays} days of free storage from the date it ` +
-        `arrives at our Dar es Salaam warehouse. After the free period ends, a ` +
-        `storage fee of USD ${perDayUsd} per day will be charged until the ` +
-        `cargo is collected.`,
-    },
     sw: {
-      heading: "Masharti ya Kuhifadhi Mzigo",
+      heading: "WAREHOUSE STORAGE POLICY",
       body:
-        `Mzigo wako unapata siku ${freeDays} za kuhifadhi bure kuanzia tarehe ` +
-        `unapofika kwenye ghala letu la Dar es Salaam. Baada ya siku hizo ` +
-        `kuisha, utatozwa USD ${perDayUsd} kwa siku hadi utakapochukua mzigo wako.`,
+        `Kutokana na wingi wa mizigo katika warehouse yetu, mzigo wako ` +
+        `utahifadhiwa bure (Free Storage) kwa siku ${freeDays} kuanzia siku ` +
+        `utakapofika Dar es Salaam. Baada ya siku ${freeDays}, utatozwa ` +
+        `USD ${perDayUsd} kwa siku (Storage Fee). Tafadhali chukua mzigo wako ` +
+        `mapema ili kuepuka gharama za ziada za Storage Fee.`,
+    },
+    en: {
+      heading: "WAREHOUSE STORAGE POLICY",
+      body:
+        `Due to the high volume of cargo in our warehouse, your cargo will be ` +
+        `stored free of charge for ${freeDays} days from the date it arrives ` +
+        `in Dar es Salaam. After ${freeDays} days, a USD ${perDayUsd} per day ` +
+        `Storage Fee will apply. Please collect your cargo early to avoid ` +
+        `additional Storage Fees.`,
     },
   };
 }

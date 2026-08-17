@@ -418,14 +418,17 @@ export async function InvoiceDocument({
       */}
       <section className="mt-5">
         <DocumentField label={t(locale, "Storage policy")}>
-          <div className="space-y-2 text-xs leading-relaxed">
+          {/* Red, and Kiswahili first. A storage charge nobody read is the
+              one argument this document exists to prevent, and it was set in
+              the same grey as the bank details above it. */}
+          <div className="space-y-2 text-xs leading-relaxed text-[#d81e2a]">
             <div>
-              <p className="font-semibold">{storageNotice().en.heading}</p>
-              <p>{storageNotice().en.body}</p>
+              <p className="font-bold">{storageNotice().sw.heading}</p>
+              <p>{storageNotice().sw.body}</p>
             </div>
             <div>
-              <p className="font-semibold">{storageNotice().sw.heading}</p>
-              <p>{storageNotice().sw.body}</p>
+              <p className="font-bold">{storageNotice().en.heading}</p>
+              <p>{storageNotice().en.body}</p>
             </div>
           </div>
         </DocumentField>
