@@ -64,6 +64,9 @@ export default async function CreditPage({
   const q = sp.q?.trim() ?? "";
 
   const canDecide = can(user.role, "credit.approve");
+  /* Moving a due date is not granting credit. The desk on the phone when a
+     customer renegotiates is the desk that should be able to write it down. */
+  const canMoveDates = can(user.role, "credit.request");
 
   const [overview, rows, requests, rateRow] = await Promise.all([
     creditOverview(),
@@ -438,7 +441,7 @@ export default async function CreditPage({
                       moving a deadline is more credit, and that desk may ask for
                       credit without being able to quietly buy a fortnight.
                     */}
-                    {canDecide && r.outstandingUsd > 0.005 ? (
+                    {canMoveDates && r.outstandingUsd > 0.005 ? (
                       <CreditAdjust
                         invoiceId={r.invoiceId}
                         dueOn={r.dueDate ? formatDate(r.dueDate, locale) : null}

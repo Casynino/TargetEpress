@@ -1620,7 +1620,16 @@ export type BillableHit = {
  */
 export async function searchBillable(query: string): Promise<BillableHit[]> {
   try {
-    await authorize("payment.record");
+    /*
+      Anybody who may put a payment against a bill may look one up.
+
+      This required payment.record, which is the authority to say money ARRIVED —
+      so Support, whose whole job is fielding "I have paid, here is the
+      screenshot", could not search for the bill it was being told about. It had
+      to already know the tracking number. payment.submit is the right gate: it
+      is held by Support and by Finance, and finding a bill commits nothing.
+    */
+    await authorize("payment.submit");
   } catch {
     return [];
   }

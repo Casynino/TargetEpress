@@ -25,6 +25,12 @@ import type { ActionResult } from "@/lib/actions/types";
  *
  * A reason is required. This is not a typo being corrected: the date is a promise
  * the customer was given, and every screen in the app reads it.
+ *
+ * Support may use this as well as Finance, because the desk on the phone when a
+ * customer renegotiates is the desk that should be able to write the new date
+ * down. What bounds it is the thirty-day ceiling, the reason and the name on the
+ * audit row — not who is holding the mouse. Granting credit in the first place is
+ * still Finance's alone.
  */
 export function CreditAdjust({
   invoiceId,

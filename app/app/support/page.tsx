@@ -14,6 +14,7 @@ import {
 
 import { KpiCard } from "@/components/app/kpi-card";
 import { ActionPills } from "@/components/app/action-pills";
+import { FindBill } from "@/components/app/find-bill";
 import { AttentionCenter, type AttnItem } from "@/components/app/attention-center";
 import { SectionLabel } from "@/components/app/section-label";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -71,6 +72,9 @@ const PRIORITY_TONE: Record<string, string> = {
  */
 export default async function SupportHome() {
   const user = await requirePermission("ticket.manage");
+  /* Support files a claim, Finance banks it — both hold payment.submit, and the
+     record screen behind this already knows which of the two is standing there. */
+  const canTakePayments = can(user.role, "payment.submit");
   const locale = await viewerLocale();
 
   // Read the name from the record rather than the session token, which carries
@@ -394,6 +398,21 @@ export default async function SupportHome() {
           </div>
         </div>
       </div>
+
+      {/*
+        The one thing this desk does that had no door.
+
+        Every pill below navigates somewhere; recording a payment is an ACTION,
+        and it was only reachable by first finding the consignment yourself. A
+        customer on the phone saying "I have paid" is the most common call here,
+        so the search that answers it sits above the navigation rather than
+        inside it.
+      */}
+      {canTakePayments ? (
+        <div className="mb-4">
+          <FindBill />
+        </div>
+      ) : null}
 
       <div className="mb-7">
         <ActionPills

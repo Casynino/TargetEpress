@@ -545,7 +545,23 @@ export async function adjustCredit(
 ): Promise<ActionResult> {
   const locale = await viewerLocale();
   try {
-    const user = await authorize("credit.approve");
+    /*
+      Support may move a date too — the owner's call, and a sound one.
+
+      This first required credit.approve on the reasoning that a later deadline
+      is more credit. True, but it treated the wrong risk as the big one: Support
+      is the desk actually ON THE PHONE when a customer says "I can pay you on
+      the 26th", and making them queue that behind Finance means the date in the
+      system stays wrong until somebody else gets round to it. A stale deadline
+      is not safer than a moved one — it puts a customer on the overdue list, and
+      on somebody's call sheet, for a date they already renegotiated.
+
+      What keeps it safe is not the permission: it is the thirty-day ceiling, the
+      required reason, and the audit row with a name on it. GRANTING credit is
+      still Finance's alone — that is the decision that lets cargo leave the
+      building unpaid, and it has not moved.
+    */
+    const user = await authorize("credit.request");
     const parsed = z
       .object({
         invoiceId: z.string().min(1),
