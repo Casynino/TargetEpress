@@ -47,6 +47,8 @@ export default async function RecordCollectionPage({
         total: true,
         amountPaid: true,
         currency: true,
+        storageCharge: true,
+        storageWaivedUsd: true,
         customer: { select: { id: true, name: true, phone: true } },
         shipment: {
           select: { trackingNumber: true, ...selectText("description") },
@@ -63,6 +65,12 @@ export default async function RecordCollectionPage({
   if (!invoice) notFound();
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
+  /* The one question asked at the counter that this screen could not answer:
+     "why is my total more than the price I was quoted?" Storage is the usual
+     answer, and it was invisible here — the person taking the money had to
+     open the invoice in another tab to find out. */
+  const storageCharged = toNumber(invoice.storageCharge);
+  const storageWaived = toNumber(invoice.storageWaivedUsd);
   const outstanding = toNumber(invoice.total) - toNumber(invoice.amountPaid);
   const pending = invoice.submissions[0];
 
@@ -188,6 +196,25 @@ export default async function RecordCollectionPage({
                   {formatMoney(toNumber(invoice.total), invoice.currency)}
                 </dd>
               </div>
+              {storageCharged > 0 ? (
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-xs text-muted-foreground">
+                    {t(locale, "of which warehouse storage")}
+                  </dt>
+                  <dd className="font-mono text-xs tabular-nums text-destructive">
+                    {formatMoney(storageCharged, invoice.currency)}
+                  </dd>
+                </div>
+              ) : storageWaived > 0 ? (
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-xs text-muted-foreground">
+                    {t(locale, "storage waived")}
+                  </dt>
+                  <dd className="font-mono text-xs tabular-nums text-warning">
+                    {formatMoney(storageWaived, invoice.currency)}
+                  </dd>
+                </div>
+              ) : null}
               <div className="flex items-baseline justify-between gap-3">
                 <dt className="text-muted-foreground">
                   {t(locale, "Paid so far")}
