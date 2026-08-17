@@ -333,10 +333,22 @@ export default async function InvoicePage({
                 localCurrency,
                 storageDays: invoice.storageDays,
                 weightKg: toNumber(shipment.weightKg),
-                /* How the figure was reached — the same one line the invoice
-                   itself prints under "Air freight", so the message and the
-                   document cannot tell the customer two different stories. */
-                freightBasis: freightNote,
+                /*
+                  Just the price, in the customer's terms.
+
+                  It carried the whole freight note — route, method, rate and
+                  chargeable weight — which reads as paperwork and invited the
+                  wrong question: a 0.6 kg parcel billed at a 1 kg minimum
+                  showed both numbers and looked like a mistake. The customer
+                  asked one thing, "what is the rate", so the message answers
+                  exactly that. The full working stays on the invoice, where
+                  somebody querying it will look.
+                */
+                freightBasis: shipment.quotedRate
+                  ? `${money(toNumber(shipment.quotedRate), currency)}/${
+                      shipment.quotedMethod === "FIXED_PER_ITEM" ? "pcs" : "kg"
+                    }`
+                  : null,
                 // The rate frozen on THIS invoice. Publishing a new rate
                 // tomorrow must not restate what this customer was quoted.
                 exchangeRate: invoiceRate,
