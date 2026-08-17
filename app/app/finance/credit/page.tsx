@@ -431,23 +431,26 @@ export default async function CreditPage({
                     >
                       {t(locale, dueLabel(r))}
                     </span>
-                    {r.dueDate ? (
+                    {/*
+                      The date, and for Finance the date IS the edit control —
+                      one thing on the row instead of a figure plus an icon
+                      beside it that nobody found. Support reads it plainly:
+                      moving a deadline is more credit, and that desk may ask for
+                      credit without being able to quietly buy a fortnight.
+                    */}
+                    {canDecide && r.outstandingUsd > 0.005 ? (
+                      <CreditAdjust
+                        invoiceId={r.invoiceId}
+                        dueOn={r.dueDate ? formatDate(r.dueDate, locale) : null}
+                        overdue={r.daysOverdue > 0}
+                        today={todayIso}
+                        ceiling={ceilingIso}
+                      />
+                    ) : r.dueDate ? (
                       <span className="tabular">{formatDate(r.dueDate, locale)}</span>
                     ) : null}
                     {r.outstandingUsd > 0.005 ? (
                       <>
-                        {/* Move or extend the date. Finance only — a deadline is
-                            more credit, and Support may ask for credit without
-                            being able to quietly buy a customer a fortnight. */}
-                        {canDecide ? (
-                          <CreditAdjust
-                            invoiceId={r.invoiceId}
-                            dueOn={r.dueDate ? formatDate(r.dueDate, locale) : null}
-                            overdue={r.daysOverdue > 0}
-                            today={todayIso}
-                            ceiling={ceilingIso}
-                          />
-                        ) : null}
                         <Link
                           href={`/app/collections/record/${r.invoiceId}`}
                           className="focus-ring rounded px-1.5 py-0.5 font-medium text-success/80 transition-colors hover:bg-success/10 hover:text-success"

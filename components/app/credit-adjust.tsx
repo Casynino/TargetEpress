@@ -47,24 +47,40 @@ export function CreditAdjust({
   );
   const [open, setOpen] = useState(false);
 
-  if (!open) {
-    return (
+  /*
+    THE DATE IS THE BUTTON.
+
+    The first version put a bare 14px calendar icon between the date and the
+    Collect link, and nobody found it — reasonably, since the row already carries
+    five other things. Clicking the thing you want to change needs no discovering,
+    so the due date itself opens the editor, dotted-underlined the way editable
+    text is underlined everywhere.
+
+    The panel is a popover rather than an inline block: this row is a flex line
+    with the amount aligned to a column, and a form expanding inside it shoved
+    every neighbouring row's figures sideways.
+  */
+  return (
+    <span className="relative inline-flex items-center">
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
         title={t("Change or extend the due date")}
-        aria-label={t("Change or extend the due date")}
-        className="focus-ring rounded px-1.5 py-0.5 font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        className={
+          overdue
+            ? "focus-ring inline-flex items-center gap-1 rounded px-1 font-semibold text-destructive underline decoration-dotted decoration-1 underline-offset-2 transition-colors hover:bg-destructive/10"
+            : "focus-ring inline-flex items-center gap-1 rounded px-1 tabular underline decoration-dotted decoration-1 underline-offset-2 transition-colors hover:bg-accent hover:text-foreground"
+        }
       >
-        <CalendarClock className="h-3.5 w-3.5" />
+        <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+        {dueOn ?? t("set a date")}
       </button>
-    );
-  }
 
-  return (
+      {open ? (
     <form
       action={action}
-      className="mt-1 w-full space-y-2 rounded-lg border bg-card p-2.5 text-left"
+      className="absolute right-0 top-full z-30 mt-1 w-[17rem] space-y-2 rounded-lg border bg-card p-2.5 text-left shadow-lg"
     >
       <input type="hidden" name="invoiceId" value={invoiceId} />
 
@@ -134,5 +150,7 @@ export function CreditAdjust({
 
       <FormError state={state} />
     </form>
+      ) : null}
+    </span>
   );
 }
