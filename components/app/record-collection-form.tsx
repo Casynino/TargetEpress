@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { submitPaymentForVerification } from "@/lib/actions/collections";
+import { recordPayment } from "@/lib/actions/finance";
 import type { ActionResult } from "@/lib/actions/types";
 
 const METHODS = [
@@ -43,6 +44,7 @@ export function RecordCollectionForm({
   outstanding,
   currency,
   rate,
+  banks,
 }: {
   invoiceId: string;
   invoiceNumber: string;
@@ -53,12 +55,36 @@ export function RecordCollectionForm({
   outstanding: number;
   currency: string;
   rate: number | null;
+  /**
+   * The accounts this desk may bank the money into — present only when the
+   * reader can record a payment outright rather than claim one.
+   *
+   * Finance was submitting claims to Finance: it filled this form, pressed
+   * "Submit to Finance", then walked to the verify queue to approve its own
+   * submission. The two-step exists so the desk that hears "I paid" is not the
+   * desk that says "the money arrived" — and it stops making sense the moment
+   * the person is the one who says that.
+   */
+  banks?: { id: string; name: string; currency: string; kind: string }[] | null;
 }) {
   const t = useT();
-  const [state, action] = useActionState<
-    ActionResult<{ submissionNumber: string }>,
-    FormData
-  >(submitPaymentForVerification, { ok: true });
+  /* The authority decides which action this form is. Support files a claim;
+     Finance records the money. Same fields either way — paymentSchema and the
+     submission schema ask for the same things — so nothing about the form moves
+     around under somebody who learned it. */
+  const direct = Boolean(banks);
+  /* The two actions return differently shaped payloads — a submission number or
+     a receipt number — so the state is the union of both and the success line
+     reads whichever arrived. Cast at the boundary rather than widening either
+     action's own contract, which other callers depend on. */
+  type Outcome = { submissionNumber?: string; receiptNumber?: string };
+  const [state, action] = useActionState<ActionResult<Outcome>, FormData>(
+    (direct ? recordPayment : submitPaymentForVerification) as unknown as (
+      state: ActionResult<Outcome>,
+      payload: FormData
+    ) => Promise<ActionResult<Outcome>>,
+    { ok: true }
+  );
 
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -176,6 +202,32 @@ export function RecordCollectionForm({
           </NativeSelect>
         </div>
       </div>
+
+      {/*
+        Where the money landed — only when the money is actually being banked.
+
+        Optional, deliberately: the desk records the payment exactly as it always
+        has, and an unattributed payment is still a recorded payment. Money in
+        hand that nobody has said where it went is the thing a finance system
+        should surface rather than refuse, which is what the Accounts page's
+        "Unattributed" bucket is for.
+      */}
+      {direct && banks && banks.length > 0 ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="collectionAccount" className="text-xs">
+            {t("Which account received it")}{" "}
+            <span className="text-muted-foreground">({t("optional")})</span>
+          </Label>
+          <NativeSelect id="collectionAccount" name="accountId" className="h-11">
+            <option value="">{t("Not saying yet")}</option>
+            {banks.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name} · {account.currency}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+      ) : null}
 
       <div className="space-y-1.5">
         <Label htmlFor="collectionReference" className="text-xs">
@@ -307,19 +359,27 @@ export function RecordCollectionForm({
       <FormSuccess
         message={
           state.ok && state.data
-            ? `${state.data.submissionNumber} ${t("is with Finance. You will see it move once they check it.")}`
+            ? state.data.receiptNumber
+              ? `${t("Receipt")} ${state.data.receiptNumber} ${t("issued. The bill and the account are updated.")}`
+              : state.data.submissionNumber
+                ? `${state.data.submissionNumber} ${t("is with Finance. You will see it move once they check it.")}`
+                : null
             : null
         }
       />
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-        <SubmitButton variant="brand" pendingLabel="Sending…">
-          {t("Submit to Finance")}
+        <SubmitButton variant="brand" pendingLabel={direct ? "Recording…" : "Sending…"}>
+          {direct ? t("Record the payment") : t("Submit to Finance")}
         </SubmitButton>
         <p className="text-xs text-muted-foreground">
-          {t(
-            "Nothing is settled until Finance verifies it. No money moves on this screen."
-          )}
+          {direct
+            ? t(
+                "This banks the money against the bill and prints a receipt. No second approval — you are the one who says it arrived."
+              )
+            : t(
+                "Nothing is settled until Finance verifies it. No money moves on this screen."
+              )}
         </p>
       </div>
     </form>

@@ -13,6 +13,7 @@ import { RecordCollectionForm } from "@/components/app/record-collection-form";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
+import { activeAccounts } from "@/lib/accounts";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -94,6 +95,18 @@ export default async function RecordCollectionPage({
   const pending = invoice.submissions[0];
   /* Whether this desk may offer credit at all. Support and Finance hold
      credit.request; neither warehouse does, and neither reaches this screen. */
+  /*
+    Finance was submitting claims to Finance.
+
+    This screen always filed a claim for somebody else to verify, which is right
+    for Support and pure ceremony for the desk that IS the verifier: fill the
+    form, press "Submit to Finance", walk to the verify queue, approve your own
+    submission. Handing the accounts to the form is what switches it to recording
+    the money outright — same fields, same screen, one step.
+  */
+  const canRecordDirectly = can(user.role, "payment.record");
+  const banks = canRecordDirectly ? await activeAccounts() : null;
+
   const canAskCredit =
     can(user.role, "credit.request") && invoice.creditStatus !== "APPROVED";
 
@@ -185,6 +198,7 @@ export default async function RecordCollectionPage({
                 outstanding={outstanding}
                 currency={invoice.currency}
                 rate={rate}
+                banks={banks}
               />
             </>
           ) : invoice.creditStatus === "REQUESTED" ? (
@@ -225,6 +239,7 @@ export default async function RecordCollectionPage({
                   outstanding={outstanding}
                   currency={invoice.currency}
                   rate={rate}
+                  banks={banks}
                 />
               }
               credit={
