@@ -421,8 +421,7 @@ export default async function SupportHome() {
             // that has left China, the other to the two tables cargo is still
             // waiting on there — and "has mine flown yet" is the whole
             // difference between them, asked on this desk all day.
-            { href: "/app/shipments", label: t(locale, "Arrived batches"), icon: PlaneTakeoff, weight: "primary", tone: "brand" },
-            { href: "/app/collections", label: t(locale, "Collections"), icon: Banknote, weight: "secondary", tone: "signal" },
+            { href: "/app/collections", label: t(locale, "Collections"), icon: Banknote, weight: "primary", tone: "signal" },
             // Investigations rather than Tickets: a case where cargo is
             // missing or short is what this desk is rung about and has to
             // reach mid-call. Tickets keeps its sidebar row.
@@ -436,6 +435,11 @@ export default async function SupportHome() {
             // and a row of six pills where two are duplicates is a row nobody
             // reads to the end of.
             { href: "/app/finance/credit", label: t(locale, "Credit"), icon: CalendarClock, tone: "violet" },
+            // Last, and no longer the loud one. Browsing arrived batches is what
+            // this desk does between calls; the money rows are what it reaches
+            // for during one, and the first pill should be whatever is most
+            // often needed with a customer waiting.
+            { href: "/app/shipments", label: t(locale, "Arrived batches"), icon: PlaneTakeoff, tone: "brand" },
           ]}
         />
       </div>
