@@ -422,6 +422,11 @@ export default async function SupportHome() {
             // waiting on there — and "has mine flown yet" is the whole
             // difference between them, asked on this desk all day.
             { href: "/app/collections", label: t(locale, "Collections"), icon: Banknote, weight: "primary", tone: "signal" },
+            /* Credit sits on the far side of Record an income, so the three
+               money things read as one group: who owes us, take a payment, who
+               owes us on terms. The action is anchored after Collections, which
+               puts it between the two. */
+            { href: "/app/finance/credit", label: t(locale, "Credit"), icon: CalendarClock, tone: "violet" },
             // Investigations rather than Tickets: a case where cargo is
             // missing or short is what this desk is rung about and has to
             // reach mid-call. Tickets keeps its sidebar row.
@@ -434,7 +439,6 @@ export default async function SupportHome() {
             // "who owes us and when is it due" is asked on this desk mid-call,
             // and a row of six pills where two are duplicates is a row nobody
             // reads to the end of.
-            { href: "/app/finance/credit", label: t(locale, "Credit"), icon: CalendarClock, tone: "violet" },
             // Last, and no longer the loud one. Browsing arrived batches is what
             // this desk does between calls; the money rows are what it reaches
             // for during one, and the first pill should be whatever is most
