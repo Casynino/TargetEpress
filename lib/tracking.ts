@@ -193,6 +193,15 @@ export type PublicStorage = {
   expired: boolean;
   lastFreeDay: boolean;
   collected: boolean;
+  /**
+   * Forgiven by the office.
+   *
+   * Without this the page kept showing a customer a live, red, still-growing
+   * charge that the desk had already written off — the exact surprise the
+   * whole rule exists to prevent, only in the opposite direction: they arrive
+   * expecting to pay a fee nobody is going to ask for.
+   */
+  waivedUsd: number;
 };
 
 /**
@@ -413,6 +422,8 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
           currency: true,
           total: true,
           amountPaid: true,
+          /* So a forgiven fee is never shown to the customer as owing. */
+          storageWaivedUsd: true,
           exchangeRate: true,
           localCurrency: true,
           totalLocal: true,
@@ -674,17 +685,20 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
       storage: ((): PublicStorage | null => {
         if (!shipment.arrivedAt) return null;
         const st = storageStatus(shipment.arrivedAt, shipment.deliveredAt);
+        /* A fee the office has forgiven is not a fee the customer owes. */
+        const waivedUsd = toNumber(shipment.invoice?.storageWaivedUsd ?? 0);
         return {
           arrivedAt: shipment.arrivedAt.toISOString(),
           daysInWarehouse: st.daysInWarehouse,
           freeDays: st.freeDays,
           freeDaysRemaining: st.freeDaysRemaining,
           chargeableDays: st.chargeableDays,
-          chargeUsd: st.chargeUsd,
+          chargeUsd: waivedUsd > 0 ? 0 : st.chargeUsd,
           perDayUsd: st.perDayUsd,
-          expired: st.expired,
+          expired: waivedUsd > 0 ? false : st.expired,
           lastFreeDay: st.lastFreeDay,
           collected: st.collected,
+          waivedUsd,
         };
       })(),
       origin: ORIGIN_PUBLIC[shipment.origin] ?? shipment.origin,

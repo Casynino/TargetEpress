@@ -243,6 +243,8 @@ export async function confirmInvoicePrice(
           discount: true,
           otherCharges: true,
           freightOverride: true,
+          /* So re-pricing can see a waiver and leave it alone. */
+          storageWaivedUsd: true,
           notes: true,
           shipment: {
             select: {
@@ -281,7 +283,19 @@ export async function confirmInvoicePrice(
       // Recomputed here, not read off the draft — this is the leak the whole
       // action exists to close.
       const storageDays = storageDaysFor(shipment.arrivedAt, shipment.deliveredAt);
-      const storageCharge = storageDays * STORAGE_POLICY.perDayUsd;
+      /*
+        A waiver survives re-pricing.
+
+        Re-deriving storage from the dates is right — the clock has usually
+        moved — but doing it blindly resurrects a fee somebody deliberately
+        forgave, and the customer is billed for it a second time without
+        anybody deciding so. If this invoice carries a waiver, storage stays
+        at nothing and the waived figure stands; charging it again is a
+        decision, and decisions are made on the storage card.
+      */
+      const waivedUsd = toNumber(invoice.storageWaivedUsd);
+      const storageCharge =
+        waivedUsd > 0 ? 0 : storageDays * STORAGE_POLICY.perDayUsd;
       const discount = toNumber(invoice.discount);
       const otherCharges = toNumber(invoice.otherCharges);
 
