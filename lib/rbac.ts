@@ -117,6 +117,23 @@ export type Permission =
   | "invoice.discount"
   | "invoice.send"
   | "payment.record"
+  /* Credit sales. Four permissions rather than one, because the whole control
+     is that they are held by different people.
+
+     credit.view    — read the credit book: who owes us, how much, how late.
+     credit.request — ask for a consignment to be released unpaid. The desk that
+                      talks to the customer asks; asking commits nothing.
+     credit.approve — grant it. This is the one that releases cargo without
+                      payment, so Support does not hold it, and the action
+                      additionally refuses anyone approving their own request:
+                      the permission split alone is not enough if one person can
+                      do both halves.
+     credit.limit   — set a customer's standing facility. A bigger decision than
+                      any single sale, so it sits with the money side only. */
+  | "credit.view"
+  | "credit.request"
+  | "credit.approve"
+  | "credit.limit"
   /// Read a pickup note and print it. Separate from issuing it, because the
   /// two are different authorities: issuing is the act of saying the bill is
   /// settled and the cargo may go, and only Finance does that. Printing the
@@ -344,6 +361,12 @@ const CUSTOMER_CARE: Permission[] = [
   // says it did. And no accounting.view — they chase invoices, they do not
   // keep the books.
   "payment.submit",
+  /* Asks for credit and watches it, and that is the whole of it. Deliberately
+     no credit.approve: the desk that agrees terms with a customer over the phone
+     must not also be the desk that lets the cargo go unpaid, or the customer's
+     charm and the company's exposure meet in one person. */
+  "credit.view",
+  "credit.request",
   "collections.view",
   "message.send",
   "ticket.manage",
@@ -364,6 +387,14 @@ const FINANCE: Permission[] = [
   // Finance both submits (they take payments at the counter) and verifies.
   "payment.submit",
   "payment.verify",
+  /* The credit book is this desk's: it grants the terms, chases the debt and
+     sets the facilities. It can raise a request too — and if it does, the
+     approval has to come from someone else, because the no-self-approval rule
+     is checked against the person, not the department. */
+  "credit.view",
+  "credit.request",
+  "credit.approve",
+  "credit.limit",
   "collections.view",
   "shipment.view",
   "shipment.viewInternal",
@@ -473,6 +504,23 @@ const ALL: Permission[] = Array.from(
     // addresses, the phones. One mistyped Lipa number sends every customer's
     // money nowhere, so this stays with the owner and nobody else.
     "settings.manage",
+    /*
+      Signing off a closed flight's statement.
+
+      Declared beside batch.close and then granted to nobody at all, which did
+      not lock the step down — it deleted it. /app/finance/income builds the
+      accept/send-back control from can(role, "statement.review"), so it
+      rendered for no role including this one, and every statement Finance
+      produced sat permanently unreviewed while the code read as though a
+      sign-off existed.
+
+      Deliberately here and not in FINANCE. Finance shuts the books
+      (batch.close) and somebody senior agrees they are right; one desk holding
+      both closes a flight and signs off its own figures, which is the gap the
+      review step exists to create. Same reason exception.approve sits here
+      while exception.compensate sits with Finance.
+    */
+    "statement.review",
     // Approving a payout or a replacement, and declaring a case finished.
     // Held by nobody else — including the Dar floor, which the owner's CANNOT
     // list bars from closing compensation cases. Rather than try to tell a
@@ -585,6 +633,11 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // below and stopped one layer later. Defence in depth did its job; the table
   // was still saying something untrue about who gets in.
   { prefix: "/app/finance/payments", permission: "payment.record" },
+  /* The credit book. Two routes, one permission, because Support reads the same
+     page Finance works from — the difference is what the page lets them press,
+     and that is decided per action rather than at the door. */
+  { prefix: "/app/finance/credit", permission: "credit.view" },
+  { prefix: "/app/credit", permission: "credit.view" },
   { prefix: "/app/finance/expenses", permission: "expense.view" },
   { prefix: "/app/finance/reports", permission: "profit.view" },
   { prefix: "/app/finance/audit", permission: "audit.view" },

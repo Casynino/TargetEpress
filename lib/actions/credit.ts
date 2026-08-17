@@ -1,0 +1,484 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
+import { z } from "zod";
+
+import { recordAudit } from "@/lib/audit";
+import {
+  CREDIT_TERMS,
+  DEFAULT_CREDIT_TERM,
+  canRequestCredit,
+  creditCheck,
+  creditLine,
+  customerCredit,
+  dueDateFrom,
+} from "@/lib/credit";
+import { toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import { prisma } from "@/lib/prisma";
+import { authorize } from "@/lib/session";
+import { viewerLocale } from "@/lib/viewer";
+import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
+import { firstError } from "@/lib/validation";
+
+/**
+ * Granting credit, and refusing it.
+ *
+ * Three actions and one rule holding them apart: THE DESK THAT ASKS IS NOT THE
+ * DESK THAT GRANTS. Support raises a request, Finance decides it, and the
+ * decision is refused outright if the same person did both. That is not a
+ * formality — releasing cargo without payment is the one act in this system
+ * that can lose real money to a person who simply typed the right words, and a
+ * single approver with both powers is the whole exposure.
+ *
+ * Nothing here moves money, because credit is not payment. No ledger entry, no
+ * account touched, no cash figure altered. What changes is a promise: the bill
+ * gains a due date, the cargo becomes collectable, and the amount stays exactly
+ * as owed as it was. When the customer eventually pays, that goes through the
+ * ordinary payment path against the same invoice — receivable down, cash up,
+ * once.
+ */
+
+/* ------------------------------------------------------------------ request */
+
+const requestSchema = z.object({
+  invoiceId: z.string().min(1),
+  termDays: z.coerce
+    .number()
+    .int()
+    .refine((v) => (CREDIT_TERMS as readonly number[]).includes(v), "Choose 7, 14 or 30 days."),
+  note: z.string().trim().optional(),
+});
+
+/**
+ * Support asks for a consignment to be released on credit.
+ *
+ * The terms are chosen here rather than at approval, so Finance is answering a
+ * specific question — "may this customer have 30 days on USD 500" — instead of
+ * being handed a blank authority to invent both the amount and the deadline.
+ */
+export async function requestCredit(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("credit.request");
+    const parsed = requestSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: parsed.data.invoiceId },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        status: true,
+        creditStatus: true,
+        total: true,
+        amountPaid: true,
+        customerId: true,
+        shipment: { select: { trackingNumber: true } },
+      },
+    });
+    if (!invoice) return fail(t(locale, "That invoice no longer exists."));
+
+    if (!canRequestCredit(invoice)) {
+      return fail(
+        invoice.creditStatus === "REQUESTED"
+          ? t(locale, "Credit has already been requested on this bill and is with Finance.")
+          : invoice.creditStatus === "APPROVED"
+            ? t(locale, "This consignment is already approved for credit.")
+            : invoice.status === "DRAFT"
+              ? t(locale, "Confirm the price first — credit cannot be granted against a figure nobody has signed off.")
+              : t(locale, "There is nothing outstanding on this bill to defer.")
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          creditStatus: "REQUESTED",
+          creditTermDays: parsed.data.termDays,
+          creditRequestedAt: new Date(),
+          creditRequestedById: user.id,
+          creditRequestNote: parsed.data.note || null,
+          /* paymentType stays CASH until somebody grants the credit. A request
+             is not a term: if Finance says no, the bill was never anything
+             other than a cash bill and no state has to be unwound. */
+        },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "credit.requested",
+          entity: "Invoice",
+          entityId: invoice.id,
+          summary: `${invoice.invoiceNumber}: credit requested — ${parsed.data.termDays} day terms on USD ${(toNumber(invoice.total) - toNumber(invoice.amountPaid)).toFixed(2)}`,
+          metadata: {
+            tracking: invoice.shipment?.trackingNumber ?? null,
+            termDays: parsed.data.termDays,
+            outstandingUsd: toNumber(invoice.total) - toNumber(invoice.amountPaid),
+            note: parsed.data.note || null,
+          },
+        },
+        tx
+      );
+    });
+
+    revalidatePath(`/app/finance/invoices/${invoice.id}`);
+    revalidatePath("/app/finance/credit");
+    revalidatePath("/app/credit");
+    return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+/* ------------------------------------------------------------------ approve */
+
+const decideSchema = z.object({
+  invoiceId: z.string().min(1),
+  note: z.string().trim().optional(),
+  /** Finance may move the terms it was asked for. It still has to be one we offer. */
+  termDays: z.coerce.number().int().optional(),
+});
+
+/**
+ * Finance grants the credit. The cargo may now be collected unpaid.
+ *
+ * Two guards, both of which have to hold at the moment of writing rather than at
+ * the moment the page was rendered:
+ *
+ *  - The approver cannot be the requester. Checked here, in the transaction,
+ *    against the stored requester — not against anything the form sent.
+ *  - The request must still be REQUESTED. The conditional updateMany is the
+ *    claim: if a second approval arrives while the first is in flight, the
+ *    second updates zero rows and is told so, rather than both succeeding and
+ *    writing two decisions over each other.
+ */
+export async function approveCredit(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult<{ invoiceNumber: string; dueDate: Date; exceeded: boolean }>> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("credit.approve");
+    const parsed = decideSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+
+    const result = await prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.findUnique({
+        where: { id: parsed.data.invoiceId },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          status: true,
+          creditStatus: true,
+          creditTermDays: true,
+          creditRequestedById: true,
+          total: true,
+          amountPaid: true,
+          exchangeRate: true,
+          customerId: true,
+          customer: { select: { name: true, creditLimitUsd: true, creditTermDays: true } },
+          shipment: { select: { trackingNumber: true } },
+        },
+      });
+      if (!invoice) throw new Error("That invoice no longer exists.");
+
+      if (invoice.creditStatus !== "REQUESTED") {
+        throw new Error(
+          invoice.creditStatus === "APPROVED"
+            ? `${invoice.invoiceNumber} is already approved for credit.`
+            : `There is no open credit request on ${invoice.invoiceNumber}.`
+        );
+      }
+
+      /*
+        Nobody signs off their own request.
+
+        This is the load-bearing line of the whole feature. It is checked against
+        the requester stored on the row, inside the transaction, so it cannot be
+        sidestepped by a stale page or a hand-made form post.
+      */
+      if (invoice.creditRequestedById && invoice.creditRequestedById === user.id) {
+        throw new Error(
+          `You raised the credit request on ${invoice.invoiceNumber}, so somebody else has to approve it. Releasing cargo unpaid is not a decision one person makes alone.`
+        );
+      }
+
+      const termDays =
+        parsed.data.termDays &&
+        (CREDIT_TERMS as readonly number[]).includes(parsed.data.termDays)
+          ? parsed.data.termDays
+          : (invoice.creditTermDays ?? invoice.customer.creditTermDays ?? DEFAULT_CREDIT_TERM);
+
+      const grantedAt = new Date();
+      const dueDate = dueDateFrom(grantedAt, termDays);
+
+      /* The claim. Zero rows means somebody else decided it first. */
+      const claimed = await tx.invoice.updateMany({
+        where: { id: invoice.id, creditStatus: "REQUESTED" },
+        data: {
+          creditStatus: "APPROVED",
+          paymentType: "CREDIT",
+          creditTermDays: termDays,
+          creditDecidedAt: grantedAt,
+          creditDecidedById: user.id,
+          creditDecisionNote: parsed.data.note || null,
+          dueDate,
+        },
+      });
+      if (claimed.count === 0) {
+        throw new Error(
+          `${invoice.invoiceNumber} was decided by someone else a moment ago. Reload before deciding again.`
+        );
+      }
+
+      /* Recorded for the exposure it created, not just the fact of it: "why was
+         this approved when they already owed 4,800 of a 5,000 limit" is the
+         question asked later, and only the figures at the moment of the
+         decision can answer it. */
+      const openLines = await tx.invoice.findMany({
+        where: {
+          customerId: invoice.customerId,
+          creditStatus: "APPROVED",
+          id: { not: invoice.id },
+          status: { notIn: ["DRAFT", "VOID"] },
+        },
+        select: {
+          total: true,
+          amountPaid: true,
+          status: true,
+          dueDate: true,
+          creditDecidedAt: true,
+        },
+      });
+      const credit = customerCredit(
+        invoice.customer,
+        openLines.map((l) => creditLine(l, grantedAt))
+      );
+      const owing = toNumber(invoice.total) - toNumber(invoice.amountPaid);
+      const check = creditCheck(owing, credit);
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "credit.approved",
+          entity: "Invoice",
+          entityId: invoice.id,
+          summary: `${invoice.invoiceNumber}: credit APPROVED — USD ${owing.toFixed(2)} on ${termDays} day terms, due ${dueDate.toISOString().slice(0, 10)}`,
+          metadata: {
+            tracking: invoice.shipment?.trackingNumber ?? null,
+            customer: invoice.customer.name,
+            termDays,
+            dueDate: dueDate.toISOString(),
+            creditUsd: owing,
+            requestedById: invoice.creditRequestedById,
+            limitUsd: check.limitUsd,
+            outstandingBeforeUsd: check.currentOutstandingUsd,
+            totalAfterUsd: check.totalAfterUsd,
+            exceededLimit: check.exceedsLimit,
+            hadOverdue: check.hasOverdue,
+          },
+        },
+        tx
+      );
+
+      return { invoiceNumber: invoice.invoiceNumber, dueDate, exceeded: check.exceedsLimit };
+    });
+
+    revalidatePath(`/app/finance/invoices/${parsed.data.invoiceId}`);
+    revalidatePath("/app/finance/credit");
+    revalidatePath("/app/credit");
+    revalidatePath("/app/collections/follow-up");
+    return ok(result);
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+/* ------------------------------------------------------------------- reject */
+
+/**
+ * Finance says no, and says why.
+ *
+ * The reason is required. A refusal nobody explained gets raised again the same
+ * afternoon by the same desk, and the customer hears two different answers.
+ */
+export async function rejectCredit(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("credit.approve");
+    const parsed = z
+      .object({
+        invoiceId: z.string().min(1),
+        note: z.string().trim().min(3, "Say why the credit is being refused."),
+      })
+      .safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+
+    await prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.findUnique({
+        where: { id: parsed.data.invoiceId },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          creditStatus: true,
+          creditRequestedById: true,
+          shipment: { select: { trackingNumber: true } },
+        },
+      });
+      if (!invoice) throw new Error("That invoice no longer exists.");
+      if (invoice.creditStatus !== "REQUESTED") {
+        throw new Error(`There is no open credit request on ${invoice.invoiceNumber}.`);
+      }
+      if (invoice.creditRequestedById && invoice.creditRequestedById === user.id) {
+        throw new Error(
+          `You raised the credit request on ${invoice.invoiceNumber}, so somebody else has to decide it.`
+        );
+      }
+
+      const claimed = await tx.invoice.updateMany({
+        where: { id: invoice.id, creditStatus: "REQUESTED" },
+        data: {
+          creditStatus: "REJECTED",
+          /* Back to cash terms, cleanly. The due date goes with the refusal:
+             leaving one behind would put a bill on the overdue list for a credit
+             that was never granted. */
+          paymentType: "CASH",
+          creditTermDays: null,
+          dueDate: null,
+          creditDecidedAt: new Date(),
+          creditDecidedById: user.id,
+          creditDecisionNote: parsed.data.note,
+        },
+      });
+      if (claimed.count === 0) {
+        throw new Error(
+          `${invoice.invoiceNumber} was decided by someone else a moment ago. Reload before deciding again.`
+        );
+      }
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "credit.rejected",
+          entity: "Invoice",
+          entityId: invoice.id,
+          summary: `${invoice.invoiceNumber}: credit REFUSED — ${parsed.data.note}`,
+          metadata: {
+            tracking: invoice.shipment?.trackingNumber ?? null,
+            reason: parsed.data.note,
+            requestedById: invoice.creditRequestedById,
+          },
+        },
+        tx
+      );
+    });
+
+    revalidatePath(`/app/finance/invoices/${parsed.data.invoiceId}`);
+    revalidatePath("/app/finance/credit");
+    revalidatePath("/app/credit");
+    return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+/* ------------------------------------------------------- the facility itself */
+
+/**
+ * Set or change a customer's credit limit.
+ *
+ * Separate authority from approving one sale: granting somebody a standing
+ * facility is a bigger decision than letting one consignment go, and the owner
+ * keeps it. Setting the limit to nothing withdraws the facility — it does not
+ * touch what they already owe, which stays collectable.
+ */
+export async function setCreditLimit(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("credit.limit");
+    const parsed = z
+      .object({
+        customerId: z.string().min(1),
+        limitUsd: z
+          .string()
+          .trim()
+          .transform((v) => (v.length > 0 ? Number(v) : null))
+          .refine(
+            (v) => v === null || (Number.isFinite(v) && v >= 0),
+            "That credit limit is not a valid amount."
+          ),
+        termDays: z.coerce.number().int().optional(),
+        note: z.string().trim().optional(),
+      })
+      .safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+
+    const customer = await prisma.customer.findUnique({
+      where: { id: parsed.data.customerId },
+      select: { id: true, name: true, code: true, creditLimitUsd: true },
+    });
+    if (!customer) return fail(t(locale, "That customer no longer exists."));
+
+    const before =
+      customer.creditLimitUsd === null ? null : toNumber(customer.creditLimitUsd);
+    const after = parsed.data.limitUsd;
+    const termDays =
+      parsed.data.termDays &&
+      (CREDIT_TERMS as readonly number[]).includes(parsed.data.termDays)
+        ? parsed.data.termDays
+        : undefined;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.customer.update({
+        where: { id: customer.id },
+        data: {
+          creditLimitUsd: after === null ? null : new Prisma.Decimal(after),
+          ...(termDays ? { creditTermDays: termDays } : {}),
+          creditNote: parsed.data.note || null,
+          creditApprovedAt: after === null ? null : new Date(),
+          creditApprovedById: after === null ? null : user.id,
+        },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: after === null ? "credit.facility.withdrawn" : "credit.facility.set",
+          entity: "Customer",
+          entityId: customer.id,
+          summary:
+            after === null
+              ? `${customer.name} (${customer.code}): credit facility withdrawn${before !== null ? ` — was USD ${before.toFixed(2)}` : ""}`
+              : `${customer.name} (${customer.code}): credit limit set to USD ${after.toFixed(2)}${before !== null ? ` (was USD ${before.toFixed(2)})` : ""}`,
+          metadata: {
+            beforeUsd: before,
+            afterUsd: after,
+            termDays: termDays ?? null,
+            note: parsed.data.note || null,
+          },
+        },
+        tx
+      );
+    });
+
+    revalidatePath(`/app/customers/${customer.id}`);
+    revalidatePath("/app/finance/credit");
+    revalidatePath("/app/credit");
+    return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}

@@ -111,111 +111,103 @@ export default async function SubmissionsPage({
           description={t(locale, "No submission matches that filter.")}
         />
       ) : (
-        <ul className="space-y-3">
+        /*
+          A register, not a stack of cards.
+
+          Each submission was a panel of its own with a bordered header, a
+          right-hand money block and a second row underneath for the outcome and
+          the evidence — about 140px for three facts. Twenty of them was a
+          morning of scrolling on a desk that handles this all day.
+
+          One row each now, inside one panel: who and how much on the first line,
+          the paper trail and the decision on the second, evidence as an icon.
+          Same facts, a third of the height, and the amounts line up down the
+          right edge where they can be compared at a glance.
+        */
+        <ul className="panel divide-y overflow-hidden">
           {rows.map((row) => (
             <li
               key={row.id}
               id={row.submissionNumber}
-              className="panel overflow-hidden scroll-mt-6"
+              className="scroll-mt-6 px-4 py-2.5 transition-colors hover:bg-accent/30"
             >
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b px-5 py-3.5">
-                <div className="min-w-0">
-                  <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-                    {row.invoice.customer.name}
-                    <Badge
-                      variant="outline"
-                      className={
-                        row.status === "VERIFIED"
-                          ? "border-success/40 font-normal text-success"
-                          : row.status === "REJECTED"
-                            ? "border-destructive/40 font-normal text-destructive"
-                            : "border-warning/40 font-normal text-warning"
-                      }
-                    >
-                      {row.status === "PENDING"
-                        ? t(locale, "pending Finance verification")
-                        : t(locale, row.status.toLowerCase())}
-                    </Badge>
-                  </p>
-                  <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="flex min-w-0 items-baseline gap-2 text-sm font-semibold">
+                  <span className="truncate">{row.invoice.customer.name}</span>
+                  {/* A word, not a pill: at this density a bordered badge on
+                      every row is twenty boxes competing with the money. */}
+                  <span
+                    className={`shrink-0 text-[11px] font-medium ${
+                      row.status === "VERIFIED"
+                        ? "text-success"
+                        : row.status === "REJECTED"
+                          ? "text-destructive"
+                          : "text-warning"
+                    }`}
+                  >
+                    {row.status === "PENDING"
+                      ? t(locale, "with Finance")
+                      : t(locale, row.status.toLowerCase())}
+                  </span>
+                </p>
+                <p className="shrink-0 font-display text-sm font-bold tabular">
+                  {formatMoney(toNumber(row.amount), row.currency)}
+                </p>
+              </div>
+
+              <div className="mt-0.5 flex items-baseline justify-between gap-3 text-[11px] text-muted-foreground">
+                <p className="min-w-0 truncate">
+                  <span className="font-mono">
                     {row.submissionNumber} · {row.invoice.invoiceNumber} ·{" "}
                     {row.invoice.shipment.trackingNumber}
                     {row.reference ? ` · ${row.reference}` : ""}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-display text-lg font-bold leading-none tabular">
-                    {formatMoney(toNumber(row.amount), row.currency)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {row.submittedBy?.name ?? "—"} ·{" "}
-                    {formatDateTime(row.submittedAt, locale)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 px-5 py-3.5 sm:grid-cols-[minmax(0,1fr)_auto]">
-                <div className="space-y-1.5 text-xs">
+                  </span>
                   {row.status === "VERIFIED" ? (
-                    <p className="text-success">
-                      {t(locale, "Verified by")}{" "}
+                    <span className="text-success">
+                      {" "}
+                      · {t(locale, "verified by")}{" "}
                       {row.reviewedBy?.name ?? t(locale, "Finance")}
-                      {row.reviewedAt
-                        ? ` ${t(locale, "on")} ${formatDateTime(row.reviewedAt, locale)}`
-                        : ""}
                       {row.payment?.receipt
-                        ? ` — ${t(locale, "receipt")} ${row.payment.receipt.receiptNumber}`
+                        ? ` · ${row.payment.receipt.receiptNumber}`
                         : ""}
-                      .
-                    </p>
+                    </span>
                   ) : null}
                   {row.status === "REJECTED" ? (
-                    <p className="text-destructive">
-                      {t(locale, "Sent back by")}{" "}
-                      {row.reviewedBy?.name ?? t(locale, "Finance")}:{" "}
-                      {row.rejectionReason ?? t(locale, "no reason recorded")}
-                    </p>
+                    <span className="text-destructive">
+                      {" "}
+                      · {t(locale, "sent back")}
+                      {row.rejectionReason ? `: ${row.rejectionReason}` : ""}
+                    </span>
                   ) : null}
-                  {row.status === "PENDING" ? (
-                    <p className="text-muted-foreground">
-                      {t(
-                        locale,
-                        "Waiting on Finance. Nothing is settled and no pickup note exists until they agree."
-                      )}
-                    </p>
-                  ) : null}
-                  {row.note ? (
-                    <p className="text-muted-foreground">{row.note}</p>
-                  ) : null}
-                </div>
+                  {row.note ? ` · ${row.note}` : ""}
+                </p>
 
-                {/* The evidence, always reachable. This is the point of the
-                    record — a typed reference proves nothing on its own. */}
-                <ul className="flex flex-wrap gap-2">
-                  {row.proofs.length === 0 ? (
-                    <li className="text-xs text-muted-foreground">
-                      {t(locale, "no evidence attached")}
-                    </li>
-                  ) : (
-                    row.proofs.map((proof) => (
-                      <li key={proof.id}>
-                        <a
-                          href={proof.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="focus-ring inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-brand/40 hover:text-brand"
-                        >
-                          {proof.contentType.startsWith("image/") ? (
-                            <Paperclip className="h-3 w-3" />
-                          ) : (
-                            <FileText className="h-3 w-3" />
-                          )}
-                          {proof.filename ?? t(locale, "Proof")}
-                        </a>
-                      </li>
-                    ))
-                  )}
-                </ul>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="tabular">
+                    {row.submittedBy?.name ?? "—"} ·{" "}
+                    {formatDateTime(row.submittedAt, locale)}
+                  </span>
+                  {/* The evidence stays one click away — it is the whole point of
+                      the record — but as an icon, since the filename told the
+                      reader nothing they needed at this density. */}
+                  {row.proofs.map((proof) => (
+                    <a
+                      key={proof.id}
+                      href={proof.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={proof.filename ?? t(locale, "Proof")}
+                      aria-label={`${t(locale, "Proof")} · ${proof.filename ?? row.submissionNumber}`}
+                      className="focus-ring rounded p-0.5 transition-colors hover:text-brand"
+                    >
+                      {proof.contentType.startsWith("image/") ? (
+                        <Paperclip className="h-3.5 w-3.5" />
+                      ) : (
+                        <FileText className="h-3.5 w-3.5" />
+                      )}
+                    </a>
+                  ))}
+                </span>
               </div>
             </li>
           ))}

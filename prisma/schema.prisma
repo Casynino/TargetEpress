@@ -213,6 +213,31 @@ enum ShipmentDocumentKind {
   OTHER
 }
 
+/// How a bill is meant to be settled.
+///
+/// The default is the business the company has always done: money first, cargo
+/// after. CREDIT is the exception, and it is an exception somebody has to grant
+/// — Support asks, Finance decides. A credit sale is a sale, not a payment: the
+/// cargo goes, the revenue is real and the money is still owed.
+enum InvoicePaymentType {
+  /// Settled before the cargo is released. The default and the norm.
+  CASH
+  /// Released against a promise, with a due date. Only after Finance approves.
+  CREDIT
+}
+
+/// Where a credit request stands. NONE on every ordinary cash bill, so the
+/// field is never ambiguous about whether credit was even asked for.
+enum CreditStatus {
+  NONE
+  /// The desk has asked. Nothing has been granted, and the cargo does NOT move.
+  REQUESTED
+  /// Finance said yes. The cargo may be collected with the bill unpaid.
+  APPROVED
+  /// Finance said no, with a reason. The bill reverts to cash terms.
+  REJECTED
+}
+
 enum InvoiceStatus {
   /// Priced by the system, not yet reviewed by Finance. A draft is a working
   /// figure, never a demand for money: it is not chased, not counted as
@@ -402,6 +427,12 @@ model User {
   sentMessages          CustomerMessage[]
   sentInvoices          Invoice[]               @relation("InvoiceSentBy")
   confirmedInvoices     Invoice[]               @relation("InvoiceConfirmedBy")
+  /// Credit: who asked, who decided, and whose customers hold a facility. Three
+  /// separate relations because "requested by me" and "approved by me" must
+  /// never collapse into one — the split IS the control.
+  creditRequests        Invoice[]               @relation("CreditRequestedBy")
+  creditDecisions       Invoice[]               @relation("CreditDecidedBy")
+  creditFacilities      Customer[]              @relation("CustomerCreditApprovedBy")
   paymentProofs         PaymentProof[]
   deletedShipments      Shipment[]              @relation("ShipmentDeletedBy")
   receivedPackages      Package[]               @relation("PackageReceivedBy")
@@ -444,6 +475,28 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /*
+    The credit facility, if this customer has one.
+
+    Null limit means no credit: the answer to "can they take cargo without
+    paying" is no by default, for everybody, and becomes yes only when somebody
+    with the authority sets a figure here. Stored in USD because that is the
+    currency every price in this system is derived in; the shilling figure a
+    customer is quoted is always a conversion of it.
+
+    The limit caps EXPOSURE, not any single sale — what matters is everything
+    they already owe plus what they are asking for now.
+  */
+  creditLimitUsd     Decimal?  @db.Decimal(14, 2)
+  /// Default payment terms for this customer, in days. 7, 14 and 30 in practice.
+  creditTermDays     Int?
+  /// When the facility was granted and by whom. A credit limit is a decision.
+  creditApprovedAt   DateTime?
+  creditApprovedById String?
+  creditApprovedBy   User?     @relation("CustomerCreditApprovedBy", fields: [creditApprovedById], references: [id], onDelete: SetNull)
+  /// Why this customer is trusted, in the words of whoever decided it.
+  creditNote         String?
+
   shipments   Shipment[]
   invoices    Invoice[]
   pickupNotes PickupNote[]
@@ -454,6 +507,8 @@ model Customer {
   @@index([name])
   @@index([phone])
   @@index([createdAt])
+  /// The credit customer list, and it alone — most customers have no facility.
+  @@index([creditLimitUsd])
 }
 
 // ---------------------------------------------------------------------------
@@ -1109,6 +1164,42 @@ model Invoice {
   confirmedById String?
   confirmedBy   User?     @relation("InvoiceConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
 
+  /*
+    CASH or CREDIT, and the whole approval trail behind the answer.
+
+    None of this is derived, because none of it is arithmetic: it is a record of
+    what people decided. The desk that asks cannot be the desk that grants —
+    `creditRequestedById` and `creditDecidedById` are compared before a credit
+    is approved, so nobody signs off their own request.
+
+    Deliberately absent: any stored figure for how much credit is outstanding.
+    That is `total - amountPaid`, it already exists, and a second copy of it
+    would be a second answer to the same question. The same reason there is no
+    stored storage fee and no stored account balance anywhere in this schema.
+  */
+  paymentType  InvoicePaymentType @default(CASH)
+  creditStatus CreditStatus        @default(NONE)
+
+  /// Terms granted on THIS bill, in days — copied from the customer's default
+  /// at request time so changing the default later cannot silently move a due
+  /// date somebody was already given.
+  creditTermDays Int?
+
+  creditRequestedAt   DateTime?
+  creditRequestedById String?
+  creditRequestedBy   User?     @relation("CreditRequestedBy", fields: [creditRequestedById], references: [id], onDelete: SetNull)
+  /// Why the customer is asking, in the desk's words. Finance reads this.
+  creditRequestNote   String?
+
+  /// One pair for both outcomes: `creditStatus` already says which it was, and
+  /// two nullable pairs would allow the impossible state of being approved and
+  /// rejected at once.
+  creditDecidedAt   DateTime?
+  creditDecidedById String?
+  creditDecidedBy   User?     @relation("CreditDecidedBy", fields: [creditDecidedById], references: [id], onDelete: SetNull)
+  /// Required on a rejection. A no that nobody explained gets asked again.
+  creditDecisionNote String?
+
   /// An invoice a customer has never been shown is not yet a demand for money.
   /// Follow-up queues sort on this: chasing someone who was never sent a bill
   /// is the wrong call, and the wrong call annoys a paying customer.
@@ -1126,6 +1217,12 @@ model Invoice {
   @@index([customerId])
   @@index([issuedAt])
   @@index([status, sentAt])
+  /// The credit settlements page: every approved credit, oldest due first.
+  @@index([creditStatus, dueDate])
+  /// One customer's credit history, and their current exposure.
+  @@index([customerId, creditStatus])
+  /// The approval queue Finance works from.
+  @@index([creditStatus, creditRequestedAt])
 }
 
 model Payment {
