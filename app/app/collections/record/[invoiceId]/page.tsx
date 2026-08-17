@@ -240,6 +240,7 @@ export default async function RecordCollectionPage({
                     }
                     outstandingLabel={null}
                     startOpen
+                    canApprove={can(user.role, "credit.approve")}
                   />
                 ) : null
               }

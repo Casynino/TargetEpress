@@ -17,6 +17,7 @@ import {
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { authorize } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -65,6 +66,21 @@ export async function requestCredit(
   const locale = await viewerLocale();
   try {
     const user = await authorize("credit.request");
+    /*
+      Finance does not send itself a request.
+
+      The two-step exists to stop the desk that agrees terms with a customer from
+      also being the desk that lets the cargo go unpaid. When the person acting
+      ALREADY holds the approval authority, there is no second party to wait for
+      and the round trip is pure ceremony — Finance was raising a request, then
+      walking to another page to approve its own request, which is both slower and
+      a worse record than simply saying "released on credit, by me".
+
+      So the authority decides the shape: Support asks, Finance grants. The
+      no-self-approval rule still bites exactly where it should — a Support
+      request can never be approved by the person who raised it.
+    */
+    const grantsDirectly = can(user.role, "credit.approve");
     const parsed = requestSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
 
@@ -95,33 +111,56 @@ export async function requestCredit(
       );
     }
 
+    const owing = toNumber(invoice.total) - toNumber(invoice.amountPaid);
+    const now = new Date();
+    const dueDate = grantsDirectly ? dueDateFrom(now, parsed.data.termDays) : null;
+
     await prisma.$transaction(async (tx) => {
       await tx.invoice.update({
         where: { id: invoice.id },
-        data: {
-          creditStatus: "REQUESTED",
-          creditTermDays: parsed.data.termDays,
-          creditRequestedAt: new Date(),
-          creditRequestedById: user.id,
-          creditRequestNote: parsed.data.note || null,
-          /* paymentType stays CASH until somebody grants the credit. A request
-             is not a term: if Finance says no, the bill was never anything
-             other than a cash bill and no state has to be unwound. */
-        },
+        data: grantsDirectly
+          ? {
+              creditStatus: "APPROVED",
+              paymentType: "CREDIT",
+              creditTermDays: parsed.data.termDays,
+              creditRequestedAt: now,
+              creditRequestedById: user.id,
+              creditRequestNote: parsed.data.note || null,
+              creditDecidedAt: now,
+              creditDecidedById: user.id,
+              dueDate,
+            }
+          : {
+              creditStatus: "REQUESTED",
+              creditTermDays: parsed.data.termDays,
+              creditRequestedAt: now,
+              creditRequestedById: user.id,
+              creditRequestNote: parsed.data.note || null,
+              /* paymentType stays CASH until somebody grants the credit. A
+                 request is not a term: if Finance says no, the bill was never
+                 anything other than a cash bill and nothing has to be unwound. */
+            },
       });
 
       await recordAudit(
         {
           actor: user,
-          action: "credit.requested",
+          action: grantsDirectly ? "credit.approved" : "credit.requested",
           entity: "Invoice",
           entityId: invoice.id,
-          summary: `${invoice.invoiceNumber}: credit requested — ${parsed.data.termDays} day terms on USD ${(toNumber(invoice.total) - toNumber(invoice.amountPaid)).toFixed(2)}`,
+          summary: grantsDirectly
+            ? `${invoice.invoiceNumber}: released on credit — USD ${owing.toFixed(2)} on ${parsed.data.termDays} day terms, due ${dueDate!.toISOString().slice(0, 10)}`
+            : `${invoice.invoiceNumber}: credit requested — ${parsed.data.termDays} day terms on USD ${owing.toFixed(2)}`,
           metadata: {
             tracking: invoice.shipment?.trackingNumber ?? null,
             termDays: parsed.data.termDays,
-            outstandingUsd: toNumber(invoice.total) - toNumber(invoice.amountPaid),
+            outstandingUsd: owing,
             note: parsed.data.note || null,
+            /* Says plainly that one person did both halves, and that they were
+               entitled to. An auditor asking "who approved this" gets an answer
+               rather than a gap. */
+            grantedDirectly: grantsDirectly,
+            dueDate: dueDate ? dueDate.toISOString() : null,
           },
         },
         tx

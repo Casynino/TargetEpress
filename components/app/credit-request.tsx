@@ -33,6 +33,7 @@ export function CreditRequest({
   limitLabel,
   outstandingLabel,
   startOpen,
+  canApprove,
 }: {
   invoiceId: string;
   outstanding: string;
@@ -47,6 +48,14 @@ export function CreditRequest({
    * same thing is a step that exists only because two components met.
    */
   startOpen?: boolean;
+  /**
+   * The reader already holds the approval authority.
+   *
+   * Finance sending itself a request was ceremony: raise it here, walk to another
+   * page, approve your own. When the person acting can grant it, one press grants
+   * it — and the words have to say so, or they will press it expecting a queue.
+   */
+  canApprove?: boolean;
 }) {
   const t = useT();
   const [state, action] = useActionState<ActionResult | undefined, FormData>(
@@ -73,7 +82,8 @@ export function CreditRequest({
       <input type="hidden" name="invoiceId" value={invoiceId} />
 
       <p className="text-xs font-semibold">
-        {t("Release on credit")} · {outstanding}
+        {canApprove ? t("Release on credit") : t("Ask Finance for credit")} ·{" "}
+        {outstanding}
       </p>
 
       {/* Where they already stand. A request made without this is a request
@@ -111,8 +121,13 @@ export function CreditRequest({
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <SubmitButton size="sm" className="h-8 text-xs">
-          {t("Send to Finance")}
+        <SubmitButton
+          size="sm"
+          className={
+            canApprove ? "h-8 bg-warning text-xs text-white" : "h-8 text-xs"
+          }
+        >
+          {canApprove ? t("Release it on credit") : t("Send to Finance")}
         </SubmitButton>
         <button
           type="button"
@@ -126,9 +141,13 @@ export function CreditRequest({
       {/* Said plainly, because the alternative is somebody telling a customer
           the cargo is ready when nothing has been agreed yet. */}
       <p className="text-[11px] text-muted-foreground">
-        {t(
-          "Finance decides. Until they approve it the cargo stays where it is, and whoever raises a request cannot be the one who approves it."
-        )}
+        {canApprove
+          ? t(
+              "Granted the moment you press it, in your name, with the due date counted from today. The bill stays owed until the customer pays — it is a sale, not a payment."
+            )
+          : t(
+              "Finance decides. Until they approve it the cargo stays where it is, and whoever raises a request cannot be the one who approves it."
+            )}
       </p>
 
       <FormError state={state} />
