@@ -60,6 +60,15 @@ export type CargoLine = {
      */
     paid?: boolean;
     /**
+     * Released before payment, and whether the date has passed.
+     *
+     * A credit row must not read like an ordinary unpaid one. Unpaid means we
+     * are waiting for a customer; credit means we AGREED to wait, and the two
+     * call for opposite reactions from whoever is scanning the list — so credit
+     * gets its own colour, and a late credit gets the loudest one on the page.
+     */
+    credit?: { overdue: boolean; dueLabel: string } | null;
+    /**
      * The bill this line is on, carried whether or not the price is editable.
      *
      * It used to arrive only inside `edit`, which is null the moment a price is
@@ -287,8 +296,14 @@ export function ShipmentDetailTabs({
                 key={line.id}
                 className={cn(
                   "rounded-xl border bg-card p-3 shadow-soft",
-                  line.price?.paid &&
-                    "border-success/30 bg-success/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--success))]"
+                  /* Three states, three rails, in order of who needs looking
+                     at: a late credit first, then a live credit, then settled. */
+                  line.price?.credit?.overdue
+                    ? "border-destructive/30 bg-destructive/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--destructive))]"
+                    : line.price?.credit
+                      ? "border-warning/30 bg-warning/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--warning))]"
+                      : line.price?.paid &&
+                        "border-success/30 bg-success/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--success))]"
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -335,6 +350,20 @@ export function ShipmentDetailTabs({
                       {line.price.paid ? (
                         <span className="ml-1 rounded bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success">
                           {t("Paid")}
+                        </span>
+                      ) : null}
+                      {line.price.credit ? (
+                        <span
+                          className={
+                            line.price.credit.overdue
+                              ? "ml-1 rounded bg-destructive/15 px-1.5 py-0.5 text-xs font-semibold text-destructive"
+                              : "ml-1 rounded bg-warning/15 px-1.5 py-0.5 text-xs font-semibold text-warning"
+                          }
+                          title={line.price.credit.dueLabel}
+                        >
+                          {line.price.credit.overdue
+                            ? t("Credit overdue")
+                            : t("On credit")}
                         </span>
                       ) : null}
                       {!line.price.confirmed ? (
@@ -474,8 +503,12 @@ export function ShipmentDetailTabs({
                       /* Paid, at a glance: a green rail and a faint wash, so a
                          settled consignment is pickable out of fifty rows
                          without reading a figure. */
-                      line.price?.paid &&
-                        "bg-success/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--success))]"
+                      line.price?.credit?.overdue
+                        ? "bg-destructive/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--destructive))]"
+                        : line.price?.credit
+                          ? "bg-warning/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--warning))]"
+                          : line.price?.paid &&
+                            "bg-success/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--success))]"
                     )}
                   >
                     <td className="whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground">
@@ -558,6 +591,21 @@ export function ShipmentDetailTabs({
                             {line.price.paid ? (
                               <span className="rounded bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success">
                                 {t("Paid")}
+                              </span>
+                            ) : null}
+                            {line.price.credit ? (
+                              <span
+                                className={
+                                  line.price.credit.overdue
+                                    ? "rounded bg-destructive/15 px-1.5 py-0.5 text-xs font-semibold text-destructive"
+                                    : "rounded bg-warning/15 px-1.5 py-0.5 text-xs font-semibold text-warning"
+                                }
+                              >
+                                {line.price.credit.overdue
+                                  ? t("Credit overdue")
+                                  : t("On credit")}
+                                {" · "}
+                                {line.price.credit.dueLabel}
                               </span>
                             ) : null}
                             {/* An unconfirmed figure has to look unconfirmed,

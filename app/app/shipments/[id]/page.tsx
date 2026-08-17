@@ -32,6 +32,7 @@ import { currentRateValue } from "@/lib/fx";
 import { cargoLabel } from "@/lib/cargo";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { creditLine, dueLabel } from "@/lib/credit";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cargoText, viewerLocale } from "@/lib/viewer";
@@ -93,6 +94,11 @@ export default async function ShipmentPage({
               otherCharges: true,
               discount: true,
               amountPaid: true,
+              /* Credit gets its own colour on the row, so the row needs to know
+                 whether one was granted and whether the date has passed. */
+              creditStatus: true,
+              dueDate: true,
+              creditDecidedAt: true,
             },
           },
           photos: {
@@ -116,6 +122,9 @@ export default async function ShipmentPage({
   // Loading tables are the live work area, not history.
   if (dispatch.permanent) redirect(`/app/batches/${dispatch.id}`);
 
+  /* One instant for every row. A list where each row read its own clock produced
+     rows that disagreed about whether today was the due date. */
+  const now = new Date();
   const cargo: CargoLine[] = dispatch.shipments.map((item) => ({
     id: item.id,
     trackingNumber: item.trackingNumber,
@@ -149,6 +158,22 @@ export default async function ShipmentPage({
             /* Settled in full — the fact every desk was opening a consignment
                to find out. */
             paid: item.invoice.status === "PAID",
+            /*
+              Released on credit, and late or not.
+
+              Derived through creditLine — the same function the Credit page and
+              the pickup note use — so a row can never disagree with the
+              settlements list about whether a consignment is overdue. Null on
+              every ordinary bill, which is almost all of them.
+            */
+            credit:
+              item.invoice.creditStatus === "APPROVED" &&
+              item.invoice.status !== "PAID"
+                ? (() => {
+                    const line = creditLine(item.invoice, now);
+                    return { overdue: line.daysOverdue > 0, dueLabel: dueLabel(line) };
+                  })()
+                : null,
             /* Carried whether or not the price is still editable: taking money
                is exactly what a confirmed, unpaid bill is for. A draft is
                excluded — nobody has signed that figure off, and collecting
