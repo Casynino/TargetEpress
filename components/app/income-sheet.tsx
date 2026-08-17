@@ -306,7 +306,7 @@ export function IncomeSheetTable({
                     ) : null}
                     {row.reviewNote ? (
                       <p className="text-destructive">
-                        <span className="font-medium">{t("Boss")}:</span>{" "}
+                        <span className="font-medium">{t("Sent back")}:</span>{" "}
                         {row.reviewNote}
                       </p>
                     ) : null}

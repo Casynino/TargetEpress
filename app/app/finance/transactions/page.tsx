@@ -750,9 +750,10 @@ export default async function LedgerPage({
                     </TableCell>
 
                     <TableCell className="hidden whitespace-nowrap py-2.5 text-xs lg:table-cell">
-                      {/* The gold already says whose row it is; spelling out
-                          "BOSS" as well was the colour and the caption doing
-                          the same job twice. */}
+                      {/* The gold already marks these rows; naming the person
+                          as well was the colour and the caption doing one job
+                          twice — and it is not a word to leave on a screen
+                          other people read. */}
                       {bossDraw ? (
                         <span className="inline-flex items-center whitespace-nowrap rounded-full bg-warning px-2 py-0.5 text-[11px] font-bold text-warning-foreground">
                           {category}
