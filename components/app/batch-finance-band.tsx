@@ -20,7 +20,22 @@ import { viewerLocale } from "@/lib/viewer";
  * against an estimate, so rolling estimates into a debt figure would invent a
  * receivable that no customer has ever been shown.
  */
-export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
+export async function BatchFinanceBand({
+  finance,
+  showCosts = true,
+}: {
+  finance: BatchFinance;
+  /**
+   * Whether this reader may see what the batch COST.
+   *
+   * Customer Care holds finance.view so it can chase what a customer owes and
+   * manage the invoice — that is the job. It does not follow that the desk may
+   * see the clearing agent's fee, the expected profit or the margin. Those
+   * three cells, and the expense register under them, follow expense.view:
+   * Finance and the owner.
+   */
+  showCosts?: boolean;
+}) {
   const locale = await viewerLocale();
   const {
     expectedUsd,
@@ -97,24 +112,31 @@ export async function BatchFinanceBand({ finance }: { finance: BatchFinance }) {
             usd: outstandingUsd,
             tone: outstandingUsd > 0 ? "text-destructive" : "",
           },
-          {
-            k: t(locale, "Expenses"),
-            usd: expensesUsd,
-            tsh: expensesTzs,
-            tone: "text-destructive",
-          },
-          {
-            k: atALoss ? t(locale, "Expected loss") : t(locale, "Expected profit"),
-            usd: Math.abs(netProfitUsd),
-            tone: atALoss ? "text-destructive" : "",
-          },
-          {
-            k: t(locale, "Expected margin"),
-            // No margin rather than a zero: a batch that has billed nothing
-            // has not made 0%, it has no answer yet.
-            percent: marginPct === null ? "—" : `${Math.round(marginPct)}%`,
-            tone: atALoss ? "text-destructive" : "",
-          },
+          ...(showCosts
+            ? [
+                {
+                  k: t(locale, "Expenses"),
+                  usd: expensesUsd,
+                  tsh: expensesTzs,
+                  tone: "text-destructive",
+                },
+                {
+                  k: atALoss
+                    ? t(locale, "Expected loss")
+                    : t(locale, "Expected profit"),
+                  usd: Math.abs(netProfitUsd),
+                  tone: atALoss ? "text-destructive" : "",
+                },
+                {
+                  k: t(locale, "Expected margin"),
+                  // No margin rather than a zero: a batch that has billed
+                  // nothing has not made 0%, it has no answer yet.
+                  percent:
+                    marginPct === null ? "—" : `${Math.round(marginPct)}%`,
+                  tone: atALoss ? "text-destructive" : "",
+                },
+              ]
+            : []),
         ].map((cell) => (
           <div key={cell.k} className="bg-card px-5 py-3">
             <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">

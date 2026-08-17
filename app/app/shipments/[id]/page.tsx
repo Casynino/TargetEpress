@@ -60,6 +60,16 @@ export default async function ShipmentPage({
   const locale = await viewerLocale();
 
   const showMoney = can(user.role, "finance.view");
+  /*
+    What a batch COST is not everybody's business.
+
+    Customer Care holds finance.view so it can chase what a customer owes and
+    manage the invoice. It came with the clearing agent's fee, the expected
+    profit and the margin attached, and a whole expense register underneath —
+    none of which that desk needs and none of which it should carry around.
+    Those follow expense.view: Finance and the owner.
+  */
+  const showCosts = can(user.role, "expense.view");
 
   const dispatch = await prisma.batch.findUnique({
     where: { id },
@@ -464,7 +474,9 @@ export default async function ShipmentPage({
 
       {/* Money first, for the desks that came here to ask a money question.
           Everyone else goes straight to the cargo. */}
-      {finance ? <BatchFinanceBand finance={finance} /> : null}
+      {finance ? (
+        <BatchFinanceBand finance={finance} showCosts={showCosts} />
+      ) : null}
 
       {/* The line under the flight, directly under the figures it draws it
           under. Renders nothing at all until the batch has been checked off
@@ -544,7 +556,7 @@ export default async function ShipmentPage({
         />
       ) : null}
 
-      {finance ? (
+      {finance && showCosts ? (
         <BatchExpenses
           batchId={dispatch.id}
           batchNumber={dispatch.batchNumber}
