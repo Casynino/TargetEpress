@@ -21,6 +21,18 @@ export type PickupSlipData = {
   /** "Paid in full", already worded — the slip states a fact, not a figure. */
   paymentStatus: string;
   amountLabel: string | null;
+  /**
+   * One line, and only when storage actually applied.
+   *
+   * The payment breakdown was cut from this card on purpose and is not coming
+   * back — but storage is the one charge a customer argues about at the
+   * counter, because it is the only one that grew while they were not looking.
+   * So the slip records what it was, or that it was forgiven, and stays silent
+   * on the majority of consignments where the clock never ran.
+   */
+  storageLabel: string | null;
+  /** True when the storage figure above was waived rather than charged. */
+  storageWaived: boolean;
   /** Pre-rendered QR as a data URL, generated on the server. */
   qr: string;
 };
@@ -249,6 +261,42 @@ export async function PickupSlip({ data }: { data: PickupSlipData }) {
           </p>
         ) : null}
       </div>
+
+      {data.storageLabel ? (
+        <div
+          className="flex shrink-0 items-baseline justify-between"
+          style={{
+            gap: "2mm",
+            marginTop: "1.2mm",
+            padding: "1.2mm 2.6mm",
+            backgroundColor: data.storageWaived
+              ? "rgba(176,120,10,0.12)"
+              : "rgba(216,30,42,0.10)",
+          }}
+        >
+          <p
+            className="font-semibold uppercase leading-none"
+            style={{
+              fontSize: "7pt",
+              letterSpacing: "0.12em",
+              color: data.storageWaived ? "#8A5D08" : "#B01722",
+            }}
+          >
+            {data.storageWaived
+              ? t(locale, "Storage waived")
+              : t(locale, "Storage included")}
+          </p>
+          <p
+            className="font-mono font-bold tabular"
+            style={{
+              fontSize: "8.5pt",
+              color: data.storageWaived ? "#8A5D08" : "#B01722",
+            }}
+          >
+            {data.storageLabel}
+          </p>
+        </div>
+      ) : null}
 
       {/* Where to come. The one office, in the owner's own wording. */}
       <div className="shrink-0" style={{ marginTop: "1.8mm" }}>

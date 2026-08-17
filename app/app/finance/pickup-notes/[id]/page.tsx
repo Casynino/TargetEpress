@@ -7,7 +7,7 @@ import { PickupSlip, type PickupSlipData } from "@/components/app/pickup-slip";
 import { PrintBar } from "@/components/app/print-bar";
 import { Button } from "@/components/ui/button";
 import { formatPackages } from "@/lib/constants";
-import { formatDate, formatMoney, formatWeight } from "@/lib/format";
+import { formatDate, formatMoney, formatWeight, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { SLIP_MM } from "@/lib/print";
@@ -46,7 +46,13 @@ export default async function PickupNotePage({
           packages: true,
           packageType: true,
           weightKg: true,
-          invoice: { select: { invoiceNumber: true } },
+          invoice: {
+            select: {
+              invoiceNumber: true,
+              storageCharge: true,
+              storageWaivedUsd: true,
+            },
+          },
         },
       },
     },
@@ -61,6 +67,12 @@ export default async function PickupNotePage({
   // zone) lands at 1.2mm per module, which a phone locks onto instantly.
   const qr = await shipmentQrDataUrl(note.shipment.qrToken, 640);
 
+  /* Storage is the one charge argued about at the counter — it grew while the
+     customer was not looking — so the slip records what it was, or that it was
+     forgiven, and says nothing at all when the clock never ran. */
+  const storageCharged = toNumber(note.shipment.invoice?.storageCharge ?? 0);
+  const storageWaived = toNumber(note.shipment.invoice?.storageWaivedUsd ?? 0);
+
   const data: PickupSlipData = {
     noteNumber: note.noteNumber,
     status: note.status,
@@ -68,6 +80,13 @@ export default async function PickupNotePage({
     trackingNumber: note.shipment.trackingNumber,
     customerName: note.customer.name,
     customerPhone: note.customer.phone,
+    storageLabel:
+      storageWaived > 0
+        ? `USD ${storageWaived.toFixed(2)}`
+        : storageCharged > 0
+          ? `USD ${storageCharged.toFixed(2)}`
+          : null,
+    storageWaived: storageWaived > 0,
     description: cargoText(locale, note.shipment, "description"),
     weightLabel: formatWeight(note.shipment.weightKg),
     packagesLabel: formatPackages(

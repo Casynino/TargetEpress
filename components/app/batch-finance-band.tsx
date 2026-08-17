@@ -53,6 +53,9 @@ export async function BatchFinanceBand({
     outstandingUsd,
     unpriceable,
     writtenOffUsd,
+    storageChargedUsd,
+    storageWaivedUsd,
+    storageHolding,
     expensesUsd,
     expensesTzs,
     expenseCount,
@@ -210,6 +213,40 @@ export async function BatchFinanceBand({
           <span className="text-muted-foreground">
             {rate === null ? formatUsd(writtenOffUsd) : formatLocal(writtenOffUsd * rate)}{" "}
             {t(locale, "written off")}
+          </span>
+        ) : null}
+        {/* The warehouse clock on this flight. Storage is already inside the
+            revenue above, so this is not another total — it names how much of
+            it came from cargo sitting, what the desk forgave, and how many
+            consignments are still accruing, which is a phone call list. */}
+        {storageChargedUsd > 0 || storageWaivedUsd > 0 || storageHolding > 0 ? (
+          <span>
+            {storageChargedUsd > 0 ? (
+              <>
+                {rate === null
+                  ? formatUsd(storageChargedUsd)
+                  : formatLocal(storageChargedUsd * rate)}{" "}
+                {t(locale, "storage")}
+              </>
+            ) : (
+              t(locale, "No storage charged")
+            )}
+            {storageWaivedUsd > 0 ? (
+              <span className="text-warning">
+                {" "}
+                ·{" "}
+                {rate === null
+                  ? formatUsd(storageWaivedUsd)
+                  : formatLocal(storageWaivedUsd * rate)}{" "}
+                {t(locale, "waived")}
+              </span>
+            ) : null}
+            {storageHolding > 0 ? (
+              <span className="text-destructive">
+                {" "}
+                · {storageHolding} {t(locale, "still charging")}
+              </span>
+            ) : null}
           </span>
         ) : null}
         {/* Outstanding money you cannot ring anybody about. */}

@@ -77,6 +77,21 @@ export type BatchFinance = {
    */
   /** Billed, given up on, and taken back out of revenue when a batch closed. */
   writtenOffUsd: number;
+  /**
+   * The warehouse clock, per batch.
+   *
+   * A flight where half the cargo sat for three weeks is a different operation
+   * from one that cleared in a day, and until now the batch could not say so:
+   * storage was folded inside revenue and the waivers were nowhere at all.
+   *
+   * Charged is revenue this batch earned from the clock. Waived is what the
+   * desk chose not to collect. Holding is how many consignments are still
+   * accruing right now, which is the only forward-looking number of the three
+   * — it is a phone call list.
+   */
+  storageChargedUsd: number;
+  storageWaivedUsd: number;
+  storageHolding: number;
   expensesUsd: number;
   /** How many cost lines are behind that figure. */
   expenseCount: number;
@@ -138,6 +153,8 @@ export async function batchFinance(
           amountPaid: true,
           totalLocal: true,
           status: true,
+          storageCharge: true,
+          storageWaivedUsd: true,
         },
       },
     },
@@ -151,6 +168,9 @@ export async function batchFinance(
   let invoicedTzs = 0;
   let invoiced = 0;
   let writtenOffUsd = 0;
+  let storageChargedUsd = 0;
+  let storageWaivedUsd = 0;
+  let storageHolding = 0;
   let weightKg = 0;
   let drafts = 0;
   let draftsUsd = 0;
@@ -159,6 +179,20 @@ export async function batchFinance(
 
   for (const piece of cargo) {
     weightKg += toNumber(piece.weightKg);
+
+    /* Counted off the dates rather than off the invoice, so a consignment
+       still accruing shows up here before anybody has charged it. */
+    if (
+      piece.arrivedAt &&
+      !piece.deliveredAt &&
+      storageDaysFor(piece.arrivedAt, null) > 0
+    ) {
+      storageHolding += 1;
+    }
+    if (piece.invoice && piece.invoice.status !== "VOID") {
+      storageChargedUsd += toNumber(piece.invoice.storageCharge);
+      storageWaivedUsd += toNumber(piece.invoice.storageWaivedUsd);
+    }
 
     if (!piece.invoice) {
       needsEstimate.push(piece);
@@ -310,6 +344,9 @@ export async function batchFinance(
     receivedUsd,
     outstandingUsd,
     writtenOffUsd,
+    storageChargedUsd,
+    storageWaivedUsd,
+    storageHolding,
     expensesUsd,
     expenseCount: costs.length,
     expensesTzs,
