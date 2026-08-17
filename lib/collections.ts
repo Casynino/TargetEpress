@@ -67,7 +67,7 @@ export async function collectionsOverview() {
 
 /** One queue, filtered by where a claim has got to. */
 export async function submissionQueue(
-  status: "PENDING" | "VERIFIED" | "REJECTED" | null,
+  status: "PENDING" | "VERIFIED" | "REJECTED" | "WITHDRAWN" | null,
   take = 60
 ) {
   return prisma.paymentSubmission.findMany({

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft, Download, FileClock, MessageCircle } from "lucide-react";
 
+import { CreditRequest } from "@/components/app/credit-request";
 import { InvoiceDocument } from "@/components/app/invoice-document";
 import { InvoiceEditor } from "@/components/app/invoice-editor";
 import { MessageComposer } from "@/components/app/message-composer";
@@ -57,6 +58,10 @@ export default async function InvoicePage({
     include: {
       customer: true,
       issuedBy: { select: { name: true } },
+      /* Who asked for the credit and who decided it — the panel names both, so
+         nobody has to open the audit log to find out who let cargo go unpaid. */
+      creditRequestedBy: { select: { name: true } },
+      creditDecidedBy: { select: { name: true } },
       payments: {
         orderBy: { paidAt: "asc" },
         include: {
@@ -105,6 +110,97 @@ export default async function InvoicePage({
   // PAID reads as a document that failed to render, and it is the copy the
   // customer keeps.
   const paidInFull = outstanding <= 0.005;
+
+  /*
+    THE CREDIT STATE OF THIS BILL, worked out once here rather than in the JSX.
+
+    Four things can be true and each reads differently: nothing has been asked;
+    a request is with Finance; credit was granted, with a due date; or it was
+    refused, and the bill is back on cash terms. Only the first offers a button,
+    and only to a desk that holds credit.request.
+  */
+  const creditState = invoice.creditStatus;
+  const canAskCredit =
+    can(user.role, "credit.request") &&
+    creditState === "NONE" &&
+    invoice.status !== "DRAFT" &&
+    invoice.status !== "VOID" &&
+    !paidInFull;
+
+  const creditPanel =
+    creditState === "NONE" && !canAskCredit ? null : (
+      <div
+        className={
+          creditState === "APPROVED"
+            ? "rounded-xl border border-warning/40 bg-warning/[0.05] px-4 py-3"
+            : creditState === "REQUESTED"
+              ? "rounded-xl border border-brand/40 bg-brand/[0.04] px-4 py-3"
+              : creditState === "REJECTED"
+                ? "rounded-xl border bg-muted/20 px-4 py-3"
+                : ""
+        }
+      >
+        {creditState === "APPROVED" ? (
+          <>
+            <p className="text-xs font-semibold text-warning">
+              {t(locale, "ON CREDIT — payment pending")}
+              {invoice.creditTermDays
+                ? ` · ${invoice.creditTermDays} ${t(locale, "day terms")}`
+                : ""}
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {invoice.dueDate
+                ? `${t(locale, "Due")} ${formatDate(invoice.dueDate, locale)} · `
+                : ""}
+              {money(Math.max(0, outstanding), currency)} {t(locale, "still owed")}
+              {invoice.creditDecidedBy?.name
+                ? ` · ${t(locale, "approved by")} ${invoice.creditDecidedBy.name}`
+                : ""}
+              {invoice.creditDecisionNote ? ` · “${invoice.creditDecisionNote}”` : ""}
+            </p>
+          </>
+        ) : creditState === "REQUESTED" ? (
+          <>
+            <p className="text-xs font-semibold text-brand">
+              {t(locale, "Credit requested — waiting on Finance")}
+              {invoice.creditTermDays
+                ? ` · ${invoice.creditTermDays} ${t(locale, "days")}`
+                : ""}
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {invoice.creditRequestedBy?.name
+                ? `${t(locale, "asked by")} ${invoice.creditRequestedBy.name}`
+                : ""}
+              {invoice.creditRequestNote ? ` · “${invoice.creditRequestNote}”` : ""}
+              {" · "}
+              {t(locale, "the cargo stays here until they answer")}
+            </p>
+          </>
+        ) : creditState === "REJECTED" ? (
+          <>
+            <p className="text-xs font-semibold">
+              {t(locale, "Credit refused — this bill is on cash terms")}
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {invoice.creditDecisionNote ?? t(locale, "no reason recorded")}
+              {invoice.creditDecidedBy?.name ? ` — ${invoice.creditDecidedBy.name}` : ""}
+            </p>
+          </>
+        ) : (
+          <CreditRequest
+            invoiceId={invoice.id}
+            outstanding={money(Math.max(0, outstanding), currency)}
+            defaultTerm={invoice.customer.creditTermDays ?? 14}
+            limitLabel={
+              invoice.customer.creditLimitUsd === null
+                ? null
+                : money(toNumber(invoice.customer.creditLimitUsd), "USD")
+            }
+            outstandingLabel={null}
+          />
+        )}
+      </div>
+    );
   const heroUsd = paidInFull ? toNumber(invoice.total) : Math.max(0, outstanding);
   const heroLocal =
     invoiceRate === null ? null : toLocal(heroUsd, invoiceRate);
@@ -260,6 +356,17 @@ export default async function InvoicePage({
           </Button>
         </div>
       ) : null}
+
+      {/*
+        Cash or credit, and the whole state of the credit in one strip.
+
+        It sits above the price editor because it is a question about THIS bill
+        that gets asked at the counter, and below the document because nobody
+        decides it before reading the amount. A bill with no credit on it and a
+        desk that cannot ask for any renders nothing at all — most consignments
+        are paid before collection and the screen should not imply otherwise.
+      */}
+      {creditPanel ? <div className="mb-6">{creditPanel}</div> : null}
 
       {canEdit ? (
         <div className="mb-6">

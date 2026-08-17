@@ -2501,6 +2501,13 @@ enum SubmissionStatus {
   VERIFIED
   /// Finance did not agree. The reason is on the row and the customer is rung.
   REJECTED
+  /// The desk that raised it took it back before Finance ruled on it.
+  ///
+  /// Distinct from REJECTED on purpose. "Finance said no" and "we sent this up
+  /// by mistake" are different facts about a customer: one is a decision about
+  /// their money and the other is our own typo, and a queue that shows them as
+  /// the same thing tells the next person to ring the customer about nothing.
+  WITHDRAWN
 }
 
 /// A payment the customer says they have made, waiting for Finance to agree.

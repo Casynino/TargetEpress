@@ -8,6 +8,7 @@ import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
+import { SubmissionCorrection } from "@/components/app/submission-correction";
 import { Badge } from "@/components/ui/badge";
 import { submissionQueue } from "@/lib/collections";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
@@ -22,6 +23,9 @@ const FILTERS = [
   { key: "PENDING", label: "With Finance" },
   { key: "VERIFIED", label: "Verified" },
   { key: "REJECTED", label: "Sent back" },
+  /* Separate from "Sent back" on purpose: Finance refusing a claim and this desk
+     taking its own back are different facts about a customer. */
+  { key: "WITHDRAWN", label: "Withdrawn" },
   { key: "ALL", label: "Everything" },
 ] as const;
 
@@ -39,6 +43,10 @@ export default async function SubmissionsPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const user = await requirePermission("collections.view");
+  /* The desk that raises a claim may fix it or take it back while it is still
+     only a claim. Same permission that created it — correcting your own typo
+     before anybody has acted on it is part of recording it. */
+  const canCorrect = can(user.role, "payment.submit");
   const locale = await viewerLocale();
   const { status } = await searchParams;
   const canVerify = can(user.role, "payment.verify");
@@ -50,7 +58,9 @@ export default async function SubmissionsPage({
   // the desk that can act is a dead end dressed as a queue.
   if (canVerify && active === "PENDING") redirect("/app/collections/verify");
   const rows = await submissionQueue(
-    active === "ALL" ? null : (active as "PENDING" | "VERIFIED" | "REJECTED")
+    active === "ALL"
+      ? null
+      : (active as "PENDING" | "VERIFIED" | "REJECTED" | "WITHDRAWN")
   );
 
   return (
@@ -179,14 +189,32 @@ export default async function SubmissionsPage({
                       {row.rejectionReason ? `: ${row.rejectionReason}` : ""}
                     </span>
                   ) : null}
+                  {row.status === "WITHDRAWN" ? (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {t(locale, "withdrawn by us")}
+                      {row.rejectionReason ? `: ${row.rejectionReason}` : ""}
+                    </span>
+                  ) : null}
                   {row.note ? ` · ${row.note}` : ""}
                 </p>
 
-                <span className="flex shrink-0 items-center gap-2">
+                <span className="flex shrink-0 flex-wrap items-center gap-2">
                   <span className="tabular">
                     {row.submittedBy?.name ?? "—"} ·{" "}
                     {formatDateTime(row.submittedAt, locale)}
                   </span>
+                  {/* Fix it or take it back, while it is still only a claim. */}
+                  {canCorrect ? (
+                    <SubmissionCorrection
+                      submissionId={row.id}
+                      invoiceId={row.invoice.id}
+                      amount={toNumber(row.amount)}
+                      reference={row.reference}
+                      note={row.note}
+                      status={row.status}
+                    />
+                  ) : null}
                   {/* The evidence stays one click away — it is the whole point of
                       the record — but as an icon, since the filename told the
                       reader nothing they needed at this density. */}

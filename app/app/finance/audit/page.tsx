@@ -85,6 +85,7 @@ export default async function FinanceAuditPage({
     "credit.facility.withdrawn",
     "storage.waived",
     "submission.rejected",
+    "submission.withdrawn",
   ];
   const undoneOnly = params.view === "undone";
 

@@ -103,6 +103,9 @@ const ACTION_LABELS: Record<string, string> = {
   "shipment.removeDocument": "Paperwork removed from cargo",
   "label.print": "Labels printed",
 
+  "submission.edit": "Payment claim corrected",
+  "submission.withdrawn": "Payment claim withdrawn",
+
   "payment.void": "Payment cancelled",
   "payment.restore": "Cancelled payment reinstated",
   "payment.edit": "Payment details corrected",
