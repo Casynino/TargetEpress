@@ -48,7 +48,9 @@ export function FindBill() {
         className="focus-ring inline-flex min-h-[44px] items-center gap-2 rounded-lg border bg-card px-4 text-sm font-semibold transition-colors hover:bg-accent hover:text-brand"
       >
         <Banknote className="h-4 w-4 text-success" />
-        {t("Record a payment")}
+        {/* The same words Finance uses for the same act. Two names for one
+            thing sends somebody hunting for a button that is in front of them. */}
+        {t("Record an income")}
       </button>
     );
   }
