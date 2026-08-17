@@ -113,6 +113,8 @@ const ACTION_LABELS: Record<string, string> = {
   "credit.requested": "Credit requested",
   "credit.approved": "Credit approved",
   "credit.rejected": "Credit refused",
+  "credit.extended": "Credit due date extended",
+  "credit.shortened": "Credit due date brought forward",
   "credit.facility.set": "Credit limit set",
   "credit.facility.withdrawn": "Credit facility withdrawn",
 

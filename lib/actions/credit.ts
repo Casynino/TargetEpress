@@ -520,3 +520,151 @@ export async function setCreditLimit(
     return fail(t(locale, toActionError(error)));
   }
 }
+
+/* ------------------------------------------------------- moving the deadline */
+
+/**
+ * Change or extend the date a credit falls due.
+ *
+ * A deadline is not a typo to be corrected quietly — it is a promise the customer
+ * was given, and the whole system reads it: the settlements page, the call list,
+ * the overdue colours on the cargo row, the note in their hand. So moving it is
+ * its own recorded act, with a reason, and it is Finance's to make. Support may
+ * ask for credit; it may not quietly buy a customer another fortnight.
+ *
+ * THIRTY DAYS IS THE CEILING, counted from today rather than from the original
+ * grant. Extending is meant to be possible — a customer who needs another two
+ * weeks is ordinary business — but "later" has to stop somewhere, or a debt gets
+ * pushed out a month at a time and never ages on any report. Thirty days is the
+ * longest term the business offers, so it is also the furthest a single decision
+ * may push one.
+ */
+export async function adjustCredit(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("credit.approve");
+    const parsed = z
+      .object({
+        invoiceId: z.string().min(1),
+        /** An exact date off the calendar, or blank when a term was chosen. */
+        dueDate: z.string().trim().optional(),
+        /** 7, 14 or 30 — counted from today, not from the original grant. */
+        termDays: z.coerce.number().int().optional(),
+        reason: z.string().trim().min(3, "Say why the due date is moving."),
+      })
+      .safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: parsed.data.invoiceId },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        creditStatus: true,
+        creditTermDays: true,
+        dueDate: true,
+        total: true,
+        amountPaid: true,
+        customer: { select: { name: true } },
+        shipment: { select: { trackingNumber: true } },
+      },
+    });
+    if (!invoice) return fail(t(locale, "That invoice no longer exists."));
+    if (invoice.creditStatus !== "APPROVED") {
+      return fail(
+        t(locale, "There is no granted credit on this bill to move.")
+      );
+    }
+
+    /* Midnight today, so "due today" is not already in the past by lunchtime. */
+    const now = new Date();
+    const today = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    );
+    const ceiling = dueDateFrom(today, 30);
+
+    let nextDue: Date;
+    let termDays: number | null = null;
+    if (parsed.data.dueDate && parsed.data.dueDate.length > 0) {
+      nextDue = new Date(`${parsed.data.dueDate}T00:00:00.000Z`);
+      if (Number.isNaN(nextDue.getTime())) {
+        return fail(t(locale, "That is not a valid date."));
+      }
+    } else if (
+      parsed.data.termDays &&
+      (CREDIT_TERMS as readonly number[]).includes(parsed.data.termDays)
+    ) {
+      termDays = parsed.data.termDays;
+      nextDue = dueDateFrom(today, termDays);
+    } else {
+      return fail(t(locale, "Choose a date, or one of the terms."));
+    }
+
+    if (nextDue < today) {
+      return fail(
+        t(locale, "That date has already passed. To mark a credit late, leave the date where it is.")
+      );
+    }
+    if (nextDue > ceiling) {
+      return fail(
+        t(
+          locale,
+          "Thirty days is the furthest a credit can be pushed in one decision — that is the longest term the business offers. Move it again nearer the time if it genuinely needs longer."
+        )
+      );
+    }
+
+    const before = invoice.dueDate;
+    if (before && before.getTime() === nextDue.getTime()) {
+      return fail(t(locale, "That is the date it is already due."));
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          dueDate: nextDue,
+          /* Terms only when a term was chosen. A hand-picked date has no term
+             behind it, and inventing one would put a number on the invoice that
+             does not match the date beside it. */
+          ...(termDays ? { creditTermDays: termDays } : {}),
+        },
+      });
+
+      const owing = toNumber(invoice.total) - toNumber(invoice.amountPaid);
+      const extending = before ? nextDue > before : true;
+      await recordAudit(
+        {
+          actor: user,
+          action: extending ? "credit.extended" : "credit.shortened",
+          entity: "Invoice",
+          entityId: invoice.id,
+          summary:
+            `${invoice.invoiceNumber} (${invoice.customer.name}): credit due date ` +
+            `${before ? before.toISOString().slice(0, 10) : "unset"} → ${nextDue.toISOString().slice(0, 10)}` +
+            ` on USD ${owing.toFixed(2)} — ${parsed.data.reason}`,
+          metadata: {
+            tracking: invoice.shipment?.trackingNumber ?? null,
+            fromDueDate: before ? before.toISOString() : null,
+            toDueDate: nextDue.toISOString(),
+            termDays,
+            outstandingUsd: owing,
+            extending,
+            reason: parsed.data.reason,
+          },
+        },
+        tx
+      );
+    });
+
+    revalidatePath(`/app/finance/invoices/${invoice.id}`);
+    revalidatePath("/app/finance/credit");
+    revalidatePath("/app/collections/follow-up");
+    return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}

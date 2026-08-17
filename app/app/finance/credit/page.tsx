@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Search } from "lucide-react";
 
+import { CreditAdjust } from "@/components/app/credit-adjust";
 import { CreditDecision } from "@/components/app/credit-decision";
 import { EmptyState } from "@/components/app/empty-state";
 import { FinanceNav } from "@/components/app/finance-nav";
@@ -86,6 +87,14 @@ export default async function CreditPage({
   };
 
   const agingMax = Math.max(1, ...overview.aging.map((a) => a.amountUsd));
+
+  /* The two bounds the date picker offers, worked out once on the server so every
+     row's calendar agrees and the ceiling matches what adjustCredit enforces. */
+  const nowUtc = new Date();
+  const todayIso = nowUtc.toISOString().slice(0, 10);
+  const ceilingIso = new Date(nowUtc.getTime() + 30 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
 
   return (
     <>
@@ -426,12 +435,26 @@ export default async function CreditPage({
                       <span className="tabular">{formatDate(r.dueDate, locale)}</span>
                     ) : null}
                     {r.outstandingUsd > 0.005 ? (
-                      <Link
-                        href={`/app/collections/record/${r.invoiceId}`}
-                        className="focus-ring rounded px-1.5 py-0.5 font-medium text-success/80 transition-colors hover:bg-success/10 hover:text-success"
-                      >
-                        {t(locale, "Collect")}
-                      </Link>
+                      <>
+                        {/* Move or extend the date. Finance only — a deadline is
+                            more credit, and Support may ask for credit without
+                            being able to quietly buy a customer a fortnight. */}
+                        {canDecide ? (
+                          <CreditAdjust
+                            invoiceId={r.invoiceId}
+                            dueOn={r.dueDate ? formatDate(r.dueDate, locale) : null}
+                            overdue={r.daysOverdue > 0}
+                            today={todayIso}
+                            ceiling={ceilingIso}
+                          />
+                        ) : null}
+                        <Link
+                          href={`/app/collections/record/${r.invoiceId}`}
+                          className="focus-ring rounded px-1.5 py-0.5 font-medium text-success/80 transition-colors hover:bg-success/10 hover:text-success"
+                        >
+                          {t(locale, "Collect")}
+                        </Link>
+                      </>
                     ) : null}
                   </span>
                 </div>
