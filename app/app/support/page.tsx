@@ -429,7 +429,6 @@ export default async function SupportHome() {
             { href: "/app/finance/credit", label: t(locale, "Credit"), icon: CalendarClock, tone: "violet" },
             // Sourcing came out: it has a sidebar row and is a slow job worked
             // through a queue, not something reached with a customer waiting.
-            { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), icon: QrCode, tone: "success" },
             // Credit replaces Customers and Loading batches here. Both of those
             // have their own sidebar rows and are browsing, not doing — while
             // "who owes us and when is it due" is asked on this desk mid-call,
@@ -439,7 +438,11 @@ export default async function SupportHome() {
             // this desk does between calls; the money rows are what it reaches
             // for during one, and the first pill should be whatever is most
             // often needed with a customer waiting.
+            /* The two counter jobs, side by side: what landed, and the note that
+               lets it leave. Somebody at the desk with a customer in front of
+               them moves between exactly these two. */
             { href: "/app/shipments", label: t(locale, "Arrived batches"), icon: PlaneTakeoff, tone: "brand" },
+            { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), icon: QrCode, tone: "success" },
             /* Issues & Claims last. It is the rarest of these and the one that
                starts a long job rather than answers a question — the row is
                ordered by how often a hand reaches for it mid-call, not by how
