@@ -77,8 +77,8 @@ const KINDS = [
       maths.
     */
     key: "executive",
-    label: "Boss",
-    hint: "Money the boss took out — counted like any other cost, just easy to find",
+    label: "Executive",
+    hint: "Drawn for executive use — counted like any other cost, just easy to find",
   },
 ] as const;
 
@@ -673,8 +673,8 @@ export default async function ExpensesPage({
             {expenses.map((expense) => {
               const usd = toNumber(expense.amountUsd);
               return (
-                <li key={expense.id} className="px-4 py-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                <li key={expense.id} className="px-4 py-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                     <div className="min-w-0">
                       <p className="font-medium">
                         {expense.description}
@@ -690,8 +690,8 @@ export default async function ExpensesPage({
                             in every calculation; this is so a reader can tell
                             which part of the month's spending it was. */}
                         {expense.category === "EXECUTIVE_DRAW" ? (
-                          <span className="ml-2 rounded bg-signal/10 px-1.5 py-0.5 text-[11px] font-normal text-signal">
-                            {t(locale, "Boss")}
+                          <span className="ml-2 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning">
+                            {t(locale, "Executive")}
                           </span>
                         ) : null}
                       </p>
@@ -748,21 +748,36 @@ export default async function ExpensesPage({
                       </p>
                     </div>
 
-                    <div className="text-right">
-                      <p className="font-mono text-sm font-medium tabular-nums">
-                        {formatMoney(expense.amount, expense.currency)}
-                      </p>
-                      {expense.currency === "USD" ? null : (
-                        <p className="text-xs text-muted-foreground">
-                          {formatUsd(usd)}
+                    {/* Money, state and the two ways to fix it, all on the
+                        same line as the cost. Seventeen rows that each took
+                        four lines is a page nobody can scan. */}
+                    <div className="flex shrink-0 items-center gap-3">
+                      <div className="text-right">
+                        <p className="font-mono text-sm font-medium tabular-nums">
+                          {formatMoney(expense.amount, expense.currency)}
                         </p>
-                      )}
+                        {expense.currency === "USD" ? null : (
+                          <p className="text-[11px] text-muted-foreground">
+                            {formatUsd(usd)}
+                          </p>
+                        )}
+                      </div>
                       <Badge
                         variant="outline"
-                        className={`mt-1 font-normal ${STATUS_TONE[expense.status]}`}
+                        className={`shrink-0 font-normal ${STATUS_TONE[expense.status]}`}
                       >
                         {t(locale, STATUS_LABEL[expense.status])}
                       </Badge>
+                      {canRecord || canApprove ? (
+                        <ExpenseRowActions
+                          canReverse={canAdjustLedger}
+                          expenseId={expense.id}
+                          status={expense.status}
+                          currency={expense.currency}
+                          accounts={accountOptions}
+                          canApprove={canApprove}
+                        />
+                      ) : null}
                     </div>
                   </div>
 
@@ -772,18 +787,6 @@ export default async function ExpensesPage({
                     </p>
                   ) : null}
 
-                  {canRecord || canApprove ? (
-                    <div className="mt-2">
-                      <ExpenseRowActions
-                        canReverse={canAdjustLedger}
-                        expenseId={expense.id}
-                        status={expense.status}
-                        currency={expense.currency}
-                        accounts={accountOptions}
-                        canApprove={canApprove}
-                      />
-                    </div>
-                  ) : null}
                 </li>
               );
             })}
