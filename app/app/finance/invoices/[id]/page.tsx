@@ -333,6 +333,10 @@ export default async function InvoicePage({
                 localCurrency,
                 storageDays: invoice.storageDays,
                 weightKg: toNumber(shipment.weightKg),
+                /* How the figure was reached — the same one line the invoice
+                   itself prints under "Air freight", so the message and the
+                   document cannot tell the customer two different stories. */
+                freightBasis: freightNote,
                 // The rate frozen on THIS invoice. Publishing a new rate
                 // tomorrow must not restate what this customer was quoted.
                 exchangeRate: invoiceRate,

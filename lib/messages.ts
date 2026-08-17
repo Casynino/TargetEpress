@@ -31,6 +31,15 @@ export type MessageContext = {
   /** Off the cargo record. Nobody at a desk should be typing a weight. */
   weightKg?: number | null;
   /**
+   * How the freight figure was reached: the per-kilo rate, or the per-item
+   * price, exactly as the invoice states it.
+   *
+   * The customer could see the amount and the exchange rate but never the
+   * arithmetic between them — so "USD 12.00" arrived as a number to be taken
+   * on trust. This is the line that makes it checkable: rate × weight.
+   */
+  freightBasis?: string | null;
+  /**
    * The rate FROZEN ON THIS INVOICE, never today's published one.
    *
    * A customer who was quoted at 2,700 and reads 2,800 next month believes the
@@ -147,6 +156,9 @@ function moneyMessage(context: MessageContext, opening: string) {
     ...(context.description ? [`• ${bold("Mzigo:")} ${context.description}`] : []),
     ...(context.weightKg !== null && context.weightKg !== undefined
       ? [`• ${bold("Uzito:")} ${context.weightKg} kg`]
+      : []),
+    ...(context.freightBasis
+      ? [`• ${bold("Bei:")} ${context.freightBasis}`]
       : []),
     ...(context.exchangeRate
       ? [
@@ -350,6 +362,7 @@ export function paymentReminderSwahili(input: {
   description: string;
   invoiceNumber: string | null;
   weightKg?: number | null;
+  freightBasis?: string | null;
   /** The invoice's own rate. Never today's. */
   exchangeRate?: number | null;
   amountUsd?: number | null;
@@ -363,6 +376,7 @@ export function paymentReminderSwahili(input: {
       description: input.description,
       invoiceNumber: input.invoiceNumber,
       weightKg: input.weightKg,
+      freightBasis: input.freightBasis,
       exchangeRate: input.exchangeRate,
       amountUsd: input.amountUsd,
       amountLocal: input.amountLocal,
