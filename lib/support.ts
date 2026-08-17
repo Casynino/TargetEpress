@@ -67,7 +67,17 @@ export type FollowUpRow = {
   /** The rate frozen on this invoice, never today's published one. */
   exchangeRate: number | null;
   storageDays: number;
+  /**
+   * What the desk should quote — nothing at all once the fee is forgiven.
+   *
+   * This was re-derived from the two dates and never read the waiver, so a
+   * consignment whose fee had been written off kept appearing in the queue with
+   * a red charge against it, and the desk would ring the customer to chase
+   * money the office had already given up. That is a worse call than no call.
+   */
   storageCharge: number;
+  /** Kept so the row can say "waived" rather than just going quiet. */
+  storageWaivedUsd: number;
   invoiceId: string | null;
   invoiceStatus: string | null;
   invoiceNumber: string | null;
@@ -130,6 +140,7 @@ export async function followUpQueue() {
           sentAt: true,
           confirmedAt: true,
           issuedAt: true,
+          storageWaivedUsd: true,
         },
       },
       messages: {
@@ -143,6 +154,7 @@ export async function followUpQueue() {
   const rows: FollowUpRow[] = shipments.map((shipment) => {
     const storageDays = storageDaysFor(shipment.arrivedAt, shipment.deliveredAt);
     const invoice = shipment.invoice;
+    const storageWaivedUsd = toNumber(invoice?.storageWaivedUsd ?? 0);
     const total = invoice ? toNumber(invoice.total) : null;
     const paid = invoice ? toNumber(invoice.amountPaid) : null;
     const outstanding =
@@ -198,7 +210,9 @@ export async function followUpQueue() {
       weightKg: shipment.weightKg === null ? null : toNumber(shipment.weightKg),
       exchangeRate: rate,
       storageDays,
-      storageCharge: storageDays * STORAGE_POLICY.perDayUsd,
+      storageCharge:
+        storageWaivedUsd > 0 ? 0 : storageDays * STORAGE_POLICY.perDayUsd,
+      storageWaivedUsd,
       invoiceId: invoice?.id ?? null,
       invoiceStatus: invoice?.status ?? null,
       invoiceNumber: invoice?.invoiceNumber ?? null,

@@ -92,6 +92,10 @@ export default async function PickupQueuePage() {
           weightKg: true,
           status: true,
           arrivedAt: true,
+          /* Read so the queue does not flag a forgiven fee as still charging —
+             the counter would tell the customer to hurry over money the office
+             has already written off. */
+          invoice: { select: { storageWaivedUsd: true } },
           packageList: {
             select: { sequence: true, receivedAt: true },
             orderBy: { sequence: "asc" },
@@ -180,7 +184,10 @@ export default async function PickupQueuePage() {
       missingPackages,
       shipmentStatus: shipment.status,
       arrivedAtLabel: shipment.arrivedAt ? formatDate(shipment.arrivedAt, locale) : null,
-      storageDays: storageDaysFor(shipment.arrivedAt, null, now),
+      storageDays:
+        toNumber(shipment.invoice?.storageWaivedUsd ?? 0) > 0
+          ? 0
+          : storageDaysFor(shipment.arrivedAt, null, now),
       blockers,
       ready: blockers.length === 0,
     };
