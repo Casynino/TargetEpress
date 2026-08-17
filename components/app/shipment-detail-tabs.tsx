@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowRightLeft,
   AlertTriangle,
+  Banknote,
   ChevronRight,
   Download,
   FileText,
@@ -58,6 +59,14 @@ export type CargoLine = {
      * says "Still owing USD 0.00" and the row said nothing at all.
      */
     paid?: boolean;
+    /**
+     * The bill this line is on, carried whether or not the price is editable.
+     *
+     * It used to arrive only inside `edit`, which is null the moment a price is
+     * confirmed — so the one state where somebody wants to take money was the
+     * one state where the row did not know which invoice to take it against.
+     */
+    invoiceId?: string | null;
     /** Everything the inline editor needs, so a correction never leaves the list. */
     edit?: {
       invoiceId: string;
@@ -118,6 +127,7 @@ export function ShipmentDetailTabs({
   showPrice = false,
   canEditPrice = false,
   canMoveCargo = false,
+  canRecordPayment = false,
   moveTargets = [],
   canOverridePrice = false,
 }: {
@@ -130,6 +140,15 @@ export function ShipmentDetailTabs({
   canEditPrice?: boolean;
   /** shipment.move — correcting which flight a consignment is on. */
   canMoveCargo?: boolean;
+  /**
+   * Whether this desk may take a payment against a line, from the list.
+   *
+   * Support, Finance and the boss. It is `payment.submit`, not
+   * `payment.record`: what Support files is a claim Finance verifies, and the
+   * screen this leads to is the one that already knows the difference. The two
+   * warehouses do not hold it and never see the action.
+   */
+  canRecordPayment?: boolean;
   /** Open flights it could be moved to, this one excluded. */
   moveTargets?: { id: string; batchNumber: string }[];
   /** invoice.discount — may move the freight figure itself, or discount it. */
@@ -189,7 +208,10 @@ export function ShipmentDetailTabs({
               type="button"
               onClick={() => setTab(key)}
               className={cn(
-                "inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded px-3 py-2 text-sm font-medium transition-colors",
+                // min-h rather than padding: these three are the only way into
+                // the paperwork and the history, and at py-2 they came out 36px
+                // tall — under the thumb of somebody holding a box.
+                "inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded px-3 py-2 text-sm font-medium transition-colors",
                 tab === key
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -247,7 +269,178 @@ export function ShipmentDetailTabs({
             {visible.length} {t("of")} {cargo.length} {t("pieces")}
           </p>
 
-          <div className="max-h-[70vh] overflow-auto">
+          {/*
+            Nine columns wide with the price editor in one of them. That is a
+            desk table; on a phone it was 1,300px of sideways scrolling, and
+            this is the list somebody stands in front of a pallet with,
+            checking the manifest against the boxes.
+
+            Below md each line becomes a card carrying the same facts with the
+            column headings said inline. A paid line keeps its green rail and a
+            flagged one keeps its badge, because "which of these has a problem"
+            and "which of these is settled" are the two questions being asked
+            on the floor.
+          */}
+          <ul className="space-y-2 p-3 md:hidden">
+            {visible.map((line) => (
+              <li
+                key={line.id}
+                className={cn(
+                  "rounded-xl border bg-card p-3 shadow-soft",
+                  line.price?.paid &&
+                    "border-success/30 bg-success/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--success))]"
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <Link
+                    href={`/app/cargo/${line.trackingNumber}`}
+                    className="focus-ring rounded font-mono text-sm font-semibold tabular-nums hover:text-brand"
+                  >
+                    {line.trackingNumber}
+                  </Link>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {line.receivedLabel}
+                  </span>
+                </div>
+
+                {line.problems.length > 0 ? (
+                  <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-destructive">
+                    <AlertTriangle className="h-3 w-3" />
+                    {line.problems.join(", ")}
+                  </p>
+                ) : null}
+
+                <p className="mt-1 truncate text-sm">
+                  <Link
+                    href={`/app/customers/${line.customerId}`}
+                    className="focus-ring rounded hover:text-brand"
+                  >
+                    {line.customerName}
+                  </Link>
+                </p>
+                <p className="line-clamp-2 text-xs text-muted-foreground">
+                  {line.description}
+                </p>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span className="font-mono tabular-nums">
+                    {line.weightKg.toFixed(1)} kg
+                  </span>
+                  <span className="font-mono tabular-nums">
+                    {line.packagesLabel}
+                  </span>
+                  {showPrice && line.price ? (
+                    <span className="font-mono tabular-nums text-foreground">
+                      {line.price.currency} {line.price.amount.toFixed(2)}
+                      {line.price.paid ? (
+                        <span className="ml-1 rounded bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success">
+                          {t("Paid")}
+                        </span>
+                      ) : null}
+                      {!line.price.confirmed ? (
+                        <span className="ml-1 rounded bg-signal/10 px-1.5 py-0.5 text-xs font-medium text-signal">
+                          {t("draft")}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                  {line.photos.length > 0 ? (
+                    <a
+                      href={line.photos[0].url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="focus-ring inline-flex items-center gap-1 rounded hover:text-foreground"
+                    >
+                      <span className="relative block h-8 w-8 shrink-0 overflow-hidden rounded border">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={line.photos[0].url}
+                          alt={
+                            line.photos[0].caption ??
+                            `${t("Cargo photo for")} ${line.trackingNumber}`
+                          }
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      </span>
+                      {line.photos.length > 1 ? `+${line.photos.length - 1}` : null}
+                    </a>
+                  ) : null}
+                </div>
+
+                {/* 44px targets, side by side with room between them — this is
+                    pressed one-handed while the other hand holds a box. */}
+                <div className="mt-3 flex items-center gap-2">
+                  <Link
+                    href={`/app/cargo/${line.trackingNumber}`}
+                    className="focus-ring inline-flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-lg border px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-brand"
+                  >
+                    {t("Open")}
+                    <ChevronRight className="h-4 w-4" />
+                  </Link>
+                  {canRecordPayment &&
+                  line.price?.invoiceId &&
+                  !line.price.paid ? (
+                    <Link
+                      href={`/app/collections/record/${line.price.invoiceId}`}
+                      className="focus-ring inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-success/40 bg-success/10 px-3 text-sm font-semibold text-success transition-colors hover:bg-success/20"
+                    >
+                      <Banknote className="h-4 w-4" />
+                      {t("Pay")}
+                    </Link>
+                  ) : null}
+                  {canMoveCargo && moveTargets.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setMoving(moving === line.id ? null : line.id)}
+                      className="focus-ring inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-1 rounded-lg border px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"
+                    >
+                      <ArrowRightLeft className="h-4 w-4" />
+                      {t("Move")}
+                    </button>
+                  ) : null}
+                </div>
+
+                {/* Its own row, never beside the buttons: opened, the editor is
+                    a 21rem panel, and 21rem plus two buttons is wider than the
+                    phone it would be pushing off the side of. */}
+                {showPrice && line.price?.edit && canEditPrice ? (
+                  <div className="mt-2">
+                    <RowPriceEditor
+                      weightKg={line.weightKg}
+                      invoiceId={line.price.edit.invoiceId}
+                      trackingNumber={line.trackingNumber}
+                      currency={line.price.currency}
+                      rateBookFreight={line.price.edit.rateBookFreight}
+                      freightOverride={line.price.edit.freightOverride}
+                      storage={line.price.edit.storage}
+                      otherCharges={line.price.edit.otherCharges}
+                      discount={line.price.edit.discount}
+                      canOverride={canOverridePrice}
+                    />
+                  </div>
+                ) : null}
+
+                {moving === line.id ? (
+                  <div className="mt-3 rounded-lg border bg-muted/20 p-3">
+                    <MoveCargo
+                      shipmentId={line.id}
+                      trackingNumber={line.trackingNumber}
+                      batches={moveTargets}
+                      onDone={() => setMoving(null)}
+                    />
+                  </div>
+                ) : null}
+              </li>
+            ))}
+            {visible.length === 0 ? (
+              <li className="p-10 text-center text-sm text-muted-foreground">
+                {t("No cargo matches that search.")}
+              </li>
+            ) : null}
+          </ul>
+
+          <div className="hidden max-h-[70vh] overflow-auto md:block">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
@@ -416,7 +609,24 @@ export function ShipmentDetailTabs({
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-1.5 text-right">
+                    <td className="whitespace-nowrap px-3 py-1.5 text-right">
+                      {/* Taking the money is the reason most people are on this
+                          screen, so it sits on the row rather than two clicks
+                          inside it. Gone the moment the line reads Paid — the
+                          screen behind it would only say there is nothing left
+                          to collect. */}
+                      {canRecordPayment &&
+                      line.price?.invoiceId &&
+                      !line.price.paid ? (
+                        <Link
+                          href={`/app/collections/record/${line.price.invoiceId}`}
+                          title={`${t("Record payment")} · ${line.trackingNumber}`}
+                          className="mr-1 inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/10 px-2 py-1.5 text-xs font-semibold text-success transition-colors hover:bg-success/20"
+                        >
+                          <Banknote className="h-3.5 w-3.5" />
+                          {t("Pay")}
+                        </Link>
+                      ) : null}
                       <Link
                         href={`/app/cargo/${line.trackingNumber}`}
                         className="inline-flex items-center gap-0.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-brand"

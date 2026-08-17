@@ -150,6 +150,15 @@ export default async function ShipmentPage({
             /* Settled in full — the fact every desk was opening a consignment
                to find out. */
             paid: item.invoice.status === "PAID",
+            /* Carried whether or not the price is still editable: taking money
+               is exactly what a confirmed, unpaid bill is for. A draft is
+               excluded — nobody has signed that figure off, and collecting
+               against a number Finance has not looked at is how a bill ends up
+               argued about after the cash is in the drawer. */
+            invoiceId:
+              item.invoice.status === "DRAFT" || item.invoice.status === "VOID"
+                ? null
+                : item.invoice.id,
             // Editable only while no money has landed — the same lock
             // adjustInvoice enforces, so the pencil never appears on a bill
             // the server would refuse to change.
@@ -592,6 +601,7 @@ export default async function ShipmentPage({
       <ShipmentDetailTabs
         showPrice={finance !== null}
         canEditPrice={can(user.role, "invoice.edit")}
+        canRecordPayment={can(user.role, "payment.submit")}
         canOverridePrice={can(user.role, "invoice.discount")}
         canMoveCargo={canMoveCargo && dispatch.closedAt === null}
         moveTargets={carryTargets}
