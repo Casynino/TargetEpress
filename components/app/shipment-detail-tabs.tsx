@@ -51,6 +51,13 @@ export type CargoLine = {
     amount: number;
     currency: string;
     confirmed: boolean;
+    /**
+     * Settled in full.
+     *
+     * The fact every desk was opening a consignment to find out — the receipt
+     * says "Still owing USD 0.00" and the row said nothing at all.
+     */
+    paid?: boolean;
     /** Everything the inline editor needs, so a correction never leaves the list. */
     edit?: {
       invoiceId: string;
@@ -267,7 +274,16 @@ export function ShipmentDetailTabs({
               <tbody>
                 {visible.map((line) => (
                   <Fragment key={line.id}>
-                  <tr className="border-t">
+                  <tr
+                    className={cn(
+                      "border-t",
+                      /* Paid, at a glance: a green rail and a faint wash, so a
+                         settled consignment is pickable out of fifty rows
+                         without reading a figure. */
+                      line.price?.paid &&
+                        "bg-success/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--success))]"
+                    )}
+                  >
                     <td className="whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground">
                       {line.receivedLabel}
                     </td>
@@ -345,6 +361,11 @@ export function ShipmentDetailTabs({
                             <span className="font-medium">
                               {line.price.currency} {line.price.amount.toFixed(2)}
                             </span>
+                            {line.price.paid ? (
+                              <span className="rounded bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success">
+                                {t("Paid")}
+                              </span>
+                            ) : null}
                             {/* An unconfirmed figure has to look unconfirmed,
                                 or the desk signs off a list it believes was
                                 already agreed. */}
