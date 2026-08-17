@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 
@@ -61,9 +62,21 @@ const TINT: Record<NonNullable<ActionPill["tone"]>, string> = {
  */
 export function ActionPills({
   items,
+  after,
+  afterHref,
   label = "Quick actions",
 }: {
   items: ActionPill[];
+  /**
+   * Something that is an ACTION rather than a destination, sat in the same row.
+   *
+   * Every pill here navigates. Recording an income does not — it opens a form —
+   * so it cannot be an item, and putting it above or below the row made it read
+   * as a separate thing when it is the same row of "what do I do from here".
+   */
+  after?: React.ReactNode;
+  /** Which pill it sits beside. Falls to the end of the row if unmatched. */
+  afterHref?: string;
   label?: string;
 }) {
   if (items.length === 0) return null;
@@ -81,8 +94,8 @@ export function ActionPills({
         Finance tab row already follows.
       */}
       {items.map((item) => (
+        <Fragment key={item.href}>
         <Link
-          key={item.href}
           href={item.href}
           className={`focus-ring inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
             item.weight === "primary"
@@ -95,7 +108,11 @@ export function ActionPills({
           <item.icon className="h-4 w-4" />
           {item.label}
         </Link>
+        {after && afterHref === item.href ? after : null}
+        </Fragment>
       ))}
+      {/* Unmatched href, or none given: the action still belongs in the row. */}
+      {after && !items.some((i) => i.href === afterHref) ? after : null}
     </nav>
   );
 }

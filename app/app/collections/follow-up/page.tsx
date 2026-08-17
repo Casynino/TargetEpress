@@ -6,7 +6,8 @@ import { CollectionsNav } from "@/components/app/collections-nav";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
 import { PageHeader } from "@/components/app/page-header";
-import { FindBill } from "@/components/app/find-bill";
+import { RecordIncome } from "@/components/app/record-income";
+import { activeAccounts } from "@/lib/accounts";
 import { can } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
 import { currentRate, formatLocal, formatShillings, formatUsd } from "@/lib/fx";
@@ -63,6 +64,10 @@ export default async function FollowUpPage({
   /* Support files a claim, Finance banks it — the record screen behind this knows
      which of the two is standing there, so one button serves both. */
   const canTakePayments = can(user.role, "payment.submit");
+  /* Finance banks it and needs the account list; Support files a claim and does
+     not — so the accounts are only fetched for the desk that can use them. */
+  const canBankIt = can(user.role, "payment.record");
+  const payAccounts = canBankIt ? await activeAccounts() : [];
   const locale = await viewerLocale();
   const canRecord = can(user.role, "payment.record");
   const canCollect = !canRecord && can(user.role, "payment.submit");
@@ -166,15 +171,17 @@ export default async function FollowUpPage({
       <PageHeader
         title="Payment follow-up"
         description="Every customer who owes us money — bills nobody has paid and credit we released on terms — ordered by who needs a phone call most."
-        /*
-          The action belongs on the page where the call happens.
-
-          It lived only on the Support home, so somebody working down this list —
-          which is the list of people who might ring back saying they have paid —
-          had to navigate away to record one. Same component, same destination:
-          the record screen files a claim for Support and banks it for Finance.
-        */
-        actions={canTakePayments ? <FindBill /> : null}
+        /* The action belongs on the page where the call happens: this IS the
+           list of people who might ring back to say they have paid. */
+        actions={
+          canTakePayments ? (
+            <RecordIncome
+              accounts={payAccounts}
+              rate={liveRate}
+              canRecord={canBankIt}
+            />
+          ) : null
+        }
       />
       {/*
         The finance tab row stays put.

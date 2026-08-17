@@ -14,7 +14,7 @@ import {
 
 import { KpiCard } from "@/components/app/kpi-card";
 import { ActionPills } from "@/components/app/action-pills";
-import { FindBill } from "@/components/app/find-bill";
+import { RecordIncome } from "@/components/app/record-income";
 import { AttentionCenter, type AttnItem } from "@/components/app/attention-center";
 import { SectionLabel } from "@/components/app/section-label";
 import { BarChart } from "@/components/charts/bar-chart";
@@ -399,23 +399,17 @@ export default async function SupportHome() {
         </div>
       </div>
 
-      {/*
-        The one thing this desk does that had no door.
-
-        Every pill below navigates somewhere; recording a payment is an ACTION,
-        and it was only reachable by first finding the consignment yourself. A
-        customer on the phone saying "I have paid" is the most common call here,
-        so the search that answers it sits above the navigation rather than
-        inside it.
-      */}
-      {canTakePayments ? (
-        <div className="mb-4">
-          <FindBill />
-        </div>
-      ) : null}
-
       <div className="mb-7">
         <ActionPills
+          /* Beside Collections, because that is the money row of this desk and
+             recording an income is the thing you do from it. It is an action,
+             not a destination, so it cannot be a pill of its own. */
+          afterHref="/app/collections"
+          after={
+            canTakePayments ? (
+              <RecordIncome accounts={[]} rate={rate} canRecord={false} />
+            ) : null
+          }
           items={[
             // Whatever the call is about it starts with a consignment, and the
             // next thing asked is what it costs and whether it has been paid.

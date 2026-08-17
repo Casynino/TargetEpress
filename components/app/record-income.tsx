@@ -8,6 +8,7 @@ import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
+import { submitPaymentForVerification } from "@/lib/actions/collections";
 import { recordPayment, searchBillable, type BillableHit } from "@/lib/actions/finance";
 import type { ActionResult } from "@/lib/actions/types";
 import type { ExpenseAccount } from "@/components/app/expense-form";
@@ -60,6 +61,7 @@ export function RecordIncome({
   accounts,
   rate,
   autoOpen = false,
+  canRecord = true,
 }: {
   accounts: ExpenseAccount[];
   /** Today's USD→TZS, shown so nobody has to guess what a dollar bill is worth. */
@@ -72,6 +74,20 @@ export function RecordIncome({
    * box in front of them, not with a button to press a second time.
    */
   autoOpen?: boolean;
+  /**
+   * Whether this reader may say the money ARRIVED.
+   *
+   * Support gets the identical screen — same search, same fields, same shape —
+   * because it is doing the identical job: a customer rang, they paid, write it
+   * down. What differs is the destination: this desk files a claim for Finance to
+   * verify, exactly as it always has, because it is repeating what a customer
+   * said rather than confirming money reached an account.
+   *
+   * One component, not a copy. Two forms for one act would have meant two places
+   * to keep in step about currency, evidence and rates — the duplication this app
+   * has been bitten by four times.
+   */
+  canRecord?: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState(autoOpen);
@@ -93,10 +109,19 @@ export function RecordIncome({
   const [amount, setAmount] = useState<string>("");
   const [searching, startSearch] = useTransition();
 
-  const [state, action] = useActionState<
-    ActionResult<{ receiptNumber: string; pickupNoteNumber: string | null }>,
-    FormData
-  >(recordPayment, { ok: true });
+  /* The authority picks the action; the form is the same either way. */
+  type Outcome = {
+    receiptNumber?: string;
+    pickupNoteNumber?: string | null;
+    submissionNumber?: string;
+  };
+  const [state, action] = useActionState<ActionResult<Outcome>, FormData>(
+    (canRecord ? recordPayment : submitPaymentForVerification) as unknown as (
+      state: ActionResult<Outcome>,
+      payload: FormData
+    ) => Promise<ActionResult<Outcome>>,
+    { ok: true }
+  );
 
   /*
     Searched as it is typed, after a pause.
@@ -397,6 +422,9 @@ export function RecordIncome({
               </NativeSelect>
             </label>
 
+            {/* Only for the desk that banks it. Support has no idea which of our
+                accounts the money reached, and a guess is worse than silence. */}
+            {canRecord ? (
             <label className="flex flex-col gap-1">
               <span className="whitespace-nowrap text-[11px] text-muted-foreground">
                 {t("Into which account")}
@@ -412,6 +440,7 @@ export function RecordIncome({
                   ))}
               </NativeSelect>
             </label>
+            ) : null}
 
             {/*
               Proof, and nothing else to type.
@@ -442,15 +471,22 @@ export function RecordIncome({
               />
             </label>
 
-            <SubmitButton variant="brand" pendingLabel={t("Recording…")}>
-              {t("Record it")}
+            <SubmitButton
+              variant="brand"
+              pendingLabel={canRecord ? t("Recording…") : t("Sending…")}
+            >
+              {canRecord ? t("Record it") : t("Send to Finance")}
             </SubmitButton>
           </div>
 
           <p className="mt-2 text-[11px] text-muted-foreground">
-            {t(
-              "It settles this bill, lands in that account and issues a receipt. A bill paid in full releases its cargo."
-            )}
+            {canRecord
+              ? t(
+                  "It settles this bill, lands in that account and issues a receipt. A bill paid in full releases its cargo."
+                )
+              : t(
+                  "Finance checks it before anything is settled. Nothing moves on this screen and no cargo is released until they agree."
+                )}
             {tendered !== picked.currency && rate
               ? ` ${t("Tendered in a different currency from the bill, so it converts at the rate on the bill.")}`
               : ""}
