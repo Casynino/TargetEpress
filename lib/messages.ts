@@ -231,9 +231,12 @@ export function composeMessage(
     case "ARRIVED_DAR":
       return (
         `Habari ${name}, mzigo wako ${tracking} umefika Dar es Salaam. ` +
-        `Tunaukagua na tutakutumia invoice hivi punde.\n\n` +
+        `Tunaukagua na tutakutumia invoice hivi punde.\n` +
+        `📦 Unapata siku ${STORAGE_POLICY.freeDays} za kuhifadhi bure kuanzia leo. ` +
+        `Baada ya hapo ni USD ${STORAGE_POLICY.perDayUsd} kwa siku.\n\n` +
         `Hello ${name}, your cargo ${tracking} has arrived in Dar es Salaam. ` +
-        `We are checking it in and will send your invoice shortly.` +
+        `We are checking it in and will send your invoice shortly. ` +
+        `Your ${STORAGE_POLICY.freeDays} free storage days start today.` +
         sign
       );
 
@@ -260,17 +263,27 @@ export function composeMessage(
         sign
       );
 
-    case "STORAGE_REMINDER":
+    case "STORAGE_REMINDER": {
+      /* `storageDays` is the CHARGEABLE count — days past the free week, not
+         days held. Quoting it as "has been here N days" understated the stay
+         by a whole week and made a charging consignment read as still free. */
+      const over = context.storageDays ?? 0;
+      const held = STORAGE_POLICY.freeDays + over;
+      const fee = over * STORAGE_POLICY.perDayUsd;
       return (
-        `Habari ${name}, mzigo wako ${tracking} umekaa ghalani ` +
-        `siku ${context.storageDays ?? 0}. Siku ${STORAGE_POLICY.freeDays} za kwanza ni bure, ` +
-        `baada ya hapo ni USD ${STORAGE_POLICY.perDayUsd} kwa siku. ` +
-        `Tafadhali chukua mzigo wako mapema.\n\n` +
-        `Hello ${name}, cargo ${tracking} has been in our warehouse for ` +
-        `${context.storageDays ?? 0} days. Storage charges apply after the free period — ` +
-        `please collect it soon.` +
+        `Habari ${name}, mzigo wako ${tracking} umekaa ghalani siku ${held}. ` +
+        `Siku ${STORAGE_POLICY.freeDays} za kwanza zilikuwa bure, na sasa umevuka kwa ` +
+        `siku ${over}.\n` +
+        `💰 Storage fee hadi leo: *USD ${fee.toFixed(2)}* ` +
+        `(USD ${STORAGE_POLICY.perDayUsd} kwa siku, inaendelea kuongezeka).\n` +
+        `Tafadhali chukua mzigo wako mapema ili kusitisha gharama hii.\n\n` +
+        `Hello ${name}, cargo ${tracking} has now been in our warehouse ${held} days — ` +
+        `${over} day(s) past your ${STORAGE_POLICY.freeDays} free days. ` +
+        `Storage so far is USD ${fee.toFixed(2)} and keeps growing at ` +
+        `USD ${STORAGE_POLICY.perDayUsd} a day until you collect.` +
         sign
       );
+    }
 
     case "GENERAL":
     default:
