@@ -464,6 +464,7 @@ const SUPPORT_SECTIONS: NavSection[] = [
     group: { label: "Billing", icon: "ReceiptText" },
     items: [
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
+      { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode" },
       // Read-only for this desk: they quote from the rate book and answer
       // "what will this cost", they do not set it. pricing.manage is Finance's.
@@ -560,6 +561,15 @@ const FINANCE_SECTIONS: NavSection[] = [
         label: "Collections",
         icon: "Banknote",
         permission: "collections.view",
+      },
+      {
+        /* The credit book. Finance grants the terms, chases the debt and sets
+           the limits, so this is its row — beside Collections, because an
+           overdue credit and an unpaid bill are one afternoon's work. */
+        href: "/app/finance/credit",
+        label: "Credit",
+        icon: "CalendarClock",
+        permission: "credit.view",
       },
       {
         href: "/app/finance/pickup-notes",
@@ -764,6 +774,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     group: { label: "Finance", icon: "ReceiptText" },
     items: [
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote", permission: "collections.view" },
+      { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock", permission: "credit.view" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode", permission: "pickupNote.view" },
       { href: "/app/finance", label: "Overview", icon: "Wallet", permission: "accounting.view" },
       // collections.view, matching the route's own guard. The shared menu had
