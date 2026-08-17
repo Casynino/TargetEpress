@@ -427,10 +427,6 @@ export default async function SupportHome() {
                owes us on terms. The action is anchored after Collections, which
                puts it between the two. */
             { href: "/app/finance/credit", label: t(locale, "Credit"), icon: CalendarClock, tone: "violet" },
-            // Investigations rather than Tickets: a case where cargo is
-            // missing or short is what this desk is rung about and has to
-            // reach mid-call. Tickets keeps its sidebar row.
-            { href: "/app/exceptions", label: t(locale, "Issues & Claims"), icon: TriangleAlert, tone: "warning" },
             // Sourcing came out: it has a sidebar row and is a slow job worked
             // through a queue, not something reached with a customer waiting.
             { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), icon: QrCode, tone: "success" },
@@ -444,6 +440,11 @@ export default async function SupportHome() {
             // for during one, and the first pill should be whatever is most
             // often needed with a customer waiting.
             { href: "/app/shipments", label: t(locale, "Arrived batches"), icon: PlaneTakeoff, tone: "brand" },
+            /* Issues & Claims last. It is the rarest of these and the one that
+               starts a long job rather than answers a question — the row is
+               ordered by how often a hand reaches for it mid-call, not by how
+               serious the thing is when it happens. */
+            { href: "/app/exceptions", label: t(locale, "Issues & Claims"), icon: TriangleAlert, tone: "warning" },
           ]}
         />
       </div>
