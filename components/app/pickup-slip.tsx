@@ -22,6 +22,30 @@ export type PickupSlipData = {
   paymentStatus: string;
   amountLabel: string | null;
   /**
+   * Set when this cargo left on credit and the bill is not settled.
+   *
+   * Its presence is what turns the payment block from the green settled
+   * treatment to the warning one; the words and the figure still come from
+   * `paymentStatus` and `amountLabel` above, so the block keeps one shape and
+   * the page keeps one place to word it from. A written-off bill arrives here
+   * with no date and no figure: nothing is owed and nobody is chasing it, but it
+   * was never paid either, so it must not print green.
+   */
+  credit: {
+    /**
+     * The day the money falls due, spelled out.
+     *
+     * A date and not "due in 12 days". This card goes into a pocket and comes
+     * back out weeks later, and a countdown printed on paper is wrong by the
+     * next morning — the countdown belongs on the screen, which can recount it.
+     */
+    dueOn: string | null;
+    /** Already late at the moment of printing. */
+    overdue: boolean;
+    /** The same amount in dollars, when the bill was converted at all. */
+    amountUsd: string | null;
+  } | null;
+  /**
    * One line, and only when storage actually applied.
    *
    * The payment breakdown was cut from this card on purpose and is not coming
@@ -239,26 +263,86 @@ export async function PickupSlip({ data }: { data: PickupSlipData }) {
         ))}
       </dl>
 
-      {/* Paid or not — the question the counter asks before anything moves. */}
+      {/*
+        Paid or not — the question the counter asks before anything moves.
+
+        This was green and said "Paid in full" on every note printed, because
+        issuing one used to mean the money had arrived. Credit releases cargo
+        against an open bill, so the same card would have handed the customer a
+        receipt for money they still owe — "do not make the customer think the
+        invoice has been paid", in the owner's words. On credit the block moves
+        to the warning end of the palette and carries the day it falls due.
+
+        The colour is not what carries it. These print on whatever roll the
+        warehouse loaded and half of those are monochrome, so the words say it,
+        the figure beside them is what is STILL OWED rather than what was paid,
+        and the box is ruled so the block reads as a stamp in black and white.
+      */}
       <div
-        className="flex shrink-0 items-baseline justify-between"
+        className="shrink-0"
         style={{
-          gap: "2mm",
           marginTop: "1.8mm",
           padding: "1.6mm 2.6mm",
-          backgroundColor: "rgba(17,116,71,0.12)",
+          backgroundColor: data.credit
+            ? "rgba(216,30,42,0.12)"
+            : "rgba(17,116,71,0.12)",
+          border: data.credit ? "0.3mm solid rgba(176,23,34,0.5)" : undefined,
         }}
       >
-        <p
-          className="font-display font-bold uppercase leading-none"
-          style={{ fontSize: "10.5pt", color: "#117447", letterSpacing: "0.04em" }}
-        >
-          {data.paymentStatus}
-        </p>
-        {data.amountLabel ? (
-          <p className="font-mono font-bold tabular" style={{ fontSize: "10pt", color: "#117447" }}>
-            {data.amountLabel}
+        <div className="flex items-baseline justify-between" style={{ gap: "2mm" }}>
+          <p
+            className="font-display font-bold uppercase leading-none"
+            style={{
+              fontSize: "10.5pt",
+              color: data.credit ? "#B01722" : "#117447",
+              letterSpacing: "0.04em",
+            }}
+          >
+            {data.paymentStatus}
           </p>
+          {data.amountLabel ? (
+            <p
+              className="font-mono font-bold leading-none tabular"
+              style={{ fontSize: "10pt", color: data.credit ? "#B01722" : "#117447" }}
+            >
+              {data.amountLabel}
+            </p>
+          ) : null}
+        </div>
+
+        {/* The due date, on the same block rather than a row of its own — one
+            line, and only the credit that actually has a date to give. */}
+        {data.credit && (data.credit.dueOn || data.credit.amountUsd) ? (
+          <div
+            className="flex items-baseline justify-between"
+            style={{ gap: "2mm", marginTop: "1.3mm" }}
+          >
+            <p
+              className="min-w-0 truncate font-semibold uppercase leading-none"
+              style={{ fontSize: "7pt", letterSpacing: "0.1em", color: "#B01722" }}
+            >
+              {data.credit.dueOn ? (
+                <>
+                  {t(locale, "Payment due")}{" "}
+                  <span className="font-mono tabular">{data.credit.dueOn}</span>
+                </>
+              ) : null}
+              {data.credit.amountUsd ? (
+                <>
+                  {data.credit.dueOn ? " · " : null}
+                  <span className="font-mono tabular">{data.credit.amountUsd}</span>
+                </>
+              ) : null}
+            </p>
+            {data.credit.overdue ? (
+              <p
+                className="shrink-0 font-display font-bold uppercase leading-none"
+                style={{ fontSize: "7.5pt", letterSpacing: "0.1em", color: "#B01722" }}
+              >
+                {t(locale, "Overdue")}
+              </p>
+            ) : null}
+          </div>
         ) : null}
       </div>
 

@@ -7,7 +7,16 @@ import {
   STORAGE_POLICY,
   storageDaysFor,
 } from "@/lib/constants";
+import { CREDIT_STATE_LABEL, dueLabel, type CreditState } from "@/lib/credit";
+import {
+  creditForCollections,
+  type CreditAlert,
+  type CreditRow,
+} from "@/lib/credit-queries";
 import { toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import type { Locale } from "@/lib/locale";
+import { formatShillings, formatUsd } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
@@ -19,16 +28,28 @@ import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
  * between a customer who has never been sent a bill (send it) and one who was
  * sent it a week ago (chase it). Chasing someone who was never billed is how a
  * good customer gets annoyed, so the queue distinguishes them.
+ *
+ * It carries two kinds of debt now, and the difference between them is the whole
+ * reason this file changed. A cash bill that is unpaid is late by default. A
+ * credit is late only after a date the company itself granted, so a credit
+ * inside its terms is not a chase at all — it is the arrangement working. Both
+ * are in one queue because the desk works one queue, and every credit row says
+ * out loud which of the two it is.
  */
 
 export type FollowUpFilter =
   | "all"
   | "awaiting-payment"
+  | "credit"
+  | "overdue"
+  | "due-today"
+  | "due-week"
+  | "part-paid"
   | "ready"
   | "storage";
 
 /**
- * Paid, or not paid.
+ * Paid, or not paid — and, for a credit, paid LATE or not yet due.
  *
  * There used to be three more pills here — "Needs an invoice", "No invoice at
  * all", "Invoice not sent" — from when raising and sending a bill were separate
@@ -36,20 +57,66 @@ export type FollowUpFilter =
  * so two of those read 0 forever and the third counted a step nobody performs.
  * Pills that are always empty teach people to stop reading the row.
  *
- * What is left is the only question this desk actually asks about a consignment
- * sitting in Dar: has the customer paid, is it ready to hand over, and is it
- * costing them storage.
+ * The five in the middle came in with credit (§14). "Overdue" is deliberately a
+ * credit-only pill and says so in its hint: a cash bill has no agreed date to be
+ * late against, and inventing one so the pill could count them would be this
+ * app's oldest bug — a second definition of a deadline, disagreeing with the one
+ * Finance granted.
  */
 export const FOLLOW_UP_FILTERS: { key: FollowUpFilter; label: string; hint: string }[] = [
-  { key: "all", label: "Everything landed", hint: "All cargo in Dar not yet collected" },
-  { key: "awaiting-payment", label: "Awaiting payment", hint: "Billed, still unpaid" },
+  { key: "all", label: "Everything", hint: "Every unpaid bill and every live credit" },
+  { key: "awaiting-payment", label: "Cash outstanding", hint: "Billed on cash terms, still unpaid" },
+  { key: "credit", label: "Credit outstanding", hint: "Released on terms and still owed" },
+  { key: "overdue", label: "Overdue", hint: "Past the date the company granted" },
+  { key: "due-today", label: "Due today", hint: "Last day inside terms" },
+  { key: "due-week", label: "Due this week", hint: "Falling due within seven days" },
+  { key: "part-paid", label: "Partly paid", hint: "Something came in, the rest did not" },
   { key: "ready", label: "Ready for pickup", hint: "Paid, waiting to be collected" },
   { key: "storage", label: "Overdue storage", hint: "Past the free storage window" },
 ];
 
+/**
+ * What this row is owed under: an ordinary bill, or terms the company granted.
+ *
+ * A discriminator rather than a flag on the money, because the two are chased
+ * differently, ranked differently and drawn differently — and a boolean called
+ * `isCredit` on a row that also carries `outstanding` invites exactly the sum
+ * this app must never make.
+ */
+export type FollowUpKind = "cash" | "credit";
+
+/** The credit engine's answer about one receivable, carried, never recomputed. */
+export type FollowUpCredit = {
+  state: CreditState;
+  /** The engine's own words: "Due in 3 days", "8 days overdue", "Due today". */
+  dueText: string;
+  /** What the state is called on screen, from the one label table. */
+  stateLabel: string;
+  dueDate: string | null;
+  daysRemaining: number | null;
+  daysOverdue: number;
+  /** How long this debt has been standing, granted-to-now. */
+  daysOnCredit: number;
+  termDays: number | null;
+  batchNumber: string | null;
+};
+
 export type FollowUpRow = {
-  shipmentId: string;
-  trackingNumber: string;
+  /**
+   * The row's identity on screen.
+   *
+   * Not the shipment id, which a credit row does not have: the cargo behind a
+   * credit has usually been handed over, and the thing still outstanding is the
+   * invoice. Keyed off whichever of the two this row IS.
+   */
+  id: string;
+  /** Null on a credit — the debt is the invoice, not a box on the floor. */
+  shipmentId: string | null;
+  kind: FollowUpKind;
+  /** Everything the credit engine derived. Null on a cash bill. */
+  credit: FollowUpCredit | null;
+  /** Null on a credit whose consignment has already left our floor. */
+  trackingNumber: string | null;
   /**
    * Already in the language of whoever asked for the queue. Guangzhou types
    * "手机配件" and the Dar desk reading this row gets "Mobile phone
@@ -82,6 +149,8 @@ export type FollowUpRow = {
   invoiceStatus: string | null;
   invoiceNumber: string | null;
   total: number | null;
+  /** What has come in against it — the half that makes "partly paid" a state. */
+  paid: number | null;
   outstanding: number | null;
   localCurrency: string | null;
   outstandingLocal: number | null;
@@ -102,16 +171,35 @@ function daysBetween(from: Date, to = new Date()) {
 }
 
 /**
- * Everything sitting in the Dar warehouse that has not been collected, with the
- * money and contact state attached.
+ * Everything a customer still owes us, ranked: the cargo standing in Dar with a
+ * bill against it, and the credit we released on terms.
  *
  * Deliberately not paginated at the database level for the filters, because the
  * desk needs accurate counts on every pill — a filter that says "3" when it
  * means "3 of the first 50" is worse than no number.
+ *
+ * `credit` is a parameter and not an assumption. Every desk that can open this
+ * queue happens to hold credit.view today, so nothing changes on screen — but
+ * the day one does not, the gate is written at the caller who knows the reader's
+ * role rather than buried in a query that cannot see it.
  */
-export async function followUpQueue() {
+export async function followUpQueue({ credit = true }: { credit?: boolean } = {}) {
   // The cargo description follows the reader, not the person who typed it.
   const locale = await viewerLocale();
+  const now = new Date();
+  /*
+    Fetched before the cash rows are built rather than merged after, because it
+    decides which cash rows exist at all: a bill on live credit must not also
+    appear as an unpaid cash bill. It appeared twice on the way here — once as
+    "chase payment, billed 6 days ago" and once as a credit with a fortnight to
+    run — and the first of those two is a phone call to a customer who is
+    keeping to an arrangement the company gave them.
+  */
+  const { chase, notCash } = credit
+    ? await creditForCollections(now)
+    : { chase: [] as CreditRow[], notCash: [] as string[] };
+  const onCredit = new Set(notCash);
+
   const shipments = await prisma.shipment.findMany({
     where: {
       status: { in: ["RECEIVED_AT_DAR", "READY_FOR_PICKUP"] },
@@ -151,7 +239,7 @@ export async function followUpQueue() {
     },
   });
 
-  const rows: FollowUpRow[] = shipments.map((shipment) => {
+  const cashRows: FollowUpRow[] = shipments.map((shipment) => {
     const storageDays = storageDaysFor(shipment.arrivedAt, shipment.deliveredAt);
     const invoice = shipment.invoice;
     const storageWaivedUsd = toNumber(invoice?.storageWaivedUsd ?? 0);
@@ -198,7 +286,10 @@ export async function followUpQueue() {
     if (storageDays > 0) urgency += 25 + Math.min(storageDays * 2, 40);
 
     return {
+      id: shipment.id,
       shipmentId: shipment.id,
+      kind: "cash" as const,
+      credit: null,
       trackingNumber: shipment.trackingNumber,
       description: cargoText(locale, shipment, "description"),
       status: shipment.status,
@@ -217,6 +308,7 @@ export async function followUpQueue() {
       invoiceStatus: invoice?.status ?? null,
       invoiceNumber: invoice?.invoiceNumber ?? null,
       total,
+      paid,
       outstanding,
       localCurrency: invoice?.localCurrency ?? null,
       outstandingLocal:
@@ -229,14 +321,144 @@ export async function followUpQueue() {
     };
   });
 
+  /*
+    One list, two kinds of debt. The cash rows lose the ones now carried as
+    credit — dropped here rather than in the query above, because "is this on
+    live credit" is a derived state and the only thing entitled to decide it is
+    the credit engine.
+  */
+  const rows: FollowUpRow[] = [
+    ...cashRows.filter((row) => row.invoiceId === null || !onCredit.has(row.invoiceId)),
+    ...chase.map(creditFollowUpRow),
+  ];
+
   rows.sort((a, b) => b.urgency - a.urgency);
   return rows;
 }
 
+/**
+ * One credit, as a row of the same queue.
+ *
+ * Every amount and every day count arrives already derived by the credit engine.
+ * All this adds is the sentence and the weight, which is the one thing a call
+ * list is for — and the vocabulary is honest about the distinction §14 turns on:
+ * an overdue credit outranks everything else on the page, while a credit inside
+ * its terms ranks below even a paid consignment waiting to be collected, and
+ * says in words that there is nothing to chase. Ringing a customer who is
+ * keeping to an arrangement the company granted is worse than not ringing.
+ */
+function creditFollowUpRow(r: CreditRow): FollowUpRow {
+  const days = r.daysRemaining;
+  let nextAction: string;
+  let urgency: number;
+
+  if (r.state === "OVERDUE") {
+    /*
+      Above every cash row on the page, including the oldest one bleeding
+      storage — and the base is set high enough that it cannot be overtaken by
+      one. An unpaid cash bill still has the cargo sitting on our own floor
+      behind it; an overdue credit has nothing behind it at all, because the
+      boxes went home on a date the company itself agreed to. That is the top of
+      the call list by definition.
+    */
+    nextAction = "Overdue credit — call today";
+    urgency = 150 + Math.min(r.daysOverdue * 3, 45);
+  } else if (days === 0) {
+    nextAction = "Falls due today — collect before close";
+    urgency = 90;
+  } else if (days === null) {
+    /* Granted with no due date. Not a chase and not a debt anybody can be late
+       on — a gap in the paperwork, and the fix is on the bill, not the phone. */
+    nextAction = "Credit with no due date — set the terms";
+    urgency = 55;
+  } else if (days <= 7) {
+    nextAction = "Inside terms — a reminder now saves the chase";
+    urgency = 35 + Math.max(0, 8 - days);
+  } else {
+    nextAction = "Inside terms — nothing to chase";
+    urgency = 20;
+  }
+
+  return {
+    id: `credit:${r.invoiceId}`,
+    shipmentId: null,
+    kind: "credit",
+    credit: {
+      state: r.state,
+      dueText: dueLabel(r),
+      stateLabel: CREDIT_STATE_LABEL[r.state],
+      dueDate: r.dueDate?.toISOString() ?? null,
+      daysRemaining: r.daysRemaining,
+      daysOverdue: r.daysOverdue,
+      daysOnCredit: r.daysOutstanding,
+      termDays: r.termDays,
+      batchNumber: r.batchNumber,
+    },
+    trackingNumber: r.trackingNumber,
+    /* Empty on purpose. The credit engine carries the money and the dates, not
+       what is in the boxes, and a row that spends a line saying it does not know
+       the cargo description teaches the reader to stop reading rows. */
+    description: "",
+    status: "ON_CREDIT",
+    customerId: r.customerId,
+    customerName: r.customerName,
+    customerPhone: r.customerPhone,
+    arrivedAt: null,
+    daysInWarehouse: 0,
+    weightKg: null,
+    /* The bill's own frozen rate. A credit is quoted once and settled weeks
+       later, so today's published rate would restate a figure the customer is
+       holding on a printed invoice. */
+    exchangeRate: r.exchangeRate,
+    /* Zero, and not because it was forgiven: the cargo has gone, so the clock
+       stopped. Whatever storage it ran up is already inside `total` below. */
+    storageDays: 0,
+    storageCharge: 0,
+    storageWaivedUsd: r.storageWaivedUsd,
+    invoiceId: r.invoiceId,
+    invoiceStatus: null,
+    invoiceNumber: r.invoiceNumber,
+    total: r.totalUsd,
+    paid: r.paidUsd,
+    outstanding: r.outstandingUsd,
+    localCurrency: null,
+    outstandingLocal:
+      r.exchangeRate === null ? null : Math.round(r.outstandingUsd * r.exchangeRate),
+    invoiceSentAt: null,
+    lastContactAt: null,
+    lastContactKind: null,
+    nextAction,
+    urgency,
+  };
+}
+
 export function matchesFilter(row: FollowUpRow, filter: FollowUpFilter) {
+  const owing = (row.outstanding ?? 0) > 0.005;
   switch (filter) {
     case "awaiting-payment":
-      return row.outstanding !== null && row.outstanding > 0;
+      /* Cash only. This pill meant "anything unpaid", and with credit in the
+         queue that read an arrangement the company granted as a late bill. */
+      return row.kind === "cash" && owing;
+    case "credit":
+      return row.kind === "credit";
+    case "overdue":
+      /* Credit only, deliberately. A cash bill has no agreed date to be late
+         against, and inventing one here would be a second definition of a
+         deadline disagreeing with the one Finance actually granted. */
+      return (row.credit?.daysOverdue ?? 0) > 0;
+    case "due-today":
+      return row.credit?.daysRemaining === 0;
+    case "due-week":
+      return (
+        row.credit !== null &&
+        row.credit.daysRemaining !== null &&
+        row.credit.daysRemaining >= 0 &&
+        row.credit.daysRemaining <= 7
+      );
+    case "part-paid":
+      // Both kinds: money that arrived and then stopped is the same problem
+      // whether terms were granted or not.
+      return (row.paid ?? 0) > 0.005 && owing;
     case "ready":
       return row.status === "READY_FOR_PICKUP";
     case "storage":
@@ -245,6 +467,192 @@ export function matchesFilter(row: FollowUpRow, filter: FollowUpFilter) {
     default:
       return true;
   }
+}
+
+/**
+ * The strip above the queue, from the rows the reader is actually looking at.
+ *
+ * One place because both screens that carry this queue print these figures, and
+ * because the thing they must never do is add the first two together: cash
+ * outstanding is a bill nobody paid, credit outstanding is money the company
+ * agreed to wait for, and one merged "owed" total hides which of the two the
+ * business is carrying. Nothing is derived here — this adds up figures the
+ * engine already worked out.
+ */
+export function followUpTotals(rows: FollowUpRow[]) {
+  const owed = (row: FollowUpRow) => row.outstanding ?? 0;
+  const total = (
+    pick: (row: FollowUpRow) => boolean,
+    take: (row: FollowUpRow) => number = owed
+  ) => Math.round(rows.filter(pick).reduce((n, row) => n + take(row), 0) * 100) / 100;
+
+  const inWeek = (row: FollowUpRow) =>
+    row.credit !== null &&
+    row.credit.daysRemaining !== null &&
+    row.credit.daysRemaining >= 0 &&
+    row.credit.daysRemaining <= 7;
+
+  return {
+    count: rows.length,
+    cashUsd: total((row) => row.kind === "cash"),
+    creditUsd: total((row) => row.kind === "credit"),
+    overdueUsd: total((row) => (row.credit?.daysOverdue ?? 0) > 0),
+    dueTodayUsd: total((row) => row.credit?.daysRemaining === 0),
+    dueWeekUsd: total(inWeek),
+    storageUsd: total(() => true, (row) => row.storageCharge),
+    creditCount: rows.filter((row) => row.kind === "credit").length,
+    /** Credits that are not a chase at all, so nobody counts them as one. */
+    insideTermsCount: rows.filter(
+      (row) => row.credit !== null && row.credit.daysOverdue === 0
+    ).length,
+  };
+}
+
+/** The shape the bounded attention panel takes. The component owns the type. */
+export type CreditAttn = {
+  id: string;
+  group: string;
+  severity: "critical" | "warning" | "info";
+  label: string;
+  detail: string;
+  href: string;
+  value?: string;
+  valueSub?: string;
+};
+
+/**
+ * §19's credit alerts as rows of the panel every desk already has.
+ *
+ * Written once and read by three desks — Support, Finance and the owner —
+ * because three copies of five sentences drift apart, and two desks describing
+ * one customer's limit differently is how the same decision gets made twice.
+ * What differs between desks is what they can DO about a thing, so that is the
+ * only parameter: an unanswered request is work to whoever approves credit and a
+ * progress note to whoever asked for it.
+ *
+ * Rows, not a section. The standing rule about that panel is that it stays ONE
+ * fixed-height filterable list and never a stack that grows a heading every time
+ * the business acquires another kind of problem.
+ */
+export function creditAttention(
+  alerts: CreditAlert[],
+  view: { locale: Locale; rate: number | null; canApprove: boolean }
+): CreditAttn[] {
+  const { locale, rate, canApprove } = view;
+  const group = t(locale, "Credit");
+  /* The figure is baked into the label before any dictionary could see the
+     sentence, so the phrase is looked up on its own and the number put back in
+     front of it — the same trick the owner's panel and the desk pulse use, and
+     the only way these reach a Chinese reader at all. */
+  const count = (n: number, phrase: string) => `${n} ${t(locale, phrase)}`;
+  const money = (usd: number) => formatShillings(usd, rate);
+  /* The exact dollar figure, only where the line above it is a conversion: with
+     no rate published formatShillings prints dollars itself, and the same amount
+     twice reads as two currencies. */
+  const inUsd = (usd: number) => (rate === null ? undefined : formatUsd(usd));
+  const who = (alert: CreditAlert) => {
+    const rest = alert.customerCount - alert.names.length;
+    const named = alert.names.join(", ");
+    return rest > 0 ? `${named} +${rest}` : named;
+  };
+
+  const rows: (CreditAttn | null)[] = alerts.map((alert) => {
+    switch (alert.kind) {
+      case "OVERDUE":
+        return {
+          id: "credit-overdue",
+          group,
+          severity: "critical",
+          label: count(alert.count, "credit(s) overdue"),
+          detail: `${t(locale, "Oldest is")} ${alert.worstDaysOverdue} ${t(
+            locale,
+            "days past the date we granted"
+          )} · ${who(alert)}`,
+          href: "/app/collections/follow-up?filter=overdue",
+          value: money(alert.amountUsd),
+          valueSub: inUsd(alert.amountUsd),
+        };
+      case "DUE_TODAY":
+        return {
+          id: "credit-due-today",
+          group,
+          severity: "warning",
+          label: count(alert.count, "credit(s) due today"),
+          detail: `${t(locale, "Last day inside terms")} · ${who(alert)}`,
+          href: "/app/collections/follow-up?filter=due-today",
+          value: money(alert.amountUsd),
+          valueSub: inUsd(alert.amountUsd),
+        };
+      case "DUE_SOON":
+        return {
+          id: "credit-due-soon",
+          group,
+          severity: "info",
+          label: count(alert.count, "credit(s) due this week"),
+          detail: `${t(locale, "Inside terms, nothing to chase yet")} · ${who(alert)}`,
+          href: "/app/collections/follow-up?filter=due-week",
+          value: money(alert.amountUsd),
+          valueSub: inUsd(alert.amountUsd),
+        };
+      /* The two limit rows carry their money inside the sentence rather than in
+         the right-hand column. "3 customers over their credit limit" beside a
+         bare amount reads as what they owe; what it actually is is how far past
+         the line they are, and that only survives with the words attached. */
+      case "LIMIT_EXCEEDED":
+        return {
+          id: "credit-limit-over",
+          group,
+          severity: "critical",
+          label: count(alert.count, "customer(s) over their credit limit"),
+          detail: `${t(locale, "Over by")} ${money(alert.amountUsd)} · ${who(alert)}`,
+          href: "/app/finance/credit",
+        };
+      case "LIMIT_NEAR":
+        return {
+          id: "credit-limit-near",
+          group,
+          severity: "warning",
+          label: count(alert.count, "customer(s) near their credit limit"),
+          detail: `${money(alert.amountUsd)} ${t(
+            locale,
+            "of room left before the next release has to be refused"
+          )} · ${who(alert)}`,
+          href: "/app/finance/credit",
+        };
+      case "AWAITING_DECISION":
+        return canApprove
+          ? {
+              id: "credit-requests",
+              group,
+              severity: "critical",
+              label: count(alert.count, "credit request(s) waiting on you"),
+              detail: `${t(
+                locale,
+                "The cargo does not move until you answer"
+              )} · ${who(alert)}`,
+              href: "/app/finance/credit",
+              value: money(alert.amountUsd),
+              valueSub: inUsd(alert.amountUsd),
+            }
+          : {
+              id: "credit-requests",
+              group,
+              severity: "info",
+              label: count(alert.count, "credit request(s) with Finance"),
+              detail: t(
+                locale,
+                "Asked for and waiting on a decision. Nothing to do but watch."
+              ),
+              href: "/app/finance/credit",
+              value: money(alert.amountUsd),
+              valueSub: inUsd(alert.amountUsd),
+            };
+      default:
+        return null;
+    }
+  });
+
+  return rows.filter((row): row is CreditAttn => row !== null);
 }
 
 /** Headline numbers for the support dashboard. */

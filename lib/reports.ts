@@ -7,6 +7,22 @@ import {
   STORAGE_POLICY,
   storageStatus,
 } from "@/lib/constants";
+import {
+  AGING_BUCKETS,
+  CREDIT_STATE_LABEL,
+  type CreditState,
+  agingBucket,
+  dueLabel,
+} from "@/lib/credit";
+import {
+  type CreditFilter,
+  type CreditRow,
+  creditByBatch,
+  creditByMonth,
+  creditCustomerPositions,
+  creditOverview,
+  creditRows,
+} from "@/lib/credit-queries";
 import { toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
 import { prisma } from "@/lib/prisma";
@@ -73,6 +89,17 @@ export type ReportResult = {
   rows: Record<string, string | number | null>[];
   /** Keyed by column. Absent for reports where a total is meaningless. */
   totals?: Record<string, number>;
+  /**
+   * What stretch of time this report really covers, when the chosen window does
+   * not apply to it.
+   *
+   * A credit facility, an aging analysis and a flight's credit are as-at-today
+   * readings of the whole book — no date window can narrow them without printing
+   * a customer as having room they do not have. Their captions say so, but the
+   * PDF stamped "Period: This month" across the top of one anyway, which is a
+   * document contradicting its own caption in the reader's hand.
+   */
+  period?: string;
 };
 
 /** Which money a report is written in. The reader chooses; nothing is doubled. */
@@ -185,6 +212,18 @@ export const REPORTS = [
   { key: "storage", label: "Warehouse storage" },
   { key: "receivables", label: "Accounts receivable" },
   { key: "outstanding", label: "Outstanding customer payments" },
+  /* The credit book, eight ways, sitting beside the receivable reports rather
+     than at the end of the list — a credit is a receivable with a promise
+     attached, and somebody asking "who owes us" should not have to know which
+     of the two words the office used when the cargo went out. */
+  { key: "credit-sales", label: "Credit sales" },
+  { key: "credit-customers", label: "Credit customers" },
+  { key: "credit-outstanding", label: "Credit outstanding" },
+  { key: "credit-overdue", label: "Credit overdue" },
+  { key: "credit-collection", label: "Credit collection" },
+  { key: "credit-aging", label: "Credit aging" },
+  { key: "credit-by-batch", label: "Credit by batch" },
+  { key: "credit-by-month", label: "Credit by month" },
   { key: "cash-flow", label: "Cash flow" },
   { key: "ledger", label: "General ledger" },
   { key: "bank", label: "Bank accounts" },
@@ -793,6 +832,450 @@ async function outstanding(f: ReportFilters): Promise<ReportResult> {
   };
 }
 
+/* -------------------------------------------------------------- the credit */
+
+/**
+ * The credit book, as documents.
+ *
+ * ONE RULE ABOVE ALL OTHERS, and every caption below repeats it in the reader's
+ * own words: NONE OF THIS IS CASH. A credit sale posts no ledger entry and
+ * touches no account — the cargo went, the bill stands, the money has not
+ * arrived. So "Still owed" here is a promise, and adding it to a bank balance or
+ * to the cash position would count revenue the company has not been paid.
+ *
+ * Nothing is computed here either. Every state, day count, aging bucket and
+ * available figure comes out of lib/credit-queries.ts, which derives all of it
+ * from the invoice's own `total` and `amountPaid` — so the settlements screen,
+ * the customer profile and these eight reports cannot answer "how much are we
+ * owed" three different ways. That is not tidiness: it is the bug this
+ * application has been bitten by four times.
+ *
+ * WHERE THE PERIOD APPLIES, AND WHERE IT CANNOT. A credit is dated by the day
+ * Finance granted it, so the row-level reports run the window against that date
+ * and say so. The position reports — customers, aging, by batch, by month — are
+ * as-at-today readings of the whole book and each states in its caption that the
+ * window does not narrow it: a facility cut to one month reports room a customer
+ * does not have, and an aging analysis of a slice of the book is not an aging
+ * analysis.
+ */
+
+/** The report filters a credit query understands. The window is the day credit was granted. */
+function creditFilter(f: ReportFilters): CreditFilter {
+  return {
+    from: f.from ?? null,
+    to: f.to ?? null,
+    ...(f.batchId ? { batchId: f.batchId } : {}),
+  };
+}
+
+/**
+ * The four money columns every credit row carries.
+ *
+ * Here rather than in each report because of the written-off case, which is the
+ * same fault `earned` above had to be corrected for. `outstandingUsd` on a waived
+ * credit is still positive — the customer never paid it — so printing it as Still
+ * owed would put money the company gave up on into a receivable total and onto a
+ * call list. It moves to its own column instead, and Credit granted stays whole,
+ * because a register that shrank a release the desk later forgave would hide the
+ * decision rather than report it.
+ */
+function creditMoney(row: {
+  state: CreditState;
+  totalUsd: number;
+  paidUsd: number;
+  outstandingUsd: number;
+}) {
+  const waived = row.state === "WAIVED";
+  return {
+    granted: money(row.totalUsd),
+    collected: money(row.paidUsd),
+    owed: waived ? 0 : money(row.outstandingUsd),
+    writtenOff: waived ? money(row.outstandingUsd) : 0,
+  };
+}
+
+/** Soonest due first, and a credit with no due date sits at the back. */
+function byDueDate(a: CreditRow, b: CreditRow) {
+  return (
+    (a.dueDate?.getTime() ?? Number.MAX_SAFE_INTEGER) -
+    (b.dueDate?.getTime() ?? Number.MAX_SAFE_INTEGER)
+  );
+}
+
+const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "—");
+
+/** Which aging bucket a debt has reached, in the words the desk reads. */
+function bucketLabel(daysOverdue: number) {
+  const key = agingBucket(daysOverdue);
+  return AGING_BUCKETS.find((b) => b.key === key)?.label ?? "—";
+}
+
+async function creditSales(f: ReportFilters): Promise<ReportResult> {
+  /* Newest grant first: this is the register of decisions, and the decision
+     somebody is asked about is almost always the most recent one. */
+  const rows = (await creditRows(creditFilter(f))).sort(
+    (a, b) => (b.creditDate?.getTime() ?? 0) - (a.creditDate?.getTime() ?? 0)
+  );
+  const lines = rows.map((r) => ({ r, ...creditMoney(r) }));
+
+  return {
+    key: "credit-sales",
+    title: "Credit sales",
+    caption:
+      "Every consignment released on credit in this window, dated by the day Finance granted the terms rather than the day the bill was raised — so widen the period to see credit granted before it. None of these figures is cash. Credit granted is what went out against a promise, Collected is the part that has since come in through the ordinary payment path, and Still owed is money customers have to bring in that is in nobody's bank balance. Written off is credit the desk gave up on: it is out of Still owed, because nobody may be rung about it, and it stays inside Credit granted, because a release that was later forgiven still happened.",
+    columns: [
+      { key: "date", label: "Granted" },
+      { key: "customer", label: "Customer" },
+      { key: "invoice", label: "Invoice" },
+      { key: "tracking", label: "Cargo" },
+      { key: "flight", label: "Batch" },
+      { key: "terms", label: "Terms (days)", numeric: true },
+      { key: "due", label: "Due" },
+      { key: "state", label: "State" },
+      { key: "granted", label: "Credit granted", numeric: true, money: true },
+      { key: "collected", label: "Collected", numeric: true, money: true },
+      { key: "owed", label: "Still owed", numeric: true, money: true },
+      { key: "writtenOff", label: "Written off", numeric: true, money: true },
+    ],
+    rows: lines.map((l) => ({
+      date: day(l.r.creditDate),
+      customer: l.r.customerName,
+      invoice: l.r.invoiceNumber,
+      tracking: l.r.trackingNumber ?? "—",
+      flight: l.r.batchNumber ?? "—",
+      terms: l.r.termDays,
+      due: day(l.r.dueDate),
+      state: CREDIT_STATE_LABEL[l.r.state],
+      granted: l.granted,
+      collected: l.collected,
+      owed: l.owed,
+      writtenOff: l.writtenOff,
+    })),
+    totals: {
+      granted: money(lines.reduce((n, l) => n + l.granted, 0)),
+      collected: money(lines.reduce((n, l) => n + l.collected, 0)),
+      owed: money(lines.reduce((n, l) => n + l.owed, 0)),
+      writtenOff: money(lines.reduce((n, l) => n + l.writtenOff, 0)),
+    },
+  };
+}
+
+/**
+ * One line per credit customer: what they may take, and what they owe.
+ *
+ * No filters, and the caption says why rather than leaving a reader to wonder
+ * whether the period was applied and came back the same.
+ */
+async function creditCustomers(): Promise<ReportResult> {
+  const positions = await creditCustomerPositions();
+  /* Worst first — the late money, then the biggest exposure. Sorted for the
+     person who is going to work down it with a telephone. */
+  const rows = [...positions].sort(
+    (a, b) =>
+      b.credit.overdueUsd - a.credit.overdueUsd ||
+      b.credit.outstandingUsd - a.credit.outstandingUsd
+  );
+
+  return {
+    key: "credit-customers",
+    title: "Credit customers",
+    period: "As at today",
+    caption:
+      "Every customer with a credit facility or credit on their name, worst first. Owed is money owed to the business and not banked — the limit caps everything a customer owes at once rather than any single sale, so Available is the limit less every open credit of theirs, and a negative one means they are already past it. Collected is the share of everything ever released on credit to them that has come back; it is the number to read before granting more. This position is as at today whatever period is chosen above: a facility is not a period figure, and narrowing it to one month would print room a customer does not have. Written off is credit the desk forgave — out of Owed and out of Available, and the column that explains a position that looks unusually clean.",
+    columns: [
+      { key: "customer", label: "Customer" },
+      { key: "phone", label: "Phone" },
+      { key: "terms", label: "Terms (days)", numeric: true },
+      { key: "limit", label: "Limit", numeric: true, money: true },
+      { key: "owed", label: "Owed", numeric: true, money: true },
+      { key: "available", label: "Available", numeric: true, money: true },
+      { key: "overdue", label: "Overdue", numeric: true, money: true },
+      { key: "oldest", label: "Days late", numeric: true },
+      { key: "granted", label: "Ever on credit", numeric: true, money: true },
+      { key: "collected", label: "Collected", numeric: true, money: true },
+      { key: "rate", label: "Collected %", numeric: true },
+      { key: "writtenOff", label: "Written off", numeric: true, money: true },
+    ],
+    rows: rows.map((p) => ({
+      customer: p.name,
+      phone: p.phone ?? "—",
+      terms: p.credit.termDays,
+      /* Blank rather than zero where there is no facility. A customer holding a
+         debt from a withdrawn facility has no limit, and printing 0 next to
+         money they owe reads as a limit of nothing that has been breached. */
+      limit: p.credit.limitUsd === null ? null : money(p.credit.limitUsd),
+      owed: money(p.credit.outstandingUsd),
+      available:
+        p.credit.availableUsd === null ? null : money(p.credit.availableUsd),
+      overdue: money(p.credit.overdueUsd),
+      oldest: p.oldestOverdueDays,
+      granted: money(p.credit.soldUsd),
+      collected: money(p.credit.paidUsd),
+      rate:
+        p.credit.collectionRate === null
+          ? null
+          : Math.round(p.credit.collectionRate),
+      writtenOff: money(p.waivedUsd),
+    })),
+    totals: {
+      limit: money(rows.reduce((n, p) => n + (p.credit.limitUsd ?? 0), 0)),
+      owed: money(rows.reduce((n, p) => n + p.credit.outstandingUsd, 0)),
+      available: money(rows.reduce((n, p) => n + (p.credit.availableUsd ?? 0), 0)),
+      overdue: money(rows.reduce((n, p) => n + p.credit.overdueUsd, 0)),
+      granted: money(rows.reduce((n, p) => n + p.credit.soldUsd, 0)),
+      collected: money(rows.reduce((n, p) => n + p.credit.paidUsd, 0)),
+      writtenOff: money(rows.reduce((n, p) => n + p.waivedUsd, 0)),
+    },
+  };
+}
+
+async function creditOutstanding(f: ReportFilters): Promise<ReportResult> {
+  /* Written-off credit is filtered out here rather than routed to a column of its
+     own. This report is the open book — what the business is still going to be
+     paid — and a debt the office abandoned is not that. Credit sales keeps it, so
+     it is reported somewhere rather than quietly dropped from every document. */
+  const rows = (await creditRows(creditFilter(f)))
+    .filter((r) => r.state !== "WAIVED" && r.outstandingUsd > 0.005)
+    .sort(byDueDate);
+  const lines = rows.map((r) => ({ r, ...creditMoney(r) }));
+
+  return {
+    key: "credit-outstanding",
+    title: "Credit outstanding",
+    caption:
+      "Every credit still owing, the oldest due date first — the call list, in the order to work it. These are figures owed to the business, not money it holds: nothing here has reached an account. Standing is measured against the due date the credit was granted with, and Age is how long the debt has been running. Credit that has been written off is not on this list, because nobody should be ringing a customer about money the office already gave up on. The window is the day credit was granted, so widen it to see the whole book.",
+    columns: [
+      { key: "due", label: "Due" },
+      { key: "standing", label: "Standing" },
+      { key: "customer", label: "Customer" },
+      { key: "phone", label: "Phone" },
+      { key: "invoice", label: "Invoice" },
+      { key: "tracking", label: "Cargo" },
+      { key: "flight", label: "Batch" },
+      { key: "age", label: "Age (days)", numeric: true },
+      { key: "granted", label: "Credit granted", numeric: true, money: true },
+      { key: "collected", label: "Collected", numeric: true, money: true },
+      { key: "owed", label: "Still owed", numeric: true, money: true },
+    ],
+    rows: lines.map((l) => ({
+      due: day(l.r.dueDate),
+      standing: dueLabel(l.r),
+      customer: l.r.customerName,
+      phone: l.r.customerPhone ?? "—",
+      invoice: l.r.invoiceNumber,
+      tracking: l.r.trackingNumber ?? "—",
+      flight: l.r.batchNumber ?? "—",
+      age: l.r.daysOutstanding,
+      granted: l.granted,
+      collected: l.collected,
+      owed: l.owed,
+    })),
+    totals: {
+      granted: money(lines.reduce((n, l) => n + l.granted, 0)),
+      collected: money(lines.reduce((n, l) => n + l.collected, 0)),
+      owed: money(lines.reduce((n, l) => n + l.owed, 0)),
+    },
+  };
+}
+
+async function creditOverdue(f: ReportFilters): Promise<ReportResult> {
+  /* OVERDUE is a derived state, so the query layer applies it to derived rows —
+     which is also why a settled or written-off credit cannot appear here however
+     old its due date is. */
+  const rows = (await creditRows({ ...creditFilter(f), state: "OVERDUE" })).sort(
+    (a, b) => b.daysOverdue - a.daysOverdue || b.outstandingUsd - a.outstandingUsd
+  );
+  const lines = rows.map((r) => ({ r, ...creditMoney(r) }));
+
+  return {
+    key: "credit-overdue",
+    title: "Credit overdue",
+    caption:
+      "Only the credit that is late, longest overdue first, with the phone number to ring on the same line. Still owed is money owed to the business and not banked. Days overdue counts from the due date the credit was granted with, and the bucket is the same aging band the credit book uses. A settled credit is not here, and neither is one that was written off — that money is not late, it is gone, and it is reported in Credit sales. The window is the day credit was granted, so widen it to see every late debt.",
+    columns: [
+      { key: "days", label: "Days overdue", numeric: true },
+      { key: "bucket", label: "Bucket" },
+      { key: "due", label: "Due" },
+      { key: "customer", label: "Customer" },
+      { key: "phone", label: "Phone" },
+      { key: "invoice", label: "Invoice" },
+      { key: "tracking", label: "Cargo" },
+      { key: "flight", label: "Batch" },
+      { key: "granted", label: "Credit granted", numeric: true, money: true },
+      { key: "collected", label: "Collected", numeric: true, money: true },
+      { key: "owed", label: "Still owed", numeric: true, money: true },
+    ],
+    rows: lines.map((l) => ({
+      days: l.r.daysOverdue,
+      bucket: bucketLabel(l.r.daysOverdue),
+      due: day(l.r.dueDate),
+      customer: l.r.customerName,
+      phone: l.r.customerPhone ?? "—",
+      invoice: l.r.invoiceNumber,
+      tracking: l.r.trackingNumber ?? "—",
+      flight: l.r.batchNumber ?? "—",
+      granted: l.granted,
+      collected: l.collected,
+      owed: l.owed,
+    })),
+    totals: {
+      granted: money(lines.reduce((n, l) => n + l.granted, 0)),
+      collected: money(lines.reduce((n, l) => n + l.collected, 0)),
+      owed: money(lines.reduce((n, l) => n + l.owed, 0)),
+    },
+  };
+}
+
+async function creditCollection(f: ReportFilters): Promise<ReportResult> {
+  const rows = (await creditRows(creditFilter(f))).sort(
+    (a, b) => (b.creditDate?.getTime() ?? 0) - (a.creditDate?.getTime() ?? 0)
+  );
+  const lines = rows.map((r) => ({ r, ...creditMoney(r) }));
+
+  return {
+    key: "credit-collection",
+    title: "Credit collection",
+    caption:
+      "What was released against what has come back, credit by credit. Collected is the only column here that is cash: it is money that reached a company account through the ordinary payment path, and Recovered is that share of what was granted. Still owed is the rest and is still a promise; Written off will never come back at all. Days late is filled in only on a credit that is late right now — lateness is measured against today, so a bill settled long after its due date cannot be shown as having been late without inventing the day it was paid. Age is how long the credit has been running, not how long it took to settle.",
+    columns: [
+      { key: "date", label: "Granted" },
+      { key: "customer", label: "Customer" },
+      { key: "invoice", label: "Invoice" },
+      { key: "terms", label: "Terms (days)", numeric: true },
+      { key: "outcome", label: "Outcome" },
+      { key: "age", label: "Age (days)", numeric: true },
+      { key: "late", label: "Days late", numeric: true },
+      { key: "granted", label: "Credit granted", numeric: true, money: true },
+      { key: "collected", label: "Collected", numeric: true, money: true },
+      { key: "owed", label: "Still owed", numeric: true, money: true },
+      { key: "writtenOff", label: "Written off", numeric: true, money: true },
+      { key: "recovered", label: "Recovered %", numeric: true },
+    ],
+    rows: lines.map((l) => ({
+      date: day(l.r.creditDate),
+      customer: l.r.customerName,
+      invoice: l.r.invoiceNumber,
+      terms: l.r.termDays,
+      outcome: CREDIT_STATE_LABEL[l.r.state],
+      age: l.r.daysOutstanding,
+      late: l.r.state === "OVERDUE" ? l.r.daysOverdue : null,
+      granted: l.granted,
+      collected: l.collected,
+      owed: l.owed,
+      writtenOff: l.writtenOff,
+      recovered: l.granted > 0 ? Math.round((l.collected / l.granted) * 100) : 0,
+    })),
+    totals: {
+      granted: money(lines.reduce((n, l) => n + l.granted, 0)),
+      collected: money(lines.reduce((n, l) => n + l.collected, 0)),
+      owed: money(lines.reduce((n, l) => n + l.owed, 0)),
+      writtenOff: money(lines.reduce((n, l) => n + l.writtenOff, 0)),
+    },
+  };
+}
+
+/**
+ * The aging analysis, as a document.
+ *
+ * Straight off `creditOverview`, buckets and all, rather than bucketing rows
+ * again here. The screen's aging strip and this report are then the same figures
+ * by construction — and a second bucketing loop is precisely how a page and its
+ * own download end up disagreeing about how much money is sixty days late.
+ */
+async function creditAging(): Promise<ReportResult> {
+  const overview = await creditOverview();
+  const total = overview.aging.reduce((n, b) => n + b.amountUsd, 0);
+
+  return {
+    key: "credit-aging",
+    title: "Credit aging",
+    period: "As at today",
+    caption:
+      "How old the money owed on credit is. Debt does not age gracefully — sixty days late is a different problem from four days late, and one outstanding total hides which one the business has. Current is everything not yet due: it is not a problem at all, and it is here so the late bands can be read against something. Every figure is money owed and not banked. This is the whole open book as at today, so the period and flight above do not narrow it: an aging analysis of a slice of the book is not an aging analysis. Credit that has been written off is in none of these bands, and is reported in Credit sales.",
+    columns: [
+      { key: "bucket", label: "Overdue by" },
+      { key: "credits", label: "Credits", numeric: true },
+      { key: "owed", label: "Still owed", numeric: true, money: true },
+      { key: "share", label: "Share %", numeric: true },
+    ],
+    rows: overview.aging.map((b) => ({
+      bucket: b.label,
+      credits: b.count,
+      owed: money(b.amountUsd),
+      share: total > 0 ? Math.round((b.amountUsd / total) * 100) : 0,
+    })),
+    totals: {
+      credits: overview.aging.reduce((n, b) => n + b.count, 0),
+      owed: money(total),
+    },
+  };
+}
+
+async function creditBatchReport(f: ReportFilters): Promise<ReportResult> {
+  const all = await creditByBatch();
+  const rows = f.batchId ? all.filter((b) => b.batchId === f.batchId) : all;
+
+  return {
+    key: "credit-by-batch",
+    title: "Credit by batch",
+    period: f.batchId ? "One flight, as at today" : "Every flight, as at today",
+    caption:
+      "Which flights released cargo on credit, most credit first. Credit granted is billed, not banked, and Still owed is what the flight's customers have yet to bring in. Where the two ends do not meet — granted less collected larger than still owed — the difference is credit written off on that flight, and it is in Credit sales. A credit against a bill with no consignment behind it belongs to no flight and is not on this report. A batch is its own period, so the dates above do not narrow this; picking one flight does.",
+    columns: [
+      { key: "flight", label: "Batch" },
+      { key: "credits", label: "Credits", numeric: true },
+      { key: "granted", label: "Credit granted", numeric: true, money: true },
+      { key: "collected", label: "Collected", numeric: true, money: true },
+      { key: "owed", label: "Still owed", numeric: true, money: true },
+    ],
+    rows: rows.map((b) => ({
+      flight: b.batchNumber,
+      credits: b.count,
+      granted: money(b.creditUsd),
+      collected: money(b.collectedUsd),
+      owed: money(b.outstandingUsd),
+    })),
+    totals: {
+      credits: rows.reduce((n, b) => n + b.count, 0),
+      granted: money(rows.reduce((n, b) => n + b.creditUsd, 0)),
+      collected: money(rows.reduce((n, b) => n + b.collectedUsd, 0)),
+      owed: money(rows.reduce((n, b) => n + b.outstandingUsd, 0)),
+    },
+  };
+}
+
+async function creditMonthReport(): Promise<ReportResult> {
+  const rows = await creditByMonth(12);
+
+  return {
+    key: "credit-by-month",
+    title: "Credit by month",
+    period: "Last twelve months",
+    caption:
+      "Twelve months of credit, by the month it was GRANTED rather than the month money came back — so Collected on a row is everything that has since come in against that month's credits, whenever it arrived. Credit granted is billed and never cash. The gap between the two columns is not automatically still collectable: part of it may have been written off, which Credit sales shows. Twelve months is the span of a trend, so the period above does not narrow it.",
+    columns: [
+      { key: "month", label: "Month" },
+      { key: "credits", label: "Credits", numeric: true },
+      { key: "granted", label: "Credit granted", numeric: true, money: true },
+      { key: "collected", label: "Collected", numeric: true, money: true },
+      { key: "recovered", label: "Recovered %", numeric: true },
+    ],
+    rows: rows.map((m) => ({
+      month: m.month,
+      credits: m.count,
+      granted: money(m.creditUsd),
+      collected: money(m.collectedUsd),
+      recovered:
+        m.creditUsd > 0 ? Math.round((m.collectedUsd / m.creditUsd) * 100) : 0,
+    })),
+    totals: {
+      credits: rows.reduce((n, m) => n + m.count, 0),
+      granted: money(rows.reduce((n, m) => n + m.creditUsd, 0)),
+      collected: money(rows.reduce((n, m) => n + m.collectedUsd, 0)),
+    },
+  };
+}
+
 /* -------------------------------------------------------------- the ledger */
 
 async function ledgerRows(f: ReportFilters, kinds?: string[]) {
@@ -1174,6 +1657,26 @@ export async function runReport(
       return receivables(filters);
     case "outstanding":
       return outstanding(filters);
+    /* Four of the eight take no filters, and that is deliberate rather than an
+       omission: a facility, an aging analysis, a flight's credit and a twelve
+       month trend are as-at-today readings of the whole book, and each caption
+       says so where a reader will see it. */
+    case "credit-sales":
+      return creditSales(filters);
+    case "credit-customers":
+      return creditCustomers();
+    case "credit-outstanding":
+      return creditOutstanding(filters);
+    case "credit-overdue":
+      return creditOverdue(filters);
+    case "credit-collection":
+      return creditCollection(filters);
+    case "credit-aging":
+      return creditAging();
+    case "credit-by-batch":
+      return creditBatchReport(filters);
+    case "credit-by-month":
+      return creditMonthReport();
     case "cash-flow":
       return cashFlow(filters);
     case "ledger":

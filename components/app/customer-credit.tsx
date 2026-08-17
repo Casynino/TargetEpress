@@ -13,6 +13,7 @@ import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import {
   CREDIT_STATE_LABEL,
   CREDIT_TERMS,
+  creditCheck,
   dueLabel,
   type CreditState,
   type CustomerCredit,
@@ -106,12 +107,23 @@ export function CustomerCreditPanel({
   if (bare && !canSetLimit) return null;
 
   const available = position.availableUsd;
+  /*
+    Asked of the engine rather than worked out here.
+
+    "Near the limit" means under a tenth of it free, and that tenth is defined
+    once in `creditCheck`. Writing the comparison again in this file would be a
+    second definition of the same judgement, free to drift from the one Finance
+    is warned by at approval — so the check is run against a request of nothing,
+    which is exactly the question this panel asks: where do they stand as things
+    are.
+  */
+  const check = creditCheck(0, position);
   const availableTone =
     available === null
       ? "text-muted-foreground"
-      : available < 0
+      : check.exceedsLimit
         ? "text-destructive"
-        : position.limitUsd !== null && available < position.limitUsd * 0.1
+        : check.nearLimit
           ? "text-warning"
           : "text-success";
 
@@ -134,12 +146,11 @@ export function CustomerCreditPanel({
       k: "Available",
       v: available === null ? t("No limit set") : money(available),
       tone: availableTone,
-      hint:
-        available !== null && available < 0
-          ? t("over the limit")
-          : position.hasFacility
-            ? t("limit less everything they owe")
-            : null,
+      hint: check.exceedsLimit
+        ? t("over the limit")
+        : position.hasFacility
+          ? t("limit less everything they owe")
+          : null,
     },
     { k: "Sold on credit", v: money(position.soldUsd), tone: "" },
     { k: "Collected", v: money(position.paidUsd), tone: "text-success" },

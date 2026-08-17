@@ -3,11 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MessageCircle, Phone } from "lucide-react";
 
+import { CustomerCreditPanel } from "@/components/app/customer-credit";
 import { CustomerNotesForm } from "@/components/app/customer-notes";
 import { MessageComposer } from "@/components/app/message-composer";
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
+import { customerCreditOutcomes, customerCreditProfile } from "@/lib/credit-queries";
 import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -46,6 +48,27 @@ export default async function CustomerProfilePage({
   const { customer, stats } = profile;
   const showMoney = can(user.role, "finance.view");
   /**
+   * The credit position, for the desks that are allowed to know it.
+   *
+   * Fetched here rather than inside the panel because a warehouse also opens
+   * this page — to read a tracking number off it — and the company's exposure to
+   * a customer is not warehouse business. Gating the JSX alone would still have
+   * run the query and shipped its figures to the browser.
+   *
+   * Two calls, both derived: the facility and every credit from
+   * `customerCreditProfile`, and the two answers it cannot give from
+   * `customerCreditOutcomes` — when the customer last actually PAID (the
+   * profile's last-settled row is dated when credit was granted, not when money
+   * arrived) and what has been written off.
+   */
+  const creditView = can(user.role, "credit.view");
+  const [rateRow, creditProfile, creditOutcomes] = await Promise.all([
+    currentRate(),
+    creditView ? customerCreditProfile(id) : Promise.resolve(null),
+    creditView ? customerCreditOutcomes(id) : Promise.resolve(null),
+  ]);
+  const profileRate = rateRow ? toNumber(rateRow.rate) : null;
+  /**
    * Collecting from the customer's own page.
    *
    * Somebody searches a customer, opens them, and sees a bill with money owed
@@ -54,8 +77,6 @@ export default async function CustomerProfilePage({
    * the CEO record it directly; Customer Support hands the proof up. Both
    * arrive from the same button on the same row.
    */
-  const rateRow = await currentRate();
-  const profileRate = rateRow ? toNumber(rateRow.rate) : null;
   const mayRecord = can(user.role, "payment.record");
   const mayCollect = can(user.role, "payment.submit");
   const canMessage = can(user.role, "message.send");
@@ -177,6 +198,34 @@ export default async function CustomerProfilePage({
           </div>
         ))}
       </dl>
+
+      {/*
+        Credit sits directly under the headline, above the cargo.
+
+        The question asked on the phone is "can they take this unpaid", and the
+        answer is AVAILABLE — the limit less everything they already owe. It is
+        not the Outstanding cell above, which is every bill they hold on any
+        terms, and neither figure is cash: a credit sale is revenue that
+        happened and money that has not arrived.
+      */}
+      {creditProfile ? (
+        <CustomerCreditPanel
+          customerId={customer.id}
+          position={creditProfile.credit}
+          rows={creditProfile.rows}
+          lastPayment={creditOutcomes?.lastPayment ?? null}
+          performance={creditProfile.performance}
+          waivedUsd={creditOutcomes?.waivedUsd ?? 0}
+          note={creditProfile.customer.creditNote}
+          setAt={creditProfile.customer.creditApprovedAt}
+          setBy={creditProfile.customer.creditApprovedBy?.name ?? null}
+          rate={profileRate}
+          /* Setting a standing facility is the money side's, never Support's —
+             they read this panel with a customer on the line and ask Finance. */
+          canSetLimit={can(user.role, "credit.limit")}
+          canCollect={mayCollect}
+        />
+      ) : null}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-6">

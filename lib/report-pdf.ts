@@ -41,15 +41,26 @@ export function reportToPdf(
   */
   const landscape = report.columns.length > 7;
 
+  /*
+    The report's own period beats the one the screen asked for.
+
+    A credit facility, an aging analysis and a flight's credit are as-at-today
+    readings of the whole book — no date window narrows them, and each says so in
+    its caption. This printed the chosen window regardless, so a customer
+    position covering every credit ever granted went out headed "Period: This
+    month", a document disagreeing with its own caption in the reader's hand.
+  */
+  const period = report.period ?? meta.period;
+
   const sheet = createSheet({
     kind: "Report",
     title: report.title,
-    subtitle: meta.period,
+    subtitle: period,
     caption: report.caption,
     reference: report.title,
     landscape,
     facts: [
-      { label: "Period", value: meta.period ?? "All time" },
+      { label: "Period", value: period ?? "All time" },
       {
         label: "Money in",
         value: !report.columns.some((c) => c.money)

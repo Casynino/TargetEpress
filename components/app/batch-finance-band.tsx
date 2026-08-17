@@ -1,8 +1,9 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
 
 import type { BatchFinance } from "@/lib/batch-finance";
-import { formatLocal, formatUsd } from "@/lib/fx";
+import { formatLocal, formatShillings, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { viewerLocale } from "@/lib/viewer";
@@ -51,6 +52,10 @@ export async function BatchFinanceBand({
     pieces,
     receivedUsd,
     outstandingUsd,
+    cashBilledUsd,
+    creditBilledUsd,
+    creditOutstandingUsd,
+    creditOverdueUsd,
     unpriceable,
     writtenOffUsd,
     storageChargedUsd,
@@ -64,6 +69,35 @@ export async function BatchFinanceBand({
     atALoss,
     unreachable,
   } = finance;
+
+  /* One converter, not a ternary per figure — the house rule, and the reason the
+     ledger once led in shillings while the profit page beside it led in dollars.
+     With no rate published the dollar figure stands rather than a guess. */
+  const money = (usd: number) => formatShillings(usd, rate);
+
+  /*
+    A cell's own decomposition, printed under it rather than beside it.
+
+    The obvious way to add cash-versus-credit revenue to this band was two more
+    cells, which would have made it eight — and the owner has already rejected
+    this panel once for being repetitive at six. Two more cells would also read
+    as two more independent totals somebody has to reconcile, when they are
+    halves of the figure directly above them. So a `note` is a breakdown of its
+    own cell and nothing else, and it renders only when there is something to
+    break down: a flight with no credit on it looks exactly as it did before,
+    because a line saying "no credit" is a line spent on an absence.
+  */
+  type Cell = {
+    k: string;
+    usd?: number;
+    /** An exact shilling figure, already summed per row. Beats usd × rate. */
+    tsh?: number | null;
+    percent?: string;
+    tone?: string;
+    note?: ReactNode;
+  };
+
+  const hasCredit = creditBilledUsd > 0.005;
 
   return (
     <section className="mb-6 overflow-hidden rounded-xl border bg-card shadow-soft">
@@ -105,8 +139,33 @@ export async function BatchFinanceBand({
            screen Support opens. */
         showCosts ? "lg:grid-cols-6" : "lg:grid-cols-3"
       )}>
-        {[
-          { k: t(locale, "Expected revenue"), usd: billedUsd, tone: "" },
+        {([
+          {
+            k: t(locale, "Expected revenue"),
+            usd: billedUsd,
+            tone: "",
+            /*
+              How much of this flight went out unpaid, by agreement.
+
+              Both halves are billed, and NEITHER is money in the account —
+              "cash" here means billed for payment on collection, not cash in
+              hand, which is why Collected sits in the next cell and not this
+              one. The credit half is the figure that changes what the rest of
+              the band means: a flight that has billed forty million with a
+              third of it on terms is not the same flight as one that billed
+              forty million at the counter, and until now the band could not
+              tell them apart.
+            */
+            note: hasCredit ? (
+              <>
+                {t(locale, "Cash")} {money(cashBilledUsd)}
+                {" · "}
+                <span className="font-medium text-brand">
+                  {t(locale, "Credit")} {money(creditBilledUsd)}
+                </span>
+              </>
+            ) : null,
+          },
           { k: t(locale, "Collected"), usd: receivedUsd, tone: "text-success" },
           {
             /*
@@ -121,6 +180,25 @@ export async function BatchFinanceBand({
             k: t(locale, "Expected outstanding"),
             usd: outstandingUsd,
             tone: outstandingUsd > 0 ? "text-destructive" : "",
+            /*
+              A customer who has not turned up and a customer Finance agreed to
+              wait for were the same number here, and they are opposite
+              problems: one is a collection failure, the other is a decision the
+              company made on purpose. Overdue is called out because that is the
+              part where the agreement has already run out.
+            */
+            note:
+              creditOutstandingUsd > 0.005 ? (
+                <>
+                  {money(creditOutstandingUsd)} {t(locale, "on credit terms")}
+                  {creditOverdueUsd > 0.005 ? (
+                    <span className="font-semibold text-destructive">
+                      {" · "}
+                      {money(creditOverdueUsd)} {t(locale, "overdue")}
+                    </span>
+                  ) : null}
+                </>
+              ) : null,
           },
           ...(showCosts
             ? [
@@ -147,7 +225,7 @@ export async function BatchFinanceBand({
                 },
               ]
             : []),
-        ].map((cell) => (
+        ] satisfies Cell[]).map((cell) => (
           <div key={cell.k} className="bg-card px-5 py-3">
             <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
               {cell.k}
@@ -164,13 +242,16 @@ export async function BatchFinanceBand({
               {cell.percent ??
                 (cell.tsh !== undefined && cell.tsh !== null
                   ? formatLocal(cell.tsh)
-                  : rate === null
-                    ? formatUsd(cell.usd!)
-                    : formatLocal(cell.usd! * rate))}
+                  : money(cell.usd!))}
             </dd>
             {cell.percent === undefined && rate !== null ? (
               <p className="text-[11px] tabular-nums text-muted-foreground">
                 {formatUsd(cell.usd!)}
+              </p>
+            ) : null}
+            {cell.note ? (
+              <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+                {cell.note}
               </p>
             ) : null}
           </div>
@@ -211,8 +292,7 @@ export async function BatchFinanceBand({
             not read like one that collected everything. */}
         {writtenOffUsd > 0 ? (
           <span className="text-muted-foreground">
-            {rate === null ? formatUsd(writtenOffUsd) : formatLocal(writtenOffUsd * rate)}{" "}
-            {t(locale, "written off")}
+            {money(writtenOffUsd)} {t(locale, "written off")}
           </span>
         ) : null}
         {/* The warehouse clock on this flight. Storage is already inside the
@@ -223,22 +303,15 @@ export async function BatchFinanceBand({
           <span>
             {storageChargedUsd > 0 ? (
               <>
-                {rate === null
-                  ? formatUsd(storageChargedUsd)
-                  : formatLocal(storageChargedUsd * rate)}{" "}
-                {t(locale, "storage")}
+                {money(storageChargedUsd)} {t(locale, "storage")}
               </>
             ) : (
               t(locale, "No storage charged")
             )}
             {storageWaivedUsd > 0 ? (
               <span className="text-warning">
-                {" "}
-                ·{" "}
-                {rate === null
-                  ? formatUsd(storageWaivedUsd)
-                  : formatLocal(storageWaivedUsd * rate)}{" "}
-                {t(locale, "waived")}
+                {" · "}
+                {money(storageWaivedUsd)} {t(locale, "waived")}
               </span>
             ) : null}
             {storageHolding > 0 ? (

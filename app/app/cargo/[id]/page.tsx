@@ -824,6 +824,10 @@ export default async function ShipmentDetailPage({
                 : null
             }
             outstanding={outstanding}
+            /* Credit granted means the cargo may go before the money does —
+               without this the server can issue a credit note and no button in
+               the interface can ask it to. */
+            creditApproved={shipment.invoice?.creditStatus === "APPROVED"}
             currency={shipment.currency}
             pickupNoteId={shipment.pickupNote?.id ?? null}
             pickupNoteNumber={shipment.pickupNote?.noteNumber ?? null}

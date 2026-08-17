@@ -1,6 +1,7 @@
 import "server-only";
 
 import { BILLED_INVOICE_STATUSES } from "@/lib/constants";
+import { creditForPeriod } from "@/lib/credit-queries";
 import { formatMonthYear, toNumber } from "@/lib/format";
 import { BASE_CURRENCY, currentRateValue } from "@/lib/fx";
 import type { Locale } from "@/lib/locale";
@@ -28,6 +29,16 @@ import { prisma } from "@/lib/prisma";
  * band printed beside it is a worse bug than either figure being wrong on its
  * own. A written-off bill contributes whatever the customer paid before it was
  * given up on — that money is in the bank — and nothing else.
+ *
+ * CREDIT SITS INSIDE ACCRUAL REVENUE AND NOWHERE NEAR CASH. Cargo released on
+ * terms is a sale that happened, so its bill is already in `revenue` above and
+ * nothing here adds it a second time — `credit` only names the part of that
+ * revenue nobody has paid for yet. It is deliberately absent from `cashIn`,
+ * `netCash` and every account figure, and `profit` stays revenue minus costs:
+ * treating a receivable as cash is how a business with an empty till reports a
+ * good month. The figures come from lib/credit-queries.ts rather than being
+ * re-derived here, because a second answer to "what do they owe us" is the bug
+ * this codebase has been bitten by four times.
  */
 export type ProfitWindow = {
   from: Date;
@@ -172,13 +183,18 @@ export async function profitAndLoss(window: ProfitWindow) {
     byCategory,
     special,
     transferFees,
+    credit,
   ] = await Promise.all([
     // Accrual revenue: bills raised in the window that Finance has confirmed.
     // BILLED_INVOICE_STATUSES rather than a local notIn list, so this asks the
     // question the same way every other revenue total in the app asks it.
+    //
+    // amountPaid comes back with it so the receivable arising from THIS period's
+    // billing can be stated without a second query asking the same rows a
+    // slightly different question.
     prisma.invoice.aggregate({
       where: { issuedAt: range, status: { in: [...BILLED_INVOICE_STATUSES] } },
-      _sum: { total: true },
+      _sum: { total: true, amountPaid: true },
       _count: true,
     }),
     /*
@@ -273,6 +289,10 @@ export async function profitAndLoss(window: ProfitWindow) {
       where: { occurredAt: range, fee: { gt: 0 } },
       select: { fee: true, fromAccount: { select: { currency: true } } },
     }),
+    // The credit inside the revenue above, on the revenue line's own window and
+    // the revenue line's own treatment of a write-off. Asked of the credit
+    // engine, never worked out here.
+    creditForPeriod(window),
   ]);
 
   const writtenOffPaid = toNumber(writtenOff._sum.amountPaid);
@@ -314,6 +334,37 @@ export async function profitAndLoss(window: ProfitWindow) {
 
   const specialUsd = toNumber(special._sum.amountUsd);
 
+  /*
+    Revenue billed in this period that has not been collected against it.
+
+    The period's own receivable, not the company's — an all-time figure would
+    contradict every other number on the statement it is printed beside. It is a
+    fact about the billing, never a component of profit and never money: profit
+    below is still revenue minus costs, and a page that netted this off would be
+    reporting a loss for having invoiced somebody.
+
+    Written-off bills are absent from the aggregate that feeds it, which is
+    right: a debt the company has abandoned is not something it is waiting for.
+    `writtenOff` reports that separately so a period the desk forgave millions in
+    cannot read like a quiet one.
+  */
+  const receivableUsd = Math.max(
+    0,
+    toNumber(billed._sum.total) - toNumber(billed._sum.amountPaid)
+  );
+
+  /*
+    Revenue billed on cash terms — the rest of it.
+
+    Stated by subtraction because credit IS a slice of the revenue above, so any
+    other definition would be a second, disagreeing count of the same bills. The
+    floor is a guard rather than arithmetic: the two are windowed and valued
+    identically, so the subtraction cannot go negative unless an invoice status
+    appears that neither query knows about, and a negative "cash revenue" on
+    screen would be read as a refund.
+  */
+  const cashRevenue = Math.max(0, revenue - credit.billedUsd);
+
   return {
     window,
     // Confirmed bills only, so the count and the revenue figure printed beside
@@ -331,6 +382,19 @@ export async function profitAndLoss(window: ProfitWindow) {
     */
     writtenOff: writtenOffUsd,
     writtenOffCount: writtenOff._count,
+    /*
+      What the revenue line is made of, and how much of it is money.
+
+      Two figures for one question on purpose, because they are two questions: a
+      credit sale is revenue (the cargo went, the customer owes us) and it is not
+      cash (the till is empty). Both have to be on the page or the same total
+      reads as a good month to one person and a bank balance to another.
+    */
+    creditRevenue: credit.billedUsd,
+    cashRevenue,
+    credit,
+    /** This period's billing still standing with customers. Not cash, not profit. */
+    receivable: receivableUsd,
     costs,
     profit: revenue - costs,
     /*

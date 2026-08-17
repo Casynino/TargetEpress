@@ -246,6 +246,8 @@ export async function confirmInvoicePrice(
           freightOverride: true,
           /* So re-pricing can see a waiver and leave it alone. */
           storageWaivedUsd: true,
+          /* And a granted credit, whose due date it must not overwrite. */
+          creditStatus: true,
           notes: true,
           shipment: {
             select: {
@@ -337,9 +339,19 @@ export async function confirmInvoicePrice(
           status: "UNPAID",
           confirmedAt: new Date(),
           confirmedById: user.id,
-          // Payable before the cargo is released — which is what
-          // issuePickupNote already enforces, so the terms say what is true.
-          dueDate: new Date(),
+          /*
+            Payable before the cargo is released — which is what issuePickupNote
+            already enforces, so the terms say what is true.
+
+            UNLESS credit has been granted on this bill. Credit stores its
+            deadline in this same column, so re-confirming a price afterwards
+            used to stamp today's date over the terms the customer was given: a
+            30-day credit approved last week became overdue the moment somebody
+            re-confirmed the figure, on the settlements page, on the call list
+            and on the pickup note the customer is holding. Re-pricing is not a
+            reason to move a deadline anybody agreed to.
+          */
+          ...(invoice.creditStatus === "APPROVED" ? {} : { dueDate: new Date() }),
         },
       });
 
@@ -1199,6 +1211,14 @@ export async function recordPayment(
 /**
  * The gate between money and cargo. A pickup note is the only thing that moves
  * a shipment to READY_FOR_PICKUP, and only Finance can issue one.
+ *
+ * Two things now open that gate, not one. It used to mean exactly "the bill is
+ * settled": an unpaid invoice was refused here, full stop. Approved credit is
+ * the second reason, and the whole point of credit — Finance has already read
+ * the customer's exposure and agreed this consignment may go unpaid, so
+ * refusing it here would have granted credit and then denied the thing it was
+ * granted for. Everything else holds: an unpaid bill with no approved credit is
+ * still refused, and so is one whose credit request nobody has answered.
  */
 export async function issuePickupNote(
   _prev: ActionResult<{ noteNumber: string }> | undefined,
@@ -1226,7 +1246,15 @@ export async function issuePickupNote(
           currency: true,
           pickupNote: { select: { id: true, status: true, noteNumber: true } },
           invoice: {
-            select: { id: true, status: true, total: true, amountPaid: true },
+            select: {
+              id: true,
+              status: true,
+              total: true,
+              amountPaid: true,
+              // Whether this cargo is allowed to leave unpaid, and on what terms.
+              creditStatus: true,
+              creditTermDays: true,
+            },
           },
           // Any case that blocks pickup, not just a missing shipment.
           //
@@ -1270,19 +1298,43 @@ export async function issuePickupNote(
         );
       }
       if (!shipment.invoice) throw new Error("Raise an invoice first.");
-      if (shipment.invoice.status !== "PAID") {
-        const outstanding =
-          toNumber(shipment.invoice.total) - toNumber(shipment.invoice.amountPaid);
+
+      const outstanding =
+        toNumber(shipment.invoice.total) - toNumber(shipment.invoice.amountPaid);
+
+      /* Approved credit, and only approved credit, releases an open bill.
+         REQUESTED does not: a request nobody has answered has granted nothing,
+         and the cargo stands still until somebody decides. DRAFT and VOID are
+         excluded for the same reason every credit query excludes them — the
+         first is a figure nobody signed off, the second is not a bill. */
+      const onCredit =
+        shipment.invoice.creditStatus === "APPROVED" &&
+        shipment.invoice.status !== "DRAFT" &&
+        shipment.invoice.status !== "VOID";
+
+      if (shipment.invoice.status !== "PAID" && !onCredit) {
         throw new Error(
-          `${shipment.currency} ${outstanding.toLocaleString()} is still outstanding on this invoice.`
+          shipment.invoice.creditStatus === "REQUESTED"
+            ? `${shipment.currency} ${outstanding.toLocaleString()} is still outstanding, and the credit request on this bill has not been answered yet.`
+            : `${shipment.currency} ${outstanding.toLocaleString()} is still outstanding on this invoice.`
         );
       }
+
+      /* The approval opens the gate; the money decides what is WRITTEN DOWN. A
+         customer who was granted terms and then paid before collecting has
+         settled their bill, and neither the history nor the audit log should
+         record that as cargo released against a debt. */
+      const releasedUnpaid = onCredit && outstanding > 0.005;
 
       const note = await tx.pickupNote.create({
         data: {
           noteNumber: await nextPickupNoteNumber(tx),
           shipmentId: shipment.id,
           customerId: shipment.customerId,
+          // What was actually settled at this moment, which on a credit release
+          // is nothing. The slip does not print this figure for a credit note —
+          // it derives what is still OWED from the invoice, because this one
+          // freezes here and never rises when the customer pays.
           amountPaid: shipment.invoice.amountPaid,
           currency: shipment.currency,
           issuedById: user.id,
@@ -1301,7 +1353,13 @@ export async function issuePickupNote(
           fromStatus: "RECEIVED_AT_DAR",
           toStatus: "READY_FOR_PICKUP",
           location: "Dar es Salaam warehouse",
-          note: `Payment confirmed. Pickup note ${note.noteNumber} issued.`,
+          /* The history said "Payment confirmed" for every release, which on a
+             credit release is the opposite of what happened — and this line is
+             what somebody reads months later when they ask why cargo left
+             against an open bill. */
+          note: releasedUnpaid
+            ? `Released on credit${shipment.invoice.creditTermDays ? ` (${shipment.invoice.creditTermDays}-day terms)` : ""} — ${shipment.currency} ${outstanding.toLocaleString()} unpaid. Pickup note ${note.noteNumber} issued.`
+            : `Payment confirmed. Pickup note ${note.noteNumber} issued.`,
           actorId: user.id,
         },
       });
@@ -1312,7 +1370,9 @@ export async function issuePickupNote(
           action: "pickupNote.issue",
           entity: "PickupNote",
           entityId: note.id,
-          summary: `Issued ${note.noteNumber} for ${shipment.trackingNumber}`,
+          summary: releasedUnpaid
+            ? `Issued ${note.noteNumber} for ${shipment.trackingNumber} on credit — ${shipment.currency} ${outstanding.toLocaleString()} unpaid`
+            : `Issued ${note.noteNumber} for ${shipment.trackingNumber}`,
         },
         tx
       );

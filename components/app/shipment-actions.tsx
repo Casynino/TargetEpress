@@ -40,6 +40,8 @@ type Props = {
   hasInvoice: boolean;
   invoiceId: string | null;
   outstanding: number | null;
+  /** Credit granted on this bill, so the cargo may go before the money does. */
+  creditApproved?: boolean;
   currency: string;
   pickupNoteId: string | null;
   pickupNoteNumber: string | null;
@@ -89,11 +91,20 @@ export function ShipmentActions(props: Props) {
 
   const canInvoice = can(role, "invoice.manage");
   const canPay = can(role, "payment.record") && props.hasInvoice;
+  /*
+    Two legitimate reasons to let cargo go, not one.
+
+    This gate asked only whether the bill was settled, which made an approved
+    credit unreachable from the interface: the server was taught to issue a note
+    against granted credit and the button that calls it stayed disabled, saying
+    "available once the invoice is settled in full" about a consignment the
+    business had already agreed to release unpaid.
+  */
+  const releasable =
+    (props.outstanding !== null && props.outstanding <= 0) ||
+    props.creditApproved === true;
   const canIssueNote =
-    can(role, "pickupNote.issue") &&
-    status === "RECEIVED_AT_DAR" &&
-    props.outstanding !== null &&
-    props.outstanding <= 0;
+    can(role, "pickupNote.issue") && status === "RECEIVED_AT_DAR" && releasable;
   /**
    * The collections desk's way in.
    *
@@ -712,10 +723,12 @@ function PickupNotePanel(props: Props) {
     );
   }
 
+  /* The same two reasons as the gate above. An approved credit is not an unpaid
+     bill waiting to be settled — it is a bill the business chose to defer. */
+  const onCredit = props.creditApproved === true;
   const blocked =
     props.status !== "RECEIVED_AT_DAR" ||
-    props.outstanding === null ||
-    props.outstanding > 0;
+    (!onCredit && (props.outstanding === null || props.outstanding > 0));
 
   return (
     <div className="p-5">
@@ -729,7 +742,9 @@ function PickupNotePanel(props: Props) {
           {t(
             blocked
               ? "Available once the cargo is checked in at Dar and the invoice is settled in full."
-              : "This clears the cargo for release and notifies the warehouse."
+              : onCredit
+                ? "Released on credit — the note will say the bill is still owed, with its due date."
+                : "This clears the cargo for release and notifies the warehouse."
           )}
         </p>
         <FormError state={state} />

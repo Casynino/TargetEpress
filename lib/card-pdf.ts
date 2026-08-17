@@ -227,6 +227,15 @@ export type SlipPdfInput = {
   packagesLabel: string;
   invoiceNumber: string | null;
   paymentStatus: string;
+  /**
+   * Set when the cargo is going out on credit.
+   *
+   * This block was green and unconditional, so the copy the customer receives on
+   * WhatsApp — the one they actually keep — stamped PAID IN FULL on a bill they
+   * still owe. The screen version was fixed and this was not, which made the
+   * more widely seen of the two documents the one that lied.
+   */
+  credit?: { dueOn: string | null; overdue: boolean } | null;
   amountLabel: string | null;
   officeLines: string[];
   qr: string;
@@ -338,20 +347,46 @@ export function renderPickupSlipPdf(data: SlipPdfInput): ArrayBuffer {
   y += 9.6;
   doc.line(PAD, y, W - PAD, y);
 
-  // Paid or not — the question the counter asks before anything moves.
+  // Paid or not — the question the counter asks before anything moves, and the
+  // one thing a customer must never be able to misread off this card.
   y += 2;
-  doc.setFillColor(228, 242, 235);
-  doc.rect(PAD, y, W - PAD * 2, 8, "F");
+  const onCredit = Boolean(data.credit);
+  /* A pale red ground for a bill still owed, the same pale green for one that is
+     settled — legible on the monochrome printer the warehouse actually uses,
+     because the words carry it and the colour only reinforces them. */
+  const band: [number, number, number] = onCredit
+    ? [253, 232, 234]
+    : [228, 242, 235];
+  doc.setFillColor(...band);
+  doc.rect(PAD, y, W - PAD * 2, onCredit ? 11.5 : 8, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
-  doc.setTextColor(...GREEN);
+  doc.setTextColor(...(onCredit ? RED : GREEN));
   doc.text(winAnsi(data.paymentStatus.toUpperCase()), PAD + 2.4, y + 5.4);
   if (data.amountLabel) {
     doc.setFont("courier", "bold");
     doc.setFontSize(10);
     doc.text(winAnsi(data.amountLabel), W - PAD - 2.4, y + 5.4, { align: "right" });
   }
-  y += 12;
+  if (data.credit) {
+    /* The date, never a countdown: "due in 12 days" is wrong by tomorrow on a
+       card somebody folds into a pocket. */
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...RED);
+    doc.text(
+      winAnsi(
+        data.credit.overdue
+          ? `OVERDUE${data.credit.dueOn ? ` — was due ${data.credit.dueOn}` : ""}`
+          : data.credit.dueOn
+            ? `Payment due ${data.credit.dueOn}`
+            : "Payment pending"
+      ),
+      PAD + 2.4,
+      y + 9.6
+    );
+  }
+  y += onCredit ? 15.5 : 12;
 
   fieldLabel(doc, "Collect from", PAD, y);
   y += 4;

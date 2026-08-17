@@ -336,7 +336,7 @@ export default async function FinanceReportsPage({
         right now" figures derived from live balances, not sums over a window,
         so putting a period delta on them would be inventing history.
       */}
-      <dl className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3 xl:grid-cols-6">
+      <dl className="mb-2 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3 xl:grid-cols-6">
         {(() => {
           const change = (now: number, before: number) => {
             if (before === 0) return now === 0 ? "nothing either way" : `new ${window.label}`;
@@ -433,6 +433,88 @@ export default async function FinanceReportsPage({
           ));
         })()}
       </dl>
+
+      {/*
+        What that revenue line is actually made of.
+
+        A credit sale is revenue the moment the cargo is released — the sale
+        happened — and it is not cash. Both facts have to be readable on one
+        screen or the same total means a good month to one person and a bank
+        balance to another: Revenue above includes the credit, Collected does
+        not, and everything in between is standing with customers.
+
+        Six small cells rather than six more cards. The headline has already been
+        read by the time anybody gets here; this is the composition, and it is a
+        strip.
+      */}
+      <dl className="mb-2 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3 xl:grid-cols-6">
+        {[
+          { k: "Cash revenue", v: money(pl.cashRevenue), tone: "" },
+          { k: "Credit revenue", v: money(pl.creditRevenue), tone: "text-brand" },
+          {
+            k: "Outstanding receivables",
+            v: money(pl.receivable),
+            tone: "text-signal",
+          },
+          /* The credit share of the receivable beside it, and named in full
+             rather than as "of that": these cells wrap onto two rows on a phone,
+             so a label that depends on which cell it sits next to stops being
+             true at 375px. How much of the credit has come BACK is a percentage
+             in the line underneath — as an amount it would invite the reader to
+             add it to Collected above, which is a different window and a
+             different question. */
+          {
+            k: "Credit still owed",
+            v: money(pl.credit.outstandingUsd),
+            tone: "text-brand",
+          },
+          {
+            k: "Overdue credit",
+            v: money(pl.credit.overdueUsd),
+            tone: "text-destructive",
+          },
+          { k: "Written off", v: money(pl.writtenOff), tone: "text-warning" },
+        ].map((cell) => (
+          <div key={cell.k} className="bg-card px-4 py-2.5">
+            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              {t(locale, cell.k)}
+            </dt>
+            <dd
+              className={`whitespace-nowrap font-display text-sm font-bold leading-tight tabular-nums ${cell.tone}`}
+            >
+              {cell.v}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {/* One line, and only the parts that are true: a period with no credit and
+          nothing forgiven says neither. */}
+      <p className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+        <span>
+          {t(
+            locale,
+            "Credit revenue is inside Revenue above, because the sale happened. It is not in Collected, and none of it is in the bank."
+          )}
+        </span>
+        {pl.credit.count > 0 ? (
+          <span>
+            {pl.credit.count}{" "}
+            {t(locale, pl.credit.count === 1 ? "credit sale" : "credit sales")}
+            {pl.credit.collectionRate === null
+              ? ""
+              : ` · ${pl.credit.collectionRate.toFixed(0)}% ${t(locale, "of it back")}`}
+          </span>
+        ) : null}
+        {pl.writtenOffCount > 0 ? (
+          <span className="text-warning">
+            {pl.writtenOffCount}{" "}
+            {t(
+              locale,
+              pl.writtenOffCount === 1 ? "bill given up on" : "bills given up on"
+            )}
+          </span>
+        ) : null}
+      </p>
 
       {/* The headline, and the number under it that stops it being misread. */}
       <section
@@ -714,8 +796,16 @@ export default async function FinanceReportsPage({
                 up: pl.cashIn >= prior.cashIn,
               },
               {
+                /*
+                  The same receivable the strip at the top prints, from the same
+                  place. It read dash.revenue.outstandingUsd, which counts a
+                  written-off bill's face value as money still owed — so this cell
+                  and the P&L above it gave two different answers to "what is
+                  outstanding", on one page, differing by exactly the debt the
+                  company had already abandoned.
+                */
                 k: "Outstanding",
-                v: money(dash.revenue.outstandingUsd),
+                v: money(pl.receivable),
                 d: null,
               },
               {

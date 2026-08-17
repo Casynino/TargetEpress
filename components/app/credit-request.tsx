@@ -32,19 +32,28 @@ export function CreditRequest({
   /** Their limit and what is already against it, so the ask is informed. */
   limitLabel,
   outstandingLabel,
+  startOpen,
 }: {
   invoiceId: string;
   outstanding: string;
   defaultTerm: number;
   limitLabel: string | null;
   outstandingLabel: string | null;
+  /**
+   * Skip the button and show the form.
+   *
+   * On the payment screen the choice has already been made by pressing "Taking
+   * it on credit" — asking somebody to then press a second button that says the
+   * same thing is a step that exists only because two components met.
+   */
+  startOpen?: boolean;
 }) {
   const t = useT();
   const [state, action] = useActionState<ActionResult | undefined, FormData>(
     requestCredit,
     undefined
   );
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen ?? false);
 
   if (!open) {
     return (

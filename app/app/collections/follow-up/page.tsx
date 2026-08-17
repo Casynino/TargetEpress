@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { can } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
 import { currentRate, formatLocal, formatShillings, formatUsd } from "@/lib/fx";
-import { toNumber } from "@/lib/format";
+import { formatDate, toNumber } from "@/lib/format";
 import { collectionsOverview } from "@/lib/collections";
 import { t } from "@/lib/i18n";
 import { paymentReminderSwahili, whatsappLink } from "@/lib/messages";
@@ -17,9 +17,12 @@ import { requirePermission } from "@/lib/session";
 import {
   FOLLOW_UP_FILTERS,
   followUpQueue,
+  followUpTotals,
   matchesFilter,
   type FollowUpFilter,
+  type FollowUpRow,
 } from "@/lib/support";
+import { cn } from "@/lib/utils";
 import { viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -32,6 +35,13 @@ export async function generateMetadata(): Promise<Metadata> {
  * One flat table, ranked, with the counts on every filter computed from the
  * whole queue rather than the visible page — a desk that works a queue needs to
  * trust the number on the pill.
+ *
+ * It carries credit as well as cash now (§14), and the point of the row design
+ * is that the two never look alike. A cash bill that is unpaid is late by
+ * default. A credit is late only after a date this company granted, so a credit
+ * inside its terms is drawn quietly, ranked below a paid consignment waiting for
+ * collection, and labelled as the arrangement working — because ringing a
+ * customer who is inside terms we gave them is worse than not ringing at all.
  *
  * It lives under /app/collections, not /app/support, because chasing a payment
  * is not a support-desk activity — it is the collections job, and Finance does
@@ -54,7 +64,11 @@ export default async function FollowUpPage({
   const canCollect = !canRecord && can(user.role, "payment.submit");
   const { filter } = await searchParams;
 
-  const rows = await followUpQueue();
+  // Credit only for a reader entitled to it. Every desk that can open this page
+  // holds credit.view today, so this changes nothing on screen — it is here so
+  // the day one does not, the queue drops the credit rows instead of the guard
+  // being a JSX condition somebody edits around later.
+  const rows = await followUpQueue({ credit: can(user.role, "credit.view") });
 
   /**
    * Shillings for the band totals.
@@ -89,10 +103,10 @@ export default async function FollowUpPage({
    * the clerk is looking at, and so nobody composes the same message eighty
    * times a day.
    */
-  const invoiceMessage = (row: (typeof rows)[number]) =>
+  const invoiceMessage = (row: FollowUpRow) =>
     paymentReminderSwahili({
       customerName: row.customerName,
-      trackingNumber: row.trackingNumber,
+      trackingNumber: row.trackingNumber ?? "",
       description: row.description,
       invoiceNumber: row.invoiceNumber,
       weightKg: row.weightKg,
@@ -103,21 +117,51 @@ export default async function FollowUpPage({
       amountLocal: row.outstandingLocal,
       localCurrency: row.localCurrency,
     });
+
+  /**
+   * What a credit customer reads, and why it is not the message above.
+   *
+   * The standard reminder tells the customer their cargo has arrived and is
+   * being held until payment clears. A credit customer is holding their cargo —
+   * that was the whole arrangement — so sending them that message tells them the
+   * one thing they know to be untrue, and the conversation starts with the desk
+   * being wrong. This one talks about the bill and its date instead, and says
+   * nothing about where the boxes are.
+   */
+  const creditMessage = (row: FollowUpRow) => {
+    const credit = row.credit;
+    // Dated in English regardless of who is at the keyboard: the message is
+    // Swahili to a Tanzanian customer, and a clerk reading the app in Chinese
+    // must not send them 2026年8月17日.
+    const due = credit?.dueDate ? formatDate(credit.dueDate, "en") : null;
+    const amount =
+      row.outstandingLocal !== null
+        ? formatLocal(row.outstandingLocal, row.localCurrency ?? undefined)
+        : money(row.outstanding ?? 0);
+    return [
+      `Habari ${row.customerName.split(" ")[0]},`,
+      ``,
+      (credit?.daysOverdue ?? 0) > 0
+        ? `Tunakumbusha malipo ya invoice ${row.invoiceNumber ?? ""}${due ? ` yaliyopaswa kulipwa ${due}` : ""}.`
+        : `Tunakumbusha kuwa invoice ${row.invoiceNumber ?? ""}${due ? ` inapaswa kulipwa ${due}` : ""}.`,
+      `Kiasi: ${amount}`,
+    ].join("\n");
+  };
+
   const active = (FOLLOW_UP_FILTERS.find((f) => f.key === filter)?.key ??
     "all") as FollowUpFilter;
   const visible = rows.filter((row) => matchesFilter(row, active));
 
-  const totalOutstanding = visible.reduce(
-    (sum, row) => sum + (row.outstanding ?? 0),
-    0
-  );
-  const storageAtRisk = visible.reduce((sum, row) => sum + row.storageCharge, 0);
+  /* Added up in one place for both this strip and the support desk's copy of the
+     queue, and deliberately never added to each other: an unpaid bill and a
+     credit inside terms are two different things to do on a Tuesday morning. */
+  const totals = followUpTotals(visible);
 
   return (
     <>
       <PageHeader
         title="Payment follow-up"
-        description="Cargo sitting in Dar es Salaam, ordered by what needs a phone call most."
+        description="Every customer who owes us money — bills nobody has paid and credit we released on terms — ordered by who needs a phone call most."
       />
       {/*
         The finance tab row stays put.
@@ -140,7 +184,6 @@ export default async function FollowUpPage({
       <CollectionsNav canVerify={can(user.role, "payment.verify")} />
 
       <div className="mb-4 overflow-hidden rounded-xl border bg-card shadow-soft">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         {/*
           Filtering, made to look like filtering.
 
@@ -149,7 +192,13 @@ export default async function FollowUpPage({
           row moved between pages and which narrowed the list. These are a
           segmented control now, joined into one block, sitting inside the card
           they act on rather than floating above it.
+
+          Nine of them since credit arrived, so the control scrolls inside its own
+          strip rather than wrapping into a second row of half-segments — and the
+          caption that used to sit beside it is gone, because it repeated the page
+          description word for word one line below it.
         */}
+        <div className="overflow-x-auto border-b px-4 py-3">
         <div className="inline-flex overflow-hidden rounded-lg border">
           {FOLLOW_UP_FILTERS.map((option) => {
             const count = rows.filter((row) => matchesFilter(row, option.key)).length;
@@ -159,7 +208,7 @@ export default async function FollowUpPage({
                 key={option.key}
                 href={`/app/collections/follow-up?filter=${option.key}`}
                 title={t(locale, option.hint)}
-                className={`inline-flex items-center gap-1.5 border-r px-3 py-1.5 text-xs font-medium transition-colors last:border-r-0 ${
+                className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-r px-3 py-1.5 text-xs font-medium transition-colors last:border-r-0 ${
                   isActive
                     ? "bg-brand text-brand-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -175,88 +224,113 @@ export default async function FollowUpPage({
             );
           })}
         </div>
-          <p className="text-xs text-muted-foreground">
-            {t(locale, "Ordered by what needs a phone call most")}
-          </p>
         </div>
         {/*
-          Five cards, each saying what it IS.
+          One strip of small cells, not a row of tall cards.
 
-          The owner's objection was that a column of figures raises questions
-          instead of answering them: is that money coming in, money owed,
-          money already counted? So every cell carries the sentence that
-          settles it, and a colour that means the same thing everywhere else in
-          Finance — amber for money not yet arrived, red for a queue, green for
-          work done, neutral for a count.
+          It was five cards, each carrying an explaining sentence, and credit
+          needs four more figures — nine of those cards would have been a screen
+          of summary above a list nobody had scrolled to yet. The desk is busy.
+          So: one tight cell per figure, the sentences that had to survive
+          collected into the single line underneath, and the colours unchanged
+          from the rest of Finance — amber for money not yet arrived, red for
+          late, green for work done, neutral for a count.
 
-          The honest one is storage. It is NOT a separate pot of income: the
-          clock is added to the bill when the bill is raised, so adding it to
-          what is outstanding would count the same shillings twice. It says so.
+          CASH AND CREDIT ARE TWO CELLS AND NEVER ONE. A bill nobody paid and
+          money the company agreed to wait for are different problems on a
+          Tuesday morning, and a single "owed" total hides which of the two this
+          business is carrying.
         */}
-        <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3 xl:grid-cols-5">
+        <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3 lg:grid-cols-5">
           {[
             {
-              k: t(locale, "Cargo on this list"),
-              v: String(visible.length),
-              sub: t(locale, "Landed in Dar, not yet handed over"),
+              k: t(locale, "On this list"),
+              v: String(totals.count),
               tone: "text-foreground",
-              wash: "from-brand/10",
             },
             {
-              k: t(locale, "Expected to come in"),
-              v: money(totalOutstanding),
-              sub: [inUsd(totalOutstanding), t(locale, "billed and not yet paid")]
-                .filter(Boolean)
-                .join(" "),
+              k: t(locale, "Cash owed"),
+              v: money(totals.cashUsd),
+              sub: inUsd(totals.cashUsd),
               tone: "text-signal",
-              wash: "from-signal/10",
             },
             {
-              k: t(locale, "Waiting on you to verify"),
+              k: t(locale, "Credit owed"),
+              v: money(totals.creditUsd),
+              sub: inUsd(totals.creditUsd),
+              tone: "text-brand",
+            },
+            {
+              k: t(locale, "Overdue"),
+              v: money(totals.overdueUsd),
+              sub: inUsd(totals.overdueUsd),
+              tone: totals.overdueUsd > 0 ? "text-destructive" : "text-muted-foreground",
+            },
+            {
+              k: t(locale, "Due today"),
+              v: money(totals.dueTodayUsd),
+              sub: inUsd(totals.dueTodayUsd),
+              tone: totals.dueTodayUsd > 0 ? "text-warning" : "text-muted-foreground",
+            },
+            {
+              k: t(locale, "Due this week"),
+              v: money(totals.dueWeekUsd),
+              sub: inUsd(totals.dueWeekUsd),
+              tone: "text-warning",
+            },
+            {
+              k: t(locale, "Storage so far"),
+              v: money(totals.storageUsd),
+              sub: inUsd(totals.storageUsd),
+              tone: "text-foreground",
+            },
+            {
+              k: t(locale, "To verify"),
               v: String(overview.pendingCount),
-              sub:
-                overview.pendingCount > 0
-                  ? t(locale, "Claims Support handed up")
-                  : t(locale, "Nothing handed up"),
-              tone: overview.pendingCount > 0 ? "text-destructive" : "text-muted-foreground",
-              wash: overview.pendingCount > 0 ? "from-destructive/10" : "",
+              tone:
+                overview.pendingCount > 0 ? "text-destructive" : "text-muted-foreground",
             },
             {
               k: t(locale, "Verified today"),
               v: String(overview.verifiedToday),
-              sub: t(locale, "Cleared by you since midnight"),
               tone: "text-success",
-              wash: "from-success/10",
-            },
-            {
-              k: t(locale, "Storage accrued so far"),
-              v: money(storageAtRisk),
-              sub: [
-                inUsd(storageAtRisk),
-                t(locale, "Already inside the bill — it keeps running"),
-              ]
-                .filter(Boolean)
-                .join(" · "),
-              tone: "text-foreground",
-              wash: "from-info/10",
             },
           ].map((cell) => (
-            <div
-              key={cell.k}
-              className={`bg-gradient-to-b ${cell.wash} to-transparent bg-card px-4 py-3`}
-            >
-              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                {cell.k}
-              </dt>
+            <div key={cell.k} className="bg-card px-3 py-2">
+              <dt className="text-[11px] text-muted-foreground">{cell.k}</dt>
               <dd
-                className={`mt-1 whitespace-nowrap font-display text-xl font-bold leading-tight tabular-nums ${cell.tone}`}
+                className={cn(
+                  "whitespace-nowrap font-display text-sm font-bold leading-tight tabular-nums",
+                  cell.tone
+                )}
               >
                 {cell.v}
               </dd>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">{cell.sub}</p>
+              {cell.sub ? (
+                <dd className="text-[11px] tabular-nums text-muted-foreground">
+                  {cell.sub}
+                </dd>
+              ) : null}
             </div>
           ))}
         </dl>
+        {/*
+          The two things the figures above would otherwise be read wrongly.
+
+          Storage is not a separate pot of income — the clock goes into the bill
+          when the bill is raised, so adding it to what is owed counts the same
+          shillings twice. And a credit inside its terms is not a debt anybody is
+          late on: it is on this list to be seen, not to be rung.
+        */}
+        <p className="border-t px-3 py-1.5 text-[11px] text-muted-foreground">
+          {t(locale, "Storage is already inside the bill, not on top of it.")}
+          {totals.insideTermsCount > 0
+            ? ` ${totals.insideTermsCount} ${t(
+                locale,
+                "credit(s) here are inside their terms — visible, not to be chased."
+              )}`
+            : ""}
+        </p>
       </div>
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-soft">
@@ -265,8 +339,11 @@ export default async function FollowUpPage({
             <tr>
               <th className="p-3 font-medium">{t(locale, "Customer")}</th>
               <th className="p-3 font-medium">{t(locale, "Cargo")}</th>
+              {/* "In warehouse" before. A credit's cargo has gone home with the
+                  customer, and the clock that matters on it is the age of the
+                  debt — one column, two things standing, one honest word. */}
               <th className="hidden p-3 font-medium lg:table-cell">
-                {t(locale, "In warehouse")}
+                {t(locale, "Waiting")}
               </th>
               <th className="p-3 font-medium">{t(locale, "Owed")}</th>
               <th className="p-3 font-medium">{t(locale, "Next action")}</th>
@@ -277,7 +354,11 @@ export default async function FollowUpPage({
           </thead>
           <tbody>
             {visible.map((row) => (
-              <tr key={row.shipmentId} id={row.trackingNumber} className="border-t align-top">
+              <tr
+                key={row.id}
+                id={row.trackingNumber ?? undefined}
+                className="border-t align-top"
+              >
                 <td className="p-3">
                   <Link
                     href={`/app/customers/${row.customerId}`}
@@ -285,23 +366,67 @@ export default async function FollowUpPage({
                   >
                     {row.customerName}
                   </Link>
+                  {/*
+                    The badge that stops the wrong phone call.
+
+                    A credit row and an unpaid cash row are the same shape, and
+                    without this the desk cannot tell that the second one is a
+                    customer who has not paid and the first is a customer who
+                    does not have to yet. Red only once the granted date has
+                    passed; until then it is deliberately quiet, and it names the
+                    terms so nobody has to open the bill to learn them.
+                  */}
+                  {row.credit ? (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "ml-2 align-middle",
+                        row.credit.daysOverdue > 0
+                          ? "border-destructive/40 text-destructive"
+                          : "border-brand/40 text-brand"
+                      )}
+                    >
+                      {row.credit.termDays
+                        ? `${row.credit.termDays}${t(locale, "d credit")}`
+                        : t(locale, "credit")}
+                    </Badge>
+                  ) : null}
                   <div className="text-xs text-muted-foreground">
                     {row.customerPhone ?? t(locale, "no phone on file")}
                   </div>
                 </td>
                 <td className="p-3">
-                  <Link
-                    href={`/app/cargo/${row.trackingNumber}`}
-                    className="font-mono text-xs hover:text-brand hover:underline"
-                  >
-                    {row.trackingNumber}
-                  </Link>
-                  <div className="max-w-[16rem] truncate text-xs text-muted-foreground">
-                    {row.description}
-                  </div>
+                  {row.trackingNumber ? (
+                    <Link
+                      href={`/app/cargo/${row.trackingNumber}`}
+                      className="font-mono text-xs hover:text-brand hover:underline"
+                    >
+                      {row.trackingNumber}
+                    </Link>
+                  ) : (
+                    <span className="font-mono text-xs text-muted-foreground">—</span>
+                  )}
+                  {/* Only when there is something to say. A credit row knows the
+                      money and the dates, not what is in the boxes, and a line
+                      per row reporting that absence is a line the reader learns
+                      to skip. */}
+                  {row.description || row.credit?.batchNumber ? (
+                    <div className="max-w-[16rem] truncate text-xs text-muted-foreground">
+                      {row.description || row.credit?.batchNumber}
+                    </div>
+                  ) : null}
                 </td>
                 <td className="hidden p-3 lg:table-cell">
-                  <span className="tabular-nums">{row.daysInWarehouse}d</span>
+                  {/* Days on our floor for cash; days the debt has been standing
+                      for a credit, whose cargo left with the customer. */}
+                  {row.credit ? (
+                    <span className="tabular-nums text-muted-foreground">
+                      {row.credit.daysOnCredit}
+                      {t(locale, "d on credit")}
+                    </span>
+                  ) : (
+                    <span className="tabular-nums">{row.daysInWarehouse}d</span>
+                  )}
                   {/* The clock, in the money the customer will hand over.
                       This badge was the last dollar-only figure on the list —
                       the one number on the row a clerk reads out loud on the
@@ -361,9 +486,35 @@ export default async function FollowUpPage({
                   )}
                 </td>
                 <td className="p-3">
-                  <span className="font-medium">
+                  {/* Loud only when it is actually a chase. An overdue credit is
+                      red like a late bill; a credit still inside the terms the
+                      company granted is muted, because the instruction on it is
+                      to leave the customer alone. */}
+                  <span
+                    className={cn(
+                      "font-medium",
+                      row.credit === null
+                        ? ""
+                        : row.credit.daysOverdue > 0
+                          ? "text-destructive"
+                          : "text-muted-foreground"
+                    )}
+                  >
                     {t(locale, row.nextAction)}
                   </span>
+                  {/* The engine's own due wording, and the date it falls on —
+                      the two things a customer argues about on the phone. */}
+                  {row.credit ? (
+                    <div className="text-xs text-muted-foreground">
+                      {t(locale, row.credit.dueText)}
+                      {row.credit.dueDate
+                        ? ` · ${formatDate(row.credit.dueDate, locale)}`
+                        : ""}
+                      {row.credit.state === "PARTIALLY_PAID"
+                        ? ` · ${t(locale, row.credit.stateLabel)}`
+                        : ""}
+                    </div>
+                  ) : null}
                   {row.invoiceId ? (
                     <div className="mt-0.5">
                       <Link
@@ -373,7 +524,7 @@ export default async function FollowUpPage({
                         {row.invoiceNumber}
                       </Link>
                     </div>
-                  ) : (
+                  ) : row.trackingNumber ? (
                     <div className="mt-0.5">
                       <Link
                         href={`/app/cargo/${row.trackingNumber}`}
@@ -382,7 +533,7 @@ export default async function FollowUpPage({
                         {t(locale, "Open cargo")}
                       </Link>
                     </div>
-                  )}
+                  ) : null}
                 </td>
                 <td className="p-3">
                   {/* One icon per thing you can do, all the same size, each
@@ -402,16 +553,20 @@ export default async function FollowUpPage({
                       <a
                         href={whatsappLink(
                           row.customerPhone,
-                          row.invoiceId
-                            ? invoiceMessage(row)
-                            : `Habari ${row.customerName.split(" ")[0]}, kuhusu mzigo wako ${row.trackingNumber}.`
+                          row.credit
+                            ? creditMessage(row)
+                            : row.invoiceId
+                              ? invoiceMessage(row)
+                              : `Habari ${row.customerName.split(" ")[0]}, kuhusu mzigo wako ${row.trackingNumber}.`
                         )}
                         target="_blank"
                         rel="noopener noreferrer"
                         title={
-                          row.invoiceId
-                            ? `${t(locale, "Remind")} ${row.customerName} ${t(locale, "on WhatsApp — the bill, the accounts and the amount")}`
-                            : `${t(locale, "Message")} ${row.customerName} ${t(locale, "on WhatsApp")}`
+                          row.credit
+                            ? `${t(locale, "Remind")} ${row.customerName} ${t(locale, "on WhatsApp — the bill and the date it falls due")}`
+                            : row.invoiceId
+                              ? `${t(locale, "Remind")} ${row.customerName} ${t(locale, "on WhatsApp — the bill, the accounts and the amount")}`
+                              : `${t(locale, "Message")} ${row.customerName} ${t(locale, "on WhatsApp")}`
                         }
                         aria-label={`WhatsApp ${row.customerName}`}
                         className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-success/40 text-success transition-colors hover:bg-success/10"
@@ -426,20 +581,28 @@ export default async function FollowUpPage({
                     row.outstanding !== null &&
                     row.outstanding > 0 ? (
                       <Link
+                        /* A credit is settled against the BILL, never against
+                           the cargo: the boxes went home with the customer
+                           weeks ago, so the cargo page has nothing left to
+                           record a payment on — and collecting a credit must
+                           not look like a fresh sale. Same destination the
+                           credit book's own Collect action uses. */
                         href={
-                          canRecord
+                          canRecord && row.credit === null
                             ? `/app/cargo/${row.trackingNumber}`
                             : `/app/collections/record/${row.invoiceId}`
                         }
                         title={
-                          canRecord
-                            ? t(locale, "Record a payment against this cargo")
-                            : t(
-                                locale,
-                                "Collect the customer's proof and hand it to Finance"
-                              )
+                          row.credit !== null
+                            ? t(locale, "Take a payment against this credit")
+                            : canRecord
+                              ? t(locale, "Record a payment against this cargo")
+                              : t(
+                                  locale,
+                                  "Collect the customer's proof and hand it to Finance"
+                                )
                         }
-                        aria-label={`${t(locale, "Record a payment for")} ${row.trackingNumber}`}
+                        aria-label={`${t(locale, "Record a payment for")} ${row.invoiceNumber ?? row.trackingNumber}`}
                         className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-brand/40 text-brand transition-colors hover:bg-brand/10"
                       >
                         <Banknote className="h-3.5 w-3.5" />

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { activeAccounts } from "@/lib/accounts";
 import { RecordIncome } from "@/components/app/record-income";
+import { creditNotInTheLedger } from "@/lib/credit-queries";
 import {
   COMMON_EXPENSES,
   EXPENSE_CATEGORY_LABELS,
@@ -160,8 +161,17 @@ export default async function LedgerPage({
     ];
   }
 
-  const [accounts, people, entries, total, totals, rateRow, unpaid, unpaidByKind] =
-    await Promise.all([
+  const [
+    accounts,
+    people,
+    entries,
+    total,
+    totals,
+    rateRow,
+    unpaid,
+    unpaidByKind,
+    credit,
+  ] = await Promise.all([
       activeAccounts(),
       prisma.user.findMany({
         where: { ledgerEntries: { some: {} } },
@@ -184,6 +194,10 @@ export default async function LedgerPage({
               invoice: {
                 select: {
                   customer: { select: { name: true } },
+                  /* Which side of §13 this line is on. A payment against a bill
+                     that was released on credit is a debt being settled, not a
+                     sale — same ledger kind, opposite meaning. */
+                  creditStatus: true,
                   // What the customer actually shipped. This is the answer to
                   // "what was this payment for", and it was not being asked for.
                   shipment: {
@@ -239,6 +253,13 @@ export default async function LedgerPage({
         _sum: { amountUsd: true },
         _count: true,
       }),
+      /* Revenue this register cannot hold, for the same reason the unpaid costs
+         above are not in it: no money has moved. Asked only of a desk allowed to
+         read the credit book — ledger.view and credit.view happen to travel
+         together today, and a figure never fetched cannot leak if they stop. */
+      can(user.role, "credit.view")
+        ? creditNotInTheLedger()
+        : Promise.resolve(null),
     ]);
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
@@ -290,6 +311,49 @@ export default async function LedgerPage({
     rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : formatUsd(usd);
   const showBalance = (value: number) =>
     single ? formatMoney(value, single.currency) : tsh(value);
+
+  /**
+   * What KIND of transaction a line is, in the words the business uses.
+   *
+   * The interesting distinction is not in `kind` — it is inside
+   * CUSTOMER_PAYMENT, and this column could not see it. Money handed over at the
+   * counter for cargo is a SALE. Money handed over against a bill released on
+   * credit three weeks ago is a debt being SETTLED: the sale already happened,
+   * off this register, and reading it as a second sale would count the same
+   * revenue twice in one month. Same kind, same account, opposite meaning, so
+   * the answer comes from the invoice's credit status rather than from `kind`.
+   *
+   * §13 also names a REFUND type, and this schema has no such instrument. Money
+   * genuinely going back to a customer is a cost — filed under Customer
+   * compensation, the claim payout — and it already reads as that here. What is
+   * NOT a refund is a reversing line, however much it looks like one: those come
+   * from voiding a payment that should never have been recorded, the wrong
+   * customer or the wrong bill or money that never cleared, so the figure comes
+   * back out of the account it went into and usually nowhere near the customer.
+   * Labelling that "Refund" would tell the reader the company paid somebody.
+   * Either way this column said "Freight income" on it — money arriving, on the
+   * row where it left.
+   *
+   * An expense keeps its category instead of the word "Expense". "Customs" is an
+   * expense type and a more useful one, and the red debit column has already
+   * said which way the money went.
+   */
+  const typeOf = (entry: (typeof entries)[number]) => {
+    if (entry.reversesId) return t(locale, "Correction");
+    if (entry.expense) {
+      return t(
+        locale,
+        EXPENSE_CATEGORY_LABELS[entry.expense.category] ?? entry.expense.category
+      );
+    }
+    if (entry.payment) {
+      return entry.payment.invoice.creditStatus === "APPROVED"
+        ? t(locale, "Credit payment")
+        : t(locale, "Cash sale");
+    }
+    if (entry.transfer) return t(locale, "Between accounts");
+    return t(locale, KIND_LABEL[entry.kind] ?? entry.kind);
+  };
 
   const pageLink = (nextPage: number) => {
     const next = new URLSearchParams();
@@ -450,6 +514,66 @@ export default async function LedgerPage({
         </p>
       ) : null}
 
+      {/*
+        Where a credit sale is, given this register cannot hold one.
+
+        A credit sale posts no ledger entry, and it must not: the cargo went, the
+        revenue is real and no account was touched, so a row for it would put a
+        figure into a running balance that no bank statement will ever show. The
+        register stays a cash register.
+
+        What it cannot do is stay silent. Somebody totalling Money in above and
+        calling it "what we sold" is wrong by exactly this much, and an absence
+        nobody explains reads as a missing row. So the gap is named, with the
+        amount, and it says where those sales do live.
+
+        The collected half of a credit IS above — as a payment, dated the day the
+        money actually arrived. Those are the lines typed "Credit payment" rather
+        than "Cash sale", which is the whole point of §13's distinction.
+      */}
+      {credit && (credit.outstandingUsd > 0.005 || credit.waivedUsd > 0.005) ? (
+        <p className="mb-4 text-sm text-muted-foreground">
+          {credit.outstandingUsd > 0.005 ? (
+            <>
+              <Link
+                href="/app/finance/credit"
+                className="font-medium text-brand hover:underline"
+              >
+                {tsh(credit.outstandingUsd)}{" "}
+                {t(locale, "billed on credit and still owed")}
+              </Link>
+              {" — "}
+              {credit.count}{" "}
+              {t(locale, credit.count === 1 ? "credit sale" : "credit sales")}
+              {credit.overdueCount > 0 ? (
+                <span className="font-medium text-destructive">
+                  {", "}
+                  {credit.overdueCount} {t(locale, "overdue")}
+                </span>
+              ) : null}
+              {". "}
+              {t(
+                locale,
+                "None of it is in this register: a credit sale moves no money, so it touches no account. It appears here as a credit payment on the day the customer pays."
+              )}{" "}
+            </>
+          ) : null}
+          {/* Forgiven debt is out of exposure but never out of sight, and it has
+              its own condition rather than riding on the line above: a month
+              where the desk wrote off millions and collected everything else
+              would otherwise print nothing at all and read like a quiet one. */}
+          {credit.waivedUsd > 0.005 ? (
+            <span className="text-warning">
+              {tsh(credit.waivedUsd)}{" "}
+              {t(
+                locale,
+                "of credit has been written off, and that never appears here at all."
+              )}
+            </span>
+          ) : null}
+        </p>
+      ) : null}
+
       {entries.length === 0 ? (
         <EmptyState
           title={
@@ -565,6 +689,15 @@ export default async function LedgerPage({
                   <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                     <span>{formatDate(entry.occurredAt, locale)}</span>
                     <span aria-hidden>·</span>
+                    {/* The type belongs on the phone too. It is the difference
+                        between a sale and a debt being settled, and hiding it on
+                        small screens the way the table's column used to hide it
+                        below lg left the two looking identical to whoever was
+                        holding the phone. */}
+                    <span className="font-medium text-foreground">
+                      {typeOf(entry)}
+                    </span>
+                    <span aria-hidden>·</span>
                     <span className="truncate">{entry.account.name}</span>
                     {refs.map((ref) => (
                       <span key={ref} className="whitespace-nowrap font-mono text-muted-foreground/70">
@@ -584,8 +717,12 @@ export default async function LedgerPage({
               <TableRow>
                 <TableHead>{t(locale, "Date")}</TableHead>
                 <TableHead>{t(locale, "Description")}</TableHead>
-                <TableHead className="hidden lg:table-cell">
-                  {t(locale, "Category")}
+                {/* Visible from md rather than lg. The difference between a cash
+                    sale and a credit payment changes what the figure beside it
+                    means, and a classification that disappears on a laptop is
+                    not one. */}
+                <TableHead className="hidden md:table-cell">
+                  {t(locale, "Type")}
                 </TableHead>
                 <TableHead className="hidden md:table-cell">
                   {t(locale, "Account")}
@@ -672,18 +809,14 @@ export default async function LedgerPage({
                  * one. The badge is gone; whether money came in or went out is
                  * already unmistakable from which of the two amount columns
                  * the figure is sitting in.
+                 *
+                 * So §13's transaction type went into this column rather than
+                 * beside it. `typeOf` is the single derivation, shared with the
+                 * phone list above, because two implementations of "is this a
+                 * sale or a debt being settled" would disagree the first time
+                 * one of them was edited.
                  */
-                const category = entry.expense
-                  ? t(
-                      locale,
-                      EXPENSE_CATEGORY_LABELS[entry.expense.category] ??
-                        entry.expense.category
-                    )
-                  : entry.kind === "CUSTOMER_PAYMENT"
-                    ? t(locale, "Freight income")
-                    : entry.transfer
-                      ? t(locale, "Between accounts")
-                      : t(locale, KIND_LABEL[entry.kind] ?? entry.kind);
+                const category = typeOf(entry);
 
                 /*
                   The boss taking money out is marked in gold, and only that.
@@ -749,7 +882,7 @@ export default async function LedgerPage({
                       </span>
                     </TableCell>
 
-                    <TableCell className="hidden whitespace-nowrap py-2.5 text-xs lg:table-cell">
+                    <TableCell className="hidden whitespace-nowrap py-2.5 text-xs md:table-cell">
                       {/* The gold already marks these rows; naming the person
                           as well was the colour and the caption doing one job
                           twice — and it is not a word to leave on a screen

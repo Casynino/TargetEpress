@@ -71,7 +71,13 @@ import {
   floorSnapshot,
   type FloorSnapshot,
 } from "@/lib/floor";
-import { profitByDispatch } from "@/lib/profit";
+import { monthWindow, profitAndLoss, profitByDispatch } from "@/lib/profit";
+import {
+  creditAlerts,
+  creditCollectionOutlook,
+  creditOverview,
+} from "@/lib/credit-queries";
+import { creditAttention } from "@/lib/support";
 import { FlightProfitTable } from "@/components/app/flight-profit-table";
 import { MoneyTile } from "@/components/app/money-tile";
 import { auditSentence } from "@/lib/audit-humanise";
@@ -1585,6 +1591,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     unattributed,
     owedOut,
     spent,
+    creditBook,
+    outlook,
+    month,
+    creditWarnings,
   ] = await Promise.all([
     financeStats(),
     agingInWarehouse(6),
@@ -1623,6 +1633,20 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       _count: true,
       _sum: { amountUsd: true },
     }),
+    /* The credit book, from the one place that computes it — the same figures
+       the settlements page prints, so the desk cannot read one number here and a
+       different one there. */
+    creditOverview(),
+    creditCollectionOutlook(),
+    /* This month's billing, only for the cash-against-credit split. Both halves
+       have to come out of one revenue figure or the comparison is two totals
+       from two queries that need not add up to anything. */
+    profitAndLoss(monthWindow(0, locale)),
+    /* §19's warnings. The credit strip further down this page is the position;
+       these are the five things about it that are somebody's job today, and they
+       belong in the panel this desk already reads first rather than in a band it
+       has to notice. */
+    creditAlerts(),
   ]);
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
@@ -1637,6 +1661,15 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
   const collectedThisMonth = revenue.values[revenue.values.length - 1] ?? 0;
   const collectedThisYear = revenue.values.reduce((a, b) => a + b, 0);
   const netThisMonth = flow.net[flow.net.length - 1] ?? 0;
+
+  /*
+    The month's billing split into the half that is money and the half that is a
+    promise. Both amounts and this percentage come off one revenue figure, so the
+    bar cannot disagree with the words printed under it — and a month that has
+    billed nothing has no share at all rather than a flattering zero.
+  */
+  const creditShare =
+    month.revenue > 0 ? (month.creditRevenue / month.revenue) * 100 : null;
 
 
   // Cash available: every account's own balance, added up through the dollar
@@ -1789,6 +1822,15 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       href: alert.href ?? "/app/exceptions",
       value: alert.meta,
     })),
+    /* Credit as rows under a Credit pill, from the same composer the support desk
+       and the owner read — one set of sentences, so two desks cannot end up
+       describing one customer's limit differently and making the same decision
+       twice. This desk decides requests, and its rows say so. */
+    ...creditAttention(creditWarnings, {
+      locale,
+      rate,
+      canApprove: can(role, "credit.approve"),
+    }),
   ];
 
   /**
@@ -1977,6 +2019,157 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
         />
         </div>
       </div>
+
+      {/* ---- Cargo released before payment ---- */}
+      {/*
+        The credit book, deliberately its own strip and deliberately below the
+        cash.
+
+        Not one shilling of this is in "Cash available" above, and the desk
+        reading the two rows together has to be able to tell which figure is
+        money and which is a promise. So: one strip for the position, one row for
+        the two comparisons — is this month's revenue cash or credit, and did the
+        money that was promised by today actually turn up. The invoice-by-invoice
+        list is the credit page's job, not a dashboard's.
+
+        Absent entirely until credit exists, because a strip of five zeros
+        teaches people to skip the band it stands in.
+      */}
+      {creditBook.creditCount > 0 ? (
+        <div>
+          <SectionLabel
+            action={{
+              href: "/app/finance/credit",
+              label: t(locale, "The credit book"),
+            }}
+          >
+            {t(locale, "Credit · released before payment")}
+          </SectionLabel>
+
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3 lg:grid-cols-5">
+            {[
+              { k: "Sold on credit", v: tsh(creditBook.soldUsd), tone: "" },
+              {
+                k: "Collected",
+                v: tsh(creditBook.collectedUsd),
+                tone: "text-success",
+              },
+              {
+                k: "Still owed",
+                v: tsh(creditBook.outstandingUsd),
+                tone: "text-brand",
+              },
+              {
+                k: "Overdue",
+                v: tsh(creditBook.overdueUsd),
+                tone: "text-destructive",
+              },
+              {
+                k: "Credit collection rate",
+                v:
+                  creditBook.collectionRate === null
+                    ? "—"
+                    : `${creditBook.collectionRate.toFixed(0)}%`,
+                tone: "",
+              },
+            ].map((cell) => (
+              <div key={cell.k} className="bg-card px-3 py-2.5">
+                <dt className="text-[11px] text-muted-foreground">
+                  {t(locale, cell.k)}
+                </dt>
+                <dd
+                  className={`font-display text-sm font-bold leading-tight tabular ${cell.tone}`}
+                >
+                  {cell.v}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          {/* The two comparisons, as two cells of the same strip. Bars are divs
+              against a track — the shape the aging bands already use — so there
+              is no chart library and no script for the CSP to refuse. */}
+          <div className="mt-2 grid grid-cols-1 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2">
+            <div className="bg-card px-3 py-2.5">
+              <p className="text-[11px] text-muted-foreground">
+                {t(locale, "Billed this month · cash against credit")}
+              </p>
+              <p className="font-display text-sm font-bold leading-tight tabular">
+                {creditShare === null
+                  ? t(locale, "Nothing billed yet this month")
+                  : `${creditShare.toFixed(0)}% ${t(locale, "on credit")}`}
+              </p>
+              {creditShare === null ? null : (
+                <>
+                  <div className="mt-1.5 flex h-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full bg-success"
+                      style={{ width: `${100 - creditShare}%` }}
+                    />
+                    <div
+                      className="h-full bg-brand"
+                      style={{ width: `${creditShare}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {tsh(month.cashRevenue)} {t(locale, "cash")} ·{" "}
+                    {tsh(month.creditRevenue)} {t(locale, "credit")}
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/*
+              Expected against actual, and only on credit that has already come
+              round. Measuring it over the whole book would score a shelf full of
+              fresh 30-day terms as a collection failure.
+            */}
+            <div className="bg-card px-3 py-2.5">
+              <p className="text-[11px] text-muted-foreground">
+                {t(locale, "Promised by today · what arrived")}
+              </p>
+              <p
+                className={`font-display text-sm font-bold leading-tight tabular ${
+                  outlook.metRate === null
+                    ? ""
+                    : outlook.metRate >= 80
+                      ? "text-success"
+                      : outlook.metRate >= 50
+                        ? "text-warning"
+                        : "text-destructive"
+                }`}
+              >
+                {outlook.metRate === null
+                  ? t(locale, "No credit has come due yet")
+                  : `${outlook.metRate.toFixed(0)}% ${t(locale, "arrived")}`}
+              </p>
+              {outlook.metRate === null ? null : (
+                <>
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-success"
+                      style={{ width: `${Math.min(100, outlook.metRate)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {tsh(outlook.actualUsd)} {t(locale, "of")}{" "}
+                    {tsh(outlook.expectedUsd)}
+                    {outlook.shortfallUsd > 0.005
+                      ? ` · ${tsh(outlook.shortfallUsd)} ${t(locale, "still short")}`
+                      : ""}
+                    {/* Forgiven debt is out of the expectation above but never
+                        off the screen: a desk that wrote off everything it was
+                        owed must not read as a desk that collected it. */}
+                    {outlook.waivedUsd > 0.005
+                      ? ` · ${tsh(outlook.waivedUsd)} ${t(locale, "written off")}`
+                      : ""}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* ---- What it has been doing, and where it is sitting ---- */}
       {/*
@@ -2265,6 +2458,7 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     ownerItems,
     flow,
     owed,
+    creditWarnings,
   ] = await Promise.all([
     executiveStats(),
     monthlyVolume(new Date(), locale),
@@ -2280,6 +2474,10 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
     currentRate().then((row) => ownerAttention(row ? toNumber(row.rate) : null, locale)),
     cashFlowByMonth(new Date(), locale),
     receivablesAgeing(),
+    /* §19. ownerAttention composes each desk's own problem set, and credit is the
+       one exposure that belongs to no desk's cargo: it is not a box anybody is
+       holding, it is money that left the building on a promise. */
+    creditAlerts(),
   ]);
   const execRate = execRateRow ? toNumber(execRateRow.rate) : null;
   const execTsh = (usd: number) =>
@@ -2295,8 +2493,21 @@ async function ExecutiveDashboard({ role }: { role: "ADMIN" }) {
    * and a desk quietly failing at scale must not read as a clear desk. Grouped
    * by the department that owns the fix, because "which of my desks" is the
    * first thing this reader needs.
+   *
+   * Credit is appended as its own group rather than folded into Finance's, and
+   * the reason is what the rows are: cargo the company let go of before being
+   * paid. The owner grants the facilities, so the two limit warnings are his
+   * question before they are anybody else's — and they are rows in this one
+   * bounded panel, never a new section, which is the standing rule about it.
    */
-  const attention: AttnItem[] = ownerItems;
+  const attention: AttnItem[] = [
+    ...ownerItems,
+    ...creditAttention(creditWarnings, {
+      locale,
+      rate: execRate,
+      canApprove: can(role, "credit.approve"),
+    }),
+  ];
 
   const positionSlices = [
     { label: t(locale, "In Guangzhou"), value: position.inChina, tone: 2 as const },

@@ -22,12 +22,19 @@ import { FlowBars } from "@/components/charts/flow-bars";
 import { CargoSearch } from "@/components/app/cargo-search";
 import { QuickAction } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
+import { creditAlerts } from "@/lib/credit-queries";
 import { formatDateTime, formatWeekdayDate, toNumber } from "@/lib/format";
 import { currentRate, formatLocal, formatShillings, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
-import { followUpQueue, supportOverview, ticketFlowByDay } from "@/lib/support";
+import {
+  creditAttention,
+  followUpQueue,
+  supportOverview,
+  ticketFlowByDay,
+} from "@/lib/support";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Support desk" };
@@ -85,9 +92,13 @@ export default async function SupportHome() {
     callBacks,
     submissions,
     ticketFlow,
+    alerts,
   ] = await Promise.all([
     supportOverview(),
-    followUpQueue(),
+    // Credit rides in this queue now. This desk holds credit.view — it asks for
+    // credit and watches it — but the gate is passed rather than assumed, so a
+    // role that loses the permission loses the rows with it.
+    followUpQueue({ credit: can(user.role, "credit.view") }),
     prisma.supportTicket.findMany({
       where: { status: { in: ["OPEN", "IN_PROGRESS", "WAITING_CUSTOMER"] } },
       orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
@@ -127,6 +138,11 @@ export default async function SupportHome() {
     prisma.paymentSubmission.groupBy({ by: ["status"], _count: true }),
     // Whether this desk is keeping up, which the open count cannot say.
     ticketFlowByDay(14),
+    // §19. Asked for even where nothing can be done about it: a limit filling up
+    // is the reason this desk stops promising a customer credit it is about to be
+    // refused, and the request it raised yesterday is the reason it stops asking
+    // Finance twice.
+    can(user.role, "credit.view") ? creditAlerts() : Promise.resolve([]),
   ]);
   const submissionCount = (status: string) =>
     submissions.find((row) => row.status === status)?._count ?? 0;
@@ -185,7 +201,18 @@ export default async function SupportHome() {
   const blockerOf = (row: (typeof queue)[number]): Blocker =>
     (row.outstanding ?? 0) <= 0 ? "settled" : "chasing";
 
-  const group = (blocker: Blocker) => queue.filter((row) => blockerOf(row) === blocker);
+  /**
+   * The warehouse half of the queue, which is what every picture below draws.
+   *
+   * The queue carries credit now, and a credit's cargo has already gone home
+   * with the customer. Counting those rows in "what is on the floor in Dar" or
+   * in "how long it has stood there" would put weeks-old debt into a chart about
+   * boxes, and the total under the ring would stop matching the warehouse.
+   */
+  const inWarehouse = queue.filter((row) => row.kind === "cash");
+
+  const group = (blocker: Blocker) =>
+    inWarehouse.filter((row) => blockerOf(row) === blocker);
   const chasing = group("chasing");
   const settled = group("settled");
 
@@ -214,11 +241,11 @@ export default async function SupportHome() {
   ];
   const ageing = AGE_BUCKETS.map((bucket) => ({
     label: t(locale, bucket.label),
-    value: queue.filter(
+    value: inWarehouse.filter(
       (row) => row.daysInWarehouse >= bucket.min && row.daysInWarehouse <= bucket.max
     ).length,
   }));
-  const stale = queue.filter((row) => row.daysInWarehouse >= 15).length;
+  const stale = inWarehouse.filter((row) => row.daysInWarehouse >= 15).length;
 
   const jobs = [
     {
@@ -234,7 +261,9 @@ export default async function SupportHome() {
       group: "Collections",
       when: chasing.length > 0,
       label: `${chasing.length} customer${chasing.length === 1 ? "" : "s"} to chase`,
-      detail: t(locale, "Billed, and the money has not arrived."),
+      // "Billed on cash terms", because the row beside it is now billed too — a
+      // credit inside its terms is also billed and is expressly not a chase.
+      detail: t(locale, "Billed on cash terms, and the money has not arrived."),
       usd: sum(chasing),
       href: "/app/collections/follow-up?filter=awaiting-payment",
       cta: t(locale, "Chase"),
@@ -291,18 +320,32 @@ export default async function SupportHome() {
    * The same panel the warehouse floor and the money desk use.
    *
    * One heading, fixed height, pills that filter — rather than a band that grows
-   * a row every time this desk acquires another kind of thing to chase.
+   * a row every time this desk acquires another kind of thing to chase. Credit
+   * arrives as more rows under a Credit pill for exactly that reason: §19's five
+   * warnings would otherwise have been a sixth section on a page whose owner has
+   * asked four times for fewer of them.
    */
-  const attention: AttnItem[] = jobs.map((job) => ({
-    id: job.href,
-    group: job.group,
-    severity: (job.urgent ? "critical" : "info") as AttnItem["severity"],
-    label: job.label,
-    detail: job.detail,
-    href: job.href,
-    value: job.usd !== undefined ? money(job.usd) : job.aside,
-    valueSub: job.usd !== undefined ? (inUsd(job.usd) ?? undefined) : undefined,
-  }));
+  const attention: AttnItem[] = [
+    ...jobs.map((job) => ({
+      id: job.href,
+      group: job.group,
+      severity: (job.urgent ? "critical" : "info") as AttnItem["severity"],
+      label: job.label,
+      detail: job.detail,
+      href: job.href,
+      value: job.usd !== undefined ? money(job.usd) : job.aside,
+      valueSub: job.usd !== undefined ? (inUsd(job.usd) ?? undefined) : undefined,
+    })),
+    /* This desk asks for credit and never grants it, so `canApprove` is what its
+       rows say out loud: a request it raised is progress to watch, not work to
+       do, and telling Support that cargo is waiting on THEM would send them to a
+       button they do not have. */
+    ...creditAttention(alerts, {
+      locale,
+      rate,
+      canApprove: can(user.role, "credit.approve"),
+    }),
+  ];
 
   return (
     <>
@@ -461,7 +504,7 @@ export default async function SupportHome() {
                   value: slice.rows.length,
                   tone: slice.tone,
                 }))}
-                label={String(queue.length)}
+                label={String(inWarehouse.length)}
                 caption={t(locale, "consignments in the warehouse")}
               />
               <ul className="min-w-[13rem] flex-1 space-y-1">
@@ -583,25 +626,61 @@ export default async function SupportHome() {
             </header>
             <ul className="divide-y">
               {topOfQueue.map((row) => (
-                <li key={row.shipmentId}>
+                <li key={row.id}>
                   <Link
-                    href={`/app/collections/follow-up?filter=all#${row.trackingNumber}`}
+                    href={
+                      row.trackingNumber
+                        ? `/app/collections/follow-up?filter=all#${row.trackingNumber}`
+                        : "/app/collections/follow-up?filter=credit"
+                    }
                     className="flex flex-wrap items-center justify-between gap-3 p-4 transition-colors hover:bg-accent/40"
                   >
                     <div className="min-w-0">
                       <p className="font-medium">{row.customerName}</p>
                       <p className="font-mono text-xs text-muted-foreground">
-                        {row.trackingNumber} · {cargoText(locale, row, "description")}
+                        {[
+                          row.trackingNumber,
+                          cargoText(locale, row, "description"),
+                          // A credit has no cargo line to print — the boxes went
+                          // home with the customer. The bill is what is left of
+                          // it, so the bill is what identifies the row.
+                          row.credit ? row.invoiceNumber : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
+                      {/* Terms, where there are terms. The same badge the call
+                          list carries, and red only once the granted date has
+                          gone by. */}
+                      {row.credit ? (
+                        <Badge
+                          variant="outline"
+                          className={
+                            row.credit.daysOverdue > 0
+                              ? "border-destructive/40 text-destructive"
+                              : "border-brand/40 text-brand"
+                          }
+                        >
+                          {t(locale, row.credit.dueText)}
+                        </Badge>
+                      ) : null}
                       {row.storageDays > 0 ? (
                         <Badge variant="outline" className="border-destructive/40 text-destructive">
                           {row.storageDays}d {t(locale, "storage")}
                         </Badge>
                       ) : null}
                       <div className="text-right">
-                        <p className="text-sm font-medium">{t(locale, row.nextAction)}</p>
+                        <p
+                          className={
+                            row.credit !== null && row.credit.daysOverdue === 0
+                              ? "text-sm font-medium text-muted-foreground"
+                              : "text-sm font-medium"
+                          }
+                        >
+                          {t(locale, row.nextAction)}
+                        </p>
                         {/* What is owed, in shillings — this is the number read
                             down the phone. The whole call list printed it in
                             dollars, so the clerk was converting in their head
@@ -636,7 +715,10 @@ export default async function SupportHome() {
               ))}
               {topOfQueue.length === 0 ? (
                 <li className="p-8 text-center text-sm text-muted-foreground">
-                  {t(locale, "Nothing waiting in the Dar warehouse. Quiet day.")}
+                  {t(
+                    locale,
+                    "Nothing waiting in the Dar warehouse and no credit outstanding. Quiet day."
+                  )}
                 </li>
               ) : null}
             </ul>

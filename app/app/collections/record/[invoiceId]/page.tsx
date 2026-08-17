@@ -7,8 +7,10 @@ import { CollectionsNav } from "@/components/app/collections-nav";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
 import { PageHeader } from "@/components/app/page-header";
+import { CreditRequest } from "@/components/app/credit-request";
+import { PaymentTypeChoice } from "@/components/app/payment-type-choice";
 import { RecordCollectionForm } from "@/components/app/record-collection-form";
-import { formatMoney, toNumber } from "@/lib/format";
+import { formatDate, formatMoney, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -49,7 +51,24 @@ export default async function RecordCollectionPage({
         currency: true,
         storageCharge: true,
         storageWaivedUsd: true,
-        customer: { select: { id: true, name: true, phone: true } },
+        /* The credit state of this bill, and the customer's facility, because
+           the cash-or-credit choice is made on THIS screen. */
+        creditStatus: true,
+        creditTermDays: true,
+        creditRequestNote: true,
+        creditDecisionNote: true,
+        dueDate: true,
+        creditRequestedBy: { select: { name: true } },
+        creditDecidedBy: { select: { name: true } },
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            creditLimitUsd: true,
+            creditTermDays: true,
+          },
+        },
         shipment: {
           select: { trackingNumber: true, ...selectText("description") },
         },
@@ -73,6 +92,10 @@ export default async function RecordCollectionPage({
   const storageWaived = toNumber(invoice.storageWaivedUsd);
   const outstanding = toNumber(invoice.total) - toNumber(invoice.amountPaid);
   const pending = invoice.submissions[0];
+  /* Whether this desk may offer credit at all. Support and Finance hold
+     credit.request; neither warehouse does, and neither reaches this screen. */
+  const canAskCredit =
+    can(user.role, "credit.request") && invoice.creditStatus !== "APPROVED";
 
   return (
     <>
@@ -131,16 +154,100 @@ export default async function RecordCollectionPage({
                 "is already with Finance for this bill. Wait for it to be checked rather than sending a second claim — two submissions against one invoice is the same money verified twice."
               )}
             </p>
+          ) : invoice.creditStatus === "APPROVED" ? (
+            /* Already going out on credit. Money may still arrive against it —
+               a credit customer settling early is the normal happy ending — so
+               the form stays, under a band that says what the bill actually is. */
+            <>
+              <p className="mb-4 rounded-lg border border-warning/40 bg-warning/[0.06] p-4 text-sm">
+                <span className="font-semibold text-warning">
+                  {t(locale, "ON CREDIT — payment pending")}
+                </span>
+                {invoice.dueDate
+                  ? ` · ${t(locale, "due")} ${formatDate(invoice.dueDate, locale)}`
+                  : ""}
+                {invoice.creditDecidedBy?.name
+                  ? ` · ${t(locale, "approved by")} ${invoice.creditDecidedBy.name}`
+                  : ""}
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  {t(
+                    locale,
+                    "The cargo may be collected unpaid. Record a payment here whenever the customer settles — it comes off this same bill."
+                  )}
+                </span>
+              </p>
+              <RecordCollectionForm
+                invoiceId={invoice.id}
+                invoiceNumber={invoice.invoiceNumber}
+                customerName={invoice.customer.name}
+                trackingNumber={invoice.shipment.trackingNumber}
+                goods={cargoText(locale, invoice.shipment, "description")}
+                outstanding={outstanding}
+                currency={invoice.currency}
+                rate={rate}
+              />
+            </>
+          ) : invoice.creditStatus === "REQUESTED" ? (
+            <p className="rounded-lg border border-brand/40 bg-brand/[0.05] p-4 text-sm">
+              <span className="font-semibold text-brand">
+                {t(locale, "Credit requested — waiting on Finance")}
+              </span>
+              {invoice.creditTermDays
+                ? ` · ${invoice.creditTermDays} ${t(locale, "day terms")}`
+                : ""}
+              {invoice.creditRequestedBy?.name
+                ? ` · ${t(locale, "asked by")} ${invoice.creditRequestedBy.name}`
+                : ""}
+              <span className="mt-1 block text-xs text-muted-foreground">
+                {t(
+                  locale,
+                  "The cargo stays where it is until Finance answers. Nothing else is needed on this screen."
+                )}
+              </span>
+            </p>
           ) : (
-            <RecordCollectionForm
-              invoiceId={invoice.id}
-              invoiceNumber={invoice.invoiceNumber}
-              customerName={invoice.customer.name}
-              trackingNumber={invoice.shipment.trackingNumber}
-              goods={cargoText(locale, invoice.shipment, "description")}
-              outstanding={outstanding}
-              currency={invoice.currency}
-              rate={rate}
+            /*
+              CASH OR CREDIT, on the screen where the question is actually asked.
+
+              This choice was built on the invoice page first, which was wrong:
+              the person deciding it is whoever is looking at the customer's
+              money, and that is this screen. Cash is the default and stays
+              exactly one form — nothing was added to the common path.
+            */
+            <PaymentTypeChoice
+              cash={
+                <RecordCollectionForm
+                  invoiceId={invoice.id}
+                  invoiceNumber={invoice.invoiceNumber}
+                  customerName={invoice.customer.name}
+                  trackingNumber={invoice.shipment.trackingNumber}
+                  goods={cargoText(locale, invoice.shipment, "description")}
+                  outstanding={outstanding}
+                  currency={invoice.currency}
+                  rate={rate}
+                />
+              }
+              credit={
+                canAskCredit ? (
+                  <CreditRequest
+                    invoiceId={invoice.id}
+                    outstanding={`${invoice.currency} ${outstanding.toFixed(2)}`}
+                    defaultTerm={invoice.customer.creditTermDays ?? 14}
+                    limitLabel={
+                      invoice.customer.creditLimitUsd === null
+                        ? null
+                        : `USD ${toNumber(invoice.customer.creditLimitUsd).toFixed(2)}`
+                    }
+                    outstandingLabel={null}
+                    startOpen
+                  />
+                ) : null
+              }
+              refused={
+                invoice.creditStatus === "REJECTED"
+                  ? invoice.creditDecisionNote ?? true
+                  : null
+              }
             />
           )}
         </section>

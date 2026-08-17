@@ -1,6 +1,7 @@
 import "server-only";
 
 import { STORAGE_POLICY, storageDaysFor } from "@/lib/constants";
+import { batchCreditRevenue } from "@/lib/credit-queries";
 import { toNumber } from "@/lib/format";
 import { currentRateValue, toLocal } from "@/lib/fx";
 import type { Locale } from "@/lib/locale";
@@ -68,6 +69,32 @@ export type BatchFinance = {
   receivedUsd: number;
   /** Billed but not yet paid. Estimates are excluded — nobody owes an estimate. */
   outstandingUsd: number;
+
+  /**
+   * How much of this flight left the warehouse unpaid, by agreement.
+   *
+   * The band already reported billed, collected and outstanding, and could not
+   * tell the difference between a customer who has not turned up and a customer
+   * Finance agreed to wait for. Those are opposite problems: one is a collection
+   * failure, the other is a decision the company made on purpose, and a single
+   * outstanding total hid which one a flight had.
+   *
+   * NEITHER of these is cash. `creditBilledUsd` is revenue billed on terms;
+   * `cashBilledUsd` is revenue billed for payment on collection — also not money
+   * in hand. `receivedUsd` remains the only figure on this object describing
+   * money that has actually arrived. The split is derived by subtraction from
+   * `billedUsd`, on the same basis, rather than stored anywhere.
+   */
+  creditBilledUsd: number;
+  cashBilledUsd: number;
+  /** Of the credit, what has come back. Already inside `receivedUsd`. */
+  creditCollectedUsd: number;
+  /** Of `outstandingUsd`, the part sitting on agreed terms rather than unpaid. */
+  creditOutstandingUsd: number;
+  /** Of that, the part now past its due date. A phone call list. */
+  creditOverdueUsd: number;
+  creditCount: number;
+  creditOverdueCount: number;
 
   /**
    * What this flight cost to move: customs, port charges, clearing, transport,
@@ -293,24 +320,33 @@ export async function batchFinance(
     rate === null ? null : invoicedTzs + toLocal(estimatedUsd, rate);
 
   /*
-    What the flight cost.
+    Who cannot be rung, what the flight cost, and how much of it went out on
+    terms. Three independent reads, so one round trip rather than three.
 
-    Already stored in USD on the row, frozen at the rate on the day it was
-    recorded, so a shilling cost and a dollar cost can be added together
-    without re-converting history every time this page is opened.
+    Costs are already stored in USD on the row, frozen at the rate on the day
+    they were recorded, so a shilling cost and a dollar cost can be added
+    together without re-converting history every time this page is opened.
+
+    The credit side is asked of lib/credit-queries.ts rather than worked out from
+    the invoices already in hand above. Every one of them is sitting in `cargo`
+    and it would be four lines to total the APPROVED ones here — which is
+    exactly how this app got two answers to "what is still owed" four times
+    running, one of them always a week out of date.
   */
-  const unreachable = await prisma.shipment.count({
-    where: { batchId, deletedAt: null, customer: { phone: null } },
-  });
-
-  const costs = await prisma.expense.findMany({
-    where: {
-      batchId,
-      status: { not: "VOID" },
-      expenseClass: "OPERATING",
-    },
-    select: { amountUsd: true, amount: true, currency: true },
-  });
+  const [unreachable, costs, credit] = await Promise.all([
+    prisma.shipment.count({
+      where: { batchId, deletedAt: null, customer: { phone: null } },
+    }),
+    prisma.expense.findMany({
+      where: {
+        batchId,
+        status: { not: "VOID" },
+        expenseClass: "OPERATING",
+      },
+      select: { amountUsd: true, amount: true, currency: true },
+    }),
+    batchCreditRevenue(batchId),
+  ]);
   const expensesUsd = costs.reduce((sum, c) => sum + toNumber(c.amountUsd), 0);
   const expensesTzs =
     rate === null
@@ -325,6 +361,23 @@ export async function batchFinance(
         );
   const billedUsd = invoicedUsd - draftsUsd;
   const netProfitUsd = billedUsd - expensesUsd;
+
+  /*
+    Cash revenue is what is left of billed revenue once the credit is taken out.
+
+    Derived, not counted a second time. Walking the invoices again here to add up
+    the ones whose creditStatus is APPROVED would put a second answer to "how
+    much of this flight went out on terms" in the codebase, and it would drift
+    from the credit book the first time either side changed its mind about a
+    write-off. `batchCreditRevenue` states the basis it uses and matches this
+    one, so the two always sum back to `billedUsd`.
+
+    Note what this figure is NOT: money in the till. A cash-terms bill is still a
+    bill. `receivedUsd` is the only collected figure on this object, and profit is
+    still measured against billed revenue — credit included — because the cargo
+    went and the revenue happened.
+  */
+  const cashBilledUsd = billedUsd - credit.billedUsd;
 
   return {
     pieces: cargo.length,
@@ -343,6 +396,13 @@ export async function batchFinance(
     rate,
     receivedUsd,
     outstandingUsd,
+    creditBilledUsd: credit.billedUsd,
+    cashBilledUsd,
+    creditCollectedUsd: credit.collectedUsd,
+    creditOutstandingUsd: credit.outstandingUsd,
+    creditOverdueUsd: credit.overdueUsd,
+    creditCount: credit.count,
+    creditOverdueCount: credit.overdueCount,
     writtenOffUsd,
     storageChargedUsd,
     storageWaivedUsd,

@@ -4,6 +4,7 @@ import { cardFileName, pdfHeaders, renderPickupSlipPdf } from "@/lib/card-pdf";
 import { COMPANY, formatPackages } from "@/lib/constants";
 import { formatDate, formatMoney, formatWeight } from "@/lib/format";
 import { t } from "@/lib/i18n";
+import { invoiceCredit } from "@/lib/credit-queries";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { can } from "@/lib/rbac";
@@ -43,7 +44,7 @@ export async function GET(
           packages: true,
           packageType: true,
           weightKg: true,
-          invoice: { select: { invoiceNumber: true } },
+          invoice: { select: { id: true, invoiceNumber: true } },
         },
       },
     },
@@ -55,6 +56,12 @@ export async function GET(
       { status: 404 }
     );
   }
+
+  /* Null unless this consignment actually went out on credit, so an ordinary
+     settled note keeps its settled wording untouched. */
+  const credit = note.shipment.invoice
+    ? await invoiceCredit(note.shipment.invoice.id)
+    : null;
 
   const pdf = renderPickupSlipPdf({
     noteNumber: note.noteNumber,
@@ -77,12 +84,39 @@ export async function GET(
     // Helvetica, which drops CJK rather than substituting it, so a translated
     // stamp would print as an empty band. The whole card is English for that
     // reason — see winAnsi() in lib/card-pdf.
-    paymentStatus: "Paid in full",
+    /*
+      What this bill actually is, not what it usually is.
+
+      This said "Paid in full" unconditionally, so the copy the customer keeps
+      stamped it on a consignment released on credit — the exact thing the rule
+      exists to prevent, on the more widely seen of the two documents.
+    */
+    paymentStatus: credit
+      ? credit.state === "WAIVED"
+        ? "Written off"
+        : "Credit — payment pending"
+      : "Paid in full",
+    credit: credit
+      ? {
+          dueOn: credit.dueDate ? formatDate(credit.dueDate, locale) : null,
+          overdue: credit.state === "OVERDUE",
+        }
+      : null,
     // The figure only for the desks allowed one — the warehouse reads the
     // payment fact and never the amount, the same gate the screen applies.
-    amountLabel: can(user.role, "finance.view")
-      ? formatMoney(note.amountPaid, note.currency)
-      : null,
+    /*
+      On a credit release the figure IS the fact: "payment pending" with no
+      number tells the customer nothing to bring back. And PickupNote.amountPaid
+      freezes at whatever was settled when the note was issued, which on a credit
+      is nothing — so the amount comes from the live derived figure instead.
+    */
+    amountLabel: credit
+      ? credit.state === "WAIVED"
+        ? null
+        : formatMoney(credit.outstandingUsd, "USD")
+      : can(user.role, "finance.view")
+        ? formatMoney(note.amountPaid, note.currency)
+        : null,
     officeLines: [...COMPANY.offices[0].lines],
     // 620px into 43mm is ~366dpi; a phone locks onto it off a screen or paper.
     qr: await shipmentQrDataUrl(note.shipment.qrToken, 620),
