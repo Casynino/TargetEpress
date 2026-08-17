@@ -149,7 +149,14 @@ export function PhotoCapture({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-sm font-medium">
           {t(label)}
-          {required ? <span className="ml-1 text-signal">*</span> : null}
+          {/* "Expected", not a red asterisk. Nothing here blocks the save any
+              more — a clerk with a flat battery still has to be able to record
+              the cargo — so the prompt asks plainly instead of threatening. */}
+          {required ? (
+            <span className="ml-1.5 rounded bg-signal/10 px-1.5 py-0.5 text-[10px] font-semibold text-signal">
+              {t("expected")}
+            </span>
+          ) : null}
         </p>
         <p className="text-xs text-muted-foreground tabular">
           {previews.length} / {max}
@@ -216,11 +223,18 @@ export function PhotoCapture({
         >
           <Camera className="mx-auto h-6 w-6 text-muted-foreground/60" />
           <p className="mt-2 text-sm font-medium">
-            {required ? t("A photo is required") : t("No photos yet")}
+            {required ? t("Please add a photo") : t("No photos yet")}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {t("Photograph the cargo as it sits, before it is packed.")}
           </p>
+          {required ? (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {t(
+                "You can still save without one — but a photo now settles any argument later."
+              )}
+            </p>
+          ) : null}
         </div>
       ) : (
         <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">

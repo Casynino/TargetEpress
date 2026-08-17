@@ -56,7 +56,9 @@ const submissionSchema = z.object({
   method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]),
   // The one thing this desk genuinely has to type: the code off the customer's
   // message. Everything else is already on the invoice.
-  reference: z.string().trim().min(1, "Put in the reference the customer sent."),
+  /* Expected on screen, optional here: cash across the counter has no code,
+     and refusing the record loses the payment rather than the reference. */
+  reference: z.string().trim().optional(),
   note: z.string().trim().optional(),
 });
 
@@ -106,14 +108,16 @@ export async function submitPaymentForVerification(
     return fail(toActionError(error));
   }
 
-  // A submission with nothing attached is a typed assertion that money arrived.
-  // Finance would be agreeing to it on somebody's word, which is the one thing
-  // this whole workflow exists to stop.
-  if (proofs.length === 0) {
-    return fail(
-      "Attach what the customer sent — the screenshot, the slip, the bank confirmation. Finance cannot verify a reference on its own."
-    );
-  }
+  /*
+    Evidence is expected, never enforced.
+
+    A submission with nothing attached IS weaker — Finance is agreeing to it on
+    somebody's word — and the form says so plainly. But it does not block any
+    more: cash handed across the counter has no screenshot and no code, and a
+    refusal there does not produce evidence, it produces a payment that never
+    gets recorded. The verification step is where a thin submission gets
+    challenged, and it still has who submitted it and when.
+  */
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -162,7 +166,7 @@ export async function submitPaymentForVerification(
           amount: new Prisma.Decimal(input.amount),
           currency: input.currency,
           method: input.method,
-          reference: input.reference,
+          reference: input.reference || null,
           note: input.note || null,
           submittedById: user.id,
           proofs: {
@@ -190,7 +194,7 @@ export async function submitPaymentForVerification(
             department: user.role,
             invoiceNumber: invoice.invoiceNumber,
             trackingNumber: invoice.shipment.trackingNumber,
-            reference: input.reference,
+            reference: input.reference || null,
             proofs: proofs.length,
           },
         },

@@ -144,15 +144,18 @@ export async function createShipment(
   if (!parsed.success) return fail(firstError(parsed.error));
   const input = parsed.data;
 
-  // Every shipment must carry a visual record from the moment it is received.
-  // Enforced here, not only in the form, so it cannot be skipped by posting
-  // the action directly.
+  /*
+    Evidence is expected, never enforced.
+
+    A photo at this moment is worth more than any note written later, so the
+    form asks for one plainly and says why. But the owner's rule is that it
+    must not STOP the work: a clerk with a flat battery, a broken camera or a
+    customer already walking out of the door still has to be able to record
+    what happened. A block here does not produce a photo — it produces a
+    consignment that never gets recorded at all, which is strictly worse than
+    one recorded without a picture.
+  */
   const photoFiles = filesFrom(formData, "photos");
-  if (photoFiles.length === 0) {
-    return fail(
-      "At least one photo of the cargo is required before it can be saved."
-    );
-  }
 
   let uploaded;
   try {

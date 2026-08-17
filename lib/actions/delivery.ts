@@ -63,17 +63,18 @@ export async function releaseShipment(
     return fail(t(locale, "Scan the cargo label to confirm."));
   }
 
-  // Proof of handover. Required before anything leaves the building, and
-  // enforced here rather than only in the form.
+  /*
+    Evidence is expected, never enforced.
+
+    A photo at this moment is worth more than any note written later, so the
+    form asks for one plainly and says why. But the owner's rule is that it
+    must not STOP the work: a clerk with a flat battery, a broken camera or a
+    customer already walking out of the door still has to be able to record
+    what happened. A block here does not produce a photo — it produces a
+    consignment that never gets recorded at all, which is strictly worse than
+    one recorded without a picture.
+  */
   const photoFiles = filesFrom(formData, "photos");
-  if (photoFiles.length === 0) {
-    return fail(
-      t(
-        locale,
-        "Take a photo of the cargo being handed over before completing the release."
-      )
-    );
-  }
 
   let uploaded;
   try {
