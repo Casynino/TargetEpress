@@ -4,6 +4,7 @@ import { TriangleAlert } from "lucide-react";
 import type { BatchFinance } from "@/lib/batch-finance";
 import { formatLocal, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 import { viewerLocale } from "@/lib/viewer";
 
 /**
@@ -94,7 +95,13 @@ export async function BatchFinanceBand({
         turns red when the answer is a loss, which is worth interrupting
         somebody for even before it is certain.
       */}
-      <dl className="grid grid-cols-2 gap-px border-b bg-border sm:grid-cols-3 lg:grid-cols-6">
+      <dl className={cn(
+        "grid grid-cols-2 gap-px border-b bg-border sm:grid-cols-3",
+        /* Sized to what is actually shown. Six columns with three cells in
+           them left half the band as an empty slab of border colour on every
+           screen Support opens. */
+        showCosts ? "lg:grid-cols-6" : "lg:grid-cols-3"
+      )}>
         {[
           { k: t(locale, "Expected revenue"), usd: billedUsd, tone: "" },
           { k: t(locale, "Collected"), usd: receivedUsd, tone: "text-success" },
