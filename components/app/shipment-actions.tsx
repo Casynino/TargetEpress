@@ -597,15 +597,27 @@ function PaymentPanel(props: Props) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="paidAt" className="text-xs">
-              {t("Payment date")}{" "}
-              <span className="text-muted-foreground">
-                ({t("leave blank for today")})
-              </span>
+              {t("Payment date")}
             </Label>
-            <Input id="paidAt" name="paidAt" type="date" max={TODAY} />
+            {/*
+              Today, already filled in.
+
+              It was blank with "leave blank for today" beside it, so the common
+              case — a customer paid, Finance confirms it the same day — asked
+              somebody to either trust an empty box or type a whole date from
+              scratch on a phone. It is filled with today and still editable,
+              which is what "unless I want to change it" means.
+            */}
+            <Input
+              id="paidAt"
+              name="paidAt"
+              type="date"
+              max={TODAY}
+              defaultValue={TODAY}
+            />
             <p className="text-xs text-muted-foreground">
               {t(
-                "When the money moved, not when it was typed in. A Friday transfer entered on Monday belongs to Friday, and the payments report follows this date."
+                "Today unless you change it. A Friday transfer entered on Monday belongs to Friday, and the payments report follows this date."
               )}
             </p>
           </div>

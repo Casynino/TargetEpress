@@ -402,7 +402,11 @@ export default async function ShipmentDetailPage({
                 <span>
                   {t(
                     locale,
-                    "No photos on record. All cargo registered from now on requires one; this predates that rule."
+                    /* True again. Photos stopped being compulsory — a clerk
+                       with a flat battery still has to be able to record the
+                       cargo — so this no longer claims a rule that is not
+                       enforced. It states the gap and why it matters. */
+                    "No photos on record. A photo is what settles a damage claim months later, so add one if the cargo is still to hand."
                   )}
                 </span>
               </p>
