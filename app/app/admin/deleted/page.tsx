@@ -8,7 +8,7 @@ import {
 } from "@/components/app/cargo-delete";
 import { PageHeader } from "@/components/app/page-header";
 import { CATEGORY_LABELS } from "@/lib/cargo";
-import { formatDateTime, formatWeight } from "@/lib/format";
+import { formatDateTime, formatWeight, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
@@ -44,12 +44,132 @@ export default async function DeletedRecordsPage() {
     },
   });
 
+  /*
+    Money that was taken back, on the page where somebody comes looking for it.
+
+    This page knew only about deleted cargo, so a cancelled payment and a
+    withdrawn claim — the two corrections that actually move a figure — were
+    only findable in the audit log, which is not where anybody thinks to look for
+    "what did we undo". Both are kept records rather than deletions, so they read
+    as what they are: the amount, who cancelled it, and why.
+  */
+  const [voidedPayments, withdrawnClaims] = await Promise.all([
+    prisma.payment.findMany({
+      where: { voidedAt: { not: null } },
+      orderBy: { voidedAt: "desc" },
+      take: 100,
+      select: {
+        id: true,
+        amount: true,
+        currency: true,
+        voidedAt: true,
+        voidReason: true,
+        voidedBy: { select: { name: true } },
+        receipt: { select: { receiptNumber: true } },
+        invoice: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            customer: { select: { name: true } },
+            shipment: { select: { trackingNumber: true } },
+          },
+        },
+      },
+    }),
+    prisma.paymentSubmission.findMany({
+      where: { status: "WITHDRAWN" },
+      orderBy: { reviewedAt: "desc" },
+      take: 100,
+      select: {
+        id: true,
+        submissionNumber: true,
+        amount: true,
+        currency: true,
+        reviewedAt: true,
+        rejectionReason: true,
+        reviewedBy: { select: { name: true } },
+        invoice: {
+          select: {
+            invoiceNumber: true,
+            customer: { select: { name: true } },
+            shipment: { select: { trackingNumber: true } },
+          },
+        },
+      },
+    }),
+  ]);
+
   return (
     <>
       <PageHeader
         title="Deleted records"
-        description="Nothing is ever destroyed. Every deletion is kept here with its reason, its photos and the person who made it."
+        description="Nothing is ever destroyed. Every deletion and every cancelled payment is kept here with its reason and the person who made it."
       />
+
+      {/* The money corrections first: they are the ones with a figure attached,
+          and a figure somebody took back is what gets asked about. */}
+      {voidedPayments.length > 0 || withdrawnClaims.length > 0 ? (
+        <section className="mb-6">
+          <h2 className="mb-2 text-sm font-semibold">
+            {t(locale, "Cancelled money")}
+          </h2>
+          <ul className="panel divide-y overflow-hidden">
+            {voidedPayments.map((v) => (
+              <li key={v.id} className="px-4 py-2.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="min-w-0 truncate text-sm font-semibold">
+                    {v.invoice.customer.name}
+                    <span className="ml-2 text-[11px] font-normal text-warning">
+                      {t(locale, "payment cancelled")}
+                    </span>
+                  </p>
+                  <p className="shrink-0 font-display text-sm font-bold tabular line-through opacity-70">
+                    {v.currency} {toNumber(v.amount).toFixed(2)}
+                  </p>
+                </div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  <span className="font-mono">
+                    {v.receipt?.receiptNumber ? `${v.receipt.receiptNumber} · ` : ""}
+                    {v.invoice.invoiceNumber}
+                    {v.invoice.shipment?.trackingNumber
+                      ? ` · ${v.invoice.shipment.trackingNumber}`
+                      : ""}
+                  </span>
+                  {v.voidedBy?.name ? ` · ${t(locale, "by")} ${v.voidedBy.name}` : ""}
+                  {v.voidedAt ? ` · ${formatDateTime(v.voidedAt, locale)}` : ""}
+                  {v.voidReason ? ` — “${v.voidReason}”` : ""}
+                </p>
+              </li>
+            ))}
+            {withdrawnClaims.map((w) => (
+              <li key={w.id} className="px-4 py-2.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="min-w-0 truncate text-sm font-semibold">
+                    {w.invoice.customer.name}
+                    <span className="ml-2 text-[11px] font-normal text-muted-foreground">
+                      {t(locale, "claim withdrawn")}
+                    </span>
+                  </p>
+                  <p className="shrink-0 font-display text-sm font-bold tabular line-through opacity-70">
+                    {w.currency} {toNumber(w.amount).toFixed(2)}
+                  </p>
+                </div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  <span className="font-mono">
+                    {w.submissionNumber} · {w.invoice.invoiceNumber}
+                    {w.invoice.shipment?.trackingNumber
+                      ? ` · ${w.invoice.shipment.trackingNumber}`
+                      : ""}
+                  </span>
+                  {w.reviewedBy?.name ? ` · ${t(locale, "by")} ${w.reviewedBy.name}` : ""}
+                  {w.reviewedAt ? ` · ${formatDateTime(w.reviewedAt, locale)}` : ""}
+                  {w.rejectionReason ? ` — “${w.rejectionReason}”` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {deleted.length === 0 ? (
         <div className="rounded-xl border border-dashed p-12 text-center">

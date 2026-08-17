@@ -164,6 +164,24 @@ const SECTIONS: NavSection[] = [
         icon: "Banknote",
         permission: "collections.view",
       },
+      /*
+        Credit, with its own door.
+
+        It was built with only the Finance tab row to reach it, which meant the
+        page existed and nobody could find it: you had to already be inside
+        Finance and notice a tab. Exactly the mistake the Collections row above
+        was added to fix, made again one release later.
+
+        Beside Collections rather than under Finance because it is the same
+        afternoon's work — chasing an overdue credit and chasing an unpaid bill
+        are one job — and on credit.view, which Support holds too.
+      */
+      {
+        href: "/app/finance/credit",
+        label: "Credit",
+        icon: "CalendarClock",
+        permission: "credit.view",
+      },
       // Deliberately not `exact`, so the row stays lit on every screen inside
       // Finance. Which of them you are on is the tab row's job — it is right
       // above the numbers, where somebody moving between them is already
