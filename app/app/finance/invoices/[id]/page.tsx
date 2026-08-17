@@ -265,6 +265,7 @@ export default async function InvoicePage({
         billedFreight={billedFreight}
         storageCharge={toNumber(invoice.storageCharge)}
         storageDays={invoice.storageDays}
+        storageWaived={toNumber(invoice.storageWaivedUsd)}
         otherCharges={toNumber(invoice.otherCharges)}
         discount={toNumber(invoice.discount)}
         total={toNumber(invoice.total)}

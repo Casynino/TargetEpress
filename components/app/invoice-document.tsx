@@ -76,6 +76,15 @@ export type InvoiceDocumentProps = {
   billedFreight: number;
   storageCharge: number;
   storageDays: number;
+  /**
+   * What was calculated and then forgiven.
+   *
+   * Shown as its own negative line rather than by quietly reducing the storage
+   * charge, because the customer asked for the calculation to be transparent:
+   * they can see the fee that accrued, see it taken off, and see that the
+   * freight price was never touched.
+   */
+  storageWaived?: number;
   otherCharges: number;
   discount: number;
   total: number;
@@ -111,6 +120,7 @@ export async function InvoiceDocument({
   billedFreight,
   storageCharge,
   storageDays,
+  storageWaived = 0,
   otherCharges,
   discount,
   total,
@@ -262,6 +272,31 @@ export async function InvoiceDocument({
               </td>
               <td className="py-2.5 pr-4 text-right font-mono tabular">
                 {money(storageCharge, currency)}
+              </td>
+            </tr>
+          ) : null}
+
+          {/* Forgiven, on the face of the bill. A waiver that simply removed
+              the charge would leave the customer unable to see that it was
+              ever calculated — and the business unable to show what it gave
+              away. */}
+          {storageWaived > 0 ? (
+            <tr className="border-b border-black/15">
+              <td className="py-2.5 pl-4">
+                <p className="font-semibold">
+                  {t(locale, "Storage")}{" "}
+                  <span className="font-normal text-black/55">
+                    ({t(locale, "waived")})
+                  </span>
+                </p>
+                <p className="text-xs text-black/55">
+                  {storageDays > 0
+                    ? `${storageDays} ${t(locale, "chargeable day(s), not charged")}`
+                    : t(locale, "Not charged")}
+                </p>
+              </td>
+              <td className="py-2.5 pr-4 text-right font-mono tabular">
+                − {money(storageWaived, currency)}
               </td>
             </tr>
           ) : null}

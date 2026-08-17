@@ -59,9 +59,9 @@ export function StorageDecision({
   if (accruedUsd <= 0 && waivedUsd <= 0 && chargedUsd <= 0) return null;
 
   return (
-    <div className="space-y-3 border-t bg-muted/20 px-5 py-4">
+    <div className="space-y-2 border-t bg-muted/20 px-4 py-3">
       {/* Where the figure stands: calculated, charged, waived. All three, always. */}
-      <dl className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
+      <dl className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
         <div className="flex gap-1.5">
           <dt className="text-muted-foreground">{t("Calculated")}</dt>
           <dd className="font-semibold tabular-nums">{money(Math.max(accruedUsd, chargedUsd, waivedUsd))}</dd>
@@ -101,7 +101,7 @@ export function StorageDecision({
             {accruedUsd > 0 && chargedUsd !== accruedUsd ? (
               <form action={charge}>
                 <input type="hidden" name="invoiceId" value={invoiceId} />
-                <SubmitButton size="sm" className="h-8 text-xs">
+                <SubmitButton size="sm" className="h-7 px-2.5 text-[11px]">
                   <BadgeCheck className="mr-1.5 h-3.5 w-3.5" />
                   {waivedUsd > 0
                     ? `${t("Charge it after all")} · ${money(accruedUsd)}`
@@ -115,7 +115,7 @@ export function StorageDecision({
                 type="button"
                 onClick={() => setWaiving((v) => !v)}
                 aria-expanded={waiving}
-                className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-warning/40 px-3 text-xs font-medium text-warning hover:bg-warning/10"
+                className="focus-ring inline-flex h-7 items-center gap-1.5 rounded-md border border-warning/40 px-2.5 text-[11px] font-medium text-warning hover:bg-warning/10"
               >
                 <Ban className="h-3.5 w-3.5" />
                 {t("Waive storage fee")}

@@ -9,18 +9,18 @@ import type { Locale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
 /**
- * How long this cargo has been in the warehouse, and what that costs.
+ * How long this cargo has been here, and what that costs.
  *
- * The whole point is that nobody does this arithmetic. A clerk asked "cargo hii
- * imekaa siku ngapi?" and the answer lived in two dates on two different
- * screens; now it is one card that states the days, the free allowance, the
- * overdue days, the rate and the running fee, in that order, so the figure can
- * be checked rather than trusted.
+ * Small on purpose. The first version was a full-width band of five big cells
+ * across the top of the page, which gave the loudest position on the screen to
+ * a figure that is usually zero — and pushed the cargo itself below the fold.
+ * It sits in the side column beside the payment panel now, because that is
+ * where the question gets asked: somebody is about to take money and needs to
+ * know whether storage is part of it.
  *
- * Four states, and the colour carries them: inside the free days is quiet, the
- * last free day is amber because it is the day to make a phone call, an accrued
- * fee is red, and collected cargo goes grey — the clock has stopped and the
- * number is now history rather than a demand.
+ * Four states, carried by colour: quiet inside the free days, amber on the last
+ * free day — the day to make a phone call — red once it is charging, grey once
+ * collected, when the clock has stopped and the number is history.
  */
 export function StorageStatusCard({
   status,
@@ -36,7 +36,6 @@ export function StorageStatusCard({
   rate: number | null;
   decision?: {
     invoiceId: string;
-    /** What is on the bill now. */
     chargedUsd: number;
     waivedUsd: number;
     waivedBy: string | null;
@@ -53,31 +52,27 @@ export function StorageStatusCard({
         key: "Collected",
         icon: PackageCheck,
         text: "text-muted-foreground",
-        wash: "from-muted-foreground/[0.08]",
-        ring: "border-border",
+        edge: "border-l-muted-foreground/40",
       }
     : status.expired
       ? {
-          key: "Storage fee active",
+          key: "Fee running",
           icon: AlertTriangle,
           text: "text-destructive",
-          wash: "from-destructive/[0.12]",
-          ring: "border-destructive/40",
+          edge: "border-l-destructive",
         }
       : status.lastFreeDay
         ? {
             key: "Last free day",
             icon: Clock,
             text: "text-warning",
-            wash: "from-warning/[0.14]",
-            ring: "border-warning/40",
+            edge: "border-l-warning",
           }
         : {
-            key: "Within free storage",
+            key: "Free storage",
             icon: CheckCircle2,
             text: "text-success",
-            wash: "from-success/[0.10]",
-            ring: "border-success/30",
+            edge: "border-l-success",
           };
 
   const money = (usd: number) => formatShillings(usd, rate);
@@ -85,76 +80,49 @@ export function StorageStatusCard({
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-xl border bg-card bg-gradient-to-br to-transparent",
-        tone.wash,
-        tone.ring,
+        "overflow-hidden rounded-xl border border-l-2 bg-card",
+        tone.edge,
         className
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
-        <h2 className="flex items-center gap-2 font-display font-semibold">
-          <tone.icon className={cn("h-4 w-4", tone.text)} />
-          {t(locale, "Storage status")}
-        </h2>
-        <span className={cn("text-xs font-semibold uppercase tracking-wide", tone.text)}>
+      <div className="flex items-center justify-between gap-2 px-4 py-2.5">
+        <p className="flex items-center gap-1.5 text-xs font-semibold">
+          <tone.icon className={cn("h-3.5 w-3.5", tone.text)} />
+          {t(locale, "Storage")}
+        </p>
+        <span className={cn("text-[11px] font-semibold", tone.text)}>
           {t(locale, tone.key)}
         </span>
       </div>
 
-      {/* The five figures, in the order the question is asked. */}
-      <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-5">
-        {[
-          {
-            k: "In warehouse",
-            v: `${status.daysInWarehouse} ${t(locale, status.daysInWarehouse === 1 ? "day" : "days")}`,
-          },
-          { k: "Free storage", v: `${status.freeDays} ${t(locale, "days")}` },
-          {
-            k: "Overdue",
-            v:
-              status.chargeableDays > 0
-                ? `${status.chargeableDays} ${t(locale, status.chargeableDays === 1 ? "day" : "days")}`
-                : "—",
-            tone: status.chargeableDays > 0 ? "text-destructive" : undefined,
-          },
-          {
-            k: "Rate",
-            v: `USD ${STORAGE_POLICY.perDayUsd}/${t(locale, "day")}`,
-          },
-          {
-            k: "Storage fee",
-            v: money(status.chargeUsd),
-            tone: status.chargeUsd > 0 ? "text-destructive" : "text-success",
-            strong: true,
-          },
-        ].map((cell) => (
-          <div key={cell.k} className="bg-card px-4 py-3">
-            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              {t(locale, cell.k)}
-            </dt>
-            <dd
-              className={cn(
-                "mt-0.5 whitespace-nowrap font-display font-bold tabular-nums",
-                cell.strong ? "text-base" : "text-sm",
-                cell.tone
-              )}
-            >
-              {cell.v}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      {/* One line of arithmetic, not a dashboard: days, allowance, and the
+          money — which is the whole question. */}
+      <div className="border-t px-4 py-2.5">
+        <p className="flex items-baseline justify-between gap-2 text-sm">
+          <span className="text-muted-foreground">
+            {t(locale, "Day")} {status.daysInWarehouse}{" "}
+            <span className="text-xs">
+              {t(locale, "of")} {status.freeDays} {t(locale, "free")}
+            </span>
+          </span>
+          <span
+            className={cn(
+              "font-display font-bold tabular-nums",
+              status.chargeUsd > 0 ? "text-destructive" : "text-success"
+            )}
+          >
+            {money(status.chargeUsd)}
+          </span>
+        </p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          {status.collected
+            ? `${t(locale, "Collected — the clock stopped")} · ${formatDate(status.arrivedAt, locale)}`
+            : status.expired
+              ? `${status.chargeableDays} × USD ${STORAGE_POLICY.perDayUsd}/${t(locale, "day")} ${t(locale, "since")} ${formatDate(status.arrivedAt, locale)}`
+              : `${status.freeDaysRemaining} ${t(locale, status.freeDaysRemaining === 1 ? "free day left" : "free days left")} · USD ${STORAGE_POLICY.perDayUsd}/${t(locale, "day")} ${t(locale, "after that")}`}
+        </p>
+      </div>
 
-      <p className="px-5 py-2.5 text-xs text-muted-foreground">
-        {t(locale, "Arrived in Dar")} {formatDate(status.arrivedAt, locale)} ·{" "}
-        {status.collected
-          ? t(locale, "collected, so the clock has stopped")
-          : status.expired
-            ? `${status.chargeableDays} × USD ${STORAGE_POLICY.perDayUsd} = ${money(status.chargeUsd)}`
-            : `${status.freeDaysRemaining} ${t(locale, status.freeDaysRemaining === 1 ? "free day left" : "free days left")}`}
-      </p>
-
-      {/* Charge it, or forgive it on the record. Finance only. */}
       {decision ? (
         <StorageDecision
           invoiceId={decision.invoiceId}

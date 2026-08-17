@@ -238,37 +238,6 @@ export default async function ShipmentDetailPage({
         }
       />
 
-      {/*
-        How long it has been here, and what that costs — above everything else.
-
-        This is the question the desk asks before any other on a consignment
-        that has landed, and until now the answer lived in two dates on two
-        screens. Finance sees the charge/waive decision on the same card;
-        Support sees the same figures without it, so both desks quote the
-        customer the same number.
-      */}
-      {storage.arrivedAt ? (
-        <StorageStatusCard
-          className="mb-6"
-          status={storage}
-          locale={locale}
-          rate={storageRate}
-          decision={
-            shipment.invoice && canBill
-              ? {
-                  invoiceId: shipment.invoice.id,
-                  chargedUsd: toNumber(shipment.invoice.storageCharge),
-                  waivedUsd: toNumber(shipment.invoice.storageWaivedUsd),
-                  waivedBy: shipment.invoice.storageWaivedBy?.name ?? null,
-                  waivedAt: shipment.invoice.storageWaivedAt,
-                  waiveReason: shipment.invoice.storageWaiveReason,
-                  canDecide: canWaive,
-                }
-              : undefined
-          }
-        />
-      ) : null}
-
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           {/* Cargo */}
@@ -732,6 +701,37 @@ export default async function ShipmentDetailPage({
             submissions={pendingSubmissions}
             canVerify={canVerifyPayments}
           />
+
+              {/*
+                Beside the money, because that is where the question is asked.
+
+                It was a full-width band across the top of the page — the loudest
+                position on the screen given to a figure that is usually zero, with
+                the cargo itself pushed below the fold. Somebody about to take a
+                payment needs to know whether storage is part of it, so it sits
+                here, small, next to the payment panel.
+              */}
+          {storage.arrivedAt ? (
+            <StorageStatusCard
+              className="mb-4"
+              status={storage}
+              locale={locale}
+              rate={storageRate}
+              decision={
+                shipment.invoice && canBill
+                  ? {
+                      invoiceId: shipment.invoice.id,
+                      chargedUsd: toNumber(shipment.invoice.storageCharge),
+                      waivedUsd: toNumber(shipment.invoice.storageWaivedUsd),
+                      waivedBy: shipment.invoice.storageWaivedBy?.name ?? null,
+                      waivedAt: shipment.invoice.storageWaivedAt,
+                      waiveReason: shipment.invoice.storageWaiveReason,
+                      canDecide: canWaive,
+                    }
+                  : undefined
+              }
+            />
+          ) : null}
 
           {/* Actions first. This column is what somebody does with the cargo;
               who the customer is and which flight it came on are reference,
