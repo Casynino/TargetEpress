@@ -565,6 +565,8 @@ export async function adjustInvoice(
           freightCost: true,
           freightOverride: true,
           storageCharge: true,
+          storageWaivedUsd: true,
+          storageWaiveReason: true,
           otherCharges: true,
           discount: true,
           amountPaid: true,
@@ -645,6 +647,7 @@ export async function adjustInvoice(
         simply the policy the customer was told about.
       */
       const clockStorage = toNumber(invoice.storageCharge);
+      const alreadyWaived = toNumber(invoice.storageWaivedUsd);
       const storage = input.storageCharge ?? clockStorage;
       const storageMoved = Math.abs(storage - clockStorage) > 0.005;
       if (storageMoved && (!input.storageReason || input.storageReason.length < 3)) {
@@ -654,6 +657,43 @@ export async function adjustInvoice(
             : "Say why the storage charge is being changed."
         );
       }
+
+      /*
+        This edit and the storage card are two doors onto the same money, so
+        they have to leave the record in the same state.
+
+        Zeroing the charge here IS a waiver, and has to be written as one: the
+        forgiven figure kept, with a name and a reason against it. Otherwise it
+        vanishes — indistinguishable from storage that never accrued, invisible
+        in the storage report, and nobody can answer why a twelve-day
+        consignment was not charged.
+
+        Putting a charge back on reverses an earlier waiver, so the waiver has
+        to be cleared. Leaving it would show "waived" and "on the bill" at the
+        same time and count the same dollars twice in reporting.
+      */
+      const waiverEdit =
+        /* Zeroing a live charge IS a waiver — write it as one. */
+        storage === 0 && clockStorage > 0
+          ? {
+              storageWaivedUsd: new Prisma.Decimal(clockStorage),
+              storageWaivedAt: new Date(),
+              storageWaivedById: user.id,
+              storageWaiveReason:
+                input.storageReason || "Waived when the invoice was adjusted.",
+            }
+          : /* Putting a charge back reverses an earlier waiver — clear it. */
+            storage > 0 && alreadyWaived > 0
+            ? {
+                storageWaivedUsd: new Prisma.Decimal(0),
+                storageWaivedAt: null,
+                storageWaivedById: null,
+                storageWaiveReason: null,
+              }
+            : /* Everything else leaves the existing waiver, and whoever made
+                 it, exactly as it stands. An edit to the discount must not
+                 re-stamp last week's waiver with today's date and my name. */
+              {};
 
       const total = freight + storage + input.otherCharges - input.discount;
       if (total < 0) {
@@ -707,6 +747,7 @@ export async function adjustInvoice(
             ? null
             : input.freightOverrideReason || null,
           storageCharge: new Prisma.Decimal(storage),
+          ...waiverEdit,
           total: new Prisma.Decimal(total),
           exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
           localCurrency: invoice.localCurrency ?? LOCAL_CURRENCY,
