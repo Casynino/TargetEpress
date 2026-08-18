@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Boxes, Plane, Truck, Wallet } from "lucide-react";
+import { Boxes, Download, FileText, Plane, Truck, Wallet } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { PrintButton } from "@/components/app/print-button";
@@ -12,16 +12,104 @@ import { t } from "@/lib/i18n";
 import { formatShillings } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { profitAndLoss, windowFor, type PeriodKey } from "@/lib/profit";
+import { REPORTS, type ReportKey } from "@/lib/reports";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Management report" };
 
+/* "Today" is here because the owner asked for a daily report and a daily report
+   is this one over a one-day window — windowFor already knows the boundary and
+   the download route reads the same key. A separate daily report would compute
+   the same five figures a second way. */
 const PERIODS: { key: PeriodKey; label: string }[] = [
+  { key: "today", label: "Today" },
   { key: "week", label: "This week" },
   { key: "month", label: "This month" },
   { key: "quarter", label: "This quarter" },
   { key: "year", label: "This year" },
+];
+
+/**
+ * What each report answers, in one line.
+ *
+ * Navigation copy, not the report's caption. The caption is the sentence that
+ * says what a figure EXCLUDES — drafts, write-offs, unpaid runs — and it is
+ * already printed on the document by lib/report-pdf.ts and above the table on
+ * the report screen. Showing the real one here would mean running all
+ * twenty-five reports to render a list of links; hand-copying it would give the
+ * exclusions a second wording to drift from. So this line says only enough to
+ * pick the right report, and the document itself states the terms.
+ */
+const ASKS: Partial<Record<ReportKey, string>> = {
+  "profit-loss": "Did the period make money once every cost is counted?",
+  income: "What was billed, what was paid, what is still owed — bill by bill.",
+  expenses: "Every cost recorded, what it was for and which account paid it.",
+  "expense-by-category": "Where the money goes, grouped, biggest first.",
+  "monthly-summary": "Month against month: billed, collected, spent, kept.",
+  "cash-flow": "What came in, what went out, what is left.",
+  "financial-statement": "Where the company stands: cash, owed to us, owed by us.",
+  "credit-sales": "What left on a promise instead of on payment.",
+  "credit-outstanding": "Credit that has not come back yet.",
+  "credit-overdue": "Credit past its due date — who to ring first.",
+  "credit-collection": "How much of the credit given has been collected.",
+  "credit-aging": "How long the unpaid credit has been unpaid.",
+  "credit-by-batch": "Which flights went out on credit.",
+  "credit-by-month": "The credit book month by month.",
+  "credit-customers": "Each customer's limit, what is used, what is left.",
+  receivables: "Who owes us, and how old the oldest of it is.",
+  outstanding: "Which bills are unpaid, customer by customer.",
+  "batch-profit": "What each flight earned against what it cost to move.",
+  storage: "What is sitting in the warehouse, how long, and what it is charging.",
+  payroll: "Every salary run and where it stopped.",
+  staff: "Everybody on the books, what they do and what they are paid.",
+  ledger: "Every movement of money in the order it happened.",
+  bank: "Every movement through a bank account.",
+  "mobile-money": "Every movement through M-Pesa, Mixx and the rest.",
+  /* Named for what it reads, not for a model: there is no petty-cash entity in
+     this system — this is every CASH-kind account. */
+  "petty-cash": "Every movement of physical cash, and what the tin should hold.",
+};
+
+/**
+ * The shelves, in the words the owner uses when he asks for one.
+ *
+ * lib/reports.ts stays the register of WHICH reports exist and what each is
+ * called; this only says which shelf a key sits on. A key listed here that the
+ * register no longer has renders nothing, and a key the register gains that is
+ * not listed here still appears, under the last shelf — the register grew by two
+ * reports while this page was being written, and a hub that silently hides one
+ * is the failure mode to design out.
+ */
+const SHELVES: { name: string; keys: ReportKey[] }[] = [
+  {
+    name: "Profit, revenue and expense",
+    keys: [
+      "profit-loss",
+      "income",
+      "expenses",
+      "expense-by-category",
+      "monthly-summary",
+      "cash-flow",
+      "financial-statement",
+    ],
+  },
+  {
+    name: "Collection and credit",
+    keys: [
+      "credit-sales",
+      "credit-collection",
+      "credit-outstanding",
+      "credit-overdue",
+      "credit-aging",
+      "credit-by-batch",
+      "credit-by-month",
+    ],
+  },
+  { name: "Customers", keys: ["credit-customers", "receivables", "outstanding"] },
+  { name: "Cargo and warehouse", keys: ["batch-profit", "storage"] },
+  { name: "Staff and payroll", keys: ["payroll", "staff"] },
+  { name: "Accounts", keys: ["ledger", "bank", "mobile-money", "petty-cash"] },
 ];
 
 /**
@@ -109,6 +197,34 @@ export default async function ManagerReport({
       tone: pl.profit < 0 ? "bad" : "good",
     },
   ];
+
+  /*
+    The endpoint Finance already downloads from, deliberately not a manager copy
+    of it. The register, the runner, the CSV and the PDF are one path, so a
+    figure the manager hands over and a figure Finance hands over cannot differ.
+
+    `period` carries the pills above onto the document — the route resolves it
+    through the same windowFor this page used — and `unit=tzs` matches the
+    screen, which leads in shillings. The handful of reports that can only be
+    read as at today override the period on their own document; listing them
+    here would be a second answer to "which reports honour a window".
+  */
+  const download = (key: ReportKey, format?: "pdf") =>
+    `/api/finance/reports?report=${key}&period=${picked.key}&unit=tzs${
+      format ? `&format=${format}` : ""
+    }`;
+
+  /* Built from the register rather than from SHELVES, so a report that exists
+     is always reachable and a shelf entry that no longer exists renders
+     nothing — no tile that downloads an error. */
+  const shelved = new Set<string>(SHELVES.flatMap((s) => s.keys));
+  const shelves = [
+    ...SHELVES.map((s) => ({
+      name: s.name,
+      reports: s.keys.flatMap((key) => REPORTS.filter((r) => r.key === key)),
+    })),
+    { name: "Other reports", reports: REPORTS.filter((r) => !shelved.has(r.key)) },
+  ].filter((s) => s.reports.length > 0);
 
   return (
     <>
@@ -222,6 +338,83 @@ export default async function ManagerReport({
           {t(locale, "of the credit given in this period has come back in.")}
         </p>
       ) : null}
+
+      {/* Hidden on paper. The report above is what gets signed and handed over;
+          a page of links printed underneath it is a page of dead ink. */}
+      <div className="mt-8 print:hidden">
+        <SectionLabel
+          action={{
+            href: `/app/finance/reports?period=${picked.key}`,
+            label: t(locale, "Open the viewer"),
+          }}
+        >
+          {t(locale, "Every report you can run")}
+        </SectionLabel>
+        <p className="-mt-1 mb-3 text-[11px] text-muted-foreground">
+          {t(
+            locale,
+            "Each one covers the period chosen above, in the same money this page is showing. A few can only be read as at today; each says so on its own document."
+          )}
+        </p>
+
+        {shelves.map((shelf) => (
+          <div key={shelf.name} className="mb-3 overflow-hidden rounded-xl border bg-card">
+            <p className="border-b bg-muted/30 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              {t(locale, shelf.name)}
+            </p>
+            <div className="divide-y">
+              {shelf.reports.map((r) => {
+                const ask = ASKS[r.key];
+                return (
+                  <div
+                    key={r.key}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2"
+                  >
+                    <span className="min-w-0 flex-1">
+                      {/* The name opens the report on screen — where it can be
+                          filtered, and read before it is handed to anybody. */}
+                      <Link
+                        href={`/app/finance/reports?report=${r.key}&period=${picked.key}#reports`}
+                        className="focus-ring text-sm font-medium hover:underline"
+                      >
+                        {t(locale, r.label)}
+                      </Link>
+                      {ask ? (
+                        <span className="block text-[11px] text-muted-foreground">
+                          {t(locale, ask)}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="inline-flex shrink-0 overflow-hidden rounded-md border">
+                      {/* Its own tab: a document is read beside the hub, not
+                          instead of it. */}
+                      <a
+                        href={download(r.key, "pdf")}
+                        target="_blank"
+                        rel="noopener"
+                        className="focus-ring inline-flex min-h-[36px] items-center gap-1.5 border-r px-2.5 text-[11px] font-medium hover:bg-accent sm:min-h-0 sm:py-1"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        {t(locale, "PDF")}
+                      </a>
+                      {/* "Excel (CSV)" and not "Excel": what downloads is a CSV,
+                          which Excel opens directly. Naming it xlsx would be
+                          promising a format nothing in this system writes. */}
+                      <a
+                        href={download(r.key)}
+                        className="focus-ring inline-flex min-h-[36px] items-center gap-1.5 px-2.5 text-[11px] font-medium hover:bg-accent sm:min-h-0 sm:py-1"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        {t(locale, "Excel (CSV)")}
+                      </a>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
     </>
   );
 }

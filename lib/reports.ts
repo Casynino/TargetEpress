@@ -23,8 +23,10 @@ import {
   creditOverview,
   creditRows,
 } from "@/lib/credit-queries";
+import { ROLE_LABELS } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
+import { runTotals } from "@/lib/payroll";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -235,6 +237,14 @@ export const REPORTS = [
      and two different things under one name on one page is exactly the
      confusion to avoid. This is what it always was — the position on a page. */
   { key: "financial-statement", label: "Position summary" },
+  /* The two the owner asked for that the register could not answer.
+
+     They are here rather than on a manager-only screen because the register IS
+     the report system — a payroll report that only the manager's page knew about
+     would be a second place reports come from, and the owner's standing rule is
+     that there is one. Finance reads these too: they build the runs. */
+  { key: "payroll", label: "Payroll" },
+  { key: "staff", label: "Staff register" },
 ] as const;
 
 export type ReportKey = (typeof REPORTS)[number]["key"];
@@ -1378,6 +1388,155 @@ function ledgerReport(
 
 /* ------------------------------------------------------------- cash & time */
 
+/* ------------------------------------------------------- payroll and people */
+
+const PAYROLL_STATE: Record<string, string> = {
+  DRAFT: "Being built",
+  PENDING_APPROVAL: "With the manager",
+  APPROVED: "Agreed, not yet paid",
+  PAID: "Paid",
+  REJECTED: "Sent back",
+};
+
+/**
+ * Every salary run, and where each one stopped.
+ *
+ * Dated on the day the money LEFT, not the month the run is named for, and only
+ * for runs that have been paid — the window is a question about the bank. A run
+ * still being argued over has no payment date to place it in a period, so
+ * unpaid runs are listed whatever the window says and marked as such. Reporting
+ * a draft inside "last month" would put a figure nobody has agreed into a month
+ * that has closed.
+ */
+async function payrollReport(f: ReportFilters): Promise<ReportResult> {
+  const runs = await prisma.payrollRun.findMany({
+    orderBy: [{ year: "desc" }, { month: "desc" }],
+    include: {
+      preparedBy: { select: { name: true } },
+      approvedBy: { select: { name: true } },
+      account: { select: { name: true } },
+      items: { select: { gross: true, allowance: true, deduction: true, net: true } },
+    },
+  });
+
+  const inWindow = runs.filter((r) => {
+    if (r.status !== "PAID" || !r.paidAt) return true;
+    if (f.from && r.paidAt < f.from) return false;
+    if (f.to && r.paidAt >= f.to) return false;
+    return true;
+  });
+
+  const rows = inWindow.map((r) => {
+    const t = runTotals(r.items);
+    return {
+      code: r.code,
+      state: PAYROLL_STATE[r.status] ?? r.status,
+      staff: t.headcount,
+      gross: money(t.gross),
+      allowance: money(t.allowance),
+      deduction: money(t.deduction),
+      net: money(t.net),
+      account: r.account?.name ?? "—",
+      prepared: r.preparedBy.name,
+      agreed: r.approvedBy?.name ?? "—",
+      paid: r.paidAt ? r.paidAt.toISOString().slice(0, 10) : "—",
+    };
+  });
+
+  const paid = inWindow.filter((r) => r.status === "PAID");
+
+  return {
+    key: "payroll",
+    title: "Payroll",
+    caption:
+      "Every salary run and where it stopped. Paid runs are placed by the day the money left the account, which is what the ledger and the bank both read — not by the month the run is named for. Runs still being built, waiting on the manager or sent back have no payment date and so appear whatever period is chosen, marked with the step they are stuck at. The total below counts PAID runs only: agreeing a run is a signature, not a payment.",
+    columns: [
+      { key: "code", label: "Run" },
+      { key: "state", label: "Where it is" },
+      { key: "staff", label: "Staff", numeric: true },
+      { key: "gross", label: "Salary", numeric: true, money: true },
+      { key: "allowance", label: "Allowances", numeric: true, money: true },
+      { key: "deduction", label: "Deductions", numeric: true, money: true },
+      { key: "net", label: "Paid out", numeric: true, money: true },
+      { key: "account", label: "From" },
+      { key: "prepared", label: "Prepared by" },
+      { key: "agreed", label: "Agreed by" },
+      { key: "paid", label: "Paid on" },
+    ],
+    rows,
+    totals: {
+      staff: paid.reduce((n, r) => n + r.items.length, 0),
+      net: money(
+        paid.reduce((n, r) => n + runTotals(r.items).net, 0)
+      ),
+    },
+  };
+}
+
+/**
+ * Who works here, as at today.
+ *
+ * NOT AN ATTENDANCE REPORT, and the caption says so where anybody running it
+ * will read it. This system records when somebody last used it and nothing
+ * else — there is no clock-in, no shift and no roster — so "last seen" is the
+ * honest name for the only figure available. A column headed "Attendance" over
+ * this data would be a management report quietly making something up.
+ */
+async function staffReport(): Promise<ReportResult> {
+  const staff = await prisma.user.findMany({
+    where: { active: true },
+    orderBy: [{ department: "asc" }, { name: "asc" }],
+    select: {
+      name: true,
+      email: true,
+      role: true,
+      department: true,
+      employeeId: true,
+      status: true,
+      baseSalary: true,
+      lastActiveAt: true,
+    },
+  });
+
+  const day = 86_400_000;
+  const now = Date.now();
+
+  return {
+    key: "staff",
+    title: "Staff register",
+    period: "As at today",
+    caption:
+      "Everybody with a live account, what they do and what they are paid. Last seen is the last time the person used this system — it is NOT attendance: there is no clock-in and no roster here, so somebody working all week in the warehouse without opening a screen will read as not seen. A blank salary means nobody has recorded one, and payroll leaves that person off a run rather than paying them nothing.",
+    columns: [
+      { key: "name", label: "Name" },
+      { key: "role", label: "Role" },
+      { key: "department", label: "Department" },
+      { key: "employeeId", label: "Staff ID" },
+      { key: "status", label: "Status" },
+      { key: "salary", label: "Salary / month", numeric: true, money: true },
+      { key: "lastSeen", label: "Last seen" },
+    ],
+    rows: staff.map((u) => ({
+      name: u.name,
+      role: ROLE_LABELS[u.role],
+      department: u.department,
+      employeeId: u.employeeId ?? "—",
+      status: u.status,
+      salary: u.baseSalary === null ? null : money(toNumber(u.baseSalary)),
+      lastSeen: !u.lastActiveAt
+        ? "never"
+        : now - u.lastActiveAt.getTime() < day
+          ? "today"
+          : `${Math.floor((now - u.lastActiveAt.getTime()) / day)}d ago`,
+    })),
+    totals: {
+      salary: money(
+        staff.reduce((n, u) => n + (u.baseSalary ? toNumber(u.baseSalary) : 0), 0)
+      ),
+    },
+  };
+}
+
 async function cashFlow(f: ReportFilters): Promise<ReportResult> {
   const entries = await ledgerRows(f);
   const months = new Map<string, { in: number; out: number }>();
@@ -1677,6 +1836,10 @@ export async function runReport(
       return creditBatchReport(filters);
     case "credit-by-month":
       return creditMonthReport();
+    case "payroll":
+      return payrollReport(filters);
+    case "staff":
+      return staffReport();
     case "cash-flow":
       return cashFlow(filters);
     case "ledger":

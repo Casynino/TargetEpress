@@ -780,11 +780,23 @@ export async function payPayrollRun(
         exchangeRate: rate,
         occurredAt: paidAt,
         description: `${number} — ${description}`,
-        // The run, not the expense, because the run is what a reader following
-        // this line back actually wants: thirty names and what each was paid.
-        // `expenseId` below still ties the line to its cost.
-        sourceEntity: "PayrollRun",
-        sourceId: run.id,
+        /*
+          "Expense", exactly like every other cost, and NOT "PayrollRun".
+
+          Pointing this at the run read better — a reader following the line
+          back wants the thirty names, not the total — but it is not a label,
+          it is a key. editExpense finds the line it must reverse with
+          findFirst({ sourceEntity: "Expense", sourceId: expense.id }), so a
+          payroll line filed under its own entity would not have been found:
+          correcting a paid salary bill would have rewritten the expense and
+          left the ledger stating the original amount, silently, with both
+          records internally consistent and only the pair wrong.
+
+          The run is still one hop away — expenseId ties this line to the cost,
+          and the cost carries the run.
+        */
+        sourceEntity: "Expense",
+        sourceId: expense.id,
         expenseId: expense.id,
         recordedById: user.id,
       });

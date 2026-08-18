@@ -1,9 +1,15 @@
 import "server-only";
 
+import type { AccountKind } from "@prisma/client";
+
+import { collectionsOverview } from "@/lib/collections";
 import { creditNotInTheLedger } from "@/lib/credit-queries";
+import { financeDashboard } from "@/lib/finance-dashboard";
 import { toNumber } from "@/lib/format";
 import { accountBalances } from "@/lib/ledger";
+import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
+import { windowFor } from "@/lib/profit";
 
 /**
  * Does what the books say match what the accounts hold.
@@ -20,14 +26,57 @@ import { prisma } from "@/lib/prisma";
  * and reports the gap. A clean line is not decoration: "0 differences over 431
  * payments" is the finding, and a page that only listed problems could not tell
  * the reader whether it had looked.
+ *
+ * THREE THINGS THIS ENGINE ANSWERS, AND WHERE EACH ONE COMES FROM.
+ *
+ *  - The integrity checks. Two routes to one number, computed here because
+ *    nothing else in the app has any reason to ask a question twice on purpose.
+ *  - The positions: what the ledger says each account holds. Straight from
+ *    accountBalances(), the same call the Accounts page and the finance
+ *    dashboard read, so a manager quoting this page and a clerk quoting that
+ *    one cannot arrive at the meeting with different balances.
+ *  - The collections picture: composed from collectionsOverview() and
+ *    financeDashboard(), the two engines that already answer it for the desks
+ *    that do the work. Nothing here re-aggregates an invoice. That is the whole
+ *    point — the manager's screen must be able to DISAGREE with nobody, and a
+ *    second query answering "what do they owe us" is the bug this codebase has
+ *    already been bitten by more than once.
+ *
+ * WHAT THIS SYSTEM CANNOT RECONCILE, SAID PLAINLY RATHER THAN FAKED.
+ *
+ * A bank or a mobile-money float has a second side that lives at the bank, and
+ * nothing imports it: there is no statement model, no import, no feed. So for
+ * those accounts the ledger is not "checked" against anything — it is the only
+ * record there is, and the page says so in one line rather than showing a
+ * comparison against a number this code invented. The cash tin is the one
+ * account with a real second side, because somebody physically counts it and
+ * CashCount stores both what was there and what the ledger believed at that
+ * instant. That contrast is worth showing; a fabricated bank variance is not.
  */
+export type CheckSide = {
+  label: string;
+  /** Already written out — a count, or the dollar figure. */
+  value: string;
+  /**
+   * The same money, in dollars, when the side IS money.
+   *
+   * The screen leads in shillings everywhere else in this app and it cannot do
+   * that from a string that has already been formatted. So the raw figure
+   * travels beside the written one, the page converts it at the published rate,
+   * and the dollar string stays as the small print underneath. Absent — not
+   * null — on a side that counts things rather than money, so the page's test
+   * is "is this money" and not "is this money and also not zero".
+   */
+  usd?: number;
+};
+
 export type Check = {
   key: string;
   label: string;
   /** What agreeing would mean, in words, before the numbers. */
   question: string;
-  left: { label: string; value: string };
-  right: { label: string; value: string };
+  left: CheckSide;
+  right: CheckSide;
   /** Zero when the two sides agree. */
   difference: number;
   ok: boolean;
@@ -36,13 +85,130 @@ export type Check = {
   href?: string;
 };
 
+/** One account, as the ledger has it. */
+export type AccountPosition = {
+  id: string;
+  name: string;
+  institution: string | null;
+  currency: string;
+  inflow: number;
+  outflow: number;
+  balance: number;
+  /** The ledger's own dollar column — each movement at the rate it was posted
+   *  at, never today's. Small print beside a shilling balance, never a total. */
+  balanceUsd: number;
+  entries: number;
+  lastMovedAt: Date | null;
+  /** Null until somebody records what was already in the account. Until then
+   *  the figures above are movements recorded here, not a balance. */
+  openingSetAt: Date | null;
+  /** The physical count, where one exists. Cash only — see the header. */
+  count: {
+    countedAt: Date;
+    countedAmount: number;
+    expectedAmount: number;
+    /** Counted less expected: negative is short, positive is over. */
+    variance: number;
+    countedBy: string | null;
+  } | null;
+};
+
+export type PositionGroup = {
+  kind: AccountKind;
+  label: string;
+  /** What the ledger's figure can be checked against — or the honest sentence
+   *  saying nothing in this system records the other side of it. */
+  counterpart: string;
+  /** True only where a second side actually exists to compare against. */
+  checkable: boolean;
+  accounts: AccountPosition[];
+  entries: number;
+  /**
+   * Subtotalled per currency, deliberately.
+   *
+   * The bank group holds shillings and dollars. Adding them needs a rate, and
+   * an engine that picks one produces a total that disagrees with the accounts
+   * printed under it the morning the CEO publishes a new one — which is exactly
+   * the bug lib/../accounts already documents. So the money is added only where
+   * it is the same money.
+   */
+  totals: { currency: string; inflow: number; outflow: number; balance: number }[];
+};
+
+export type CollectionsReconciliation = {
+  /** The period the billing figures below cover, in the reader's language. */
+  periodLabel: string;
+  /** Two-route checks, same shape and same rendering as the integrity ones. */
+  checks: Check[];
+  /** This period's book, as financeDashboard already states it. */
+  billed: {
+    expectedUsd: number;
+    collectedUsd: number;
+    outstandingUsd: number;
+    rate: number | null;
+  };
+  /** The whole ledger of obligations, not just this period's. */
+  book: {
+    outstandingUsd: number;
+    owingCount: number;
+    awaitingPayment: number;
+    pendingCount: number;
+    rejected: number;
+    notesReady: number;
+    successRate: number | null;
+    submitted: number;
+  };
+};
+
 const usd = (n: number) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const near = (a: number, b: number) => Math.abs(a - b) < 0.01;
 
-export async function reconciliation() {
-  const [payments, posted, postedSum, invoices, balances, accounts, credit] =
-    await Promise.all([
+const KIND_ORDER: AccountKind[] = ["BANK", "MOBILE_MONEY", "CASH"];
+
+const KIND_LABEL: Record<AccountKind, string> = {
+  BANK: "Bank accounts",
+  MOBILE_MONEY: "Mobile money",
+  /* Named for what it is. The owner's spec asks for "petty cash" as a figure of
+     its own; this schema has no such model and inventing one would put a second
+     answer on the page for money the CASH accounts already hold. So the tins are
+     grouped as cash and labelled cash. */
+  CASH: "Cash in hand",
+};
+
+const COUNTERPART: Record<AccountKind, { text: string; checkable: boolean }> = {
+  BANK: {
+    text: "No bank statement is imported into this system, so there is nothing here to check these against. This is what the company recorded — not what the bank holds. Closing that gap means reading the statement beside this list.",
+    checkable: false,
+  },
+  MOBILE_MONEY: {
+    text: "No till statement is imported either. Same reading as the banks: these are the movements this system was told about, not what the network says the float is.",
+    checkable: false,
+  },
+  CASH: {
+    text: "The tin is the one account with a real second side: somebody counts it, and the count is stored with what the ledger believed at that moment. That difference is below, and it is never auto-corrected — a shortfall that balances itself is a shortfall nobody notices.",
+    checkable: true,
+  },
+};
+
+export async function reconciliation(locale: Locale = "en") {
+  /* The month, and the month before it — the same window the P&L opens on, so
+     a manager reading this page and the profit page on the same morning is
+     reading the same period without having to check. */
+  const period = windowFor("month", locale);
+
+  const [
+    payments,
+    posted,
+    postedSum,
+    invoices,
+    balances,
+    accounts,
+    credit,
+    counts,
+    collections,
+    finance,
+  ] = await Promise.all([
       /* Every payment that still counts. A cancelled one was answered by a
          reversing line, so both sides of the check drop it together. */
       prisma.payment.findMany({
@@ -69,15 +235,41 @@ export async function reconciliation() {
       }),
       accountBalances(prisma),
       prisma.companyAccount.findMany({
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
         select: {
           id: true,
           name: true,
+          kind: true,
+          institution: true,
           currency: true,
           active: true,
           openingSetAt: true,
         },
       }),
       creditNotInTheLedger(),
+      /* The newest count per tin. Reading stored columns — countedAmount, the
+         ledger figure snapshotted beside it, and the difference — rather than
+         re-deriving any of them, so this cannot disagree with the count the
+         Accounts page prints from the same rows. */
+      prisma.cashCount.findMany({
+        where: { account: { kind: "CASH" } },
+        orderBy: [{ countedAt: "desc" }],
+        distinct: ["accountId"],
+        select: {
+          accountId: true,
+          countedAt: true,
+          countedAmount: true,
+          expectedAmount: true,
+          variance: true,
+          countedBy: { select: { name: true } },
+        },
+      }),
+      collectionsOverview(),
+      /* Heavier than a hand-rolled invoice aggregate would be, and taken
+         anyway. The alternative is this page owning its own answer to "what
+         was billed and what came back", which is the one thing the owner has
+         said must never happen: two screens, two totals, one argument. */
+      financeDashboard(period.window, period.previous),
     ]);
 
   /* ---------------------------------------- 1. every payment on the register */
@@ -156,8 +348,8 @@ export async function reconciliation() {
       key: "collected",
       label: "Money collected",
       question: "The bills say this much came in. The accounts should say the same.",
-      left: { label: "Settled against bills", value: usd(collectedUsd) },
-      right: { label: "Received into accounts", value: usd(ledgerUsd) },
+      left: { label: "Settled against bills", value: usd(collectedUsd), usd: collectedUsd },
+      right: { label: "Received into accounts", value: usd(ledgerUsd), usd: ledgerUsd },
       difference: Math.abs(collectedUsd - ledgerUsd),
       ok: near(collectedUsd, ledgerUsd),
       href: "/app/finance/transactions",
@@ -166,8 +358,16 @@ export async function reconciliation() {
       key: "credit",
       label: "Billed on credit",
       question: "Cargo released against a promise. Revenue, but no money in any account.",
-      left: { label: "Still owed", value: usd(credit.outstandingUsd) },
-      right: { label: "Of which overdue", value: usd(credit.overdueUsd) },
+      left: {
+        label: "Still owed",
+        value: usd(credit.outstandingUsd),
+        usd: credit.outstandingUsd,
+      },
+      right: {
+        label: "Of which overdue",
+        value: usd(credit.overdueUsd),
+        usd: credit.overdueUsd,
+      },
       difference: 0,
       ok: true,
       /* The one gap on this page that is correct by design, said so plainly —
@@ -203,5 +403,205 @@ export async function reconciliation() {
     },
   ];
 
-  return { checks, unposted: unposted.length, negative, neverOpened, credit };
+  /* ---------------------------------------- 5. what each account holds
+
+     Not a sixth check — a statement of position, which is the thing a manager
+     asked to "reconcile the bank" actually opens a screen to see. The figures
+     are accountBalances() untouched: the same rows the Accounts page draws its
+     cards from and the same rows financeDashboard totals into the cash
+     position. Three screens, one query.
+  */
+  const countByAccount = new Map(counts.map((c) => [c.accountId, c]));
+  const held = accounts
+    .filter((a) => a.active)
+    .map((a): AccountPosition & { kind: AccountKind } => {
+      const row = byId.get(a.id);
+      const count = countByAccount.get(a.id);
+      const inflow = toNumber(row?.inflow ?? 0);
+      const outflow = toNumber(row?.outflow ?? 0);
+      return {
+        id: a.id,
+        name: a.name,
+        institution: a.institution,
+        kind: a.kind,
+        currency: a.currency,
+        inflow,
+        outflow,
+        balance: inflow - outflow,
+        balanceUsd: toNumber(row?.inflowUsd ?? 0) - toNumber(row?.outflowUsd ?? 0),
+        entries: Number(row?.entries ?? 0),
+        lastMovedAt: row?.lastMovedAt ?? null,
+        openingSetAt: a.openingSetAt,
+        count: count
+          ? {
+              countedAt: count.countedAt,
+              countedAmount: toNumber(count.countedAmount),
+              expectedAmount: toNumber(count.expectedAmount),
+              variance: toNumber(count.variance),
+              countedBy: count.countedBy?.name ?? null,
+            }
+          : null,
+      };
+    });
+
+  const positions: PositionGroup[] = KIND_ORDER.map((kind) => {
+    const rows = held.filter((a) => a.kind === kind);
+    const currencies = [...new Set(rows.map((r) => r.currency))];
+    return {
+      kind,
+      label: KIND_LABEL[kind],
+      counterpart: COUNTERPART[kind].text,
+      checkable: COUNTERPART[kind].checkable,
+      accounts: rows,
+      entries: rows.reduce((n, r) => n + r.entries, 0),
+      totals: currencies.map((currency) => {
+        const of = rows.filter((r) => r.currency === currency);
+        return {
+          currency,
+          inflow: of.reduce((n, r) => n + r.inflow, 0),
+          outflow: of.reduce((n, r) => n + r.outflow, 0),
+          balance: of.reduce((n, r) => n + r.balance, 0),
+        };
+      }),
+    };
+  }).filter((group) => group.accounts.length > 0);
+
+  /* An archived account still holding money is not a rounding detail: it is
+     money the position above does not count, sitting somewhere nobody looks.
+     Shown as its own line rather than folded into a group, because it is not
+     part of the live position and pretending otherwise would overstate it. */
+  const archivedHolding = accounts
+    .filter((a) => !a.active)
+    .map((a) => {
+      const row = byId.get(a.id);
+      return {
+        id: a.id,
+        name: a.name,
+        currency: a.currency,
+        balance: toNumber(row?.inflow ?? 0) - toNumber(row?.outflow ?? 0),
+      };
+    })
+    .filter((a) => Math.abs(a.balance) > 0.005);
+
+  /* ---------------------------------------- 6. collections
+
+     Every figure here belongs to a desk that already computes it. The point of
+     putting them side by side is that the two desks reach them by different
+     routes — Support counts the bills it is chasing, the books group invoices
+     by status — and a manager signing anything off wants to know the two
+     agree BEFORE somebody quotes one of them at him.
+  */
+  const owedByStatus = finance.collections.unpaid + finance.collections.partiallyPaid;
+  const billedGap =
+    finance.collections.expectedUsd - finance.collections.collectedUsd;
+
+  const collectionChecks: Check[] = [
+    {
+      key: "owing",
+      label: "Bills still owed on",
+      question:
+        "The chase list and the invoice book should be naming exactly the same bills.",
+      left: { label: "On the chase list", value: String(collections.owingCount) },
+      right: { label: "Unpaid or part-paid", value: String(owedByStatus) },
+      difference: Math.abs(collections.owingCount - owedByStatus),
+      ok: collections.owingCount === owedByStatus,
+      href: "/app/finance/invoices",
+    },
+    {
+      key: "outstanding",
+      label: "Money still owed",
+      question:
+        "What Support is chasing should be, to the cent, what the books call receivable.",
+      left: {
+        label: "Chased by Support",
+        value: usd(collections.outstandingUsd),
+        usd: collections.outstandingUsd,
+      },
+      right: {
+        label: "Receivable in the books",
+        value: usd(finance.position.receivableUsd),
+        usd: finance.position.receivableUsd,
+      },
+      difference: Math.abs(collections.outstandingUsd - finance.position.receivableUsd),
+      ok: near(collections.outstandingUsd, finance.position.receivableUsd),
+      href: "/app/finance/invoices",
+    },
+    {
+      key: "billed",
+      label: "This period's book adds up",
+      question:
+        "Billed, less what has been settled against those bills, is what is still owed on them.",
+      left: { label: "Billed less settled", value: usd(billedGap), usd: billedGap },
+      right: {
+        label: "Still owed on them",
+        value: usd(finance.collections.outstandingUsd),
+        usd: finance.collections.outstandingUsd,
+      },
+      difference: Math.abs(billedGap - finance.collections.outstandingUsd),
+      ok: near(billedGap, finance.collections.outstandingUsd),
+      /* The only way these part company: more has been settled against the
+         period's bills than they came to, so "still owed" floors at nothing and
+         the overpayment has nowhere to show. Worth a sentence, because the
+         money is real and it is sitting on the wrong bill or ahead of one. */
+      expected:
+        billedGap < -0.005
+          ? "More has been settled against this period's bills than they came to. Somebody has paid ahead, or a payment is sitting on the wrong bill — either way the credit is real and it is not on this period's book."
+          : undefined,
+      href: "/app/finance/invoices",
+    },
+    {
+      key: "claims",
+      label: "Claims waiting on Finance",
+      question:
+        "A customer says they have paid. Until Finance agrees, no account has that money.",
+      left: { label: "Support has sent up", value: String(collections.pendingCount) },
+      right: {
+        label: "Awaiting verification",
+        value: String(finance.collections.awaitingVerification),
+      },
+      difference: Math.abs(
+        collections.pendingCount - finance.collections.awaitingVerification
+      ),
+      ok: collections.pendingCount === finance.collections.awaitingVerification,
+      /* Deliberately a count and not an amount, and said so. A submission is
+         stored in whatever currency the customer sent, so a sum across them
+         would add shillings to dollars — see lib/collections.ts, which refuses
+         the same total for the same reason. */
+      expected:
+        "No money figure is shown for these on purpose: a claim is stored in the currency the customer sent, so adding them together would add shillings to dollars. The count is the honest figure until Finance rules on each one.",
+      href: "/app/finance/verify",
+    },
+  ];
+
+  const collectionsReconciliation: CollectionsReconciliation = {
+    periodLabel: period.window.label,
+    checks: collectionChecks,
+    billed: {
+      expectedUsd: finance.collections.expectedUsd,
+      collectedUsd: finance.collections.collectedUsd,
+      outstandingUsd: finance.collections.outstandingUsd,
+      rate: finance.collections.rate,
+    },
+    book: {
+      outstandingUsd: collections.outstandingUsd,
+      owingCount: collections.owingCount,
+      awaitingPayment: collections.awaitingPayment,
+      pendingCount: collections.pendingCount,
+      rejected: collections.rejected,
+      notesReady: collections.notesReady,
+      successRate: collections.successRate,
+      submitted: collections.submitted,
+    },
+  };
+
+  return {
+    checks,
+    unposted: unposted.length,
+    negative,
+    neverOpened,
+    credit,
+    positions,
+    archivedHolding,
+    collections: collectionsReconciliation,
+  };
 }

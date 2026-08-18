@@ -1,40 +1,69 @@
 import type { Metadata } from "next";
-import { Users } from "lucide-react";
+import Link from "next/link";
+import type { PayrollStatus } from "@prisma/client";
+import { Clock, Undo2 } from "lucide-react";
 
-import { EmptyState } from "@/components/app/empty-state";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { PageHeader } from "@/components/app/page-header";
-import { BuildRunForm, SubmitRunForm } from "@/components/app/payroll-forms";
-import { PayrollTable } from "@/components/app/payroll-table";
-import { SectionLabel } from "@/components/app/section-label";
+import { PayrollAmount } from "@/components/app/payroll-amount";
+import {
+  PayrollBuild,
+  PayrollLines,
+  PayrollSubmit,
+} from "@/components/app/payroll-lines";
 import { activeAccounts } from "@/lib/accounts";
 import { financeTabs } from "@/lib/finance-tabs";
-import { toNumber } from "@/lib/format";
+import { formatDate, formatMonthYear, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
-import { formatShillings } from "@/lib/money";
-import { codeFor, payrollRoster, payrollRun, payrollRuns } from "@/lib/payroll";
+import { payrollRoster, payrollRun, payrollRuns } from "@/lib/payroll";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Payroll" };
 
-const STATE: Record<string, { label: string; tone: string }> = {
-  DRAFT: { label: "Being built", tone: "text-muted-foreground" },
-  PENDING_APPROVAL: { label: "With the manager", tone: "text-info" },
-  APPROVED: { label: "Agreed — waiting to be paid", tone: "text-success" },
-  PAID: { label: "Paid", tone: "text-success" },
-  REJECTED: { label: "Sent back", tone: "text-destructive" },
+/**
+ * Finance prepares the month.
+ *
+ * The owner's rule, in his words: Finance prepares the salary run, sends it to
+ * the manager, the manager approves it, and only THEN is the money deducted as
+ * a salary expense. This screen is the first half of that sentence, and it is
+ * built so the second half is never a surprise — the account is named here, the
+ * total is read here, and the moment it goes up the figures freeze.
+ *
+ * One run fills the screen rather than a list of months with a chevron on each.
+ * Payroll is not a queue: a month is built, corrected over a day or two and
+ * sent, and there is only ever one run anybody is working on. The months behind
+ * it are a register at the foot of the page, which is all they are read as.
+ */
+
+/*
+  What each status means TO FINANCE.
+
+  Deliberately not shared with the manager's screen, which names the same five
+  states in the words of the desk reading them — "With the manager" here is
+  "Waiting on you" there. One shared map would have to speak in neither voice.
+*/
+const STATUS_LABEL: Record<PayrollStatus, string> = {
+  DRAFT: "Being prepared",
+  PENDING_APPROVAL: "With the manager",
+  APPROVED: "Agreed — waiting to be paid",
+  REJECTED: "Sent back to you",
+  PAID: "Paid",
 };
 
-/**
- * Finance builds the month.
- *
- * This desk writes the figures and cannot pay them. The screen is arranged
- * around that boundary: everything editable is above, and the moment the run
- * leaves for the manager the same table is still here to read but nothing on it
- * can be touched — a run somebody is agreeing must not move under them.
- */
+const STATUS_TONE: Record<PayrollStatus, string> = {
+  DRAFT: "border-border text-muted-foreground",
+  PENDING_APPROVAL: "border-warning/40 text-warning",
+  APPROVED: "border-brand/40 text-brand",
+  REJECTED: "border-destructive/40 text-destructive",
+  PAID: "border-success/40 text-success",
+};
+
+/** The two statuses a run is still Finance's to change. */
+const EDITABLE: PayrollStatus[] = ["DRAFT", "REJECTED"];
+
 export default async function FinancePayrollPage({
   searchParams,
 }: {
@@ -42,181 +71,264 @@ export default async function FinancePayrollPage({
 }) {
   const user = await requirePermission("payroll.prepare");
   const locale = await viewerLocale();
-  const { run: runParam } = await searchParams;
+  const { run: asked } = await searchParams;
+
+  const [runs, accounts, roster, rateRow] = await Promise.all([
+    payrollRuns(),
+    activeAccounts(),
+    payrollRoster(),
+    currentRate(),
+  ]);
+  const rate = rateRow ? toNumber(rateRow.rate) : null;
 
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
+  const thisMonth = runs.find((r) => r.year === year && r.month === month);
 
-  const [runs, accounts, rateRow, roster] = await Promise.all([
-    payrollRuns(),
-    activeAccounts(),
-    currentRate(),
-    payrollRoster(),
-  ]);
-  const rate = rateRow ? toNumber(rateRow.rate) : null;
+  /*
+    Which run the screen opens on.
 
-  /* The one on screen: whichever was asked for, else this month, else the most
-     recent. Finance opens this page mid-month to check a run they built, and
-     landing on an empty "build August" prompt when August already exists reads
-     as though the work was lost. */
-  const target =
-    runs.find((r) => r.id === runParam) ??
-    runs.find((r) => r.year === year && r.month === month) ??
-    runs[0];
-  const current = target ? await payrollRun(target.id) : null;
+    A run Finance still has to act on outranks this month's, and the two are not
+    always the same one: a July run sent back on the 3rd of August, with August
+    already built and gone up, is the only thing on this desk anybody is waiting
+    for. Newest-editable first, then this month, so a rejection can never be
+    stranded behind a month that is already settled — and the register below can
+    still ask for any of them by name.
+  */
+  const open =
+    runs.find((r) => r.id === asked) ??
+    runs.find((r) => EDITABLE.includes(r.status)) ??
+    thisMonth ??
+    null;
+  const run = open ? await payrollRun(open.id) : null;
 
-  const editable =
-    current?.status === "DRAFT" || current?.status === "REJECTED";
-  const thisMonthExists = runs.some((r) => r.year === year && r.month === month);
+  const editable = run !== null && EDITABLE.includes(run.status);
+  /* Prisma Decimals cannot cross into a client component, and should not: the
+     table is arithmetic on figures, not on database values. */
+  const lines =
+    run?.items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      roleLabel: item.roleLabel,
+      employeeId: item.employeeId,
+      gross: toNumber(item.gross),
+      allowance: toNumber(item.allowance),
+      deduction: toNumber(item.deduction),
+      net: toNumber(item.net),
+      note: item.note,
+    })) ?? [];
+
+  const history = runs.filter((r) => r.id !== run?.id);
 
   return (
     <>
       <PageHeader
-        title={t(locale, "Payroll")}
-        description={t(
-          locale,
-          "Build the month from the staff register, then send it to the manager to agree."
-        )}
+        title="Payroll"
+        description="Build the month from the staff register, correct the exceptions, and send it to the manager. Nothing leaves the account until he has agreed it."
       />
+
       <FinanceNav tabs={financeTabs(user.role)} />
 
-      {!thisMonthExists ? (
-        <div className="mb-5 rounded-xl border bg-card p-3">
-          <p className="text-sm font-semibold">
-            {t(locale, "No run for")} {codeFor(year, month)}
-          </p>
-          <p className="mb-2 mt-0.5 text-[11px] text-muted-foreground">
-            {roster.length}{" "}
-            {t(
-              locale,
-              roster.length === 1
-                ? "person on the register has a salary set."
-                : "people on the register have a salary set."
-            )}{" "}
-            {t(
-              locale,
-              "Anybody without one is left off — set it on their staff record to include them."
-            )}
-          </p>
-          {roster.length > 0 ? (
-            <BuildRunForm year={year} month={month} />
-          ) : (
-            <p className="text-[11px] text-warning">
-              {t(
-                locale,
-                "Nobody has a salary on their staff record yet, so there is nothing to build."
-              )}
-            </p>
-          )}
+      {/* Building leads when this month has no run: it is then the one thing to
+          do on the screen, and it should not sit underneath last month's. */}
+      {thisMonth ? null : (
+        <div className="mb-4">
+          <PayrollBuild year={year} month={month} headcount={roster.length} />
         </div>
-      ) : null}
+      )}
 
-      {current ? (
-        <>
-          <SectionLabel>
-            {current.code} · {t(locale, STATE[current.status]?.label ?? current.status)}
-          </SectionLabel>
+      {run ? (
+        <section className="mb-6 space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2 className="font-display text-lg font-bold">
+              {formatMonthYear(new Date(run.year, run.month - 1, 1), locale)}
+              <span className="ml-2 font-mono text-xs font-normal text-muted-foreground">
+                {run.code}
+              </span>
+            </h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+                  STATUS_TONE[run.status]
+                )}
+              >
+                {t(locale, STATUS_LABEL[run.status])}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {t(locale, "prepared by")} {run.preparedBy.name} ·{" "}
+                {formatDate(run.preparedAt, locale)}
+              </span>
+            </div>
+          </div>
 
-          {/* The manager's reason, when there is one. This is the whole point of
-              sending a run back, so it leads rather than sitting in a footer. */}
-          {current.status === "REJECTED" && current.decisionNote ? (
-            <p className="mb-3 rounded-lg border border-destructive/40 bg-destructive/[0.05] px-3 py-2 text-xs text-destructive">
-              <strong>{t(locale, "Sent back")}</strong>
-              {current.approvedBy ? ` ${t(locale, "by")} ${current.approvedBy.name}` : ""}
-              {" — "}
-              {current.decisionNote}
+          {/*
+            The manager's reason, above everything else.
+
+            A run coming back is the only message that travels down this
+            workflow, and it is the whole point of sending one back. Under the
+            table it would be found on the second reading, after Finance had
+            already started guessing which line he meant.
+          */}
+          {run.status === "REJECTED" ? (
+            <div className="rounded-xl border border-destructive/40 bg-destructive/[0.05] p-3">
+              <p className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-destructive">
+                <Undo2 className="h-3.5 w-3.5" />
+                {t(locale, "Sent back")}
+                {run.approvedBy ? ` · ${run.approvedBy.name}` : ""}
+                {run.approvedAt ? ` · ${formatDate(run.approvedAt, locale)}` : ""}
+              </p>
+              <p className="mt-1 text-sm font-medium">
+                {run.decisionNote ?? t(locale, "No reason was given.")}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {t(
+                  locale,
+                  "Correct the lines below and send it up again. Last time's ruling is dropped the moment it goes."
+                )}
+              </p>
+            </div>
+          ) : null}
+
+          {/* Out of Finance's hands: what it is waiting on and who has it, said
+              plainly, because the next move belongs to somebody else. */}
+          {run.status === "PENDING_APPROVAL" ? (
+            <p className="flex flex-wrap items-center gap-x-1.5 rounded-xl border border-warning/40 bg-warning/[0.05] p-2.5 text-[11px] text-warning">
+              <Clock className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-semibold">
+                {t(locale, "With the manager since")}{" "}
+                {formatDate(run.submittedAt ?? run.preparedAt, locale)}.
+              </span>
+              <span className="text-muted-foreground">
+                {t(
+                  locale,
+                  "Nothing on it can change while it waits. It comes back only if he sends it back."
+                )}
+              </span>
             </p>
           ) : null}
 
-          <div className="mb-3 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-xs">
-            <span>
-              <span className="text-muted-foreground">{t(locale, "People")} </span>
-              <span className="tabular font-semibold">{current.totals.headcount}</span>
-            </span>
-            <span>
-              <span className="text-muted-foreground">{t(locale, "Total")} </span>
-              <span className="tabular font-semibold">
-                {formatShillings(current.totals.net, rate)}
+          {run.status === "APPROVED" ? (
+            <p className="flex flex-wrap items-center gap-x-1.5 rounded-xl border border-brand/40 bg-brand/[0.05] p-2.5 text-[11px] text-brand">
+              <span className="font-semibold">
+                {t(locale, "Agreed by")} {run.approvedBy?.name ?? "—"}
+                {run.approvedAt ? ` · ${formatDate(run.approvedAt, locale)}` : ""}
               </span>
-            </span>
-            {current.account ? (
-              <span>
-                <span className="text-muted-foreground">{t(locale, "From")} </span>
-                <span className="font-medium">{current.account.name}</span>
+              <span className="text-muted-foreground">
+                {t(locale, "The money has not moved. The manager pays it, out of")}{" "}
+                {run.account?.name ?? t(locale, "no account named")}.
               </span>
-            ) : null}
-            <span className="text-muted-foreground">
-              {t(locale, "Built by")} {current.preparedBy.name}
-            </span>
-          </div>
+            </p>
+          ) : null}
 
-          <PayrollTable
-            items={current.items}
-            locale={locale}
+          {run.status === "PAID" ? (
+            <p className="flex flex-wrap items-center gap-x-1.5 rounded-xl border border-success/40 bg-success/[0.05] p-2.5 text-[11px] text-success">
+              <span className="font-semibold">
+                {t(locale, "Paid")}
+                {run.paidAt ? ` · ${formatDate(run.paidAt, locale)}` : ""}
+                {run.paidBy ? ` · ${run.paidBy.name}` : ""}
+              </span>
+              <span className="text-muted-foreground">
+                {t(locale, "out of")} {run.account?.name ?? "—"}
+                {run.expense ? ` · ${run.expense.expenseNumber}` : ""}
+              </span>
+            </p>
+          ) : null}
+
+          {run.note && run.status !== "REJECTED" ? (
+            <p className="text-[11px] text-muted-foreground">
+              {t(locale, "Sent up with a note:")} “{run.note}”
+            </p>
+          ) : null}
+
+          <PayrollLines
+            lines={lines}
+            totals={run.totals}
             rate={rate}
             editable={editable}
           />
 
           {editable ? (
-            <div className="mt-3">
-              <SubmitRunForm
-                runId={current.id}
-                accounts={accounts}
-                defaultAccountId={current.accountId}
-              />
-            </div>
-          ) : (
-            <p className="mt-3 text-[11px] text-muted-foreground">
-              {current.status === "PENDING_APPROVAL"
-                ? t(locale, "With the manager. Nothing can change while it is being read.")
-                : current.status === "APPROVED"
-                  ? t(locale, "Agreed. The manager pays it from their own screen.")
-                  : current.status === "PAID"
-                    ? `${t(locale, "Paid")}${current.expense ? ` · ${current.expense.expenseNumber}` : ""}`
-                    : ""}
-            </p>
-          )}
-        </>
-      ) : (
-        <EmptyState
-          icon={Users}
-          title={t(locale, "No salary runs yet")}
-          description={t(
-            locale,
-            "Build the first month above once the register has salaries on it."
-          )}
-        />
-      )}
+            <PayrollSubmit
+              runId={run.id}
+              accounts={accounts.map((a) => ({
+                id: a.id,
+                name: a.name,
+                currency: a.currency,
+              }))}
+              defaultAccountId={run.accountId}
+              netUsd={run.totals.net}
+              rate={rate}
+            />
+          ) : null}
+        </section>
+      ) : null}
 
-      {runs.length > 1 ? (
-        <div className="mt-6">
-          <SectionLabel>{t(locale, "Earlier months")}</SectionLabel>
-          <div className="divide-y rounded-xl border bg-card">
-            {runs
-              .filter((r) => r.id !== current?.id)
-              .map((r) => (
-                <a
-                  key={r.id}
+      {/*
+        The months behind it, one line each.
+
+        The only figure is the net — what left the account, or what will. A
+        register is read to check that a month happened and for how much; every
+        other column on it answers a question nobody asks of a month they have
+        already paid. Each row opens, because a run sent back in March is still
+        Finance's to fix in April.
+      */}
+      {history.length > 0 ? (
+        <section>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {t(locale, "Earlier months")}
+          </h2>
+          <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+            {history.map((r) => (
+              <li key={r.id}>
+                <Link
                   href={`/app/finance/payroll?run=${r.id}`}
-                  className="focus-ring flex items-baseline gap-3 px-3 py-2 text-xs hover:bg-accent/40"
+                  className="focus-ring flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-1.5 hover:bg-accent/40"
                 >
-                  <span className="font-medium">{r.code}</span>
+                  <span className="min-w-[7rem] text-xs font-medium">
+                    {formatMonthYear(new Date(r.year, r.month - 1, 1), locale)}
+                  </span>
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {r.code}
+                  </span>
                   <span
-                    className={`text-[11px] ${STATE[r.status]?.tone ?? "text-muted-foreground"}`}
+                    className={cn(
+                      "inline-flex items-center rounded-full border px-1.5 py-px text-[11px] font-medium",
+                      STATUS_TONE[r.status]
+                    )}
                   >
-                    {t(locale, STATE[r.status]?.label ?? r.status)}
+                    {t(locale, STATUS_LABEL[r.status])}
                   </span>
-                  <span className="ml-auto tabular font-semibold">
-                    {formatShillings(r.totals.net, rate)}
+                  <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+                    {r.totals.headcount} {t(locale, "staff")}
+                    {r.account ? ` · ${r.account.name}` : ""}
+                    {r.approvedBy
+                      ? ` · ${t(locale, "agreed by")} ${r.approvedBy.name}`
+                      : ""}
                   </span>
-                  <span className="tabular w-10 text-right text-[11px] text-muted-foreground">
-                    {r.totals.headcount}
-                  </span>
-                </a>
-              ))}
-          </div>
-        </div>
+                  <PayrollAmount
+                    usd={r.totals.net}
+                    rate={rate}
+                    strong
+                    className="text-right"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* Nothing built and nothing behind it: say what the screen is for rather
+          than stacking an empty card on an empty list. */}
+      {run === null && history.length === 0 ? (
+        <p className="text-[11px] text-muted-foreground">
+          {t(
+            locale,
+            "No salary run has been built yet. Build one above and it appears here, name by name, for you to correct before it goes up."
+          )}
+        </p>
       ) : null}
     </>
   );

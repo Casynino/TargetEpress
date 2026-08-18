@@ -1,149 +1,275 @@
 import type { Metadata } from "next";
-import { BadgeCheck } from "lucide-react";
+import type { PayrollStatus } from "@prisma/client";
+import { BadgeCheck, Clock } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { DecideRunForm, PayRunForm } from "@/components/app/payroll-forms";
-import { PayrollTable } from "@/components/app/payroll-table";
+import { PayrollAmount } from "@/components/app/payroll-amount";
+import { PayrollDecision, PayrollPay } from "@/components/app/payroll-decision";
+import { PayrollLines } from "@/components/app/payroll-lines";
 import { SectionLabel } from "@/components/app/section-label";
-import { toNumber } from "@/lib/format";
+import { formatDate, formatMonthYear, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
-import { formatShillings } from "@/lib/money";
-import { payrollRun, payrollRuns } from "@/lib/payroll";
+import { pendingPayrollApproval, payrollRun, payrollRuns } from "@/lib/payroll";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Payroll" };
 
 /**
- * The manager agrees the month, and pays it.
+ * The manager agrees the month, then pays it.
  *
- * Two presses, deliberately not one. Agreeing is a signature on a list of
- * names and figures; paying is a statement about a day the bank moved. Folding
- * them together would date every salary run to the moment somebody got round
- * to approving it, and would remove the only gap in which an agreed run can
- * still be checked against a balance before the money goes.
+ * Two presses on purpose. Agreeing is a signature on a list of names and
+ * figures; paying is a statement about the day the bank moved. Folded into one
+ * they would date every salary run to the moment somebody got round to reading
+ * it, and close the only gap in which an agreed run can still be checked
+ * against a balance before the money goes.
  *
- * A run this reader prepared offers no controls at all. The action refuses it
- * against the stored preparedById, and a screen that offered the button anyway
- * would be teaching the wrong rule and failing at the last moment.
+ * The lines are printed in full, not summarised. Nobody can agree to a total:
+ * the question this desk is actually being asked is whether that is the right
+ * list of people at the right amounts, and that question needs the list. A
+ * summary would make the approval a rubber stamp with extra clicks.
+ *
+ * A run this reader prepared offers no controls. The action refuses it against
+ * the stored preparedById, and a screen that offered the button anyway would be
+ * teaching the wrong rule and then failing at the last moment.
  */
+
+/** The status words for THIS desk. Finance's screen names them differently. */
+const STATUS_LABEL: Record<PayrollStatus, string> = {
+  DRAFT: "Still with Finance",
+  PENDING_APPROVAL: "Waiting on you",
+  APPROVED: "Agreed by you — not yet paid",
+  REJECTED: "Sent back to Finance",
+  PAID: "Paid",
+};
+
+const STATUS_TONE: Record<PayrollStatus, string> = {
+  DRAFT: "border-border text-muted-foreground",
+  PENDING_APPROVAL: "border-warning/40 text-warning",
+  APPROVED: "border-brand/40 text-brand",
+  REJECTED: "border-destructive/40 text-destructive",
+  PAID: "border-success/40 text-success",
+};
+
 export default async function ManagerPayrollPage() {
   const user = await requirePermission("payroll.approve");
   const locale = await viewerLocale();
 
-  const [runs, rateRow] = await Promise.all([payrollRuns(), currentRate()]);
+  const [pending, runs, rateRow] = await Promise.all([
+    pendingPayrollApproval(),
+    payrollRuns(12),
+    currentRate(),
+  ]);
   const rate = rateRow ? toNumber(rateRow.rate) : null;
 
-  /* Everything this desk still has to do something about, oldest first —
-     waiting runs before agreed ones, because a run nobody has read is more
-     urgent than one already signed. */
-  const open = runs
-    .filter((r) => r.status === "PENDING_APPROVAL" || r.status === "APPROVED")
-    .sort((a, b) =>
-      a.status === b.status
-        ? (a.submittedAt?.getTime() ?? 0) - (b.submittedAt?.getTime() ?? 0)
-        : a.status === "PENDING_APPROVAL"
-          ? -1
-          : 1
-    );
+  /*
+    Both queues opened in full, lines and all.
 
-  const detailed = await Promise.all(open.map((r) => payrollRun(r.id)));
-  const today = new Date().toISOString().slice(0, 10);
+    One read per run rather than one query for the lot, and it costs almost
+    nothing: a run is one per month by database constraint, so this desk is
+    never looking at more than two or three at once. The alternative — a total
+    now and the names behind a click — is the summary this page exists not to
+    be.
+  */
+  const waitingIds = pending.map((p) => p.id);
+  const approvedIds = runs.filter((r) => r.status === "APPROVED").map((r) => r.id);
+  const opened = await Promise.all(
+    [...waitingIds, ...approvedIds].map((id) => payrollRun(id))
+  );
+  const detailed = opened.filter((r): r is NonNullable<typeof r> => r !== null);
+
+  /* How long each has sat there, worked out by the reader in lib/payroll.ts. */
+  const waitedDays = new Map(pending.map((p) => [p.id, p.waitingDays]));
+
+  const decided = runs.filter((r) => r.status === "PAID" || r.status === "REJECTED");
 
   return (
     <>
       <PageHeader
-        title={t(locale, "Payroll")}
-        description={t(
-          locale,
-          "What Finance has prepared, name by name. Agree it, send it back, or pay what you have already agreed."
-        )}
+        title="Payroll"
+        description="What Finance has prepared, name by name. Agree it, send it back with a reason, or pay what you have already agreed."
       />
 
-      {detailed.filter(Boolean).length === 0 ? (
+      {detailed.length === 0 ? (
         <EmptyState
           icon={BadgeCheck}
-          title={t(locale, "Nothing waiting")}
+          title={t(locale, "Nothing is waiting on you")}
           description={t(
             locale,
-            "Finance has not sent up a salary run, and nothing you agreed is still unpaid."
+            "Finance has not sent up a salary run, and nothing you have agreed is still unpaid."
           )}
         />
       ) : (
         <div className="space-y-6">
-          {detailed.filter(Boolean).map((run) => {
-            const r = run!;
-            const mine = r.preparedById === user.id;
-            const waiting = r.status === "PENDING_APPROVAL";
+          {detailed.map((run) => {
+            const waiting = run.status === "PENDING_APPROVAL";
+            /* Nobody agrees their own run — the split IS the control, so the
+               button is not offered to the desk that wrote the figures. */
+            const mine = run.preparedById === user.id;
+            const days = waitedDays.get(run.id) ?? 0;
+
+            const lines = run.items.map((item) => ({
+              id: item.id,
+              name: item.name,
+              roleLabel: item.roleLabel,
+              employeeId: item.employeeId,
+              gross: toNumber(item.gross),
+              allowance: toNumber(item.allowance),
+              deduction: toNumber(item.deduction),
+              net: toNumber(item.net),
+              note: item.note,
+            }));
+
             return (
-              <div key={r.id}>
+              <section key={run.id} className="space-y-2">
                 <SectionLabel>
-                  {r.code} ·{" "}
-                  {waiting
-                    ? t(locale, "waiting on you")
-                    : t(locale, "agreed, not yet paid")}
+                  {formatMonthYear(new Date(run.year, run.month - 1, 1), locale)} ·{" "}
+                  {t(locale, STATUS_LABEL[run.status])}
                 </SectionLabel>
 
-                <div className="mb-2 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-xs">
-                  <span>
-                    <span className="text-muted-foreground">{t(locale, "People")} </span>
-                    <span className="tabular font-semibold">{r.totals.headcount}</span>
-                  </span>
-                  <span>
-                    <span className="text-muted-foreground">{t(locale, "Total")} </span>
-                    <span className="tabular text-sm font-semibold">
-                      {formatShillings(r.totals.net, rate)}
-                    </span>
-                  </span>
-                  <span>
-                    <span className="text-muted-foreground">{t(locale, "From")} </span>
-                    <span className="font-medium">
-                      {r.account?.name ?? t(locale, "no account named")}
-                    </span>
-                  </span>
+                {/* Everything the decision rests on, in one strip: whose figures
+                    they are, how long they have waited, how many people, how
+                    much, and out of which account. */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border bg-card px-3 py-2">
+                  <span className="font-mono text-xs font-semibold">{run.code}</span>
+
                   <span className="text-[11px] text-muted-foreground">
-                    {t(locale, "Prepared by")} {r.preparedBy.name}
+                    {t(locale, "prepared by")}{" "}
+                    <span className="font-medium text-foreground">
+                      {run.preparedBy.name}
+                    </span>
+                    {" · "}
+                    {formatDate(run.submittedAt ?? run.preparedAt, locale)}
                   </span>
+
+                  {waiting ? (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 text-[11px] font-semibold",
+                        days >= 3 ? "text-destructive" : "text-warning"
+                      )}
+                    >
+                      <Clock className="h-3.5 w-3.5" />
+                      {days === 0
+                        ? t(locale, "sent up today")
+                        : `${t(locale, "waiting")} ${days} ${t(
+                            locale,
+                            days === 1 ? "day" : "days"
+                          )}`}
+                    </span>
+                  ) : null}
+
+                  <span className="text-[11px] text-muted-foreground">
+                    {run.totals.headcount} {t(locale, "staff")}
+                  </span>
+
+                  <span className="text-[11px] text-muted-foreground">
+                    {t(locale, "out of")}{" "}
+                    <span className="font-medium text-foreground">
+                      {run.account?.name ?? t(locale, "no account named")}
+                    </span>
+                  </span>
+
+                  <PayrollAmount
+                    usd={run.totals.net}
+                    rate={rate}
+                    strong
+                    className="ml-auto text-right"
+                  />
                 </div>
 
-                {r.note ? (
-                  <p className="mb-2 text-[11px] text-muted-foreground">
-                    {t(locale, "Finance says:")} {r.note}
+                {run.note ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    {t(locale, "Finance says:")} “{run.note}”
                   </p>
                 ) : null}
 
-                <PayrollTable
-                  items={r.items}
-                  locale={locale}
+                <PayrollLines
+                  lines={lines}
+                  totals={run.totals}
                   rate={rate}
                   editable={false}
                 />
 
-                <div className="mt-3">
-                  {mine ? (
-                    <p className="rounded-lg border border-warning/40 bg-warning/[0.04] px-3 py-2 text-[11px] text-muted-foreground">
-                      {t(
-                        locale,
-                        "You built this run, so you cannot be the one who agrees it. Somebody else holding payroll approval has to read it."
-                      )}
-                    </p>
-                  ) : waiting ? (
-                    <DecideRunForm runId={r.id} />
-                  ) : (
-                    <PayRunForm
-                      runId={r.id}
-                      accountName={r.account?.name ?? t(locale, "the named account")}
-                      today={today}
-                    />
-                  )}
-                </div>
-              </div>
+                {mine ? (
+                  <p className="rounded-lg border border-warning/40 bg-warning/[0.04] px-3 py-2 text-[11px] text-muted-foreground">
+                    {t(
+                      locale,
+                      "You prepared this run, so you cannot be the one who agrees it. Somebody else holding payroll approval has to read it."
+                    )}
+                  </p>
+                ) : waiting ? (
+                  <PayrollDecision runId={run.id} code={run.code} />
+                ) : (
+                  <PayrollPay
+                    runId={run.id}
+                    code={run.code}
+                    accountName={run.account?.name ?? t(locale, "the named account")}
+                    accountCurrency={run.account?.currency ?? "USD"}
+                    netUsd={run.totals.net}
+                    headcount={run.totals.headcount}
+                    rate={rate}
+                  />
+                )}
+              </section>
             );
           })}
         </div>
       )}
+
+      {/*
+        What has already been ruled on.
+
+        Short and read-only. It is here so this desk can see that last month
+        went through without opening Finance's screen — and so a run sent back
+        does not vanish from the manager's view the moment he sends it.
+      */}
+      {decided.length > 0 ? (
+        <section className="mt-6">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {t(locale, "Already ruled on")}
+          </h2>
+          <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+            {decided.map((r) => (
+              <li
+                key={r.id}
+                className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-1.5"
+              >
+                <span className="min-w-[7rem] text-xs font-medium">
+                  {formatMonthYear(new Date(r.year, r.month - 1, 1), locale)}
+                </span>
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  {r.code}
+                </span>
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full border px-1.5 py-px text-[11px] font-medium",
+                    STATUS_TONE[r.status]
+                  )}
+                >
+                  {t(locale, STATUS_LABEL[r.status])}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+                  {r.totals.headcount} {t(locale, "staff")}
+                  {r.account ? ` · ${r.account.name}` : ""}
+                  {r.status === "PAID" && r.paidAt
+                    ? ` · ${formatDate(r.paidAt, locale)}`
+                    : ""}
+                </span>
+                <PayrollAmount
+                  usd={r.totals.net}
+                  rate={rate}
+                  strong
+                  className="text-right"
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </>
   );
 }
