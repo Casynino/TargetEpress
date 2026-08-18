@@ -9,10 +9,17 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { ExecutiveDashboard } from "@/app/app/dashboard/executive";
+import { AttentionCenter, type AttnItem } from "@/components/app/attention-center";
 import { DeskHero } from "@/components/app/desk-hero";
+import { DeskPulsePanel } from "@/components/app/desk-pulse";
+import { SectionLabel } from "@/components/app/section-label";
 import { IconHint } from "@/components/app/icon-hint";
-import { formatWeight } from "@/lib/format";
+import { formatWeight, toNumber } from "@/lib/format";
+import { currentRate } from "@/lib/fx";
+import { creditAlerts } from "@/lib/credit-queries";
+import { deskPulse, ownerAttention } from "@/lib/queries";
+import { creditAttention } from "@/lib/support";
+import { can } from "@/lib/rbac";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { managerOverview, type Insight, type InsightTone } from "@/lib/manager-overview";
@@ -115,6 +122,38 @@ export default async function ManagerHome() {
   ]);
   const firstName = (me?.name ?? user.name).split(" ")[0];
 
+  /*
+    The three the executive dashboard used to bring, fetched here instead.
+
+    This page rendered its own blocks and then the WHOLE admin dashboard under
+    them. Sharing that component was meant to keep one source of truth, and it
+    did — but it also stacked two dashboards on one screen: the attention panel
+    and the desk cards ended up beneath five blocks of tiles, so the first thing
+    a manager saw was inventory and the last was the thing that needed them.
+    Worse, the two halves drew overlapping figures, and the same number showing
+    up twice reads as a bug even when both copies are right.
+
+    One source of truth was never about sharing a LAYOUT. It is about sharing
+    the ENGINES, which is what these three calls do — the same ownerAttention,
+    creditAlerts and deskPulse the owner's screen reads, composed for this desk.
+  */
+  const rateRow = await currentRate();
+  const liveRate = rateRow ? toNumber(rateRow.rate) : null;
+  const [attnItems, alerts, desks] = await Promise.all([
+    ownerAttention(liveRate, locale),
+    creditAlerts(),
+    deskPulse(liveRate, locale),
+  ]);
+
+  const attention: AttnItem[] = [
+    ...attnItems,
+    ...creditAttention(alerts, {
+      locale,
+      rate: liveRate,
+      canApprove: can(user.role, "credit.approve"),
+    }),
+  ];
+
   const today = new Date().toLocaleDateString(locale === "zh" ? "zh-CN" : "en-GB", {
     weekday: "long",
     day: "numeric",
@@ -143,6 +182,23 @@ export default async function ManagerHome() {
         )}
         search={{ action: "/app/search" }}
       />
+
+      {/*
+        WHAT NEEDS YOU, BEFORE WHAT MERELY IS.
+
+        This panel used to sit two thirds of the way down, under five blocks of
+        counters, because it arrived with the shared dashboard rather than being
+        placed. A manager opening this screen is not browsing inventory — the
+        first question is "does anything need me", and every tile below is
+        context for answering it. So it leads, and the numbers support it.
+      */}
+      <div className="mb-5">
+        <AttentionCenter
+          items={attention}
+          reviewAll={{ href: "/app/manager/control", label: t(locale, "Control room") }}
+          empty={t(locale, "Nothing needs your decision. Every desk is clear.")}
+        />
+      </div>
 
       <div className="mb-6 space-y-3">
         <Insights
@@ -192,6 +248,7 @@ export default async function ManagerHome() {
             filter, so this link claims no filter it cannot deliver.
           */}
           <Tile
+            lead
             label={t(locale, "Held, no pickup note")}
             value={count(operations.cargoAwaitingPayment)}
             hint={t(locale, "not paid for, or stopped by a claim")}
@@ -237,6 +294,7 @@ export default async function ManagerHome() {
           {/* The one figure that says whether any of the rest was kept, and the
               dashboard below never states it. */}
           <Tile
+            lead
             label={t(locale, "Profit this month")}
             value={money(finance.profitThisMonthUsd)}
             hint={
@@ -402,7 +460,8 @@ export default async function ManagerHome() {
               the finding.
             */}
             <Tile
-              label={t(locale, "Decisions queued")}
+              lead
+            label={t(locale, "Decisions queued")}
               value={count(management.pendingApprovals)}
               hint={
                 management.oldestApprovalDays === null
@@ -454,7 +513,18 @@ export default async function ManagerHome() {
         </div>
       </div>
 
-      <ExecutiveDashboard role={user.role} />
+      {/*
+        The four desks, last, and the only panel here that is about PEOPLE
+        rather than figures. It closes the page the way the reader's day runs:
+        what needs deciding, what the money did, what is moving, then who is
+        doing it.
+      */}
+      <div className="mt-6">
+        <SectionLabel action={{ href: "/app/manager/operations", label: t(locale, "Every desk in full") }}>
+          {t(locale, "Every desk, right now")}
+        </SectionLabel>
+        <DeskPulsePanel desks={desks} locale={locale} />
+      </div>
     </>
   );
 }
@@ -497,22 +567,38 @@ function Tile({
   hint,
   href,
   tone = "flat",
+  lead = false,
 }: {
   label: string;
   value: string;
   hint?: string;
   href: string;
   tone?: keyof typeof TONES;
+  /**
+   * The one figure in this block the reader came for.
+   *
+   * Every tile was the same size, which made a block of nine a wall of equal
+   * numbers with no way in — the eye has to read all of them to find out which
+   * one matters, so it reads none. One figure per block carries the block's
+   * question ("did we make money", "what is stuck"), and the rest are the
+   * detail behind it. Exactly one per block: promote two and the hierarchy is
+   * gone again.
+   */
+  lead?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className="focus-ring group rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/60"
+      className={cn(
+        "focus-ring group rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/60",
+        lead && "col-span-2 bg-muted/25 sm:col-span-1"
+      )}
     >
       <p className="text-[11px] leading-tight text-muted-foreground">{label}</p>
       <p
         className={cn(
-          "mt-0.5 truncate font-display text-[15px] font-bold leading-tight tabular",
+          "mt-0.5 truncate font-display font-bold leading-tight tabular",
+          lead ? "text-[22px]" : "text-[15px]",
           TONES[tone]
         )}
       >
