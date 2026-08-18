@@ -27,8 +27,6 @@ import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
-import { FinanceNav } from "@/components/app/finance-nav";
-import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -215,7 +213,16 @@ export default async function PricingConfigurationPage() {
         description="Every figure this business quotes comes from this page. Change it here and the whole system follows — cargo, invoices, tracking and reports."
       />
 
-      <FinanceNav tabs={financeTabs(user.role)} />
+      {/*
+        No tab row. This page stands on its own.
+
+        The rate book is not a view of the money — it is the machine that sets
+        every figure the money pages then report, and it is opened deliberately
+        from the sidebar rather than wandered into while reading a ledger. On the
+        support desk the row showed only Collections and Credit beside it, which
+        made a page that governs the whole system look like a third tab of
+        somebody else's workspace.
+      */}
 
       {!canManage ? (
         <p className="mb-6 rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">

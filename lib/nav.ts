@@ -575,6 +575,20 @@ const FINANCE_SECTIONS: NavSection[] = [
         permission: "credit.view",
       },
       {
+        /*
+          The rate book, with its own door.
+
+          It used to be reachable only as a tab inside the finance row. That row
+          came off the page — it governs every figure the money pages report and
+          is opened deliberately, not wandered into — so without a row here the
+          desk that sets prices would have had no way in at all.
+        */
+        href: "/app/finance/pricing",
+        label: "Price Configuration",
+        icon: "Tags",
+        permission: "pricing.view",
+      },
+      {
         href: "/app/finance/pickup-notes",
         label: "Pickup notes",
         icon: "QrCode",
@@ -778,6 +792,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote", permission: "collections.view" },
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock", permission: "credit.view" },
+      { href: "/app/finance/pricing", label: "Price Configuration", icon: "Tags", permission: "pricing.view" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode", permission: "pickupNote.view" },
       { href: "/app/finance", label: "Overview", icon: "Wallet", permission: "accounting.view" },
       // collections.view, matching the route's own guard. The shared menu had

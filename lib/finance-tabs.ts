@@ -103,11 +103,10 @@ export function financeTabs(role: Role): FinanceTab[] {
     // cargo-mix panel that the CEO dashboard already renders. Three copies of
     // one answer is worse than one, so the position moved onto the Overview
     // and the page itself now redirects there.
-    {
-      href: "/app/finance/pricing",
-      label: "Pricing & configuration",
-      visible: can(role, "pricing.view"),
-    },
+    /* No Pricing tab. The rate book is a standalone page with its own sidebar
+       row now — leaving a tab here would offer a doorway the page itself no
+       longer wears, and the tab row would keep highlighting a page that has
+       stopped being part of it. */
     {
       /*
         With the records, not with the daily work.
