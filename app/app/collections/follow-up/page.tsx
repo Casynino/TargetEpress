@@ -8,6 +8,7 @@ import { financeTabs } from "@/lib/finance-tabs";
 import { PageHeader } from "@/components/app/page-header";
 import { IconHint } from "@/components/app/icon-hint";
 import { RecordIncome } from "@/components/app/record-income";
+import { SearchBox } from "@/components/app/search-box";
 import { Input } from "@/components/ui/input";
 import { activeAccounts } from "@/lib/accounts";
 import { can } from "@/lib/rbac";
@@ -255,41 +256,55 @@ export default async function FollowUpPage({
           name first. It keeps whichever chip is active, and the chips keep it,
           so neither control silently undoes the other.
         */}
-        <form
-          method="GET"
-          className="flex flex-wrap items-center gap-2 border-b px-4 py-3"
-        >
-          <input type="hidden" name="filter" value={active} />
-          <div className="relative min-w-[220px] flex-1">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              name="q"
-              defaultValue={query}
-              placeholder={t(locale, "Customer, tracking number, invoice or phone…")}
-              className="h-9 pl-8 text-sm"
-            />
-          </div>
-          <button
-            type="submit"
-            className="focus-ring h-9 rounded-md border px-3 text-sm font-medium transition-colors hover:bg-accent"
+        {/*
+          Search that shows what it can find while you type.
+
+          Typing blind and pressing Search is a guess — you learn whether the
+          spelling was right only after the page reloads. The suggestions are
+          this page's own rows, so they are instant and can never disagree with
+          the list underneath.
+        */}
+        <div className="border-b px-4 py-3">
+          <SearchBox
+            defaultValue={query}
+            placeholder={t(locale, "Customer, tracking number, invoice or phone…")}
+            suggestions={rows.flatMap((row) => [
+              {
+                value: row.customerName ?? "",
+                label: row.customerName ?? "",
+                hint: row.customerPhone ?? undefined,
+              },
+              {
+                value: row.trackingNumber ?? "",
+                label: row.description || row.trackingNumber || "",
+                hint: row.trackingNumber ?? undefined,
+              },
+              ...(row.invoiceNumber
+                ? [
+                    {
+                      value: row.invoiceNumber,
+                      label: row.customerName,
+                      hint: row.invoiceNumber,
+                    },
+                  ]
+                : []),
+            ])}
           >
-            {t(locale, "Search")}
-          </button>
+            <input type="hidden" name="filter" value={active} />
+          </SearchBox>
           {query ? (
-            <Link
-              href={`/app/collections/follow-up?filter=${active}`}
-              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-            >
-              {t(locale, "Clear")}
-            </Link>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {visible.length} {t(locale, "of")} {rows.length} {t(locale, "match")}
+              {" · "}
+              <Link
+                href={`/app/collections/follow-up?filter=${active}`}
+                className="underline-offset-2 hover:underline"
+              >
+                {t(locale, "Clear")}
+              </Link>
+            </p>
           ) : null}
-          {query ? (
-            <span className="text-xs text-muted-foreground">
-              {visible.length} {t(locale, "of")} {rows.length}{" "}
-              {t(locale, "match")}
-            </span>
-          ) : null}
-        </form>
+        </div>
 
         <div className="overflow-x-auto border-b px-4 py-3">
         <div className="inline-flex overflow-hidden rounded-lg border">
