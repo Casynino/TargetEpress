@@ -313,6 +313,23 @@ export default async function ManagerHome() {
         than as a list arriving out of nowhere.
       */}
 
+      {/*
+        BACK ON TOP, at the owner's instruction, above the money.
+
+        It came out an hour ago on the argument that the control room answers the
+        same question in more depth. True, and beside the point: this is the
+        screen he opens every morning, and he wants what is waiting before he
+        reads anything else. The control room stays as the fuller list — the
+        link on this panel goes there — and this is the glance.
+      */}
+      <div className="mb-6">
+        <AttentionCenter
+          items={attention}
+          reviewAll={{ href: "/app/manager/control", label: t(locale, "Control room") }}
+          empty={t(locale, "Nothing needs your decision. Every desk is clear.")}
+        />
+      </div>
+
       {/* ----------------------------------------------------------- the money */}
       <section className="mb-7">
         <BandHeading
