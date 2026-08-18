@@ -15,7 +15,8 @@ import { adjustInvoice } from "@/lib/actions/finance";
 /**
  * Editing a bill before it is paid.
  *
- * Freight and storage are shown but not editable: they come from the published
+ * Freight is shown against the rate book; storage is editable, because the days
+ * are derived but the decision to charge them is a person's. Both come from the published
  * rate book and the arrival date, and letting a clerk retype them would make
  * the rate book decorative. Everything a human should be able to decide — a
  * discount, an extra charge, the rate, a note — is editable, and the running
@@ -61,6 +62,9 @@ export function InvoiceEditor({
   const [open, setOpen] = useState(false);
   const [discountDraft, setDiscountDraft] = useState(String(discount || ""));
   const [otherDraft, setOtherDraft] = useState(String(otherCharges || ""));
+  /* Seeded with what is on the bill, so opening the editor and saving changes
+     nothing — the field is a correction, not a re-entry. */
+  const [storageDraft, setStorageDraft] = useState(String(storage || ""));
   const [freightDraft, setFreightDraft] = useState(
     freightOverride === null ? "" : String(freightOverride)
   );
@@ -73,7 +77,11 @@ export function InvoiceEditor({
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   };
 
-  const total = freight + storage + num(otherDraft) - num(discountDraft);
+  const total =
+    freight + num(storageDraft) + num(otherDraft) - num(discountDraft);
+  /* Off the clock's figure by more than a cent: the reason field appears, and
+     the server refuses without it. */
+  const storageMoved = Math.abs(num(storageDraft) - storage) > 0.005;
   const rate = num(rateDraft);
 
   // Editing a bill that has already been paid, rather than one that has not.
@@ -155,18 +163,68 @@ export function InvoiceEditor({
             </p>
           ) : null}
 
+          {/*
+            Storage, editable — the clock proposes and a person decides.
+
+            This was printed read-only with "storage is not typed", which is true
+            of how the figure is DERIVED and wrong about who owns it. The days
+            come from the arrival date, but whether the customer is charged for
+            them is a judgement somebody at the desk makes with the customer in
+            front of them: our own delay, a goodwill call, a regular who always
+            pays. Sending them to another screen to make it, or refusing it here
+            at all, is how a figure gets argued about instead of decided.
+
+            Moving it off the clock demands a reason — enforced by adjustInvoice,
+            not just asked for here — and setting it to nothing is recorded as a
+            waiver with a name against it rather than a number quietly going
+            missing.
+          */}
           <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="text-muted-foreground">{t("Storage")}</span>
-              <span className="font-mono tabular-nums">
-                {currency} {storage.toFixed(2)}
-              </span>
+            <div className="space-y-1.5">
+              <Label htmlFor="storageCharge">
+                {t("Storage")} ({currency})
+              </Label>
+              <div className="flex items-center gap-2">
+                <MoneyInput
+                  id="storageCharge"
+                  name="storageCharge"
+                  value={storageDraft}
+                  onValueChange={setStorageDraft}
+                  placeholder={storage.toFixed(2)}
+                />
+                {num(storageDraft) > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setStorageDraft("0")}
+                    className="focus-ring shrink-0 rounded-md border border-warning/40 px-2.5 py-2 text-xs font-medium text-warning transition-colors hover:bg-warning/10"
+                  >
+                    {t("Waive it")}
+                  </button>
+                ) : null}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t("The clock says")} {currency} {storage.toFixed(2)} —{" "}
+                {t(
+                  "the days since it landed, past the free window. Change it or waive it and say why; both are recorded against your name."
+                )}
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t(
-                "Storage is not typed — it comes from the arrival date and the free window."
-              )}
-            </p>
+
+            {storageMoved ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="storageReason">
+                  {num(storageDraft) === 0
+                    ? t("Why is the storage being waived?")
+                    : t("Why is the storage changing?")}
+                </Label>
+                <Input
+                  id="storageReason"
+                  name="storageReason"
+                  required
+                  placeholder={t("Our delay, goodwill, agreed with the customer…")}
+                />
+              </div>
+            ) : null}
 
             <div className="space-y-1.5 border-t pt-3">
               <Label htmlFor="freightOverride">
