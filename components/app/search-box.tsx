@@ -40,6 +40,7 @@ export function SearchBox({
   defaultValue = "",
   placeholder,
   suggestions,
+  fetchSuggestions,
   /** Rendered inside the form, e.g. the hidden field carrying the active chip. */
   children,
   className,
@@ -48,6 +49,18 @@ export function SearchBox({
   defaultValue?: string;
   placeholder: string;
   suggestions: Suggestion[];
+  /**
+   * For a box that searches more than the page is holding.
+   *
+   * The cargo search looks through every consignment the company has ever
+   * carried, so there is no list to filter — it asks the server, which is the
+   * honest answer for that box and the wrong one everywhere else. When this is
+   * given, `suggestions` is ignored.
+   *
+   * Debounced, because it fires on a keystroke rather than on a page load, and a
+   * request per letter is a request per letter.
+   */
+  fetchSuggestions?: (query: string) => Promise<Suggestion[]>;
   children?: React.ReactNode;
   className?: string;
 }) {
@@ -56,9 +69,31 @@ export function SearchBox({
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(-1);
   const formRef = useRef<HTMLFormElement>(null);
+  const timer = useRef<number | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [fetched, setFetched] = useState<Suggestion[]>([]);
+  const seq = useRef(0);
+
+  /* Ask the server, at most once every 180ms, and ignore an answer that arrives
+     after a later one — otherwise a slow reply for "ni" overwrites the list for
+     "nino" and the box shows results for something already typed past. */
+  const ask = (term: string) => {
+    if (!fetchSuggestions) return;
+    const mine = ++seq.current;
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(async () => {
+      if (term.trim().length < 2) {
+        setFetched([]);
+        return;
+      }
+      const found = await fetchSuggestions(term);
+      if (mine === seq.current) setFetched(found);
+    }, 180);
+  };
+
   const matches = useMemo(() => {
+    if (fetchSuggestions) return fetched.slice(0, 8);
     const needle = value.trim().toLowerCase();
     if (needle.length < 1) return [];
     const seen = new Set<string>();
@@ -74,7 +109,7 @@ export function SearchBox({
         return true;
       })
       .slice(0, 8);
-  }, [value, suggestions]);
+  }, [value, suggestions, fetched, fetchSuggestions]);
 
   const pick = (s: Suggestion) => {
     setValue(s.value);
@@ -107,6 +142,7 @@ export function SearchBox({
             setValue(event.target.value);
             setOpen(true);
             setCursor(-1);
+            ask(event.target.value);
           }}
           onFocus={() => setOpen(true)}
           /* A click on a suggestion blurs the input first, so closing waits a

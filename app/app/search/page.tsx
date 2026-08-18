@@ -9,8 +9,9 @@ import {
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchBox } from "@/components/app/search-box";
 import { EXCEPTION_TYPE_LABELS } from "@/lib/constants";
+import { suggestCargo } from "@/lib/actions/suggest";
 import { toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -205,19 +206,23 @@ export default async function SearchCargoPage({
         }
       />
 
-      <form action="/app/search" className="panel mb-6 flex flex-col gap-2 p-4 sm:flex-row">
-        <Input
-          name="q"
+      {/*
+        Suggestions asked for, not filtered.
+
+        Every other search in the app narrows a list that is already on screen;
+        this one looks through every consignment the company has ever carried, so
+        there is nothing to filter and the dropdown has to ask. It asks with the
+        SAME query the results use, so it can never offer a row the page then
+        refuses to show.
+      */}
+      <div className="panel mb-6 p-4">
+        <SearchBox
           defaultValue={query}
           placeholder={t(locale, "QR code, tracking number, customer name or phone number")}
-          className="flex-1"
-          autoComplete="off"
-          aria-label={t(locale, "Search cargo")}
+          suggestions={[]}
+          fetchSuggestions={suggestCargo}
         />
-        <Button type="submit" variant="brand">
-          {t(locale, "Search")}
-        </Button>
-      </form>
+      </div>
 
       {!query ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
