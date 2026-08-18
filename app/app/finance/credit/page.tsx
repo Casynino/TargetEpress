@@ -4,12 +4,10 @@ import Link from "next/link";
 import { CreditAdjust } from "@/components/app/credit-adjust";
 import { CreditDecision } from "@/components/app/credit-decision";
 import { EmptyState } from "@/components/app/empty-state";
-import { FinanceNav } from "@/components/app/finance-nav";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchBox } from "@/components/app/search-box";
 import { CREDIT_STATE_LABEL, dueLabel, type CreditState } from "@/lib/credit";
 import { creditOverview, creditRows, pendingCreditRequests } from "@/lib/credit-queries";
-import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate } from "@/lib/format";
 import { currentRate, formatShillings, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -108,7 +106,14 @@ export default async function CreditPage({
         )}
       />
 
-      <FinanceNav tabs={financeTabs(user.role)} />
+      {/*
+        No tab row. The credit book stands on its own, like the rate book.
+
+        It is not a view of the ledger — it is the record of cargo the business
+        let go before it was paid for, and it is opened on purpose. Sitting it
+        beside Collections made the whole book read as one tab of the chase list,
+        when the chase list is only the part of it that has gone late.
+      */}
 
       {/*
         Waiting on a decision, and it goes first.
