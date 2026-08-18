@@ -347,7 +347,7 @@ export default async function ManagerHome() {
           small cell room for a label, a figure and a hint without cramping, and
           takes about three and a half rems off every tall one.
         */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:auto-rows-[minmax(7.75rem,auto)]">
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {/*
             THE ONE CELL THAT OWNS THIS SCREEN.
 
@@ -573,7 +573,7 @@ export default async function ManagerHome() {
                band that rewards a second look — twelve months of
                money arriving against money leaving — was squeezed
                into a strip. They have swapped. */
-            className="sm:col-span-2 xl:row-span-2"
+            className="sm:col-span-2"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -817,10 +817,10 @@ export default async function ManagerHome() {
           action={{ href: "/app/shipments", label: t(locale, "Every consignment") }}
         />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:auto-rows-[minmax(7.75rem,auto)]">
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <BentoCard
             href="/app/shipments"
-            className="sm:col-span-2 xl:row-span-2"
+            className="sm:col-span-2"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -959,7 +959,7 @@ export default async function ManagerHome() {
 
           {/* What the desk is actually sending, by item. The one panel here that
               answers a question about the goods rather than about their state. */}
-          <div className="flex flex-col sm:col-span-2 xl:row-span-2 [&>section]:flex-1">
+          <div className="flex flex-col sm:col-span-2">
             <CargoMix
               slices={mix.slices}
               totalShipments={mix.totalShipments}
