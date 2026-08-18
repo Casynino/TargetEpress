@@ -27,6 +27,7 @@ import {
 import { ActivityBars } from "@/components/app/activity-bars";
 import { ActivityFeed } from "@/components/app/activity-feed";
 import { CargoMix } from "@/components/app/cargo-mix";
+import { AttentionCenter, type AttnItem } from "@/components/app/attention-center";
 import { DeskHero } from "@/components/app/desk-hero";
 import { DeskPulsePanel } from "@/components/app/desk-pulse";
 import { FlightProfitTable } from "@/components/app/flight-profit-table";
@@ -60,10 +61,13 @@ import {
   cashFlowByMonth,
   corridorPosition,
   deskPulse,
+  ownerAttention,
   monthlyVolume,
   recentActivity,
 } from "@/lib/queries";
 import { can } from "@/lib/rbac";
+import { creditAttention } from "@/lib/support";
+import { creditAlerts } from "@/lib/credit-queries";
 import { requirePermission } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { viewerLocale } from "@/lib/viewer";
@@ -168,6 +172,8 @@ export default async function ManagerHome() {
     answer — and the risk that a chart and a total on one screen disagree.
   */
   const [
+    attnItems,
+    alerts,
     desks,
     flow,
     position,
@@ -177,6 +183,8 @@ export default async function ManagerHome() {
     flights,
     volume,
   ] = await Promise.all([
+    ownerAttention(liveRate, locale),
+    creditAlerts(),
     deskPulse(liveRate, locale),
     cashFlowByMonth(now, locale),
     corridorPosition(),
@@ -186,6 +194,15 @@ export default async function ManagerHome() {
     profitByDispatch(8),
     monthlyVolume(now, locale),
   ]);
+
+  const attention: AttnItem[] = [
+    ...attnItems,
+    ...creditAttention(alerts, {
+      locale,
+      rate: liveRate,
+      canApprove: can(user.role, "credit.approve"),
+    }),
+  ];
 
   const today = now.toLocaleDateString(locale === "zh" ? "zh-CN" : "en-GB", {
     weekday: "long",
@@ -747,6 +764,19 @@ export default async function ManagerHome() {
         in the company band below, each linking to the screen that owns it.
       */}
 
+      {/* -------------------------------------------------- batch profitability */}
+      <section className="mb-7">
+        <BandHeading
+          title={t(locale, "What each batch is making")}
+          hint={t(
+            locale,
+            "The company earns per flight. A month-level profit cannot tell you which one paid for itself."
+          )}
+          action={{ href: "/app/manager/batches", label: t(locale, "Every batch") }}
+        />
+        <FlightProfitTable flights={flights} />
+      </section>
+
       {/* ------------------------------------------------------- the briefing */}
       <section className="mb-7">
         <BandHeading
@@ -984,18 +1014,6 @@ export default async function ManagerHome() {
         </div>
       </section>
 
-      {/* -------------------------------------------------- batch profitability */}
-      <section className="mb-7">
-        <BandHeading
-          title={t(locale, "What each batch is making")}
-          hint={t(
-            locale,
-            "The company earns per flight. A month-level profit cannot tell you which one paid for itself."
-          )}
-          action={{ href: "/app/manager/batches", label: t(locale, "Every batch") }}
-        />
-        <FlightProfitTable flights={flights} />
-      </section>
 
       {/* ----------------------------------------------------------- the company */}
       <section className="mb-7">
