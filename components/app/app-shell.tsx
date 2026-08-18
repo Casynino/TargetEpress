@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { LanguageSwitch } from "@/components/app/language-switch";
 import { LocaleProvider, useLocale } from "@/components/app/locale-provider";
+import { MobileBack } from "@/components/app/mobile-back";
 import { NotificationBell } from "@/components/app/notification-bell";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -203,10 +204,21 @@ export function AppShell({
           </SheetContent>
         </Sheet>
 
-        {/* The logo is a link home, so it is a tap target like any other. */}
-        <Link href="/app/dashboard" className="flex min-h-11 items-center">
-          <BrandLockup subtitle={false} />
-        </Link>
+        {/*
+          THE WAY BACK, and it takes the middle of the bar when there is one.
+
+          The Guangzhou desk opens this inside WeChat's browser, which has no
+          back button — an ✕ that closes everything and nothing else. A colleague
+          who opened Receive cargo and wanted another screen had no route except
+          signing out and signing back in. So the app carries its own way back,
+          and it sits where a thumb already is.
+
+          The logo keeps its place when there is nowhere to go back to, because
+          on a portal root the brand IS the right thing in the middle.
+        */}
+        <div className="flex min-w-0 flex-1 items-center justify-center px-1">
+          <MobileBack />
+        </div>
 
         <div className="flex items-center gap-1">
           <MainSiteLink compact />
