@@ -197,3 +197,15 @@ export function normaliseCode(input: string) {
 export function labelled(label: string, value: string | number): string {
   return /[：、，。？！]$/.test(label) ? `${label}${value}` : `${label} ${value}`;
 }
+
+/**
+ * Percentage change between two periods, or undefined when there is no base.
+ *
+ * Undefined rather than 0 or Infinity: a month with no takings before it has no
+ * percentage change, and both "+∞%" and "0%" would state something false. Every
+ * caller reads undefined as "there is no comparison to draw".
+ */
+export function percentDelta(current: number, previous: number): number | undefined {
+  if (!previous) return undefined;
+  return ((current - previous) / previous) * 100;
+}
