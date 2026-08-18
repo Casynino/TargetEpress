@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { Prisma } from "@prisma/client";
 
 import {
@@ -885,8 +887,18 @@ export async function financeStats() {
   };
 }
 
-/** The CEO's whole-business view. */
-export async function executiveStats() {
+/**
+ * The CEO's whole-business view.
+ *
+ * Wrapped in React's request cache because the manager's home renders this
+ * twice — once inside managerOverview's Promise.all and once inside the shared
+ * ExecutiveDashboard — and the second call was eleven duplicate count queries
+ * per page load. cache() deduplicates within one request and holds nothing
+ * across requests, so the figures stay live; the alternative was passing the
+ * result down through the dashboard's props, which would have forced every
+ * OTHER caller of the dashboard to fetch stats it may not want.
+ */
+export const executiveStats = cache(async function executiveStats() {
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
@@ -953,7 +965,7 @@ export async function executiveStats() {
     outstanding:
       toNumber(outstandingAgg._sum.total) - toNumber(outstandingAgg._sum.amountPaid),
   };
-}
+});
 
 /**
  * The Dar warehouse's inbound queue.
