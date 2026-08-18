@@ -51,7 +51,8 @@ const TABS: Tab[] = [
      one half of the debt was how the two got looked at separately. */
   { href: "/app/finance/credit", label: "Credit" },
   { href: "/app/finance/pickup-notes", label: "Pickup notes" },
-  { href: "/app/customers", label: "Customer accounts" },
+  /* No "Customer accounts" tab. It is a sidebar row two inches to the left, and
+     a tab that duplicates a door already on screen is a wider row for nothing. */
 ];
 
 export function CollectionsNav({
