@@ -202,10 +202,14 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
       columns={columns}
       getRowId={(row) => row.id}
       filters={filters}
-      searchValue={(row) =>
-        [row.name, row.code, row.phone ?? "", row.city ?? ""].join(" ").toLowerCase()
-      }
-      searchPlaceholder={t("Name, customer ID, phone or city")}
+      /*
+        No search box of its own — the page has one above it.
+
+        This table's search filters the 25 rows it was handed; the page's searches
+        every customer on file and suggests as you type. Two boxes with the same
+        placeholder, one of which quietly only knows the current page, is how
+        somebody concludes a customer is not in the system.
+      */
       initialSort={{ columnId: "shipments", direction: "desc" }}
       emptyTitle={t("No customers match")}
       emptyDescription={t("Try a shorter piece of the name or number.")}
