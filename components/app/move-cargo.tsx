@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { IconHint } from "@/components/app/icon-hint";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -47,14 +48,16 @@ export function MoveCargo({
     <div className="text-left">
       <div className="mb-2 flex items-center justify-between">
         <p className="font-mono text-xs font-semibold">{trackingNumber}</p>
-        <button
-          type="button"
-          onClick={onDone}
-          className="focus-ring rounded p-0.5 text-muted-foreground hover:text-foreground"
-          aria-label={t("Close")}
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+        <IconHint label={t("Close without moving it")}>
+          <button
+            type="button"
+            onClick={onDone}
+            className="focus-ring rounded p-0.5 text-muted-foreground hover:text-foreground"
+            aria-label={t("Close")}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </IconHint>
       </div>
 
       {/*

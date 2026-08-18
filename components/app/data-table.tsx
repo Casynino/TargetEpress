@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { IconHint } from "@/components/app/icon-hint";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -242,14 +243,21 @@ export function DataTable<T>({
               aria-label={placeholder}
             />
             {query ? (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                className="focus-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground"
-                aria-label={t("Clear search")}
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+              /* The hint needs the button to sit inside it, so the placement
+                 inside the field moves out here — the wrapper holds the
+                 position, the button keeps its own look. */
+              <span className="absolute right-2 top-1/2 -translate-y-1/2">
+                <IconHint label={t("Clear the search")}>
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    className="focus-ring rounded-md p-1 text-muted-foreground hover:text-foreground"
+                    aria-label={t("Clear search")}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </IconHint>
+              </span>
             ) : null}
           </div>
         ) : (
@@ -571,22 +579,30 @@ export function DataTable<T>({
 
                           {renderExpanded ? (
                             <td className="px-2 py-3">
-                              <button
-                                type="button"
-                                onClick={() => toggleExpanded(id)}
-                                aria-expanded={isOpen}
-                                aria-label={
-                                  isOpen ? t("Collapse row") : t("Expand row")
+                              <IconHint
+                                label={
+                                  isOpen
+                                    ? t("Hide the details")
+                                    : t("Show the details")
                                 }
-                                className="focus-ring rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
                               >
-                                <ChevronRight
-                                  className={cn(
-                                    "h-4 w-4 transition-transform duration-200",
-                                    isOpen && "rotate-90"
-                                  )}
-                                />
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpanded(id)}
+                                  aria-expanded={isOpen}
+                                  aria-label={
+                                    isOpen ? t("Collapse row") : t("Expand row")
+                                  }
+                                  className="focus-ring rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+                                >
+                                  <ChevronRight
+                                    className={cn(
+                                      "h-4 w-4 transition-transform duration-200",
+                                      isOpen && "rotate-90"
+                                    )}
+                                  />
+                                </button>
+                              </IconHint>
                             </td>
                           ) : null}
                         </tr>

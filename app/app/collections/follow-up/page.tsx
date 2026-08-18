@@ -597,13 +597,6 @@ export default async function FollowUpPage({
                         )}
                         target="_blank"
                         rel="noopener noreferrer"
-                        title={
-                          row.credit
-                            ? `${t(locale, "Remind")} ${row.customerName} ${t(locale, "on WhatsApp — the bill and the date it falls due")}`
-                            : row.invoiceId
-                              ? `${t(locale, "Remind")} ${row.customerName} ${t(locale, "on WhatsApp — the bill, the accounts and the amount")}`
-                              : `${t(locale, "Message")} ${row.customerName} ${t(locale, "on WhatsApp")}`
-                        }
                         aria-label={`WhatsApp ${row.customerName}`}
                         className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-success/40 text-success transition-colors hover:bg-success/10"
                       >
@@ -630,16 +623,6 @@ export default async function FollowUpPage({
                             ? `/app/cargo/${row.trackingNumber}`
                             : `/app/collections/record/${row.invoiceId}`
                         }
-                        title={
-                          row.credit !== null
-                            ? t(locale, "Take a payment against this credit")
-                            : canRecord
-                              ? t(locale, "Record a payment against this cargo")
-                              : t(
-                                  locale,
-                                  "Collect the customer's proof and hand it to Finance"
-                                )
-                        }
                         aria-label={`${t(locale, "Record a payment for")} ${row.invoiceNumber ?? row.trackingNumber}`}
                         className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-brand/40 text-brand transition-colors hover:bg-brand/10"
                       >
@@ -655,7 +638,6 @@ export default async function FollowUpPage({
                         <IconHint label={t(locale, "Download the invoice")}>
                         <a
                           href={`/app/finance/invoices/${row.invoiceNumber}/pdf`}
-                          title={`${t(locale, "Download")} ${row.invoiceNumber} ${t(locale, "as a PDF")}`}
                           aria-label={`${t(locale, "Download")} ${row.invoiceNumber}`}
                           className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-chart-6/40 text-chart-6 transition-colors hover:bg-chart-6/10"
                         >
@@ -665,7 +647,6 @@ export default async function FollowUpPage({
                         <IconHint label={t(locale, "Open the invoice")}>
                         <Link
                           href={`/app/finance/invoices/${row.invoiceId}`}
-                          title={`${t(locale, "Open")} ${row.invoiceNumber}`}
                           aria-label={`${t(locale, "Open")} ${row.invoiceNumber}`}
                           className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-warning/40 text-warning transition-colors hover:bg-warning/10"
                         >

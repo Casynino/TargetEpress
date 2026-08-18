@@ -7,6 +7,7 @@ import { CollectionsNav } from "@/components/app/collections-nav";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
 import { EmptyState } from "@/components/app/empty-state";
+import { IconHint } from "@/components/app/icon-hint";
 import { PageHeader } from "@/components/app/page-header";
 import { SubmissionCorrection } from "@/components/app/submission-correction";
 import { Badge } from "@/components/ui/badge";
@@ -219,21 +220,21 @@ export default async function SubmissionsPage({
                       the record — but as an icon, since the filename told the
                       reader nothing they needed at this density. */}
                   {row.proofs.map((proof) => (
-                    <a
-                      key={proof.id}
-                      href={proof.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      title={proof.filename ?? t(locale, "Proof")}
-                      aria-label={`${t(locale, "Proof")} · ${proof.filename ?? row.submissionNumber}`}
-                      className="focus-ring rounded p-0.5 transition-colors hover:text-brand"
-                    >
-                      {proof.contentType.startsWith("image/") ? (
-                        <Paperclip className="h-3.5 w-3.5" />
-                      ) : (
-                        <FileText className="h-3.5 w-3.5" />
-                      )}
-                    </a>
+                    <IconHint key={proof.id} label={t(locale, "Open the proof")}>
+                      <a
+                        href={proof.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`${t(locale, "Proof")} · ${proof.filename ?? row.submissionNumber}`}
+                        className="focus-ring rounded p-0.5 transition-colors hover:text-brand"
+                      >
+                        {proof.contentType.startsWith("image/") ? (
+                          <Paperclip className="h-3.5 w-3.5" />
+                        ) : (
+                          <FileText className="h-3.5 w-3.5" />
+                        )}
+                      </a>
+                    </IconHint>
                   ))}
                 </span>
               </div>

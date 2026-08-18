@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { Ban, ChevronRight, Paperclip, Pencil } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { IconHint } from "@/components/app/icon-hint";
 import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { LedgerFilters } from "@/components/app/ledger-filters";
@@ -957,23 +958,25 @@ export default async function LedgerPage({
                       <TableCell className="w-20 py-2.5 pr-1 text-right">
                         <span className="relative z-10 inline-flex items-center gap-1">
                           {entry.expense ? (
-                            <Link
-                              href={`/app/finance/expenses?q=${entry.expense.expenseNumber}`}
-                              title={t(locale, "Edit the cost")}
-                              aria-label={t(locale, "Edit the cost")}
-                              className="focus-ring rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Link>
+                            <IconHint label={t(locale, "Edit the cost")}>
+                              <Link
+                                href={`/app/finance/expenses?q=${entry.expense.expenseNumber}`}
+                                aria-label={t(locale, "Edit the cost")}
+                                className="focus-ring rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Link>
+                            </IconHint>
                           ) : null}
-                          <Link
-                            href={`/app/finance/transactions/${entry.id}`}
-                            title={t(locale, "Cancel this movement")}
-                            aria-label={t(locale, "Cancel this movement")}
-                            className="focus-ring rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                          >
-                            <Ban className="h-3.5 w-3.5" />
-                          </Link>
+                          <IconHint label={t(locale, "Cancel this movement")}>
+                            <Link
+                              href={`/app/finance/transactions/${entry.id}`}
+                              aria-label={t(locale, "Cancel this movement")}
+                              className="focus-ring rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Ban className="h-3.5 w-3.5" />
+                            </Link>
+                          </IconHint>
                         </span>
                       </TableCell>
                     ) : null}

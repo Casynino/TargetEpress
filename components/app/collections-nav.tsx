@@ -46,6 +46,10 @@ const TABS: Tab[] = [
   { href: "/app/collections/verify", label: "Verify payments", verifierOnly: true },
   { href: "/app/collections/submissions?status=PENDING", label: "With Finance", match: "/app/collections/submissions", collectorOnly: true },
   { href: "/app/collections/submissions?status=VERIFIED", label: "Verified", match: "/app/collections/submissions", query: "VERIFIED" },
+  /* Credit belongs in the collections workspace: an overdue credit and an unpaid
+     bill are the same afternoon's chasing, and having to leave this row to see
+     one half of the debt was how the two got looked at separately. */
+  { href: "/app/finance/credit", label: "Credit" },
   { href: "/app/finance/pickup-notes", label: "Pickup notes" },
   { href: "/app/customers", label: "Customer accounts" },
 ];
