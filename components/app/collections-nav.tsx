@@ -46,11 +46,10 @@ const TABS: Tab[] = [
   { href: "/app/collections/verify", label: "Verify payments", verifierOnly: true },
   { href: "/app/collections/submissions?status=PENDING", label: "With Finance", match: "/app/collections/submissions", collectorOnly: true },
   { href: "/app/collections/submissions?status=VERIFIED", label: "Verified", match: "/app/collections/submissions", query: "VERIFIED" },
-  /* Credit belongs in the collections workspace: an overdue credit and an unpaid
-     bill are the same afternoon's chasing, and having to leave this row to see
-     one half of the debt was how the two got looked at separately. */
-  { href: "/app/finance/credit", label: "Credit" },
-  { href: "/app/finance/pickup-notes", label: "Pickup notes" },
+  /* No Credit or Pickup notes tab. Both are pages in their own right with their
+     own sidebar rows, and a tab that duplicates a door already on screen only
+     makes this row longer. What is left is the one thing this workspace IS: a
+     claim moving from the desk, to Finance, to settled. */
   /* No "Customer accounts" tab. It is a sidebar row two inches to the left, and
      a tab that duplicates a door already on screen is a wider row for nothing. */
 ];
