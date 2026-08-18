@@ -362,7 +362,7 @@ export default async function ManagerHome() {
           Separating them removes the shared row entirely: five equal cards,
           each as tall as one label, one figure and one line of hint.
         */}
-        <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        <div className="mb-3 grid items-start grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
             <MoneyTile
               label={t(locale, "Collected today")}
               usd={finance.collectedTodayUsd}
@@ -409,7 +409,7 @@ export default async function ManagerHome() {
             />
         </div>
 
-        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid items-start grid-cols-1 gap-3 lg:grid-cols-2">
           {/*
             THE ONE CELL THAT OWNS THIS SCREEN.
 
@@ -423,7 +423,7 @@ export default async function ManagerHome() {
           <BentoCard
             tone="ink"
             href="/app/finance"
-            className="sm:col-span-2"
+            className=""
           >
             <span
               aria-hidden
@@ -591,7 +591,7 @@ export default async function ManagerHome() {
                band that rewards a second look — twelve months of
                money arriving against money leaving — was squeezed
                into a strip. They have swapped. */
-            className="sm:col-span-2"
+            className=""
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -659,7 +659,11 @@ export default async function ManagerHome() {
               </>
             )}
           </BentoCard>
+        </div>
 
+        {/* The two rings side by side, equal width — neither is more
+            important than the other and neither has more in it. */}
+        <div className="mt-3 grid items-start grid-cols-1 gap-3 sm:grid-cols-2">
           <KpiCard
             label={t(locale, "Collected against billed")}
             /*
@@ -709,9 +713,14 @@ export default async function ManagerHome() {
 
           {/* Where the money actually sits, as one rail. Three tiles cannot say
               "almost all of it is in the bank"; a bar says nothing else. */}
+        </div>
+
+        {/* The accounts rail is full width by nature — a proportion bar has to
+            be long enough to read. */}
+        <div className="mt-3">
           <BentoCard
             href="/app/finance/accounts"
-            className="sm:col-span-2 xl:col-span-4"
+            className=""
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
@@ -835,10 +844,82 @@ export default async function ManagerHome() {
           action={{ href: "/app/shipments", label: t(locale, "Every consignment") }}
         />
 
-        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {/*
+          THREE ROWS, EACH OF EQUAL CARDS.
+
+          The nine cards of this band sat in one four-column grid with
+          three of them spanning two columns, and the holes the owner kept
+          pointing at were exactly the cells left over beside a spanning
+          card. Cards are grouped by what they are now: the four small
+          figures in one row of four; the two charts in one row of two;
+          the two wide panels in one row of two. Nothing spans, so nothing
+          leaves a gap.
+        */}
+        <div className="grid items-start grid-cols-2 gap-3 xl:grid-cols-4">
+          <BentoCard href="/app/inventory">
+            <Figure
+              className="flex-1"
+              label={t(locale, "Weight on the floor")}
+              value={formatWeight(operations.kgOnFloor)}
+              hint={t(locale, "checked in off a manifest and standing here")}
+              icon={Scale}
+              tone="brand"
+            />
+          </BentoCard>
+          <BentoCard href="/app/inventory">
+            <Figure
+              className="flex-1"
+              label={t(locale, "Held, no pickup note")}
+              value={count(operations.cargoAwaitingPayment)}
+              hint={t(locale, "not paid for, or stopped by a claim")}
+              icon={Warehouse}
+              tone={operations.cargoAwaitingPayment > 0 ? "warn" : "plain"}
+            />
+          </BentoCard>
+          <BentoCard href="/app/deliveries">
+            <Figure
+              className="flex-1"
+              label={t(locale, "Handed over this month")}
+              value={count(operations.cargoCollectedThisMonth)}
+              hint={t(locale, "collected by the customer since the 1st")}
+              icon={PackageCheck}
+              tone="good"
+            />
+          </BentoCard>
+          <BentoCard href="/app/shipments">
+            <Figure
+              label={t(locale, "Registered this year")}
+              value={count(volume.total)}
+              icon={ClipboardCheck}
+              tone="info"
+            />
+            {volume.current.length > 1 ? (
+              <div className="mt-auto pt-4">
+                <Sparkline
+                  values={volume.current}
+                  tone={2}
+                  label={t(locale, "Consignments registered, month by month")}
+                  className="w-full"
+                />
+                {/* The year on its own line rather than inside the sentence: a
+                    phrase with a number baked into it can never be looked up
+                    whole, so it would never reach a Chinese reader. */}
+                <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
+                  {t(locale, "month by month")} · {volume.year}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-auto pt-4 text-xs leading-snug text-muted-foreground">
+                {t(locale, "one month in — there is no shape to draw yet")}
+              </p>
+            )}
+          </BentoCard>
+        </div>
+
+        <div className="mt-3 grid items-start grid-cols-1 gap-3 lg:grid-cols-2">
           <BentoCard
             href="/app/shipments"
-            className="sm:col-span-2"
+           
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -894,40 +975,18 @@ export default async function ManagerHome() {
               ]}
             />
           </BentoCard>
-
-          <BentoCard href="/app/inventory">
-            <Figure
-              className="flex-1"
-              label={t(locale, "Weight on the floor")}
-              value={formatWeight(operations.kgOnFloor)}
-              hint={t(locale, "checked in off a manifest and standing here")}
-              icon={Scale}
-              tone="brand"
+          <div>
+            <CargoMix
+              slices={mix.slices}
+              totalShipments={mix.totalShipments}
+              totalWeightKg={mix.totalWeightKg}
+              periodLabel={`${t(locale, "Registered in the last")} ${mix.days} ${t(locale, "days")}`}
             />
-          </BentoCard>
+          </div>
+        </div>
 
-          {/*
-            Named for what the query counts, and pointed at the list that holds
-            the rows.
-
-            The pickup note is the source of truth for "paid", because cancelling
-            one reverts the shipment status while the note itself cannot drift
-            from what Finance issued. So a consignment frozen by an unresolved
-            damage claim is inside this figure too, and "Finance has not released
-            them" would bill all of it as money one desk is sitting on.
-          */}
-          <BentoCard href="/app/inventory">
-            <Figure
-              className="flex-1"
-              label={t(locale, "Held, no pickup note")}
-              value={count(operations.cargoAwaitingPayment)}
-              hint={t(locale, "not paid for, or stopped by a claim")}
-              icon={Warehouse}
-              tone={operations.cargoAwaitingPayment > 0 ? "warn" : "plain"}
-            />
-          </BentoCard>
-
-          <BentoCard className="sm:col-span-2">
+        <div className="mt-3 grid items-start grid-cols-1 gap-3 lg:grid-cols-2">
+          <BentoCard>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold">
@@ -974,19 +1033,7 @@ export default async function ManagerHome() {
               ]}
             />
           </BentoCard>
-
-          {/* What the desk is actually sending, by item. The one panel here that
-              answers a question about the goods rather than about their state. */}
-          <div className="flex flex-col sm:col-span-2">
-            <CargoMix
-              slices={mix.slices}
-              totalShipments={mix.totalShipments}
-              totalWeightKg={mix.totalWeightKg}
-              periodLabel={`${t(locale, "Registered in the last")} ${mix.days} ${t(locale, "days")}`}
-            />
-          </div>
-
-          <BentoCard href="/app/batches" className="sm:col-span-2">
+          <BentoCard href="/app/batches">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold">
@@ -1004,46 +1051,6 @@ export default async function ManagerHome() {
               </p>
             ) : (
               <ActivityBars className="mt-4" points={fill} unit={t(locale, "kg")} />
-            )}
-          </BentoCard>
-
-          <BentoCard href="/app/deliveries">
-            <Figure
-              className="flex-1"
-              label={t(locale, "Handed over this month")}
-              value={count(operations.cargoCollectedThisMonth)}
-              hint={t(locale, "collected by the customer since the 1st")}
-              icon={PackageCheck}
-              tone="good"
-            />
-          </BentoCard>
-
-          <BentoCard href="/app/shipments">
-            <Figure
-              label={t(locale, "Registered this year")}
-              value={count(volume.total)}
-              icon={ClipboardCheck}
-              tone="info"
-            />
-            {volume.current.length > 1 ? (
-              <div className="mt-auto pt-4">
-                <Sparkline
-                  values={volume.current}
-                  tone={2}
-                  label={t(locale, "Consignments registered, month by month")}
-                  className="w-full"
-                />
-                {/* The year on its own line rather than inside the sentence: a
-                    phrase with a number baked into it can never be looked up
-                    whole, so it would never reach a Chinese reader. */}
-                <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
-                  {t(locale, "month by month")} · {volume.year}
-                </p>
-              </div>
-            ) : (
-              <p className="mt-auto pt-4 text-xs leading-snug text-muted-foreground">
-                {t(locale, "one month in — there is no shape to draw yet")}
-              </p>
             )}
           </BentoCard>
         </div>
@@ -1069,8 +1076,8 @@ export default async function ManagerHome() {
           a desk with little on it. A ragged bottom edge is the honest shape of
           unequal content.
         */}
-        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <BentoCard className="sm:col-span-2">
+        <div className="grid items-start grid-cols-1 gap-3 lg:grid-cols-3">
+          <BentoCard>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold">
@@ -1337,7 +1344,14 @@ function Briefing({ items, locale }: { items: Insight[]; locale: Locale }) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div
+      className={cn(
+        "grid grid-cols-1 gap-3",
+        // The row is exactly as many columns as it has cards, up to three, so
+        // two insights are two halves and never two thirds plus a hole.
+        items.length === 1 ? "" : items.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-3"
+      )}
+    >
       {items.map((item, index) => {
         const tone = INSIGHT_TONES[item.tone];
         const Icon = tone.icon;
@@ -1347,10 +1361,11 @@ function Briefing({ items, locale }: { items: Insight[]; locale: Locale }) {
             href={item.href}
             className={cn(
               "focus-ring group relative flex items-start gap-3 overflow-hidden rounded-xl border bg-card p-4 pl-5 shadow-soft transition-[transform,box-shadow] duration-200 ease-out-expo hover:scale-[1.015] hover:shadow-lift motion-reduce:hover:scale-100",
-              // The lead card is wider — but only when there is something for it
-              // to lead. One insight spanning two of three columns is not a
-              // hierarchy, it is a hole in the row.
-              index === 0 && items.length > 1 && "xl:col-span-2"
+              // No lead card. It was made wider "to lead", and with two insights
+              // that produced one wide card beside one narrow one — the exact
+              // uneven pair the owner kept pointing at. Equal cards, and the
+              // ordering carries the hierarchy: the first one is the first one.
+              ""
             )}
           >
             <span
