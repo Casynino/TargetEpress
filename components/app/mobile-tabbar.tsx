@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ShieldCheck,
   Banknote,
   Boxes,
   Headset,
@@ -71,10 +72,14 @@ const TABS: Record<Role, Tab[]> = {
      the money owed — which is what a manager chases on a phone — and the
      department overview. Cargo lists live one tap further in the drawer,
      because a manager reads them at a desk and rings about money on the move. */
+  /* The control room takes the third slot, not collections. Chasing a customer
+     for payment is Finance's job and it is one tap further in; the question a
+     manager opens their phone to ask is "is anything waiting on me", and that
+     is the screen that answers it. */
   MANAGER: [
     { href: "/app/manager", icon: LayoutDashboard, exact: true },
     { href: "/app/search", icon: Search },
-    { href: "/app/collections/follow-up", icon: Banknote },
+    { href: "/app/manager/control", icon: ShieldCheck, label: "Control" },
     { href: "/app/finance", icon: Wallet, label: "Finance" },
   ],
   // Guangzhou registers cargo and loads batches; it never receives or releases

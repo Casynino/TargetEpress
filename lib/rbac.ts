@@ -202,6 +202,8 @@ export type Permission =
   | "user.manage"
   | "payroll.prepare"
   | "payroll.approve"
+  | "account.reconcile"
+  | "record.review"
   /**
    * Read the rate book, the exchange rate and the product catalogue.
    *
@@ -553,6 +555,14 @@ const ALL: Permission[] = Array.from(
        list above: the desk that writes the figures must not be the desk that
        agrees them, which is the whole reason this run has two steps. */
     "payroll.approve",
+    /* Checking an account against something outside this system, and disputing
+       a record somebody else entered. Both are in ALL and nowhere else, so they
+       resolve to the owner and the manager — the two chairs that answer for the
+       figures rather than produce them. Finance is excluded on purpose: a desk
+       that could mark its own entry reconciled would make the control a
+       formality, which is the one thing it must never be. */
+    "account.reconcile",
+    "record.review",
   ])
 );
 

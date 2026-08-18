@@ -10,6 +10,13 @@ import { NotificationBell } from "@/components/app/notification-bell";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
+  TrendingUp,
+  Scale,
+  Receipt,
+  BadgeCheck,
+  FileText,
+  ShieldCheck,
+  Landmark,
   AlertTriangle,
   ArrowLeftRight,
   Banknote,
@@ -67,6 +74,13 @@ import type { NavSection } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<string, LucideIcon> = {
+  TrendingUp,
+  Scale,
+  Receipt,
+  BadgeCheck,
+  FileText,
+  ShieldCheck,
+  Landmark,
   SlidersHorizontal,
   LayoutDashboard,
   ScanLine,

@@ -888,6 +888,13 @@ const MANAGER_SECTIONS: NavSection[] = [
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
       { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp" },
       { href: "/app/manager/reconciliation", label: "Reconciliation", icon: "Scale" },
+      /* Accounts and Transactions are the manager's CONTROL views over money
+         Finance has already recorded — checking an account against a statement,
+         and disputing an entry. They live here rather than under Decisions
+         because that is where the reader already is when the question occurs. */
+      { href: "/app/manager/accounts", label: "Company accounts", icon: "Landmark", permission: "account.view" },
+      { href: "/app/manager/transactions", label: "Review transactions", icon: "ArrowLeftRight", permission: "ledger.view" },
+      { href: "/app/manager/batches", label: "Batch finances", icon: "Boxes", permission: "profit.view" },
     ],
   },
   {
@@ -902,6 +909,9 @@ const MANAGER_SECTIONS: NavSection[] = [
     title: "Decisions",
     group: { label: "Decisions", icon: "BadgeCheck" },
     items: [
+      /* First, because it is the one screen that answers "what needs me today"
+         without the manager having to guess which queue to open. */
+      { href: "/app/manager/control", label: "Control room", icon: "ShieldCheck" },
       { href: "/app/manager/approvals", label: "Pending approvals", icon: "BadgeCheck" },
       /* Its own row rather than a line in the approvals list, because agreeing
          a month's salaries is not a queue item to clear — it is read name by

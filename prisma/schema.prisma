@@ -419,6 +419,8 @@ model User {
   payrollApproved       PayrollRun[]            @relation("PayrollApprovedBy")
   payrollPaid           PayrollRun[]            @relation("PayrollPaidBy")
   payrollLines          PayrollItem[]           @relation("PayrollItemStaff")
+  reconciliationsDone   AccountReconciliation[] @relation("ReconciliationCheckedBy")
+  reviewsGiven          ManagerReview[]         @relation("ManagerReviewBy")
   statusChanges         ShipmentStatusHistory[]
   uploadedPhotos        ShipmentPhoto[]
   uploadedDocuments     ShipmentDocument[]
@@ -1199,6 +1201,123 @@ model PayrollItem {
 
   @@unique([runId, userId])
   @@index([runId])
+}
+
+// ---------------------------------------------------------------------------
+// The manager's control layer — checking, not changing
+// ---------------------------------------------------------------------------
+
+/// Where a thing the manager has looked at has got to.
+///
+/// SHARED BY THE ACCOUNT CHECKS AND THE RECORD REVIEWS, because they are the
+/// same act: somebody senior compared what the system says against something
+/// outside it, and said so. One vocabulary means the control room can list a
+/// disputed payment beside a bank account that will not balance without
+/// translating between two sets of words.
+enum ReviewState {
+  /// Looked at, and it agrees. The end of the road for most rows.
+  RECONCILED
+  /// Nobody has looked yet. The default for anything that needs a look.
+  PENDING
+  /// Looked at, and the two figures differ. Says nothing about whose fault.
+  MISMATCH
+  /// Being investigated. Parked deliberately rather than forgotten.
+  UNDER_REVIEW
+  /// Handed back to the desk that recorded it, with a reason. The record is
+  /// untouched; only this says it is disputed.
+  SENT_BACK
+}
+
+/// What an account actually held, on a day, according to something that is not
+/// this system.
+///
+/// THE WHOLE POINT IS THE SECOND NUMBER. Every other figure in this app is
+/// derived from its own records, so comparing the system to itself can only
+/// ever report zero. A bank statement, a till count, a mobile-money balance on
+/// a phone screen — those are the only things that can contradict the ledger,
+/// and until somebody types one in there is nothing to reconcile against.
+///
+/// A row is an EVENT, not a state: reconciling again writes a new row rather
+/// than editing the last, so the account keeps a history of every time somebody
+/// checked it and what they found. The account's current standing is the
+/// newest row, derived, like everything else here.
+model AccountReconciliation {
+  id String @id @default(cuid())
+
+  accountId String
+  account   CompanyAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  /// The moment the two figures are being compared AT. Not when the row was
+  /// typed — a manager reconciling Monday's close on Wednesday is making a
+  /// statement about Monday.
+  asOf DateTime
+
+  /// What the ledger said at `asOf`, frozen. Recomputing it later would quietly
+  /// rewrite history every time a backdated payment landed, and the difference
+  /// this row reported would stop matching the difference it recorded.
+  systemBalance Decimal @db.Decimal(14, 2)
+  /// What the bank, the till or the phone said. The number from outside.
+  actualBalance Decimal @db.Decimal(14, 2)
+  /// actual − system, stored because it is the finding, not a display detail.
+  difference    Decimal @db.Decimal(14, 2)
+  /// The account's own currency at the time, so an archived account still reads.
+  currency      String
+
+  state ReviewState @default(PENDING)
+
+  /// Required whenever the two disagree. "Bank charge not yet booked" is the
+  /// difference between a reconciliation and a shrug.
+  note String?
+
+  checkedById String
+  checkedBy   User   @relation("ReconciliationCheckedBy", fields: [checkedById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId, asOf])
+  @@index([state])
+}
+
+/// What kind of record a manager's review is attached to.
+enum ReviewTarget {
+  PAYMENT
+  EXPENSE
+  BATCH
+  LEDGER_ENTRY
+  INVOICE
+}
+
+/// A manager's verdict on one record, kept BESIDE the record and never inside it.
+///
+/// The owner's rule, in his words: do not silently change financial records.
+/// So sending a payment back does not edit the payment — Finance still sees
+/// exactly what they entered, and this says a manager disputes it and why. The
+/// desk then records a correction through the normal correction path, which
+/// already writes reversing entries rather than edits.
+///
+/// Append-only, one row per verdict, so "Recorded → Sent back → Corrected →
+/// Reviewed → Reconciled" is a list of rows rather than a column overwritten
+/// four times. The record's current standing is the newest row for it.
+model ManagerReview {
+  id String @id @default(cuid())
+
+  target   ReviewTarget
+  /// The reviewed record's id. Polymorphic on purpose — the alternative is five
+  /// nullable foreign keys and five indexes to answer one question.
+  targetId String
+
+  state ReviewState
+
+  /// Required for SENT_BACK and MISMATCH. What the desk has to do about it.
+  reason String?
+
+  reviewedById String
+  reviewedBy   User   @relation("ManagerReviewBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([target, targetId, createdAt])
+  @@index([state])
 }
 
 // ---------------------------------------------------------------------------
@@ -2278,6 +2397,7 @@ model CompanyAccount {
 
   @@index([active, sortOrder])
   payrollRuns PayrollRun[]
+  reconciliations AccountReconciliation[]
 }
 
 enum LedgerDirection {
