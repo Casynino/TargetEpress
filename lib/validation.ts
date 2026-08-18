@@ -1,3 +1,4 @@
+import { Role } from "@prisma/client";
 import { z } from "zod";
 
 const GOODS_TYPES = [
@@ -238,7 +239,25 @@ export const userSchema = z.object({
   name: z.string().trim().min(2, "Name is required."),
   email: z.string().trim().email("A valid email is required."),
   phone: z.string().trim().optional(),
-  role: z.enum(["ADMIN", "CHINA_WAREHOUSE", "DAR_WAREHOUSE", "FINANCE", "CUSTOMER_CARE"]),
+  /*
+    THE ROLES, ASKED FOR RATHER THAN LISTED.
+
+    This was a hand-typed list of five, and when the Manager role was added the
+    dropdown offered it while this refused it — so creating a manager failed with
+    a raw validator message on the owner's screen. Changing an existing person TO
+    manager worked the whole time, because that path checks against ROLE_LABELS,
+    which is a Record<Role, …> the compiler forces you to complete.
+
+    That is the difference worth keeping: a typed map is a build error when a role
+    is added, a string array is a runtime surprise found by a user. Reading the
+    enum Prisma generates means this list cannot fall behind the database again.
+
+    (Not to be confused with `rank` below, whose OPERATOR/MANAGER is a warehouse
+    grade and has nothing to do with this field despite sharing a word.)
+  */
+  role: z.nativeEnum(Role, {
+    errorMap: () => ({ message: "Choose a role for them." }),
+  }),
   /// Optional, but unique when given. Payroll and the audit trail refer to it,
   /// and the employee can never change it themselves.
   employeeId: z

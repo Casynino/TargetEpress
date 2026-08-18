@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { desksHolding } from "@/lib/exception-audience";
 import { recordAudit } from "@/lib/audit";
 import { t } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
@@ -40,21 +41,17 @@ const MIN_NOTE = 5;
 /**
  * Everyone who has to know a box has gone missing.
  *
- * The owner names two desks: Admin, who decides, and Customer Support, who
- * has to phone the customer before the customer phones them. Deactivated and
- * suspended accounts are skipped — a notification nobody can open is not a
- * notification.
+ * The owner names two desks: whoever decides, and Customer Support, who has to
+ * phone the customer before the customer phones them. Deactivated and suspended
+ * accounts are skipped — a notification nobody can open is not a notification.
+ *
+ * NAMED BY CAPABILITY, because the role list this used to hold said ADMIN and
+ * CUSTOMER_CARE, and a Manager added later silently stopped being told that
+ * cargo had gone missing. `exception.approve` is exactly "can rule on this
+ * case", which is who the sentence above always meant by "whoever decides".
  */
 async function investigationAudience(tx: TxClient): Promise<string[]> {
-  const rows = await tx.user.findMany({
-    where: {
-      role: { in: ["ADMIN", "CUSTOMER_CARE"] },
-      active: true,
-      status: "ACTIVE",
-    },
-    select: { id: true },
-  });
-  return rows.map((row) => row.id);
+  return desksHolding(["exception.approve", "ticket.manage"], tx);
 }
 
 type LossOrigin = "counter" | "queue";

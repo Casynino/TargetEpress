@@ -43,17 +43,34 @@ export async function desksHolding(
  *
  * `ticket.manage` is the customer-facing desk: it is the phone that rings when
  * tracking says something a customer did not expect, so it is on every one of
- * these. `user.manage` is the CEO. `exception.compensate` is Finance, told
- * about damage the moment it lands rather than when a claim arrives — the
- * amount is argued later, but the photographs are only takeable now.
+ * these. `exception.approve` is whoever rules on cases. `exception.compensate`
+ * is Finance, told about damage the moment it lands rather than when a claim
+ * arrives — the amount is argued later, but the photographs are only takeable
+ * now.
+ *
+ * THE BOSS ROW SAID `user.manage`, WHICH WAS THE WRONG WORD FOR THE RIGHT SET.
+ *
+ * Not a bug — checked, and the audience is byte-for-byte identical before and
+ * after this change, because these lists are OR'd and the manager already
+ * qualified through `ticket.manage`. What was wrong was the reasoning:
+ * `user.manage` is the permission to administer staff accounts, and it was
+ * standing in for "the person who answers for the company". Those were the same
+ * human while the CEO was the only one, and the file above promises this keeps
+ * working when a role is added — a promise it cannot keep while an audience is
+ * named after an unrelated capability that merely correlates with seniority.
+ *
+ * `exception.approve` is what these notifications actually ask of their reader:
+ * somebody who can rule on the case. Same people today, and still the right
+ * people the day the owner decides a manager should not rule on cases, or that
+ * somebody else should.
  */
 const OUTCOME_AUDIENCE: Record<ReceivingOutcome, Permission[]> = {
   RECEIVED: [],
-  MISSING: ["ticket.manage", "user.manage"],
+  MISSING: ["ticket.manage", "exception.approve"],
   DAMAGED: ["ticket.manage", "exception.compensate"],
-  WRONG_ITEM: ["ticket.manage", "user.manage"],
-  WRONG_QUANTITY: ["ticket.manage", "user.manage"],
-  HOLD: ["ticket.manage", "user.manage"],
+  WRONG_ITEM: ["ticket.manage", "exception.approve"],
+  WRONG_QUANTITY: ["ticket.manage", "exception.approve"],
+  HOLD: ["ticket.manage", "exception.approve"],
 };
 
 /**

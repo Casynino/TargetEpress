@@ -18,7 +18,7 @@ import {
   approveCompensation,
   markCargoFound,
 } from "@/lib/actions/investigations";
-import { can } from "@/lib/rbac";
+import { can, ROLE_PERMISSIONS, type Permission } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -71,11 +71,29 @@ function statusLabel(status: ExceptionStatus, locale: Locale = "en") {
  * be put into somebody's language is the moment it is written, which means
  * knowing who is about to receive it.
  */
+/*
+  ADDRESSED BY WHAT THE READER CAN DO, NOT BY WHAT THEY ARE CALLED.
+
+  This took a list of roles, and the list said ["ADMIN", "CUSTOMER_CARE"]. The
+  day a Manager was added — full oversight of the business, deliberately without
+  the keys to staff accounts — they stopped hearing that a case had moved, and
+  nothing anywhere said so. A role name in an audience list is a promise to come
+  back and edit it, and nobody ever does.
+
+  Permissions do not have that problem: "tell whoever can rule on this" stays
+  true when a sixth desk appears, and stays true if the owner later decides the
+  manager should not rule on cases after all.
+*/
 async function watchers(
   tx: TxClient,
-  roles: Role[],
+  permissions: Permission[],
   exclude: string
 ): Promise<{ id: string; locale: Locale }[]> {
+  const roles = (Object.keys(ROLE_PERMISSIONS) as Role[]).filter((role) =>
+    permissions.some((permission) => can(role, permission))
+  );
+  if (roles.length === 0) return [];
+
   const rows = await tx.user.findMany({
     where: { active: true, role: { in: roles }, id: { not: exclude } },
     select: { id: true, preferredLanguage: true },
@@ -256,14 +274,18 @@ export async function advanceInvestigation(
 
       // Finance is told when a payout has been authorised — they are the desk
       // that has to act on it next.
-      const roles: Role[] = ["ADMIN", "CUSTOMER_CARE"];
-      if (target === "REPLACEMENT_APPROVED") roles.push("FINANCE");
+      /* Whoever rules on cases, and whoever has to phone the customer before
+         the customer phones them. Finance joins only when a replacement has
+         been authorised, because that is the point at which they have
+         something to do about it. */
+      const audienceFor: Permission[] = ["exception.approve", "ticket.manage"];
+      if (target === "REPLACEMENT_APPROVED") audienceFor.push("exception.compensate");
 
       // One write per reading language rather than one write for everybody: a
       // notification is stored text, so the language has to be chosen here or
       // never. The free-text note is whatever the clerk typed and is passed
       // through as written.
-      const audience = byLocale(await watchers(tx, roles, user.id));
+      const audience = byLocale(await watchers(tx, audienceFor, user.id));
       for (const [readerLocale, userIds] of audience) {
         await notify(
           {
