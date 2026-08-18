@@ -300,36 +300,18 @@ export default async function ManagerHome() {
       />
 
       {/*
-        WHAT NEEDS YOU, BEFORE WHAT MERELY IS.
+        MONEY FIRST. The owner, twice: "give the most important info like money
+        situations — the manager needs to know what is really going on."
 
-        This panel used to sit two thirds of the way down, under five blocks of
-        counters, because it arrived with the shared dashboard rather than being
-        placed. A manager opening this screen is not browsing inventory — the
-        first question is "does anything need me", and every figure below is
-        context for answering it. So it leads, and the numbers support it.
+        Attention led here for a while and the reasoning was sound in isolation
+        — do not make somebody scroll to learn something needs them. But it is a
+        tall panel, and the briefing sat under it, so the first FIGURE on the
+        manager's screen was four hundred pixels down. He was being shown his
+        to-do list before he was shown whether the company made money this
+        month. The attention panel still sits high, immediately under the money
+        band, where it reads as the consequence of the figures above it rather
+        than as a list arriving out of nowhere.
       */}
-      <div className="mb-6">
-        <AttentionCenter
-          items={attention}
-          reviewAll={{ href: "/app/manager/control", label: t(locale, "Control room") }}
-          empty={t(locale, "Nothing needs your decision. Every desk is clear.")}
-        />
-      </div>
-
-      {/* ------------------------------------------------------- the briefing */}
-      <section className="mb-7">
-        <BandHeading
-          title={t(locale, "The briefing")}
-          hint={t(
-            locale,
-            "Short readings of the month, hardest-hitting first. A figure says how much; only a comparison says whether that is good."
-          )}
-        />
-        <Briefing
-          items={overview.insights.filter((item) => !STATED_ELSEWHERE.has(item.id))}
-          locale={locale}
-        />
-      </section>
 
       {/* ----------------------------------------------------------- the money */}
       <section className="mb-7">
@@ -539,6 +521,28 @@ export default async function ManagerHome() {
             href="/app/finance/credit"
           />
 
+          {/*
+            THE BIGGEST NUMBER IN THE BUSINESS, and it was not on the money band.
+
+            It was left off because the attention panel names it and the Finance
+            desk card repeats it, and the rule here is that no figure appears
+            twice. That rule was applied too literally: what a customer owes is
+            not a queue item, it is the state of the company, and a money band
+            that omits the largest figure in it is a money band the reader
+            cannot trust to be complete. The other two mention it in passing —
+            this is where somebody comes to READ it.
+          */}
+          <MoneyTile
+            label={t(locale, "Owed to us")}
+            usd={finance.outstandingUsd}
+            rate={rate}
+            hint={t(locale, "billed, confirmed, and still not paid")}
+            icon={Wallet}
+            tone={finance.outstandingUsd > 0 ? "bad" : "good"}
+            emphasis={finance.outstandingUsd > 0}
+            href="/app/collections/follow-up"
+          />
+
           {/* The shape behind every figure above: what arrived against what it
               cost, month by month. */}
           <BentoCard href="/app/finance/transactions" className="sm:col-span-2">
@@ -730,6 +734,38 @@ export default async function ManagerHome() {
             </p>
           </BentoCard>
         </div>
+      </section>
+
+      {/*
+        WHAT NEEDS YOU, BEFORE WHAT MERELY IS.
+
+        This panel used to sit two thirds of the way down, under five blocks of
+        counters, because it arrived with the shared dashboard rather than being
+        placed. A manager opening this screen is not browsing inventory — the
+        first question is "does anything need me", and every figure below is
+        context for answering it. So it leads, and the numbers support it.
+      */}
+      <div className="mb-6">
+        <AttentionCenter
+          items={attention}
+          reviewAll={{ href: "/app/manager/control", label: t(locale, "Control room") }}
+          empty={t(locale, "Nothing needs your decision. Every desk is clear.")}
+        />
+      </div>
+
+      {/* ------------------------------------------------------- the briefing */}
+      <section className="mb-7">
+        <BandHeading
+          title={t(locale, "The briefing")}
+          hint={t(
+            locale,
+            "Short readings of the month, hardest-hitting first. A figure says how much; only a comparison says whether that is good."
+          )}
+        />
+        <Briefing
+          items={overview.insights.filter((item) => !STATED_ELSEWHERE.has(item.id))}
+          locale={locale}
+        />
       </section>
 
       {/* ------------------------------------------------------ cargo in motion */}
