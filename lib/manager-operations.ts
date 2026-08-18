@@ -17,7 +17,6 @@ import { prisma } from "@/lib/prisma";
 import {
   agingInWarehouse,
   chinaStats,
-  corridorPosition,
   darStats,
   financeStats,
   receivingQueue,
@@ -33,8 +32,9 @@ import { todaySummary } from "@/lib/warehouse-home";
  * an engine that some desk's own screen already reads — the Guangzhou floor's
  * composition, the Dar floor's snapshot, the receiving queue, the approvals
  * board, the collections desk, the support desk. This file only arranges them
- * into one order: registered → loaded → flown → landed → checked in → cleared →
- * collected.
+ * into one order — registered → loaded → flown → landed → checked in → cleared
+ * → collected — and splits each leg between the cargo standing still and the
+ * desk working it, per ONE FIGURE, ONE HOME below.
  *
  * That restraint is the whole point of the file. A manager's operations screen
  * that asked the database its own version of "how much is on the floor" would
@@ -45,18 +45,47 @@ import { todaySummary } from "@/lib/warehouse-home";
  * either composed from series an engine already returns, or left off with the
  * reason written down (see `batches closed`, below).
  *
+ * ONE FIGURE, ONE HOME. The page draws each leg twice — the journey column on
+ * top, the desk card underneath — and the same number printed in both places is
+ * not reassurance, it is a reader wondering which of the two moved. So the two
+ * surfaces are divided by what they are for, and nothing crosses:
+ *
+ *   the journey column carries CARGO STANDING STILL, in slices that add up to
+ *   the headline above them (`held` + `cleared` + `flagged` = the floor), plus
+ *   the two edges of the leg — what has landed but is not checked in, and what
+ *   has overstayed;
+ *
+ *   the desk card carries THE DESK'S OWN DAY — what is queued for it, what it
+ *   finished since midnight, what is open against it.
+ *
+ * Where that leaves a card with two rows instead of three, it has two rows. A
+ * third row repeating a figure from the column an inch above it would be worth
+ * less than the white space.
+ *
+ * THE DESK PULSE PANEL SITS ON THIS PAGE TOO, and it is not ours to reword —
+ * the owner reads the same cards. It answers some of these questions with a
+ * NARROWER population than this file does: its "on the floor" is RECEIVED_AT_DAR
+ * alone, and its storage problem line counts only cargo Finance has not cleared.
+ * Where our population is wider, our WORDS have to say so out loud; two
+ * different numbers under the same phrase on one screen is the worst thing this
+ * page could do. Each such label is commented where it is built.
+ *
  * WHY SOME ENGINE FIELDS ARE DELIBERATELY UNUSED:
  *
- *   corridorPosition() answers five things; only `inAir` is taken. Its onFloor
- *   / ready / flagged are the same cargo floorComposition() splits, and its
- *   split is by shipment status while floorComposition's is by what is actually
- *   holding the box — an active pickup note, an open case. Both are right; two
- *   of them on one screen under near-identical labels is not.
+ *   corridorPosition() is not read here at all, though it looks like exactly
+ *   the engine the in-the-air bar wants. Its `inAir` counts SHIPMENTS at status
+ *   IN_TRANSIT, and receiveBatch() does not touch shipment statuses when a
+ *   flight lands — cargo stays IN_TRANSIT until somebody ticks it off a
+ *   manifest. So that count keeps counting boxes that are already standing in
+ *   Dar, which the same screen then counts again as the check-in backlog. The
+ *   bar reads the receiving queue's own batch rows instead, so its pieces, its
+ *   flights and its kilos are three facts about one set of aircraft.
  *
- *   darStats() gives four cargo counts as well as its two batch counts. Only
- *   the batch counts are taken. Its inWarehouse + readyForPickup do not add up
- *   to the floor (cargo under investigation is on neither), and a column whose
- *   parts do not sum to the total printed above them reads as a bug.
+ *   darStats() gives four cargo counts and two batch counts. Only awaitingCheck
+ *   is taken. Its inWarehouse + readyForPickup do not add up to the floor (cargo
+ *   under investigation is on neither), and a column whose parts do not sum to
+ *   the total printed above them reads as a bug; its `incoming` is the same
+ *   flights the receiving queue already counted for the bar.
  *
  *   chinaStats() gives the staged weight, which nothing else carries, so the
  *   kilos come from there. Its readyToDepart is the same count as
@@ -194,7 +223,6 @@ export async function managerOperations(
     chinaToday,
     staged,
     tables,
-    corridor,
     dar,
     queue,
     floor,
@@ -212,7 +240,6 @@ export async function managerOperations(
     todaySummary(),
     chinaStats(),
     loadingTables(prisma),
-    corridorPosition(),
     darStats(),
     /* Six, not the default fifteen: this is the batch rail on a command centre,
        not the receiving bench. The rows are ordered by that engine with the
@@ -231,8 +258,16 @@ export async function managerOperations(
 
   const collectedToday = floorFlow.outCounts[floorFlow.currentIndex] ?? 0;
   const receivedToday = floorFlow.inCounts[floorFlow.currentIndex] ?? 0;
-  const collectedFortnight = floorFlow.outCounts.reduce((sum, n) => sum + n, 0);
   const ticketsClosedToday = ticketFlow.outCounts[ticketFlow.currentIndex] ?? 0;
+
+  /* The pieces riding on flights that have not landed — counted off the very
+     rows the receiving queue sums its in-air kilos from, so the bar's pieces,
+     flights and kilos are three readings of one set of aircraft. Composed here
+     rather than queried: this is the queue's own series added up, not a second
+     opinion about what "in the air" means. */
+  const inAirCargo = queue.rows
+    .filter((row) => row.status === "IN_TRANSIT")
+    .reduce((sum, row) => sum + row.shipments, 0);
 
   /* Cargo standing in Guangzhou, and the same list every time. There is no
      "registered on a given day" filter on the cargo screen, so today's
@@ -245,9 +280,10 @@ export async function managerOperations(
     place: say("Guangzhou"),
     standing: china.total,
     standingLabel: say("standing in China"),
-    standingDetail: `${count(chinaToday.shipments, "registered today")} · ${Math.round(
-      staged.stagedWeightKg
-    ).toLocaleString()} ${say("kg staged")}`,
+    /* Kilos only. What was registered today is this desk's day, not the state
+       of its floor, and it is the middle row of the Guangzhou card below —
+       printed in both places it became a figure a reader had to reconcile. */
+    standingDetail: `${Math.round(staged.stagedWeightKg).toLocaleString()} ${say("kg staged")}`,
     stages: [
       {
         key: "pending",
@@ -280,7 +316,11 @@ export async function managerOperations(
         key: "stale",
         label: `${say("Standing more than")} ${chinaFaults.staleDays} ${say("days")}`,
         value: chinaFaults.waiting,
-        detail: chinaFaults.noPhotos > 0 ? count(chinaFaults.noPhotos, "with no photograph") : null,
+        /* The cargo with no photograph used to hang here. It is the Guangzhou
+           pulse card's problem line on this same screen, and the pulse is the
+           panel the owner reads — one desk's failure said once, by the panel
+           that says every desk's failure. */
+        detail: say("waiting since it was registered"),
         href: chinaList,
         permission: "shipment.view",
         tone: chinaFaults.waiting > 0 ? "warn" : "plain",
@@ -350,35 +390,43 @@ export async function managerOperations(
     key: "dar",
     place: say("Dar es Salaam"),
     standing: floor.shipments,
-    standingLabel: say("standing on the floor"),
+    /* NOT "on the floor". The pulse card further down this same screen prints
+       that exact phrase over a SMALLER number — RECEIVED_AT_DAR alone, the
+       cargo Finance has not released — while this counts everything checked in
+       and not yet handed over, cleared cargo included. Two populations, so two
+       forms of words; the alternative, narrowing this to match the pulse, would
+       stop the three slices below adding up to the figure they sit under. */
+    standingLabel: say("standing, cleared or not"),
     standingDetail: `${count(floor.packages, "boxes")} · ${Math.round(
       floor.weightKg
     ).toLocaleString()} ${say("kg")}`,
     stages: [
       {
         key: "arrived",
+        /* Counted in pieces, like every other row in this column. The FLIGHTS
+           those pieces are riding are the Dar card's queue below — the two
+           were printed here as a figure and its own detail line, each the
+           other's caption, which is one number too many for one row. */
         label: say("Landed, awaiting check-in"),
-        value: dar.awaitingCheck,
+        value: queue.summary.uncheckedShipments,
         detail:
           queue.summary.uncheckedShipments > 0
-            ? count(queue.summary.uncheckedShipments, "pieces still to tick off")
+            ? say("pieces, on flights already on the floor")
             : say("every piece ticked off"),
         href: "/app/receive",
         permission: "batch.receive",
         tone: queue.summary.uncheckedShipments > 0 ? "warn" : "plain",
       },
       {
-        key: "received",
-        label: say("Checked in today"),
-        value: receivedToday,
-        detail: say("ticked off a manifest since midnight"),
-        href: "/app/inventory",
-        permission: "inventory.view",
-        tone: "plain",
-      },
-      {
         key: "held",
-        label: say("In the warehouse, not cleared"),
+        /* floorComposition().held, which is cargo with no live pickup note AND
+           no open case — the case takes precedence, so it is counted one row
+           down instead. floorSnapshot().unpaid answers the same question the
+           other way, counting flagged cargo as unpaid too; the composition is
+           used because its three slices add to the headline above. The label
+           has to say which of the two it is, or the manager reading the Dar
+           overview next to this one is looking at two "not cleared" figures. */
+        label: say("Not cleared, no case open"),
         value: split.held,
         detail: say("waiting on Finance before it can go"),
         href: "/app/cargo?status=RECEIVED_AT_DAR",
@@ -396,6 +444,9 @@ export async function managerOperations(
       },
       {
         key: "flagged",
+        /* The third slice of the floor, and the Dar card below does not repeat
+           it: an open case is a state the cargo is standing in, which is this
+           column's subject, not a queue the warehouse works through. */
         label: say("Held under a case"),
         value: split.flagged,
         detail: say("not going anywhere until it is ruled on"),
@@ -404,21 +455,14 @@ export async function managerOperations(
         tone: split.flagged > 0 ? "warn" : "plain",
       },
       {
-        key: "collected",
-        label: say("Collected today"),
-        value: collectedToday,
-        detail: count(collectedFortnight, "in the last fortnight"),
-        href: "/app/deliveries",
-        permission: "delivery.history",
-        tone: "plain",
-      },
-      {
         key: "overdue",
-        label: `${say("Standing past the free")} ${STORAGE_POLICY.freeDays} ${say("days")}`,
+        /* "Whole floor", not "standing past" — the pulse card below says "past
+           the free storage window" over a narrower count, cargo Finance has not
+           released. This one counts cleared cargo too: a customer who has paid
+           and left the boxes here is still using the shelf. Days, never a
+           charge — what that costs is worked out at the counter. */
+        label: `${say("Whole floor past the free")} ${STORAGE_POLICY.freeDays} ${say("days")}`,
         value: floor.aging,
-        /* Days, never a charge. The clause about cleared cargo is what keeps
-           this figure from reading as a contradiction of the Dar desk card,
-           which counts only cargo Finance has not released yet. */
         detail: `${say("longest")} ${floor.longestHeldDays} ${say(
           "days"
         )} · ${say("cleared cargo counted too")}`,
@@ -482,28 +526,30 @@ export async function managerOperations(
     {
       key: "china",
       desk: say("Guangzhou"),
+      /* No "waiting" row. Guangzhou's queue is cargo on no batch yet, and that
+         is the first slice of the journey column above — one of the three that
+         add up to the figure standing in China. It cannot leave that column
+         without breaking the sum, so it does not appear twice. */
       rows: [
-        {
-          key: "pending",
-          label: say("Waiting for a table"),
-          value: china.unassigned,
-          detail: null,
-          href: chinaList,
-          permission: "shipment.view",
-        },
         {
           key: "today",
           label: say("Registered today"),
           value: chinaToday.shipments,
-          detail: count(chinaToday.photos, "photographs filed"),
+          /* "every desk", because todaySummary() counts every shipment photo
+             filed since midnight — Dar's damage shots and delivery proofs among
+             them — and there is no China-scoped photo engine to read instead.
+             Scoping it here would mean this file asking the database its own
+             question, which is the one thing it does not do; so the label says
+             what the query actually counts. */
+          detail: count(chinaToday.photos, "photographs filed, every desk"),
           href: chinaList,
           permission: "shipment.view",
         },
         {
           key: "issues",
-          /* The desk card beside this one already names the cargo with no
-             photograph. This is the other failure that desk owns: a table left
-             open long enough to stop being a batch and become a shelf. */
+          /* The pulse card above already names the cargo with no photograph.
+             This is the other failure that desk owns: a table left open long
+             enough to stop being a batch and become a shelf. */
           label: say("Tables left open too long"),
           value: chinaFaults.staleBatches,
           detail: null,
@@ -515,30 +561,32 @@ export async function managerOperations(
     {
       key: "dar",
       desk: say("Dar floor"),
+      /* No "open" row. The cases against floor cargo are the last slice of the
+         journey column above, where they belong — a case is a state cargo is
+         standing in, and moving it here would print the same count twice. */
       rows: [
         {
           key: "pending",
-          label: say("Pieces still to check in"),
-          value: queue.summary.uncheckedShipments,
-          detail: count(dar.awaitingCheck, "flights on the floor"),
+          /* Flights, not pieces: the pieces are the first row of the column
+             above, and this is the unit the bench actually works in — a
+             receiving clerk opens a flight and ticks it off. */
+          label: say("Flights waiting to be checked in"),
+          value: dar.awaitingCheck,
+          detail: null,
           href: "/app/receive",
           permission: "batch.receive",
         },
         {
           key: "today",
+          /* The only home on this page for what the floor did since midnight.
+             It was here AND as two rows of the journey column above, which made
+             three renderings of two numbers; the column is about cargo standing
+             still, so the day's movement lives on the desk that did it. */
           label: say("Handled today"),
           value: receivedToday + collectedToday,
           detail: `${count(receivedToday, "in")} · ${count(collectedToday, "out")}`,
           href: "/app/inventory",
           permission: "inventory.view",
-        },
-        {
-          key: "issues",
-          label: say("Cases against floor cargo"),
-          value: split.flagged,
-          detail: null,
-          href: "/app/exceptions",
-          permission: "exception.view",
         },
       ],
     },
@@ -569,9 +617,16 @@ export async function managerOperations(
         },
         {
           key: "issues",
-          label: say("Landed with no confirmed bill"),
+          /* NOT "landed". financeStats().awaitingInvoice counts cargo at
+             RECEIVED_AT_DAR *and* IN_TRANSIT whose only invoice is a draft or
+             absent, so a box still over the Indian Ocean is in it — and cargo
+             that has not landed cannot be late to bill. Renamed rather than
+             narrowed: the same field is Finance's own queue on its own screen,
+             and a second, arrived-only version of it computed here would give
+             the manager and the finance clerk two answers to one question. */
+          label: say("Cargo with no confirmed bill"),
           value: finance.awaitingInvoice,
-          detail: say("cargo nobody has been asked to pay for"),
+          detail: say("in the air or on the floor, nobody billed yet"),
           href: "/app/finance/invoices",
           permission: "finance.view",
         },
@@ -593,13 +648,23 @@ export async function managerOperations(
           key: "today",
           label: say("Tickets closed today"),
           value: ticketsClosedToday,
-          detail: count(support.contactedToday, "customers contacted"),
+          /* Messages, not people. contactedToday is a straight count of
+             customerMessage rows since midnight, so five calls to one trader
+             read as five traders under the old wording. Counting distinct
+             customers would need a new query in this file, which is the thing
+             it does not do; the honest label is the one the query supports. */
+          detail: count(support.contactedToday, "messages sent"),
           href: "/app/support",
           permission: "ticket.manage",
         },
         {
           key: "issues",
-          label: say("Urgent and unanswered"),
+          /* Nothing in the schema records whether a ticket has been answered.
+             This counts OPEN and IN_PROGRESS tickets at HIGH or URGENT — a
+             ticket somebody is working on right now is in it, and so is a
+             merely high-priority one, so it cannot claim either "urgent" alone
+             or "unanswered". */
+          label: say("High or urgent, still open"),
           value: support.urgentTickets,
           detail: null,
           href: "/app/support",
@@ -612,9 +677,15 @@ export async function managerOperations(
   return {
     china: chinaLeg,
     dar: darLeg,
+    /* All three off the receiving queue's in-air batch rows, so the bar's
+       pieces, flights and kilos are one population described three ways. The
+       pieces used to come from corridorPosition().inAir and the other two from
+       the batches, which put every box on a landed-but-unchecked flight into
+       the airborne headline AND into the Dar check-in backlog on the same
+       screen — cargo counted twice, in two places a manager acts on. */
     corridor: {
-      cargo: corridor.inAir,
-      batches: dar.incoming,
+      cargo: inAirCargo,
+      batches: queue.summary.inAir,
       weightKg: queue.summary.inAirWeightKg,
       href: "/app/receive",
       permission: "batch.receive",

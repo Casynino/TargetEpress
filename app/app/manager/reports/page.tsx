@@ -6,11 +6,12 @@ import { PageHeader } from "@/components/app/page-header";
 import { PrintButton } from "@/components/app/print-button";
 import { SectionLabel } from "@/components/app/section-label";
 import { creditForPeriod } from "@/lib/credit-queries";
-import { toNumber } from "@/lib/format";
+import { percentDelta, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { formatShillings } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
+import { volumeInWindow } from "@/lib/queries";
 import { profitAndLoss, windowFor, type PeriodKey } from "@/lib/profit";
 import { REPORTS, type ReportKey } from "@/lib/reports";
 import { requirePermission } from "@/lib/session";
@@ -62,7 +63,10 @@ const ASKS: Partial<Record<ReportKey, string>> = {
   "batch-profit": "What each flight earned against what it cost to move.",
   storage: "What is sitting in the warehouse, how long, and what it is charging.",
   payroll: "Every salary run and where it stopped.",
-  staff: "Everybody on the books, what they do and what they are paid.",
+  /* "On the books" was a wider claim than the query: staffReport() reads
+     active accounts only, so anybody deactivated is absent from a document
+     titled Staff register. Worded as the report's own caption words it. */
+  staff: "Everybody with a live account, what they do and what they are paid.",
   ledger: "Every movement of money in the order it happened.",
   bank: "Every movement through a bank account.",
   "mobile-money": "Every movement through M-Pesa, Mixx and the rest.",
@@ -137,14 +141,17 @@ export default async function ManagerReport({
   const picked = windowFor(period ?? "month", locale);
   const range = { gte: picked.window.from, lt: picked.window.to };
 
-  const [pl, previous, credit, registered, delivered, dispatched, rateRow] =
+  const [pl, previous, credit, volume, rateRow] =
     await Promise.all([
       profitAndLoss(picked.window),
       profitAndLoss(picked.previous),
       creditForPeriod(picked.window),
-      prisma.shipment.count({ where: { registeredAt: range, deletedAt: null } }),
-      prisma.shipment.count({ where: { deliveredAt: range, deletedAt: null } }),
-      prisma.batch.count({ where: { departedAt: range } }),
+      /* One engine, not three counts of our own — see volumeInWindow. The
+         earlier note here argued the page had to keep its own queries because
+         it filtered deleted cargo and the engines did not. That was wrong:
+         lib/prisma.ts applies that filter to every shipment read, so both sides
+         always counted the same rows. */
+      volumeInWindow(picked.window.from, picked.window.to),
       currentRate(),
     ]);
 
@@ -152,23 +159,29 @@ export default async function ManagerReport({
   const money = (n: number) => formatShillings(n, rate);
 
   /* Against the period before it, because a figure with nothing beside it is
-     not a finding. Undefined where the previous period had none — see
-     percentDelta: "+∞%" would be a sentence the data does not support. */
-  const change = (now: number, before: number) =>
-    before > 0 ? ((now - before) / before) * 100 : null;
-
+     not a finding. The percentage itself is lib/format's percentDelta — the
+     same call the manager's own overview strip makes, so a change quoted off
+     this sheet and one quoted off that strip cannot part company. It returns
+     undefined where the period before had nothing to measure against, because
+     "+∞%" is a sentence the data does not support. */
   const rows: {
     label: string;
     value: string;
     sub?: string;
-    delta?: number | null;
+    /** percentDelta's answer, or undefined where there is no comparison. */
+    delta?: number;
+    /** Printed in place of the percentage when there is none. An empty column
+     *  where a change usually sits is read as "no change". */
+    note?: string;
     tone?: "good" | "bad";
   }[] = [
     {
       label: "Billed",
       value: money(pl.revenue),
       sub: `${pl.invoices} ${t(locale, "confirmed bills")}`,
-      delta: change(pl.revenue, previous.revenue),
+      delta: percentDelta(pl.revenue, previous.revenue),
+      note:
+        previous.revenue > 0 ? undefined : "nothing billed in the period before",
     },
     {
       label: "Of that, cash",
@@ -184,16 +197,29 @@ export default async function ManagerReport({
     {
       label: "Operating costs",
       value: money(pl.costs),
-      delta: change(pl.costs, previous.costs),
+      delta: percentDelta(pl.costs, previous.costs),
+      note: previous.costs > 0 ? undefined : "nothing spent in the period before",
     },
     {
       label: "Profit",
       value: money(pl.profit),
+      /* profitAndLoss already divides these two and already guards the month
+         with no revenue. Dividing them again here would be a second definition
+         of margin, and the day one of them changes what revenue means the two
+         sheets stop agreeing about the same period. */
       sub:
-        pl.revenue > 0
-          ? `${((pl.profit / pl.revenue) * 100).toFixed(0)}% ${t(locale, "margin")}`
+        pl.margin === null
+          ? undefined
+          : `${pl.margin.toFixed(0)}% ${t(locale, "margin")}`,
+      /* Only against a profit. percentDelta divides by whatever base it is
+         handed, and a period that climbed out of a loss would come back as a
+         large NEGATIVE change — the one figure on this sheet a manager could
+         act on backwards. */
+      delta:
+        previous.profit > 0
+          ? percentDelta(pl.profit, previous.profit)
           : undefined,
-      delta: change(pl.profit, previous.profit),
+      note: previous.profit > 0 ? undefined : "no profit in the period before",
       tone: pl.profit < 0 ? "bad" : "good",
     },
   ];
@@ -263,9 +289,9 @@ export default async function ManagerReport({
       <SectionLabel>{t(locale, "What moved")}</SectionLabel>
       <div className="mb-6 grid grid-cols-3 gap-2">
         {[
-          { icon: Boxes, label: "Cargo registered", value: registered },
-          { icon: Plane, label: "Batches flown", value: dispatched },
-          { icon: Truck, label: "Delivered", value: delivered },
+          { icon: Boxes, label: "Cargo registered", value: volume.registered },
+          { icon: Plane, label: "Batches flown", value: volume.batchesFlown },
+          { icon: Truck, label: "Delivered", value: volume.delivered },
         ].map((s) => (
           <div key={s.label} className="rounded-xl border bg-card p-3">
             <s.icon className="h-4 w-4 text-muted-foreground" />
@@ -285,7 +311,7 @@ export default async function ManagerReport({
                 <span className="block text-[11px] text-muted-foreground">{r.sub}</span>
               ) : null}
             </span>
-            {r.delta !== null && r.delta !== undefined ? (
+            {r.delta !== undefined ? (
               <span
                 className={
                   r.delta >= 0
@@ -295,6 +321,12 @@ export default async function ManagerReport({
               >
                 {r.delta >= 0 ? "+" : ""}
                 {r.delta.toFixed(0)}%
+              </span>
+            ) : r.note ? (
+              /* Allowed to shrink, unlike the percentage: this is a sentence,
+                 and the money beside it is what the row is for. */
+              <span className="shrink text-right text-[11px] text-muted-foreground">
+                {t(locale, r.note)}
               </span>
             ) : null}
             <span

@@ -229,6 +229,17 @@ export async function reconciliation(locale: Locale = "en") {
         where: { kind: "CUSTOMER_PAYMENT" },
         _sum: { amountUsd: true },
       }),
+      /* Rows, not a count, because the check they feed is row-level: a label
+         can only be tested against its own bill's arithmetic, which no groupBy
+         returns. The figure printed beside it — "live bills" — is therefore the
+         size of the set this pass actually opened, and that is the only honest
+         denominator for "none of them disagree".
+
+         financeDashboard's groupBy runs the identical filter, and it is
+         deliberately not read here: it is taken at a different instant, so
+         quoting its total would claim to have examined bills this pass never
+         saw, and it exposes only its PAID, UNPAID and PARTIALLY_PAID buckets —
+         a written-off bill would silently leave the denominator. */
       prisma.invoice.findMany({
         where: { status: { notIn: ["DRAFT", "VOID"] } },
         select: { id: true, status: true, total: true, amountPaid: true },
@@ -276,7 +287,26 @@ export async function reconciliation(locale: Locale = "en") {
   const postedIds = new Set(posted.map((p) => p.paymentId));
   const unposted = payments.filter((p) => !postedIds.has(p.id));
 
-  /* ---------------------------------------- 2. the same money, both ways */
+  /* ---------------------------------------- 2. the same money, both ways
+
+     Added up from the rows above rather than read from executiveStats()
+     .allTimeCollected, which answers "money collected, all time" for the
+     dashboard. Everywhere else in this file a second answer to a question is
+     the bug; here it is the instrument. The check asks whether the payments and
+     the register tell the same story, so one side has to be the payments' own
+     account of themselves. Sourcing it from an engine that will one day read
+     the register would leave the page comparing a figure with itself and
+     reporting agreement for a company whose register was never written.
+
+     It also has to describe exactly these rows. The check printed above it says
+     "N payments taken", counted from `payments`, and a total fetched by its own
+     aggregate a moment later can be a total of a different N.
+
+     And the two are not even the same arithmetic. That aggregate sums
+     `creditedAmount` alone, while every other money total in this codebase
+     reads COALESCE(creditedAmount, amount) — lib/profit.ts documents what that
+     cost the last time — so any payment whose credited column was never written
+     is worth nothing there and its full value here. */
   const collectedUsd = payments.reduce(
     (n, p) => n + toNumber(p.creditedAmount ?? p.amount),
     0

@@ -234,6 +234,22 @@ export default async function ManagerReconciliation() {
      several of them, and for a statement closed before any rate was published. */
   const rate = rateRow ? toNumber(rateRow.rate) : null;
 
+  /*
+    How many of those statements actually carry a profit figure.
+
+    profitUsd is nullable and statementSummary adds it as `profitUsd ?? 0`, so a
+    flight closed before the figure was computed lands in the total as
+    break-even — unknown quietly counted as nothing, on the page whose whole job
+    is to catch exactly that. The rows below already print "—" for it; the
+    banner above them did not.
+
+    The sum stays rather than being suppressed: what IS known is still the
+    answer to "how much profit is sitting unread", and dropping it would lose
+    that to protect a caveat. It now says how many flights it covers, and prints
+    no figure at all when it covers none.
+  */
+  const priced = waiting.filter((row) => row.profitUsd !== null).length;
+
   const faults =
     checks.filter((c) => !c.ok).length +
     collections.checks.filter((c) => !c.ok).length;
@@ -320,8 +336,16 @@ export default async function ManagerReconciliation() {
                   {formatShillings(summary.revenueUsd, rate)}
                 </span>
                 <span className="tabular text-[11px] text-muted-foreground">
-                  {t(locale, "profit")} {formatShillings(summary.profitUsd, rate)}
+                  {t(locale, "profit")}{" "}
+                  {priced === 0
+                    ? t(locale, "not recorded")
+                    : formatShillings(summary.profitUsd, rate)}
                 </span>
+                {priced > 0 && priced < summary.waiting ? (
+                  <span className="text-[11px] font-semibold text-warning">
+                    {t(locale, "on")} {priced} {t(locale, "of")} {summary.waiting}
+                  </span>
+                ) : null}
               </span>
             </>
           ) : null}

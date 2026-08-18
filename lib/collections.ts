@@ -1,5 +1,6 @@
 import "server-only";
 
+import { PENDING_SUBMISSION } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/format";
 
@@ -30,7 +31,8 @@ export async function collectionsOverview() {
       }),
       // Count only. Submissions are stored in the currency the customer sent,
       // so a SUM across them would add shillings to dollars.
-      prisma.paymentSubmission.count({ where: { status: "PENDING" } }),
+      // The clause is shared — see PENDING_SUBMISSION in lib/constants.ts.
+      prisma.paymentSubmission.count({ where: PENDING_SUBMISSION }),
       prisma.paymentSubmission.count({
         where: { status: "VERIFIED", reviewedAt: { gte: startOfToday } },
       }),

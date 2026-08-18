@@ -7,6 +7,7 @@ import {
   EXCEPTION_OPEN_STATUSES,
   EXCEPTION_TYPE_LABELS,
   STORAGE_POLICY,
+  DRAFT_INVOICE,
 } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { chinaProblems, floorSnapshot } from "@/lib/floor";
@@ -96,6 +97,30 @@ export async function monthlyVolume(now = new Date(), locale: Locale = "en") {
  * depends on the customer paying and turning up, and folding that into our
  * delivery performance would flatter or damn us for someone else's behaviour.
  */
+/**
+ * What moved inside one stretch of time.
+ *
+ * THE ONE PLACE that answers "how much cargo was registered / delivered / flown
+ * between these two dates". The management report grew its own three counts and
+ * the dashboard already had `deliveredThisMonth`, so the same question had two
+ * answers on two screens with nothing to say which was right.
+ *
+ * The report's version wrote `deletedAt: null` explicitly, which looked like a
+ * filter the engines lacked — it is not. lib/prisma.ts adds that condition to
+ * every shipment read already, and naming it merely opts out of the automatic
+ * filter to apply the identical one by hand. Both counted the same population
+ * all along, which is what made converging them safe.
+ */
+export async function volumeInWindow(from: Date, to: Date) {
+  const range = { gte: from, lt: to };
+  const [registered, delivered, batchesFlown] = await Promise.all([
+    prisma.shipment.count({ where: { registeredAt: range } }),
+    prisma.shipment.count({ where: { deliveredAt: range } }),
+    prisma.batch.count({ where: { departedAt: range } }),
+  ]);
+  return { registered, delivered, batchesFlown };
+}
+
 export async function corridorPerformance() {
   const delivered = await prisma.shipment.findMany({
     where: {
@@ -543,7 +568,9 @@ export async function ownerAttention(
     })(),
     (async () => {
       const [drafts, unattributed, unpaid, unpaidValue] = await Promise.all([
-        prisma.invoice.count({ where: { status: "DRAFT" } }),
+        /* Shared clause — see DRAFT_INVOICE in lib/constants.ts. The approvals
+           board counts the same set and must not drift from this one. */
+        prisma.invoice.count({ where: DRAFT_INVOICE }),
         /* Unattributed money still waiting to be told which account it went
            into — but a cancelled payment went into none of them by definition,
            so chasing it would be chasing nothing. */

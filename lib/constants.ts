@@ -667,6 +667,26 @@ export const EXCEPTION_STATUS_LABELS: Record<ExceptionStatus, string> = {
 };
 
 /**
+ * Work that is sitting on somebody, as a WHERE clause rather than a count.
+ *
+ * Three modules were each carrying their own copy of these two filters — the
+ * collections overview, the owner's attention list and the approvals board —
+ * and all three returned the same numbers, so nothing was visibly wrong. What
+ * was wrong is that redefining "pending" would have moved two of the three and
+ * left the reader comparing a board against a dashboard that no longer agreed,
+ * with no error anywhere to say so.
+ *
+ * Shared as the FILTER and not as a function on purpose. Those three modules
+ * sit at different depths and already import each other in one direction; a
+ * shared async count would have added the edge that closes the cycle. A clause
+ * in the leaf module every one of them already imports cannot.
+ */
+export const PENDING_SUBMISSION = { status: "PENDING" } as const;
+
+/** A price Finance has not signed off, so nobody can be asked to pay it. */
+export const DRAFT_INVOICE = { status: "DRAFT" } as const;
+
+/**
  * A case nobody has finished with. The queue, the dashboard counts and the
  * public "Under Investigation" line all key off this one list, so a new
  * lifecycle value is live everywhere the moment it is added here.

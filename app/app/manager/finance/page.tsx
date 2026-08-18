@@ -163,6 +163,41 @@ export default async function ManagerFinance({
     )} ${picked.previous.label}`;
   };
 
+  /*
+    THE BOTTOM LINE CANNOT USE A PERCENTAGE, and this is not a style choice.
+
+    `against` divides by the previous figure, which is correct for revenue and
+    for costs because those cannot be negative. Profit can. A loss deepening
+    from one million to two came out of that arithmetic as −100%, printed as
+    "down 100%" — and "down" under a LOSS reads as the loss shrinking. It had
+    doubled. That is the one cell on this page somebody quotes in a meeting.
+
+    Nor is the sign the only trap: a period that went from −500k to +100k is a
+    turnaround, and no percentage describes it honestly, because the base is
+    negative and the ratio is meaningless.
+
+    So a signed figure is compared in WORDS and in MONEY. "Better" and "worse"
+    are decided by the actual arithmetic — more profit is better, whatever the
+    signs — and the previous period is restated as what it was, a profit or a
+    loss, so the reader is never asked to infer it from a direction word.
+  */
+  const bottomLine = (now: number, before: number) => {
+    if (before === 0) {
+      return now === 0
+        ? t(locale, "nothing in either period")
+        : t(locale, "first period with a bottom line");
+    }
+    if (Math.abs(now - before) < 0.005) {
+      return `${t(locale, "same as")} ${picked.previous.label}`;
+    }
+    const wasLoss = before < 0;
+    return `${t(locale, now > before ? "better than" : "worse than")} ${
+      picked.previous.label
+    } — ${t(locale, wasLoss ? "a loss of" : "a profit of")} ${money(
+      Math.abs(before)
+    )}`;
+  };
+
   const profitable = pl.profit >= 0;
 
   const headline: {
@@ -220,10 +255,11 @@ export default async function ManagerFinance({
       k: profitable ? "Net profit" : "Net loss",
       v: money(Math.abs(pl.profit)),
       alt: inUsd(Math.abs(pl.profit)),
-      sub: against(pl.profit, prior.profit, "first period with a bottom line"),
+      sub: bottomLine(pl.profit, prior.profit),
       tone: profitable ? "text-success" : "text-destructive",
     },
   ];
+
 
   // --------------------------------------------------------------- position
   const grouped = KINDS.map((k) => {

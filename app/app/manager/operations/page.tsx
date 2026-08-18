@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { Role } from "@prisma/client";
 import {
   ArrowRight,
   Boxes,
   Clock,
   PlaneTakeoff,
   Warehouse,
+  type LucideIcon,
 } from "lucide-react";
 
 import { DeskPulsePanel } from "@/components/app/desk-pulse";
@@ -28,7 +30,6 @@ import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { viewerLocale } from "@/lib/viewer";
-import type { Role } from "@prisma/client";
 
 export const metadata: Metadata = { title: "Operations" };
 
@@ -43,8 +44,9 @@ export const metadata: Metadata = { title: "Operations" };
  * the desk cards on the owner's dashboard; this page makes it about the CARGO
  * rather than about the departments, and then shows the departments below it.
  *
- * Read left to right: registered in Guangzhou, loaded, sealed, flown — the bar
- * across the middle is the air — landed, checked in, cleared, collected.
+ * Read the bar first and then left to right: what is in the air, then
+ * registered in Guangzhou, loaded, sealed — and on the right, landed, checked
+ * in, cleared, collected, and what has overstayed.
  *
  * EVERY FIGURE IS A LINK INTO THE LIST THAT PROVES IT. A count a manager cannot
  * open is a count they have to take on trust, and one they cannot check is one
@@ -83,8 +85,15 @@ export default async function ManagerOperationsPage() {
         )}
       />
 
-      {/* The stretch between the two columns, so the page reads as one journey
-          rather than as two warehouses that happen to share a screen. */}
+      {/*
+        The cargo that is between the two columns rather than in either of them.
+
+        Above them, not wedged between them: it belongs to neither warehouse,
+        and on a phone the columns stack — a bar sitting between the two would
+        read as the bottom of Guangzhou rather than as the flight. Leading the
+        page is right anyway, because this is the only cargo on the screen that
+        nobody can touch today.
+      */}
       <ProofRow
         href={ops.corridor.href}
         open={corridorOpen}
@@ -148,8 +157,11 @@ export default async function ManagerOperationsPage() {
         operations screen would be quoting a customer a number nobody has agreed.
       */}
       <div className="mt-5">
+        {/* No count chip. The chip means "this many rows below", and what a
+            manager wants counted here is the whole overdue set — which is
+            already the last figure in the Dar column. One number meaning two
+            things on one screen is worse than one number said once. */}
         <SectionLabel
-          count={ops.storage.overdue}
           action={
             can(user.role, "inventory.view")
               ? { href: "/app/inventory", label: t(locale, "The whole floor") }
@@ -293,7 +305,7 @@ function Leg({
   leg: OpsLeg;
   role: Role;
   locale: Locale;
-  icon: typeof Boxes;
+  icon: LucideIcon;
   children?: React.ReactNode;
 }) {
   return (

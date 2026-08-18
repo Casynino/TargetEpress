@@ -2,8 +2,15 @@ import "server-only";
 
 import type { Role } from "@prisma/client";
 
+import {
+  DRAFT_INVOICE,
+  EXCEPTION_OPEN_STATUSES,
+  PENDING_SUBMISSION,
+} from "@/lib/constants";
 import { pendingCreditRequests } from "@/lib/credit-queries";
-import { toNumber } from "@/lib/format";
+import { roundMoney, toNumber } from "@/lib/format";
+import { currentRateValue } from "@/lib/fx";
+import { BASE_CURRENCY } from "@/lib/money";
 import { pendingPayrollApproval } from "@/lib/payroll";
 import { prisma } from "@/lib/prisma";
 import { statementSummary, submittedStatements } from "@/lib/statements";
@@ -72,7 +79,7 @@ const QUEUES: Record<QueueKey, QueueDef> = {
   payments: {
     key: "payments",
     label: "Payments to verify",
-    detail: "Money a desk says arrived, not yet banked on the ledger.",
+    detail: "Money a desk says arrived, not yet banked. Shillings at today's rate.",
     href: "/app/finance/verify",
     permission: "payment.verify",
   },
@@ -80,7 +87,12 @@ const QUEUES: Record<QueueKey, QueueDef> = {
     key: "drafts",
     label: "Prices to confirm",
     detail: "Priced but not billed. Until it is confirmed it cannot be collected.",
-    href: "/app/finance/invoices?status=DRAFT",
+    /* Not /app/finance/invoices?status=DRAFT. That route is a bare redirect to
+       the finance overview and the status is dropped on the way, so a manager
+       pressing a count of unconfirmed prices landed somewhere that could not
+       show him one. The collections queue is where a draft is actually acted
+       on. */
+    href: "/app/collections/follow-up",
     permission: "invoice.manage",
   },
   statements: {
@@ -105,7 +117,11 @@ const QUEUES: Record<QueueKey, QueueDef> = {
   claims: {
     key: "claims",
     label: "Claims open",
-    detail: "Cargo lost, short or damaged, with nobody's ruling on it yet.",
+    /* "Not finished with", not "nobody has ruled on it": this queue counts the
+       shared open set, which includes a case whose compensation or replacement
+       has been agreed and which is still waiting on somebody to see it through.
+       The label may not claim more than the query behind it. */
+    detail: "Cargo lost, short or damaged, and nobody has finished with it.",
     href: "/app/exceptions",
     permission: "exception.approve",
   },
@@ -113,40 +129,78 @@ const QUEUES: Record<QueueKey, QueueDef> = {
 
 export type ApprovalQueue = QueueDef & {
   count: number;
-  /** Money riding on the queue, in USD. Null where the queue is not about money. */
+  /**
+   * Money riding on the queue, in USD.
+   *
+   * Null where the queue is not about money, and null where a true total
+   * cannot be struck — see the payments queue, which needs the published rate
+   * to add shillings to dollars. A queue that cannot state its value states
+   * none: the count and the age are still true.
+   */
   valueUsd: number | null;
   /** Days the oldest item has been waiting. Null when the queue is empty. */
   oldestDays: number | null;
 };
+
+/**
+ * Payment claims Finance has not ruled on, oldest first.
+ *
+ * The definition of this figure, in one place. Two other engines count these
+ * same rows for their own screens — collectionsOverview() in lib/collections.ts
+ * for the Support desk, ownerAttention() in lib/queries.ts for the owner's
+ * panel — and each stops at a count. This queue needs the wait and the money as
+ * well, so the richer read is the one that should own the figure and the count
+ * is taken from its length rather than asked for separately; a `_count` beside
+ * a `findMany` of the same rows is two answers to one question.
+ */
+export function pendingPaymentSubmissions() {
+  return prisma.paymentSubmission.findMany({
+    where: PENDING_SUBMISSION,
+    select: { amount: true, currency: true, submittedAt: true },
+    orderBy: { submittedAt: "asc" },
+  });
+}
+
+/**
+ * Prices nobody has signed off, oldest first.
+ *
+ * A draft is a decision, and one that quietly stalls money if it sits: the
+ * cargo is priced, the customer has not been billed, and until somebody
+ * confirms it the invoice is not revenue and cannot be collected.
+ *
+ * Same ownership rule as the submissions above — ownerAttention() counts the
+ * identical rows for its "price(s) to confirm" row, and this read carries the
+ * age and the value that row has no use for.
+ */
+export function draftInvoices() {
+  return prisma.invoice.findMany({
+    where: DRAFT_INVOICE,
+    select: { total: true, issuedAt: true },
+    orderBy: { issuedAt: "asc" },
+  });
+}
 
 const DAY = 86_400_000;
 const daysSince = (d: Date | null | undefined, now: Date) =>
   d ? Math.max(0, Math.floor((now.getTime() - d.getTime()) / DAY)) : null;
 
 export async function approvalQueues(now = new Date()): Promise<ApprovalQueue[]> {
-  const [credit, payments, drafts, claims, payroll, statements] = await Promise.all([
+  const [credit, payments, drafts, claims, payroll, statements, rate] = await Promise.all([
     pendingCreditRequests(now),
 
-    prisma.paymentSubmission.findMany({
-      where: { status: "PENDING" },
-      select: { amount: true, currency: true, submittedAt: true },
-      orderBy: { submittedAt: "asc" },
-    }),
+    pendingPaymentSubmissions(),
 
-    /* A draft is a price nobody has signed off. The cargo is priced, the
-       customer has not been billed, and until somebody confirms it the invoice
-       is not revenue and cannot be collected — so it is a decision, and one
-       that quietly stalls money if it sits. */
-    prisma.invoice.findMany({
-      where: { status: "DRAFT" },
-      select: { total: true, issuedAt: true },
-      orderBy: { issuedAt: "asc" },
-    }),
+    draftInvoices(),
 
-    /* Raised, not yet ruled on. A claim that has been closed, or where the box
-       turned up, is not waiting on anybody. */
+    /* Raised, not yet ruled on, on the shared list rather than a shorter one
+       written here. EXCEPTION_OPEN_STATUSES is what the exceptions queue, the
+       dashboards and the public tracking page all mean by "open", and this row
+       used to name only OPEN and UNDER_INVESTIGATION — so a case waiting on a
+       customer, or with compensation or a replacement approved and nobody yet
+       having closed it, was open everywhere in the company except on the board
+       whose job is to notice things sitting. */
     prisma.shipmentException.findMany({
-      where: { status: { in: ["OPEN", "UNDER_INVESTIGATION"] } },
+      where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } },
       select: { raisedAt: true },
       orderBy: { raisedAt: "asc" },
     }),
@@ -158,6 +212,11 @@ export async function approvalQueues(now = new Date()): Promise<ApprovalQueue[]>
        Asking them is the only way this board and their own screens can agree. */
     pendingPayrollApproval(now),
     submittedStatements(now),
+
+    /* The published rate, for the one queue whose rows are not all in the same
+       currency. Read here rather than taken as an argument so that every screen
+       calling this function is shown the same total. */
+    currentRateValue(),
   ]);
 
   /* Summed by the statements module, not re-summed here, for the same reason:
@@ -165,13 +224,37 @@ export async function approvalQueues(now = new Date()): Promise<ApprovalQueue[]>
      count and the money on it cannot come from two different reads. */
   const flights = await statementSummary(statements, now);
 
-  /* Submissions are keyed in the currency the customer paid in. Only the dollar
-     ones are summed: converting a shilling claim at today's rate would put a
-     figure on this page that no invoice agrees with, and this queue's job is to
-     say how much is waiting, not to restate it. */
-  const paymentsUsd = payments
-    .filter((p) => p.currency === "USD")
-    .reduce((n, p) => n + toNumber(p.amount), 0);
+  /* Submissions are keyed in the currency the customer paid in — TZS or USD,
+     the only two the claim form offers (lib/actions/collections.ts) — and
+     shillings are what most of them arrive in. Summing the dollar ones alone
+     left this row understating the money waiting to be verified, in exactly the
+     currency it mostly waits in, on a page read in shillings.
+
+     Converted at TODAY'S published rate, and the row says so. Nothing is frozen
+     yet: a claim has no rate until Finance verifies it and books the payment,
+     so today's rate is the only rate this total could be struck at. That also
+     makes it the same rate every other figure on this board is printed at.
+
+     Null rather than a partial sum when a shilling claim is waiting and no rate
+     has ever been published. A blank where a total belongs reads as a question;
+     a total that has quietly dropped most of its rows reads as an answer. */
+  let paymentsTotal = 0;
+  let paymentsConvertible = true;
+  for (const submission of payments) {
+    const amount = toNumber(submission.amount);
+    if (submission.currency === BASE_CURRENCY) {
+      paymentsTotal += amount;
+      continue;
+    }
+    if (rate === null) {
+      paymentsConvertible = false;
+      break;
+    }
+    paymentsTotal += amount / rate;
+  }
+  // Rounded once, at the end: dividing shillings by a rate leaves fractions of
+  // a cent that a money column has no way to print honestly.
+  const paymentsUsd = paymentsConvertible ? roundMoney(paymentsTotal) : null;
 
   return [
     {

@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Department } from "@prisma/client";
+import type { BatchStatus, Department } from "@prisma/client";
 
 import { approvalQueues, type ApprovalQueue } from "@/lib/approvals";
 import { DEPARTMENT_LABELS } from "@/lib/constants";
@@ -12,7 +12,7 @@ import { currentRateValue } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { formatShillings } from "@/lib/money";
-import { pendingPayrollApproval, payrollRuns } from "@/lib/payroll";
+import { payrollRoster, payrollRuns, pendingPayrollApproval } from "@/lib/payroll";
 import { prisma } from "@/lib/prisma";
 import { monthWindow, profitAndLoss, windowFor } from "@/lib/profit";
 import { darStats, executiveStats } from "@/lib/queries";
@@ -35,10 +35,10 @@ import { supportOverview } from "@/lib/support";
  * screen disagreeing about the same number is how a weekly meeting turns into
  * an argument about whose page is right.
  *
- * Three narrow queries are new, and each answers a question NO engine answers:
+ * Four narrow queries are new, and each answers a question NO engine answers:
  * how many batches are still loading in Guangzhou, how many customers signed up
- * this month, and the staff roster's own shape. They are additions, not second
- * opinions.
+ * this month, the staff roster's own shape, and how many accounts are suspended.
+ * They are additions, not second opinions.
  *
  * ONE Promise.all. These are independent reads of the same instant, and running
  * them in sequence would mean the top of the screen describes a different minute
@@ -153,6 +153,21 @@ export type ManagerOverview = {
       headcount: number;
       /** Runs sitting on this desk waiting to be agreed. */
       waiting: number;
+      /*
+        THE OLDEST WAITING RUN, AND ITS OWN MONEY.
+
+        Separate from the fields above, which describe the NEWEST run whatever
+        state it is in. Those two are usually the same run and occasionally are
+        not: August paid, July still unsigned. The alarm fired on `waiting` and
+        printed the newest run's total beside it, so the manager was shown
+        August's figures under a sentence about the run he still has to agree.
+        A payroll alarm quoting the wrong month's money is worse than no alarm.
+      */
+      oldestWaiting: {
+        label: string;
+        netUsd: number;
+        headcount: number;
+      } | null;
     } | null;
   };
 
@@ -182,6 +197,24 @@ export type InsightSources = {
 };
 
 const CLOSED_BATCH_STATUSES = ["ARRIVED", "VERIFIED", "CLOSED"];
+
+/**
+ * A batch still sitting in Guangzhou: filling, hit its cap, or sealed and
+ * waiting for the flight.
+ *
+ * Narrower than executiveStats().activeBatches on purpose, and named here so
+ * the difference is readable instead of buried in a where-clause. That figure
+ * answers "how many batches are live anywhere" — OPEN, READY_TO_DEPART,
+ * IN_TRANSIT, ARRIVED — so it counts aircraft that have already left China and
+ * does not count FULL at all. This one is printed beside "Flights in the air"
+ * and "Landed", and reusing the wider count would put the same aircraft under
+ * three tiles at once. Two questions, two sets, each stated once.
+ */
+export const GUANGZHOU_LOADING_STATUSES = [
+  "OPEN",
+  "FULL",
+  "READY_TO_DEPART",
+] as const satisfies readonly BatchStatus[];
 
 /**
  * The five sentences worth reading before the numbers.
@@ -241,11 +274,13 @@ export function insights(s: InsightSources): Insight[] {
       href: "/app/finance",
     },
     {
-      when: (payroll?.waiting ?? 0) > 0,
+      /* Gated on the waiting run existing, not merely on the count, so the
+         sentence and the figures beside it are always the same run. */
+      when: payroll?.oldestWaiting != null,
       id: "payroll",
       tone: "warn",
       rank: 95,
-      text: `${t(locale, "Payroll is waiting on your approval —")} ${money(payroll?.netUsd ?? 0)} ${t(locale, "for")} ${payroll?.headcount ?? 0} ${t(locale, "people")}`,
+      text: `${payroll?.oldestWaiting?.label ?? ""} ${t(locale, "payroll is waiting on your approval —")} ${money(payroll?.oldestWaiting?.netUsd ?? 0)} ${t(locale, "for")} ${payroll?.oldestWaiting?.headcount ?? 0} ${t(locale, "people")}`,
       href: "/app/manager/payroll",
     },
     {
@@ -392,6 +427,8 @@ export async function managerOverview(
     batchesLoading,
     newCustomers,
     roster,
+    onPayroll,
+    suspended,
   ] = await Promise.all([
     /* The money, the account position and the per-batch performance, from the
        one engine Finance and the owner both read. */
@@ -416,11 +453,12 @@ export async function managerOverview(
     creditAlerts(now),
     currentRateValue(),
 
-    /* Batches still in Guangzhou. Nothing else counts them: executiveStats
-       folds all four live batch states into one "active" figure, and darStats
-       answers only for what has left China. */
+    /* Batches still in Guangzhou, on the named set above. Nothing else counts
+       them: executiveStats folds the live states into one wider "active"
+       figure that already includes flights in the air, and darStats answers
+       only for what has left China. */
     prisma.batch.count({
-      where: { status: { in: ["OPEN", "FULL", "READY_TO_DEPART"] } },
+      where: { status: { in: [...GUANGZHOU_LOADING_STATUSES] } },
     }),
 
     prisma.customer.count({ where: { createdAt: { gte: window.from } } }),
@@ -431,12 +469,33 @@ export async function managerOverview(
     prisma.user.findMany({
       where: { active: true },
       select: {
+        id: true,
         department: true,
-        status: true,
         lastActiveAt: true,
-        baseSalary: true,
       },
     }),
+
+    /* Who is actually on the payroll, from the function that decides it. The
+       tile underneath is "no salary set", and it is derived by subtraction
+       rather than by testing payrollRoster's three conditions a second time —
+       see the comment where it is counted. */
+    payrollRoster(),
+
+    /* Suspended accounts, counted OUTSIDE the roster above, which is the only
+       way this tile can ever be non-zero.
+
+       Both write paths in lib/actions/users.ts move `active` and `status`
+       together — createUser sets `active: input.status === "ACTIVE"`, and
+       setUserActive writes `{ active, status: active ? "ACTIVE" : "SUSPENDED" }`
+       — deliberately, so nobody is barred from signing in by a screen that
+       says they are fine. The consequence is that a suspended account always
+       carries active=false, so a roster filtered on `active: true` cannot
+       contain one, and counting suspensions inside that loop always returned
+       zero however many people were barred.
+
+       Not filtered on `active` here for the same reason. INACTIVE is the third
+       status and means gone, not barred, so it is not this tile. */
+    prisma.user.count({ where: { status: "SUSPENDED" } }),
   ]);
 
   // ------------------------------------------------------------------- staff
@@ -445,19 +504,33 @@ export async function managerOverview(
 
   const departmentCounts = new Map<Department, number>();
   let seenToday = 0;
-  let suspended = 0;
-  let withoutSalary = 0;
   for (const person of roster) {
     departmentCounts.set(
       person.department,
       (departmentCounts.get(person.department) ?? 0) + 1
     );
     if (person.lastActiveAt && person.lastActiveAt >= midnight) seenToday += 1;
-    if (person.status === "SUSPENDED") suspended += 1;
-    // The same three conditions payrollRoster() runs on: an active employee
-    // with no salary set is not on the payroll and nobody has been told.
-    if (person.status === "ACTIVE" && person.baseSalary === null) withoutSalary += 1;
   }
+
+  /* Everyone the roster shows whom payrollRoster() leaves off — derived, not
+     re-tested. payrollRoster owns the rule for who a run is built from (active,
+     status ACTIVE, baseSalary set); restating those conditions here would mean
+     two definitions of "on the payroll", and the day one of them changes is the
+     day somebody is missed by a salary run while this tile still reads zero.
+     Subtraction cannot drift from it.
+
+     Both sets are drawn from active accounts, and active and status move
+     together (see the suspended count above), so what is left is exactly the
+     people nobody has said a salary for.
+
+     It costs a second read of the staff table, so somebody hired between the
+     two reads counts here for one refresh. That is the cheaper of the two
+     errors: a stale figure corrects itself, a second copy of the payroll rule
+     does not. */
+  const onPayrollIds = new Set(onPayroll.map((person) => person.id));
+  const withoutSalary = roster.filter(
+    (person) => !onPayrollIds.has(person.id)
+  ).length;
 
   const latest = latestRuns[0] ?? null;
   const payroll: ManagerOverview["staff"]["payroll"] = latest
@@ -467,6 +540,16 @@ export async function managerOverview(
         netUsd: latest.totals.net,
         headcount: latest.totals.headcount,
         waiting: payrollWaiting.length,
+        oldestWaiting: payrollWaiting[0]
+          ? {
+              label: formatMonthYear(
+                new Date(payrollWaiting[0].year, payrollWaiting[0].month - 1, 1),
+                locale
+              ),
+              netUsd: payrollWaiting[0].totals.net,
+              headcount: payrollWaiting[0].totals.headcount,
+            }
+          : null,
       }
     : null;
 
@@ -537,6 +620,16 @@ export async function managerOverview(
     },
 
     staff: {
+      /*
+        Counted off the roster rows, not read from executiveStats.staff.
+
+        They ask the same question of the same population — active accounts —
+        and normally return the same number, so this is not a second opinion.
+        It is the same opinion, counted once: the department split, "seen today"
+        and this total are printed together, and a total drawn from a different
+        query can disagree with the four figures underneath it by one the moment
+        somebody is deactivated between the two reads.
+      */
       total: roster.length,
       seenToday,
       byDepartment: [...departmentCounts.entries()]

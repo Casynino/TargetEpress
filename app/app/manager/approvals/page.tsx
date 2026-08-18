@@ -44,6 +44,36 @@ const ICONS: Record<string, LucideIcon> = {
 type View = "waiting" | "approved" | "rejected";
 
 /**
+ * What the money on the right of each row IS, said on the row.
+ *
+ * approvalQueues fills one `valueUsd` column from six different questions —
+ * what a customer still owes, what a draft was priced at, what a flight took,
+ * what a salary run will pay out — and an unlabelled figure in a column
+ * inherits whatever the reader assumed the column meant. Six meanings under one
+ * heading is not a column, it is six numbers that happen to be right-aligned.
+ *
+ * THE PAYMENTS ROW IS WHY THIS EXISTS. Submissions are keyed in the currency
+ * the customer paid in, and this row used to sum only the dollar ones — which
+ * meant "eleven payments · TSh 4,100,000" beside a count of eleven read as all
+ * eleven while silently omitting every shilling claim, in the currency most
+ * payments actually arrive in. lib/approvals.ts now converts them at the
+ * published rate, so the figure is the whole queue and the label says which
+ * rate it used. When a shilling claim is waiting and no rate has ever been
+ * published it reports no total at all rather than a partial one, and the
+ * count and the age still stand on their own.
+ *
+ * Keyed on QueueKey, and a queue with no entry prints its figure bare rather
+ * than borrowing another row's words.
+ */
+const VALUE_LABEL: Record<string, string> = {
+  credit: "still owed",
+  payments: "at today\u2019s rate",
+  drafts: "priced, not yet billed",
+  statements: "billed on those flights",
+  payroll: "net pay",
+};
+
+/**
  * Everything waiting on a decision, how long it has been waiting, and what has
  * lately been decided.
  *
@@ -220,8 +250,15 @@ export default async function ManagerApprovals({
                   </span>
 
                   {q.valueUsd !== null && q.valueUsd > 0 ? (
-                    <span className="tabular shrink-0 text-right text-sm font-semibold">
-                      {formatShillings(q.valueUsd, rate)}
+                    <span className="shrink-0 text-right">
+                      <span className="tabular block text-sm font-semibold">
+                        {formatShillings(q.valueUsd, rate)}
+                      </span>
+                      {VALUE_LABEL[q.key] ? (
+                        <span className="block text-[11px] leading-snug text-muted-foreground">
+                          {t(locale, VALUE_LABEL[q.key])}
+                        </span>
+                      ) : null}
                     </span>
                   ) : null}
 

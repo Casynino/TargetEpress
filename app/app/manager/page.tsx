@@ -25,6 +25,39 @@ import { viewerLocale } from "@/lib/viewer";
 export const metadata: Metadata = { title: "Command centre" };
 
 /**
+ * Sentences this screen already states as a figure, dropped before the strip is
+ * drawn.
+ *
+ * Every one of these read as an independent finding while being a number
+ * printed elsewhere on the same page — and the revenue one printed a DIFFERENT
+ * number for the same claim: the sentence compares what was BILLED
+ * (profitAndLoss, accrual) and the dashboard's "Revenue this month" compares
+ * what was COLLECTED (monthlyRevenue, payments), so the two disagreed by
+ * whatever customers had not yet paid. One claim, two figures, is worse than
+ * either being missing.
+ *
+ * THE TILE SURVIVES, NOT THE SENTENCE, and that is the general rule here: the
+ * strip is capped at five and ordered by rank, so a figure that has to be on
+ * the screen whatever else is happening cannot live in a list that drops its
+ * sixth item. Overdue credit goes the other way for the same reason — the
+ * attention panel below carries it as a row with the names, the worst age and
+ * the money attached, which is more than a percentage in a sentence, so the
+ * sentence AND the tile that repeated it both went.
+ *
+ * Matched on the insight id from lib/manager-overview.ts, which is a plain
+ * string the compiler cannot check. Renaming one there quietly brings its
+ * duplicate back, which is why each id is named beside the thing it repeats.
+ */
+const STATED_BY_A_TILE = new Set([
+  "loss", //                 Money → "Profit this month"
+  "profit", //               Money → "Profit this month"
+  "statements", //           Waiting on you → "Flights to sign off"
+  "credit-overdue-rate", //  the attention panel's own credit row, below
+  "revenue", //              the dashboard's "Revenue this month", below
+  "revenue-first", //        the same tile, in its first-month wording
+]);
+
+/**
  * The manager's command centre.
  *
  * THE SAME SCREEN THE OWNER READS, and that is the whole design. A manager who
@@ -57,6 +90,14 @@ export const metadata: Metadata = { title: "Command centre" };
  * a desk-pulse line — so they are computed in lib/manager-overview.ts and
  * deliberately not drawn a second time. A figure appearing twice on one screen
  * is read as a bug in the figure, not as emphasis.
+ *
+ * THAT RULE NOW HOLDS INSIDE THE BAND TOO, which it did not. The five sentences
+ * and the tiles under them are drawn from the same engines, so five figures were
+ * being stated twice on one screen: the profit, the flight statements, the
+ * overdue credit, the drafts and — worst — the month's revenue, which appeared
+ * as a sentence measuring what was billed beside a tile measuring what was
+ * collected, two different numbers under one claim. Each is now stated once;
+ * STATED_BY_A_TILE below names which copy went and what kept it.
  */
 export default async function ManagerHome() {
   const user = await requirePermission("report.view");
@@ -104,7 +145,10 @@ export default async function ManagerHome() {
       />
 
       <div className="mb-6 space-y-3">
-        <Insights items={overview.insights} locale={locale} />
+        <Insights
+          items={overview.insights.filter((item) => !STATED_BY_A_TILE.has(item.id))}
+          locale={locale}
+        />
 
         <Block
           title={t(locale, "Operations")}
@@ -126,11 +170,32 @@ export default async function ManagerHome() {
             hint={t(locale, "batches, not consignments")}
             href="/app/receive"
           />
+          {/*
+            Named for what the query counts, and pointed at the list that holds
+            the rows.
+
+            floorSnapshot works this out as held cargo LESS cargo carrying an
+            ACTIVE pickup note (lib/floor.ts) — the note is the source of truth
+            for "paid", because cancelling one reverts the shipment status while
+            the note itself cannot drift from what Finance issued. So a
+            consignment frozen by an unresolved damage claim is inside this
+            figure too, and "Finance has not released them" billed all of it as
+            money one desk is sitting on. Subtracting flagged cargo here instead
+            would have moved a count the floor already reads on Available cargo,
+            which splits the same held set the same way.
+
+            And it opened /app/finance/invoices?status=UNPAID, which is a bare
+            redirect to /app/finance that drops the query string: a manager
+            pressing a count landed on a screen that could not account for it.
+            Available cargo lists these consignments, with the same paid / not
+            paid split. Its segment is a control on the page rather than a URL
+            filter, so this link claims no filter it cannot deliver.
+          */}
           <Tile
-            label={t(locale, "Held, not cleared")}
+            label={t(locale, "Held, no pickup note")}
             value={count(operations.cargoAwaitingPayment)}
-            hint={t(locale, "Finance has not released them")}
-            href="/app/finance/invoices?status=UNPAID"
+            hint={t(locale, "not paid for, or stopped by a claim")}
+            href="/app/inventory"
             tone={operations.cargoAwaitingPayment > 0 ? "warn" : "flat"}
           />
           <Tile
@@ -234,12 +299,13 @@ export default async function ManagerHome() {
               hint={t(locale, "carrying a live balance")}
               href="/app/finance/credit"
             />
-            <Tile
-              label={t(locale, "Past their due date")}
-              value={count(customers.overdueOnCredit)}
-              href="/app/finance/credit"
-              tone={customers.overdueOnCredit > 0 ? "bad" : "flat"}
-            />
+            {/* "Past their due date" was here and is not any more. Overdue
+                credit was on this one screen three times over — this tile, a
+                sentence in the strip above, and a row in the attention panel
+                below. The panel's row is the one that survives: it names the
+                customers, says how many days past the worst one is and carries
+                the money, then opens the chase list. A count on its own sends
+                somebody to go and find all of that. */}
             <Tile
               label={t(locale, "Waiting on our reply")}
               value={count(customers.awaitingReply)}
@@ -352,12 +418,18 @@ export default async function ManagerHome() {
                     : "flat"
               }
             />
+            {/* The empty state says the manager is up to date, because that is
+                what it is. statementSummary leaves oldestDays null in exactly
+                one case — the waiting list is empty, so there is no oldest item
+                to age — and this read "Finance has closed nothing new", which
+                told a manager with nothing left to sign that the desk below him
+                had stopped working. */}
             <Tile
               label={t(locale, "Flights to sign off")}
               value={count(management.statements.waiting)}
               hint={
                 management.statements.oldestDays === null
-                  ? t(locale, "Finance has closed nothing new")
+                  ? t(locale, "everything closed is signed off")
                   : `${t(locale, "oldest")} ${management.statements.oldestDays}${t(locale, "d")}`
               }
               href="/app/manager/reconciliation"
@@ -370,14 +442,14 @@ export default async function ManagerHome() {
               href="/app/manager/payroll"
               tone={management.payrollWaiting > 0 ? "bad" : "flat"}
             />
-            <Tile
-              label={t(locale, "Prices to confirm")}
-              value={count(
-                management.queues.find((queue) => queue.key === "drafts")?.count ?? 0
-              )}
-              hint={t(locale, "cannot be billed until confirmed")}
-              href="/app/finance/invoices?status=DRAFT"
-            />
+            {/* "Prices to confirm" was here and is not any more. It counted
+                invoices in DRAFT, which the attention panel below already
+                carries as a row of its own with the sentence explaining why a
+                draft stalls money — the same count, twice on one screen, which
+                reads as a bug in the count. The total above still includes
+                them, and the approvals board opens the queue itself. Its link
+                was dead in any case: /app/finance/invoices is a bare redirect
+                that drops the status it was handed. */}
           </Block>
         </div>
       </div>
