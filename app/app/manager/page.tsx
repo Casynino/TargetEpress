@@ -216,6 +216,17 @@ export default async function ManagerHome() {
   // …` is how one panel on a page ends up quoting a different currency from the
   // panel beside it.
   const money = (usd: number) => formatShillings(usd, rate);
+  /*
+    Already shillings — print, do not convert.
+
+    The account figures arrive valued in lib/manager-overview.ts, where each
+    account's own currency is known. Running them through `money` a second time
+    is what printed "TSh -29,382,118,200" on this page: a shilling balance
+    multiplied by the rate again. The Tzs suffix on those fields is the only
+    thing standing between the two helpers, so it is worth the noise.
+  */
+  const shillings = (tzs: number) =>
+    `TSh ${Math.round(tzs).toLocaleString("en-US")}`;
   const count = (n: number) => n.toLocaleString("en-US");
 
   /*
@@ -608,8 +619,8 @@ export default async function ManagerHome() {
               </div>
               <div className="text-right">
                 <p className="font-display text-[22px] font-bold leading-none tabular-nums">
-                  {money(
-                    finance.bankUsd + finance.mobileMoneyUsd + finance.cashUsd
+                  {shillings(
+                    finance.bankTzs + finance.mobileMoneyTzs + finance.cashTzs
                   )}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -625,22 +636,22 @@ export default async function ManagerHome() {
                 {
                   key: "bank",
                   label: t(locale, "In the bank"),
-                  display: money(finance.bankUsd),
-                  value: finance.bankUsd,
+                  display: shillings(finance.bankTzs),
+                  value: finance.bankTzs,
                   colour: "hsl(var(--chart-1))",
                 },
                 {
                   key: "mobile",
                   label: t(locale, "Mobile money"),
-                  display: money(finance.mobileMoneyUsd),
-                  value: finance.mobileMoneyUsd,
+                  display: shillings(finance.mobileMoneyTzs),
+                  value: finance.mobileMoneyTzs,
                   colour: "hsl(var(--chart-2))",
                 },
                 {
                   key: "cash",
                   label: t(locale, "Cash, the office tin included"),
-                  display: money(finance.cashUsd),
-                  value: finance.cashUsd,
+                  display: shillings(finance.cashTzs),
+                  value: finance.cashTzs,
                   colour: "hsl(var(--chart-5))",
                 },
               ]}

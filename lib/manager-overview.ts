@@ -108,10 +108,21 @@ export type ManagerOverview = {
     outstandingUsd: number;
     /** Cargo released on a promise, not yet paid for. Never cash. */
     creditOutstandingUsd: number;
-    /** Every CASH-kind account, the office tin included. */
-    cashUsd: number;
-    bankUsd: number;
-    mobileMoneyUsd: number;
+    /*
+      ALREADY IN SHILLINGS — do NOT pass these through formatShillings.
+
+      Named without the Usd suffix every other money field here carries, because
+      that suffix is the contract: everything else on this object is dollars the
+      screen converts. These three are converted HERE instead, where each
+      account's own currency is known — a shilling account is added as it stands
+      and only a dollar account is multiplied. Handing the screen dollars would
+      mean converting the ledger's frozen dollar column at today's rate, which
+      values every shilling balance through two different rates.
+    */
+    /** Every CASH-kind account in shillings, the office tin included. */
+    cashTzs: number;
+    bankTzs: number;
+    mobileMoneyTzs: number;
     /** Revenue less costs, this month, on the accrual basis. */
     profitThisMonthUsd: number;
     marginPct: number | null;
@@ -625,9 +636,9 @@ export async function managerOverview(
       expensesThisMonthUsd: fin.pl.costs,
       outstandingUsd: fin.position.receivableUsd,
       creditOutstandingUsd: credit.outstandingUsd,
-      cashUsd: heldByKind("CASH"),
-      bankUsd: heldByKind("BANK"),
-      mobileMoneyUsd: heldByKind("MOBILE_MONEY"),
+      cashTzs: heldByKind("CASH"),
+      bankTzs: heldByKind("BANK"),
+      mobileMoneyTzs: heldByKind("MOBILE_MONEY"),
       profitThisMonthUsd: fin.pl.profit,
       marginPct: fin.pl.margin,
       collectionRatePct: fin.revenue.collectionRate,
