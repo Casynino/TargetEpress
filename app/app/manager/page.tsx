@@ -347,6 +347,68 @@ export default async function ManagerHome() {
           small cell room for a label, a figure and a hint without cramping, and
           takes about three and a half rems off every tall one.
         */}
+        {/*
+          THE SMALL FIGURES GET THEIR OWN ROW, five across, and that is a fix
+          rather than a preference.
+
+          They sat in the same grid as the profit cell and the chart, both of
+          which are tall because they have a chart and a pair of bars in them.
+          MoneyTile fills its cell and pins its hint to the bottom, so a tile
+          holding "Collected today · TSh 0" was stretched to the height of its
+          tallest neighbour and came out as four hundred pixels of empty
+          ground. items-start should have stopped that and did not, because a
+          tile spanning one column still shares a ROW with whatever spans two.
+
+          Separating them removes the shared row entirely: five equal cards,
+          each as tall as one label, one figure and one line of hint.
+        */}
+        <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+            <MoneyTile
+              label={t(locale, "Collected today")}
+              usd={finance.collectedTodayUsd}
+              rate={rate}
+              hint={t(locale, "what customers actually handed over")}
+              icon={HandCoins}
+              tone={finance.collectedTodayUsd > 0 ? "good" : "default"}
+              href="/app/finance/payments"
+            />
+            <MoneyTile
+              label={t(locale, "Billed today")}
+              usd={finance.revenueTodayUsd}
+              rate={rate}
+              hint={t(locale, "invoiced today, not yet money")}
+              icon={Receipt}
+              href="/app/finance/invoices"
+            />
+            <MoneyTile
+              label={t(locale, "Spent today")}
+              usd={finance.expensesTodayUsd}
+              rate={rate}
+              hint={t(locale, "costs booked since midnight")}
+              icon={Banknote}
+              href="/app/finance/expenses"
+            />
+            <MoneyTile
+              label={t(locale, "Credit outstanding")}
+              usd={finance.creditOutstandingUsd}
+              rate={rate}
+              hint={t(locale, "cargo released on a promise, never cash")}
+              icon={CreditCard}
+              tone={finance.creditOutstandingUsd > 0 ? "warn" : "default"}
+              href="/app/finance/credit"
+            />
+            <MoneyTile
+              label={t(locale, "Owed to us")}
+              usd={finance.outstandingUsd}
+              rate={rate}
+              hint={t(locale, "billed, confirmed, and still not paid")}
+              icon={Wallet}
+              tone={finance.outstandingUsd > 0 ? "bad" : "good"}
+              emphasis={finance.outstandingUsd > 0}
+              href="/app/collections/follow-up"
+            />
+        </div>
+
         <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {/*
             THE ONE CELL THAT OWNS THIS SCREEN.
@@ -503,40 +565,6 @@ export default async function ManagerHome() {
             </div>
           </BentoCard>
 
-          <MoneyTile
-            label={t(locale, "Collected today")}
-            usd={finance.collectedTodayUsd}
-            rate={rate}
-            hint={t(locale, "what customers actually handed over")}
-            icon={HandCoins}
-            tone={finance.collectedTodayUsd > 0 ? "good" : "default"}
-            href="/app/finance/payments"
-          />
-          <MoneyTile
-            label={t(locale, "Billed today")}
-            usd={finance.revenueTodayUsd}
-            rate={rate}
-            hint={t(locale, "invoiced today, not yet money")}
-            icon={Receipt}
-            href="/app/finance/invoices"
-          />
-          <MoneyTile
-            label={t(locale, "Spent today")}
-            usd={finance.expensesTodayUsd}
-            rate={rate}
-            hint={t(locale, "costs booked since midnight")}
-            icon={Banknote}
-            href="/app/finance/expenses"
-          />
-          <MoneyTile
-            label={t(locale, "Credit outstanding")}
-            usd={finance.creditOutstandingUsd}
-            rate={rate}
-            hint={t(locale, "cargo released on a promise, never cash")}
-            icon={CreditCard}
-            tone={finance.creditOutstandingUsd > 0 ? "warn" : "default"}
-            href="/app/finance/credit"
-          />
 
           {/*
             THE BIGGEST NUMBER IN THE BUSINESS, and it was not on the money band.
@@ -549,16 +577,6 @@ export default async function ManagerHome() {
             cannot trust to be complete. The other two mention it in passing —
             this is where somebody comes to READ it.
           */}
-          <MoneyTile
-            label={t(locale, "Owed to us")}
-            usd={finance.outstandingUsd}
-            rate={rate}
-            hint={t(locale, "billed, confirmed, and still not paid")}
-            icon={Wallet}
-            tone={finance.outstandingUsd > 0 ? "bad" : "good"}
-            emphasis={finance.outstandingUsd > 0}
-            href="/app/collections/follow-up"
-          />
 
           {/* The shape behind every figure above: what arrived against what it
               cost, month by month. */}
