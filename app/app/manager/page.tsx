@@ -409,7 +409,11 @@ export default async function ManagerHome() {
             />
         </div>
 
-        <div className="grid items-start grid-cols-1 gap-3 lg:grid-cols-2">
+        {/* items-STRETCH here, deliberately, unlike every other row. Both cells
+            are charts — the loss bars on the left, the year on the right — and a
+            chart given more height is still a chart. Two chart cards at different
+            heights read as a mistake; two at the same height read as a pair. */}
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-stretch">
           {/*
             THE ONE CELL THAT OWNS THIS SCREEN.
 
@@ -663,7 +667,7 @@ export default async function ManagerHome() {
 
         {/* The two rings side by side, equal width — neither is more
             important than the other and neither has more in it. */}
-        <div className="mt-3 grid items-start grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-stretch">
           <KpiCard
             label={t(locale, "Collected against billed")}
             /*
@@ -855,7 +859,7 @@ export default async function ManagerHome() {
           the two wide panels in one row of two. Nothing spans, so nothing
           leaves a gap.
         */}
-        <div className="grid items-start grid-cols-2 gap-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:items-stretch">
           <BentoCard href="/app/inventory">
             <Figure
               className="flex-1"
@@ -916,7 +920,11 @@ export default async function ManagerHome() {
           </BentoCard>
         </div>
 
-        <div className="mt-3 grid items-start grid-cols-1 gap-3 lg:grid-cols-2">
+        {/* Paired by HEIGHT, not by topic. The corridor is a short list and
+            the mix donut is tall; putting them side by side left the corridor
+            card ending at half the height of its neighbour. Now: two lists
+            in one row, two charts in the next. */}
+        <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-stretch">
           <BentoCard
             href="/app/shipments"
            
@@ -975,17 +983,6 @@ export default async function ManagerHome() {
               ]}
             />
           </BentoCard>
-          <div>
-            <CargoMix
-              slices={mix.slices}
-              totalShipments={mix.totalShipments}
-              totalWeightKg={mix.totalWeightKg}
-              periodLabel={`${t(locale, "Registered in the last")} ${mix.days} ${t(locale, "days")}`}
-            />
-          </div>
-        </div>
-
-        <div className="mt-3 grid items-start grid-cols-1 gap-3 lg:grid-cols-2">
           <BentoCard>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -1033,6 +1030,17 @@ export default async function ManagerHome() {
               ]}
             />
           </BentoCard>
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-stretch">
+          <div className="flex flex-col [&>section]:flex-1">
+            <CargoMix
+              slices={mix.slices}
+              totalShipments={mix.totalShipments}
+              totalWeightKg={mix.totalWeightKg}
+              periodLabel={`${t(locale, "Registered in the last")} ${mix.days} ${t(locale, "days")}`}
+            />
+          </div>
           <BentoCard href="/app/batches">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -1050,7 +1058,7 @@ export default async function ManagerHome() {
                 {t(locale, "No batch has flown yet, so there is nothing to compare.")}
               </p>
             ) : (
-              <ActivityBars className="mt-4" points={fill} unit={t(locale, "kg")} />
+              <ActivityBars className="mt-4 flex-1" points={fill} unit={t(locale, "kg")} />
             )}
           </BentoCard>
         </div>
@@ -1076,7 +1084,7 @@ export default async function ManagerHome() {
           a desk with little on it. A ragged bottom edge is the honest shape of
           unequal content.
         */}
-        <div className="grid items-start grid-cols-1 gap-3 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:items-stretch">
           <BentoCard>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -1166,6 +1174,17 @@ export default async function ManagerHome() {
                   tone: customers.awaitingReply > 0 ? "warn" : "plain",
                   href: "/app/support/tickets",
                 },
+                /* Past their credit due date. A real row, not padding: it is
+                   the one customer figure on this page that costs money the
+                   longer it sits, and it brings this card to the same three
+                   rows as the two beside it. */
+                {
+                  key: "overdue",
+                  label: t(locale, "Overdue on credit"),
+                  value: count(customers.overdueOnCredit),
+                  tone: customers.overdueOnCredit > 0 ? "bad" : "plain",
+                  href: "/app/finance/credit",
+                },
               ]}
             />
           </BentoCard>
@@ -1202,37 +1221,50 @@ export default async function ManagerHome() {
               ]}
             />
 
-            {/* The departments as a rail rather than five more figures: this is
-                one fact — the shape of the company — not five questions. */}
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {staff.byDepartment.map((row) => (
-                <span
-                  key={row.department}
-                  className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px]"
-                >
-                  <span className="text-muted-foreground">{t(locale, row.label)}</span>
-                  <span className="font-semibold tabular-nums">{row.count}</span>
-                </span>
-              ))}
-            </div>
-
-            {/*
-              Said out loud, because the figure above invites the wrong reading.
-
-              This schema has no attendance: no shift, no clock-in, no roster of
-              who was expected in. `lastActiveAt` is a heartbeat touched on every
-              authenticated page load. Somebody on the warehouse floor all day who
-              never opened the app is missing from it, and somebody signed in from
-              a bus is counted in it. A manager who read this as attendance would
-              be disciplining the wrong person.
-            */}
-            <p className="mt-auto pt-3 text-xs leading-snug text-muted-foreground">
-              {t(
-                locale,
-                "Attendance is not tracked. Opened the app today means exactly that, and nothing more."
-              )}
-            </p>
           </BentoCard>
+        </div>
+
+        {/*
+          THE SHAPE OF THE COMPANY, AS ONE STRIP UNDER THE THREE CARDS.
+
+          The department chips and the attendance note lived inside the staff
+          card, which made it twice the height of the customers card beside it —
+          the same content-mismatch that made every other row on this page look
+          forced. The three cards hold three rows each now, and the strip below
+          carries the rest at full width, where a run of chips has room to be a
+          run of chips.
+        */}
+        <div className="mt-3 flex flex-col gap-2 rounded-xl border bg-card px-4 py-3 sm:flex-row sm:items-center">
+          {/* The departments as a rail rather than five more figures: this is
+              one fact — the shape of the company — not five questions. */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {staff.byDepartment.map((row) => (
+              <span
+                key={row.department}
+                className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px]"
+              >
+                <span className="text-muted-foreground">{t(locale, row.label)}</span>
+                <span className="font-semibold tabular-nums">{row.count}</span>
+              </span>
+            ))}
+          </div>
+
+          {/*
+            Said out loud, because the figure above invites the wrong reading.
+
+            This schema has no attendance: no shift, no clock-in, no roster of
+            who was expected in. `lastActiveAt` is a heartbeat touched on every
+            authenticated page load. Somebody on the warehouse floor all day who
+            never opened the app is missing from it, and somebody signed in from
+            a bus is counted in it. A manager who read this as attendance would
+            be disciplining the wrong person.
+          */}
+          <p className="text-xs leading-snug text-muted-foreground sm:ml-auto sm:max-w-sm sm:text-right">
+            {t(
+              locale,
+              "Attendance is not tracked. Opened the app today means exactly that, and nothing more."
+            )}
+          </p>
         </div>
       </section>
 

@@ -24,8 +24,11 @@ export function ActivityBars({
   const max = Math.max(1, ...points.map((p) => p.value));
 
   return (
-    <div className={cn("w-full", className)}>
-      <div className="flex h-32 items-end gap-1">
+    <div className={cn("flex w-full flex-col", className)}>
+      {/* min-h rather than a fixed h: on its own the chart is 128px tall, and
+          inside a card that has been given more room it grows to fill it, so
+          the bars beside a taller donut do not stop a third of the way up. */}
+      <div className="flex min-h-32 flex-1 items-end gap-1">
         {points.map((point, index) => {
           const height = (point.value / max) * 100;
           return (
