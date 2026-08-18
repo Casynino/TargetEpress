@@ -28,6 +28,15 @@ datasource db {
 
 enum Role {
   ADMIN // CEO / owner — full visibility, no daily operational duties
+  /// Runs the business day to day on the owner's behalf.
+  ///
+  /// Sees everything ADMIN sees and can approve what needs a second signature,
+  /// but cannot change WHO CAN DO WHAT: no roles, no permissions, no purging, no
+  /// company settings. That line is the whole point of the role existing — an
+  /// operator with full oversight and no power to rewrite the rules they operate
+  /// under, so the owner can hand over the running of the business without
+  /// handing over the keys to the system.
+  MANAGER
   CHINA_WAREHOUSE
   DAR_WAREHOUSE
   FINANCE

@@ -847,8 +847,78 @@ const ADMIN_SECTIONS: NavSection[] = [
   },
 ];
 
+
+/**
+ * The manager's menu: monitoring first, money second, decisions last.
+ *
+ * Ordered the way the job runs rather than the way the database is shaped —
+ * what is moving, what it earned, what is owed, what needs a signature. The
+ * owner's own menu is organised around administering the system; this one is
+ * organised around running the business, which is a different day.
+ *
+ * Every row here points at a page that already exists and already computes its
+ * figures from the one engine behind it. A manager's portal that recalculated
+ * revenue its own way would be a second set of books.
+ */
+const MANAGER_SECTIONS: NavSection[] = [
+  {
+    title: "Overview",
+    items: [
+      { href: "/app/manager", label: "Home", icon: "LayoutDashboard", exact: true },
+    ],
+  },
+  {
+    title: "Operations",
+    group: { label: "Operations", icon: "Boxes" },
+    items: [
+      { href: "/app/shipments", label: "Arrived batches", icon: "PlaneTakeoff" },
+      { href: "/app/batches", label: "Loading batches", icon: "Boxes" },
+      { href: "/app/search", label: "Search", icon: "Package" },
+      { href: "/app/customers", label: "Customers", icon: "Users" },
+      { href: "/app/exceptions", label: "Issues & Claims", icon: "TriangleAlert" },
+    ],
+  },
+  {
+    title: "Finance",
+    group: { label: "Finance", icon: "ReceiptText" },
+    items: [
+      { href: "/app/finance", label: "Overview", icon: "Wallet" },
+      { href: "/app/finance/transactions", label: "Transactions", icon: "ArrowLeftRight" },
+      { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
+      { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
+      { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp" },
+      { href: "/app/manager/reconciliation", label: "Reconciliation", icon: "Scale" },
+    ],
+  },
+  {
+    title: "Money out",
+    group: { label: "Money out", icon: "Coins" },
+    items: [
+      { href: "/app/finance/expenses", label: "Expenses", icon: "Receipt" },
+      { href: "/app/finance/accounts", label: "Bank & cash", icon: "Landmark" },
+    ],
+  },
+  {
+    title: "Decisions",
+    group: { label: "Decisions", icon: "BadgeCheck" },
+    items: [
+      { href: "/app/manager/approvals", label: "Pending approvals", icon: "BadgeCheck" },
+    ],
+  },
+  {
+    title: "Oversight",
+    group: { label: "Oversight", icon: "History" },
+    items: [
+      { href: "/app/manager/reports", label: "Management report", icon: "FileText" },
+      { href: "/app/finance/audit", label: "Activity log", icon: "History" },
+      { href: "/app/admin/deleted", label: "Deleted records", icon: "Trash2" },
+    ],
+  },
+];
+
 const ROLE_SECTIONS: Partial<Record<Role, NavSection[]>> = {
   ADMIN: ADMIN_SECTIONS,
+  MANAGER: MANAGER_SECTIONS,
   CHINA_WAREHOUSE: CHINA_SECTIONS,
   DAR_WAREHOUSE: DAR_SECTIONS,
   CUSTOMER_CARE: SUPPORT_SECTIONS,

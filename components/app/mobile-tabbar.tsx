@@ -67,6 +67,16 @@ const TABS: Record<Role, Tab[]> = {
     { href: "/app/shipments", icon: PlaneTakeoff },
     { href: "/app/finance", icon: Wallet, label: "Finance" },
   ],
+  /* The manager's four: their own command centre, the search every role gets,
+     the money owed — which is what a manager chases on a phone — and the
+     department overview. Cargo lists live one tap further in the drawer,
+     because a manager reads them at a desk and rings about money on the move. */
+  MANAGER: [
+    { href: "/app/manager", icon: LayoutDashboard, exact: true },
+    { href: "/app/search", icon: Search },
+    { href: "/app/collections/follow-up", icon: Banknote },
+    { href: "/app/finance", icon: Wallet, label: "Finance" },
+  ],
   // Guangzhou registers cargo and loads batches; it never receives or releases
   // any. Requests stays in the drawer — ringing a booking back is a sit-down
   // job, taking in a box is not.

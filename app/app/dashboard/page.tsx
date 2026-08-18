@@ -241,6 +241,10 @@ export default async function DashboardPage() {
    * the old one.
    */
   if (user.role === "CUSTOMER_CARE") redirect("/app/support");
+  /* The manager has their own command centre. Landing them on the owner's
+     dashboard would be the spec's first complaint made real — it is organised
+     around administering the system, and their day is running the business. */
+  if (user.role === "MANAGER") redirect("/app/manager");
 
   // Read the name from the record, not the session. The session token carries
   // whatever the name was at sign-in, so someone who renames themselves would

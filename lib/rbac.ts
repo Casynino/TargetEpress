@@ -547,8 +547,50 @@ const ALL: Permission[] = Array.from(
   ])
 );
 
+/**
+ * The manager: everything the owner can SEE, almost nothing the owner can CHANGE
+ * about the system itself.
+ *
+ * Built by subtraction from ALL rather than by listing what to include, and that
+ * is the important decision. A manager's job is to run the business, which means
+ * the interesting question is never "should they see the ledger" — of course they
+ * should — but "what must stay with the owner alone". Adding permissions one at a
+ * time to a growing role would have meant every new capability defaulted to
+ * WITHHELD from the person running the company, and somebody discovering a gap
+ * mid-shift. Subtracting means every new capability defaults to granted, and the
+ * five things the owner keeps are named here, in one list, where they can be
+ * read and argued with.
+ *
+ * WHAT THE OWNER KEEPS, and why each one:
+ *
+ *   user.manage      Who works here and what role they hold. A manager who can
+ *                    grant roles can grant themselves anything, which makes every
+ *                    other line in this list decorative.
+ *   settings.manage  The company's own configuration.
+ *   pricing.manage   The rate book. A manager reads it — pricing.view — but the
+ *                    price of the service is the owner's decision about his own
+ *                    business, not an operating control.
+ *   account.manage   Opening and closing the company's bank accounts. Managing
+ *                    the money that moves through them is the job; deciding which
+ *                    accounts exist is ownership.
+ *   shipment.purge   Destroying a record for good. Nobody else has it at any
+ *                    rank, and a manager is not an exception — deleting is
+ *                    already theirs via shipment.cancel, which is reversible.
+ */
+const MANAGER: Permission[] = ALL.filter(
+  (permission) =>
+    ![
+      "user.manage",
+      "settings.manage",
+      "pricing.manage",
+      "account.manage",
+      "shipment.purge",
+    ].includes(permission)
+);
+
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ADMIN: ALL,
+  MANAGER,
   CHINA_WAREHOUSE: CHINA,
   DAR_WAREHOUSE: DAR,
   FINANCE,
@@ -659,6 +701,12 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/admin/users", permission: "user.manage" },
   { prefix: "/app/admin/audit", permission: "audit.view" },
   { prefix: "/app/admin", permission: "report.view" },
+  /* The manager's own pages. Guarded on report.view like the owner's, because
+     what they hold is oversight — and every action reachable from inside them
+     re-checks its own permission at the server, which is what actually keeps
+     the boundary. A route guard decides which door opens, never what may be
+     done once through it. */
+  { prefix: "/app/manager", permission: "report.view" },
   { prefix: "/app/customers", permission: "customer.view" },
   { prefix: "/app/shipments", permission: "batch.view" },
   { prefix: "/app/batches", permission: "batch.view" },
