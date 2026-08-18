@@ -406,12 +406,60 @@ export default async function ManagerHome() {
                     )}
                   </p>
                 ) : finance.marginPct < 0 ? (
-                  <p className="rounded-lg bg-signal/25 px-3 py-2.5 text-xs font-medium leading-snug text-white">
-                    {t(
-                      locale,
-                      "Costs came in above everything billed. There is no margin to draw this month."
-                    )}
-                  </p>
+                  /*
+                    A LOSS GETS A PICTURE TOO, not just a sentence.
+
+                    This branch used to print one line of text inside a cell two
+                    rows tall, so the month that most needs explaining was the
+                    month with the emptiest card — the reader was told there was
+                    no margin and shown nothing about why. Two bars against a
+                    shared scale answer it at a glance: the cost bar runs past
+                    the billed bar, and the overspend is the difference.
+                  */
+                  <div className="space-y-2.5">
+                    <p className="text-xs font-medium leading-snug text-white/90">
+                      {t(locale, "Costs came in above everything billed.")}
+                    </p>
+                    {(() => {
+                      const billed = billedThisMonth;
+                      const cost = finance.expensesThisMonthUsd;
+                      const scale = Math.max(billed, cost, 1);
+                      const bar = (value: number, className: string) => (
+                        <span className="block h-2 rounded-full bg-white/10">
+                          <span
+                            className={`block h-2 rounded-full ${className}`}
+                            style={{ width: `${Math.max(2, (value / scale) * 100)}%` }}
+                          />
+                        </span>
+                      );
+                      return (
+                        <div className="space-y-2">
+                          <div>
+                            <div className="mb-1 flex items-baseline justify-between gap-2">
+                              <span className="text-[11px] text-white/60">
+                                {t(locale, "Billed")}
+                              </span>
+                              <span className="tabular text-[11px] font-semibold text-white">
+                                {money(billed)}
+                              </span>
+                            </div>
+                            {bar(billed, "bg-white/70")}
+                          </div>
+                          <div>
+                            <div className="mb-1 flex items-baseline justify-between gap-2">
+                              <span className="text-[11px] text-white/60">
+                                {t(locale, "Cost")}
+                              </span>
+                              <span className="tabular text-[11px] font-semibold text-signal">
+                                {money(cost)}
+                              </span>
+                            </div>
+                            {bar(cost, "bg-signal")}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 ) : (
                   <MarginRing
                     pct={finance.marginPct}
