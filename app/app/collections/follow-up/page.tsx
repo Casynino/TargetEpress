@@ -261,7 +261,16 @@ export default async function FollowUpPage({
           Tuesday morning, and a single "owed" total hides which of the two this
           business is carrying.
         */}
-        <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3 lg:grid-cols-5">
+        {/*
+          Wrapping row rather than a fixed grid.
+
+          Nine cells in a five-column grid leaves a tenth slot with nothing in
+          it, which rendered as an empty black box on the end of the second row —
+          and the count is not even fixed, so no column number is safe. Flex with
+          a basis lets the last row stretch to fill whatever is left, so there is
+          never a hole no matter how many figures this desk is shown.
+        */}
+        <dl className="flex flex-wrap gap-px bg-border">
           {[
             {
               k: t(locale, "On this list"),
@@ -316,7 +325,10 @@ export default async function FollowUpPage({
               tone: "text-success",
             },
           ].map((cell) => (
-            <div key={cell.k} className="bg-card px-3 py-2">
+            <div
+              key={cell.k}
+              className="min-w-0 flex-1 basis-[8.5rem] bg-card px-3 py-2"
+            >
               <dt className="text-[11px] text-muted-foreground">{cell.k}</dt>
               <dd
                 className={cn(
@@ -447,27 +459,23 @@ export default async function FollowUpPage({
                   ) : (
                     <span className="tabular-nums">{row.daysInWarehouse}d</span>
                   )}
-                  {/* The clock, in the money the customer will hand over.
-                      This badge was the last dollar-only figure on the list —
-                      the one number on the row a clerk reads out loud on the
-                      phone, in the one currency nobody in the office holds. The
-                      amount itself is untouched: it is what has already been
-                      added to the bill, converted at today's rate like the
-                      totals above, with the exact dollar figure beneath it. */}
+                  {/*
+                    How late they are, not what it costs.
+
+                    This badge carried a running shilling figure, which put a
+                    price on every row of a list whose whole job is deciding who
+                    to ring. The number that decides that is the DELAY — somebody
+                    eleven days late gets a different call from somebody one day
+                    late — and the money is worked out when they come in to pay.
+                  */}
                   {row.storageDays > 0 ? (
-                    <>
-                      <Badge
-                        variant="outline"
-                        className="ml-2 border-destructive/40 text-destructive"
-                      >
-                        +{money(row.storageCharge)}
-                      </Badge>
-                      {inUsd(row.storageCharge) ? (
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {inUsd(row.storageCharge)}
-                        </div>
-                      ) : null}
-                    </>
+                    <Badge
+                      variant="outline"
+                      className="ml-2 border-destructive/40 text-destructive"
+                    >
+                      {row.storageDays}
+                      {t(locale, row.storageDays === 1 ? "d late" : "d late")}
+                    </Badge>
                   ) : null}
                 </td>
                 <td className="p-3 font-mono tabular-nums">

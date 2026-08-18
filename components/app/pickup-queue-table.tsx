@@ -181,7 +181,7 @@ export function PickupQueueTable({ rows }: { rows: PickupQueueRow[] }) {
           </p>
           {row.storageDays > 0 ? (
             <p className="text-xs text-warning tabular">
-              +{row.storageDays} {t("d storage")}
+              {row.storageDays} {t("d late")}
             </p>
           ) : null}
         </div>

@@ -698,7 +698,7 @@ export default async function SupportHome() {
                       ) : null}
                       {row.storageDays > 0 ? (
                         <Badge variant="outline" className="border-destructive/40 text-destructive">
-                          {row.storageDays}d {t(locale, "storage")}
+                          {row.storageDays}d {t(locale, "late")}
                         </Badge>
                       ) : null}
                       <div className="text-right">

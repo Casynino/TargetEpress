@@ -769,7 +769,10 @@ export default async function FinanceReportsPage({
             {t(locale, "against")} {picked.previous.label}
           </p>
         </div>
-        <dl className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4 xl:grid-cols-7">
+        {/* Seven cells never divide into four or two, so a fixed grid left an
+            empty box on the end of the row at most widths. A wrapping row with a
+            basis stretches the last line to fill instead. */}
+        <dl className="flex flex-wrap gap-px bg-border">
           {(() => {
             const move = (now: number, before: number) => {
               if (before === 0) return null;
@@ -821,7 +824,7 @@ export default async function FinanceReportsPage({
                 up: pl.profit >= prior.profit,
               },
             ].map((cell) => (
-              <div key={cell.k} className="bg-card px-4 py-3">
+              <div key={cell.k} className="min-w-0 flex-1 basis-[9rem] bg-card px-4 py-3">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {t(locale, cell.k)}
                 </dt>

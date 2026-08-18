@@ -105,20 +105,33 @@ export function StorageStatusCard({
               {t(locale, "of")} {status.freeDays} {t(locale, "free")}
             </span>
           </span>
+          {/*
+            DAYS, not money.
+
+            This led with a running shilling figure on every screen that showed a
+            consignment, which made a warehouse clerk read a price they cannot
+            act on and quietly turned an operational fact into an accounting one.
+            What anybody looking at cargo actually needs is how long it has been
+            sitting past its free week — that is the thing you ring a customer
+            about. The money is worked out when they come to pay, on the decision
+            below, where somebody is actually taking it.
+          */}
           <span
             className={cn(
               "font-display font-bold tabular-nums",
-              status.chargeUsd > 0 ? "text-destructive" : "text-success"
+              status.expired ? "text-destructive" : "text-success"
             )}
           >
-            {money(status.chargeUsd)}
+            {status.expired
+              ? `${status.chargeableDays} ${t(locale, status.chargeableDays === 1 ? "day late" : "days late")}`
+              : t(locale, "on time")}
           </span>
         </p>
         <p className="mt-0.5 text-[11px] text-muted-foreground">
           {status.collected
             ? `${t(locale, "Collected — the clock stopped")} · ${formatDate(status.arrivedAt, locale)}`
             : status.expired
-              ? `${status.chargeableDays} × USD ${STORAGE_POLICY.perDayUsd}/${t(locale, "day")} ${t(locale, "since")} ${formatDate(status.arrivedAt, locale)}`
+              ? `${t(locale, "uncollected since")} ${formatDate(status.arrivedAt, locale)} · ${t(locale, "charged at pickup")}`
               : `${status.freeDaysRemaining} ${t(locale, status.freeDaysRemaining === 1 ? "free day left" : "free days left")} · USD ${STORAGE_POLICY.perDayUsd}/${t(locale, "day")} ${t(locale, "after that")}`}
         </p>
       </div>
