@@ -26,7 +26,6 @@ import {
 
 import { ActivityBars } from "@/components/app/activity-bars";
 import { ActivityFeed } from "@/components/app/activity-feed";
-import { AttentionCenter, type AttnItem } from "@/components/app/attention-center";
 import { CargoMix } from "@/components/app/cargo-mix";
 import { DeskHero } from "@/components/app/desk-hero";
 import { DeskPulsePanel } from "@/components/app/desk-pulse";
@@ -47,7 +46,6 @@ import {
 import { MoneyTile } from "@/components/app/money-tile";
 import { Sparkline } from "@/components/charts/sparkline";
 import { auditSentence } from "@/lib/audit-humanise";
-import { creditAlerts } from "@/lib/credit-queries";
 import { formatMonthYear, formatWeight, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -63,12 +61,10 @@ import {
   corridorPosition,
   deskPulse,
   monthlyVolume,
-  ownerAttention,
   recentActivity,
 } from "@/lib/queries";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
-import { creditAttention } from "@/lib/support";
 import { cn } from "@/lib/utils";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -172,8 +168,6 @@ export default async function ManagerHome() {
     answer — and the risk that a chart and a total on one screen disagree.
   */
   const [
-    attnItems,
-    alerts,
     desks,
     flow,
     position,
@@ -183,8 +177,6 @@ export default async function ManagerHome() {
     flights,
     volume,
   ] = await Promise.all([
-    ownerAttention(liveRate, locale),
-    creditAlerts(),
     deskPulse(liveRate, locale),
     cashFlowByMonth(now, locale),
     corridorPosition(),
@@ -194,15 +186,6 @@ export default async function ManagerHome() {
     profitByDispatch(8),
     monthlyVolume(now, locale),
   ]);
-
-  const attention: AttnItem[] = [
-    ...attnItems,
-    ...creditAttention(alerts, {
-      locale,
-      rate: liveRate,
-      canApprove: can(user.role, "credit.approve"),
-    }),
-  ];
 
   const today = now.toLocaleDateString(locale === "zh" ? "zh-CN" : "en-GB", {
     weekday: "long",
@@ -344,7 +327,7 @@ export default async function ManagerHome() {
           <BentoCard
             tone="ink"
             href="/app/finance"
-            className="sm:col-span-2 xl:row-span-2"
+            className="sm:col-span-2"
           >
             <span
               aria-hidden
@@ -545,7 +528,19 @@ export default async function ManagerHome() {
 
           {/* The shape behind every figure above: what arrived against what it
               cost, month by month. */}
-          <BentoCard href="/app/finance/transactions" className="sm:col-span-2">
+          <BentoCard
+            href="/app/finance/transactions"
+            /* THE CHART IS THE BIG CELL NOW, not a number.
+
+               A figure needs the room it takes to be read once; a
+               shape needs room to BE a shape. Handing two rows to
+               the profit card meant a 46px number floating in a
+               panel of empty ground, while the one thing on this
+               band that rewards a second look — twelve months of
+               money arriving against money leaving — was squeezed
+               into a strip. They have swapped. */
+            className="sm:col-span-2 xl:row-span-2"
+          >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold">
@@ -737,21 +732,20 @@ export default async function ManagerHome() {
       </section>
 
       {/*
-        WHAT NEEDS YOU, BEFORE WHAT MERELY IS.
+        NO ATTENTION PANEL HERE — the owner removed it, and it was the right
+        call.
 
-        This panel used to sit two thirds of the way down, under five blocks of
-        counters, because it arrived with the shared dashboard rather than being
-        placed. A manager opening this screen is not browsing inventory — the
-        first question is "does anything need me", and every figure below is
-        context for answering it. So it leads, and the numbers support it.
+        It is a tall, scrolling list, and this app already has a screen whose
+        entire job is that list: the control room, which gathers the same queues
+        plus the account checks and the disputed records, and states how long
+        each has waited. Two surfaces answering "what needs me" meant the taller
+        one ate the top of a page that is supposed to open on the money, and the
+        better one was a click away and easy to miss.
+
+        The queue counts that mattered most survive as figures — "Decisions
+        queued" with its oldest age, "Flights to sign off", "Payroll to agree" —
+        in the company band below, each linking to the screen that owns it.
       */}
-      <div className="mb-6">
-        <AttentionCenter
-          items={attention}
-          reviewAll={{ href: "/app/manager/control", label: t(locale, "Control room") }}
-          empty={t(locale, "Nothing needs your decision. Every desk is clear.")}
-        />
-      </div>
 
       {/* ------------------------------------------------------- the briefing */}
       <section className="mb-7">

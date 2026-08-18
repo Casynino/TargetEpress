@@ -535,7 +535,10 @@ export function MoneyFlowChart({
   title: string;
 }) {
   const W = 640;
-  const H = 150;
+  /* Taller than it was, because this is the band's hero cell now rather than a
+     strip under one. A year of two series needs vertical room to separate them;
+     at 150 the two lines sat almost on top of each other for the flat months. */
+  const H = 250;
   const ceiling = Math.max(...moneyIn, ...moneyOut, 1);
 
   const inPoints = scalePoints(moneyIn, W, H, { min: 0, max: ceiling, padding: 8 });
@@ -543,10 +546,10 @@ export function MoneyFlowChart({
   const step = labels.length > 1 ? W / (labels.length - 1) : W;
 
   return (
-    <div className="mt-3 w-full">
+    <div className="mt-3 w-full flex-1">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="h-[150px] w-full"
+        className="h-[250px] w-full"
         preserveAspectRatio="none"
         role="img"
         aria-label={title}
