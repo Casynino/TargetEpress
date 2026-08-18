@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import type { Prisma, TicketPriority } from "@prisma/client";
 import Link from "next/link";
-import { Search } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
+import { SearchBox } from "@/components/app/search-box";
 import { NewTicketForm } from "@/components/app/support-forms";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { formatDateTime } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -267,31 +266,60 @@ export default async function TicketsPage({
         Find one, or narrow to a priority.
 
         Search is a GET form so the result is a linkable URL — a clerk can paste
-        "the search that finds it" into a handover note. The view is carried in a
-        hidden field, so searching inside "Waiting for customer" does not throw
-        the view away either.
+        "the search that finds it" into a handover note. The view rides in a
+        hidden field and the priority select sits inside the same form, so
+        searching inside "Waiting for customer" at "Urgent only" throws neither
+        of them away.
+
+        And it shows what it can find WHILE YOU TYPE. A clerk with a caller on
+        the line is recognising "TKT-2026-000412" or a name, not recalling how it
+        was spelled — typing blind and pressing Search only tells you the guess
+        was wrong after the page has reloaded. The suggestions are this page's
+        own ticket rows, so they are instant and can never disagree with the list
+        underneath; they cover the visible page rather than the whole queue,
+        which is why the box still submits to the server search over every
+        ticket on file.
       */}
-      <form
-        method="get"
-        className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3"
+      <SearchBox
+        className="mb-3 rounded-xl border bg-card p-3"
+        defaultValue={search}
+        placeholder={t(
+          locale,
+          "Ticket number, customer, what it was about, a tracking number…"
+        )}
+        suggestions={tickets.flatMap((ticket) => {
+          /* Whoever rang: the account when there is one, otherwise the walk-in
+             name typed onto the ticket — that caller is the hardest of all to
+             find again, because nothing else on file carries their name. */
+          const caller = ticket.customer?.name ?? ticket.contactName;
+          const phone = ticket.customer?.phone ?? ticket.contactPhone ?? undefined;
+          return [
+            {
+              value: ticket.ticketNumber,
+              label: ticket.subject,
+              hint: ticket.ticketNumber,
+            },
+            {
+              value: ticket.subject,
+              label: ticket.subject,
+              hint: t(locale, CATEGORY_LABEL[ticket.category] ?? ticket.category),
+            },
+            ...(caller ? [{ value: caller, label: caller, hint: phone }] : []),
+            ...(ticket.shipment
+              ? [
+                  {
+                    value: ticket.shipment.trackingNumber,
+                    label: ticket.subject,
+                    hint: ticket.shipment.trackingNumber,
+                  },
+                ]
+              : []),
+          ];
+        })}
       >
         {filter.key === STATUS_FILTERS[0].key ? null : (
           <input type="hidden" name="view" value={filter.key} />
         )}
-
-        <div className="relative min-w-[16rem] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            name="q"
-            defaultValue={search}
-            placeholder={t(
-              locale,
-              "Ticket number, customer, what it was about, a tracking number…"
-            )}
-            className="h-9 w-full pl-9 text-sm"
-            aria-label={t(locale, "Search tickets")}
-          />
-        </div>
 
         <select
           name="priority"
@@ -305,30 +333,27 @@ export default async function TicketsPage({
             </option>
           ))}
         </select>
+      </SearchBox>
 
-        <button
-          type="submit"
-          className="focus-ring h-9 rounded-md bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
-        >
-          {t(locale, "Search")}
-        </button>
-
-        {filtered ? (
-          <Link
-            href={link({ q: undefined, priority: undefined })}
-            className="text-xs text-muted-foreground underline hover:text-foreground"
-          >
-            {t(locale, "Clear the filters")}
-          </Link>
-        ) : null}
-      </form>
-
-      {/* What the reader is looking at — never a list that silently stops. */}
+      {/* What the reader is looking at — never a list that silently stops. The
+          way back out lives here now, beside the count that shows it is needed,
+          rather than as a fifth control competing inside the search row. */}
       <p className="mb-2 text-xs text-muted-foreground">
         {listCount === 0
           ? t(locale, "Nothing matches.")
           : `${t(locale, "Showing")} ${firstOnPage}–${lastOnPage} ${t(locale, "of")} ${listCount} ${t(locale, listCount === 1 ? "ticket" : "tickets")}`}
         {filtered ? ` · ${t(locale, "filtered")}` : ""}
+        {filtered ? (
+          <>
+            {" · "}
+            <Link
+              href={link({ q: undefined, priority: undefined })}
+              className="underline-offset-2 hover:underline"
+            >
+              {t(locale, "Clear the filters")}
+            </Link>
+          </>
+        ) : null}
       </p>
 
       {/*

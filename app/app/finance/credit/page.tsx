@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Search } from "lucide-react";
 
 import { CreditAdjust } from "@/components/app/credit-adjust";
 import { CreditDecision } from "@/components/app/credit-decision";
 import { EmptyState } from "@/components/app/empty-state";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { PageHeader } from "@/components/app/page-header";
-import { Input } from "@/components/ui/input";
+import { SearchBox } from "@/components/app/search-box";
 import { CREDIT_STATE_LABEL, dueLabel, type CreditState } from "@/lib/credit";
 import { creditOverview, creditRows, pendingCreditRequests } from "@/lib/credit-queries";
 import { financeTabs } from "@/lib/finance-tabs";
@@ -308,35 +307,65 @@ export default async function CreditPage({
         </div>
       ) : null}
 
-      <form
-        method="GET"
-        className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3"
-      >
-        <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            name="q"
-            defaultValue={q}
-            placeholder={t(locale, "Customer, invoice, tracking or phone…")}
-            className="h-9 pl-8 text-sm"
-          />
-        </div>
-        {state ? <input type="hidden" name="state" value={state} /> : null}
-        <button
-          type="submit"
-          className="focus-ring h-9 rounded-md border px-3 text-sm font-medium hover:bg-accent"
+      {/*
+        Search that shows what it can find, while you type.
+
+        A debt is chased by ringing a name, and a name typed blind is a guess:
+        "Mama Grace K." is unfindable by somebody typing "mama grace k" and
+        getting an empty page back. The suggestions are the credits listed
+        below — customer, invoice, tracking — so picking one can never disagree
+        with the list underneath it.
+
+        They are this page's own rows, which means once a search is running the
+        pool is the matches for it. That is a shortcut, not an index: the box
+        offers what is on the screen, and Clear puts the whole book back.
+      */}
+      <div className="mb-3 rounded-xl border bg-card p-3">
+        <SearchBox
+          defaultValue={q}
+          placeholder={t(locale, "Customer, invoice, tracking or phone…")}
+          suggestions={rows.flatMap((r) => [
+            {
+              value: r.customerName,
+              label: r.customerName,
+              hint: r.customerPhone ?? undefined,
+            },
+            {
+              value: r.invoiceNumber,
+              label: r.customerName,
+              hint: r.invoiceNumber,
+            },
+            ...(r.trackingNumber
+              ? [
+                  {
+                    value: r.trackingNumber,
+                    label: r.customerName,
+                    hint: r.trackingNumber,
+                  },
+                ]
+              : []),
+          ])}
         >
-          {t(locale, "Search")}
-        </button>
+          {/* The chip the reader is standing on. A search that silently threw
+              away "Overdue" would answer a different question than the one
+              asked. */}
+          {state ? <input type="hidden" name="state" value={state} /> : null}
+        </SearchBox>
         {q ? (
-          <Link
-            href={link(state)}
-            className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-          >
-            {t(locale, "Clear")}
-          </Link>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {rows.length}{" "}
+            {t(locale, rows.length === 1 ? "credit" : "credits")}{" "}
+            {t(locale, "match")}
+            {" · "}
+            <Link
+              href={link(state)}
+              className="underline-offset-2 hover:underline"
+            >
+              {t(locale, "Clear")}
+            </Link>
+          </p>
         ) : null}
-      </form>
+      </div>
 
       <div className="mb-3 flex flex-wrap gap-1.5">
         {FILTERS.map((f) => (

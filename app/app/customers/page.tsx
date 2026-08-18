@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import type { Prisma } from "@prisma/client";
 import Link from "next/link";
-import { Search } from "lucide-react";
 
 import { CustomersTable, type CustomerRow } from "@/components/app/customers-table";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { Input } from "@/components/ui/input";
+import { SearchBox } from "@/components/app/search-box";
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -170,50 +169,75 @@ export default async function CustomersPage({
       />
 
       {/*
-        Searched in the database, not in the browser.
+        Searched in the database, suggested from the page.
 
         A GET form so the result is a linkable URL and the back button behaves,
-        and the caption says out loud which set is being searched — the table
-        below has a box of its own that narrows only the page it was given.
-      */}
-      <form method="get" className="mb-3 rounded-xl border bg-card p-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[16rem] flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              name="q"
-              defaultValue={search}
-              placeholder={t(locale, "Name, customer ID, phone or city")}
-              className="h-9 w-full pl-9 text-sm"
-              aria-label={t(locale, "Search every customer on file")}
-            />
-          </div>
-          <button
-            type="submit"
-            className="focus-ring h-9 rounded-md bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
-          >
-            {t(locale, "Search")}
-          </button>
-          {search ? (
-            <Link
-              href={link({ q: undefined })}
-              className="text-xs text-muted-foreground underline hover:text-foreground"
-            >
-              {t(locale, "Clear the search")}
-            </Link>
-          ) : null}
-        </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          {t(locale, "Searches every customer on file, however long ago they registered.")}
-        </p>
-      </form>
+        and pressing Search still goes to the server — over every customer on
+        file, which is the whole reason this box exists rather than the table's
+        own one below it.
 
-      {/* What the reader is looking at — never a list that silently stops. */}
+        What is new is that it offers matches WHILE YOU TYPE: the name, the
+        customer code and the phone of the customers on screen. A clerk with
+        somebody on the line is recognising an account, not recalling whether it
+        was saved as "Mama Grace K." — and a name typed one letter off comes
+        back as "no customer matches that", which is how a duplicate account
+        gets created.
+
+        Those suggestions are THIS PAGE ONLY. The book runs to thousands and
+        only twenty-five of them are in memory here, so the dropdown is a
+        shortcut over what is already on screen and the server search behind the
+        button remains the thing that answers "do we have this person on file".
+        The caption says so, because a shortcut that is quiet about its edges is
+        the same trap as the old 500-row table.
+      */}
+      <div className="mb-3 rounded-xl border bg-card p-3">
+        <SearchBox
+          defaultValue={search}
+          placeholder={t(locale, "Name, customer ID, phone or city")}
+          suggestions={customers.flatMap((customer) => [
+            {
+              value: customer.name,
+              label: customer.name,
+              /* The phone tells two "Mama Grace"s apart faster than anything
+                 else on the row; the code stands in when there is no number. */
+              hint: customer.phone ?? customer.code,
+            },
+            { value: customer.code, label: customer.name, hint: customer.code },
+            ...(customer.phone
+              ? [
+                  {
+                    value: customer.phone,
+                    label: customer.name,
+                    hint: customer.phone,
+                  },
+                ]
+              : []),
+          ])}
+        />
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          {t(locale, "Searches every customer on file, however long ago they registered.")}{" "}
+          {t(locale, "The suggestions are the customers on this page.")}
+        </p>
+      </div>
+
+      {/* What the reader is looking at — never a list that silently stops, with
+          the way back out beside the count that shows it is needed. */}
       <p className="mb-2 text-xs text-muted-foreground">
         {total === 0
           ? t(locale, "Nothing matches.")
           : `${t(locale, "Showing")} ${firstOnPage}–${lastOnPage} ${t(locale, "of")} ${total} ${t(locale, total === 1 ? "customer" : "customers")}`}
         {search ? ` · ${t(locale, "filtered")}` : ""}
+        {search ? (
+          <>
+            {" · "}
+            <Link
+              href={link({ q: undefined })}
+              className="underline-offset-2 hover:underline"
+            >
+              {t(locale, "Clear the search")}
+            </Link>
+          </>
+        ) : null}
       </p>
 
       {rows.length === 0 ? (

@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Clock, MessageCircle, Phone, QrCode, Search } from "lucide-react";
+import { Clock, MessageCircle, Phone, QrCode } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { IconHint } from "@/components/app/icon-hint";
 import { PageHeader } from "@/components/app/page-header";
+import { SearchBox } from "@/components/app/search-box";
 import { CancelNoteButton } from "@/components/app/cancel-note-button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -39,6 +39,9 @@ const FILTERS = [
   { key: "CANCELLED", label: "Cancelled" },
   { key: "", label: "Everything" },
 ] as const;
+
+/** One page of the register. Named because the count line has to say so. */
+const PAGE_SIZE = 100;
 
 /**
  * The register of cargo cleared to leave.
@@ -90,7 +93,7 @@ export default async function PickupNotesPage({
     prisma.pickupNote.findMany({
       where,
       orderBy: { issuedAt: "desc" },
-      take: 100,
+      take: PAGE_SIZE,
       include: {
         customer: { select: { name: true, phone: true } },
         issuedBy: { select: { name: true } },
@@ -102,10 +105,55 @@ export default async function PickupNotesPage({
     prisma.pickupNote.groupBy({ by: ["status"], _count: true }),
   ]);
 
+  /* A pill keeps the search and the search keeps the pill — either one dropping
+     the other silently is how a clerk ends up reading a list they did not ask
+     for. */
+  const pillHref = (key: string) => {
+    const params = new URLSearchParams();
+    if (key) params.set("status", key);
+    if (query) params.set("q", query);
+    const qs = params.toString();
+    return `/app/finance/pickup-notes${qs ? `?${qs}` : ""}`;
+  };
+
   const countFor = (key: string) =>
     key === ""
       ? counts.reduce((sum, row) => sum + row._count, 0)
       : (counts.find((row) => row.status === key)?._count ?? 0);
+
+  /*
+    What the box can offer, taken off the rows it is sitting on.
+
+    No lookup, no second query: these are the notes this page just rendered, so
+    a suggestion can never point at something the list below cannot show. One
+    line per way somebody knows a note — the customer whose boxes are waiting,
+    the note number a colleague read out, the tracking number on the box — with
+    the phone carried as the customer's hint so a number typed off a call finds
+    the name. The component collapses repeats by value, so a customer with four
+    notes is one line.
+
+    It is the page's own hundred rows and nothing more, which makes it a
+    shortcut through what is on screen rather than an index of the register.
+    Typing past it still works: pressing Search asks the database, which reaches
+    the whole register.
+  */
+  const suggestions = notes.flatMap((note) => [
+    {
+      value: note.customer.name,
+      label: note.customer.name,
+      hint: note.customer.phone ?? undefined,
+    },
+    {
+      value: note.noteNumber,
+      label: note.customer.name,
+      hint: note.noteNumber,
+    },
+    {
+      value: note.shipment.trackingNumber,
+      label: note.customer.name,
+      hint: note.shipment.trackingNumber,
+    },
+  ]);
 
   // The oldest note still standing is the one worth a phone call.
   const oldest = notes
@@ -132,7 +180,7 @@ export default async function PickupNotesPage({
         {FILTERS.map((filter) => (
           <Link
             key={filter.label}
-            href={`/app/finance/pickup-notes${filter.key ? `?status=${filter.key}` : ""}`}
+            href={pillHref(filter.key)}
             className={`focus-ring inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
               active === filter.key
                 ? "border-brand bg-brand text-brand-foreground"
@@ -151,18 +199,45 @@ export default async function PickupNotesPage({
         ))}
       </div>
 
-      <form className="mb-5" action="/app/finance/pickup-notes">
-        {active ? <input type="hidden" name="status" value={active} /> : null}
-        <div className="relative max-w-xl">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            name="q"
-            defaultValue={query ?? ""}
-            placeholder={t(locale, "Note number, customer, phone or tracking number")}
-            className="h-11 pl-9"
-          />
-        </div>
-      </form>
+      {/*
+        Search that shows what it can find while you type.
+
+        A counter clerk with the customer in front of them was typing a name
+        blind and finding out whether they had spelled it the way it was saved
+        only after the page came back empty. The suggestions are the rows on
+        this page, so the name is recognised rather than recalled, and picking
+        one searches for it. Whichever pill is active rides along in the hidden
+        field, so narrowing by customer never quietly widens the status back to
+        everything.
+      */}
+      <div className="mb-5">
+        <SearchBox
+          className="max-w-xl"
+          defaultValue={query ?? ""}
+          placeholder={t(
+            locale,
+            "Note number, customer, phone or tracking number"
+          )}
+          suggestions={suggestions}
+        >
+          {active ? <input type="hidden" name="status" value={active} /> : null}
+        </SearchBox>
+        {query ? (
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {/* A full page of results means there may be more behind it, so it
+                says "100+" rather than claiming exactly a hundred matched. */}
+            {notes.length === PAGE_SIZE ? `${PAGE_SIZE}+` : notes.length}{" "}
+            {t(locale, "of")} {countFor(active)} {t(locale, "match")}
+            {" · "}
+            <Link
+              href={`/app/finance/pickup-notes${active ? `?status=${active}` : ""}`}
+              className="underline-offset-2 hover:underline"
+            >
+              {t(locale, "Clear")}
+            </Link>
+          </p>
+        ) : null}
+      </div>
 
       {active === "ACTIVE" && oldest ? (
         <p className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">

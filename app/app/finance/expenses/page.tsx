@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Paperclip, Search } from "lucide-react";
+import { Paperclip } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { ExpenseForm } from "@/components/app/expense-form";
 import { ExpenseRowActions } from "@/components/app/expense-row-actions";
+import { SearchBox } from "@/components/app/search-box";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { activeAccounts } from "@/lib/accounts";
 import {
   COMMON_EXPENSES,
@@ -548,96 +548,126 @@ export default async function ExpensesPage({
       {/*
         Find one, or narrow to a kind.
 
-        Search is a GET form so the result is a linkable URL; the other filters
-        are selects that submit with it. Everything the page already knows is
-        carried in hidden fields, so searching inside "Batch costs, this year"
-        does not throw away either.
+        Still one GET form, so the result is a linkable URL and the selects
+        submit with the box — but the box now shows what it can find while you
+        type. Hunting "that payment on Tuesday" through two hundred costs by
+        guessing at the spelling of a vendor is a guess you only price after the
+        page reloads; the suggestions are the costs already listed below, so
+        picking one can never disagree with them.
+
+        They are the rows on THIS page, forty at a time. That is a shortcut and
+        it is honest about being one — a second "what matches" definition living
+        in SQL alongside the query underneath is how two screens start telling
+        two stories.
+
+        Everything the page already knows is carried in hidden fields, so
+        searching inside "Batch costs, this year" throws away neither. The page
+        number is deliberately NOT carried: a new search is a new list, and page
+        4 of it is a blank screen that looks like a bug.
       */}
-      <form
-        method="get"
-        className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3"
-      >
-        {period !== "month" ? (
-          <input type="hidden" name="period" value={period} />
-        ) : null}
-        {kind !== "all" ? <input type="hidden" name="kind" value={kind} /> : null}
-
-        <div className="relative min-w-[16rem] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            name="q"
-            defaultValue={search}
-            placeholder={t(
-              locale,
-              "What it was, the number, who was paid, a note, a batch…"
-            )}
-            className="h-9 w-full pl-9 text-sm"
-            aria-label={t(locale, "Search costs")}
-          />
-        </div>
-
-        <select
-          name="category"
-          defaultValue={category}
-          aria-label={t(locale, "Category")}
-          className="focus-ring h-9 rounded-md border bg-card px-2 text-sm"
+      <div className="mb-3 rounded-xl border bg-card p-3">
+        <SearchBox
+          defaultValue={search}
+          placeholder={t(
+            locale,
+            "What it was, the number, who was paid, a note, a batch…"
+          )}
+          suggestions={expenses.flatMap((expense) => [
+            {
+              value: expense.description,
+              label: expense.description,
+              hint: formatMoney(expense.amount, expense.currency),
+            },
+            {
+              value: expense.expenseNumber,
+              label: expense.description,
+              hint: expense.expenseNumber,
+            },
+            ...(expense.vendor
+              ? [
+                  {
+                    value: expense.vendor,
+                    label: expense.vendor,
+                    hint: t(locale, "vendor"),
+                  },
+                ]
+              : []),
+            ...(expense.batch
+              ? [
+                  {
+                    value: expense.batch.batchNumber,
+                    label: expense.batch.batchNumber,
+                    hint: t(locale, "batch"),
+                  },
+                ]
+              : []),
+          ])}
         >
-          <option value="">{t(locale, "Every category")}</option>
-          {Object.entries(CATEGORY_LABELS).map(([value, labelText]) => (
-            <option key={value} value={value}>
-              {t(locale, labelText)}
-            </option>
-          ))}
-        </select>
+          {period !== "month" ? (
+            <input type="hidden" name="period" value={period} />
+          ) : null}
+          {kind !== "all" ? <input type="hidden" name="kind" value={kind} /> : null}
 
-        <select
-          name="status"
-          defaultValue={status}
-          aria-label={t(locale, "Status")}
-          className="focus-ring h-9 rounded-md border bg-card px-2 text-sm"
-        >
-          {STATUSES.map((s) => (
-            <option key={s.key} value={s.key}>
-              {t(locale, s.label)}
-            </option>
-          ))}
-        </select>
+          {/* The other three narrowings, on their own line under the box. They
+              submit with it, so none of them is silently dropped by a search. */}
+          <div className="order-1 flex w-full flex-wrap items-center gap-2">
+            <select
+              name="category"
+              defaultValue={category}
+              aria-label={t(locale, "Category")}
+              className="focus-ring h-9 rounded-md border bg-card px-2 text-sm"
+            >
+              <option value="">{t(locale, "Every category")}</option>
+              {Object.entries(CATEGORY_LABELS).map(([value, labelText]) => (
+                <option key={value} value={value}>
+                  {t(locale, labelText)}
+                </option>
+              ))}
+            </select>
 
-        <select
-          name="account"
-          defaultValue={accountId}
-          aria-label={t(locale, "Paid from")}
-          className="focus-ring h-9 rounded-md border bg-card px-2 text-sm"
-        >
-          <option value="">{t(locale, "Any account")}</option>
-          {accounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
+            <select
+              name="status"
+              defaultValue={status}
+              aria-label={t(locale, "Status")}
+              className="focus-ring h-9 rounded-md border bg-card px-2 text-sm"
+            >
+              {STATUSES.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {t(locale, s.label)}
+                </option>
+              ))}
+            </select>
 
-        <button
-          type="submit"
-          className="focus-ring h-9 rounded-md bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
-        >
-          {t(locale, "Search")}
-        </button>
+            <select
+              name="account"
+              defaultValue={accountId}
+              aria-label={t(locale, "Paid from")}
+              className="focus-ring h-9 rounded-md border bg-card px-2 text-sm"
+            >
+              <option value="">{t(locale, "Any account")}</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
 
-        {filtered ? (
-          <Link
-            href={link({
-              q: undefined,
-              category: undefined,
-              status: undefined,
-              account: undefined,
-            })}
-            className="text-xs text-muted-foreground underline hover:text-foreground"
-          >
-            {t(locale, "Clear the filters")}
-          </Link>
-        ) : null}
-      </form>
+            {filtered ? (
+              <Link
+                href={link({
+                  q: undefined,
+                  category: undefined,
+                  status: undefined,
+                  account: undefined,
+                })}
+                className="text-xs text-muted-foreground underline hover:text-foreground"
+              >
+                {t(locale, "Clear the filters")}
+              </Link>
+            ) : null}
+          </div>
+        </SearchBox>
+      </div>
 
       {/* What the reader is looking at — never a list that silently stops. */}
       <p className="mb-2 text-xs text-muted-foreground">

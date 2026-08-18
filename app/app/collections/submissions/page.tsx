@@ -9,6 +9,7 @@ import { financeTabs } from "@/lib/finance-tabs";
 import { EmptyState } from "@/components/app/empty-state";
 import { IconHint } from "@/components/app/icon-hint";
 import { PageHeader } from "@/components/app/page-header";
+import { SearchBox } from "@/components/app/search-box";
 import { SubmissionCorrection } from "@/components/app/submission-correction";
 import { Badge } from "@/components/ui/badge";
 import { submissionQueue } from "@/lib/collections";
@@ -41,7 +42,7 @@ const FILTERS = [
 export default async function SubmissionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; q?: string }>;
 }) {
   const user = await requirePermission("collections.view");
   /* The desk that raises a claim may fix it or take it back while it is still
@@ -49,7 +50,8 @@ export default async function SubmissionsPage({
      before anybody has acted on it is part of recording it. */
   const canCorrect = can(user.role, "payment.submit");
   const locale = await viewerLocale();
-  const { status } = await searchParams;
+  const { status, q } = await searchParams;
+  const query = q?.trim() ?? "";
   const canVerify = can(user.role, "payment.verify");
 
   const active = FILTERS.find((f) => f.key === status)?.key ?? "PENDING";
@@ -63,6 +65,62 @@ export default async function SubmissionsPage({
       ? null
       : (active as "PENDING" | "VERIFIED" | "REJECTED" | "WITHDRAWN")
   );
+
+  /*
+    Search the rows on the page, not the database.
+
+    This register is read to settle an argument — "we sent that on the 4th, here
+    is the screenshot" — and the way somebody arrives at it is with one fact in
+    hand: a customer, a submission number a colleague quoted, the invoice, or the
+    tracking number off the box. Matching the rows already fetched keeps that
+    honest: what the box can find is exactly what the list can show, and there is
+    no second definition of "matches" living in SQL to disagree with it. The
+    slice is the same one the page displays, so the box is a shortcut through
+    this page rather than an index of every claim ever filed.
+  */
+  const needle = query.toLowerCase();
+  const visible =
+    needle.length === 0
+      ? rows
+      : rows.filter((row) =>
+          [
+            row.invoice.customer.name,
+            row.invoice.customer.phone ?? "",
+            row.submissionNumber,
+            row.invoice.invoiceNumber,
+            row.invoice.shipment.trackingNumber,
+            row.reference ?? "",
+            row.note ?? "",
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(needle)
+        );
+
+  /* One line per way a person knows a claim — the component de-duplicates by
+     value, so a customer who has sent up six payments is one line, not six. */
+  const suggestions = rows.flatMap((row) => [
+    {
+      value: row.invoice.customer.name,
+      label: row.invoice.customer.name,
+      hint: row.invoice.customer.phone ?? undefined,
+    },
+    {
+      value: row.submissionNumber,
+      label: row.invoice.customer.name,
+      hint: row.submissionNumber,
+    },
+    {
+      value: row.invoice.invoiceNumber,
+      label: row.invoice.customer.name,
+      hint: row.invoice.invoiceNumber,
+    },
+    {
+      value: row.invoice.shipment.trackingNumber,
+      label: row.invoice.customer.name,
+      hint: row.invoice.shipment.trackingNumber,
+    },
+  ]);
 
   return (
     <>
@@ -104,7 +162,11 @@ export default async function SubmissionsPage({
         {FILTERS.filter((f) => !(canVerify && f.key === "PENDING")).map((filter) => (
           <Link
             key={filter.key}
-            href={`/app/collections/submissions?status=${filter.key}`}
+            /* The chips keep the search and the search keeps the chip, so
+               neither control silently undoes the other. */
+            href={`/app/collections/submissions?status=${filter.key}${
+              query ? `&q=${encodeURIComponent(query)}` : ""
+            }`}
             className={`focus-ring rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
               active === filter.key
                 ? "border-brand bg-brand text-brand-foreground"
@@ -116,10 +178,54 @@ export default async function SubmissionsPage({
         ))}
       </div>
 
-      {rows.length === 0 ? (
+      {/*
+        Search that shows what it can find while you type.
+
+        Somebody opens this register holding one fact — a name, a submission
+        number read off a WhatsApp message, an invoice, a tracking number — and
+        typing it blind is a guess they only score after the page reloads. The
+        suggestions are these rows, so picking a name is recognising it rather
+        than spelling it, and the list underneath can never disagree with what
+        the box offered.
+      */}
+      <div className="mb-4">
+        <SearchBox
+          className="max-w-xl"
+          defaultValue={query}
+          placeholder={t(
+            locale,
+            "Customer, submission, invoice or tracking number…"
+          )}
+          suggestions={suggestions}
+        >
+          <input type="hidden" name="status" value={active} />
+        </SearchBox>
+        {query ? (
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {visible.length} {t(locale, "of")} {rows.length} {t(locale, "match")}
+            {" · "}
+            <Link
+              href={`/app/collections/submissions?status=${active}`}
+              className="underline-offset-2 hover:underline"
+            >
+              {t(locale, "Clear")}
+            </Link>
+          </p>
+        ) : null}
+      </div>
+
+      {visible.length === 0 ? (
         <EmptyState
-          title={t(locale, "Nothing here")}
-          description={t(locale, "No submission matches that filter.")}
+          title={
+            query
+              ? `${t(locale, "Nothing matches")} “${query}”`
+              : t(locale, "Nothing here")
+          }
+          description={
+            query
+              ? t(locale, "Try the customer's name, or a shorter search.")
+              : t(locale, "No submission matches that filter.")
+          }
         />
       ) : (
         /*
@@ -136,7 +242,7 @@ export default async function SubmissionsPage({
           right edge where they can be compared at a glance.
         */
         <ul className="panel divide-y overflow-hidden">
-          {rows.map((row) => (
+          {visible.map((row) => (
             <li
               key={row.id}
               id={row.submissionNumber}
