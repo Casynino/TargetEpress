@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Banknote, Download, FileText, MessageCircle } from "lucide-react";
+import { Banknote, Download, FileText, MessageCircle, Search } from "lucide-react";
 
 import { CollectionsNav } from "@/components/app/collections-nav";
 import { FinanceNav } from "@/components/app/finance-nav";
@@ -8,6 +8,7 @@ import { financeTabs } from "@/lib/finance-tabs";
 import { PageHeader } from "@/components/app/page-header";
 import { IconHint } from "@/components/app/icon-hint";
 import { RecordIncome } from "@/components/app/record-income";
+import { Input } from "@/components/ui/input";
 import { activeAccounts } from "@/lib/accounts";
 import { can } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
@@ -59,7 +60,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function FollowUpPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string }>;
+  searchParams: Promise<{ filter?: string; q?: string }>;
 }) {
   const user = await requirePermission("collections.view");
   /* Support files a claim, Finance banks it — the record screen behind this knows
@@ -72,7 +73,8 @@ export default async function FollowUpPage({
   const locale = await viewerLocale();
   const canRecord = can(user.role, "payment.record");
   const canCollect = !canRecord && can(user.role, "payment.submit");
-  const { filter } = await searchParams;
+  const { filter, q } = await searchParams;
+  const query = q?.trim() ?? "";
 
   // Credit only for a reader entitled to it. Every desk that can open this page
   // holds credit.view today, so this changes nothing on screen — it is here so
@@ -160,7 +162,33 @@ export default async function FollowUpPage({
 
   const active = (FOLLOW_UP_FILTERS.find((f) => f.key === filter)?.key ??
     "all") as FollowUpFilter;
-  const visible = rows.filter((row) => matchesFilter(row, active));
+  /*
+    Search the row, not the database.
+
+    Everything shown here is already in memory — this queue is bounded by how
+    many bills are open, not by how many the company has ever raised — so the
+    search matches exactly what a person can see on the row: the customer, the
+    tracking number, the invoice and the phone they would dial. Sending it to
+    the database would mean a second definition of "matches", and the two would
+    disagree the first time a column changed.
+  */
+  const needle = query.toLowerCase();
+  const visible = rows
+    .filter((row) => matchesFilter(row, active))
+    .filter((row) =>
+      needle.length === 0
+        ? true
+        : [
+            row.customerName,
+            row.trackingNumber,
+            row.invoiceNumber ?? "",
+            row.customerPhone ?? "",
+            row.description ?? "",
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(needle)
+    );
 
   /* Added up in one place for both this strip and the support desk's copy of the
      queue, and deliberately never added to each other: an unpaid bill and a
@@ -219,6 +247,50 @@ export default async function FollowUpPage({
           caption that used to sit beside it is gone, because it repeated the page
           description word for word one line below it.
         */}
+        {/*
+          Search sits with the filters, not above them.
+
+          The chips narrow by STATE and this narrows by WHO — two halves of the
+          same question, and a desk with a customer on the phone reaches for the
+          name first. It keeps whichever chip is active, and the chips keep it,
+          so neither control silently undoes the other.
+        */}
+        <form
+          method="GET"
+          className="flex flex-wrap items-center gap-2 border-b px-4 py-3"
+        >
+          <input type="hidden" name="filter" value={active} />
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              name="q"
+              defaultValue={query}
+              placeholder={t(locale, "Customer, tracking number, invoice or phone…")}
+              className="h-9 pl-8 text-sm"
+            />
+          </div>
+          <button
+            type="submit"
+            className="focus-ring h-9 rounded-md border px-3 text-sm font-medium transition-colors hover:bg-accent"
+          >
+            {t(locale, "Search")}
+          </button>
+          {query ? (
+            <Link
+              href={`/app/collections/follow-up?filter=${active}`}
+              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+            >
+              {t(locale, "Clear")}
+            </Link>
+          ) : null}
+          {query ? (
+            <span className="text-xs text-muted-foreground">
+              {visible.length} {t(locale, "of")} {rows.length}{" "}
+              {t(locale, "match")}
+            </span>
+          ) : null}
+        </form>
+
         <div className="overflow-x-auto border-b px-4 py-3">
         <div className="inline-flex overflow-hidden rounded-lg border">
           {FOLLOW_UP_FILTERS.map((option) => {
@@ -227,7 +299,9 @@ export default async function FollowUpPage({
             return (
               <Link
                 key={option.key}
-                href={`/app/collections/follow-up?filter=${option.key}`}
+                href={`/app/collections/follow-up?filter=${option.key}${
+                  query ? `&q=${encodeURIComponent(query)}` : ""
+                }`}
                 title={t(locale, option.hint)}
                 className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-r px-3 py-1.5 text-xs font-medium transition-colors last:border-r-0 ${
                   isActive
@@ -247,123 +321,78 @@ export default async function FollowUpPage({
         </div>
         </div>
         {/*
-          One strip of small cells, not a row of tall cards.
+          FOUR FIGURES, then everything else on one line.
 
-          It was five cards, each carrying an explaining sentence, and credit
-          needs four more figures — nine of those cards would have been a screen
-          of summary above a list nobody had scrolled to yet. The desk is busy.
-          So: one tight cell per figure, the sentences that had to survive
-          collected into the single line underneath, and the colours unchanged
-          from the rest of Finance — amber for money not yet arrived, red for
-          late, green for work done, neutral for a count.
+          Nine equal cells gave "Cash owed" and "Verified today" the same weight —
+          one is the reason this page exists, the other a tally somebody glances
+          at once a day. A strip where nothing is bigger than anything else has to
+          be read in full to find the number you came for.
 
-          CASH AND CREDIT ARE TWO CELLS AND NEVER ONE. A bill nobody paid and
-          money the company agreed to wait for are different problems on a
-          Tuesday morning, and a single "owed" total hides which of the two this
-          business is carrying.
+          So the four that decide what happens next take the size, and the rest
+          become a sentence underneath. Still one band and still no tall cards —
+          the density asked for, with an order to it.
         */}
-        {/*
-          Wrapping row rather than a fixed grid.
-
-          Nine cells in a five-column grid leaves a tenth slot with nothing in
-          it, which rendered as an empty black box on the end of the second row —
-          and the count is not even fixed, so no column number is safe. Flex with
-          a basis lets the last row stretch to fill whatever is left, so there is
-          never a hole no matter how many figures this desk is shown.
-        */}
-        <dl className="flex flex-wrap gap-px bg-border">
-          {[
-            {
-              k: t(locale, "On this list"),
-              v: String(totals.count),
-              tone: "text-foreground",
-            },
-            {
-              k: t(locale, "Cash owed"),
-              v: money(totals.cashUsd),
-              sub: inUsd(totals.cashUsd),
-              tone: "text-signal",
-            },
-            {
-              k: t(locale, "Credit owed"),
-              v: money(totals.creditUsd),
-              sub: inUsd(totals.creditUsd),
-              tone: "text-brand",
-            },
-            {
-              k: t(locale, "Overdue"),
-              v: money(totals.overdueUsd),
-              sub: inUsd(totals.overdueUsd),
-              tone: totals.overdueUsd > 0 ? "text-destructive" : "text-muted-foreground",
-            },
-            {
-              k: t(locale, "Due today"),
-              v: money(totals.dueTodayUsd),
-              sub: inUsd(totals.dueTodayUsd),
-              tone: totals.dueTodayUsd > 0 ? "text-warning" : "text-muted-foreground",
-            },
-            {
-              k: t(locale, "Due this week"),
-              v: money(totals.dueWeekUsd),
-              sub: inUsd(totals.dueWeekUsd),
-              tone: "text-warning",
-            },
-            {
-              k: t(locale, "Storage so far"),
-              v: money(totals.storageUsd),
-              sub: inUsd(totals.storageUsd),
-              tone: "text-foreground",
-            },
-            {
-              k: t(locale, "To verify"),
-              v: String(overview.pendingCount),
-              tone:
-                overview.pendingCount > 0 ? "text-destructive" : "text-muted-foreground",
-            },
-            {
-              k: t(locale, "Verified today"),
-              v: String(overview.verifiedToday),
-              tone: "text-success",
-            },
-          ].map((cell) => (
-            <div
-              key={cell.k}
-              className="min-w-0 flex-1 basis-[8.5rem] bg-card px-3 py-2"
-            >
-              <dt className="text-[11px] text-muted-foreground">{cell.k}</dt>
-              <dd
-                className={cn(
-                  "whitespace-nowrap font-display text-sm font-bold leading-tight tabular-nums",
-                  cell.tone
-                )}
-              >
-                {cell.v}
-              </dd>
-              {cell.sub ? (
-                <dd className="text-[11px] tabular-nums text-muted-foreground">
-                  {cell.sub}
+        <div className="border-b px-4 py-3">
+          <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {[
+              { k: t(locale, "Cash owed"), v: money(totals.cashUsd), sub: inUsd(totals.cashUsd), tone: "text-signal" },
+              { k: t(locale, "Credit owed"), v: money(totals.creditUsd), sub: inUsd(totals.creditUsd), tone: "text-brand" },
+              {
+                k: t(locale, "Overdue"),
+                v: money(totals.overdueUsd),
+                sub: inUsd(totals.overdueUsd),
+                tone: totals.overdueUsd > 0 ? "text-destructive" : "text-muted-foreground",
+              },
+              { k: t(locale, "Storage so far"), v: money(totals.storageUsd), sub: inUsd(totals.storageUsd), tone: "text-foreground" },
+            ].map((cell) => (
+              <div key={cell.k} className="min-w-0">
+                <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {cell.k}
+                </dt>
+                <dd
+                  className={cn(
+                    "font-display font-bold leading-tight tabular-nums",
+                    String(cell.v).length <= 11 ? "text-2xl" : String(cell.v).length <= 14 ? "text-xl" : "text-lg",
+                    cell.tone
+                  )}
+                >
+                  {cell.v}
                 </dd>
-              ) : null}
-            </div>
-          ))}
-        </dl>
-        {/*
-          The two things the figures above would otherwise be read wrongly.
+                {cell.sub ? (
+                  <dd className="text-[11px] tabular-nums text-muted-foreground">
+                    {cell.sub}
+                  </dd>
+                ) : null}
+              </div>
+            ))}
+          </dl>
 
-          Storage is not a separate pot of income — the clock goes into the bill
-          when the bill is raised, so adding it to what is owed counts the same
-          shillings twice. And a credit inside its terms is not a debt anybody is
-          late on: it is on this list to be seen, not to be rung.
-        */}
-        <p className="border-t px-3 py-1.5 text-[11px] text-muted-foreground">
-          {t(locale, "Storage is already inside the bill, not on top of it.")}
-          {totals.insideTermsCount > 0
-            ? ` ${totals.insideTermsCount} ${t(
-                locale,
-                "credit(s) here are inside their terms — visible, not to be chased."
-              )}`
-            : ""}
-        </p>
+          {/* The tallies, as a sentence: numbers somebody checks rather than acts
+              on — with the two things the figures above would otherwise be read
+              wrongly. Storage is inside the bill already, and a credit inside its
+              terms is not a debt anybody is late on. */}
+          <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-2 text-[11px] text-muted-foreground">
+            <span>
+              <span className="font-semibold text-foreground">{totals.count}</span>{" "}
+              {t(locale, "on this list")}
+            </span>
+            <span>
+              {t(locale, "Due today")}{" "}
+              <span className="font-semibold text-foreground">{money(totals.dueTodayUsd)}</span>
+            </span>
+            <span>
+              {t(locale, "Due this week")}{" "}
+              <span className="font-semibold text-foreground">{money(totals.dueWeekUsd)}</span>
+            </span>
+            <span>{t(locale, "Storage is already inside the bill, not on top of it.")}</span>
+            {totals.insideTermsCount > 0 ? (
+              <span>
+                {totals.insideTermsCount}{" "}
+                {t(locale, "credit(s) here are inside their terms — visible, not to be chased.")}
+              </span>
+            ) : null}
+          </p>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-soft">
