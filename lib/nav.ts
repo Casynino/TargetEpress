@@ -903,6 +903,21 @@ const MANAGER_SECTIONS: NavSection[] = [
     group: { label: "Decisions", icon: "BadgeCheck" },
     items: [
       { href: "/app/manager/approvals", label: "Pending approvals", icon: "BadgeCheck" },
+      /* Its own row rather than a line in the approvals list, because agreeing
+         a month's salaries is not a queue item to clear — it is read name by
+         name against a table before it is signed. */
+      { href: "/app/manager/payroll", label: "Payroll", icon: "Wallet", permission: "payroll.approve" },
+    ],
+  },
+  {
+    /* Staffing came to this desk at the owner's instruction: the manager
+       hires, assigns and deactivates. The one thing the action still refuses
+       is minting another owner — see the rails in lib/actions/users.ts. */
+    title: "People",
+    group: { label: "People", icon: "UserCog" },
+    items: [
+      { href: "/app/admin/users", label: "Staff", icon: "UserCog", permission: "user.manage" },
+      { href: "/app/support/tickets", label: "Support tickets", icon: "Headset", permission: "ticket.manage" },
     ],
   },
   {

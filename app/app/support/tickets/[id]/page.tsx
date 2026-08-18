@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Role } from "@prisma/client";
 import { ArrowLeft, Package, User } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
@@ -9,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { ROLE_PERMISSIONS, can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
@@ -46,8 +48,23 @@ export default async function TicketPage({
         },
       },
     }),
+    /* Who may be handed a ticket is read off ticket.manage, not typed out as a
+       role list. The hand-written one drifted in both directions at once: it
+       offered Finance, whom the /app/support guard turns away at the door, so a
+       ticket assigned there landed on somebody who could not open it — and it
+       left out the manager, who works this desk daily and could be given
+       nothing. Asking the permission table means a regrant or a new role moves
+       this dropdown with it, instead of leaving a second, staler answer to the
+       same question. */
     prisma.user.findMany({
-      where: { active: true, role: { in: ["CUSTOMER_CARE", "FINANCE", "ADMIN"] } },
+      where: {
+        active: true,
+        role: {
+          in: (Object.keys(ROLE_PERMISSIONS) as Role[]).filter((role) =>
+            can(role, "ticket.manage")
+          ),
+        },
+      },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),

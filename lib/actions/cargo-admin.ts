@@ -83,9 +83,19 @@ export async function deleteCargo(
 
     // Once cargo has flown it is on a printed manifest and in a customs file.
     // Management can still remove it; a warehouse cannot.
-    if (cargo.status !== "READY_TO_DEPART" && !can(user.role, "shipment.purge")) {
+    //
+    // The override is shipment.cancel, which is granted in the ALL list alone
+    // and so resolves to exactly the owner and the manager. It read
+    // shipment.purge until the manager role existed — purge is the owner's key
+    // for destroying a record for good, borrowed here to mean "senior enough",
+    // and the day a second senior role appeared that borrowing locked the
+    // manager out of a REVERSIBLE soft delete and told them to ask management.
+    if (cargo.status !== "READY_TO_DEPART" && !can(user.role, "shipment.cancel")) {
       return fail(
-        t(locale, "This cargo has already left China. Ask management to remove it.")
+        t(
+          locale,
+          "This cargo has already left China. Only the owner or a manager can remove it now."
+        )
       );
     }
 

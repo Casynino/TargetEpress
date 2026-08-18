@@ -17,11 +17,20 @@ import type { InvestigationAllowances } from "@/components/app/investigation-act
 import type { ActionResult } from "@/lib/actions/types";
 import type { ExceptionStatus } from "@prisma/client";
 
-/** The desk a step belongs to, in the words the owner uses for it. */
+/**
+ * The desk a step belongs to, in the words the owner uses for it.
+ *
+ * Capabilities, not job titles. These two used to read "the CEO", which was
+ * true only while the CEO was the sole holder of exception.approve — the
+ * manager holds both now, so the screen was telling a blocked reader to chase
+ * the wrong person while the right one sat on the queue. A permission can be
+ * regranted; a name in a string cannot follow it. Naming what the other desk
+ * is able to do stays true whoever ends up holding it.
+ */
 const DESK: Record<string, string> = {
   "exception.investigate": "the warehouse or the support desk",
-  "exception.approve": "the CEO",
-  "exception.close": "the CEO",
+  "exception.approve": "whoever rules on claims",
+  "exception.close": "whoever signs cases off",
 };
 
 const TONES: Record<LifecycleStep["tone"], string> = {

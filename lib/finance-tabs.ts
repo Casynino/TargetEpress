@@ -72,6 +72,20 @@ export function financeTabs(role: Role): FinanceTab[] {
       label: "Expenses",
       visible: can(role, "expense.view"),
     },
+    {
+      /*
+        Beside Expenses, because that is what it becomes.
+
+        Payroll is the largest regular payment the company makes and it reaches
+        the ledger the same way every other cost does — as an expense against a
+        named account. What makes it its own screen rather than a line on that
+        one is the two steps: this desk BUILDS the run and cannot pay it, and
+        the manager agrees it without writing the figures.
+      */
+      href: "/app/finance/payroll",
+      label: "Payroll",
+      visible: can(role, "payroll.prepare"),
+    },
     /* No Credit tab. The credit book is a standalone page with its own sidebar
        row — the same reasoning as Price Configuration above it. */
     // NOTE: no Pickup notes tab. It sits in the sidebar beside Search,

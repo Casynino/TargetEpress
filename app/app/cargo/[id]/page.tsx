@@ -253,10 +253,12 @@ export default async function ShipmentDetailPage({
             ))}
             {/* Offered only while the record can actually be changed — a
                 disabled button that explains itself on click is worse than no
-                button. */}
+                button. The post-departure half is shipment.cancel, matching
+                editCargo and the edit page; it read shipment.purge, so the
+                manager was shown no Edit button on cargo already in the air. */}
             {can(user.role, "shipment.edit") &&
             (shipment.status === "READY_TO_DEPART" ||
-              can(user.role, "shipment.purge")) ? (
+              can(user.role, "shipment.cancel")) ? (
               <Button asChild variant="outline" size="sm" className="rounded-lg">
                 <Link href={`/app/cargo/${shipment.trackingNumber}/edit`}>
                   <Pencil className="mr-2 h-4 w-4" />
@@ -495,7 +497,10 @@ export default async function ShipmentDetailPage({
               mine: doc.uploadedById === user.id,
             }))}
             canAttach={canAttach}
-            canRemoveAny={can(user.role, "shipment.purge")}
+            // Removing somebody else's attachment: the same predicate
+            // removeCargoDocument enforces, so the Remove control appears
+            // exactly where it will be honoured.
+            canRemoveAny={can(user.role, "shipment.cancel")}
             showNames={showInternal}
             durable={storageIsDurable()}
           />

@@ -159,10 +159,13 @@ const removeSchema = z.object({
  * mistake — the wrong month's invoice, the same PDF twice — and making them ask
  * somebody else to undo a typo is how the wrong file stays on the record.
  *
- * Anybody else's file needs `shipment.purge`, which is the CEO and nobody else.
- * That is the existing authority for destroying part of a consignment's record
- * for good, and this is the same act on a smaller object: one desk must not be
- * able to quietly remove the paper another desk filed against the same cargo.
+ * Anybody else's file needs `shipment.cancel` — the owner and the manager, and
+ * nobody else. This said `shipment.purge`, which is the authority to erase a
+ * record for good and is the owner's at any rank; taking a wrongly filed PDF
+ * off a consignment is not that act, and naming it that shut the manager out of
+ * their own paperwork. What the rule protects is unchanged either way: one desk
+ * must not be able to quietly remove the paper another desk filed against the
+ * same cargo.
  *
  * The row goes; the audit entry keeps the filename, the kind and the URL. So a
  * removal is answerable — and, while the file itself is still in storage,
@@ -205,11 +208,11 @@ export async function removeCargoDocument(
     }
 
     const mine = document.uploadedById === user.id;
-    if (!mine && !can(user.role, "shipment.purge")) {
+    if (!mine && !can(user.role, "shipment.cancel")) {
       return fail(
         t(
           locale,
-          "Somebody else attached this file, so only management can take it off. Attach the right one instead — the list shows both."
+          "Somebody else attached this file, so only the owner or a manager can take it off. Attach the right one instead — the list shows both."
         )
       );
     }

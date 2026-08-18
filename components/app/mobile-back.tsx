@@ -44,7 +44,14 @@ const PARENTS: { prefix: string; parent: string; label: string }[] = [
   { prefix: "/app/support/sourcing", parent: "/app/support/sourcing", label: "Sourcing requests" },
   { prefix: "/app/support", parent: "/app/support", label: "Support" },
   { prefix: "/app/exceptions", parent: "/app/exceptions", label: "Issues & Claims" },
-  { prefix: "/app/admin", parent: "/app/admin/settings", label: "Settings" },
+  /* Deliberately NOT /app/admin/settings. Settings is settings.manage, the
+     owner's alone, and it was the parent of the whole /app/admin tree — so a
+     manager backing out of Deleted records was posted at a door their own
+     guard shuts, which is worse than no button. There is no landing page all
+     of /app/admin's readers share (its own index redirects into Finance), so
+     the climb goes to the one screen every signed-in desk can reach. */
+  { prefix: "/app/admin", parent: "/app/dashboard", label: "Home" },
+  { prefix: "/app/manager", parent: "/app/manager", label: "Command centre" },
   { prefix: "/app/receive", parent: "/app/receive", label: "Receive" },
   { prefix: "/app/release", parent: "/app/release", label: "Release" },
 ];
@@ -53,6 +60,7 @@ const PARENTS: { prefix: string; parent: string; label: string }[] = [
 const ROOTS = new Set([
   "/app",
   "/app/dashboard",
+  "/app/manager",
   "/app/support",
   "/app/receive",
   "/app/release",

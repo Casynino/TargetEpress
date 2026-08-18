@@ -200,6 +200,8 @@ export type Permission =
   | "message.send"
   // Administration
   | "user.manage"
+  | "payroll.prepare"
+  | "payroll.approve"
   /**
    * Read the rate book, the exchange rate and the product catalogue.
    *
@@ -539,11 +541,18 @@ const ALL: Permission[] = Array.from(
     "account.manage",
     "ledger.adjust",
     "profit.view",
+    /* Finance BUILDS the salary run — the register, the amounts, the account it
+       will be paid from. It does not approve it and cannot pay it. */
+    "payroll.prepare",
     // Signing off a cost above the threshold. Finance records and pays it;
     // the CEO is the one who says yes to it.
     "expense.approve",
     "audit.view",
     "report.view",
+    /* Signing off the month's salaries. Deliberately absent from the FINANCE
+       list above: the desk that writes the figures must not be the desk that
+       agrees them, which is the whole reason this run has two steps. */
+    "payroll.approve",
   ])
 );
 
@@ -563,9 +572,6 @@ const ALL: Permission[] = Array.from(
  *
  * WHAT THE OWNER KEEPS, and why each one:
  *
- *   user.manage      Who works here and what role they hold. A manager who can
- *                    grant roles can grant themselves anything, which makes every
- *                    other line in this list decorative.
  *   settings.manage  The company's own configuration.
  *   pricing.manage   The rate book. A manager reads it — pricing.view — but the
  *                    price of the service is the owner's decision about his own
@@ -577,10 +583,26 @@ const ALL: Permission[] = Array.from(
  *                    rank, and a manager is not an exception — deleting is
  *                    already theirs via shipment.cancel, which is reversible.
  */
+/*
+  STAFFING MOVED TO THE MANAGER, at the owner's instruction: the manager hires,
+  assigns and deactivates.
+
+  `user.manage` was on the withheld list, and the reason given was real — whoever
+  can grant roles can grant themselves anything, which would make every other line
+  above decorative. That risk does not disappear because the owner delegated
+  staffing, so it is answered where it actually lives rather than by withholding
+  the whole capability: `lib/actions/users.ts` refuses to let anybody but an ADMIN
+  create an ADMIN or move somebody into the ADMIN role. A manager can therefore
+  build and run the whole team, and still cannot mint an owner — including
+  themselves by way of a second account.
+
+  That check belongs in the action, not here, because it is a rule about ONE
+  value of ONE field, and permissions cannot express "may edit this column, but
+  not to that value".
+*/
 const MANAGER: Permission[] = ALL.filter(
   (permission) =>
     ![
-      "user.manage",
       "settings.manage",
       "pricing.manage",
       "account.manage",

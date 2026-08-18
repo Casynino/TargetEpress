@@ -386,6 +386,11 @@ model User {
   status            UserStatus     @default(ACTIVE)
   /// Warehouse staff only. Null for Finance, Support and the CEO.
   rank              WarehouseRank?
+
+  /// What this person is paid a month, in USD like every other money column.
+  /// Null means "not on the payroll" — a run skips them rather than guessing
+  /// zero, because a zero line on a salary slip is a statement, not a silence.
+  baseSalary Decimal? @db.Decimal(12, 2)
   joinedAt          DateTime       @default(now())
   /// Touched on every authenticated page load, so "online" means something.
   lastActiveAt      DateTime?
@@ -410,6 +415,10 @@ model User {
   closedBatches         Batch[]                 @relation("BatchClosedBy")
   statementsSubmitted   BatchStatement[]        @relation("StatementSubmittedBy")
   statementsReviewed    BatchStatement[]        @relation("StatementReviewedBy")
+  payrollPrepared       PayrollRun[]            @relation("PayrollPreparedBy")
+  payrollApproved       PayrollRun[]            @relation("PayrollApprovedBy")
+  payrollPaid           PayrollRun[]            @relation("PayrollPaidBy")
+  payrollLines          PayrollItem[]           @relation("PayrollItemStaff")
   statusChanges         ShipmentStatusHistory[]
   uploadedPhotos        ShipmentPhoto[]
   uploadedDocuments     ShipmentDocument[]
@@ -1081,6 +1090,115 @@ model Compensation {
   createdAt DateTime @default(now())
 
   @@index([paidAt])
+}
+
+// ---------------------------------------------------------------------------
+// Payroll — Finance prepares it, the manager agrees it, then it is money out
+// ---------------------------------------------------------------------------
+
+/// Where a month's salary run has got to.
+///
+/// THE TWO STEPS ARE THE POINT. Finance builds the run and cannot pay it; the
+/// manager agrees it and does not write the figures. One desk doing both is how
+/// a salary quietly becomes whatever that desk typed, and payroll is the largest
+/// regular payment this company makes.
+enum PayrollStatus {
+  /// Finance is still building it. Editable, and nothing has been claimed.
+  DRAFT
+  /// Sent up. Frozen while it waits — a run somebody is agreeing must not move
+  /// under them.
+  PENDING_APPROVAL
+  /// Agreed, and not yet paid. The money has not left any account.
+  APPROVED
+  /// Paid. A SALARIES expense and its ledger line exist from this moment, and
+  /// the run is final.
+  PAID
+  /// Sent back with a reason. Returns to Finance, editable again.
+  REJECTED
+}
+
+/// One salary run, normally one month.
+///
+/// Paying it books a SALARIES Expense against a real account, so payroll lands
+/// in the profit and loss and in the bank position without anybody re-keying it
+/// — the same route every other cost in this app takes to the ledger.
+model PayrollRun {
+  id     String        @id @default(cuid())
+  code   String        @unique // PR-2026-08
+  month  Int // 1-12
+  year   Int
+  status PayrollStatus @default(DRAFT)
+
+  preparedById String
+  preparedBy   User   @relation("PayrollPreparedBy", fields: [preparedById], references: [id], onDelete: Restrict)
+  preparedAt   DateTime @default(now())
+
+  /// Set the moment it leaves Finance's hands, so "waiting since" is real.
+  submittedAt DateTime?
+
+  approvedById String?
+  approvedBy   User?     @relation("PayrollApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt   DateTime?
+  /// Why it was sent back. Required when rejecting.
+  decisionNote String?
+
+  paidAt   DateTime?
+  paidById String?
+  paidBy   User?     @relation("PayrollPaidBy", fields: [paidById], references: [id], onDelete: SetNull)
+
+  /// Which account it was paid from. Named before approval so the manager is
+  /// agreeing to a payment out of a specific account, not to a number.
+  accountId String?
+  account   CompanyAccount? @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  /// The expense this run became. One run, one expense — unique, so paying twice
+  /// is a database error rather than a doubled salary bill.
+  expenseId String?  @unique
+  expense   Expense? @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+
+  note String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items PayrollItem[]
+
+  /// One live run per month. A second is either a mistake or a correction, and
+  /// a correction is a new month's line, not a duplicate of this one.
+  @@unique([year, month])
+  @@index([status])
+}
+
+/// One person's line on a run.
+///
+/// Name and amounts are SNAPSHOTTED at the moment the run is built. A salary
+/// slip is a statement about a month that has already happened; re-reading it
+/// through today's staff register would silently restate what somebody was paid
+/// when they get a raise, or blank their name when they leave.
+model PayrollItem {
+  id    String     @id @default(cuid())
+  runId String
+  run   PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation("PayrollItemStaff", fields: [userId], references: [id], onDelete: SetNull)
+
+  /// Snapshots, deliberately not read through the relation above.
+  name       String
+  roleLabel  String
+  employeeId String?
+
+  /// USD like every other money column in this app; shillings are rendered at
+  /// the rate, the same as freight.
+  gross     Decimal @db.Decimal(12, 2)
+  allowance Decimal @default(0) @db.Decimal(12, 2)
+  deduction Decimal @default(0) @db.Decimal(12, 2)
+  net       Decimal @db.Decimal(12, 2)
+
+  note String?
+
+  @@unique([runId, userId])
+  @@index([runId])
 }
 
 // ---------------------------------------------------------------------------
@@ -2159,6 +2277,7 @@ model CompanyAccount {
   cashCounts    CashCount[]
 
   @@index([active, sortOrder])
+  payrollRuns PayrollRun[]
 }
 
 enum LedgerDirection {
@@ -2413,6 +2532,9 @@ model Expense {
   @@index([category, incurredAt])
   @@index([expenseClass, incurredAt])
   @@index([batchId, incurredAt])
+
+  /// Set when this expense IS a payroll run being paid.
+  payrollRun PayrollRun?
 }
 
 /// The receipt, invoice or till slip behind an expense. Exactly the shape of

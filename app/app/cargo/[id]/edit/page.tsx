@@ -64,8 +64,12 @@ export default async function EditCargoPage({
 
   // Once cargo has flown, its numbers are on a manifest and an invoice. The
   // page is not offered rather than offered and refused.
+  //
+  // Deliberately the same predicate as editCargo in lib/actions/cargo-edit.ts —
+  // shipment.cancel, which is the owner and the manager. If the door and the
+  // action ever disagree the reader gets a form that refuses to save.
   const editable =
-    cargo.status === "READY_TO_DEPART" || can(user.role, "shipment.purge");
+    cargo.status === "READY_TO_DEPART" || can(user.role, "shipment.cancel");
   if (!editable) redirect(`/app/cargo/${cargo.trackingNumber}`);
 
   const [items, history] = await Promise.all([

@@ -134,13 +134,20 @@ export async function updateCargo(
     });
     if (!before) return fail(t(locale, "That cargo no longer exists."));
 
-    // The window. An admin can still correct a record after it has flown —
+    // The window. Management can still correct a record after it has flown —
     // sometimes a weight genuinely was recorded wrong — but a warehouse cannot,
     // because the manifest in the customs officer's hand would stop matching.
+    //
+    // /app/cargo/[id]/edit/page.tsx computes the same predicate to decide
+    // whether to open the page at all. The two must agree: a door that opens on
+    // a wider rule than the action behind it is a form that saves nothing.
     const stillInChina = before.status === "READY_TO_DEPART";
-    if (!stillInChina && !(await canPurge(user))) {
+    if (!stillInChina && !(await canEditAfterDeparture(user))) {
       return fail(
-        t(locale, "This cargo has already left China. Ask management to correct it.")
+        t(
+          locale,
+          "This cargo has already left China. Only the owner or a manager can correct it now."
+        )
       );
     }
 
@@ -287,9 +294,19 @@ function describe(
   return parts.join(", ");
 }
 
-async function canPurge(user: SessionUser) {
+/**
+ * Who may still correct a consignment after it has left China.
+ *
+ * shipment.cancel, not shipment.purge. Purge is the owner's authority to erase
+ * a record for good and is held by nobody else at any rank; it was standing in
+ * for "management" here, which quietly made this gate owner-only the moment the
+ * manager role arrived. shipment.cancel appears only in the ALL list, so it
+ * resolves to the owner and the manager — the actual management predicate, and
+ * the one /app/admin/deleted is already gated on.
+ */
+async function canEditAfterDeparture(user: SessionUser) {
   const { can } = await import("@/lib/rbac");
-  return can(user.role, "shipment.purge");
+  return can(user.role, "shipment.cancel");
 }
 
 /** The change history for one shipment, newest first, in the reader's language. */

@@ -18,7 +18,6 @@ import {
   QrCode,
   Scale,
   ShieldCheck,
-  ScanLine,
   Timer,
   TrendingDown,
   Trash2,
@@ -32,7 +31,7 @@ import {
 
 import { ActivityFeed } from "@/components/app/activity-feed";
 import { ActionPills, type ActionPill } from "@/components/app/action-pills";
-import { CargoSearch } from "@/components/app/cargo-search";
+import { DeskHero } from "@/components/app/desk-hero";
 import { DeskPulsePanel } from "@/components/app/desk-pulse";
 import { AlertQueue } from "@/components/app/alert-queue";
 import { AttentionCenter, type AttnItem } from "@/components/app/attention-center";
@@ -57,7 +56,6 @@ import {
 } from "@/components/ui/table";
 import {
   EXCEPTION_OPEN_STATUSES,
-  ROLE_LABELS,
   STORAGE_POLICY,
 } from "@/lib/constants";
 import {
@@ -309,84 +307,22 @@ export default async function DashboardPage() {
           hourOfDay={localHour(inChina ? "CN" : "TZ")}
         />
       ) : (
-      /* The desk's own colours, not a stock gradient: the red comes off the
-         Target mark and the blue is what the app uses for anything you can
-         act on. The hairline grid over the top keeps it reading as freight
-         software rather than a marketing banner. */
-      <div className="relative mb-6 overflow-hidden rounded-2xl">
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-gradient-to-br from-signal via-brand to-info"
-        />
-        <div
-          aria-hidden
-          className="grid-backdrop pointer-events-none absolute inset-0 opacity-20"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/5"
-        />
-        <div className="relative flex flex-col gap-5 p-6 sm:flex-row sm:items-end sm:justify-between">
-          {/* flex-1 so this column takes the width it is given. Without it the
-              column shrinks to its own text and max-w-2xl on the search below
-              never applies — a max is not a width, so the box came out the
-              length of the greeting above it. */}
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
-                {today}
-              </span>
-              <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
-                {t(locale, ROLE_LABELS[user.role])}
-              </span>
-            </div>
-            <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight text-white">
-              {t(locale, "Habari,")} {firstName}
-            </h1>
-            <p className="mt-2 text-sm text-white/80">
-              {user.role === "FINANCE"
-                ? t(locale, "Here is the money, and what is waiting on you.")
-                : t(locale, "Here is what is happening at Target Express today.")}
-            </p>
-            {/* The same box the support desk opens on. Every desk that is not
-                holding the box finds one this way — a customer reads out a
-                number and it has to go somewhere without hunting for a page
-                first. Posts to /app/search rather than the support desk's own
-                search, which is gated on ticket.manage. */}
-            <div className="mt-4 max-w-2xl">
-              <CargoSearch action="/app/search" />
-            </div>
-          </div>
-          {/* Quick actions, offered only where the role actually does them.
-              Styled against the gradient rather than the page, or a solid
-              button sits on it like a sticker. */}
-          <div className="flex flex-wrap gap-2">
-            {can(user.role, "shipment.create") ? (
-              <Link
-                href="/app/cargo/new"
-                className="focus-ring inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand shadow-lift transition-colors hover:bg-white/90"
-              >
-                <PackagePlus className="mr-2 h-4 w-4" />
-                {t(locale, "Receive cargo")}
-              </Link>
-            ) : null}
-            {can(user.role, "shipment.release") ? (
-              <Link
-                href="/app/release"
-                className={
-                  can(user.role, "shipment.create")
-                    ? "focus-ring inline-flex items-center rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/25"
-                    : "focus-ring inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand shadow-lift transition-colors hover:bg-white/90"
-                }
-              >
-                <ScanLine className="mr-2 h-4 w-4" />
-                {t(locale, "Scan & release")}
-              </Link>
-            ) : null}
-          </div>
-        </div>
-      </div>
+      <DeskHero
+        firstName={firstName}
+        role={user.role}
+        today={today}
+        subtitle={
+          user.role === "FINANCE"
+            ? t(locale, "Here is the money, and what is waiting on you.")
+            : t(locale, "Here is what is happening at Target Express today.")
+        }
+        // The same box the support desk opens on. Every desk that is not
+        // holding the box finds one this way — a customer reads out a number
+        // and it has to go somewhere without hunting for a page first. Posts
+        // to /app/search rather than the support desk's own search, which is
+        // gated on ticket.manage.
+        search={{ action: "/app/search" }}
+      />
       )}
 
       {user.role === "CHINA_WAREHOUSE" ? (

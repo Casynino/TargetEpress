@@ -11,6 +11,7 @@ import { CATEGORY_LABELS } from "@/lib/cargo";
 import { formatDateTime, formatWeight, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
@@ -25,8 +26,21 @@ export const metadata: Metadata = { title: "Deleted records" };
  * from being a way to make evidence disappear.
  */
 export default async function DeletedRecordsPage() {
-  await requirePermission("shipment.cancel");
+  const user = await requirePermission("shipment.cancel");
   const locale = await viewerLocale();
+
+  /*
+    Reading this page and emptying it are two different authorities.
+
+    Getting in is shipment.cancel — the owner and the manager, since restoring a
+    record and reading why it went are exactly the manager's job. Erasing one for
+    good is shipment.purge, which is the owner's and nobody else's. The purge
+    control was drawn on every row for whoever got through the door, so a manager
+    was offered a button purgeCargo would then refuse. It failed loudly rather
+    than dangerously, but a control nobody may press should not be drawn at all —
+    offering it teaches the reader the wrong thing about who holds what.
+  */
+  const canPurge = can(user.role, "shipment.purge");
 
   // Asking for deletedAt explicitly is what opts this query out of the global
   // filter in lib/prisma. Nowhere else in the app does that.
@@ -247,12 +261,14 @@ export default async function DeletedRecordsPage() {
                 ))}
               </dl>
 
-              <PurgeCargoForm
-                shipmentId={cargo.id}
-                trackingNumber={cargo.trackingNumber}
-                photoCount={cargo.photos.length}
-                packageCount={cargo._count.packageList}
-              />
+              {canPurge ? (
+                <PurgeCargoForm
+                  shipmentId={cargo.id}
+                  trackingNumber={cargo.trackingNumber}
+                  photoCount={cargo.photos.length}
+                  packageCount={cargo._count.packageList}
+                />
+              ) : null}
 
               {cargo.photos.length > 0 ? (
                 <div className="mt-4 border-t pt-4">
