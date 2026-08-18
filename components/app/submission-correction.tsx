@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Pencil, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { IconHint } from "@/components/app/icon-hint";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import {
@@ -65,24 +66,26 @@ export function SubmissionCorrection({
 
   return (
     <span className="inline-flex items-center gap-0.5">
-      <button
-        type="button"
-        onClick={() => setOpen(open === "edit" ? null : "edit")}
-        title={t("Correct this claim")}
-        aria-label={t("Correct this claim")}
-        className="focus-ring rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <Pencil className="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={() => setOpen(open === "withdraw" ? null : "withdraw")}
-        title={t("Withdraw this claim")}
-        aria-label={t("Withdraw this claim")}
-        className="focus-ring rounded p-1 text-muted-foreground transition-colors hover:text-destructive"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
+      <IconHint label={t("Correct this claim")}>
+        <button
+          type="button"
+          onClick={() => setOpen(open === "edit" ? null : "edit")}
+          aria-label={t("Correct this claim")}
+          className="focus-ring rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      </IconHint>
+      <IconHint label={t("Withdraw this claim")}>
+        <button
+          type="button"
+          onClick={() => setOpen(open === "withdraw" ? null : "withdraw")}
+          aria-label={t("Withdraw this claim")}
+          className="focus-ring rounded p-1 text-muted-foreground transition-colors hover:text-destructive"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </IconHint>
 
       {open === "edit" ? (
         <form

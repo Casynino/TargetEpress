@@ -6,6 +6,7 @@ import { CollectionsNav } from "@/components/app/collections-nav";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
 import { PageHeader } from "@/components/app/page-header";
+import { IconHint } from "@/components/app/icon-hint";
 import { RecordIncome } from "@/components/app/record-income";
 import { activeAccounts } from "@/lib/accounts";
 import { can } from "@/lib/rbac";
@@ -578,6 +579,13 @@ export default async function FollowUpPage({
                       reminder, and there is one button for it. */}
                   <div className="flex items-center justify-end gap-1.5">
                     {row.customerPhone ? (
+                      <IconHint
+                        label={
+                          row.credit
+                            ? t(locale, "Remind on WhatsApp")
+                            : t(locale, "Message on WhatsApp")
+                        }
+                      >
                       <a
                         href={whatsappLink(
                           row.customerPhone,
@@ -601,6 +609,7 @@ export default async function FollowUpPage({
                       >
                         <MessageCircle className="h-3.5 w-3.5" />
                       </a>
+                      </IconHint>
                     ) : null}
 
                     {(canRecord || canCollect) &&
@@ -608,6 +617,7 @@ export default async function FollowUpPage({
                     row.invoiceStatus !== "DRAFT" &&
                     row.outstanding !== null &&
                     row.outstanding > 0 ? (
+                      <IconHint label={t(locale, "Record a payment")}>
                       <Link
                         /* A credit is settled against the BILL, never against
                            the cargo: the boxes went home with the customer
@@ -635,12 +645,14 @@ export default async function FollowUpPage({
                       >
                         <Banknote className="h-3.5 w-3.5" />
                       </Link>
+                      </IconHint>
                     ) : null}
 
                     {/* The bill itself: hand it over, or open it to change
                         something before the customer is asked to pay. */}
                     {row.invoiceNumber ? (
                       <>
+                        <IconHint label={t(locale, "Download the invoice")}>
                         <a
                           href={`/app/finance/invoices/${row.invoiceNumber}/pdf`}
                           title={`${t(locale, "Download")} ${row.invoiceNumber} ${t(locale, "as a PDF")}`}
@@ -649,6 +661,8 @@ export default async function FollowUpPage({
                         >
                           <Download className="h-3.5 w-3.5" />
                         </a>
+                        </IconHint>
+                        <IconHint label={t(locale, "Open the invoice")}>
                         <Link
                           href={`/app/finance/invoices/${row.invoiceId}`}
                           title={`${t(locale, "Open")} ${row.invoiceNumber}`}
@@ -657,6 +671,7 @@ export default async function FollowUpPage({
                         >
                           <FileText className="h-3.5 w-3.5" />
                         </Link>
+                        </IconHint>
                       </>
                     ) : null}
                   </div>

@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Pencil, RotateCcw, Undo2, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import { IconHint } from "@/components/app/icon-hint";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import {
@@ -107,24 +108,26 @@ export function PaymentCorrection({
   return (
     <div className="mt-0.5 space-y-1.5">
       <span className="flex items-center gap-0.5">
-        <button
-          type="button"
-          onClick={() => setOpen(open === "edit" ? null : "edit")}
-          title={t("Correct the details")}
-          aria-label={t("Correct the details")}
-          className={iconBtn}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setOpen(open === "void" ? null : "void")}
-          title={t("Cancel this payment")}
-          aria-label={t("Cancel this payment")}
-          className="focus-ring rounded p-1 text-muted-foreground transition-colors hover:text-destructive"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+        <IconHint label={t("Correct the details")}>
+          <button
+            type="button"
+            onClick={() => setOpen(open === "edit" ? null : "edit")}
+            aria-label={t("Correct the details")}
+            className={iconBtn}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        </IconHint>
+        <IconHint label={t("Cancel this payment")}>
+          <button
+            type="button"
+            onClick={() => setOpen(open === "void" ? null : "void")}
+            aria-label={t("Cancel this payment")}
+            className="focus-ring rounded p-1 text-muted-foreground transition-colors hover:text-destructive"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </IconHint>
       </span>
 
       {open === "void" ? (

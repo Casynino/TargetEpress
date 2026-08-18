@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
+import { IconHint } from "@/components/app/icon-hint";
 import { MoveCargo } from "@/components/app/move-cargo";
 import { RowPriceEditor } from "@/components/app/row-price-editor";
 import { Input } from "@/components/ui/input";
@@ -627,11 +628,13 @@ export function ShipmentDetailTabs({
                         <span className="text-xs text-muted-foreground">—</span>
                       ) : (
                         <span className="flex items-center gap-1.5">
+                          <IconHint
+                            label={`${t("View")} ${line.photos.length} ${t("photo(s)")}`}
+                          >
                           <a
                             href={line.photos[0].url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            title={`${t("View")} ${line.photos.length} ${t("photo(s)")}`}
                             className="group relative block h-8 w-8 shrink-0 overflow-hidden rounded border"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -647,14 +650,17 @@ export function ShipmentDetailTabs({
                               </span>
                             ) : null}
                           </a>
-                          <a
-                            href={line.photos[0].url}
-                            download={`${line.trackingNumber}.jpg`}
-                            title={t("Download")}
-                            className="text-muted-foreground transition-colors hover:text-foreground"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                          </a>
+                          </IconHint>
+                          <IconHint label={t("Download the photo")}>
+                            <a
+                              href={line.photos[0].url}
+                              download={`${line.trackingNumber}.jpg`}
+                              aria-label={t("Download the photo")}
+                              className="text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </a>
+                          </IconHint>
                         </span>
                       )}
                     </td>
@@ -667,14 +673,15 @@ export function ShipmentDetailTabs({
                       {canRecordPayment &&
                       line.price?.invoiceId &&
                       !line.price.paid ? (
-                        <Link
-                          href={`/app/collections/record/${line.price.invoiceId}`}
-                          title={`${t("Record payment")} · ${line.trackingNumber}`}
-                          aria-label={`${t("Record payment")} ${line.trackingNumber}`}
-                          className="mr-0.5 inline-flex items-center rounded-md px-2 py-1.5 text-success/80 transition-colors hover:bg-success/10 hover:text-success"
-                        >
-                          <Banknote className="h-4 w-4" />
-                        </Link>
+                        <IconHint label={t("Record payment")}>
+                          <Link
+                            href={`/app/collections/record/${line.price.invoiceId}`}
+                            aria-label={`${t("Record payment")} ${line.trackingNumber}`}
+                            className="mr-0.5 inline-flex items-center rounded-md px-2 py-1.5 text-success/80 transition-colors hover:bg-success/10 hover:text-success"
+                          >
+                            <Banknote className="h-4 w-4" />
+                          </Link>
+                        </IconHint>
                       ) : null}
                       <Link
                         href={`/app/cargo/${line.trackingNumber}`}
