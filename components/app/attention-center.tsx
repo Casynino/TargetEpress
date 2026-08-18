@@ -182,7 +182,7 @@ export function AttentionCenter({
             })}
             {shown.length === 0 ? (
               <li className="px-4 py-6 text-center text-sm text-muted-foreground">
-                Nothing under {active}.
+                {t("Nothing under")} {active}.
               </li>
             ) : null}
           </ul>
@@ -192,7 +192,7 @@ export function AttentionCenter({
           {hidden > 0 ? (
             <p className="flex items-center justify-center gap-1.5 border-t px-4 py-1.5 text-xs text-muted-foreground">
               <ChevronDown className="h-3 w-3" />
-              scroll for {hidden} more
+              {t("scroll for")} {hidden} {t("more")}
             </p>
           ) : null}
         </>

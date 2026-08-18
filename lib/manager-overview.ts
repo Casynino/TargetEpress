@@ -558,10 +558,35 @@ export async function managerOverview(
      no petty-cash model: the office tin is a CASH account, so it is inside
      `cashUsd` and the label on screen says so. Inventing a petty-cash figure
      would mean inventing the rule that decides which CASH account is petty. */
-  const byKind = (kind: string) =>
+  /*
+    SHILLING ACCOUNTS ARE ADDED AS THEY STAND, and only a dollar account is
+    converted — once.
+
+    Summing `balanceUsd` and letting the screen multiply by today's rate double-
+    converts every shilling account: the ledger's dollar column was struck at
+    the rate in force when each movement posted, so the balance goes out through
+    one rate and comes back in through another. The morning a new rate is
+    published the total moves and the accounts page it links to does not — a
+    headline disagreeing with its own parts, which is the exact bug
+    app/app/finance/accounts/page.tsx documents having already fixed there.
+
+    With no rate published there is nothing honest to value a dollar account
+    with, so the ledger's frozen dollar figure stands in — the same fallback
+    that page uses.
+  */
+  const heldByKind = (kind: string) =>
     fin.position.accounts
       .filter((account) => account.kind === kind)
-      .reduce((sum, account) => sum + account.balanceUsd, 0);
+      .reduce(
+        (sum, account) =>
+          sum +
+          (rate === null
+            ? account.balanceUsd
+            : account.currency === "TZS"
+              ? account.balance
+              : account.balance * rate),
+        0
+      );
 
   // ----------------------------------------------------------------- queues
   const oldestApprovalDays = queues.reduce<number | null>(
@@ -600,9 +625,9 @@ export async function managerOverview(
       expensesThisMonthUsd: fin.pl.costs,
       outstandingUsd: fin.position.receivableUsd,
       creditOutstandingUsd: credit.outstandingUsd,
-      cashUsd: byKind("CASH"),
-      bankUsd: byKind("BANK"),
-      mobileMoneyUsd: byKind("MOBILE_MONEY"),
+      cashUsd: heldByKind("CASH"),
+      bankUsd: heldByKind("BANK"),
+      mobileMoneyUsd: heldByKind("MOBILE_MONEY"),
       profitThisMonthUsd: fin.pl.profit,
       marginPct: fin.pl.margin,
       collectionRatePct: fin.revenue.collectionRate,

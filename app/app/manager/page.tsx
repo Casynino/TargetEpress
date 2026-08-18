@@ -3,114 +3,148 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
+  Banknote,
+  ClipboardCheck,
+  CreditCard,
+  HandCoins,
   Info,
+  Package,
+  PackageCheck,
+  Plane,
+  PlaneLanding,
+  PlaneTakeoff,
+  Receipt,
+  Scale,
+  Signature,
   TrendingDown,
   TrendingUp,
+  Users,
+  Wallet,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 
+import { ActivityBars } from "@/components/app/activity-bars";
+import { ActivityFeed } from "@/components/app/activity-feed";
 import { AttentionCenter, type AttnItem } from "@/components/app/attention-center";
+import { CargoMix } from "@/components/app/cargo-mix";
 import { DeskHero } from "@/components/app/desk-hero";
 import { DeskPulsePanel } from "@/components/app/desk-pulse";
-import { SectionLabel } from "@/components/app/section-label";
-import { IconHint } from "@/components/app/icon-hint";
-import { formatWeight, toNumber } from "@/lib/format";
-import { currentRate } from "@/lib/fx";
+import { FlightProfitTable } from "@/components/app/flight-profit-table";
+import { KpiCard } from "@/components/app/kpi-card";
+import {
+  BandHeading,
+  BentoCard,
+  CorridorBar,
+  Figure,
+  MarginRing,
+  MoneyFlowChart,
+  PipelineStrip,
+  ProportionBar,
+  QueueList,
+  StatRows,
+} from "@/components/app/manager-bento";
+import { MoneyTile } from "@/components/app/money-tile";
+import { Sparkline } from "@/components/charts/sparkline";
+import { auditSentence } from "@/lib/audit-humanise";
 import { creditAlerts } from "@/lib/credit-queries";
-import { deskPulse, ownerAttention } from "@/lib/queries";
-import { creditAttention } from "@/lib/support";
-import { can } from "@/lib/rbac";
+import { formatMonthYear, formatWeight, toNumber } from "@/lib/format";
+import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { managerOverview, type Insight, type InsightTone } from "@/lib/manager-overview";
 import { formatShillings } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
+import { profitByDispatch } from "@/lib/profit";
+import {
+  batchUtilisation,
+  cargoMix,
+  cashFlowByMonth,
+  corridorPosition,
+  deskPulse,
+  monthlyVolume,
+  ownerAttention,
+  recentActivity,
+} from "@/lib/queries";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
+import { creditAttention } from "@/lib/support";
 import { cn } from "@/lib/utils";
 import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Command centre" };
 
 /**
- * Sentences this screen already states as a figure, dropped before the strip is
- * drawn.
+ * Sentences this screen already states as a figure, dropped before the briefing
+ * is drawn.
  *
- * Every one of these read as an independent finding while being a number
+ * Every one of these reads as an independent finding while being a number
  * printed elsewhere on the same page — and the revenue one printed a DIFFERENT
- * number for the same claim: the sentence compares what was BILLED
- * (profitAndLoss, accrual) and the dashboard's "Revenue this month" compares
- * what was COLLECTED (monthlyRevenue, payments), so the two disagreed by
+ * number for the same claim: the sentence compares what was BILLED (accrual)
+ * and a collections figure compares what ARRIVED, so the two disagreed by
  * whatever customers had not yet paid. One claim, two figures, is worse than
  * either being missing.
  *
- * THE TILE SURVIVES, NOT THE SENTENCE, and that is the general rule here: the
- * strip is capped at five and ordered by rank, so a figure that has to be on
+ * THE PANEL SURVIVES, NOT THE SENTENCE, and that is the general rule here: the
+ * briefing is capped at five and ordered by rank, so a figure that has to be on
  * the screen whatever else is happening cannot live in a list that drops its
  * sixth item. Overdue credit goes the other way for the same reason — the
- * attention panel below carries it as a row with the names, the worst age and
- * the money attached, which is more than a percentage in a sentence, so the
- * sentence AND the tile that repeated it both went.
+ * attention panel above carries it as a row with the names, the worst age and
+ * the money attached, which is more than a percentage in a sentence.
  *
  * Matched on the insight id from lib/manager-overview.ts, which is a plain
  * string the compiler cannot check. Renaming one there quietly brings its
  * duplicate back, which is why each id is named beside the thing it repeats.
  */
-const STATED_BY_A_TILE = new Set([
-  "loss", //                 Money → "Profit this month"
-  "profit", //               Money → "Profit this month"
-  "statements", //           Waiting on you → "Flights to sign off"
-  "credit-overdue-rate", //  the attention panel's own credit row, below
-  "revenue", //              the dashboard's "Revenue this month", below
-  "revenue-first", //        the same tile, in its first-month wording
+const STATED_ELSEWHERE = new Set([
+  "loss", //                 the ink panel's headline figure
+  "profit", //               the ink panel's headline figure
+  "revenue", //              the ink panel's "Billed this month"
+  "revenue-first", //        the same figure, in its first-month wording
+  "statements", //           "Flights to sign off", in Waiting on you
+  "collection-low", //       the "Collected against billed" ring
+  "credit-overdue-rate", //  the attention panel's own credit rows, above
 ]);
 
 /**
  * The manager's command centre.
  *
- * THE SAME SCREEN THE OWNER READS, and that is the whole design. A manager who
- * runs the company day to day and an owner who answers for it need the same
- * four desks, the same money, the same list of things going wrong — asking the
- * two of them to compare notes across two dashboards computing revenue two ways
- * is how a business ends up with two sets of books and a meeting about which is
- * right.
+ * A BENTO GRID, NOT A GRID OF TILES, and the difference is the whole point of
+ * this rewrite. This screen was forty numbers set at the same size in the same
+ * box, which is a data dump: the eye has to read all of it to find out which
+ * part matters, so it reads none of it. Here every band has one cell that owns
+ * it — the ink panel carrying the month's money, the corridor bar carrying every
+ * consignment in the business — with smaller cells around it. That is what lets
+ * somebody answer "how are we doing" from the top of the screen.
  *
- * The difference between the chairs is authority, not information, and authority
- * is already enforced where it belongs: on the permissions behind each action.
- * The manager reads everything and presses everything except the five the owner
- * keeps — who works here, what the service costs, what the company's own
- * settings say, which bank accounts exist, and destroying a record for good.
+ * THE SAME BUSINESS THE OWNER READS, AND NOT THE SAME PAGE. A manager who runs
+ * the company day to day and an owner who answers for it need the same figures —
+ * asking the two of them to compare notes across two dashboards computing
+ * revenue two ways is how a business ends up with two sets of books. So every
+ * number below comes off the SAME ENGINES the owner's dashboard reads. What is
+ * not shared is the LAYOUT: this page rendered its own blocks and then the whole
+ * executive dashboard underneath them, which put two dashboards on one screen
+ * and drew half the figures twice. Share the engines, never the layout.
  *
- * That sameness now reaches the top of the page too. This opened on a plain
- * title bar while every other desk was greeted by name, which said the manager
- * was a section of the system rather than a person running it.
+ * WHAT NEEDS YOU, BEFORE WHAT MERELY IS. The attention panel leads, then the
+ * five sentences worth reading, and only then the figures — because the first
+ * question at this desk is "does anything need me" and every number under it is
+ * context for answering that.
  *
- * WHAT THIS CHAIR HAS THAT THE OWNER'S DOES NOT is the band between the two:
- * five sentences worth reading before any number, then the standing state of
- * operations, money, customers, staff and the decision queues. The dashboard
- * below answers "how is the business doing"; this band answers "what is
- * happening right now, and what is waiting on me" — which is the running of it.
- *
- * NOTHING HERE REPEATS A FIGURE THE DASHBOARD BELOW PRINTS. Consignments in the
- * warehouse, cargo cleared and not collected, delivered this month, outstanding
- * bills, total customers, total staff and the open-case count are all on that
- * screen already — as a stat chip, a money tile, a slice of the corridor ring or
- * a desk-pulse line — so they are computed in lib/manager-overview.ts and
- * deliberately not drawn a second time. A figure appearing twice on one screen
- * is read as a bug in the figure, not as emphasis.
- *
- * THAT RULE NOW HOLDS INSIDE THE BAND TOO, which it did not. The five sentences
- * and the tiles under them are drawn from the same engines, so five figures were
- * being stated twice on one screen: the profit, the flight statements, the
- * overdue credit, the drafts and — worst — the month's revenue, which appeared
- * as a sentence measuring what was billed beside a tile measuring what was
- * collected, two different numbers under one claim. Each is now stated once;
- * STATED_BY_A_TILE below names which copy went and what kept it.
+ * NO FIGURE TWICE. The rule that shapes what is here and what is deliberately
+ * missing. Cargo standing past its free storage, bills unpaid and the money
+ * behind them, prices waiting to be confirmed, cases and sourcing requests are
+ * all carried by the attention panel with names and ages attached; the four desk
+ * cards at the foot carry each desk's own standing count. None of those is drawn
+ * a second time as a tile, and the corridor bar states SHARES rather than counts
+ * for exactly that reason — see the note on CorridorBar.
  */
 export default async function ManagerHome() {
   const user = await requirePermission("report.view");
   const locale = await viewerLocale();
+  const now = new Date();
 
-  const [me, overview] = await Promise.all([
+  const [me, overview, rateRow] = await Promise.all([
     // Read the name from the record, not the session. The session token carries
     // whatever the name was at sign-in, so someone who renames themselves would
     // be greeted by their old name until they signed out and back in.
@@ -119,30 +153,46 @@ export default async function ManagerHome() {
       select: { name: true },
     }),
     managerOverview(locale),
+    currentRate(),
   ]);
   const firstName = (me?.name ?? user.name).split(" ")[0];
+  const liveRate = rateRow ? toNumber(rateRow.rate) : null;
 
   /*
-    The three the executive dashboard used to bring, fetched here instead.
+    Everything the charts are drawn from, in one round trip.
 
-    This page rendered its own blocks and then the WHOLE admin dashboard under
-    them. Sharing that component was meant to keep one source of truth, and it
-    did — but it also stacked two dashboards on one screen: the attention panel
-    and the desk cards ended up beneath five blocks of tiles, so the first thing
-    a manager saw was inventory and the last was the thing that needed them.
-    Worse, the two halves drew overlapping figures, and the same number showing
-    up twice reads as a bug even when both copies are right.
+    These are independent reads of the same instant. Run in sequence the top of
+    the screen would describe a different minute from the bottom of it, and on a
+    page carrying this many panels the difference is measured in seconds, not
+    milliseconds.
 
-    One source of truth was never about sharing a LAYOUT. It is about sharing
-    the ENGINES, which is what these three calls do — the same ownerAttention,
-    creditAlerts and deskPulse the owner's screen reads, composed for this desk.
+    monthlyRevenue() is deliberately absent even though it answers a question
+    this page asks. cashFlowByMonth() sums the very same payments by month and
+    brings the costs beside them, so calling both would be two queries and one
+    answer — and the risk that a chart and a total on one screen disagree.
   */
-  const rateRow = await currentRate();
-  const liveRate = rateRow ? toNumber(rateRow.rate) : null;
-  const [attnItems, alerts, desks] = await Promise.all([
+  const [
+    attnItems,
+    alerts,
+    desks,
+    flow,
+    position,
+    activity,
+    mix,
+    fill,
+    flights,
+    volume,
+  ] = await Promise.all([
     ownerAttention(liveRate, locale),
     creditAlerts(),
     deskPulse(liveRate, locale),
+    cashFlowByMonth(now, locale),
+    corridorPosition(),
+    recentActivity(8),
+    cargoMix(30, locale),
+    batchUtilisation(8),
+    profitByDispatch(8),
+    monthlyVolume(now, locale),
   ]);
 
   const attention: AttnItem[] = [
@@ -154,18 +204,73 @@ export default async function ManagerHome() {
     }),
   ];
 
-  const today = new Date().toLocaleDateString(locale === "zh" ? "zh-CN" : "en-GB", {
+  const today = now.toLocaleDateString(locale === "zh" ? "zh-CN" : "en-GB", {
     weekday: "long",
     day: "numeric",
     month: "long",
   });
 
   const { operations, finance, customers, staff, management, rate } = overview;
-  // Shillings lead, everywhere, through the one helper — a per-tile `rate ? … :
-  // …` is how one block on a page ends up quoting a different currency from the
-  // block beside it.
+
+  // Shillings lead, everywhere, through the one helper — a per-cell `rate ? … :
+  // …` is how one panel on a page ends up quoting a different currency from the
+  // panel beside it.
   const money = (usd: number) => formatShillings(usd, rate);
   const count = (n: number) => n.toLocaleString("en-US");
+
+  /*
+    What was billed this month, derived rather than queried.
+
+    profitAndLoss defines profit as revenue less costs and managerOverview
+    reports both halves, so revenue is exactly profit + costs — arithmetic on two
+    figures already on this page, not a second opinion about what revenue means.
+    Asking the database again would put a fourth definition of "revenue this
+    month" into the app, and the three that exist are quite enough.
+  */
+  const billedThisMonth = finance.profitThisMonthUsd + finance.expensesThisMonthUsd;
+  const inThisYear = flow.moneyIn.reduce((sum, n) => sum + n, 0);
+  const outThisYear = flow.moneyOut.reduce((sum, n) => sum + n, 0);
+  const monthLabel = formatMonthYear(now, locale);
+
+  /*
+    Four months, not two.
+
+    A zero meaning "we have not started" and a zero meaning "we came out level"
+    are different facts, and "in profit by TSh 0" under an up-arrow states the
+    second when it is usually the first — on the 1st of the month, every month.
+    So a month with nothing billed and nothing spent says so and prints no
+    figure at all, because there is no figure to print yet.
+  */
+  const nothingYet =
+    billedThisMonth === 0 && finance.expensesThisMonthUsd === 0;
+  const month = nothingYet
+    ? {
+        icon: Info,
+        lead: "Nothing has been billed or spent this month yet",
+        figure: "—",
+        colour: "text-white",
+      }
+    : finance.profitThisMonthUsd > 0
+      ? {
+          icon: TrendingUp,
+          lead: "The month is in profit by",
+          figure: money(finance.profitThisMonthUsd),
+          colour: "text-gold",
+        }
+      : finance.profitThisMonthUsd < 0
+        ? {
+            icon: TrendingDown,
+            lead: "The month is running at a loss of",
+            figure: money(Math.abs(finance.profitThisMonthUsd)),
+            colour: "text-signal",
+          }
+        : {
+            icon: Info,
+            lead: "Billed and spent have come out exactly level",
+            figure: money(0),
+            colour: "text-white",
+          };
+  const MonthIcon = month.icon;
 
   return (
     <>
@@ -189,10 +294,10 @@ export default async function ManagerHome() {
         This panel used to sit two thirds of the way down, under five blocks of
         counters, because it arrived with the shared dashboard rather than being
         placed. A manager opening this screen is not browsing inventory — the
-        first question is "does anything need me", and every tile below is
+        first question is "does anything need me", and every figure below is
         context for answering it. So it leads, and the numbers support it.
       */}
-      <div className="mb-5">
+      <div className="mb-6">
         <AttentionCenter
           items={attention}
           reviewAll={{ href: "/app/manager/control", label: t(locale, "Control room") }}
@@ -200,229 +305,744 @@ export default async function ManagerHome() {
         />
       </div>
 
-      <div className="mb-6 space-y-3">
-        <Insights
-          items={overview.insights.filter((item) => !STATED_BY_A_TILE.has(item.id))}
+      {/* ------------------------------------------------------- the briefing */}
+      <section className="mb-7">
+        <BandHeading
+          title={t(locale, "The briefing")}
+          hint={t(
+            locale,
+            "Short readings of the month, hardest-hitting first. A figure says how much; only a comparison says whether that is good."
+          )}
+        />
+        <Briefing
+          items={overview.insights.filter((item) => !STATED_ELSEWHERE.has(item.id))}
           locale={locale}
         />
+      </section>
 
-        <Block
-          title={t(locale, "Operations")}
-          href="/app/shipments"
-          action={t(locale, "Every consignment")}
-        >
-          <Tile
-            label={t(locale, "Loading in Guangzhou")}
-            value={count(operations.batchesLoading)}
-            hint={t(locale, "batches open or sealed")}
-            href="/app/batches"
+      {/* ----------------------------------------------------------- the money */}
+      <section className="mb-7">
+        <BandHeading
+          title={t(locale, "The money")}
+          hint={t(locale, "What was billed, what arrived, and what is left of it.")}
+          action={{ href: "/app/finance", label: t(locale, "Full position") }}
+        />
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:auto-rows-[minmax(9.5rem,auto)]">
+          {/*
+            THE ONE CELL THAT OWNS THIS SCREEN.
+
+            Ink, at twice the size of anything around it, because the month's
+            profit is the single figure that says whether any of the rest was
+            worth doing — and on the old page it was a 22px number in a row of
+            nine identical ones. The panel is the same deep navy in both themes,
+            the way a printed cover is, and the gold is the app's own accent
+            rather than a gradient borrowed from somewhere else.
+          */}
+          <BentoCard
+            tone="ink"
+            href="/app/finance"
+            className="sm:col-span-2 xl:row-span-2"
+          >
+            <span
+              aria-hidden
+              className="grid-backdrop pointer-events-none absolute inset-0 opacity-[0.12]"
+            />
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_110%_at_100%_0%,hsl(var(--gold)/0.20),transparent_58%)]"
+            />
+
+            <div className="relative flex flex-1 flex-col">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">
+                  {monthLabel}
+                </p>
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white">
+                  <MonthIcon className="h-4 w-4" />
+                </span>
+              </div>
+
+              {/*
+                The sentence first, the figure second.
+
+                A loss set in red beside an up-arrow is how a screen tells
+                somebody they had a good month while the bank says otherwise.
+                The words carry the direction; the colour only agrees with them,
+                and nothing here depends on the colour being seen.
+              */}
+              <p className="mt-4 text-sm text-white/70">
+                {t(locale, month.lead)}
+              </p>
+              <p
+                className={cn(
+                  "mt-1.5 font-display text-[40px] font-bold leading-none tracking-tight tabular-nums sm:text-[46px]",
+                  month.colour
+                )}
+              >
+                {month.figure}
+              </p>
+
+              <div className="mt-6">
+                {finance.marginPct === null ? (
+                  /* No margin, rather than a margin of nothing. A month that has
+                     billed nothing has no ratio to draw, and a 0% ring would be
+                     a statement about performance instead of about the calendar. */
+                  <p className="rounded-lg bg-white/10 px-3 py-2.5 text-xs leading-snug text-white/80">
+                    {t(
+                      locale,
+                      "Nothing has been billed this month yet, so there is no margin to show."
+                    )}
+                  </p>
+                ) : finance.marginPct < 0 ? (
+                  <p className="rounded-lg bg-signal/25 px-3 py-2.5 text-xs font-medium leading-snug text-white">
+                    {t(
+                      locale,
+                      "Costs came in above everything billed. There is no margin to draw this month."
+                    )}
+                  </p>
+                ) : (
+                  <MarginRing
+                    pct={finance.marginPct}
+                    label={t(locale, "Margin")}
+                    caption={t(
+                      locale,
+                      "of everything billed this month survives its costs"
+                    )}
+                  />
+                )}
+              </div>
+
+              {/* The two halves the figure above is made of. Stated once, here,
+                  and never repeated as tiles of their own. */}
+              <div className="mt-auto grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
+                <div className="min-w-0">
+                  <p className="text-xs text-white/60">
+                    {t(locale, "Billed this month")}
+                  </p>
+                  <p className="mt-1 truncate font-mono text-sm font-semibold tabular-nums text-white">
+                    {money(billedThisMonth)}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-white/60">
+                    {t(locale, "What it cost")}
+                  </p>
+                  <p className="mt-1 truncate font-mono text-sm font-semibold tabular-nums text-white">
+                    {money(finance.expensesThisMonthUsd)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </BentoCard>
+
+          <MoneyTile
+            label={t(locale, "Collected today")}
+            usd={finance.collectedTodayUsd}
+            rate={rate}
+            hint={t(locale, "what customers actually handed over")}
+            icon={HandCoins}
+            tone={finance.collectedTodayUsd > 0 ? "good" : "default"}
+            href="/app/finance/payments"
           />
-          {/* "Flights", not "in the air": the ring below counts consignments in
-              the air, and two different numbers under one label is worse than
-              either being missing. */}
-          <Tile
-            label={t(locale, "Flights in the air")}
-            value={count(operations.batchesInAir)}
-            hint={t(locale, "batches, not consignments")}
-            href="/app/receive"
+          <MoneyTile
+            label={t(locale, "Billed today")}
+            usd={finance.revenueTodayUsd}
+            rate={rate}
+            hint={t(locale, "invoiced today, not yet money")}
+            icon={Receipt}
+            href="/app/finance/invoices"
           />
+          <MoneyTile
+            label={t(locale, "Spent today")}
+            usd={finance.expensesTodayUsd}
+            rate={rate}
+            hint={t(locale, "costs booked since midnight")}
+            icon={Banknote}
+            href="/app/finance/expenses"
+          />
+          <MoneyTile
+            label={t(locale, "Credit outstanding")}
+            usd={finance.creditOutstandingUsd}
+            rate={rate}
+            hint={t(locale, "cargo released on a promise, never cash")}
+            icon={CreditCard}
+            tone={finance.creditOutstandingUsd > 0 ? "warn" : "default"}
+            href="/app/finance/credit"
+          />
+
+          {/* The shape behind every figure above: what arrived against what it
+              cost, month by month. */}
+          <BentoCard href="/app/finance/transactions" className="sm:col-span-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "Money in and out")}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t(locale, "Payments received against costs incurred, this year")}
+                </p>
+              </div>
+              <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </div>
+
+            {flow.labels.length < 2 || (inThisYear === 0 && outThisYear === 0) ? (
+              /* A flat pair of lines at zero looks like a chart that failed to
+                 load. Said in words instead. */
+              <p className="mt-4 text-sm leading-snug text-muted-foreground">
+                {t(
+                  locale,
+                  flow.labels.length < 2
+                    ? /* One month of data draws a single point: smoothPath and
+                         areaPath both degenerate to a bare move command, so the
+                         panel rendered its gridlines with no line on them — which
+                         reads as a chart that failed rather than a year that has
+                         only just started. */
+                      "One month in. A shape needs two, so the chart starts next month."
+                    : "No money has come in or gone out yet this year. The chart starts with the first payment."
+                )}
+              </p>
+            ) : (
+              <>
+                <MoneyFlowChart
+                  labels={flow.labels}
+                  moneyIn={flow.moneyIn}
+                  moneyOut={flow.moneyOut}
+                  currentIndex={flow.currentIndex}
+                  title={t(locale, "Payments received against costs incurred, this year")}
+                />
+                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 border-t pt-3">
+                  <span className="inline-flex items-baseline gap-2 text-xs">
+                    <span
+                      aria-hidden
+                      className="h-2 w-2 translate-y-[1px] rounded-full bg-chart-5"
+                    />
+                    <span className="text-muted-foreground">
+                      {t(locale, "In, this year")}
+                    </span>
+                    <span className="font-mono font-semibold tabular-nums">
+                      {money(inThisYear)}
+                    </span>
+                  </span>
+                  <span className="inline-flex items-baseline gap-2 text-xs">
+                    <span
+                      aria-hidden
+                      className="h-2 w-2 translate-y-[1px] rounded-full bg-chart-3"
+                    />
+                    <span className="text-muted-foreground">
+                      {t(locale, "Out, this year")}
+                    </span>
+                    <span className="font-mono font-semibold tabular-nums">
+                      {money(outThisYear)}
+                    </span>
+                  </span>
+                </div>
+              </>
+            )}
+          </BentoCard>
+
+          <KpiCard
+            label={t(locale, "Collected against billed")}
+            /*
+              A VERDICT, NOT THE NUMBER AGAIN.
+
+              The ring prints the percentage in its own middle, so passing it
+              here put the same "62%" twice on one small card, two centimetres
+              apart. Today's takings were the obvious substitute and are wrong:
+              this card is about the MONTH, and a daily figure under a monthly
+              ring is the same mislabelling trap in a new place. So the headline
+              says what the percentage MEANS — which is the one thing a ring
+              cannot — and the number stays in the ring where it is drawn.
+            */
+            value={
+              finance.collectionRatePct === null
+                ? t(locale, "Nothing billed")
+                : finance.collectionRatePct >= 80
+                  ? t(locale, "Collecting well")
+                  : finance.collectionRatePct >= 40
+                    ? t(locale, "Half the month is out")
+                    : t(locale, "Barely collecting")
+            }
+            ringPct={finance.collectionRatePct ?? undefined}
+            ringLabel={t(locale, "Share of this month's billing already paid")}
+            hint={
+              finance.collectionRatePct === null
+                ? t(locale, "nothing billed this month yet")
+                : t(locale, "of this month's billing has come back")
+            }
+            icon={Wallet}
+            tone={
+              finance.collectionRatePct === null
+                ? "info"
+                : finance.collectionRatePct >= 60
+                  ? "success"
+                  : "warning"
+            }
+          />
+          <KpiCard
+            label={t(locale, "Customers using credit")}
+            numeric={customers.onCredit}
+            hint={t(locale, "carrying a live balance right now")}
+            icon={CreditCard}
+            tone="info"
+            href="/app/finance/credit"
+          />
+
+          {/* Where the money actually sits, as one rail. Three tiles cannot say
+              "almost all of it is in the bank"; a bar says nothing else. */}
+          <BentoCard
+            href="/app/finance/accounts"
+            className="sm:col-span-2 xl:col-span-4"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "Where the money sits")}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t(
+                    locale,
+                    "Every company account, grouped by kind and added at today's rate"
+                  )}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="font-display text-[22px] font-bold leading-none tabular-nums">
+                  {money(
+                    finance.bankUsd + finance.mobileMoneyUsd + finance.cashUsd
+                  )}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t(locale, "held in total")}
+                </p>
+              </div>
+            </div>
+
+            <ProportionBar
+              className="mt-4"
+              empty={t(locale, "No account is carrying a balance.")}
+              parts={[
+                {
+                  key: "bank",
+                  label: t(locale, "In the bank"),
+                  display: money(finance.bankUsd),
+                  value: finance.bankUsd,
+                  colour: "hsl(var(--chart-1))",
+                },
+                {
+                  key: "mobile",
+                  label: t(locale, "Mobile money"),
+                  display: money(finance.mobileMoneyUsd),
+                  value: finance.mobileMoneyUsd,
+                  colour: "hsl(var(--chart-2))",
+                },
+                {
+                  key: "cash",
+                  label: t(locale, "Cash, the office tin included"),
+                  display: money(finance.cashUsd),
+                  value: finance.cashUsd,
+                  colour: "hsl(var(--chart-5))",
+                },
+              ]}
+            />
+
+            {/*
+              Said out loud, because the label above invites the wrong reading.
+
+              There is no petty-cash model in this schema — an account is BANK,
+              MOBILE_MONEY or CASH, and the office tin is a CASH account like the
+              counter float. Splitting them would mean inventing the rule that
+              decides which tin is petty.
+            */}
+            <p className="mt-3 text-xs leading-snug text-muted-foreground">
+              {t(
+                locale,
+                "There is no separate petty-cash pot. The office tin is a cash account like any other, and is inside the cash figure."
+              )}
+            </p>
+          </BentoCard>
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------ cargo in motion */}
+      <section className="mb-7">
+        <BandHeading
+          title={t(locale, "Cargo in motion")}
+          hint={t(locale, "Everything the business is carrying, Guangzhou to the counter.")}
+          action={{ href: "/app/shipments", label: t(locale, "Every consignment") }}
+        />
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:auto-rows-[minmax(9.5rem,auto)]">
+          <BentoCard
+            href="/app/shipments"
+            className="sm:col-span-2 xl:row-span-2"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "Where the cargo is")}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t(locale, "Mutually exclusive, and they add up to everything")}
+                </p>
+              </div>
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                <Package className="h-4 w-4" />
+              </span>
+            </div>
+
+            <CorridorBar
+              total={position.total}
+              totalLabel={t(locale, "consignments in the business")}
+              empty={t(
+                locale,
+                "The business is carrying nothing right now — everything registered has been handed over."
+              )}
+              caption={t(
+                locale,
+                "Shares, not counts: each desk states its own count on the cards at the foot of this page."
+              )}
+              segments={[
+                {
+                  key: "china",
+                  label: t(locale, "In Guangzhou, waiting to fly"),
+                  count: position.inChina,
+                  tone: 2,
+                },
+                { key: "air", label: t(locale, "In the air"), count: position.inAir, tone: 1 },
+                {
+                  key: "floor",
+                  label: t(locale, "On the Dar floor"),
+                  count: position.onFloor,
+                  tone: 4,
+                },
+                {
+                  key: "ready",
+                  label: t(locale, "Cleared, not collected"),
+                  count: position.ready,
+                  tone: 5,
+                },
+                {
+                  key: "flagged",
+                  label: t(locale, "Under investigation"),
+                  count: position.flagged,
+                  tone: 3,
+                },
+              ]}
+            />
+          </BentoCard>
+
+          <BentoCard href="/app/inventory">
+            <Figure
+              className="flex-1"
+              label={t(locale, "Weight on the floor")}
+              value={formatWeight(operations.kgOnFloor)}
+              hint={t(locale, "checked in off a manifest and standing here")}
+              icon={Scale}
+              tone="brand"
+            />
+          </BentoCard>
+
           {/*
             Named for what the query counts, and pointed at the list that holds
             the rows.
 
-            floorSnapshot works this out as held cargo LESS cargo carrying an
-            ACTIVE pickup note (lib/floor.ts) — the note is the source of truth
-            for "paid", because cancelling one reverts the shipment status while
-            the note itself cannot drift from what Finance issued. So a
-            consignment frozen by an unresolved damage claim is inside this
-            figure too, and "Finance has not released them" billed all of it as
-            money one desk is sitting on. Subtracting flagged cargo here instead
-            would have moved a count the floor already reads on Available cargo,
-            which splits the same held set the same way.
-
-            And it opened /app/finance/invoices?status=UNPAID, which is a bare
-            redirect to /app/finance that drops the query string: a manager
-            pressing a count landed on a screen that could not account for it.
-            Available cargo lists these consignments, with the same paid / not
-            paid split. Its segment is a control on the page rather than a URL
-            filter, so this link claims no filter it cannot deliver.
+            The pickup note is the source of truth for "paid", because cancelling
+            one reverts the shipment status while the note itself cannot drift
+            from what Finance issued. So a consignment frozen by an unresolved
+            damage claim is inside this figure too, and "Finance has not released
+            them" would bill all of it as money one desk is sitting on.
           */}
-          <Tile
-            lead
-            label={t(locale, "Held, no pickup note")}
-            value={count(operations.cargoAwaitingPayment)}
-            hint={t(locale, "not paid for, or stopped by a claim")}
-            href="/app/inventory"
-            tone={operations.cargoAwaitingPayment > 0 ? "warn" : "flat"}
-          />
-          <Tile
-            label={t(locale, "Weight on the floor")}
-            value={formatWeight(operations.kgOnFloor)}
-            hint={t(locale, "checked in and standing here")}
-            href="/app/inventory"
-          />
-        </Block>
+          <BentoCard href="/app/inventory">
+            <Figure
+              className="flex-1"
+              label={t(locale, "Held, no pickup note")}
+              value={count(operations.cargoAwaitingPayment)}
+              hint={t(locale, "not paid for, or stopped by a claim")}
+              icon={Warehouse}
+              tone={operations.cargoAwaitingPayment > 0 ? "warn" : "plain"}
+            />
+          </BentoCard>
 
-        <Block
-          title={t(locale, "Money")}
-          href="/app/finance"
-          action={t(locale, "Full position")}
-        >
-          <Tile
-            label={t(locale, "Billed today")}
-            value={money(finance.revenueTodayUsd)}
-            hint={t(locale, "invoiced, not yet money")}
-            href="/app/finance/invoices"
-          />
-          <Tile
-            label={t(locale, "Collected today")}
-            value={money(finance.collectedTodayUsd)}
-            hint={t(locale, "what customers handed over")}
-            href="/app/finance/payments"
-            tone={finance.collectedTodayUsd > 0 ? "good" : "flat"}
-          />
-          <Tile
-            label={t(locale, "Spent today")}
-            value={money(finance.expensesTodayUsd)}
-            href="/app/finance/expenses"
-          />
-          <Tile
-            label={t(locale, "Costs this month")}
-            value={money(finance.expensesThisMonthUsd)}
-            href="/app/finance/expenses"
-          />
-          {/* The one figure that says whether any of the rest was kept, and the
-              dashboard below never states it. */}
-          <Tile
-            lead
-            label={t(locale, "Profit this month")}
-            value={money(finance.profitThisMonthUsd)}
-            hint={
-              finance.marginPct === null
-                ? t(locale, "nothing billed yet")
-                : `${Math.round(finance.marginPct)}% ${t(locale, "margin")}`
-            }
-            href="/app/finance"
-            tone={finance.profitThisMonthUsd < 0 ? "bad" : "good"}
-          />
-          <Tile
-            label={t(locale, "Credit outstanding")}
-            value={money(finance.creditOutstandingUsd)}
-            hint={t(locale, "released on a promise")}
-            href="/app/finance/credit"
-            tone={finance.creditOutstandingUsd > 0 ? "warn" : "flat"}
-          />
-          <Tile
-            label={t(locale, "In the bank")}
-            value={money(finance.bankUsd)}
-            href="/app/finance/accounts"
-          />
-          <Tile
-            label={t(locale, "Mobile money")}
-            value={money(finance.mobileMoneyUsd)}
-            href="/app/finance/accounts"
-          />
-          {/*
-            "Cash & petty cash", one figure, and the label is the honest part.
+          <BentoCard className="sm:col-span-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "The flights themselves")}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t(locale, "Batches, not consignments — the aircraft, not the boxes")}
+                </p>
+              </div>
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-info/10 text-info">
+                <Plane className="h-4 w-4" />
+              </span>
+            </div>
 
-            There is no petty-cash model in this schema — AccountKind is BANK,
-            MOBILE_MONEY or CASH, and the office tin is a CASH account like the
-            counter float. Splitting them would mean inventing the rule that
-            decides which tin is petty, so they are added and named for what
-            they are.
-          */}
-          <Tile
-            label={t(locale, "Cash & petty cash")}
-            value={money(finance.cashUsd)}
-            hint={t(locale, "every cash account, tin included")}
-            href="/app/finance/accounts"
-          />
-        </Block>
+            <PipelineStrip
+              stages={[
+                {
+                  key: "loading",
+                  label: t(locale, "Loading in Guangzhou"),
+                  value: count(operations.batchesLoading),
+                  hint: t(locale, "open, full or sealed"),
+                  icon: PlaneTakeoff,
+                  href: "/app/batches",
+                  tone: "info",
+                },
+                {
+                  key: "air",
+                  label: t(locale, "In the air"),
+                  value: count(operations.batchesInAir),
+                  hint: t(locale, "departed, not yet landed"),
+                  icon: Plane,
+                  href: "/app/incoming",
+                  tone: "brand",
+                },
+                {
+                  key: "landed",
+                  label: t(locale, "Landed, not finished"),
+                  value: count(operations.batchesArrived),
+                  hint: t(locale, "manifest still being ticked off"),
+                  icon: PlaneLanding,
+                  href: "/app/receive",
+                  tone: operations.batchesArrived > 0 ? "warn" : "plain",
+                },
+              ]}
+            />
+          </BentoCard>
 
-        <div className="grid gap-3 lg:grid-cols-3">
-          <Block
-            title={t(locale, "Customers")}
-            href="/app/customers"
-            action={t(locale, "Open")}
-            columns="two"
-          >
-            <Tile
-              label={t(locale, "New this month")}
-              value={count(customers.newThisMonth)}
-              href="/app/customers"
+          {/* What the desk is actually sending, by item. The one panel here that
+              answers a question about the goods rather than about their state. */}
+          <div className="flex flex-col sm:col-span-2 xl:row-span-2 [&>section]:flex-1">
+            <CargoMix
+              slices={mix.slices}
+              totalShipments={mix.totalShipments}
+              totalWeightKg={mix.totalWeightKg}
+              periodLabel={`${t(locale, "Registered in the last")} ${mix.days} ${t(locale, "days")}`}
             />
-            <Tile
-              label={t(locale, "Using credit now")}
-              value={count(customers.onCredit)}
-              hint={t(locale, "carrying a live balance")}
-              href="/app/finance/credit"
-            />
-            {/* "Past their due date" was here and is not any more. Overdue
-                credit was on this one screen three times over — this tile, a
-                sentence in the strip above, and a row in the attention panel
-                below. The panel's row is the one that survives: it names the
-                customers, says how many days past the worst one is and carries
-                the money, then opens the chase list. A count on its own sends
-                somebody to go and find all of that. */}
-            <Tile
-              label={t(locale, "Waiting on our reply")}
-              value={count(customers.awaitingReply)}
-              hint={t(locale, "the next move is ours")}
-              href="/app/support/tickets"
-              tone={customers.awaitingReply > 0 ? "warn" : "flat"}
-            />
-          </Block>
+          </div>
 
-          <Block
-            title={t(locale, "Staff")}
-            href="/app/admin/users"
-            action={t(locale, "Everyone")}
-            columns="two"
-          >
-            <Tile
-              label={t(locale, "Seen today")}
-              value={count(staff.seenToday)}
-              hint={t(locale, "opened the app since midnight")}
-              href="/app/admin/users"
+          <BentoCard href="/app/batches" className="sm:col-span-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "What each flight carried")}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t(locale, "Weight carried, the last eight batches, oldest first")}
+                </p>
+              </div>
+              <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </div>
+            {fill.length === 0 ? (
+              <p className="mt-4 text-sm leading-snug text-muted-foreground">
+                {t(locale, "No batch has flown yet, so there is nothing to compare.")}
+              </p>
+            ) : (
+              <ActivityBars className="mt-4" points={fill} unit={t(locale, "kg")} />
+            )}
+          </BentoCard>
+
+          <BentoCard href="/app/deliveries">
+            <Figure
+              className="flex-1"
+              label={t(locale, "Handed over this month")}
+              value={count(operations.cargoCollectedThisMonth)}
+              hint={t(locale, "collected by the customer since the 1st")}
+              icon={PackageCheck}
+              tone="good"
             />
-            <Tile
-              label={t(locale, "Suspended")}
-              value={count(staff.suspended)}
-              hint={t(locale, "employed, barred from the system")}
-              href="/app/admin/users"
-              tone={staff.suspended > 0 ? "warn" : "flat"}
+          </BentoCard>
+
+          <BentoCard href="/app/shipments">
+            <Figure
+              label={t(locale, "Registered this year")}
+              value={count(volume.total)}
+              icon={ClipboardCheck}
+              tone="info"
             />
-            <Tile
-              label={t(locale, "No salary set")}
-              value={count(staff.withoutSalary)}
-              hint={t(locale, "a payroll run skips them")}
-              href="/app/admin/users"
-              tone={staff.withoutSalary > 0 ? "warn" : "flat"}
+            {volume.current.length > 1 ? (
+              <div className="mt-auto pt-4">
+                <Sparkline
+                  values={volume.current}
+                  tone={2}
+                  label={t(locale, "Consignments registered, month by month")}
+                  className="w-full"
+                />
+                {/* The year on its own line rather than inside the sentence: a
+                    phrase with a number baked into it can never be looked up
+                    whole, so it would never reach a Chinese reader. */}
+                <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
+                  {t(locale, "month by month")} · {volume.year}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-auto pt-4 text-xs leading-snug text-muted-foreground">
+                {t(locale, "one month in — there is no shape to draw yet")}
+              </p>
+            )}
+          </BentoCard>
+        </div>
+      </section>
+
+      {/* -------------------------------------------------- batch profitability */}
+      <section className="mb-7">
+        <BandHeading
+          title={t(locale, "What each batch is making")}
+          hint={t(
+            locale,
+            "The company earns per flight. A month-level profit cannot tell you which one paid for itself."
+          )}
+          action={{ href: "/app/manager/batches", label: t(locale, "Every batch") }}
+        />
+        <FlightProfitTable flights={flights} />
+      </section>
+
+      {/* ----------------------------------------------------------- the company */}
+      <section className="mb-7">
+        <BandHeading
+          title={t(locale, "The company")}
+          hint={t(locale, "What is standing still until you decide, and who it is standing on.")}
+          action={{ href: "/app/manager/approvals", label: t(locale, "Every queue") }}
+        />
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <BentoCard className="sm:col-span-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "Waiting on you")}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t(locale, "Nothing below moves until this desk says so")}
+                </p>
+              </div>
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning">
+                <ClipboardCheck className="h-4 w-4" />
+              </span>
+            </div>
+
+            <QueueList
+              lines={[
+                {
+                  key: "approvals",
+                  label: t(locale, "Decisions queued"),
+                  value: count(management.pendingApprovals),
+                  note:
+                    management.oldestApprovalDays === null
+                      ? t(locale, "nothing is sitting")
+                      : `${t(locale, "oldest")} ${management.oldestApprovalDays}${t(locale, "d")}`,
+                  href: "/app/manager/approvals",
+                  icon: ClipboardCheck,
+                  tone:
+                    (management.oldestApprovalDays ?? 0) >= 3
+                      ? "bad"
+                      : management.pendingApprovals > 0
+                        ? "warn"
+                        : "plain",
+                },
+                {
+                  /* The empty state says the manager is up to date, because that
+                     is what it is. statementSummary leaves oldestDays null in
+                     exactly one case — the waiting list is empty — and this once
+                     read "Finance has closed nothing new", which told a manager
+                     with nothing left to sign that the desk below him had
+                     stopped working. */
+                  key: "statements",
+                  label: t(locale, "Flights to sign off"),
+                  value: count(management.statements.waiting),
+                  note:
+                    management.statements.oldestDays === null
+                      ? t(locale, "everything closed is signed off")
+                      : `${t(locale, "oldest")} ${management.statements.oldestDays}${t(locale, "d")}`,
+                  href: "/app/manager/reconciliation",
+                  icon: Signature,
+                  tone: management.statements.waiting > 0 ? "warn" : "plain",
+                },
+                {
+                  key: "payroll",
+                  label: t(locale, "Payroll to agree"),
+                  value: count(management.payrollWaiting),
+                  note: staff.payroll
+                    ? `${staff.payroll.label} · ${t(locale, PAYROLL_STATUS[staff.payroll.status] ?? "Status unknown")}`
+                    : t(locale, "no run has been built yet"),
+                  href: "/app/manager/payroll",
+                  icon: Wallet,
+                  tone: management.payrollWaiting > 0 ? "bad" : "plain",
+                },
+              ]}
             />
-            <Tile
-              label={t(locale, "Payroll")}
-              value={staff.payroll ? staff.payroll.label : "—"}
-              hint={
-                staff.payroll
-                  ? t(locale, PAYROLL_STATUS[staff.payroll.status] ?? "Status unknown")
-                  : t(locale, "no run built yet")
-              }
-              href="/app/manager/payroll"
-              tone={staff.payroll && staff.payroll.waiting > 0 ? "warn" : "flat"}
+          </BentoCard>
+
+          <BentoCard>
+            <Figure
+              label={t(locale, "Customers on the books")}
+              value={count(customers.total)}
+              icon={Users}
+              tone="brand"
+            />
+            <StatRows
+              rows={[
+                {
+                  key: "new",
+                  label: t(locale, "New this month"),
+                  value: count(customers.newThisMonth),
+                  href: "/app/customers",
+                },
+                {
+                  key: "reply",
+                  label: t(locale, "Waiting on our reply"),
+                  value: count(customers.awaitingReply),
+                  tone: customers.awaitingReply > 0 ? "warn" : "plain",
+                  href: "/app/support/tickets",
+                },
+              ]}
+            />
+          </BentoCard>
+
+          <BentoCard>
+            <Figure
+              label={t(locale, "Signing in and working")}
+              value={count(staff.total)}
+              icon={Users}
+              tone="info"
+            />
+            <StatRows
+              rows={[
+                {
+                  key: "seen",
+                  label: t(locale, "Opened the app today"),
+                  value: count(staff.seenToday),
+                  href: "/app/admin/users",
+                },
+                {
+                  key: "suspended",
+                  label: t(locale, "Suspended"),
+                  value: count(staff.suspended),
+                  tone: staff.suspended > 0 ? "warn" : "plain",
+                  href: "/app/admin/users",
+                },
+                {
+                  key: "salary",
+                  label: t(locale, "No salary set"),
+                  value: count(staff.withoutSalary),
+                  tone: staff.withoutSalary > 0 ? "warn" : "plain",
+                  href: "/app/manager/payroll",
+                },
+              ]}
             />
 
-            {/* The departments as a rail rather than five more tiles: this is
+            {/* The departments as a rail rather than five more figures: this is
                 one fact — the shape of the company — not five questions. */}
-            <div className="col-span-2 flex flex-wrap gap-1.5 pt-1">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               {staff.byDepartment.map((row) => (
                 <span
                   key={row.department}
                   className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px]"
                 >
-                  <span className="text-muted-foreground">
-                    {t(locale, row.label)}
-                  </span>
-                  <span className="font-semibold tabular">{row.count}</span>
+                  <span className="text-muted-foreground">{t(locale, row.label)}</span>
+                  <span className="font-semibold tabular-nums">{row.count}</span>
                 </span>
               ))}
             </div>
@@ -432,99 +1052,50 @@ export default async function ManagerHome() {
 
               This schema has no attendance: no shift, no clock-in, no roster of
               who was expected in. `lastActiveAt` is a heartbeat touched on every
-              authenticated page load. Somebody on the warehouse floor all day
-              who never opened the app is missing from "seen today", and somebody
-              signed in from a bus is counted in it. A manager who read this as
-              attendance would be disciplining the wrong person.
+              authenticated page load. Somebody on the warehouse floor all day who
+              never opened the app is missing from it, and somebody signed in from
+              a bus is counted in it. A manager who read this as attendance would
+              be disciplining the wrong person.
             */}
-            <p className="col-span-2 text-[10px] leading-snug text-muted-foreground">
+            <p className="mt-auto pt-3 text-xs leading-snug text-muted-foreground">
               {t(
                 locale,
-                "Attendance is not tracked. Seen today means the app was opened, nothing more."
+                "Attendance is not tracked. Opened the app today means exactly that, and nothing more."
               )}
             </p>
-          </Block>
-
-          <Block
-            title={t(locale, "Waiting on you")}
-            href="/app/manager/approvals"
-            action={t(locale, "Every queue")}
-            columns="two"
-          >
-            {/*
-              The age, not just the count.
-
-              Any one of these queues looks like a to-do list on its own screen.
-              It is only beside the age of its oldest item that "eleven payments"
-              becomes "eleven payments, the oldest nine days" — and nine days is
-              the finding.
-            */}
-            <Tile
-              lead
-            label={t(locale, "Decisions queued")}
-              value={count(management.pendingApprovals)}
-              hint={
-                management.oldestApprovalDays === null
-                  ? t(locale, "nothing is sitting")
-                  : `${t(locale, "oldest")} ${management.oldestApprovalDays}${t(locale, "d")}`
-              }
-              href="/app/manager/approvals"
-              tone={
-                (management.oldestApprovalDays ?? 0) >= 3
-                  ? "bad"
-                  : management.pendingApprovals > 0
-                    ? "warn"
-                    : "flat"
-              }
-            />
-            {/* The empty state says the manager is up to date, because that is
-                what it is. statementSummary leaves oldestDays null in exactly
-                one case — the waiting list is empty, so there is no oldest item
-                to age — and this read "Finance has closed nothing new", which
-                told a manager with nothing left to sign that the desk below him
-                had stopped working. */}
-            <Tile
-              label={t(locale, "Flights to sign off")}
-              value={count(management.statements.waiting)}
-              hint={
-                management.statements.oldestDays === null
-                  ? t(locale, "everything closed is signed off")
-                  : `${t(locale, "oldest")} ${management.statements.oldestDays}${t(locale, "d")}`
-              }
-              href="/app/manager/reconciliation"
-              tone={management.statements.waiting > 0 ? "warn" : "flat"}
-            />
-            <Tile
-              label={t(locale, "Payroll to agree")}
-              value={count(management.payrollWaiting)}
-              hint={t(locale, "salaries wait until you do")}
-              href="/app/manager/payroll"
-              tone={management.payrollWaiting > 0 ? "bad" : "flat"}
-            />
-            {/* "Prices to confirm" was here and is not any more. It counted
-                invoices in DRAFT, which the attention panel below already
-                carries as a row of its own with the sentence explaining why a
-                draft stalls money — the same count, twice on one screen, which
-                reads as a bug in the count. The total above still includes
-                them, and the approvals board opens the queue itself. Its link
-                was dead in any case: /app/finance/invoices is a bare redirect
-                that drops the status it was handed. */}
-          </Block>
+          </BentoCard>
         </div>
-      </div>
+      </section>
 
       {/*
-        The four desks, last, and the only panel here that is about PEOPLE
-        rather than figures. It closes the page the way the reader's day runs:
-        what needs deciding, what the money did, what is moving, then who is
-        doing it.
+        The four desks, and the only panel here that is about PEOPLE rather than
+        figures. It closes the page the way the reader's day runs: what needs
+        deciding, what the money did, what is moving, then who is doing it.
       */}
-      <div className="mt-6">
-        <SectionLabel action={{ href: "/app/manager/operations", label: t(locale, "Every desk in full") }}>
-          {t(locale, "Every desk, right now")}
-        </SectionLabel>
+      <section className="mb-7">
+        <BandHeading
+          title={t(locale, "Every desk, right now")}
+          hint={t(locale, "Each desk's own standing count, and the one thing wrong on it.")}
+          action={{
+            href: "/app/manager/operations",
+            label: t(locale, "Every desk in full"),
+          }}
+        />
         <DeskPulsePanel desks={desks} locale={locale} />
-      </div>
+      </section>
+
+      <ActivityFeed
+        entries={activity.map((entry) => ({
+          id: entry.id,
+          action: entry.action,
+          summary: auditSentence(locale, entry),
+          createdAt: entry.createdAt,
+          actorName: entry.actor?.name ?? entry.actorEmail ?? null,
+        }))}
+        title={t(locale, "Company activity")}
+        description={t(locale, "Every privileged action, newest first")}
+        href="/app/admin/audit"
+      />
     </>
   );
 }
@@ -539,159 +1110,62 @@ const PAYROLL_STATUS: Record<string, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// The dense furniture
+// The briefing
 // ---------------------------------------------------------------------------
-
-const TONES = {
-  flat: "text-foreground",
-  good: "text-success",
-  warn: "text-warning",
-  bad: "text-destructive",
-} as const;
-
-/**
- * One figure, at the size a figure needs and no larger.
- *
- * The owner has said twice that these screens must not take much space, so this
- * is a label, a number and a line of context inside a padded link — not a card.
- * KpiCard and MoneyTile are the right shape for the four headline figures on a
- * dashboard; twenty-five of them would be a scroll, which is the one thing this
- * page cannot be.
- *
- * Every one carries an href, because a figure a manager cannot open is a figure
- * they have to go and hunt for on another screen.
- */
-function Tile({
-  label,
-  value,
-  hint,
-  href,
-  tone = "flat",
-  lead = false,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  href: string;
-  tone?: keyof typeof TONES;
-  /**
-   * The one figure in this block the reader came for.
-   *
-   * Every tile was the same size, which made a block of nine a wall of equal
-   * numbers with no way in — the eye has to read all of them to find out which
-   * one matters, so it reads none. One figure per block carries the block's
-   * question ("did we make money", "what is stuck"), and the rest are the
-   * detail behind it. Exactly one per block: promote two and the hierarchy is
-   * gone again.
-   */
-  lead?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "focus-ring group rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/60",
-        lead && "col-span-2 bg-muted/25 sm:col-span-1"
-      )}
-    >
-      <p className="text-[11px] leading-tight text-muted-foreground">{label}</p>
-      <p
-        className={cn(
-          "mt-0.5 truncate font-display font-bold leading-tight tabular",
-          lead ? "text-[22px]" : "text-[15px]",
-          TONES[tone]
-        )}
-      >
-        {value}
-      </p>
-      {hint ? (
-        <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
-          {hint}
-        </p>
-      ) : null}
-    </Link>
-  );
-}
-
-/**
- * A named group of figures.
- *
- * The heading sits INSIDE the panel rather than on a SectionLabel above it:
- * three of these stand side by side in one row, and a rule above each column
- * would read as three separate sections of the page instead of one band.
- */
-function Block({
-  title,
-  href,
-  action,
-  children,
-  columns = "wide",
-}: {
-  title: string;
-  href: string;
-  action: string;
-  children: React.ReactNode;
-  columns?: "wide" | "two";
-}) {
-  return (
-    <section className="flex h-full flex-col rounded-xl border bg-card p-3">
-      <div className="mb-1.5 flex items-baseline justify-between gap-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          {title}
-        </h2>
-        <Link
-          href={href}
-          className="focus-ring inline-flex shrink-0 items-center gap-1 rounded text-[11px] font-semibold text-brand hover:underline"
-        >
-          {action}
-          <ArrowRight className="h-3 w-3" />
-        </Link>
-      </div>
-      <div
-        className={cn(
-          "grid gap-x-2 gap-y-1",
-          columns === "two"
-            ? "grid-cols-2"
-            : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
-        )}
-      >
-        {children}
-      </div>
-    </section>
-  );
-}
 
 const INSIGHT_TONES: Record<
   InsightTone,
-  { icon: LucideIcon; chip: string; name: string }
+  { icon: LucideIcon; chip: string; rule: string; name: string }
 > = {
-  good: { icon: TrendingUp, chip: "bg-success/10 text-success", name: "Good news" },
-  warn: { icon: AlertTriangle, chip: "bg-warning/10 text-warning", name: "Watch this" },
-  bad: { icon: TrendingDown, chip: "bg-destructive/10 text-destructive", name: "Bad news" },
-  neutral: { icon: Info, chip: "bg-muted text-muted-foreground", name: "Worth knowing" },
+  good: {
+    icon: TrendingUp,
+    chip: "bg-success/10 text-success",
+    rule: "bg-success",
+    name: "Good news",
+  },
+  warn: {
+    icon: AlertTriangle,
+    chip: "bg-warning/10 text-warning",
+    rule: "bg-warning",
+    name: "Watch this",
+  },
+  bad: {
+    icon: TrendingDown,
+    chip: "bg-destructive/10 text-destructive",
+    rule: "bg-destructive",
+    name: "Bad news",
+  },
+  neutral: {
+    icon: Info,
+    chip: "bg-muted text-muted-foreground",
+    rule: "bg-muted-foreground/40",
+    name: "Worth knowing",
+  },
 };
 
 /**
- * The point of the page, which is why it is the first thing on it.
+ * The five sentences worth reading before any number.
  *
  * A dashboard states figures; a manager needs the reading of them. These are
  * comparisons and ages — "up 18% on last month", "waiting six days" — because a
  * figure answers how much and only a comparison answers whether that is good.
- * They are ordered by how much each ought to change a decision this morning,
+ * They arrive ordered by how much each ought to change a decision this morning,
  * never by the order a query happened to return.
+ *
+ * Cards rather than a stack of rows, and the first one twice the width of the
+ * others: the ranking is the point, and a list of five identical lines throws
+ * the ranking away the moment it is drawn.
+ *
+ * The tone is NAMED as well as coloured. "Bad news" in red and "Good news" in
+ * green are the same card to a reader who cannot separate the two, and this is
+ * the one panel on the page whose entire content is a judgement.
  */
-function Insights({
-  items,
-  locale,
-}: {
-  items: Insight[];
-  locale: Locale;
-}) {
+function Briefing({ items, locale }: { items: Insight[]; locale: Locale }) {
   if (items.length === 0) {
-    /* A clear month still gets a sentence. An empty panel reads as a screen
-       that failed to load, not as a business with nothing to report. */
+    /* A clear month still gets a sentence. An empty panel reads as a screen that
+       failed to load, not as a business with nothing to report. */
     return (
-      <section className="rounded-xl border bg-card px-3 py-2.5 text-[11px] text-muted-foreground">
+      <section className="rounded-xl border bg-card px-4 py-3 text-sm text-muted-foreground shadow-soft">
         {t(
           locale,
           "Nothing has moved enough to be worth a sentence. The figures below are the whole story."
@@ -701,33 +1175,46 @@ function Insights({
   }
 
   return (
-    <section className="divide-y rounded-xl border bg-card">
-      {items.map((item) => {
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {items.map((item, index) => {
         const tone = INSIGHT_TONES[item.tone];
         const Icon = tone.icon;
         return (
           <Link
             key={item.id}
             href={item.href}
-            className="focus-ring group flex items-center gap-2.5 px-3 py-2 transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-muted/50"
+            className={cn(
+              "focus-ring group relative flex items-start gap-3 overflow-hidden rounded-xl border bg-card p-4 pl-5 shadow-soft transition-[transform,box-shadow] duration-200 ease-out-expo hover:scale-[1.015] hover:shadow-lift motion-reduce:hover:scale-100",
+              // The lead card is wider — but only when there is something for it
+              // to lead. One insight spanning two of three columns is not a
+              // hierarchy, it is a hole in the row.
+              index === 0 && items.length > 1 && "xl:col-span-2"
+            )}
           >
-            <IconHint label={t(locale, tone.name)}>
-              <span
-                className={cn(
-                  "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md",
-                  tone.chip
-                )}
-              >
-                <Icon className="h-3 w-3" />
+            <span
+              aria-hidden
+              className={cn("absolute inset-y-0 left-0 w-1", tone.rule)}
+            />
+            <span
+              className={cn(
+                "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                tone.chip
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                {t(locale, tone.name)}
               </span>
-            </IconHint>
-            <p className="min-w-0 flex-1 text-[13px] font-medium leading-snug">
-              {item.text}
-            </p>
-            <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              <span className="mt-1 block text-[15px] font-medium leading-snug">
+                {item.text}
+              </span>
+            </span>
+            <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
           </Link>
         );
       })}
-    </section>
+    </div>
   );
 }
