@@ -463,8 +463,11 @@ const SUPPORT_SECTIONS: NavSection[] = [
     // repeating those down the side is the same navigation twice.
     group: { label: "Billing", icon: "ReceiptText" },
     items: [
-      { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
+      /* Credit leads the billing group on this desk. It is the list that decides
+         whether a customer's cargo can leave the building at all, so it is read
+         before the chase list rather than after it. */
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
+      { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode" },
       // Read-only for this desk: they quote from the rate book and answer
       // "what will this cost", they do not set it. pricing.manage is Finance's.
