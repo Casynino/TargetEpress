@@ -9,6 +9,7 @@ import {
   SubmitButton,
 } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
+import { UnsavedGuard, confirmDiscard } from "@/components/app/unsaved-guard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -124,7 +125,9 @@ export function ExpenseForm({
         {alwaysOpen ? null : (
           <button
             type="button"
-            onClick={() => setOpen(false)}
+            /* Closing throws the form away as completely as navigating off it
+               does, and this ✕ sits a thumb-width from the amount field. */
+            onClick={() => confirmDiscard(() => setOpen(false))}
             className="focus-ring rounded-md p-1 text-muted-foreground hover:text-foreground"
             aria-label={t("Close")}
           >
@@ -160,6 +163,13 @@ export function ExpenseForm({
       ) : null}
 
       <form action={action} className="p-5">
+        {/* Re-baselined on the expense number the action hands back, so the tap
+            straight after recording a cost is not met with "discard changes?"
+            about a cost already in the ledger. */}
+        <UnsavedGuard
+          savedKey={state.ok && state.data ? state.data.expenseNumber : null}
+        />
+
         {/* Carried, not asked for — this form is already inside the flight. */}
         {fixedDispatch ? (
           <input type="hidden" name="batchId" value={fixedDispatch.id} />

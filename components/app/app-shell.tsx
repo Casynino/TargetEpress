@@ -5,6 +5,7 @@ import Link from "next/link";
 import { LanguageSwitch } from "@/components/app/language-switch";
 import { LocaleProvider, useLocale } from "@/components/app/locale-provider";
 import { MobileBack } from "@/components/app/mobile-back";
+import { MobileTabbar } from "@/components/app/mobile-tabbar";
 import { NotificationBell } from "@/components/app/notification-bell";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -247,7 +248,41 @@ export function AppShell({
         <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8 print:max-w-none print:p-0">
           {children}
         </div>
+        {/*
+          The room the bottom bar stands in.
+
+          A spacer element rather than bottom padding on the container above it:
+          that container's padding is already set three times over (`p-4 sm:p-6
+          lg:p-8 print:p-0`), and a responsive variant beats an unprefixed
+          `pb-*` in the cascade, so the padding would have silently vanished
+          from every phone wider than the sm breakpoint — the large-screen
+          phones, which is most of them.
+
+          Without this the bar is not chrome, it is a lid: the last row of every
+          list — the oldest overdue invoice, the last box on a manifest — sits
+          under it, and on a list that ends exactly at the fold there is nothing
+          to scroll to reveal it. Height matches the bar exactly: 3.5rem of tabs
+          plus whatever the phone's home indicator claims.
+        */}
+        <div
+          aria-hidden
+          className="h-[calc(3.5rem_+_env(safe-area-inset-bottom))] lg:hidden print:hidden"
+        />
       </div>
+
+      {/*
+        The four screens this desk lives in, plus the way into everything else.
+
+        Mounted here rather than inside the content column because it is
+        `position: fixed` — it belongs to the shell, not to the page scrolling
+        underneath it. `onMore` opens the Sheet declared above: one drawer,
+        two handles.
+      */}
+      <MobileTabbar
+        sections={sections}
+        role={user.role}
+        onMore={() => setMobileOpen(true)}
+      />
     </div>
     </LocaleProvider>
   );

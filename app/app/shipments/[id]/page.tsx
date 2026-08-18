@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, FileText, Plane, Users } from "lucide-react";
+import { FileText, Plane, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import {
@@ -427,6 +427,15 @@ export default async function ShipmentPage({
       <PageHeader
         title={dispatch.batchNumber}
         description={`${t(locale, ORIGIN_LABELS[dispatch.origin])} → ${t(locale, "Dar es Salaam")}`}
+        /*
+          "All batches" used to be a ghost button sitting in the action row,
+          last in a wrapping line after the status badge and Manifest — so on a
+          phone the way OUT of the page was below the two things you do IN it,
+          and it read as a third action rather than as an exit. It goes where
+          people look for a way back, above the title, and stands down below
+          `lg` because there the shell's own control already says exactly this.
+        */
+        backTo={{ href: "/app/shipments", label: "Arrived batches", mobile: false }}
         actions={
           <>
             <BatchStatusBadge status={dispatch.status} />
@@ -434,12 +443,6 @@ export default async function ShipmentPage({
               <Link href={`/app/batches/${dispatch.id}/manifest`}>
                 <FileText className="mr-2 h-4 w-4" />
                 {t(locale, "Manifest")}
-              </Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/app/shipments">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                {t(locale, "All batches")}
               </Link>
             </Button>
           </>

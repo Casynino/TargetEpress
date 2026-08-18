@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, Download, FileClock, MessageCircle } from "lucide-react";
+import { Download, FileClock, MessageCircle } from "lucide-react";
 
 import { CreditRequest } from "@/components/app/credit-request";
 import { InvoiceDocument } from "@/components/app/invoice-document";
 import { InvoiceEditor } from "@/components/app/invoice-editor";
 import { MessageComposer } from "@/components/app/message-composer";
+import { BackLink } from "@/components/app/page-header";
 import { PaymentCorrection } from "@/components/app/payment-correction";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
@@ -302,12 +303,22 @@ export default async function InvoicePage({
   return (
     <div className="mx-auto max-w-3xl">
       <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3">
-        <Button asChild variant="ghost" size="sm">
-          <Link href={`/app/cargo/${shipment.trackingNumber}`}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {t(locale, "Back to cargo")}
-          </Link>
-        </Button>
+        {/*
+          "Back to cargo" named a category, not a record.
+
+          This page has no PageHeader — the invoice document IS the page — so
+          the same back link comes in on its own. It now carries the tracking
+          number, which matters here more than anywhere else: an invoice is
+          opened from the follow-up queue as often as from the consignment, and
+          the shell's control reads /app/finance/invoices and therefore offers
+          "Collections". Saying TX-000125 is the one thing the guess cannot do,
+          so unlike the other detail pages this one is worth its row on a phone.
+        */}
+        <BackLink
+          href={`/app/cargo/${shipment.trackingNumber}`}
+          label={shipment.trackingNumber}
+          className="min-w-0"
+        />
         <div className="flex flex-wrap items-center gap-2">
           {isDraft ? null : (
             <>

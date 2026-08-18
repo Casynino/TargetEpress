@@ -22,6 +22,7 @@ import {
   ROUTE_FOR_CATEGORY,
 } from "@/lib/cargo";
 import { CustomerPicker } from "@/components/app/customer-picker";
+import { UnsavedGuard } from "@/components/app/unsaved-guard";
 
 const CATEGORIES: CargoCategory[] = [
   "NORMAL_GOODS",
@@ -124,6 +125,10 @@ export function ShipmentForm({
 
   return (
     <form action={formAction} className="space-y-6">
+      {/* Fifteen fields deep, on a phone, with no browser back button behind
+          it — one stray tap on a link used to empty the lot without asking. */}
+      <UnsavedGuard />
+
       {/* 1. Customer */}
       <section className="panel p-6">
         <h2 className="font-display font-semibold">{t(locale, "1. Customer")}</h2>

@@ -207,11 +207,38 @@ export default async function ShipmentDetailPage({
       )
     : null;
 
+  /*
+    Back to the flight this box was actually on.
+
+    A consignment is almost always opened from its batch — from the manifest,
+    from the arrivals list, from a QR scan on the floor — and until now the only
+    way back up was the shell's generic control, which reads the URL and can
+    therefore only offer "Arrived batches". Naming the batch turns one guess
+    into the record above this one.
+
+    Loading tables live under /app/batches and departed flights under
+    /app/shipments; sending a loading table to the wrong one only earns a
+    redirect, but the label under it would be the wrong section.
+
+    Cargo registered before it is put on a flight has no batch at all, and then
+    the parent genuinely is the list — which is exactly what the shell already
+    says, so that case stays off the phone rather than saying it twice.
+  */
+  const backTo = shipment.batch
+    ? {
+        href: shipment.batch.permanent
+          ? `/app/batches/${shipment.batch.id}`
+          : `/app/shipments/${shipment.batch.id}`,
+        label: shipment.batch.batchNumber,
+      }
+    : { href: "/app/shipments", label: "Arrived batches", mobile: false };
+
   return (
     <>
       <PageHeader
         title={shipment.trackingNumber}
         description={`${shipment.customer.name} · ${t(locale, SHIPMENT_STATUS_META[shipment.status].description)}`}
+        backTo={backTo}
         actions={
           <>
             <ShipmentStatusBadge status={shipment.status} />

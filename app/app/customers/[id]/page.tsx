@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MessageCircle, Phone } from "lucide-react";
+import { MessageCircle, Phone } from "lucide-react";
 
 import { CustomerCreditPanel } from "@/components/app/customer-credit";
 import { CustomerNotesForm } from "@/components/app/customer-notes";
@@ -113,16 +113,17 @@ export default async function CustomerProfilePage({
 
   return (
     <>
-      <Link
-        href="/app/customers"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t(locale, "All customers")}
-      </Link>
-
       <PageHeader
         title={customer.name}
+        /*
+          Was a separate link on its own row above the title, with its own
+          arrow and its own margin — and on a phone it sat directly under the
+          shell's back control, which already reads "Customers". The same words
+          twice, stacked, in a header the owner keeps asking to shorten. It
+          moves into the header and stands down below `lg`, where the shell has
+          it covered and the row is better spent on the customer's name.
+        */
+        backTo={{ href: "/app/customers", label: "Customers", mobile: false }}
         description={`${customer.code}${customer.city ? ` · ${customer.city}` : ""}${
           customer.createdAt
             ? ` · ${t(locale, "customer since")} ${formatDate(customer.createdAt, locale)}`
