@@ -339,7 +339,16 @@ export default async function ManagerHome() {
           action={{ href: "/app/finance", label: t(locale, "Full position") }}
         />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:auto-rows-[minmax(9.5rem,auto)]">
+        {/*
+          The row floor sets what a two-row cell RESERVES, not what it needs.
+
+          At 9.5rem a cell spanning two rows held nineteen rems of ground before
+          a word was written, so the big cells came out taller than their
+          contents and the band read as mostly air. 7.75 still gives a single
+          small cell room for a label, a figure and a hint without cramping, and
+          takes about three and a half rems off every tall one.
+        */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:auto-rows-[minmax(7.75rem,auto)]">
           {/*
             THE ONE CELL THAT OWNS THIS SCREEN.
 
@@ -731,7 +740,7 @@ export default async function ManagerHome() {
           action={{ href: "/app/shipments", label: t(locale, "Every consignment") }}
         />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:auto-rows-[minmax(9.5rem,auto)]">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:auto-rows-[minmax(7.75rem,auto)]">
           <BentoCard
             href="/app/shipments"
             className="sm:col-span-2 xl:row-span-2"
@@ -966,7 +975,18 @@ export default async function ManagerHome() {
           action={{ href: "/app/manager/approvals", label: t(locale, "Every queue") }}
         />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {/*
+          items-start, so a short card stops being stretched to the tallest.
+
+          Grid children default to stretch, which is right when every cell has
+          enough in it and wrong here: the staff card carries five rows and a
+          strip of department chips, and the two beside it carry three figures
+          each. Stretching made those two into tall panels that were mostly
+          empty ground, which reads as something failing to load rather than as
+          a desk with little on it. A ragged bottom edge is the honest shape of
+          unequal content.
+        */}
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <BentoCard className="sm:col-span-2">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
