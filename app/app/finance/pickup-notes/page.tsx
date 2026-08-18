@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Clock, MessageCircle, Phone, QrCode, Search } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { IconHint } from "@/components/app/icon-hint";
 import { PageHeader } from "@/components/app/page-header";
 import { CancelNoteButton } from "@/components/app/cancel-note-button";
 import { Badge } from "@/components/ui/badge";
@@ -281,22 +282,26 @@ export default async function PickupNotesPage({
                           a coin toss. Thumb-sized below sm, desk-sized above. */}
                       {digits ? (
                         <span className="inline-flex gap-2 sm:gap-1">
-                          <a
-                            href={`tel:${note.customer.phone}`}
-                            aria-label={`${t(locale, "Call")} ${note.customer.name}`}
-                            className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-md border transition-colors hover:border-brand/40 hover:text-brand sm:h-7 sm:w-7"
-                          >
-                            <Phone className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-                          </a>
-                          <a
-                            href={`https://wa.me/${digits}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={`WhatsApp ${note.customer.name}`}
-                            className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-md border transition-colors hover:border-success/40 hover:text-success sm:h-7 sm:w-7"
-                          >
-                            <MessageCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-                          </a>
+                          <IconHint label={t(locale, "Call them")}>
+                            <a
+                              href={`tel:${note.customer.phone}`}
+                              aria-label={`${t(locale, "Call")} ${note.customer.name}`}
+                              className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-md border transition-colors hover:border-brand/40 hover:text-brand sm:h-7 sm:w-7"
+                            >
+                              <Phone className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                            </a>
+                          </IconHint>
+                          <IconHint label={t(locale, "Message on WhatsApp")}>
+                            <a
+                              href={`https://wa.me/${digits}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              aria-label={`WhatsApp ${note.customer.name}`}
+                              className="focus-ring inline-flex h-11 w-11 items-center justify-center rounded-md border transition-colors hover:border-success/40 hover:text-success sm:h-7 sm:w-7"
+                            >
+                              <MessageCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                            </a>
+                          </IconHint>
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">
