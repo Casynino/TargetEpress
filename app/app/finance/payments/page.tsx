@@ -20,8 +20,6 @@ import { currentRate, formatUsd } from "@/lib/fx";
 import { activeAccounts } from "@/lib/accounts";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
-import { FinanceNav } from "@/components/app/finance-nav";
-import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -110,7 +108,6 @@ export default async function PaymentsPage() {
         description="Money in from customers only, with the receipt issued for it. Costs, transfers and anything leaving an account are on Money in & out."
       />
 
-      <FinanceNav tabs={financeTabs(user.role)} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MoneyTile

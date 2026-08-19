@@ -6,10 +6,8 @@ import { AccountCard } from "@/components/app/account-card";
 import { OpeningBalanceForm } from "@/components/app/opening-balance";
 import { CashSection } from "@/components/app/cash-section";
 import { PageHeader } from "@/components/app/page-header";
-import { FinanceNav } from "@/components/app/finance-nav";
 import { Badge } from "@/components/ui/badge";
 import { TreasuryActions } from "@/components/app/treasury-panels";
-import { financeTabs } from "@/lib/finance-tabs";
 import { formatMoney, formatRelative, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -153,7 +151,6 @@ export default async function AccountsPage() {
         description="Where the company's money sits, and everything that has moved through it. Each figure is derived from the ledger — nothing here is typed."
       />
 
-      <FinanceNav tabs={financeTabs(user.role)} />
 
       <TreasuryActions accounts={treasuryAccounts} expected={expectedCash} />
 

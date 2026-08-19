@@ -23,6 +23,8 @@ import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
+import { ReconcileForm } from "@/components/app/reconcile-form";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -67,7 +69,7 @@ export default async function AccountDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePermission("account.view");
+  const user = await requirePermission("account.view");
   const locale = await viewerLocale();
   const { id } = await params;
 
@@ -197,6 +199,31 @@ export default async function AccountDetailPage({
           </div>
         </div>
       </section>
+
+      {/*
+        CHECKING THE ACCOUNT MOVED HERE.
+
+        It used to live on the manager's own copy of this screen, which the
+        owner has now removed — "i dont need these two pages, the boss will see
+        on the general ledger and acounts". The page went; the control could
+        not go with it, or the ledger's figure would never again be held
+        against a bank statement, a phone or a till count.
+
+        Still gated on account.reconcile, which is in ALL and nowhere else — so
+        it resolves to the owner and the manager, the two chairs that answer for
+        the figures rather than produce them. Finance reads this page and does
+        not see this form, which is the point of the control.
+      */}
+      {can(user.role, "account.reconcile") && account.active ? (
+        <div className="mb-6">
+          <ReconcileForm
+            accountId={account.id}
+            kind={account.kind}
+            systemBalance={balance}
+            currency={account.currency}
+          />
+        </div>
+      ) : null}
 
       {/* Said again, because the banner above is not a balance until an
           opening figure exists and pretending otherwise is the one thing this

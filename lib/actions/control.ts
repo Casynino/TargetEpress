@@ -33,8 +33,6 @@ function paths() {
   for (const p of [
     "/app/manager",
     "/app/manager/control",
-    "/app/manager/accounts",
-    "/app/manager/transactions",
     "/app/manager/batches",
     "/app/manager/reconciliation",
     "/app/finance",

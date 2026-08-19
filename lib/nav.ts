@@ -574,6 +574,58 @@ const FINANCE_SECTIONS: NavSection[] = [
         icon: "CalendarClock",
         permission: "credit.view",
       },
+      /*
+        THE SIX BELOW CAME OFF THE TAB ROW, at the owner's instruction: "even on
+        finance and manage remove them from here and just put them on the side
+        bar."
+
+        Every one of them was reachable ONLY through that row of pills above the
+        page. Take the pills away without these rows and the money desk loses
+        the ledger it posts to, the costs it records, the run it prepares and
+        the accounts it reconciles — most of its day, unreachable except by
+        typing a URL. They keep the words the pills used, so nothing has to be
+        relearned; only the place changed.
+      */
+      {
+        href: "/app/finance/accounts",
+        label: "Accounts",
+        icon: "Landmark",
+        permission: "account.view",
+      },
+      {
+        href: "/app/finance/transactions",
+        label: "General ledger",
+        icon: "ArrowLeftRight",
+        permission: "ledger.view",
+      },
+      {
+        href: "/app/finance/expenses",
+        label: "Expenses",
+        icon: "Receipt",
+        permission: "expense.view",
+      },
+      {
+        /* This desk BUILDS the run and cannot pay it; the manager agrees it
+           without writing the figures. Two screens, one for each half. */
+        href: "/app/finance/payroll",
+        label: "Payroll",
+        icon: "Wallet",
+        permission: "payroll.prepare",
+      },
+      {
+        href: "/app/finance/income",
+        label: "Closed batches",
+        icon: "ClipboardCheck",
+        permission: "accounting.view",
+      },
+      {
+        /* Gated on profit.view, which the money desk does not hold — so this
+           row is the owner's and simply does not render for Finance. */
+        href: "/app/finance/reports",
+        label: "Profit & loss",
+        icon: "TrendingUp",
+        permission: "profit.view",
+      },
       {
         /*
           The rate book, with its own door.
@@ -631,6 +683,15 @@ const FINANCE_SECTIONS: NavSection[] = [
   {
     title: "Audit",
     items: [
+      {
+        /* Two different registers, named apart so nobody opens one looking for
+           the other: this one is every MONEY action, the log below is every
+           privileged action of any kind. It was the last tab on the row. */
+        href: "/app/finance/audit",
+        label: "Money audit",
+        icon: "History",
+        permission: "audit.view",
+      },
       {
         href: "/app/admin/audit",
         label: "Audit log",
@@ -795,6 +856,15 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/app/finance/pricing", label: "Price Configuration", icon: "Tags", permission: "pricing.view" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode", permission: "pickupNote.view" },
       { href: "/app/finance", label: "Overview", icon: "Wallet", permission: "accounting.view" },
+      /* Off the tab row and into the menu — see the note in FINANCE_SECTIONS.
+         The owner reads all six; with the pills gone, a row each is the only
+         way to any of them. */
+      { href: "/app/finance/accounts", label: "Accounts", icon: "Landmark", permission: "account.view" },
+      { href: "/app/finance/transactions", label: "General ledger", icon: "ArrowLeftRight", permission: "ledger.view" },
+      { href: "/app/finance/expenses", label: "Expenses", icon: "Receipt", permission: "expense.view" },
+      { href: "/app/finance/payroll", label: "Payroll", icon: "Wallet", permission: "payroll.prepare" },
+      { href: "/app/finance/income", label: "Closed batches", icon: "ClipboardCheck", permission: "accounting.view" },
+      { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp", permission: "profit.view" },
       // collections.view, matching the route's own guard. The shared menu had
       // this on ticket.manage, from when the call list lived under /app/support.
       { href: "/app/collections/follow-up", label: "Payment follow-up", icon: "PhoneCall", permission: "collections.view" },
@@ -842,6 +912,8 @@ const ADMIN_SECTIONS: NavSection[] = [
     // settle an argument, not a kind of work.
     title: "Record",
     items: [
+      /* Every money action; the log beside it is every privileged action. */
+      { href: "/app/finance/audit", label: "Money audit", icon: "History", permission: "audit.view" },
       { href: "/app/admin/audit", label: "Audit log", icon: "History", permission: "audit.view" },
     ],
   },
@@ -907,12 +979,12 @@ const MANAGER_SECTIONS: NavSection[] = [
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
       { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp" },
       { href: "/app/manager/reconciliation", label: "Reconciliation", icon: "Scale" },
-      /* Accounts and Transactions are the manager's CONTROL views over money
-         Finance has already recorded — checking an account against a statement,
-         and disputing an entry. They live here rather than under Decisions
-         because that is where the reader already is when the question occurs. */
-      { href: "/app/manager/accounts", label: "Company accounts", icon: "Landmark", permission: "account.view" },
-      { href: "/app/manager/transactions", label: "Review transactions", icon: "ArrowLeftRight", permission: "ledger.view" },
+      /* No "Company accounts" or "Review transactions" rows. They were this
+         desk's own copies of the accounts list and the ledger, and the owner
+         took them out: "i dont need these two pages, the boss will see on the
+         general ledsge and acounrs". Accounts is under Money out, the register
+         is Transactions above — and the one control those copies carried, the
+         account check, now sits on the account itself. */
     ],
   },
   {
@@ -953,7 +1025,9 @@ const MANAGER_SECTIONS: NavSection[] = [
     group: { label: "Oversight", icon: "History" },
     items: [
       { href: "/app/manager/reports", label: "Management report", icon: "FileText" },
-      { href: "/app/finance/audit", label: "Activity log", icon: "History" },
+      /* Named as it is everywhere else now. "Activity log" read like the
+         sign-in feed on the home page; this is the money register. */
+      { href: "/app/finance/audit", label: "Money audit", icon: "History" },
       { href: "/app/admin/deleted", label: "Deleted records", icon: "Trash2" },
     ],
   },

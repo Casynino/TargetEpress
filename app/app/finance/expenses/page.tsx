@@ -4,7 +4,6 @@ import { Paperclip } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
-import { FinanceNav } from "@/components/app/finance-nav";
 import { ExpenseForm } from "@/components/app/expense-form";
 import { ExpenseRowActions } from "@/components/app/expense-row-actions";
 import { SearchBox } from "@/components/app/search-box";
@@ -15,7 +14,6 @@ import {
   EXPENSE_CATEGORY_LABELS as CATEGORY_LABELS,
   EXPENSE_STATUS_LABELS as STATUS_LABEL,
 } from "@/lib/expenses";
-import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
 import { currentRate, formatShillings, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -419,7 +417,6 @@ export default async function ExpensesPage({
         }
       />
 
-      <FinanceNav tabs={financeTabs(user.role)} />
 
       {/*
         Which kind of spending, and what each kind actually came to.

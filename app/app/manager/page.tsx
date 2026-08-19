@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   AlertTriangle,
-  ArrowLeftRight,
   ArrowRight,
   BadgeCheck,
   Banknote,
@@ -252,7 +251,7 @@ export default async function ManagerHome() {
           : `${t(locale, "checked")} ${formatRelative(account.lastCheck.asOf, locale)}`,
     flag: account.balance < 0 ? t(locale, "overdrawn") : undefined,
     href: can(user.role, "account.view")
-      ? `/app/manager/accounts/${account.id}`
+      ? `/app/finance/accounts/${account.id}`
       : undefined,
   }));
   /* Never checked, or checked and then moved — both mean the figure on the
@@ -414,17 +413,10 @@ export default async function ManagerHome() {
                   },
                 ]
               : []),
-            // The dispute lever: Finance recorded it, this desk can question it.
-            ...(can(user.role, "ledger.view")
-              ? [
-                  {
-                    href: "/app/manager/transactions",
-                    label: t(locale, "Review transactions"),
-                    icon: ArrowLeftRight,
-                    tone: "violet" as const,
-                  },
-                ]
-              : []),
+            /* No "Review transactions" pill. Its page came out at the owner's
+               instruction — the ledger is where he reads the entries now, and
+               a batch is questioned on Batch finances, where the figures that
+               provoke the question are. */
             ...(can(user.role, "exception.view")
               ? [
                   {
@@ -858,7 +850,7 @@ export default async function ManagerHome() {
                 </p>
               </div>
               <Link
-                href="/app/manager/accounts"
+                href="/app/finance/accounts"
                 className="focus-ring mt-1 inline-flex shrink-0 items-center gap-1 rounded-md text-xs font-semibold text-brand hover:underline"
               >
                 {t(locale, "Check accounts")}
@@ -936,7 +928,7 @@ export default async function ManagerHome() {
                 }
                 icon={Scale}
                 tone={unchecked === 0 ? "success" : "warning"}
-                href="/app/manager/accounts"
+                href="/app/finance/accounts"
               />
             </div>
           </div>

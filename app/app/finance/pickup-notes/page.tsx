@@ -20,8 +20,6 @@ import { formatDate, formatMoney, formatRelative } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
-import { FinanceNav } from "@/components/app/finance-nav";
-import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
@@ -173,7 +171,6 @@ export default async function PickupNotesPage({
         )}
       />
 
-      <FinanceNav tabs={financeTabs(user.role)} />
 
       {/* Answering "what is still waiting" without pressing anything. */}
       <div className="mb-4 flex flex-wrap gap-2">

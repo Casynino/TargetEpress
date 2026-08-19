@@ -425,7 +425,7 @@ export async function controlRoom(now = new Date()): Promise<ControlLine[]> {
       detail: "No one has compared these against a statement or a count.",
       count: never.length,
       oldestDays: null,
-      href: "/app/manager/accounts",
+      href: "/app/finance/accounts",
       tone: "warn",
     });
   }
@@ -438,7 +438,7 @@ export async function controlRoom(now = new Date()): Promise<ControlLine[]> {
       detail: "Reconciled once, but the balance has changed since.",
       count: stale.length,
       oldestDays: Math.max(...stale.map((a) => a.staleSince ?? 0)),
-      href: "/app/manager/accounts",
+      href: "/app/finance/accounts",
       tone: "warn",
     });
   }
@@ -451,7 +451,7 @@ export async function controlRoom(now = new Date()): Promise<ControlLine[]> {
       detail: "The statement and the ledger disagree, and nobody has closed it.",
       count: mismatched.length,
       oldestDays: Math.max(...mismatched.map((a) => a.daysSinceCheck ?? 0)),
-      href: "/app/manager/accounts",
+      href: "/app/finance/accounts",
       tone: "bad",
     });
   }
@@ -467,7 +467,9 @@ export async function controlRoom(now = new Date()): Promise<ControlLine[]> {
         : "Flagged or under review, and still open.",
       count: disputes.length,
       oldestDays: disputes[0]?.waitingDays ?? null,
-      href: "/app/manager/transactions",
+      /* Questioned records are raised on Batch finances and shown there; the
+         standalone review page came out at the owner's instruction. */
+      href: "/app/manager/batches",
       tone: "warn",
     });
   }

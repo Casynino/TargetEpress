@@ -4,8 +4,6 @@ import { redirect } from "next/navigation";
 import { FileText, Paperclip } from "lucide-react";
 
 import { CollectionsNav } from "@/components/app/collections-nav";
-import { FinanceNav } from "@/components/app/finance-nav";
-import { financeTabs } from "@/lib/finance-tabs";
 import { EmptyState } from "@/components/app/empty-state";
 import { IconHint } from "@/components/app/icon-hint";
 import { PageHeader } from "@/components/app/page-header";
@@ -138,23 +136,6 @@ export default async function SubmissionsPage({
               )
         }
       />
-      {/*
-        The finance tab row stays put.
-
-        Collections is a tab of Finance AND a workspace of its own, so opening
-        it used to swap the whole tab row out — and getting back to the ledger
-        or the overview meant going down to the sidebar. The owner called that
-        inconvenient and he is right: a tab that removes its own tab bar leaves
-        the reader with nowhere to go but back.
-
-        Two rows, but hierarchical rather than identical: where you are in
-        Finance, then where you are inside Collections. Only shown to a reader
-        who has the finance tabs at all — Support shares this workspace and
-        must not be given doors it cannot open.
-      */}
-      {can(user.role, "accounting.view") ? (
-        <FinanceNav tabs={financeTabs(user.role)} />
-      ) : null}
 
       <CollectionsNav status={active} canVerify={canVerify} />
 

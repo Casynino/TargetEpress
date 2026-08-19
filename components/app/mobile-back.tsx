@@ -55,7 +55,6 @@ const PARENTS: { prefix: string; parent: string; label: string }[] = [
      rule for the whole tree would swallow its own children. Backing out of one
      account belongs at the account list, not at the command centre four screens
      above it. */
-  { prefix: "/app/manager/accounts", parent: "/app/manager/accounts", label: "Company accounts" },
   { prefix: "/app/manager", parent: "/app/manager", label: "Command centre" },
   { prefix: "/app/receive", parent: "/app/receive", label: "Receive" },
   { prefix: "/app/release", parent: "/app/release", label: "Release" },
