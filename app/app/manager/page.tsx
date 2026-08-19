@@ -1014,7 +1014,7 @@ export default async function ManagerHome() {
           leaves a gap.
         */}
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:items-stretch">
-          <BentoCard href="/app/inventory">
+          <BentoCard accent="brand" href="/app/inventory">
             <Figure
               className="flex-1"
               label={t(locale, "Weight on the floor")}
@@ -1024,7 +1024,7 @@ export default async function ManagerHome() {
               tone="brand"
             />
           </BentoCard>
-          <BentoCard href="/app/inventory">
+          <BentoCard accent="warn" href="/app/inventory">
             <Figure
               className="flex-1"
               label={t(locale, "Held, no pickup note")}
@@ -1034,7 +1034,7 @@ export default async function ManagerHome() {
               tone={operations.cargoAwaitingPayment > 0 ? "warn" : "plain"}
             />
           </BentoCard>
-          <BentoCard href="/app/deliveries">
+          <BentoCard accent="good" href="/app/deliveries">
             <Figure
               className="flex-1"
               label={t(locale, "Handed over this month")}
@@ -1044,7 +1044,7 @@ export default async function ManagerHome() {
               tone="good"
             />
           </BentoCard>
-          <BentoCard href="/app/shipments">
+          <BentoCard accent="info" href="/app/shipments">
             <Figure
               label={t(locale, "Registered this year")}
               value={count(volume.total)}
@@ -1125,7 +1125,7 @@ export default async function ManagerHome() {
                   hint: t(locale, "manifest still being ticked off"),
                   icon: PlaneLanding,
                   href: "/app/receive",
-                  tone: operations.batchesArrived > 0 ? "warn" : "plain",
+                  tone: operations.batchesArrived > 0 ? "warn" : "good",
                 },
               ]}
             />

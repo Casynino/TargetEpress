@@ -97,6 +97,35 @@ const CARD_TONES = {
 } as const;
 
 /**
+ * A CARD THAT WEARS THE COLOUR OF WHAT IT SAYS.
+ *
+ * The owner: "i wat you to color this cards and make them look more fancy and
+ * cooler". A flat card with one coloured number on it was doing the whole job
+ * with a freckle. Each accent lays a wash from the top corner the icon sits in,
+ * tints the hairline border to match, and lights that edge when the card is
+ * hovered — so weight on the floor reads blue, money not collected reads amber,
+ * and the eye sorts them before it reads a word.
+ *
+ * Written out in full because Tailwind scans source text: `from-${tone}/10` is
+ * a class that never exists. The wash is deliberately shallow (10–12%): the
+ * figure on top of it still has to be the brightest thing on the card.
+ */
+const CARD_ACCENTS = {
+  brand:
+    "before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-brand/60 before:to-transparent before:content-[''] border border-brand/25 bg-gradient-to-br from-brand/[0.13] via-card to-card hover:border-brand/45 hover:shadow-[0_18px_44px_-26px_hsl(var(--brand)/0.65)]",
+  good:
+    "before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-success/60 before:to-transparent before:content-[''] border border-success/25 bg-gradient-to-br from-success/[0.13] via-card to-card hover:border-success/45 hover:shadow-[0_18px_44px_-26px_hsl(var(--success)/0.65)]",
+  warn:
+    "before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-warning/60 before:to-transparent before:content-[''] border border-warning/25 bg-gradient-to-br from-warning/[0.13] via-card to-card hover:border-warning/45 hover:shadow-[0_18px_44px_-26px_hsl(var(--warning)/0.65)]",
+  bad:
+    "before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-destructive/60 before:to-transparent before:content-[''] border border-destructive/25 bg-gradient-to-br from-destructive/[0.13] via-card to-card hover:border-destructive/45 hover:shadow-[0_18px_44px_-26px_hsl(var(--destructive)/0.65)]",
+  info:
+    "before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-info/60 before:to-transparent before:content-[''] border border-info/25 bg-gradient-to-br from-info/[0.13] via-card to-card hover:border-info/45 hover:shadow-[0_18px_44px_-26px_hsl(var(--info)/0.65)]",
+} as const;
+
+export type CardAccent = keyof typeof CARD_ACCENTS;
+
+/**
  * One cell of the bento.
  *
  * The span classes are the caller's business — a cell does not know whether it
@@ -112,17 +141,20 @@ const CARD_TONES = {
 export function BentoCard({
   href,
   tone = "card",
+  /** Dress the card in the colour of the figure it carries. */
+  accent,
   className,
   children,
 }: {
   href?: string;
   tone?: keyof typeof CARD_TONES;
+  accent?: CardAccent;
   className?: string;
   children: React.ReactNode;
 }) {
   const shell = cn(
-    "group relative flex flex-col overflow-hidden rounded-xl p-3 shadow-soft transition-[transform,box-shadow] duration-200 ease-out-expo",
-    CARD_TONES[tone],
+    "group relative flex flex-col overflow-hidden rounded-xl p-3 shadow-soft transition-[transform,box-shadow,border-color] duration-200 ease-out-expo",
+    accent ? CARD_ACCENTS[accent] : CARD_TONES[tone],
     href &&
       "hover:scale-[1.015] hover:shadow-lift motion-reduce:hover:scale-100",
     className
@@ -148,12 +180,22 @@ const FIGURE_TONES = {
 } as const;
 
 const CHIP_TONES = {
-  plain: "bg-muted text-muted-foreground",
-  brand: "bg-brand/10 text-brand",
-  good: "bg-success/10 text-success",
-  warn: "bg-warning/10 text-warning",
-  bad: "bg-destructive/10 text-destructive",
-  info: "bg-info/10 text-info",
+  plain: "bg-muted text-muted-foreground ring-1 ring-inset ring-border",
+  brand: "bg-brand/15 text-brand ring-1 ring-inset ring-brand/30",
+  good: "bg-success/15 text-success ring-1 ring-inset ring-success/30",
+  warn: "bg-warning/15 text-warning ring-1 ring-inset ring-warning/30",
+  bad: "bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/30",
+  info: "bg-info/15 text-info ring-1 ring-inset ring-info/30",
+} as const;
+
+/** The same colours as a background wash, for a cell inside a card. */
+const STAGE_TINTS = {
+  plain: "border-border bg-muted/25",
+  brand: "border-brand/25 bg-brand/[0.07]",
+  good: "border-success/25 bg-success/[0.07]",
+  warn: "border-warning/25 bg-warning/[0.07]",
+  bad: "border-destructive/25 bg-destructive/[0.07]",
+  info: "border-info/25 bg-info/[0.07]",
 } as const;
 
 export type FigureTone = keyof typeof FIGURE_TONES;
@@ -800,7 +842,8 @@ export function PipelineStrip({ stages }: { stages: Stage[] }) {
             key={stage.key}
             href={stage.href}
             className={cn(
-              "focus-ring relative flex flex-col justify-center rounded-lg border bg-background/60 p-3 transition-colors hover:bg-muted/60",
+              "focus-ring relative flex flex-col justify-center rounded-lg border p-3 transition-colors",
+              STAGE_TINTS[stage.tone],
               // The chevron between stages, on the wider layouts only. Sized to
               // sit inside the 8px gap (`gap-2`) rather than over the next card.
               index < stages.length - 1 &&
@@ -815,7 +858,12 @@ export function PipelineStrip({ stages }: { stages: Stage[] }) {
             >
               <Icon className="h-3.5 w-3.5" />
             </span>
-            <p className="mt-2 font-display text-[22px] font-bold leading-none tabular-nums">
+            <p
+              className={cn(
+                "mt-2 font-display text-[22px] font-bold leading-none tabular-nums",
+                FIGURE_TONES[stage.tone]
+              )}
+            >
               {stage.value}
             </p>
             <p className="mt-1 text-[13px] font-medium leading-tight">
