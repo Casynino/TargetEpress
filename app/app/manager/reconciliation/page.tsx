@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   Banknote,
   Building2,
+  ChevronDown,
   CircleDot,
   Download,
   FileText,
@@ -123,6 +124,9 @@ const STATE_STYLE: Record<QueueState, { label: string; chip: string; dot: string
    saying what four can. */
 const SUMMARY: QueueState[] = ["PENDING", "MISMATCH", "UNDER_REVIEW", "RECONCILED"];
 
+/** Four flights on screen; the rest are a scroll away. See the list below. */
+const VISIBLE_FLIGHTS = 4;
+
 const ACCOUNT_ICON: Record<string, LucideIcon> = {
   BANK: Building2,
   MOBILE_MONEY: Smartphone,
@@ -198,7 +202,7 @@ export default async function ManagerReconciliation({
     accountPositions(),
     reconciliation(locale),
     currentRate(),
-    profitByDispatch(6),
+    profitByDispatch(14),
     queueTotals(params),
   ]);
   const rate = rateRow ? toNumber(rateRow.rate) : null;
@@ -1193,7 +1197,17 @@ export default async function ManagerReconciliation({
               <span className="text-right">{t(locale, "Still owed")}</span>
             </div>
 
-            <ul className="divide-y">
+            {/*
+              FOUR FLIGHTS, THEN IT SCROLLS — the attention panel's rule, at the
+              owner's instruction: "we are goig to have many batchs so make the
+              scroll here aand only should 4 just like need your attetion".
+
+              This business flies weekly, so left alone the list grows forever
+              and pushes everything under it off the screen. A row measures
+              41px, so 168px is exactly four and the fifth shows as a sliver —
+              which is itself the cue that there are more.
+            */}
+            <ul className="max-h-[168px] divide-y overflow-y-auto">
               {batches.map((batch) => {
                 const standing = batchStandings.get(batch.id);
                 const state = (standing?.state as QueueState) ?? "PENDING";
@@ -1245,7 +1259,15 @@ export default async function ManagerReconciliation({
               })}
             </ul>
 
-            {/* The verdict on the one he picked, once. */}
+              {batches.length > VISIBLE_FLIGHTS ? (
+              <p className="flex items-center justify-center gap-1.5 border-t px-4 py-1.5 text-xs text-muted-foreground">
+                <ChevronDown className="h-3 w-3" />
+                {t(locale, "scroll for")} {batches.length - VISIBLE_FLIGHTS}{" "}
+                {t(locale, "more")}
+              </p>
+            ) : null}
+
+          {/* The verdict on the one he picked, once. */}
             {selectedBatch ? (
               <div className="border-t bg-muted/10 px-4 py-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
