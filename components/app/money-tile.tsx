@@ -25,11 +25,11 @@ const VALUE_TONES: Record<Tone, string> = {
  * four still reads as one row and the figures keep their contrast against it.
  */
 const WASHES: Record<Tone, string> = {
-  default: "from-muted-foreground/[0.10]",
-  good: "from-success/[0.22]",
-  warn: "from-warning/[0.24]",
-  bad: "from-destructive/[0.22]",
-  brand: "from-brand/[0.22]",
+  default: "from-muted-foreground/[0.07]",
+  good: "from-success/[0.12]",
+  warn: "from-warning/[0.14]",
+  bad: "from-destructive/[0.12]",
+  brand: "from-brand/[0.12]",
 };
 
 /** Icon chips, matching KpiCard so the two read as one family. */
@@ -89,10 +89,28 @@ export async function MoneyTile({
   trend?: number[];
 }) {
   const locale = await viewerLocale();
+  /* Digits, not dollars: the shilling figure is what has to fit. */
+  const figure = rate ? Math.round(usd * rate).toLocaleString("en-US") : "";
+  /*
+    Sized against the card it is standing in, not against a breakpoint.
+
+    Stepping the size down by digit count alone fixed the laptop and left the
+    phone clipped: this row is five across on a desktop, three on a tablet and
+    two on a phone, so the same fourteen characters get 200px in one place and
+    139px in another. A rule written in pixels cannot know which.
+
+    100cqi is the width of this card's content box, so the figure divides the
+    space it actually has. The divisor is the figure's own width in ems — a
+    tabular digit is about 0.6em, and "TSh " with its margin is about 1.8 —
+    which makes the result the largest size that still fits, capped at the 30px
+    the design asks for when there is room.
+  */
+  const fitFigure = `min(30px, calc(100cqi / ${(0.6 * figure.length + 1.8).toFixed(2)}))`;
+
   const body = (
     <div
       className={cn(
-        "relative flex h-full flex-col overflow-hidden rounded-xl border bg-card p-3 transition-all",
+        "relative flex h-full flex-col overflow-hidden rounded-xl border bg-card p-4 transition-all [container-type:inline-size]",
         emphasis && "ring-1 ring-warning/30",
         href && "hover:border-foreground/20 hover:shadow-lift"
       )}
@@ -120,12 +138,27 @@ export async function MoneyTile({
         ) : null}
       </div>
 
-      {/* The headline, in shillings, because that is the money in the room. */}
+      {/*
+        THE FIGURE IS SIZED BY ITS OWN LENGTH.
+
+        Five of these tiles share a row, so each one is about 200px wide on a
+        laptop — and "TSh 38,486,610" at 30px needs more than that. It did not
+        wrap, it did not shrink: it ran out through the right-hand edge of the
+        card and the last digit was simply gone, which on a receivables figure
+        is not a cosmetic fault. The owner caught it in a screenshot.
+
+        Shillings run long by nature — a million-dollar business prints ten
+        digits here — so the size steps down as the digits pile up rather than
+        being tuned to whatever the balance happens to be today. Measured on the
+        narrowest column this row produces, at the widest figure the business
+        can currently print.
+      */}
       <p
         className={cn(
-          "relative mt-1.5 font-display text-[24px] font-bold leading-none tracking-tight tabular-nums",
+          "relative mt-3 font-display font-bold leading-none tracking-tight tabular-nums",
           VALUE_TONES[tone]
         )}
+        style={rate ? { fontSize: fitFigure } : undefined}
       >
         {rate ? (
           <>
@@ -133,8 +166,10 @@ export async function MoneyTile({
                 This is a Tanzanian business — the unit is not a footnote to the
                 number, it is half of what the number means, and at 15px in
                 muted grey it read as a label somebody had switched off. */}
-            <span className="mr-1 text-[15px] font-bold opacity-80">TSh</span>
-            {Math.round(usd * rate).toLocaleString("en-US")}
+            {/* In ems, so the unit rides the figure down instead of having to
+                be stepped separately. */}
+            <span className="mr-1 text-[0.63em] font-bold opacity-80">TSh</span>
+            {figure}
           </>
         ) : (
           formatUsd(usd)
@@ -145,11 +180,11 @@ export async function MoneyTile({
           against the bill the customer was sent. Present, deliberately
           secondary. */}
       {rate ? (
-        <div className="relative mt-1.5 flex items-baseline gap-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+        <div className="relative mt-2.5 flex items-baseline gap-1.5 rounded-lg bg-background/70 px-2.5 py-1.5">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t(locale, "on the invoice")}
           </span>
-          <span className="font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">
+          <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
             {formatUsd(usd)}
           </span>
         </div>
@@ -166,7 +201,7 @@ export async function MoneyTile({
         </div>
       ) : null}
 
-      <div className="relative mt-auto pt-2">
+      <div className="relative mt-auto pt-2.5">
         {count ? <p className="text-xs font-semibold">{count}</p> : null}
         {hint ? (
           <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
