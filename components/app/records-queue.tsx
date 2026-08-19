@@ -179,10 +179,11 @@ export function RecordsQueue({
       {rows.length === 0 ? (
         <p className="px-4 py-6 text-center text-xs text-muted-foreground">{emptyLabel}</p>
       ) : (
-        /* min-h-0 so this scrolls inside the column instead of stretching it —
-           the pair of panels then end level and no black ground is left under
-           the shorter one. */
-        <ul className="min-h-0 flex-1 divide-y overflow-y-auto">
+        /* Capped at roughly eight rows — the growth is HERE, so the limit is
+           here, the same rule as the flights list. min-h-0 + flex-1 lets it
+           fill the card when the panel beside it is the taller one; max-h stops
+           it dragging the whole band down the page when the week is busy. */
+        <ul className="min-h-0 max-h-[30rem] flex-1 divide-y overflow-y-auto">
           {rows.map((row) => (
             <li key={row.id} className="flex items-stretch">
               {canReview ? (

@@ -626,22 +626,21 @@ export default async function ManagerReconciliation({
         has one bottom edge whether there are four records or forty.
       */}
       {/*
-        A WORKSPACE OF FIXED HEIGHT, so neither side can leave a hole.
+        THE LIST IS CAPPED, NOT THE BAND.
 
-        items-stretch alone was not enough: with twenty-seven records the queue
-        grew to seventeen hundred pixels, the row grew with it, and the panel
-        beside it — which is only as tall as one record — left a black column
-        down the right of the screen. Stretching makes the two EQUAL; it does
-        not stop them being enormous.
+        Capping the band was the wrong tool and the owner's screenshot showed
+        exactly how wrong: max-height clips the SECTION's box, but a grid child
+        keeps min-height:auto, so with twenty-seven records the row stayed
+        seventeen hundred pixels tall and the overflow painted straight over the
+        accounts and flights below — two screens of text on top of each other.
 
-        So the band is CAPPED at one screenful rather than fixed to it. A quiet
-        week of four records keeps its natural height and no card is padded out
-        with nothing; a busy one stops at the fold and both panels scroll inside
-        themselves. Either way the two end level and the page below starts where
-        the screen does. On a phone they stack at natural height, because a
-        scroller inside a scroller on a small screen is a trap.
+        So the height limit lives where the growth lives: the queue's own list
+        scrolls after roughly eight rows, exactly like the flights list and the
+        attention panel. The two cards stretch level as before, neither can
+        outgrow a screen because nothing inside them can, and everything below
+        starts after the band the way normal flow always did.
       */}
-      <section className="mb-6 grid grid-cols-1 items-stretch gap-4 lg:max-h-[calc(100vh-8rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+      <section className="mb-6 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
         {/*
           THE CARD IS THE GRID'S OWN CHILD, with nothing wrapped around it.
 
@@ -769,10 +768,7 @@ export default async function ManagerReconciliation({
         </div>
 
         {/* the record under the manager's eye */}
-        <div
-          id="record"
-          className="scroll-mt-4 overflow-y-auto rounded-xl border bg-card shadow-soft"
-        >
+        <div id="record" className="scroll-mt-4 rounded-xl border bg-card shadow-soft">
           {!selected ? (
             <div className="p-4">
               <EmptyState
