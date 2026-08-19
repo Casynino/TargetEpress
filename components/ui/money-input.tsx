@@ -27,10 +27,21 @@ import { cn } from "@/lib/utils";
  * in the en-US convention throughout, so in "1,5" the comma is a half-typed
  * thousand, not a half.
  */
-function toRaw(text: string, decimals: number) {
+function toRaw(text: string, decimals: number, allowNegative = false) {
   let out = "";
   let seenPoint = false;
   let places = 0;
+
+  /*
+    A MINUS SIGN, WHERE A MINUS SIGN IS A REAL ANSWER.
+
+    Kept out by default, because a payment of minus five thousand is a typo and
+    every other box in this app takes money that only goes one way. It is opt-in
+    for the one figure that legitimately runs negative: the balance an account
+    ACTUALLY holds. Three of this company's six accounts are overdrawn today,
+    and a form that cannot type their true balance is a control nobody can use.
+  */
+  if (allowNegative && text.trimStart().startsWith("-")) out = "-";
 
   for (const ch of text) {
     if (ch >= "0" && ch <= "9") {
@@ -47,13 +58,18 @@ function toRaw(text: string, decimals: number) {
     }
   }
 
-  // 007 is 7. The lookahead spares the nought in 0.5.
-  return out.replace(/^0+(?=\d)/, "");
+  // 007 is 7. The lookahead spares the nought in 0.5, and the minus is stepped
+  // over so -007 becomes -7 rather than being left alone.
+  return out.startsWith("-")
+    ? `-${out.slice(1).replace(/^0+(?=\d)/, "")}`
+    : out.replace(/^0+(?=\d)/, "");
 }
 
 /** The same figure with thousands separators. Only the whole part groups. */
-function group(raw: string) {
+function group(raw: string): string {
   if (raw === "") return "";
+  if (raw === "-") return "-";
+  if (raw.startsWith("-")) return `-${group(raw.slice(1))}`;
   const point = raw.indexOf(".");
   const whole = point === -1 ? raw : raw.slice(0, point);
   const rest = point === -1 ? "" : raw.slice(point);
@@ -93,6 +109,8 @@ export interface MoneyInputProps
   onValueChange?: (raw: string) => void;
   /** Rates and totals are both money; nothing in this app needs more than 2. */
   decimals?: number;
+  /** Let the figure go below zero. Only the account-balance forms need it. */
+  allowNegative?: boolean;
 }
 
 const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
@@ -103,6 +121,7 @@ const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
       defaultValue,
       onValueChange,
       decimals = 2,
+      allowNegative = false,
       className,
       onBlur,
       ...props
@@ -110,9 +129,9 @@ const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
     forwardedRef
   ) => {
     const [text, setText] = React.useState(() =>
-      group(toRaw(String(value ?? defaultValue ?? ""), decimals))
+      group(toRaw(String(value ?? defaultValue ?? ""), decimals, allowNegative))
     );
-    const raw = toRaw(text, decimals);
+    const raw = toRaw(text, decimals, allowNegative);
 
     const inputRef = React.useRef<HTMLInputElement | null>(null);
     const caretRef = React.useRef<number | null>(null);
@@ -134,9 +153,9 @@ const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
      */
     React.useEffect(() => {
       if (value === undefined) return;
-      const incoming = toRaw(value, decimals);
+      const incoming = toRaw(value, decimals, allowNegative);
       if (incoming !== raw) setText(group(incoming));
-    }, [value, decimals, raw]);
+    }, [value, decimals, raw, allowNegative]);
 
     /**
      * Re-grouping moves every character after the edit, so the browser's own
@@ -164,13 +183,13 @@ const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
       if (
         typed.length < text.length &&
         caret > 0 &&
-        toRaw(typed, decimals) === raw
+        toRaw(typed, decimals, allowNegative) === raw
       ) {
         typed = typed.slice(0, caret - 1) + typed.slice(caret);
         caret -= 1;
       }
 
-      const nextRaw = toRaw(typed, decimals);
+      const nextRaw = toRaw(typed, decimals, allowNegative);
       const nextText = group(nextRaw);
 
       caretRef.current = caretFor(nextText, valueChars(typed, caret));

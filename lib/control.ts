@@ -344,7 +344,12 @@ export async function openReviews(now = new Date()): Promise<OpenReview[]> {
       (r) =>
         r.state === "SENT_BACK" ||
         r.state === "MISMATCH" ||
-        r.state === "UNDER_REVIEW"
+        r.state === "UNDER_REVIEW" ||
+        /* A flag is the loudest thing a manager can say about a record, and a
+           question asked of Finance is unanswered until it is answered. Both
+           belong in the room that lists what is still open. */
+        r.state === "FLAGGED" ||
+        r.state === "INFO_REQUESTED"
     )
     .map((r) => ({
       id: r.id,

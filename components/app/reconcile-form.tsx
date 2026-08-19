@@ -108,6 +108,9 @@ export function ReconcileForm({
         <MoneyInput
           id="reconcileActual"
           name="actualBalance"
+            /* An overdrawn account's true balance is a negative number, and it
+               is exactly the case this form exists for. */
+            allowNegative
           className="h-9 text-sm"
           onValueChange={setActual}
           required

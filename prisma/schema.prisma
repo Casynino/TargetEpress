@@ -1226,6 +1226,14 @@ enum ReviewState {
   /// Handed back to the desk that recorded it, with a reason. The record is
   /// untouched; only this says it is disputed.
   SENT_BACK
+  /// Something is wrong with this record beyond the figures disagreeing — a
+  /// missing document, a duplicate, an account nobody recognises. Carries its
+  /// kind in the reason, and shows up in the control room.
+  FLAGGED
+  /// The manager has asked the recording desk a question and is waiting on the
+  /// answer. Distinct from SENT_BACK: nothing needs correcting yet, and the
+  /// record is not disputed — it is not yet understood.
+  INFO_REQUESTED
 }
 
 /// What an account actually held, on a day, according to something that is not

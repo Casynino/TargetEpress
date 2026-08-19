@@ -198,7 +198,29 @@ const REVIEW_STATES = [
   "MISMATCH",
   "UNDER_REVIEW",
   "SENT_BACK",
+  /* Something is wrong with the record beyond the figures disagreeing, and a
+     question asked of the desk that recorded it. Both are verdicts a manager
+     reaches without being able to say yet whose fault it is. */
+  "FLAGGED",
+  "INFO_REQUESTED",
 ] as const;
+
+/* What a flag is ABOUT, kept as a short prefix on the reason rather than as a
+   column: the set will grow the first week it is used, and a schema change per
+   new kind of wrong is a schema change nobody makes — so the kinds live here,
+   where adding one is a line. */
+const FLAG_KINDS = [
+  "Incorrect amount",
+  "Missing document",
+  "Wrong account",
+  "Duplicate transaction",
+  "Unknown transaction",
+  "Other",
+] as const;
+/* The list is deliberately NOT exported. This file carries "use server", which
+   may only export async functions — exporting it broke every page that renders
+   the panel. The client component keeps its own copy of the labels; this one is
+   what the action validates against, which is the copy that matters. */
 
 const reviewSchema = z.object({
   target: z.enum(REVIEW_TARGETS, {
@@ -209,10 +231,20 @@ const reviewSchema = z.object({
     errorMap: () => ({ message: "Choose what you are saying about it." }),
   }),
   reason: z.string().trim().max(600).optional(),
+  /* Only read for a flag. Anything else ignores it rather than refusing it,
+     because the same form posts every verdict. */
+  issue: z.enum(FLAG_KINDS).optional(),
 });
 
 /** PENDING is the absence of a verdict, so nobody records one. */
-const NEEDS_REASON: ReviewState[] = ["SENT_BACK", "MISMATCH"];
+const NEEDS_REASON: ReviewState[] = [
+  "SENT_BACK",
+  "MISMATCH",
+  /* A flag with no words is an alarm nobody can act on, and a question with no
+     question is not a request for information. */
+  "FLAGGED",
+  "INFO_REQUESTED",
+];
 
 /** Does the thing being judged actually exist? */
 async function targetExists(
@@ -267,14 +299,24 @@ export async function reviewRecord(
   if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
   const input = parsed.data;
 
-  const reason = input.reason ?? "";
-  if (NEEDS_REASON.includes(input.state) && reason.length < 4) {
+  /* A flag carries its kind in front of the words, so the reason reads as a
+     sentence wherever it is shown — the control room, the history, the audit —
+     without every one of those places having to know about flag kinds. */
+  const reason =
+    input.state === "FLAGGED" && input.issue
+      ? `${input.issue}: ${input.reason ?? ""}`.trim()
+      : input.reason ?? "";
+  if (NEEDS_REASON.includes(input.state) && reason.replace(/^[^:]*:\s*/, "").length < 4) {
     return fail(
       t(
         locale,
         input.state === "SENT_BACK"
           ? "Say what has to be corrected. A record handed back without a reason cannot be acted on."
-          : "Say what does not add up, so somebody can look into the right thing."
+          : input.state === "FLAGGED"
+            ? "Say what is wrong with it. A flag with no words is an alarm nobody can act on."
+            : input.state === "INFO_REQUESTED"
+              ? "Ask the question. Finance cannot answer a request that does not contain one."
+              : "Say what does not add up, so somebody can look into the right thing."
       )
     );
   }

@@ -200,6 +200,17 @@ const STANDING_BADGE: Record<string, { label: string; className: string }> = {
     label: "Mismatch",
     className: "border-destructive/40 bg-destructive/10 text-destructive",
   },
+  /* Reachable from the reconciliation workspace, which offers a flag on a
+     batch as well as on a line. Without these two a flagged batch fell through
+     to the PENDING badge and read as unread. */
+  FLAGGED: {
+    label: "Flagged",
+    className: "border-destructive/40 bg-destructive/10 text-destructive",
+  },
+  INFO_REQUESTED: {
+    label: "Information requested",
+    className: "border-info/40 bg-info/10 text-info",
+  },
   UNDER_REVIEW: {
     label: "Under review",
     className: "border-warning/40 bg-warning/10 text-warning",
