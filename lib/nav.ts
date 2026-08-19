@@ -868,13 +868,25 @@ const MANAGER_SECTIONS: NavSection[] = [
     ],
   },
   {
+    /* ORDERED THE WAY THIS DESK USES IT, at the owner's instruction: "i want
+       serach to start then customes then Operations".
+
+       A manager arrives at this screen with a question about one consignment or
+       one customer far more often than with a question about a flight, and the
+       two lookups were sitting third and fourth behind the batch lists. The
+       batch pages then run together — what has arrived, what is still loading,
+       and what each one earned. */
     title: "Operations",
     group: { label: "Operations", icon: "Boxes" },
     items: [
-      { href: "/app/shipments", label: "Arrived batches", icon: "PlaneTakeoff" },
-      { href: "/app/batches", label: "Loading batches", icon: "Boxes" },
       { href: "/app/search", label: "Search", icon: "Package" },
       { href: "/app/customers", label: "Customers", icon: "Users" },
+      { href: "/app/shipments", label: "Arrived batches", icon: "PlaneTakeoff" },
+      { href: "/app/batches", label: "Loading batches", icon: "Boxes" },
+      /* Moved up from Finance, where it sat under a money heading three groups
+         below the two batch lists it belongs beside. It answers "what did that
+         flight earn", which is a question asked with a batch already in mind. */
+      { href: "/app/manager/batches", label: "Batch finances", icon: "Boxes", permission: "profit.view" },
       { href: "/app/exceptions", label: "Issues & Claims", icon: "TriangleAlert" },
     ],
   },
@@ -894,7 +906,6 @@ const MANAGER_SECTIONS: NavSection[] = [
          because that is where the reader already is when the question occurs. */
       { href: "/app/manager/accounts", label: "Company accounts", icon: "Landmark", permission: "account.view" },
       { href: "/app/manager/transactions", label: "Review transactions", icon: "ArrowLeftRight", permission: "ledger.view" },
-      { href: "/app/manager/batches", label: "Batch finances", icon: "Boxes", permission: "profit.view" },
     ],
   },
   {
