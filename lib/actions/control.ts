@@ -280,6 +280,113 @@ async function targetExists(
  * There is no delete and no update in this action. The current standing of a
  * record is simply its newest row.
  */
+/**
+ * ONE VERDICT ACROSS MANY RECORDS, because a busy week is not read one row at a
+ * time.
+ *
+ * The owner: "we are going to have busy scheled so and i shluld be able to pick
+ * and choose and i shulud be able to choose all and reconcele". So this takes a
+ * set of ids and writes the same verdict against each — still one append-only
+ * ManagerReview per record, still one audit line per record, because a bulk
+ * action that collapsed into a single row would leave the history unable to say
+ * what happened to any individual consignment.
+ *
+ * WHAT IT WILL NOT DO IN BULK: nothing here bypasses the rules the single
+ * verdict follows. A reason is required for the same states, the same
+ * permission is demanded, and a record that has vanished since the page was
+ * drawn is skipped rather than failing the whole batch — the count that comes
+ * back is what was actually written, not what was asked for.
+ */
+const BULK_LIMIT = 300;
+
+export async function reviewRecords(
+  _prev: ActionResult<{ written: number; skipped: number; state: string }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ written: number; skipped: number; state: string }>> {
+  const locale = await viewerLocale();
+
+  let user: SessionUser;
+  try {
+    user = await authorize("record.review");
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  const ids = [...new Set(formData.getAll("ids").map(String).filter(Boolean))];
+  if (ids.length === 0) {
+    return fail(t(locale, "Tick the records you want to act on first."));
+  }
+  if (ids.length > BULK_LIMIT) {
+    return fail(
+      t(locale, "That is more than can be agreed in one go. Narrow the filters and repeat.")
+    );
+  }
+
+  const parsed = reviewSchema
+    .omit({ targetId: true })
+    .safeParse(Object.fromEntries(formData) as Record<string, string>);
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+  const input = parsed.data;
+
+  const reason =
+    input.state === "FLAGGED" && input.issue
+      ? `${input.issue}: ${input.reason ?? ""}`.trim()
+      : input.reason ?? "";
+  if (NEEDS_REASON.includes(input.state) && reason.replace(/^[^:]*:\s*/, "").length < 4) {
+    return fail(
+      t(
+        locale,
+        input.state === "SENT_BACK"
+          ? "Say what has to be corrected. A record handed back without a reason cannot be acted on."
+          : "Say what is wrong with them. A verdict with no words is one nobody can act on."
+      )
+    );
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      let written = 0;
+      for (const targetId of ids) {
+        if (!(await targetExists(tx, input.target, targetId))) continue;
+
+        const review = await tx.managerReview.create({
+          data: {
+            target: input.target,
+            targetId,
+            state: input.state,
+            reason: reason || null,
+            reviewedById: user.id,
+          },
+          select: { id: true },
+        });
+
+        await recordAudit(
+          {
+            actor: user,
+            action: `review.${input.state.toLowerCase()}`,
+            entity: input.target,
+            entityId: targetId,
+            summary: `${
+              input.state === "SENT_BACK" ? "Sent back" : "Marked"
+            } ${input.target.toLowerCase().replace("_", " ")} ${input.state
+              .toLowerCase()
+              .replace("_", " ")}${reason ? ` — ${reason}` : ""} (one of ${ids.length})`,
+            metadata: { reviewId: review.id, state: input.state, batchOf: ids.length },
+          },
+          tx
+        );
+        written += 1;
+      }
+      return written;
+    });
+
+    paths();
+    return ok({ written: result, skipped: ids.length - result, state: input.state });
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
 export async function reviewRecord(
   _prev: ActionResult<{ state: string }> | undefined,
   formData: FormData

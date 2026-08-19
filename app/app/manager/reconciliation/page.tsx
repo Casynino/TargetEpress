@@ -25,6 +25,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { PageHeader } from "@/components/app/page-header";
 import { ReconcileForm } from "@/components/app/reconcile-form";
+import { RecordsQueue } from "@/components/app/records-queue";
 import { ReviewActions } from "@/components/app/review-actions";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -36,7 +37,7 @@ import type { Locale } from "@/lib/locale";
 import { formatShillings } from "@/lib/money";
 import { profitByDispatch } from "@/lib/profit";
 import { can } from "@/lib/rbac";
-import { reconciliation } from "@/lib/reconciliation";
+import { reconciliation, type CheckSide } from "@/lib/reconciliation";
 import {
   KIND_LABEL,
   QUEUE_STATES,
@@ -560,19 +561,26 @@ export default async function ManagerReconciliation({
       </section>
 
       {/* --------------------------------------------------------- workspace */}
-      <section className="mb-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-        {/*
-          THE LEFT COLUMN CARRIES TWO THINGS, so it stops being half empty.
+      {/*
+        THE TWO PANELS END LEVEL — "dont leave black space".
 
-          The queue is short on a quiet week and the record beside it is long
-          whatever the week, which left a column of nothing under the list —
-          the hole the owner keeps sending screens back for. The books' own
-          arithmetic checks used to be a band at the foot of the page; they
-          belong beside the work rather than under it, and they fill exactly
-          the space the queue does not.
+        With items-start the queue stopped wherever its rows ran out and left a
+        column of nothing beside a record panel twice its height. They now share
+        the row's height and the list scrolls inside its own card, so the band
+        has one bottom edge whether there are four records or forty.
+      */}
+      <section className="mb-6 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+        {/*
+          THE CARD IS THE GRID'S OWN CHILD, with nothing wrapped around it.
+
+          A leftover div sat here from when the arithmetic shared this column,
+          and it quietly broke the arrangement: the grid stretched the WRAPPER
+          to the row's height while the card inside kept its own, so the queue
+          still ended a hundred and forty pixels above the panel beside it.
+          Found by measuring rather than reading — the parent computed as
+          display:block with the card's align-self reading "auto".
         */}
-        <div className="space-y-4">
-        <div className="rounded-xl border bg-card shadow-soft">
+        <div className="flex flex-col overflow-hidden rounded-xl border bg-card shadow-soft">
           <div className="border-b px-4 py-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="font-display text-sm font-semibold">
@@ -622,68 +630,40 @@ export default async function ManagerReconciliation({
             </dl>
           </div>
 
-          {queue.entries.length === 0 ? (
-            <div className="p-4">
-              <EmptyState
-                title={t(locale, "Nothing here")}
-                description={t(locale, "No record matches these filters.")}
-              />
-            </div>
-          ) : (
-            <ul className="max-h-[34rem] divide-y overflow-y-auto">
-              {queue.entries.map((entry) => {
-                const active = selected?.id === entry.id;
-                const out = entry.direction === "OUT";
-                return (
-                  <li key={entry.id}>
-                    <Link
-                      href={withParams(params, { tx: entry.id })}
-                      scroll={false}
-                      className={cn(
-                        "focus-ring block border-l-2 px-4 py-2.5 transition-colors hover:bg-muted/40",
-                        active
-                          ? "border-l-brand bg-brand/[0.06]"
-                          : "border-l-transparent"
-                      )}
-                    >
-                      {/*
-                        TWO LINES, AND A BADGE ONLY WHERE ONE MEANS SOMETHING.
+          {/*
+            THE ROWS ARE FORMATTED HERE AND TICKED THERE.
 
-                        Every row wore an amber "Pending" chip on a line of its
-                        own — twenty-seven identical badges saying the same
-                        thing, on a list whose default filter is Pending. They
-                        cost a third of the row's height to repeat what the
-                        heading already said, and they drowned the handful of
-                        rows that really do carry a verdict. Untouched is now
-                        the absence of a badge; anything else shows.
-                      */}
-                      <div className="flex items-baseline justify-between gap-3">
-                        <p className="truncate text-sm font-medium">{rowTitle(entry, locale)}</p>
-                        <p
-                          className={cn(
-                            "shrink-0 font-mono text-sm font-semibold tabular-nums",
-                            out ? "text-destructive" : "text-success"
-                          )}
-                        >
-                          {out ? "−" : "+"}
-                          {formatMoney(toNumber(entry.amount), entry.currency)}
-                        </p>
-                      </div>
-                      <div className="mt-0.5 flex items-baseline justify-between gap-2">
-                        <p className="truncate text-xs text-muted-foreground">
-                          {formatDate(entry.occurredAt, locale)} ·{" "}
-                          {t(locale, KIND_LABEL[entry.kind] ?? entry.kind)} · {entry.account.name}
-                        </p>
-                        {entry.state === "PENDING" ? null : (
-                          <StateChip state={entry.state} locale={locale} />
-                        )}
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+            Every string the queue shows — the money, the date, the badge — is
+            written on the server, so the client component formats nothing and
+            cannot drift from the rest of the page. What it owns is the one
+            thing the server cannot: which rows the manager has picked.
+          */}
+          <RecordsQueue
+            canReview={canReview}
+            emptyLabel={t(locale, "No record matches these filters.")}
+            rows={queue.entries.map((entry) => ({
+              id: entry.id,
+              href: withParams(params, { tx: entry.id }),
+              title: rowTitle(entry, locale),
+              meta: `${formatDate(entry.occurredAt, locale)} · ${t(
+                locale,
+                KIND_LABEL[entry.kind] ?? entry.kind
+              )} · ${entry.account.name}`,
+              amount: `${entry.direction === "OUT" ? "−" : "+"}${formatMoney(
+                toNumber(entry.amount),
+                entry.currency
+              )}`,
+              out: entry.direction === "OUT",
+              badge:
+                entry.state === "PENDING"
+                  ? null
+                  : {
+                      label: t(locale, STATE_STYLE[entry.state].label),
+                      className: STATE_STYLE[entry.state].chip,
+                    },
+              selected: selected?.id === entry.id,
+            }))}
+          />
 
           {queue.pages > 1 ? (
             <div className="flex items-center justify-between border-t px-4 py-2 text-xs">
@@ -714,8 +694,6 @@ export default async function ManagerReconciliation({
               </Link>
             </div>
           ) : null}
-        </div>
-
         </div>
 
         {/* the record under the manager's eye */}
@@ -1029,11 +1007,9 @@ export default async function ManagerReconciliation({
         It briefly became four tabs and the owner sent that back too — "just
         remove this sytle retunr to one page thing but i still dont like the
         arragment you use beofre". So this is neither the long stack of
-        full-width sections nor a tab row: the three supporting panels sit
-        SIDE BY SIDE under the workspace, each the height of its own contents,
-        so the page ends where the material ends rather than three screens
-        later. Accounts takes the wider column because it carries a form; the
-        flights and the arithmetic stack in the narrower one.
+        full-width sections nor a tab row: three bands under the workspace, each
+        as tall as its own contents — the accounts as cards, the flights as a
+        short scrolling list, and the arithmetic three across.
       */}
       <section className="mb-4">
         <div>
@@ -1047,123 +1023,153 @@ export default async function ManagerReconciliation({
               </span>
             ) : null}
           </p>
-        <div className="rounded-xl border bg-card p-4 shadow-soft">
-          <p className="text-xs leading-snug text-muted-foreground">
-            {t(
-              locale,
-              "System is what the ledger says, worked out from its own lines. Actual is what somebody proved from outside it — a statement, a phone, a till count."
-            )}
-          </p>
+        {/*
+          A CARD PER ACCOUNT, IN THE COLOUR OF WHAT IT IS.
 
-          {/*
-            ONE LINE PER ACCOUNT, and the column names said once.
+          The owner: "i dont like even how you put this here so i want them to
+          be nice and well arrege wey not putting colors". It was a grey table
+          with the same blue sentence repeated under all six rows, and the one
+          fact worth seeing — that nobody has ever checked any of them — was a
+          word in the last column.
 
-            The first cut of this gave every account a block of its own with the
-            same sentence under each — six accounts, seven hundred pixels, and
-            the actual work pushed below the fold. The owner has thrown that
-            shape out twice on other screens. A row states the three figures
-            under one header; the form to record a real balance opens inside the
-            row that needs it.
-          */}
-          <div className="mt-3 overflow-hidden rounded-lg border">
-            <div className="hidden border-b bg-muted/30 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1.4fr)_8rem_8rem_8rem_6rem] sm:gap-4">
-              <span>{t(locale, "Account")}</span>
-              <span className="text-right">{t(locale, "System")}</span>
-              <span className="text-right">{t(locale, "Actual")}</span>
-              <span className="text-right">{t(locale, "Difference")}</span>
-              <span className="text-right">{t(locale, "Checked")}</span>
-            </div>
-            <ul className="divide-y">
-              {positions.map((position) => {
-                const Icon = ACCOUNT_ICON[position.kind] ?? Building2;
-                const check = position.lastCheck;
-                const difference = check ? check.difference : null;
-                const agrees = difference !== null && Math.abs(difference) < 0.01;
-                const active = params.account === position.id;
-                return (
-                  <li key={position.id} className={cn(active && "bg-brand/[0.05]")}>
-                    <div className="grid gap-1 px-3 py-2 sm:grid-cols-[minmax(0,1.4fr)_8rem_8rem_8rem_6rem] sm:items-baseline sm:gap-4">
-                      <Link
-                        href={withParams(params, {
-                          account: active ? undefined : position.id,
-                          tx: undefined,
-                        })}
-                        className="focus-ring inline-flex min-w-0 items-center gap-2 rounded text-sm font-medium hover:underline"
-                      >
-                        <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        <span className="truncate">{position.name}</span>
-                      </Link>
-                      <span
-                        className={cn(
-                          "font-mono text-xs tabular-nums sm:text-right",
-                          position.systemBalance < 0 ? "text-destructive" : ""
-                        )}
-                      >
-                        {/* The column header is a desktop luxury; on a phone the
-                            three figures stack, and unlabelled they are just
-                            three numbers. */}
-                        <span className="mr-1 text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">
-                          {t(locale, "System")}
-                        </span>
-                        {formatMoney(position.systemBalance, position.currency)}
-                      </span>
-                      <span className="font-mono text-xs tabular-nums text-muted-foreground sm:text-right">
-                        <span className="mr-1 text-[10px] uppercase tracking-wide sm:hidden">
-                          {t(locale, "Actual")}
-                        </span>
-                        {check ? formatMoney(check.actualBalance, position.currency) : "—"}
-                      </span>
-                      <span
-                        className={cn(
-                          "font-mono text-xs font-semibold tabular-nums sm:text-right",
-                          difference === null
-                            ? "text-muted-foreground"
-                            : agrees
-                              ? "text-success"
-                              : "text-destructive"
-                        )}
-                      >
-                        <span className="mr-1 text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">
-                          {t(locale, "Difference")}
-                        </span>
-                        {difference === null ? "—" : formatMoney(difference, position.currency)}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground sm:text-right">
-                        {check ? (
-                          position.movedSinceCheck ? (
-                            <span className="text-warning">{t(locale, "moved since")}</span>
-                          ) : (
-                            formatRelative(check.asOf, locale)
-                          )
-                        ) : (
-                          <span className="text-warning">{t(locale, "never")}</span>
-                        )}
-                      </span>
-                    </div>
+          Now each account is a card that carries its own kind (a bank is blue,
+          a phone wallet cyan, the till green), its balance at a size worth
+          reading, and a badge saying where it stands: never checked, moved
+          since the check, off by an amount, or agreed. The badge is the point
+          of this whole band, so it is the loudest thing on the card.
+        */}
+        <p className="mb-3 text-xs leading-snug text-muted-foreground">
+          {t(
+            locale,
+            "System is what the ledger says, worked out from its own lines. Actual is what somebody proved from outside it — a statement, a phone, a till count."
+          )}
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {positions.map((position) => {
+            const Icon = ACCOUNT_ICON[position.kind] ?? Building2;
+            const check = position.lastCheck;
+            const difference = check ? check.difference : null;
+            const agrees = difference !== null && Math.abs(difference) < 0.01;
+            const active = params.account === position.id;
 
-                    {canReconcile ? (
-                      <details className="px-3 pb-2">
-                        {/* One word per row, not the same sentence six times.
-                            What it means is said once, above the table. */}
-                        <summary className="focus-ring inline-flex cursor-pointer list-none items-center gap-1.5 rounded text-[11px] font-semibold text-brand hover:underline">
-                          <Scale className="h-3 w-3" />
-                          {t(locale, "Check this one")}
-                        </summary>
-                        <div className="mt-2">
-                          <ReconcileForm
-                            accountId={position.id}
-                            kind={position.kind as "BANK" | "MOBILE_MONEY" | "CASH"}
-                            systemBalance={position.systemBalance}
-                            currency={position.currency}
-                          />
-                        </div>
-                      </details>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+            /* Four states, and the card takes its colour from this and nothing
+               else: unchecked is amber because it is work outstanding, a gap is
+               red because it is money missing, agreed is green, and a stale
+               check is amber again — it describes a moment that has passed. */
+            const state = !check
+              ? { label: "Never checked", tone: "warn" as const }
+              : position.movedSinceCheck
+                ? { label: "Moved since the check", tone: "warn" as const }
+                : agrees
+                  ? { label: "Agrees", tone: "good" as const }
+                  : { label: "Off by", tone: "bad" as const };
+
+            const TONE = {
+              warn: {
+                card: "border-warning/25 bg-gradient-to-br from-warning/[0.10] via-card to-card",
+                chip: "border-warning/40 bg-warning/15 text-warning",
+                icon: "bg-warning/15 text-warning ring-1 ring-inset ring-warning/30",
+              },
+              good: {
+                card: "border-success/25 bg-gradient-to-br from-success/[0.10] via-card to-card",
+                chip: "border-success/40 bg-success/15 text-success",
+                icon: "bg-success/15 text-success ring-1 ring-inset ring-success/30",
+              },
+              bad: {
+                card: "border-destructive/30 bg-gradient-to-br from-destructive/[0.10] via-card to-card",
+                chip: "border-destructive/40 bg-destructive/15 text-destructive",
+                icon: "bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/30",
+              },
+            }[state.tone];
+
+            return (
+              <div
+                key={position.id}
+                className={cn(
+                  "rounded-xl border p-3.5 shadow-soft transition-colors",
+                  TONE.card,
+                  active && "ring-2 ring-brand/40"
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className={cn(
+                        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                        TONE.icon
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                    <Link
+                      href={withParams(params, {
+                        account: active ? undefined : position.id,
+                        tx: undefined,
+                      })}
+                      className="focus-ring min-w-0 truncate rounded text-sm font-semibold hover:underline"
+                    >
+                      {position.name}
+                    </Link>
+                  </div>
+                  <span
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                      TONE.chip
+                    )}
+                  >
+                    {t(locale, state.label)}
+                    {state.tone === "bad" && difference !== null
+                      ? ` ${formatMoney(Math.abs(difference), position.currency)}`
+                      : null}
+                  </span>
+                </div>
+
+                <p
+                  className={cn(
+                    "mt-3 font-mono text-[19px] font-bold leading-none tabular-nums",
+                    position.systemBalance < 0 ? "text-destructive" : "text-foreground"
+                  )}
+                >
+                  {formatMoney(position.systemBalance, position.currency)}
+                </p>
+                <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {t(locale, "what the ledger says")}
+                </p>
+
+                <div className="mt-3 flex items-end justify-between gap-2 border-t pt-2.5">
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {t(locale, "Actual")}
+                    </p>
+                    <p className="truncate font-mono text-xs font-semibold tabular-nums">
+                      {check
+                        ? `${formatMoney(check.actualBalance, position.currency)} · ${formatRelative(
+                            check.asOf,
+                            locale
+                          )}`
+                        : "—"}
+                    </p>
+                  </div>
+                  {canReconcile ? (
+                    <details className="shrink-0">
+                      <summary className="focus-ring inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-brand/30 bg-brand/10 px-2.5 py-1 text-[11px] font-semibold text-brand transition-colors hover:bg-brand/20">
+                        <Scale className="h-3 w-3" />
+                        {t(locale, "Check")}
+                      </summary>
+                      <div className="mt-3">
+                        <ReconcileForm
+                          accountId={position.id}
+                          kind={position.kind as "BANK" | "MOBILE_MONEY" | "CASH"}
+                          systemBalance={position.systemBalance}
+                          currency={position.currency}
+                        />
+                      </div>
+                    </details>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
         </div>
         </div>
       </section>
@@ -1329,42 +1335,110 @@ export default async function ManagerReconciliation({
               )}
             </p>
             <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {checks.checks.map((check) => (
-                <li
-                  key={check.key}
-                  className={cn(
-                    "rounded-lg border p-3 text-xs",
-                    check.ok ? "bg-muted/10" : "border-destructive/40 bg-destructive/[0.04]"
-                  )}
-                >
-                  <p className="flex items-center gap-1.5 font-semibold">
-                    {check.ok ? (
-                      <BadgeCheck className="h-3.5 w-3.5 text-success" />
-                    ) : (
-                      <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-                    )}
-                    {check.label}
-                  </p>
-                  <p className="mt-1 leading-snug text-muted-foreground">{check.question}</p>
-                  {/* In shillings when the side IS money — the engine writes its
-                      figures in dollars and every other number on this screen
-                      leads in the currency of the room. A side that counts things
-                      rather than money carries no usd and prints as written. */}
-                  <p className="mt-1 flex flex-wrap items-baseline gap-x-3 font-mono tabular-nums">
-                    <span>
-                      <span className="text-muted-foreground">{check.left.label} </span>
-                      {check.left.usd !== undefined ? shillings(check.left.usd) : check.left.value}
-                    </span>
-                    <span>
-                      <span className="text-muted-foreground">{check.right.label} </span>
-                      {check.right.usd !== undefined ? shillings(check.right.usd) : check.right.value}
-                    </span>
-                  </p>
-                  {check.expected ? (
-                    <p className="mt-1 leading-snug text-muted-foreground">{check.expected}</p>
-                  ) : null}
-                </li>
-              ))}
+              {/*
+                THE FAULT FIRST, AND THE FIGURES BIG ENOUGH TO BE THE POINT.
+
+                The owner, twice: "i want to be nice its should be nice more
+                than nice", and "the info ist hould be more visoble too". These
+                cards were five identical grey boxes with the substance — the
+                two figures being compared — set in 12px muted mono at the
+                bottom, which is the smallest thing on a card whose whole
+                purpose is those two numbers.
+
+                So each check is now the comparison itself: the two routes side
+                by side in their own boxes at a size worth reading, and between
+                them the verdict — "same" in green, or the gap in red. A check
+                that disagrees sorts to the front and wears the colour; the ones
+                that agree stay quiet, because five loud greens would drown the
+                one red that needs chasing.
+              */}
+              {[...checks.checks]
+                .sort((a, b) => Number(a.ok) - Number(b.ok))
+                .map((check) => {
+                  /* In shillings when the side IS money — the engine writes its
+                     figures in dollars and every other number on this screen
+                     leads in the currency of the room. A side that counts
+                     things rather than money carries no usd and prints as
+                     written. */
+                  const money = check.left.usd !== undefined;
+                  const sideText = (side: CheckSide) =>
+                    side.usd !== undefined ? shillings(side.usd) : side.value;
+                  const gap = money
+                    ? shillings(Math.abs(check.difference))
+                    : Math.abs(check.difference).toLocaleString("en-US");
+
+                  return (
+                    <li
+                      key={check.key}
+                      className={cn(
+                        "relative overflow-hidden rounded-xl border p-3.5",
+                        check.ok
+                          ? "bg-card"
+                          : "border-destructive/40 bg-gradient-to-br from-destructive/[0.10] via-card to-card before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-destructive/60 before:to-transparent before:content-['']"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold leading-snug">{check.label}</p>
+                        <span
+                          className={cn(
+                            "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                            check.ok
+                              ? "border-success/30 bg-success/10 text-success"
+                              : "border-destructive/40 bg-destructive/15 text-destructive"
+                          )}
+                        >
+                          {check.ok ? (
+                            <BadgeCheck className="h-3 w-3" />
+                          ) : (
+                            <AlertTriangle className="h-3 w-3" />
+                          )}
+                          {check.ok ? t(locale, "Agrees") : t(locale, "Differs")}
+                        </span>
+                      </div>
+
+                      <p className="mt-1 text-xs leading-snug text-muted-foreground">
+                        {check.question}
+                      </p>
+
+                      {/* The two routes to one figure, which is the whole check. */}
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {[check.left, check.right].map((side, index) => (
+                          <div
+                            key={`${check.key}-${index}`}
+                            className={cn(
+                              "rounded-lg px-2.5 py-2",
+                              check.ok ? "bg-muted/40" : "bg-background/60"
+                            )}
+                          >
+                            <p className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
+                              {side.label}
+                            </p>
+                            <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">
+                              {sideText(side)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <p
+                        className={cn(
+                          "mt-2 text-xs font-semibold",
+                          check.ok ? "text-success" : "text-destructive"
+                        )}
+                      >
+                        {check.ok
+                          ? t(locale, "The two agree.")
+                          : `${t(locale, "Apart by")} ${gap}`}
+                      </p>
+
+                      {check.expected ? (
+                        <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
+                          {check.expected}
+                        </p>
+                      ) : null}
+                    </li>
+                  );
+                })}
             </ul>
             {faults.length > 0 ? (
               <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/[0.05] px-3 py-2 text-xs font-medium text-destructive">
