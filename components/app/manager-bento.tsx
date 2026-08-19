@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, type LucideIcon } from "lucide-react";
 
 import { areaPath, clampPct, ringGeometry, scalePoints, smoothPath } from "@/lib/chart";
+import { Ring } from "@/components/charts/ring";
 import { cn } from "@/lib/utils";
 
 /**
@@ -295,130 +296,230 @@ export function MarginRing({
   );
 }
 
-export type BarPart = {
+/** One real company account, as the rail draws it. */
+export type AccountRow = {
   key: string;
-  label: string;
-  /** Already formatted for the reader. */
-  display: string;
-  /** What decides the width. Negatives are shown but never sized. */
-  value: number;
-  /** A CSS colour — a token, so the bar stays inside the app's palette. */
+  name: string;
+  /** Translated: "Bank", "Mobile money", "Cash". */
+  kind: string;
+  /** The dot and the bar, when the balance is positive. */
   colour: string;
+  /** Formatted in the account's OWN currency — never restated in shillings. */
+  display: string;
+  /** Signed, for the bar's length and for which way it points. */
+  value: number;
+  /** "checked 3 days ago", "never checked". */
+  meta: string;
+  /** Short shout on the row: overdrawn, or checked before it last moved. */
+  flag?: string;
+  href?: string;
 };
 
 /**
- * Several amounts as one bar, with the parts named underneath.
+ * Every company account by name, by size, and by whether anyone has looked.
  *
- * The shape is the point: "costs are two thirds of what we billed" and "almost
- * everything we hold is in the bank" are readings nobody takes from a column of
- * numbers, however carefully the numbers are aligned.
+ * WHAT IT REPLACED, AND WHY. This band used to be three rows — bank, mobile
+ * money, cash — over a share bar, and the owner's verdict was "we have too much
+ * info for you to be this basic". He was right twice over. The business runs
+ * six accounts; grouping them into three kinds threw away which bank, and the
+ * one question this card exists to raise is "which account is wrong", not "how
+ * much is in banks generally".
  *
- * A part is never sized on a negative. An overdrawn account is real and stays on
- * the list with its figure in red, but a negative width is not a thing, and
- * quietly folding it into the total would make every other share wrong.
+ * THE BARS ARE MAGNITUDE, NOT SHARE. The old bar divided a total, so a negative
+ * balance had to be clamped to zero to keep the sum honest — which printed the
+ * bank at TSh -9,505,180 as "0%" and TSh 20,000 of mobile money as "100%" of
+ * the company's money, above a total of minus ten million. A share is a portion
+ * of something that exists and a debt is the other direction, so nothing here
+ * is a percentage: each bar is that account against the largest one on the
+ * list, and red means it is below zero. It reads the same whether the business
+ * is flush or overdrawn.
+ *
+ * THE SECOND LINE IS THE MANAGER'S ACTUAL JOB. A balance nobody has reconciled
+ * is a claim the system makes about itself; when it was last checked against a
+ * statement is what tells you whether to believe it.
  */
-export function ProportionBar({
-  parts,
+export function AccountRail({
+  rows,
   empty,
-  overdrawnLabel,
   className,
 }: {
-  parts: BarPart[];
-  /** Said when there is nothing to divide up. */
+  rows: AccountRow[];
+  /** Said when there are no accounts at all. */
   empty: string;
-  /** The word for a balance below zero. Passed in, because nothing in this
-      file speaks to the dictionary — every string here arrives translated. */
-  overdrawnLabel?: string;
   className?: string;
 }) {
-  const sizes = parts.map((part) => Math.max(0, part.value));
-  const total = sizes.reduce((sum, n) => sum + n, 0);
+  /* Against the biggest balance either way, so an overdraft is drawn at the
+     size it actually is rather than squashed against the credits. */
+  const widest = Math.max(1, ...rows.map((row) => Math.abs(row.value)));
 
-  /*
-    A SHARE BAR CANNOT DRAW AN OVERDRAWN ACCOUNT, SO IT DOES NOT TRY.
-
-    Negatives were clamped to zero to keep the arithmetic simple, and on the
-    manager's screen that produced a sentence nobody would sign: the bank at
-    TSh -9,505,180 and the cash accounts at TSh -1,397,086 both read "0%", and
-    TSh 20,000 of mobile money read "100%" — a full cyan rail announcing that
-    all of the company's money was in one place, above a total of MINUS ten
-    million. A share is a portion of something that exists; a debt is not a
-    smaller portion, it is the other direction.
-
-    So when any balance is below zero the bar and the percentages come off, and
-    what is left is the honest form of the same information: three accounts,
-    three figures, the negative ones in red and named as overdrawn. The bar
-    comes back on its own the moment every account is in credit again.
-  */
-  const overdrawn = parts.some((part) => part.value < 0);
+  if (rows.length === 0) {
+    return (
+      <p className={cn("text-xs leading-snug text-muted-foreground", className)}>
+        {empty}
+      </p>
+    );
+  }
 
   return (
-    <div className={cn("w-full", className)}>
-      {overdrawn ? null : (
-        <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-muted">
-          {total > 0
-            ? parts.map((part, index) => (
-                <span
-                  key={part.key}
-                  aria-hidden
-                  className="h-full first:rounded-l-full last:rounded-r-full"
-                  style={{
-                    width: `${(sizes[index] / total) * 100}%`,
-                    background: part.colour,
-                  }}
-                />
-              ))
-            : null}
-        </div>
-      )}
-
-      <ul className={cn("space-y-1.5", overdrawn ? "" : "mt-3")}>
-        {parts.map((part, index) => {
-          const share =
-            overdrawn || total === 0
-              ? null
-              : Math.round((sizes[index] / total) * 100);
-          return (
-            <li key={part.key} className="flex items-baseline gap-2 text-xs">
+    <ul className={cn("space-y-2.5", className)}>
+      {rows.map((row) => {
+        const negative = row.value < 0;
+        /* An empty account draws nothing. The floor exists so a real but tiny
+           balance is still visible beside a large one; applying it to zero drew
+           a stub on six accounts holding nothing, which reads as "a little". */
+        const width =
+          row.value === 0
+            ? "0%"
+            : `${Math.max(2, (Math.abs(row.value) / widest) * 100)}%`;
+        const body = (
+          <>
+            <div className="flex items-baseline gap-2">
               <span
                 aria-hidden
                 className="h-2 w-2 shrink-0 translate-y-[1px] rounded-full"
-                style={{ background: part.colour }}
+                style={{ background: negative ? "hsl(var(--destructive))" : row.colour }}
               />
-              <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                {part.label}
+              <span className="min-w-0 flex-1 truncate text-xs font-medium">
+                {row.name}
               </span>
-              {share !== null ? (
-                <span className="shrink-0 tabular-nums text-muted-foreground">
-                  {share}%
-                </span>
-              ) : null}
-              {part.value < 0 && overdrawnLabel ? (
+              {row.flag ? (
                 <span className="shrink-0 rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
-                  {overdrawnLabel}
+                  {row.flag}
                 </span>
               ) : null}
               <span
                 className={cn(
-                  "shrink-0 font-mono font-semibold tabular-nums",
-                  part.value < 0 ? "text-destructive" : "text-foreground"
+                  "shrink-0 font-mono text-xs font-semibold tabular-nums",
+                  negative ? "text-destructive" : "text-foreground"
                 )}
               >
-                {part.display}
+                {row.display}
               </span>
-            </li>
-          );
-        })}
-      </ul>
+            </div>
+            <div className="mt-1.5 flex items-center gap-2 pl-4">
+              <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+                <span
+                  aria-hidden
+                  className="block h-full rounded-full"
+                  style={{
+                    width,
+                    background: negative ? "hsl(var(--destructive))" : row.colour,
+                  }}
+                />
+              </span>
+              <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
+                {row.kind} · {row.meta}
+              </span>
+            </div>
+          </>
+        );
 
-      {/* "No account is carrying a balance" is true of an empty set of accounts
-          and false of an overdrawn one — the bank at TSh -930,000 is carrying a
-          balance, and an alarming one. The line is for nothing anywhere, so it
-          waits for every account to be exactly zero. */}
-      {total === 0 && !overdrawn ? (
-        <p className="mt-2 text-xs leading-snug text-muted-foreground">{empty}</p>
+        return (
+          <li key={row.key}>
+            {row.href ? (
+              <Link
+                href={row.href}
+                className="focus-ring block rounded-lg px-1.5 py-1 -mx-1.5 transition-colors hover:bg-muted/40"
+              >
+                {body}
+              </Link>
+            ) : (
+              <div className="px-1.5 py-1 -mx-1.5">{body}</div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * One figure in a rail beside something bigger.
+ *
+ * Flat on purpose — it sits INSIDE a card, and a bordered box within a bordered
+ * box is the "cards inside cards" look the owner has thrown out twice. The rule
+ * it keeps is the one the ring cards already follow: if a ring draws the
+ * percentage, the headline says what the percentage MEANS and never repeats it.
+ */
+export function RailStat({
+  label,
+  headline,
+  hint,
+  ringPct,
+  ringLabel,
+  tone = "brand",
+  icon: Icon,
+  href,
+}: {
+  label: string;
+  headline: string;
+  hint?: string;
+  ringPct?: number;
+  ringLabel?: string;
+  tone?: "brand" | "info" | "success" | "warning";
+  icon?: LucideIcon;
+  href?: string;
+}) {
+  const HEADLINE: Record<string, string> = {
+    brand: "text-foreground",
+    info: "text-info",
+    success: "text-success",
+    warning: "text-warning",
+  };
+  const CHIP: Record<string, string> = {
+    brand: "bg-brand/10 text-brand",
+    info: "bg-info/10 text-info",
+    success: "bg-success/10 text-success",
+    warning: "bg-warning/10 text-warning",
+  };
+
+  const body = (
+    <div className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          {Icon ? (
+            <span
+              className={cn(
+                "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
+                CHIP[tone]
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </span>
+          ) : null}
+          <p className="truncate text-xs text-muted-foreground">{label}</p>
+        </div>
+        <p
+          className={cn(
+            "mt-1.5 font-display text-[20px] font-bold leading-none tracking-tight tabular-nums",
+            HEADLINE[tone]
+          )}
+        >
+          {headline}
+        </p>
+        {hint ? (
+          <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+            {hint}
+          </p>
+        ) : null}
+      </div>
+      {ringPct !== undefined ? (
+        <Ring value={ringPct} tone={tone} label={ringLabel ?? label} size={44} stroke={4}>
+          {Math.round(ringPct)}%
+        </Ring>
       ) : null}
     </div>
+  );
+
+  return href ? (
+    <Link
+      href={href}
+      className="focus-ring block rounded-lg p-1.5 -m-1.5 transition-colors hover:bg-muted/40"
+    >
+      {body}
+    </Link>
+  ) : (
+    body
   );
 }
 

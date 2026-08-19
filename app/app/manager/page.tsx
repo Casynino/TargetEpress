@@ -35,7 +35,6 @@ import { AttentionCenter, type AttnItem } from "@/components/app/attention-cente
 import { DeskHero } from "@/components/app/desk-hero";
 import { DeskPulsePanel } from "@/components/app/desk-pulse";
 import { FlightProfitTable } from "@/components/app/flight-profit-table";
-import { KpiCard } from "@/components/app/kpi-card";
 import {
   BandHeading,
   BentoCard,
@@ -44,14 +43,15 @@ import {
   MarginRing,
   MoneyFlowChart,
   PipelineStrip,
-  ProportionBar,
+  AccountRail,
+  RailStat,
   QueueList,
   StatRows,
 } from "@/components/app/manager-bento";
 import { MoneyTile } from "@/components/app/money-tile";
 import { Sparkline } from "@/components/charts/sparkline";
 import { auditSentence } from "@/lib/audit-humanise";
-import { formatMonthYear, formatWeight, toNumber } from "@/lib/format";
+import { formatMoney, formatMonthYear, formatRelative, formatWeight, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
@@ -69,6 +69,7 @@ import {
   monthlyVolume,
   recentActivity,
 } from "@/lib/queries";
+import { accountStandings } from "@/lib/control";
 import { can } from "@/lib/rbac";
 import { creditAttention } from "@/lib/support";
 import { creditAlerts } from "@/lib/credit-queries";
@@ -186,6 +187,7 @@ export default async function ManagerHome() {
     fill,
     flights,
     volume,
+    standings,
   ] = await Promise.all([
     ownerAttention(liveRate, locale),
     creditAlerts(),
@@ -197,6 +199,10 @@ export default async function ManagerHome() {
     batchUtilisation(8),
     profitByDispatch(8),
     monthlyVolume(now, locale),
+    /* Named accounts with their own balances and their last reconciliation —
+       the same read the control room and the accounts page make, so all three
+       screens state one position. */
+    accountStandings(now),
   ]);
 
   const attention: AttnItem[] = [
@@ -207,6 +213,53 @@ export default async function ManagerHome() {
       canApprove: can(user.role, "credit.approve"),
     }),
   ];
+
+  /*
+    THE ACCOUNTS, AS THE RAIL DRAWS THEM.
+
+    Balances stay in the currency their account is kept in. Every other figure
+    on this screen is restated in shillings, and this one deliberately is not:
+    the dollar account is compared against a dollar statement, and putting it
+    through today's rate would print a number that statement will never show.
+    Only the total above the list is converted, and it says so.
+  */
+  const ACCOUNT_COLOURS: Record<string, string> = {
+    BANK: "hsl(var(--chart-1))",
+    MOBILE_MONEY: "hsl(var(--chart-2))",
+    CASH: "hsl(var(--chart-5))",
+  };
+  const accountRows = standings.map((account) => ({
+    key: account.id,
+    name: account.name,
+    kind: t(
+      locale,
+      account.kind === "BANK"
+        ? "Bank"
+        : account.kind === "MOBILE_MONEY"
+          ? "Mobile money"
+          : "Cash"
+    ),
+    colour: ACCOUNT_COLOURS[account.kind] ?? "hsl(var(--chart-1))",
+    display: formatMoney(account.balance, account.currency),
+    value: account.balance,
+    /* What the second line is FOR: a balance nobody has held against a
+       statement is the system agreeing with itself. */
+    meta:
+      account.lastCheck === null
+        ? t(locale, "never checked")
+        : account.staleSince !== null
+          ? t(locale, "moved since the check")
+          : `${t(locale, "checked")} ${formatRelative(account.lastCheck.asOf, locale)}`,
+    flag: account.balance < 0 ? t(locale, "overdrawn") : undefined,
+    href: can(user.role, "account.view")
+      ? `/app/manager/accounts/${account.id}`
+      : undefined,
+  }));
+  /* Never checked, or checked and then moved — both mean the figure on the
+     screen has not been agreed with anything outside this system. */
+  const unchecked = standings.filter(
+    (account) => account.lastCheck === null || account.staleSince !== null
+  ).length;
 
   const today = now.toLocaleDateString(locale === "zh" ? "zh-CN" : "en-GB", {
     weekday: "long",
@@ -760,143 +813,148 @@ export default async function ManagerHome() {
         </div>
 
         {/*
-          THREE CARDS BECAME ONE ROW.
+          ONE PANEL, AND IT NAMES THE ACCOUNTS.
 
-          The owner: "i feel like they can be design and arrange well they take
-          too much space i want to make use of this space nicely." He was right
-          and the measurements agreed — "Collected against billed" and
-          "Customers using credit" each held half the width of the screen to
-          print a ring and a word, and one digit, and the accounts rail then
-          took a whole row of its own underneath. Four facts, two rows, most of
-          it empty ground.
+          The owner, on the version before this one: "it disturbing the design
+          and there empty space you need to cover this place... why dont you add
+          something cool there we have too much info for you to be this basic."
+          Both halves of that are fair. Two cards stacked beside a shorter one
+          left a hole under the shorter one, and the shorter one was spending
+          the width of half a screen to say "bank, mobile money, cash".
 
-          The accounts rail keeps the width it genuinely needs — three labels,
-          three figures and a bar have to be long enough to read — and the two
-          small cards stack in the column beside it, where two short cards come
-          out about as tall as one deep one. No card is stretched to match a
-          neighbour, and the band loses a full row of height.
+          THE BUSINESS RUNS SIX ACCOUNTS. Grouping them into three kinds threw
+          away the only thing worth knowing — WHICH bank is overdrawn, and
+          whether anyone has checked it against a statement since it last moved.
+          That is this desk's own job, and it now sits on this desk's own home.
+
+          THE HOLE IS GONE BECAUSE THE COLUMNS SHARE ONE CARD. Two panels side
+          by side can always disagree about their height; two columns inside one
+          card cannot. The rail spreads its three figures over whatever height
+          the account list sets, so the bottom edge is straight at every width.
         */}
-        <div className="mt-3 grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-          <BentoCard href="/app/finance/accounts">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="text-sm font-semibold">
-                  {t(locale, "Where the money sits")}
-                </h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t(
-                    locale,
-                    "Every company account, grouped by kind and added at today's rate"
-                  )}
-                </p>
-              </div>
+        <div className="mt-3 rounded-xl border bg-card p-4 shadow-soft">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold">
+                {t(locale, "Where the money sits")}
+              </h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t(
+                  locale,
+                  "Every company account, in its own currency, and when it was last checked"
+                )}
+              </p>
+            </div>
+            <div className="flex items-start gap-4">
               <div className="text-right">
                 <p className="font-display text-[22px] font-bold leading-none tabular-nums">
                   {shillings(
                     finance.bankTzs + finance.mobileMoneyTzs + finance.cashTzs
                   )}
                 </p>
+                {/* The one figure here that IS converted, and it says so. */}
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {t(locale, "held in total")}
+                  {t(locale, "held in total, at today's rate")}
                 </p>
               </div>
+              <Link
+                href="/app/manager/accounts"
+                className="focus-ring mt-1 inline-flex shrink-0 items-center gap-1 rounded-md text-xs font-semibold text-brand hover:underline"
+              >
+                {t(locale, "Check accounts")}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
-
-            <ProportionBar
-              className="mt-4"
-              empty={t(locale, "No account is carrying a balance.")}
-              overdrawnLabel={t(locale, "overdrawn")}
-              parts={[
-                {
-                  key: "bank",
-                  label: t(locale, "In the bank"),
-                  display: shillings(finance.bankTzs),
-                  value: finance.bankTzs,
-                  colour: "hsl(var(--chart-1))",
-                },
-                {
-                  key: "mobile",
-                  label: t(locale, "Mobile money"),
-                  display: shillings(finance.mobileMoneyTzs),
-                  value: finance.mobileMoneyTzs,
-                  colour: "hsl(var(--chart-2))",
-                },
-                {
-                  key: "cash",
-                  label: t(locale, "Cash, the office tin included"),
-                  display: shillings(finance.cashTzs),
-                  value: finance.cashTzs,
-                  colour: "hsl(var(--chart-5))",
-                },
-              ]}
-            />
-
-            {/*
-              Said out loud, because the label above invites the wrong reading.
-
-              There is no petty-cash model in this schema — an account is BANK,
-              MOBILE_MONEY or CASH, and the office tin is a CASH account like the
-              counter float. Splitting them would mean inventing the rule that
-              decides which tin is petty.
-            */}
-            <p className="mt-3 text-xs leading-snug text-muted-foreground">
-              {t(
-                locale,
-                "There is no separate petty-cash pot. The office tin is a cash account like any other, and is inside the cash figure."
-              )}
-            </p>
-          </BentoCard>
-
-          {/* Side by side while there is room for it, stacked once the column
-              narrows — two cards this small should never own a row each. */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            <KpiCard
-              label={t(locale, "Collected against billed")}
-              /*
-                A VERDICT, NOT THE NUMBER AGAIN.
-
-                The ring prints the percentage in its own middle, so passing it
-                here put the same "62%" twice on one small card, two centimetres
-                apart. Today's takings were the obvious substitute and are wrong:
-                this card is about the MONTH, and a daily figure under a monthly
-                ring is the same mislabelling trap in a new place. So the headline
-                says what the percentage MEANS — which is the one thing a ring
-                cannot — and the number stays in the ring where it is drawn.
-              */
-              value={
-                finance.collectionRatePct === null
-                  ? t(locale, "Nothing billed")
-                  : finance.collectionRatePct >= 80
-                    ? t(locale, "Collecting well")
-                    : finance.collectionRatePct >= 40
-                      ? t(locale, "Half the month is out")
-                      : t(locale, "Barely collecting")
-              }
-              ringPct={finance.collectionRatePct ?? undefined}
-              ringLabel={t(locale, "Share of this month's billing already paid")}
-              hint={
-                finance.collectionRatePct === null
-                  ? t(locale, "nothing billed this month yet")
-                  : t(locale, "of this month's billing has come back")
-              }
-              icon={Wallet}
-              tone={
-                finance.collectionRatePct === null
-                  ? "info"
-                  : finance.collectionRatePct >= 60
-                    ? "success"
-                    : "warning"
-              }
-            />
-            <KpiCard
-              label={t(locale, "Customers using credit")}
-              numeric={customers.onCredit}
-              hint={t(locale, "carrying a live balance right now")}
-              icon={CreditCard}
-              tone="info"
-              href="/app/finance/credit"
-            />
           </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] lg:gap-6">
+            <AccountRail
+              rows={accountRows}
+              empty={t(locale, "No account has been set up yet.")}
+            />
+
+            {/* The rail spreads to the list's height, so neither column ends
+                early. A divider rather than a border box: these are three
+                readings of the same money, not three cards. */}
+            <div className="flex flex-col justify-between gap-4 border-t pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+              <RailStat
+                label={t(locale, "Collected against billed")}
+                /*
+                  A VERDICT, NOT THE NUMBER AGAIN — the ring prints the
+                  percentage in its own middle, so the headline says what the
+                  percentage MEANS, which is the one thing a ring cannot.
+                */
+                headline={
+                  finance.collectionRatePct === null
+                    ? t(locale, "Nothing billed")
+                    : finance.collectionRatePct >= 80
+                      ? t(locale, "Collecting well")
+                      : finance.collectionRatePct >= 40
+                        ? t(locale, "Half the month is out")
+                        : t(locale, "Barely collecting")
+                }
+                ringPct={finance.collectionRatePct ?? undefined}
+                ringLabel={t(locale, "Share of this month's billing already paid")}
+                hint={
+                  finance.collectionRatePct === null
+                    ? t(locale, "nothing billed this month yet")
+                    : t(locale, "of this month's billing has come back")
+                }
+                icon={Wallet}
+                tone={
+                  finance.collectionRatePct === null
+                    ? "info"
+                    : finance.collectionRatePct >= 60
+                      ? "success"
+                      : "warning"
+                }
+              />
+              <RailStat
+                label={t(locale, "Customers using credit")}
+                headline={customers.onCredit.toLocaleString("en-US")}
+                hint={t(locale, "carrying a live balance right now")}
+                icon={CreditCard}
+                tone="info"
+                href="/app/finance/credit"
+              />
+              {/*
+                NEW, AND THE REASON THIS PANEL EXISTS.
+
+                A balance is the system agreeing with itself. This counts the
+                accounts whose figure has not been held against a bank slip, a
+                till or a phone since the money last moved — the manager's own
+                job, and until now readable only by opening the accounts page
+                and reading six rows one at a time.
+              */}
+              <RailStat
+                label={t(locale, "Accounts to check")}
+                headline={unchecked.toLocaleString("en-US")}
+                hint={
+                  unchecked === 0
+                    ? t(locale, "every account has been checked since it last moved")
+                    : t(locale, "never checked, or moved since the last check")
+                }
+                icon={Scale}
+                tone={unchecked === 0 ? "success" : "warning"}
+                href="/app/manager/accounts"
+              />
+            </div>
+          </div>
+
+          {/*
+            Said out loud, because the label above invites the wrong reading.
+
+            There is no petty-cash model in this schema — an account is BANK,
+            MOBILE_MONEY or CASH, and the office tin is a CASH account like the
+            counter float. Splitting them would mean inventing the rule that
+            decides which tin is petty.
+          */}
+          <p className="mt-4 text-xs leading-snug text-muted-foreground">
+            {t(
+              locale,
+              "There is no separate petty-cash pot. The office tin is a cash account like any other, and is inside the cash figure."
+            )}
+          </p>
         </div>
       </section>
 

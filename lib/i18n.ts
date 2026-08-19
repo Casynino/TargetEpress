@@ -2400,6 +2400,16 @@ const ZH: Record<string, string> = {
   "Reconciliation": "对账",
   "Review transactions": "复核流水",
   "Manager actions": "经理操作",
+  "never checked": "从未核对",
+  "moved since the check": "核对后又有变动",
+  "Accounts to check": "待核对账户",
+  "Check accounts": "核对账户",
+  "held in total, at today's rate": "按今日汇率合计持有",
+  "Every company account, in its own currency, and when it was last checked":
+    "每个公司账户，按其本币显示，以及最近一次核对的时间",
+  "No account has been set up yet.": "尚未设置任何账户。",
+  "every account has been checked since it last moved": "每个账户在最近一次变动后都已核对",
+  "never checked, or moved since the last check": "从未核对，或核对后又有变动",
   "Control room": "指挥中心",
   "Here is the whole business, and what is waiting on you.":
     "这里是整个公司的情况，以及正在等你处理的事。",
