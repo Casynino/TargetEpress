@@ -24,11 +24,24 @@ export function ActivityBars({
   const max = Math.max(1, ...points.map((p) => p.value));
 
   return (
-    <div className={cn("flex w-full flex-col", className)}>
-      {/* min-h rather than a fixed h: on its own the chart is 128px tall, and
-          inside a card that has been given more room it grows to fill it, so
-          the bars beside a taller donut do not stop a third of the way up. */}
-      <div className="flex min-h-32 flex-1 items-end gap-1">
+    <div className={cn("w-full", className)}>
+      {/*
+        h-32 with flex-1 on top.
+
+        min-h-32 alone looked equivalent and was not: inside a card that is NOT
+        being stretched, the flex chain above resolves to zero and the bars
+        collapsed to nothing — the chart rendered as a title over two batch
+        labels with empty ground between them. A real height holds the floor;
+        flex-1 lets it grow when a card above it is stretched.
+      */}
+      {/*
+        h-32 and NOTHING else. flex-1 alongside it sets flex-basis:0 in a column
+        with no free space to distribute, which beats the height and collapsed
+        the bars to zero — the chart rendered as a title over two batch labels
+        with nothing between them. Measured at 0px before this; a chart that
+        silently has no bars is worse than one that is the wrong size.
+      */}
+      <div className="flex h-32 items-end gap-1">
         {points.map((point, index) => {
           const height = (point.value / max) * 100;
           return (

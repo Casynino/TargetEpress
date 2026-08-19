@@ -649,7 +649,7 @@ export type Stage = {
  */
 export function PipelineStrip({ stages }: { stages: Stage[] }) {
   return (
-    <div className="mt-3 grid flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
+    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
       {stages.map((stage, index) => {
         const Icon = stage.icon;
         return (

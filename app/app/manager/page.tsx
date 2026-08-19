@@ -924,6 +924,62 @@ export default async function ManagerHome() {
             the mix donut is tall; putting them side by side left the corridor
             card ending at half the height of its neighbour. Now: two lists
             in one row, two charts in the next. */}
+        {/* The flight stages on their own full-width row. Three numbers do not
+            fill a card that has been stretched beside a five-row list — they
+            were 254px tall holding 65px of nothing. Alone, the row is as tall
+            as one stage. */}
+        <div className="mt-3">
+          <BentoCard>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">
+                  {t(locale, "The flights themselves")}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {t(locale, "Batches, not consignments — the aircraft, not the boxes")}
+                </p>
+              </div>
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-info/10 text-info">
+                <Plane className="h-4 w-4" />
+              </span>
+            </div>
+
+            <PipelineStrip
+              stages={[
+                {
+                  key: "loading",
+                  label: t(locale, "Loading in Guangzhou"),
+                  value: count(operations.batchesLoading),
+                  hint: t(locale, "open, full or sealed"),
+                  icon: PlaneTakeoff,
+                  href: "/app/batches",
+                  tone: "info",
+                },
+                {
+                  key: "air",
+                  label: t(locale, "In the air"),
+                  value: count(operations.batchesInAir),
+                  hint: t(locale, "departed, not yet landed"),
+                  icon: Plane,
+                  href: "/app/incoming",
+                  tone: "brand",
+                },
+                {
+                  key: "landed",
+                  label: t(locale, "Landed, not finished"),
+                  value: count(operations.batchesArrived),
+                  hint: t(locale, "manifest still being ticked off"),
+                  icon: PlaneLanding,
+                  href: "/app/receive",
+                  tone: operations.batchesArrived > 0 ? "warn" : "plain",
+                },
+              ]}
+            />
+          </BentoCard>
+        </div>
+
+        {/* The two tall panels together: a five-row list and a donut, both
+            genuinely tall, so matching them adds no emptiness to either. */}
         <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-stretch">
           <BentoCard
             href="/app/shipments"
@@ -983,56 +1039,6 @@ export default async function ManagerHome() {
               ]}
             />
           </BentoCard>
-          <BentoCard>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="text-sm font-semibold">
-                  {t(locale, "The flights themselves")}
-                </h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t(locale, "Batches, not consignments — the aircraft, not the boxes")}
-                </p>
-              </div>
-              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-info/10 text-info">
-                <Plane className="h-4 w-4" />
-              </span>
-            </div>
-
-            <PipelineStrip
-              stages={[
-                {
-                  key: "loading",
-                  label: t(locale, "Loading in Guangzhou"),
-                  value: count(operations.batchesLoading),
-                  hint: t(locale, "open, full or sealed"),
-                  icon: PlaneTakeoff,
-                  href: "/app/batches",
-                  tone: "info",
-                },
-                {
-                  key: "air",
-                  label: t(locale, "In the air"),
-                  value: count(operations.batchesInAir),
-                  hint: t(locale, "departed, not yet landed"),
-                  icon: Plane,
-                  href: "/app/incoming",
-                  tone: "brand",
-                },
-                {
-                  key: "landed",
-                  label: t(locale, "Landed, not finished"),
-                  value: count(operations.batchesArrived),
-                  hint: t(locale, "manifest still being ticked off"),
-                  icon: PlaneLanding,
-                  href: "/app/receive",
-                  tone: operations.batchesArrived > 0 ? "warn" : "plain",
-                },
-              ]}
-            />
-          </BentoCard>
-        </div>
-
-        <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-stretch">
           <div className="flex flex-col [&>section]:flex-1">
             <CargoMix
               slices={mix.slices}
@@ -1041,6 +1047,9 @@ export default async function ManagerHome() {
               periodLabel={`${t(locale, "Registered in the last")} ${mix.days} ${t(locale, "days")}`}
             />
           </div>
+        </div>
+
+        <div className="mt-3">
           <BentoCard href="/app/batches">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -1058,7 +1067,7 @@ export default async function ManagerHome() {
                 {t(locale, "No batch has flown yet, so there is nothing to compare.")}
               </p>
             ) : (
-              <ActivityBars className="mt-4 flex-1" points={fill} unit={t(locale, "kg")} />
+              <ActivityBars className="mt-4" points={fill} unit={t(locale, "kg")} />
             )}
           </BentoCard>
         </div>
@@ -1084,7 +1093,11 @@ export default async function ManagerHome() {
           a desk with little on it. A ragged bottom edge is the honest shape of
           unequal content.
         */}
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:items-stretch">
+        {/* items-start, not stretch. "Waiting on you" carries three tall queue
+            rows; the two beside it carry a figure and three thin lines. Matched
+            heights gave each of those 57px of empty ground — the measurement
+            that sent me back here. Unequal bottoms, no holes. */}
+        <div className="grid items-start grid-cols-1 gap-3 lg:grid-cols-3">
           <BentoCard>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
