@@ -75,47 +75,84 @@ export const metadata: Metadata = { title: "Reconciliation" };
  * everywhere on this page, because a screen that mixes them certifies nothing.
  */
 
-const STATE_STYLE: Record<QueueState, { label: string; chip: string; dot: string; icon: LucideIcon }> = {
+/*
+  ONE PLACE THAT KNOWS WHAT EACH STATE LOOKS LIKE — the chip on a row, the dot in
+  the progress rail, and the card at the top of the page. Written out per tone
+  because Tailwind scans source text and never sees an interpolated class.
+*/
+const STATE_STYLE: Record<
+  QueueState,
+  {
+    label: string;
+    chip: string;
+    dot: string;
+    card: string;
+    figure: string;
+    iconChip: string;
+    icon: LucideIcon;
+  }
+> = {
   PENDING: {
     label: "Pending",
     chip: "border-warning/40 bg-warning/10 text-warning",
     dot: "bg-warning",
+    card: "border-warning/25 bg-gradient-to-br from-warning/[0.12] via-card to-card hover:border-warning/45",
+    figure: "text-warning",
+    iconChip: "bg-warning/15 text-warning ring-1 ring-inset ring-warning/30",
     icon: CircleDot,
   },
   MISMATCH: {
     label: "Mismatch",
     chip: "border-destructive/40 bg-destructive/10 text-destructive",
     dot: "bg-destructive",
+    card: "border-destructive/25 bg-gradient-to-br from-destructive/[0.12] via-card to-card hover:border-destructive/45",
+    figure: "text-destructive",
+    iconChip: "bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/30",
     icon: AlertTriangle,
   },
   SENT_BACK: {
     label: "Sent back",
     chip: "border-warning/40 bg-warning/10 text-warning",
     dot: "bg-warning",
+    card: "border-warning/25 bg-gradient-to-br from-warning/[0.12] via-card to-card hover:border-warning/45",
+    figure: "text-warning",
+    iconChip: "bg-warning/15 text-warning ring-1 ring-inset ring-warning/30",
     icon: Undo2,
   },
   FLAGGED: {
     label: "Flagged",
     chip: "border-destructive/40 bg-destructive/10 text-destructive",
     dot: "bg-destructive",
+    card: "border-destructive/25 bg-gradient-to-br from-destructive/[0.12] via-card to-card hover:border-destructive/45",
+    figure: "text-destructive",
+    iconChip: "bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/30",
     icon: Flag,
   },
   INFO_REQUESTED: {
     label: "Information requested",
     chip: "border-info/40 bg-info/10 text-info",
     dot: "bg-info",
+    card: "border-info/25 bg-gradient-to-br from-info/[0.12] via-card to-card hover:border-info/45",
+    figure: "text-info",
+    iconChip: "bg-info/15 text-info ring-1 ring-inset ring-info/30",
     icon: MessageCircleQuestion,
   },
   UNDER_REVIEW: {
     label: "Under review",
     chip: "border-brand/40 bg-brand/10 text-brand",
     dot: "bg-brand",
+    card: "border-brand/25 bg-gradient-to-br from-brand/[0.12] via-card to-card hover:border-brand/45",
+    figure: "text-brand",
+    iconChip: "bg-brand/15 text-brand ring-1 ring-inset ring-brand/30",
     icon: SearchIcon,
   },
   RECONCILED: {
     label: "Reconciled",
     chip: "border-success/40 bg-success/10 text-success",
     dot: "bg-success",
+    card: "border-success/25 bg-gradient-to-br from-success/[0.12] via-card to-card hover:border-success/45",
+    figure: "text-success",
+    iconChip: "bg-success/15 text-success ring-1 ring-inset ring-success/30",
     icon: BadgeCheck,
   },
 };
@@ -428,28 +465,47 @@ export default async function ManagerReconciliation({
                 href={withParams(params, { status: active ? undefined : state, tx: undefined })}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  /* Each card carries its own status colour rather than four
-                     grey boxes with a coloured freckle — the owner: "it does
-                     nt gave colors and the cards are boring". Colour here is
-                     the meaning: amber waiting, red disagreeing, blue being
-                     looked into, green agreed. */
-                  "focus-ring group rounded-lg border p-3 transition-all hover:-translate-y-px",
-                  meta.chip,
-                  active && "ring-2 ring-offset-2 ring-offset-card"
+                  /*
+                    THE SAME SHAPE AS THE CARDS HE LIKED ON HIS OWN HOME: the
+                    name on the left, the icon in a chip on the right, the figure
+                    big underneath and the share of the pile quietly beside it.
+                    They were tall boxes with the label wearing the colour and
+                    the number in plain white — "the card ar not nice".
+                  */
+                  "focus-ring group flex items-start justify-between gap-3 rounded-xl border px-3.5 py-3 transition-all hover:-translate-y-px",
+                  meta.card,
+                  active && "ring-2 ring-inset ring-current"
                 )}
               >
-                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide">
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] font-medium text-muted-foreground">
+                    {t(locale, meta.label)}
+                  </span>
+                  <span
+                    className={cn(
+                      "mt-1.5 block font-display text-[26px] font-bold leading-none tabular-nums",
+                      meta.figure
+                    )}
+                  >
+                    {queue.counts[state].toLocaleString("en-US")}
+                  </span>
+                  <span className="mt-1.5 block text-[11px] text-muted-foreground">
+                    {queue.total > 0
+                      ? `${Math.round((queue.counts[state] / queue.total) * 100)}% ${t(
+                          locale,
+                          "of the pile"
+                        )}`
+                      : t(locale, "nothing in this view")}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                    meta.iconChip
+                  )}
+                >
                   <Icon className="h-3.5 w-3.5" />
-                  {t(locale, meta.label)}
-                </p>
-                <p className="mt-1.5 font-display text-[24px] font-bold leading-none tabular-nums">
-                  {queue.counts[state].toLocaleString("en-US")}
-                </p>
-                <p className="mt-1 text-[10px] uppercase tracking-wide opacity-70">
-                  {queue.total > 0
-                    ? `${Math.round((queue.counts[state] / queue.total) * 100)}%`
-                    : "—"}
-                </p>
+                </span>
               </Link>
             );
           })}
@@ -569,7 +625,23 @@ export default async function ManagerReconciliation({
         the row's height and the list scrolls inside its own card, so the band
         has one bottom edge whether there are four records or forty.
       */}
-      <section className="mb-6 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+      {/*
+        A WORKSPACE OF FIXED HEIGHT, so neither side can leave a hole.
+
+        items-stretch alone was not enough: with twenty-seven records the queue
+        grew to seventeen hundred pixels, the row grew with it, and the panel
+        beside it — which is only as tall as one record — left a black column
+        down the right of the screen. Stretching makes the two EQUAL; it does
+        not stop them being enormous.
+
+        So the band is CAPPED at one screenful rather than fixed to it. A quiet
+        week of four records keeps its natural height and no card is padded out
+        with nothing; a busy one stops at the fold and both panels scroll inside
+        themselves. Either way the two end level and the page below starts where
+        the screen does. On a phone they stack at natural height, because a
+        scroller inside a scroller on a small screen is a trap.
+      */}
+      <section className="mb-6 grid grid-cols-1 items-stretch gap-4 lg:max-h-[calc(100vh-8rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
         {/*
           THE CARD IS THE GRID'S OWN CHILD, with nothing wrapped around it.
 
@@ -697,7 +769,10 @@ export default async function ManagerReconciliation({
         </div>
 
         {/* the record under the manager's eye */}
-        <div id="record" className="scroll-mt-4 rounded-xl border bg-card shadow-soft lg:sticky lg:top-4">
+        <div
+          id="record"
+          className="scroll-mt-4 overflow-y-auto rounded-xl border bg-card shadow-soft"
+        >
           {!selected ? (
             <div className="p-4">
               <EmptyState

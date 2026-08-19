@@ -234,6 +234,13 @@ export function RecordsQueue({
               </Link>
             </li>
           ))}
+          {/* The end of a short list, said rather than left as ground. The two
+              panels are held level so neither leaves a black column beside it,
+              which means the shorter one carries slack; a line at the foot of
+              it reads as finished instead of as something failing to load. */}
+          <li className="px-4 py-3 text-center text-[11px] text-muted-foreground">
+            {t("That is everything in this view.")}
+          </li>
         </ul>
       )}
     </div>
