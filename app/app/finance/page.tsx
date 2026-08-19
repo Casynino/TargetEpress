@@ -46,6 +46,8 @@ import {
 } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
+import { FinanceNav } from "@/components/app/finance-nav";
+import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -359,6 +361,7 @@ export default async function FinanceOverviewPage() {
         }
       />
 
+      <FinanceNav tabs={financeTabs(user.role)} />
 
       {/* ── One band: what we hold, what moved, and the three things this desk
              does. Everything a manager opens this page to know, above the

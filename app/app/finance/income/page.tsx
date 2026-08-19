@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Search, Undo2 } from "lucide-react";
 
+import { FinanceNav } from "@/components/app/finance-nav";
 import { IncomeSheetTable } from "@/components/app/income-sheet";
 import { PageHeader } from "@/components/app/page-header";
 import { Input } from "@/components/ui/input";
+import { financeTabs } from "@/lib/finance-tabs";
 import { incomeSheet } from "@/lib/income";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -72,6 +74,7 @@ export default async function ClosedBatchesPage({
         title="Closed batches"
         description="What each closed batch made. The figures are worked out when Finance shuts the books and frozen there — then the boss reviews them."
       />
+      <FinanceNav tabs={financeTabs(user.role)} />
 
       {/*
         Sent back, and said first.

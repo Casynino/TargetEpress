@@ -4,8 +4,10 @@ import type { Prisma } from "@prisma/client";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
+import { FinanceNav } from "@/components/app/finance-nav";
 import { Badge } from "@/components/ui/badge";
 import { auditSentence } from "@/lib/audit-humanise";
+import { financeTabs } from "@/lib/finance-tabs";
 import { formatDateTime } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -125,6 +127,7 @@ export default async function FinanceAuditPage({
         )}
       />
 
+      <FinanceNav tabs={financeTabs(user.role)} />
 
       <div className="mb-4 flex flex-wrap gap-1.5">
         <Chip href={linkFor(undefined, undefined, undefined)} active={!params.entity && !undoneOnly}>

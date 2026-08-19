@@ -6,6 +6,7 @@ import { Ban, ChevronRight, Paperclip, Pencil } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { IconHint } from "@/components/app/icon-hint";
 import { PageHeader } from "@/components/app/page-header";
+import { FinanceNav } from "@/components/app/finance-nav";
 import { LedgerFilters } from "@/components/app/ledger-filters";
 import { RecordCostButton } from "@/components/app/record-cost-button";
 import {
@@ -23,6 +24,7 @@ import {
   COMMON_EXPENSES,
   EXPENSE_CATEGORY_LABELS,
 } from "@/lib/expenses";
+import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -403,6 +405,7 @@ export default async function LedgerPage({
         }
       />
 
+      <FinanceNav tabs={financeTabs(user.role)} />
 
       <LedgerFilters
         accounts={accounts.map((a) => ({ id: a.id, name: a.name }))}

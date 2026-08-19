@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { PayrollStatus } from "@prisma/client";
 import { Clock, Undo2 } from "lucide-react";
 
+import { FinanceNav } from "@/components/app/finance-nav";
 import { PageHeader } from "@/components/app/page-header";
 import { PayrollAmount } from "@/components/app/payroll-amount";
 import {
@@ -11,6 +12,7 @@ import {
   PayrollSubmit,
 } from "@/components/app/payroll-lines";
 import { activeAccounts } from "@/lib/accounts";
+import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate, formatMonthYear, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -126,6 +128,7 @@ export default async function FinancePayrollPage({
         description="Build the month from the staff register, correct the exceptions, and send it to the manager. Nothing leaves the account until he has agreed it."
       />
 
+      <FinanceNav tabs={financeTabs(user.role)} />
 
       {/* Building leads when this month has no run: it is then the one thing to
           do on the screen, and it should not sit underneath last month's. */}

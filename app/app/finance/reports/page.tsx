@@ -8,9 +8,11 @@ import { BarChart } from "@/components/charts/bar-chart";
 import { FlowBars } from "@/components/charts/flow-bars";
 import { PageHeader } from "@/components/app/page-header";
 import { ReportViewer } from "@/components/app/report-viewer";
+import { FinanceNav } from "@/components/app/finance-nav";
 import { Badge } from "@/components/ui/badge";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
+import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate, formatMonthYear, toNumber } from "@/lib/format";
 import { currentRate, formatShillings, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -236,6 +238,7 @@ export default async function FinanceReportsPage({
         )}
       />
 
+      <FinanceNav tabs={financeTabs(user.role)} />
 
 
       <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
