@@ -881,12 +881,19 @@ const MANAGER_SECTIONS: NavSection[] = [
     items: [
       { href: "/app/search", label: "Search", icon: "Package" },
       { href: "/app/customers", label: "Customers", icon: "Users" },
+      /* Moved up from Finance at the owner's instruction, and then to the head
+         of the batch group: "batchs finaces should come FISST". What a flight
+         earned is the question he opens the batch pages with, so it leads them
+         rather than trailing them. */
+      { href: "/app/manager/batches", label: "Batch finances", icon: "Boxes", permission: "profit.view" },
+      /* The life of a batch, in order: still loading, landed, signed off. */
       { href: "/app/shipments", label: "Arrived batches", icon: "PlaneTakeoff" },
       { href: "/app/batches", label: "Loading batches", icon: "Boxes" },
-      /* Moved up from Finance, where it sat under a money heading three groups
-         below the two batch lists it belongs beside. It answers "what did that
-         flight earn", which is a question asked with a batch already in mind. */
-      { href: "/app/manager/batches", label: "Batch finances", icon: "Boxes", permission: "profit.view" },
+      /* Reachable before this only through a tab on the Finance overview,
+         which is three clicks from here and not where anyone looks for a
+         batch. Same page Finance uses — /app/finance/income, gated on
+         accounting.view, which this role carries. */
+      { href: "/app/finance/income", label: "Closed batches", icon: "ClipboardCheck", permission: "accounting.view" },
       { href: "/app/exceptions", label: "Issues & Claims", icon: "TriangleAlert" },
     ],
   },
