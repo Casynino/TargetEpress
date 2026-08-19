@@ -7,6 +7,7 @@ import { CheckCircle2, Info, Plane } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { PhotoCapture } from "@/components/app/photo-capture";
+import { suggestCargoType } from "@/lib/actions/pricing";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -47,11 +48,14 @@ type CargoTypeOption = { id: string; name: string };
 export function ShipmentForm({
   locale = "en",
   typesByCategory,
+  canAddItem,
   photosDurable,
 }: {
   /** The reader's language. Passed in: a client component cannot ask. */
   locale?: Locale;
   typesByCategory: Record<string, CargoTypeOption[]>;
+  /** Whether this desk may add an item that is not on the list. */
+  canAddItem: boolean;
   photosDurable: boolean;
 }) {
   const [state, formAction] = useActionState<
@@ -62,8 +66,28 @@ export function ShipmentForm({
   const [category, setCategory] = useState<CargoCategory>("NORMAL_GOODS");
   const [cargoTypeId, setCargoTypeId] = useState("");
 
+  /*
+    Items this desk has just added, held here until the page is next fetched.
+
+    The action revalidates /app/cargo/new, but this form is mid-entry — the
+    clerk has a box on the scale and half a consignment typed. Re-rendering the
+    route under them would be worse than a stale list, so the new item is pushed
+    into the picker locally and selected, and the server's copy catches up on
+    the next load.
+  */
+  const [addedTypes, setAddedTypes] = useState<
+    Record<string, CargoTypeOption[]>
+  >({});
+  const [addingItem, setAddingItem] = useState(false);
+  const [newItemName, setNewItemName] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addPending, setAddPending] = useState(false);
+
   const route = ROUTE_FOR_CATEGORY[category];
-  const types = typesByCategory[category] ?? [];
+  const types = [
+    ...(typesByCategory[category] ?? []),
+    ...(addedTypes[category] ?? []),
+  ];
   const created = state.ok && state.data?.trackingNumber;
 
   if (created) {
@@ -217,9 +241,14 @@ export function ShipmentForm({
               onChange={(e) => setCargoTypeId(e.target.value)}
             >
               <option value="">{t(locale, "Not listed / mixed")}</option>
+              {/* Through the dictionary, like every other string on this form.
+                  The name is a database row rather than a literal, so it is
+                  looked up by the English it stores — an item added later reads
+                  in English until its line exists, which is a gap rather than a
+                  break. */}
               {types.map((type) => (
                 <option key={type.id} value={type.id}>
-                  {type.name}
+                  {t(locale, type.name)}
                 </option>
               ))}
             </NativeSelect>
@@ -231,6 +260,106 @@ export function ShipmentForm({
                   "Electronics are priced per item. Without an item, Finance will have to price this one by hand."
                 )}
               </p>
+            ) : null}
+
+            {/*
+              ADDING WHAT IS IN FRONT OF YOU.
+
+              The desk holding the box is the only one who knows what is in it,
+              and until now an item missing from this list left one option:
+              leave it unlisted and let Finance price it on the general rate,
+              which the warning above says is usually wrong. Most consignments
+              went out that way.
+
+              It adds the ITEM and never a price. The new type carries no rule,
+              so this consignment is priced exactly as an unlisted one would
+              have been — no worse on the money, better on the record, because
+              it now says what it is. Finance prices it afterwards, from a name
+              chosen by somebody who saw the goods.
+
+              Not a nested form: this whole page is one useActionState, so the
+              action is called straight from the handler.
+            */}
+            {canAddItem ? (
+              addingItem ? (
+                <div className="space-y-2 rounded-lg border bg-muted/30 p-2.5">
+                  <Label htmlFor="newItemName" className="text-xs">
+                    {t(locale, "What is it? Add it to the list")}
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    <Input
+                      id="newItemName"
+                      value={newItemName}
+                      onChange={(e) => setNewItemName(e.target.value)}
+                      placeholder={t(locale, "e.g. Power banks")}
+                      className="h-9 min-w-[160px] flex-1"
+                      maxLength={60}
+                    />
+                    <button
+                      type="button"
+                      disabled={addPending || newItemName.trim().length < 2}
+                      onClick={async () => {
+                        setAddPending(true);
+                        setAddError(null);
+                        const fd = new FormData();
+                        fd.set("name", newItemName.trim());
+                        fd.set("category", category);
+                        const result = await suggestCargoType(undefined, fd);
+                        setAddPending(false);
+                        if (!result.ok) {
+                          setAddError(result.error);
+                          return;
+                        }
+                        const added = result.data;
+                        if (!added) return;
+                        setAddedTypes((prev) => ({
+                          ...prev,
+                          [category]: [
+                            ...(prev[category] ?? []).filter(
+                              (x) => x.id !== added.id
+                            ),
+                            added,
+                          ],
+                        }));
+                        setCargoTypeId(added.id);
+                        setNewItemName("");
+                        setAddingItem(false);
+                      }}
+                      className="focus-ring inline-flex h-9 items-center rounded-md bg-brand px-3 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      {addPending ? t(locale, "Adding…") : t(locale, "Add it")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddingItem(false);
+                        setNewItemName("");
+                        setAddError(null);
+                      }}
+                      className="focus-ring inline-flex h-9 items-center rounded-md px-2 text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      {t(locale, "Never mind")}
+                    </button>
+                  </div>
+                  {addError ? (
+                    <p className="text-xs text-destructive">{addError}</p>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      locale,
+                      "This adds the item so the cargo is labelled correctly. It sets no price — Finance still does that."
+                    )}
+                  </p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAddingItem(true)}
+                  className="focus-ring text-xs font-medium text-brand underline-offset-2 hover:underline"
+                >
+                  {t(locale, "Item not on the list? Add it")}
+                </button>
+              )
             ) : null}
           </div>
         ) : null}

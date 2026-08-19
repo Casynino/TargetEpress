@@ -505,3 +505,122 @@ export async function revisePrice(
     return fail(toActionError(error));
   }
 }
+
+/* ------------------------------------------------- the floor adds an item */
+
+const suggestSchema = (locale: Locale) =>
+  z.object({
+    name: z
+      .string()
+      .trim()
+      .min(2, t(locale, "Give the item a name."))
+      .max(60, t(locale, "Keep the name short — it goes on a dropdown.")),
+    category: CATEGORY,
+  });
+
+/**
+ * The desk holding the box adds an item that is not on the list.
+ *
+ * SEPARATE FROM createProduct, and behind a different permission, because the
+ * two do different amounts of damage if misused. That one is the rate book's
+ * front door: it takes a route and keywords, and it sits beside the actions
+ * that publish prices. This one takes a name and a category, and that is all it
+ * can ever take.
+ *
+ * WHY THE FLOOR NEEDS IT AT ALL. The registration form warns, in the reader's
+ * own words, that an unrecognised item is priced on the general rate and that
+ * this is usually wrong. Until now the only cure was to ring somebody with
+ * pricing.manage, so the fast path was to leave it unlisted — and the app's own
+ * dashboards say 77 of 84 consignments went out that way. A picker the desk
+ * cannot extend is a picker the desk stops using.
+ *
+ * WHAT IT DELIBERATELY CANNOT DO: set a price. The new type has no rule, so it
+ * falls to the category rate exactly as "not listed" did — no worse than today
+ * on the money, and better on the record, because the consignment now says what
+ * it is. Finance and the owner price it afterwards, on their own screen, from a
+ * name somebody who saw the goods chose.
+ */
+export async function suggestCargoType(
+  _prev: ActionResult<{ id: string; name: string }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ id: string; name: string }>> {
+  const locale = await viewerLocale();
+
+  let user: SessionUser;
+  try {
+    user = await authorize("cargoType.suggest");
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  const parsed = suggestSchema(locale).safeParse(
+    Object.fromEntries(formData) as Record<string, string>
+  );
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? t(locale, "Check the name."));
+  }
+  const input = parsed.data;
+
+  try {
+    /* Already there under this category — hand back the existing one rather
+       than refusing. Somebody typing "Laptop" into a list that already has it
+       wants to select it, and a duplicate-name error teaches them to give up
+       and leave the field blank. Reactivated if it had been switched off, since
+       a desk is telling us it is being shipped again. */
+    const existing = await prisma.cargoType.findUnique({
+      where: { category_name: { category: input.category, name: input.name } },
+      select: { id: true, name: true, active: true },
+    });
+    if (existing) {
+      if (!existing.active) {
+        await prisma.cargoType.update({
+          where: { id: existing.id },
+          data: { active: true },
+        });
+      }
+      return ok({ id: existing.id, name: existing.name });
+    }
+
+    const last = await prisma.cargoType.findFirst({
+      where: { category: input.category },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+
+    const created = await prisma.$transaction(async (tx) => {
+      const type = await tx.cargoType.create({
+        data: {
+          name: input.name,
+          category: input.category,
+          /* Guangzhou is the only origin this app flies from, and the floor is
+             not asked to know that — createProduct takes a route because the
+             rate book may one day hold more than one. */
+          route: "GUANGZHOU",
+          sortOrder: (last?.sortOrder ?? 0) + 1,
+        },
+        select: { id: true, name: true },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "cargoType.suggest",
+          entity: "CargoType",
+          entityId: type.id,
+          summary: `${user.name} added the item "${input.name}" (${input.category}) from the floor — no price set`,
+          metadata: { name: input.name, category: input.category, priced: false },
+        },
+        tx
+      );
+
+      return type;
+    });
+
+    revalidatePath("/app/cargo/new");
+    revalidatePath("/app/admin/pricing");
+    revalidatePath("/calculator");
+    return ok(created);
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}

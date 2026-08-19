@@ -204,6 +204,7 @@ export type Permission =
   | "payroll.approve"
   | "account.reconcile"
   | "record.review"
+  | "cargoType.suggest"
   /**
    * Read the rate book, the exchange rate and the product catalogue.
    *
@@ -230,6 +231,14 @@ const CHINA: Permission[] = [
   "warehouse.reports",
   "shipment.view",
   "shipment.create",
+  /* Add an item that is not on the list.
+
+     The desk holding the box is the only one that knows what is in it, and an
+     unrecognised item is priced on the general rate — which the form itself
+     warns is usually wrong. This creates the TYPE and nothing else: what it
+     costs is a separate action behind pricing.manage and stays the owner's. So
+     the floor can label cargo correctly without being able to price it. */
+  "cargoType.suggest",
   "shipment.edit",
   // The desk that took the cargo in is the desk that mistyped the weight. Both
   // are limited to cargo still sitting in China — once it is on a plane the
@@ -280,6 +289,9 @@ const CHINA: Permission[] = [
  */
 const DAR: Permission[] = [
   "shipment.view",
+  /* Dar too: they open the box on arrival, and a mislabelled consignment is
+     most often caught there rather than in Guangzhou. */
+  "cargoType.suggest",
   "shipment.viewInternal",
   // The customs entry, the duty receipt, the inspection note. This floor is
   // where that paper physically is, and it is not shipment.edit — see the

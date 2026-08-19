@@ -6,13 +6,14 @@ import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer";
 import { prisma } from "@/lib/prisma";
 import { cargoTypesByCategory } from "@/lib/pricing";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { storageIsDurable } from "@/lib/storage";
 
 export const metadata: Metadata = { title: "Receive cargo" };
 
 export default async function NewShipmentPage() {
-  await requirePermission("shipment.create");
+  const user = await requirePermission("shipment.create");
 
   const locale = await viewerLocale();
 
@@ -39,6 +40,7 @@ export default async function NewShipmentPage() {
       <ShipmentForm
         locale={locale}
         typesByCategory={typesByCategory}
+        canAddItem={can(user.role, "cargoType.suggest")}
         photosDurable={storageIsDurable()}
       />
     </div>

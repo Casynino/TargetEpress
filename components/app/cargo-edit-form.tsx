@@ -105,9 +105,12 @@ export function CargoEditForm({
               defaultValue={cargo.cargoTypeId ?? ""}
             >
               <option value="">{t("Not listed / mixed")}</option>
+              {/* Through the dictionary — the same picker as the registration
+                  form, and a Chinese desk correcting a consignment should not
+                  suddenly be reading English. */}
               {items.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.name}
+                  {t(item.name)}
                 </option>
               ))}
             </NativeSelect>
