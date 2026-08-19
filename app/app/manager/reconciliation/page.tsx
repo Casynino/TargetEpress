@@ -275,6 +275,22 @@ export default async function ManagerReconciliation({
     ? positions.find((position) => position.id === selected.account.id) ?? null
     : null;
 
+  /*
+    THE NEXT ONE STILL WAITING, so a verdict is a rhythm rather than a round
+    trip. The owner, looking at twenty-seven pending records: "how do i confim
+    that one by one". After this one, in the order he is already reading — and
+    wrapping back to the top if he started in the middle.
+  */
+  const currentIndex = selected
+    ? queue.entries.findIndex((entry) => entry.id === selected.id)
+    : -1;
+  const nextPending =
+    queue.entries.slice(currentIndex + 1).find((entry) => entry.state === "PENDING") ??
+    queue.entries.find(
+      (entry) => entry.state === "PENDING" && entry.id !== selected?.id
+    ) ??
+    null;
+
   const reviewed = queue.total - queue.counts.PENDING;
   const progress = queue.total > 0 ? Math.round((queue.counts.RECONCILED / queue.total) * 100) : 0;
 
@@ -1048,9 +1064,58 @@ export default async function ManagerReconciliation({
                 </p>
                 {canReview ? (
                   <ReviewActions
+                    /*
+                      KEYED ON THE RECORD, so moving to the next one is a fresh
+                      panel. Without it React keeps the same instance: the "one
+                      per verdict" latch never resets and the second record he
+                      agrees goes nowhere, while the first one's success message
+                      hangs over it saying something was recorded.
+                    */
+                    key={selected.id}
                     className="mt-2"
                     target="LEDGER_ENTRY"
                     targetId={selected.id}
+                    nextHref={
+                      nextPending ? withParams(params, { tx: nextPending.id }) : undefined
+                    }
+                    nextLabel={nextPending ? rowTitle(nextPending, locale) : undefined}
+                    facts={[
+                      {
+                        label: "Record",
+                        value: selected.entryNumber,
+                      },
+                      {
+                        label: "System amount",
+                        value: `${selected.direction === "OUT" ? "−" : "+"}${formatMoney(
+                          toNumber(selected.amount),
+                          selected.currency
+                        )}`,
+                        tone: selected.direction === "OUT" ? "bad" : "good",
+                      },
+                      {
+                        label: "Account actual",
+                        value: selectedAccount?.lastCheck
+                          ? formatMoney(
+                              selectedAccount.lastCheck.actualBalance,
+                              selectedAccount.currency
+                            )
+                          : t(locale, "never checked"),
+                      },
+                      {
+                        label: "Account difference",
+                        value: selectedAccount?.lastCheck
+                          ? formatMoney(
+                              selectedAccount.lastCheck.difference,
+                              selectedAccount.currency
+                            )
+                          : "—",
+                        tone:
+                          selectedAccount?.lastCheck &&
+                          Math.abs(selectedAccount.lastCheck.difference) >= 0.01
+                            ? "bad"
+                            : undefined,
+                      },
+                    ]}
                     offer={
                       selectedState === "MISMATCH" || selectedState === "FLAGGED"
                         ? ["UNDER_REVIEW", "SENT_BACK", "INFO_REQUESTED", "RECONCILED"]

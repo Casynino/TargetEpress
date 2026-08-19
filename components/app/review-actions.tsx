@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BadgeCheck,
   Flag,
@@ -123,25 +124,67 @@ export function ReviewActions({
    * work is never hidden behind a menu, not that it is always large.
    */
   size = "default",
+  /**
+   * Where to go once this record has a verdict — the next one still waiting.
+   *
+   * "how do i confim that one by one": with twenty-seven pending, the answer
+   * has to be a rhythm rather than a route. Recording a verdict used to leave
+   * him on the record he had just finished with, so every one cost a trip back
+   * to the list to find where he was. Now the panel hands him the next one.
+   */
+  nextHref,
+  /** What that next record is, so pressing is not a leap in the dark. */
+  nextLabel,
+  /**
+   * The figures the verdict is about, restated inside the panel.
+   *
+   * A manager agreeing twenty-seven records in a row is not re-reading the page
+   * between each one, and "confirm" is worth nothing if what is being confirmed
+   * has scrolled off. So the panel repeats the few numbers the decision rests
+   * on, and they are passed in already written — this component formats no
+   * money and therefore cannot format it differently from the page.
+   */
+  facts,
   className,
 }: {
   target: "LEDGER_ENTRY" | "BATCH" | "PAYMENT" | "EXPENSE" | "INVOICE";
   targetId: string;
   offer: Verdict[];
   size?: "default" | "sm";
+  nextHref?: string;
+  nextLabel?: string;
+  facts?: { label: string; value: string; tone?: "good" | "bad" }[];
   className?: string;
 }) {
   const t = useT();
+  const router = useRouter();
   const [open, setOpen] = useState<Verdict | null>(null);
   const [state, action] = useActionState<ActionResult<{ state: string }> | undefined, FormData>(
     reviewRecord,
     undefined
   );
 
+  /* Once per verdict, not once per render: useActionState keeps the success
+     object around, and without the latch the panel would bounce forward again
+     every time this component re-rendered. */
+  const moved = useRef(false);
+  useEffect(() => {
+    if (!state?.ok || moved.current) return;
+    moved.current = true;
+    setOpen(null);
+    if (nextHref) router.replace(nextHref, { scroll: false });
+  }, [state, nextHref, router]);
+
   const chosen = open ? VERDICTS[open] : null;
 
   return (
     <div className={cn("space-y-3", className)}>
+      {nextLabel && size !== "sm" ? (
+        <p className="text-[11px] text-muted-foreground">
+          {t("After this one:")} <span className="text-foreground">{nextLabel}</span>
+        </p>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         {offer.map((verdict) => {
           const meta = VERDICTS[verdict];
@@ -173,6 +216,27 @@ export function ReviewActions({
           <input type="hidden" name="target" value={target} />
           <input type="hidden" name="targetId" value={targetId} />
           <input type="hidden" name="state" value={open} />
+
+          {facts && facts.length > 0 ? (
+            <dl className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {facts.map((fact) => (
+                <div key={fact.label} className="rounded-lg bg-background/60 px-2 py-1.5">
+                  <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    {t(fact.label)}
+                  </dt>
+                  <dd
+                    className={cn(
+                      "font-mono text-xs font-semibold tabular-nums",
+                      fact.tone === "bad" && "text-destructive",
+                      fact.tone === "good" && "text-success"
+                    )}
+                  >
+                    {fact.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
 
           <p className="text-xs leading-snug text-muted-foreground">{t(chosen.blurb)}</p>
 
@@ -212,7 +276,15 @@ export function ReviewActions({
           </div>
 
           <FormError state={state} />
-          {state?.ok ? <FormSuccess message={t("Recorded. The history below has it.")} /> : null}
+          {state?.ok ? (
+            <FormSuccess
+              message={
+                nextLabel
+                  ? `${t("Recorded. Moving on to")} ${nextLabel}.`
+                  : t("Recorded. That was the last one waiting.")
+              }
+            />
+          ) : null}
 
           <div className="mt-3 flex flex-wrap gap-2">
             <SubmitButton pendingLabel="Recording…">{t(chosen.label)}</SubmitButton>
