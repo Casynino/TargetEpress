@@ -120,7 +120,7 @@ export function BentoCard({
   children: React.ReactNode;
 }) {
   const shell = cn(
-    "group relative flex flex-col overflow-hidden rounded-xl p-4 shadow-soft transition-[transform,box-shadow] duration-200 ease-out-expo",
+    "group relative flex flex-col overflow-hidden rounded-xl p-3.5 shadow-soft transition-[transform,box-shadow] duration-200 ease-out-expo",
     CARD_TONES[tone],
     href &&
       "hover:scale-[1.015] hover:shadow-lift motion-reduce:hover:scale-100",
@@ -538,7 +538,10 @@ export function MoneyFlowChart({
   /* Taller than it was, because this is the band's hero cell now rather than a
      strip under one. A year of two series needs vertical room to separate them;
      at 150 the two lines sat almost on top of each other for the flat months. */
-  const H = 250;
+  /* 200, not 250. This chart sets the height of the card beside it, and at 250
+     the profit panel had to stretch to match — opening a band of nothing under
+     its margin ring. The shape of a year reads perfectly well at 200. */
+  const H = 200;
   const ceiling = Math.max(...moneyIn, ...moneyOut, 1);
 
   const inPoints = scalePoints(moneyIn, W, H, { min: 0, max: ceiling, padding: 8 });
@@ -549,7 +552,7 @@ export function MoneyFlowChart({
     <div className="mt-3 w-full flex-1">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="h-[250px] w-full"
+        className="h-[200px] w-full"
         preserveAspectRatio="none"
         role="img"
         aria-label={title}

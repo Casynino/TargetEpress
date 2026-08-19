@@ -25,11 +25,11 @@ const VALUE_TONES: Record<Tone, string> = {
  * four still reads as one row and the figures keep their contrast against it.
  */
 const WASHES: Record<Tone, string> = {
-  default: "from-muted-foreground/[0.07]",
-  good: "from-success/[0.12]",
-  warn: "from-warning/[0.14]",
-  bad: "from-destructive/[0.12]",
-  brand: "from-brand/[0.12]",
+  default: "from-muted-foreground/[0.10]",
+  good: "from-success/[0.22]",
+  warn: "from-warning/[0.24]",
+  bad: "from-destructive/[0.22]",
+  brand: "from-brand/[0.22]",
 };
 
 /** Icon chips, matching KpiCard so the two read as one family. */
@@ -92,7 +92,7 @@ export async function MoneyTile({
   const body = (
     <div
       className={cn(
-        "relative flex h-full flex-col overflow-hidden rounded-xl border bg-card p-4 transition-all",
+        "relative flex h-full flex-col overflow-hidden rounded-xl border bg-card p-3 transition-all",
         emphasis && "ring-1 ring-warning/30",
         href && "hover:border-foreground/20 hover:shadow-lift"
       )}
@@ -123,7 +123,7 @@ export async function MoneyTile({
       {/* The headline, in shillings, because that is the money in the room. */}
       <p
         className={cn(
-          "relative mt-3 font-display text-[30px] font-bold leading-none tracking-tight tabular-nums",
+          "relative mt-1.5 font-display text-[24px] font-bold leading-none tracking-tight tabular-nums",
           VALUE_TONES[tone]
         )}
       >
@@ -133,7 +133,7 @@ export async function MoneyTile({
                 This is a Tanzanian business — the unit is not a footnote to the
                 number, it is half of what the number means, and at 15px in
                 muted grey it read as a label somebody had switched off. */}
-            <span className="mr-1 text-[19px] font-bold opacity-80">TSh</span>
+            <span className="mr-1 text-[15px] font-bold opacity-80">TSh</span>
             {Math.round(usd * rate).toLocaleString("en-US")}
           </>
         ) : (
@@ -145,11 +145,11 @@ export async function MoneyTile({
           against the bill the customer was sent. Present, deliberately
           secondary. */}
       {rate ? (
-        <div className="relative mt-2.5 flex items-baseline gap-1.5 rounded-lg bg-background/70 px-2.5 py-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="relative mt-1.5 flex items-baseline gap-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
             {t(locale, "on the invoice")}
           </span>
-          <span className="font-mono text-xs font-semibold tabular-nums text-foreground">
+          <span className="font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">
             {formatUsd(usd)}
           </span>
         </div>
@@ -166,7 +166,7 @@ export async function MoneyTile({
         </div>
       ) : null}
 
-      <div className="relative mt-auto pt-2.5">
+      <div className="relative mt-auto pt-2">
         {count ? <p className="text-xs font-semibold">{count}</p> : null}
         {hint ? (
           <p className="mt-0.5 text-xs leading-snug text-muted-foreground">

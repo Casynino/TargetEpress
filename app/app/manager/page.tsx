@@ -25,11 +25,8 @@ import {
 } from "lucide-react";
 
 import { ActivityBars } from "@/components/app/activity-bars";
-import { ActivityFeed } from "@/components/app/activity-feed";
-import { CargoMix } from "@/components/app/cargo-mix";
 import { AttentionCenter, type AttnItem } from "@/components/app/attention-center";
 import { DeskHero } from "@/components/app/desk-hero";
-import { DeskPulsePanel } from "@/components/app/desk-pulse";
 import { FlightProfitTable } from "@/components/app/flight-profit-table";
 import { KpiCard } from "@/components/app/kpi-card";
 import {
@@ -57,13 +54,9 @@ import { prisma } from "@/lib/prisma";
 import { profitByDispatch } from "@/lib/profit";
 import {
   batchUtilisation,
-  cargoMix,
   cashFlowByMonth,
   corridorPosition,
-  deskPulse,
   ownerAttention,
-  monthlyVolume,
-  recentActivity,
 } from "@/lib/queries";
 import { can } from "@/lib/rbac";
 import { creditAttention } from "@/lib/support";
@@ -174,25 +167,17 @@ export default async function ManagerHome() {
   const [
     attnItems,
     alerts,
-    desks,
     flow,
     position,
-    activity,
-    mix,
     fill,
     flights,
-    volume,
   ] = await Promise.all([
     ownerAttention(liveRate, locale),
     creditAlerts(),
-    deskPulse(liveRate, locale),
     cashFlowByMonth(now, locale),
     corridorPosition(),
-    recentActivity(8),
-    cargoMix(30, locale),
     batchUtilisation(8),
     profitByDispatch(8),
-    monthlyVolume(now, locale),
   ]);
 
   const attention: AttnItem[] = [
@@ -362,33 +347,12 @@ export default async function ManagerHome() {
           Separating them removes the shared row entirely: five equal cards,
           each as tall as one label, one figure and one line of hint.
         */}
-        <div className="mb-3 grid items-start grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-            <MoneyTile
-              label={t(locale, "Collected today")}
-              usd={finance.collectedTodayUsd}
-              rate={rate}
-              hint={t(locale, "what customers actually handed over")}
-              icon={HandCoins}
-              tone={finance.collectedTodayUsd > 0 ? "good" : "default"}
-              href="/app/finance/payments"
-            />
-            <MoneyTile
-              label={t(locale, "Billed today")}
-              usd={finance.revenueTodayUsd}
-              rate={rate}
-              hint={t(locale, "invoiced today, not yet money")}
-              icon={Receipt}
-              href="/app/finance/invoices"
-            />
-            <MoneyTile
-              label={t(locale, "Spent today")}
-              usd={finance.expensesTodayUsd}
-              rate={rate}
-              hint={t(locale, "costs booked since midnight")}
-              icon={Banknote}
-              href="/app/finance/expenses"
-            />
-            <MoneyTile
+        {/* Two columns for two cards. The row was built for five and three of them
+            were "today" figures that always read zero; cutting those left a
+            five-column grid holding two cards and three gaps, which is the same
+            hole in a different costume. */}
+        <div className="mb-3 grid items-start grid-cols-1 gap-3 sm:grid-cols-2">
+                                                <MoneyTile
               label={t(locale, "Credit outstanding")}
               usd={finance.creditOutstandingUsd}
               rate={rate}
@@ -667,7 +631,7 @@ export default async function ManagerHome() {
 
         {/* The two rings side by side, equal width — neither is more
             important than the other and neither has more in it. */}
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-stretch">
+        <div className="mt-3">
           <KpiCard
             label={t(locale, "Collected against billed")}
             /*
@@ -706,15 +670,7 @@ export default async function ManagerHome() {
                   : "warning"
             }
           />
-          <KpiCard
-            label={t(locale, "Customers using credit")}
-            numeric={customers.onCredit}
-            hint={t(locale, "carrying a live balance right now")}
-            icon={CreditCard}
-            tone="info"
-            href="/app/finance/credit"
-          />
-
+          
           {/* Where the money actually sits, as one rail. Three tiles cannot say
               "almost all of it is in the bank"; a bar says nothing else. */}
         </div>
@@ -859,7 +815,7 @@ export default async function ManagerHome() {
           the two wide panels in one row of two. Nothing spans, so nothing
           leaves a gap.
         */}
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:items-stretch">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-stretch">
           <BentoCard href="/app/inventory">
             <Figure
               className="flex-1"
@@ -880,45 +836,7 @@ export default async function ManagerHome() {
               tone={operations.cargoAwaitingPayment > 0 ? "warn" : "plain"}
             />
           </BentoCard>
-          <BentoCard href="/app/deliveries">
-            <Figure
-              className="flex-1"
-              label={t(locale, "Handed over this month")}
-              value={count(operations.cargoCollectedThisMonth)}
-              hint={t(locale, "collected by the customer since the 1st")}
-              icon={PackageCheck}
-              tone="good"
-            />
-          </BentoCard>
-          <BentoCard href="/app/shipments">
-            <Figure
-              label={t(locale, "Registered this year")}
-              value={count(volume.total)}
-              icon={ClipboardCheck}
-              tone="info"
-            />
-            {volume.current.length > 1 ? (
-              <div className="mt-auto pt-4">
-                <Sparkline
-                  values={volume.current}
-                  tone={2}
-                  label={t(locale, "Consignments registered, month by month")}
-                  className="w-full"
-                />
-                {/* The year on its own line rather than inside the sentence: a
-                    phrase with a number baked into it can never be looked up
-                    whole, so it would never reach a Chinese reader. */}
-                <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
-                  {t(locale, "month by month")} · {volume.year}
-                </p>
-              </div>
-            ) : (
-              <p className="mt-auto pt-4 text-xs leading-snug text-muted-foreground">
-                {t(locale, "one month in — there is no shape to draw yet")}
-              </p>
-            )}
-          </BentoCard>
-        </div>
+                            </div>
 
         {/* Paired by HEIGHT, not by topic. The corridor is a short list and
             the mix donut is tall; putting them side by side left the corridor
@@ -1039,15 +957,7 @@ export default async function ManagerHome() {
               ]}
             />
           </BentoCard>
-          <div className="flex flex-col [&>section]:flex-1">
-            <CargoMix
-              slices={mix.slices}
-              totalShipments={mix.totalShipments}
-              totalWeightKg={mix.totalWeightKg}
-              periodLabel={`${t(locale, "Registered in the last")} ${mix.days} ${t(locale, "days")}`}
-            />
-          </div>
-        </div>
+                  </div>
 
         <div className="mt-3">
           <BentoCard href="/app/batches">
@@ -1282,35 +1192,22 @@ export default async function ManagerHome() {
       </section>
 
       {/*
-        The four desks, and the only panel here that is about PEOPLE rather than
-        figures. It closes the page the way the reader's day runs: what needs
-        deciding, what the money did, what is moving, then who is doing it.
-      */}
-      <section className="mb-7">
-        <BandHeading
-          title={t(locale, "Every desk, right now")}
-          hint={t(locale, "Each desk's own standing count, and the one thing wrong on it.")}
-          action={{
-            href: "/app/manager/operations",
-            label: t(locale, "Every desk in full"),
-          }}
-        />
-        <DeskPulsePanel desks={desks} locale={locale} />
-      </section>
+        NO DESK BAND HERE. The owner, looking at it: "these info are almost the
+        same."
 
-      <ActivityFeed
-        entries={activity.map((entry) => ({
-          id: entry.id,
-          action: entry.action,
-          summary: auditSentence(locale, entry),
-          createdAt: entry.createdAt,
-          actorName: entry.actor?.name ?? entry.actorEmail ?? null,
-        }))}
-        title={t(locale, "Company activity")}
-        description={t(locale, "Every privileged action, newest first")}
-        href="/app/admin/audit"
-      />
-    </>
+        He was reading the truth off the screen. The Dar card's headline was the
+        floor count the cargo band states, Finance's was the unpaid count and the
+        money owed that the money band states, and Guangzhou's was the standing
+        count the corridor states — three figures, each printed twice on one
+        page, and with this data all of them landed on 78, which makes the
+        repetition impossible to miss.
+
+        The per-desk view is not lost: /app/manager/operations is the whole of
+        it, desk by desk, with the problem lines this strip could only summarise.
+        A link is cheaper than a second copy.
+      */}
+
+          </>
   );
 }
 
