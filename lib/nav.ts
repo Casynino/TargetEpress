@@ -977,7 +977,6 @@ const MANAGER_SECTIONS: NavSection[] = [
          holds, who owes on terms, who owes now, what it earned, every line
          behind those figures, and last the check that the figures agree. */
       { href: "/app/finance", label: "Overview", icon: "Wallet" },
-      { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp" },
       { href: "/app/finance/transactions", label: "Transactions", icon: "ArrowLeftRight" },
@@ -994,6 +993,10 @@ const MANAGER_SECTIONS: NavSection[] = [
     title: "Money out",
     group: { label: "Money out", icon: "Coins" },
     items: [
+      /* Credit sits on top of Expenses at the owner's instruction — money the
+         business has let out on a promise, read directly above the money it
+         pays out. It came from the Finance group above. */
+      { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
       { href: "/app/finance/expenses", label: "Expenses", icon: "Receipt" },
       { href: "/app/finance/accounts", label: "Bank & cash", icon: "Landmark" },
     ],
@@ -1002,14 +1005,16 @@ const MANAGER_SECTIONS: NavSection[] = [
     title: "Decisions",
     group: { label: "Decisions", icon: "BadgeCheck" },
     items: [
-      /* First, because it is the one screen that answers "what needs me today"
-         without the manager having to guess which queue to open. */
-      { href: "/app/manager/control", label: "Control room", icon: "ShieldCheck" },
-      { href: "/app/manager/approvals", label: "Pending approvals", icon: "BadgeCheck" },
-      /* Its own row rather than a line in the approvals list, because agreeing
-         a month's salaries is not a queue item to clear — it is read name by
-         name against a table before it is signed. */
+      /* "payroll then control room". Its own row rather than a line in the
+         approvals list, because agreeing a month's salaries is not a queue item
+         to clear — it is read name by name against a table before it is signed
+         — and now the first of them, because it is the one that has a deadline.
+         Pending approvals kept its place between the two. */
       { href: "/app/manager/payroll", label: "Payroll", icon: "Wallet", permission: "payroll.approve" },
+      { href: "/app/manager/approvals", label: "Pending approvals", icon: "BadgeCheck" },
+      /* The screen that answers "what needs me today" without the manager
+         having to guess which queue to open. */
+      { href: "/app/manager/control", label: "Control room", icon: "ShieldCheck" },
     ],
   },
   {
@@ -1027,11 +1032,14 @@ const MANAGER_SECTIONS: NavSection[] = [
     title: "Oversight",
     group: { label: "Oversight", icon: "History" },
     items: [
-      { href: "/app/manager/reports", label: "Management report", icon: "FileText" },
       /* Named as it is everywhere else now. "Activity log" read like the
          sign-in feed on the home page; this is the money register. */
       { href: "/app/finance/audit", label: "Money audit", icon: "History" },
       { href: "/app/admin/deleted", label: "Deleted records", icon: "Trash2" },
+      /* Last, at the owner's instruction. The two above are opened with a
+         question already in mind; this one is produced and read at the end of
+         a period, which is also the order they happen in. */
+      { href: "/app/manager/reports", label: "Management report", icon: "FileText" },
     ],
   },
 ];
