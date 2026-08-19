@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { BadgeCheck, ChevronDown, Undo2 } from "lucide-react";
 
@@ -61,13 +61,24 @@ export function RecordsQueue({
   const allPicked = rows.length > 0 && picked.size === rows.length;
   const ids = useMemo(() => [...picked], [picked]);
 
-  /* A verdict lands and the ticks go with it: the rows it applied to are about
-     to be redrawn with their new standing, and leaving them ticked would invite
-     the same verdict twice. */
-  if (state?.ok && picked.size > 0) {
-    setPicked(new Set());
-    setMode(null);
-  }
+  /*
+    A verdict lands and the ticks go with it — ONCE.
+
+    The first version cleared during render whenever state.ok was true, and
+    useActionState keeps the last success around forever, so after one bulk
+    action every new tick was wiped the instant it was made. The owner: "it
+    wont let me tik or pick". The latch compares object identity — each
+    completed action returns a fresh state object — so the clear fires exactly
+    once per verdict and never again.
+  */
+  const clearedFor = useRef<typeof state>(undefined);
+  useEffect(() => {
+    if (state?.ok && clearedFor.current !== state) {
+      clearedFor.current = state;
+      setPicked(new Set());
+      setMode(null);
+    }
+  }, [state]);
 
   const toggle = (id: string) =>
     setPicked((current) => {
@@ -169,7 +180,10 @@ export function RecordsQueue({
         </form>
       ) : null}
 
-      {state?.ok && state.data ? (
+      {/* The receipt for the LAST verdict, gone the moment a new pick starts —
+          a success banner sitting over fresh work reads as if the new ticks
+          were already recorded. */}
+      {state?.ok && state.data && picked.size === 0 && !mode ? (
         <p className="border-b bg-success/10 px-4 py-2 text-xs font-medium text-success">
           {state.data.written} {t("recorded")}
           {state.data.skipped > 0 ? ` · ${state.data.skipped} ${t("skipped")}` : ""}
