@@ -286,6 +286,34 @@ export async function reconciliationQueue(filters: QueueFilters) {
   };
 }
 
+/**
+ * What the rows in this view add up to.
+ *
+ * The register has its own running balance and this is not it: these are the
+ * totals of the CURRENT FILTERS, so "this week, CRDB, still pending" states its
+ * own size. Summed in the database rather than over the page, because the page
+ * shows forty rows and the answer is about all of them.
+ */
+export async function queueTotals(filters: QueueFilters) {
+  const where = baseWhere(filters);
+  const [grouped, unreviewed] = await Promise.all([
+    prisma.ledgerEntry.groupBy({
+      by: ["direction"],
+      where,
+      _sum: { amountUsd: true },
+      _count: { _all: true },
+    }),
+    currentStandings(),
+  ]);
+
+  const side = (direction: "IN" | "OUT") =>
+    toNumber(grouped.find((row) => row.direction === direction)?._sum.amountUsd ?? 0);
+
+  const inUsd = side("IN");
+  const outUsd = side("OUT");
+  return { inUsd, outUsd, netUsd: inUsd - outUsd, reviewedIds: unreviewed.reviewedIds.length };
+}
+
 export type AccountPosition = {
   id: string;
   name: string;

@@ -117,11 +117,18 @@ export function ReviewActions({
   targetId,
   /** Only the verdicts that make sense for where this record stands now. */
   offer,
+  /**
+   * Small, for a row in a table rather than the panel a record is opened in.
+   * Still buttons with their own words on them — the owner's rule is that the
+   * work is never hidden behind a menu, not that it is always large.
+   */
+  size = "default",
   className,
 }: {
   target: "LEDGER_ENTRY" | "BATCH" | "PAYMENT" | "EXPENSE" | "INVOICE";
   targetId: string;
   offer: Verdict[];
+  size?: "default" | "sm";
   className?: string;
 }) {
   const t = useT();
@@ -147,11 +154,14 @@ export function ReviewActions({
               onClick={() => setOpen(active ? null : verdict)}
               aria-expanded={active}
               className={cn(
-                "focus-ring inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition-colors",
+                "focus-ring inline-flex items-center gap-1.5 rounded-lg border font-semibold transition-colors",
+                size === "sm"
+                  ? "min-h-8 px-2.5 text-xs"
+                  : "min-h-11 gap-2 px-3 text-sm",
                 active ? meta.solid : meta.tone
               )}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className={size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4"} />
               {t(meta.label)}
             </button>
           );

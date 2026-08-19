@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { PageHeader } from "@/components/app/page-header";
 import { ReconcileForm } from "@/components/app/reconcile-form";
 import { ReviewActions } from "@/components/app/review-actions";
@@ -40,6 +41,7 @@ import {
   KIND_LABEL,
   QUEUE_STATES,
   accountPositions,
+  queueTotals,
   reconciliationQueue,
   type QueueRow,
   type QueueState,
@@ -192,12 +194,13 @@ export default async function ManagerReconciliation({
   const canReview = can(user.role, "record.review");
   const canReconcile = can(user.role, "account.reconcile");
 
-  const [queue, positions, checks, rateRow, batches] = await Promise.all([
+  const [queue, positions, checks, rateRow, batches, totals] = await Promise.all([
     reconciliationQueue(params),
     accountPositions(),
     reconciliation(locale),
     currentRate(),
     profitByDispatch(6),
+    queueTotals(params),
   ]);
   const rate = rateRow ? toNumber(rateRow.rate) : null;
   const shillings = (usd: number) => formatShillings(usd, rate);
@@ -617,15 +620,65 @@ export default async function ManagerReconciliation({
 
       {/* --------------------------------------------------------- workspace */}
       <section className="mb-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-        {/* the queue */}
+        {/*
+          THE LEFT COLUMN CARRIES TWO THINGS, so it stops being half empty.
+
+          The queue is short on a quiet week and the record beside it is long
+          whatever the week, which left a column of nothing under the list —
+          the hole the owner keeps sending screens back for. The books' own
+          arithmetic checks used to be a band at the foot of the page; they
+          belong beside the work rather than under it, and they fill exactly
+          the space the queue does not.
+        */}
+        <div className="space-y-4">
         <div className="rounded-xl border bg-card shadow-soft">
-          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-4 py-3">
-            <h2 className="font-display text-sm font-semibold">
-              {t(locale, "Records to check")}
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              {queue.filteredTotal.toLocaleString("en-US")} {t(locale, "shown")}
-            </p>
+          <div className="border-b px-4 py-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="font-display text-sm font-semibold">
+                {t(locale, "Records to check")}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {queue.filteredTotal.toLocaleString("en-US")} {t(locale, "shown")}
+              </p>
+            </div>
+            {/*
+              WHAT THIS VIEW ADDS UP TO, summed in the database over every row
+              the filters match rather than over the forty on screen. It is not
+              the register's running balance and does not pretend to be: it
+              answers "how much money am I looking at" for the pile in front of
+              him — "this week, CRDB, still pending" states its own size.
+            */}
+            <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-lg bg-muted/30 px-2 py-1.5">
+                <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {t(locale, "In")}
+                </dt>
+                <dd className="font-mono text-xs font-semibold tabular-nums text-success">
+                  {shillings(totals.inUsd)}
+                </dd>
+              </div>
+              <div className="rounded-lg bg-muted/30 px-2 py-1.5">
+                <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {t(locale, "Out")}
+                </dt>
+                <dd className="font-mono text-xs font-semibold tabular-nums text-destructive">
+                  {shillings(totals.outUsd)}
+                </dd>
+              </div>
+              <div className="rounded-lg bg-muted/30 px-2 py-1.5">
+                <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {t(locale, "Net")}
+                </dt>
+                <dd
+                  className={cn(
+                    "font-mono text-xs font-bold tabular-nums",
+                    totals.netUsd < 0 ? "text-destructive" : "text-foreground"
+                  )}
+                >
+                  {shillings(totals.netUsd)}
+                </dd>
+              </div>
+            </dl>
           </div>
 
           {queue.entries.length === 0 ? (
@@ -646,8 +699,10 @@ export default async function ManagerReconciliation({
                       href={withParams(params, { tx: entry.id })}
                       scroll={false}
                       className={cn(
-                        "focus-ring block px-4 py-3 transition-colors hover:bg-muted/40",
-                        active && "bg-brand/[0.06]"
+                        "focus-ring block border-l-2 px-4 py-3 transition-colors hover:bg-muted/40",
+                        active
+                          ? "border-l-brand bg-brand/[0.06]"
+                          : "border-l-transparent"
                       )}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -709,6 +764,62 @@ export default async function ManagerReconciliation({
               </Link>
             </div>
           ) : null}
+        </div>
+
+        {/* The arithmetic, which needs no verdict: these are two routes to one
+            figure, and a disagreement is a fault to chase rather than a record
+            to judge. */}
+        <div className="rounded-xl border bg-card p-4 shadow-soft">
+          <p className="text-xs leading-snug text-muted-foreground">
+            {t(
+              locale,
+              "Each figure asked twice, by two different routes. These need no verdict — they are arithmetic, and a disagreement is a fault to chase."
+            )}
+          </p>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {checks.checks.map((check) => (
+              <li
+                key={check.key}
+                className={cn(
+                  "rounded-lg border p-3 text-xs",
+                  check.ok ? "bg-muted/10" : "border-destructive/40 bg-destructive/[0.04]"
+                )}
+              >
+                <p className="flex items-center gap-1.5 font-semibold">
+                  {check.ok ? (
+                    <BadgeCheck className="h-3.5 w-3.5 text-success" />
+                  ) : (
+                    <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                  )}
+                  {check.label}
+                </p>
+                <p className="mt-1 leading-snug text-muted-foreground">{check.question}</p>
+                {/* In shillings when the side IS money — the engine writes its
+                    figures in dollars and every other number on this screen
+                    leads in the currency of the room. A side that counts things
+                    rather than money carries no usd and prints as written. */}
+                <p className="mt-1 flex flex-wrap items-baseline gap-x-3 font-mono tabular-nums">
+                  <span>
+                    <span className="text-muted-foreground">{check.left.label} </span>
+                    {check.left.usd !== undefined ? shillings(check.left.usd) : check.left.value}
+                  </span>
+                  <span>
+                    <span className="text-muted-foreground">{check.right.label} </span>
+                    {check.right.usd !== undefined ? shillings(check.right.usd) : check.right.value}
+                  </span>
+                </p>
+                {check.expected ? (
+                  <p className="mt-1 leading-snug text-muted-foreground">{check.expected}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {faults.length > 0 ? (
+            <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/[0.05] px-3 py-2 text-xs font-medium text-destructive">
+              {faults.length} {t(locale, "check(s) disagree — chase these before agreeing the month.")}
+            </p>
+          ) : null}
+        </div>
         </div>
 
         {/* the record under the manager's eye */}
@@ -858,7 +969,11 @@ export default async function ManagerReconciliation({
                   [t(locale, "Recorded at"), formatDateTime(selected.createdAt, locale)],
                   [
                     t(locale, "Method"),
-                    selected.payment?.method ? t(locale, selected.payment.method) : "—",
+                    /* PAYMENT_METHOD_LABELS, not the enum. The screen was
+                       printing MOBILE_MONEY at a manager. */
+                    selected.payment?.method
+                      ? t(locale, PAYMENT_METHOD_LABELS[selected.payment.method])
+                      : "—",
                   ],
                   [t(locale, "Reference"), selected.payment?.reference ?? selected.expense?.expenseNumber ?? "—"],
                   [
@@ -1041,7 +1156,8 @@ export default async function ManagerReconciliation({
                       <StateChip state={state} locale={locale} />
                       {canReview ? (
                         <ReviewActions
-                          className="mt-2"
+                          className="mt-1.5"
+                          size="sm"
                           target="BATCH"
                           targetId={batch.id}
                           offer={["RECONCILED", "SENT_BACK", "FLAGGED"]}
@@ -1056,57 +1172,6 @@ export default async function ManagerReconciliation({
         </div>
       </section>
 
-      {/* ------------------------------------------------- the books' own checks */}
-      <section className="mb-4">
-        <SectionLabel>{t(locale, "The books against themselves")}</SectionLabel>
-        <div className="rounded-xl border bg-card p-4 shadow-soft">
-          <p className="text-xs leading-snug text-muted-foreground">
-            {t(
-              locale,
-              "Each figure asked twice, by two different routes. These need no verdict — they are arithmetic, and a disagreement is a fault to chase."
-            )}
-          </p>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {checks.checks.map((check) => (
-              <li
-                key={check.key}
-                className={cn(
-                  "rounded-lg border p-3 text-xs",
-                  check.ok ? "bg-muted/10" : "border-destructive/40 bg-destructive/[0.04]"
-                )}
-              >
-                <p className="flex items-center gap-1.5 font-semibold">
-                  {check.ok ? (
-                    <BadgeCheck className="h-3.5 w-3.5 text-success" />
-                  ) : (
-                    <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-                  )}
-                  {check.label}
-                </p>
-                <p className="mt-1 leading-snug text-muted-foreground">{check.question}</p>
-                <p className="mt-1 flex flex-wrap items-baseline gap-x-3 font-mono tabular-nums">
-                  <span>
-                    <span className="text-muted-foreground">{check.left.label} </span>
-                    {check.left.value}
-                  </span>
-                  <span>
-                    <span className="text-muted-foreground">{check.right.label} </span>
-                    {check.right.value}
-                  </span>
-                </p>
-                {check.expected ? (
-                  <p className="mt-1 leading-snug text-muted-foreground">{check.expected}</p>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          {faults.length > 0 ? (
-            <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/[0.05] px-3 py-2 text-xs font-medium text-destructive">
-              {faults.length} {t(locale, "check(s) disagree — chase these before agreeing the month.")}
-            </p>
-          ) : null}
-        </div>
-      </section>
     </>
   );
 }
