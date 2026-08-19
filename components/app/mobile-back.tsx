@@ -70,6 +70,38 @@ const ROOTS = new Set([
   "/app/receive",
   "/app/release",
   "/app/search",
+  /*
+    Registering cargo is a TAB, not a page somebody arrived at from a list.
+
+    It is the third icon on the Guangzhou bar and the Dar bar, so a clerk opens
+    it directly, and the back control above it was offering "‹ Arrived batches"
+    — the parent inherited from /app/cargo, which is right for one consignment
+    and wrong for the form that creates one. Worse for the desk that sees it
+    most: Guangzhou never touches arrived batches at all, that is the Dar floor's
+    screen, so the one label on their registration form pointed at somebody
+    else's work. Centred in the header it reads as the page's own title, which
+    is how a Chinese screenshot of the intake form came to be captioned
+    "到达批次".
+  */
+  "/app/cargo/new",
+  /*
+    EVERY OTHER TAB DESTINATION, for the same reason.
+
+    A back control on a screen somebody reached by tapping a tab has nowhere
+    honest to point: they did not come from anywhere, and the label it prints
+    describes a place they were not. Checked against the tab bar rather than
+    guessed — nine of the thirteen destinations were showing one, and each was
+    the parent inherited from a broader prefix rule.
+
+    /app/batches was the worst of them after cargo/new: it is Guangzhou's
+    fourth tab, and its label sent that desk to a Dar screen.
+  */
+  "/app/shipments",
+  "/app/batches",
+  "/app/finance",
+  "/app/manager/control",
+  "/app/collections/follow-up",
+  "/app/support/tickets",
 ]);
 
 export function MobileBack() {
