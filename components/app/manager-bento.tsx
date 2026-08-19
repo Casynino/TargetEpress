@@ -320,37 +320,64 @@ export type BarPart = {
 export function ProportionBar({
   parts,
   empty,
+  overdrawnLabel,
   className,
 }: {
   parts: BarPart[];
   /** Said when there is nothing to divide up. */
   empty: string;
+  /** The word for a balance below zero. Passed in, because nothing in this
+      file speaks to the dictionary — every string here arrives translated. */
+  overdrawnLabel?: string;
   className?: string;
 }) {
   const sizes = parts.map((part) => Math.max(0, part.value));
   const total = sizes.reduce((sum, n) => sum + n, 0);
 
+  /*
+    A SHARE BAR CANNOT DRAW AN OVERDRAWN ACCOUNT, SO IT DOES NOT TRY.
+
+    Negatives were clamped to zero to keep the arithmetic simple, and on the
+    manager's screen that produced a sentence nobody would sign: the bank at
+    TSh -9,505,180 and the cash accounts at TSh -1,397,086 both read "0%", and
+    TSh 20,000 of mobile money read "100%" — a full cyan rail announcing that
+    all of the company's money was in one place, above a total of MINUS ten
+    million. A share is a portion of something that exists; a debt is not a
+    smaller portion, it is the other direction.
+
+    So when any balance is below zero the bar and the percentages come off, and
+    what is left is the honest form of the same information: three accounts,
+    three figures, the negative ones in red and named as overdrawn. The bar
+    comes back on its own the moment every account is in credit again.
+  */
+  const overdrawn = parts.some((part) => part.value < 0);
+
   return (
     <div className={cn("w-full", className)}>
-      <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-muted">
-        {total > 0
-          ? parts.map((part, index) => (
-              <span
-                key={part.key}
-                aria-hidden
-                className="h-full first:rounded-l-full last:rounded-r-full"
-                style={{
-                  width: `${(sizes[index] / total) * 100}%`,
-                  background: part.colour,
-                }}
-              />
-            ))
-          : null}
-      </div>
+      {overdrawn ? null : (
+        <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-muted">
+          {total > 0
+            ? parts.map((part, index) => (
+                <span
+                  key={part.key}
+                  aria-hidden
+                  className="h-full first:rounded-l-full last:rounded-r-full"
+                  style={{
+                    width: `${(sizes[index] / total) * 100}%`,
+                    background: part.colour,
+                  }}
+                />
+              ))
+            : null}
+        </div>
+      )}
 
-      <ul className="mt-3 space-y-1.5">
+      <ul className={cn("space-y-1.5", overdrawn ? "" : "mt-3")}>
         {parts.map((part, index) => {
-          const share = total > 0 ? Math.round((sizes[index] / total) * 100) : null;
+          const share =
+            overdrawn || total === 0
+              ? null
+              : Math.round((sizes[index] / total) * 100);
           return (
             <li key={part.key} className="flex items-baseline gap-2 text-xs">
               <span
@@ -366,6 +393,11 @@ export function ProportionBar({
                   {share}%
                 </span>
               ) : null}
+              {part.value < 0 && overdrawnLabel ? (
+                <span className="shrink-0 rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
+                  {overdrawnLabel}
+                </span>
+              ) : null}
               <span
                 className={cn(
                   "shrink-0 font-mono font-semibold tabular-nums",
@@ -379,7 +411,11 @@ export function ProportionBar({
         })}
       </ul>
 
-      {total === 0 ? (
+      {/* "No account is carrying a balance" is true of an empty set of accounts
+          and false of an overdrawn one — the bank at TSh -930,000 is carrying a
+          balance, and an alarming one. The line is for nothing anywhere, so it
+          waits for every account to be exactly zero. */}
+      {total === 0 && !overdrawn ? (
         <p className="mt-2 text-xs leading-snug text-muted-foreground">{empty}</p>
       ) : null}
     </div>

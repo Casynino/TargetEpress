@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   AlertTriangle,
+  ArrowLeftRight,
   ArrowRight,
+  BadgeCheck,
   Banknote,
   ClipboardCheck,
   CreditCard,
@@ -21,9 +23,11 @@ import {
   Users,
   Wallet,
   Warehouse,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 
+import { ActionPills } from "@/components/app/action-pills";
 import { ActivityBars } from "@/components/app/activity-bars";
 import { ActivityFeed } from "@/components/app/activity-feed";
 import { CargoMix } from "@/components/app/cargo-mix";
@@ -298,6 +302,96 @@ export default async function ManagerHome() {
         )}
         search={{ action: "/app/search" }}
       />
+
+      {/*
+        WHAT STOPS WITHOUT THIS CHAIR — six of them, and nothing else.
+
+        Every other desk has had this row under its banner since the beginning
+        and this one did not, which left the manager reaching into the sidebar
+        for the jobs he does most. The owner, pointing at the Guangzhou desk's
+        row: "manager should have these as well but that relate to his account."
+
+        So it is built the way the other four are: things this desk STARTS or
+        DECIDES, ordered from the one pressed every day to the one read once a
+        week. Not a second sidebar — Customers, Search, Arrived batches and
+        Staff are all one press away in the menu and none of them is a decision
+        that waits on this person.
+
+        THE CONTROL ROOM IS NOT HERE ON PURPOSE. The attention panel three
+        centimetres below carries "Control room" as its own link, and the same
+        destination twice on one screen is the clutter the owner keeps asking us
+        to take out — the same reason the Dar floor has no "Find cargo" pill
+        under a banner that already holds the search box.
+
+        Colours are landmarks, not decoration: amber is Issues & Claims on every
+        desk in this app, and reports are the pale blue one at the end of the
+        row everywhere they appear.
+      */}
+      <div className="mb-6">
+        <ActionPills
+          label={t(locale, "Manager actions")}
+          items={[
+            // Every queue in the business empties through this screen.
+            {
+              href: "/app/manager/approvals",
+              label: t(locale, "Pending approvals"),
+              icon: BadgeCheck,
+              weight: "primary",
+              tone: "brand",
+            },
+            // Finance closes a batch and it lands here. Until this desk signs
+            // it off, that flight's books stay open.
+            {
+              href: "/app/manager/reconciliation",
+              label: t(locale, "Reconciliation"),
+              icon: Scale,
+              weight: "secondary",
+              tone: "signal",
+            },
+            // Green because it is money, and its own pill rather than a line in
+            // the approvals list: a month of salaries is read name by name
+            // before it is agreed, not cleared like a queue item.
+            ...(can(user.role, "payroll.approve")
+              ? [
+                  {
+                    href: "/app/manager/payroll",
+                    label: t(locale, "Payroll"),
+                    icon: Wallet,
+                    tone: "success" as const,
+                  },
+                ]
+              : []),
+            // The dispute lever: Finance recorded it, this desk can question it.
+            ...(can(user.role, "ledger.view")
+              ? [
+                  {
+                    href: "/app/manager/transactions",
+                    label: t(locale, "Review transactions"),
+                    icon: ArrowLeftRight,
+                    tone: "violet" as const,
+                  },
+                ]
+              : []),
+            ...(can(user.role, "exception.view")
+              ? [
+                  {
+                    href: "/app/exceptions",
+                    label: t(locale, "Issues & Claims"),
+                    icon: AlertTriangle,
+                    tone: "warning" as const,
+                  },
+                ]
+              : []),
+            // Last, because it is read rather than started.
+            {
+              href: "/app/manager/reports",
+              label: t(locale, "Management report"),
+              icon: FileText,
+              tone: "info",
+            },
+          ]}
+        />
+      </div>
 
       {/*
         MONEY FIRST. The owner, twice: "give the most important info like money
@@ -665,67 +759,25 @@ export default async function ManagerHome() {
           </BentoCard>
         </div>
 
-        {/* The two rings side by side, equal width — neither is more
-            important than the other and neither has more in it. */}
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-stretch">
-          <KpiCard
-            label={t(locale, "Collected against billed")}
-            /*
-              A VERDICT, NOT THE NUMBER AGAIN.
+        {/*
+          THREE CARDS BECAME ONE ROW.
 
-              The ring prints the percentage in its own middle, so passing it
-              here put the same "62%" twice on one small card, two centimetres
-              apart. Today's takings were the obvious substitute and are wrong:
-              this card is about the MONTH, and a daily figure under a monthly
-              ring is the same mislabelling trap in a new place. So the headline
-              says what the percentage MEANS — which is the one thing a ring
-              cannot — and the number stays in the ring where it is drawn.
-            */
-            value={
-              finance.collectionRatePct === null
-                ? t(locale, "Nothing billed")
-                : finance.collectionRatePct >= 80
-                  ? t(locale, "Collecting well")
-                  : finance.collectionRatePct >= 40
-                    ? t(locale, "Half the month is out")
-                    : t(locale, "Barely collecting")
-            }
-            ringPct={finance.collectionRatePct ?? undefined}
-            ringLabel={t(locale, "Share of this month's billing already paid")}
-            hint={
-              finance.collectionRatePct === null
-                ? t(locale, "nothing billed this month yet")
-                : t(locale, "of this month's billing has come back")
-            }
-            icon={Wallet}
-            tone={
-              finance.collectionRatePct === null
-                ? "info"
-                : finance.collectionRatePct >= 60
-                  ? "success"
-                  : "warning"
-            }
-          />
-          <KpiCard
-            label={t(locale, "Customers using credit")}
-            numeric={customers.onCredit}
-            hint={t(locale, "carrying a live balance right now")}
-            icon={CreditCard}
-            tone="info"
-            href="/app/finance/credit"
-          />
+          The owner: "i feel like they can be design and arrange well they take
+          too much space i want to make use of this space nicely." He was right
+          and the measurements agreed — "Collected against billed" and
+          "Customers using credit" each held half the width of the screen to
+          print a ring and a word, and one digit, and the accounts rail then
+          took a whole row of its own underneath. Four facts, two rows, most of
+          it empty ground.
 
-          {/* Where the money actually sits, as one rail. Three tiles cannot say
-              "almost all of it is in the bank"; a bar says nothing else. */}
-        </div>
-
-        {/* The accounts rail is full width by nature — a proportion bar has to
-            be long enough to read. */}
-        <div className="mt-3">
-          <BentoCard
-            href="/app/finance/accounts"
-            className=""
-          >
+          The accounts rail keeps the width it genuinely needs — three labels,
+          three figures and a bar have to be long enough to read — and the two
+          small cards stack in the column beside it, where two short cards come
+          out about as tall as one deep one. No card is stretched to match a
+          neighbour, and the band loses a full row of height.
+        */}
+        <div className="mt-3 grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <BentoCard href="/app/finance/accounts">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold">
@@ -753,6 +805,7 @@ export default async function ManagerHome() {
             <ProportionBar
               className="mt-4"
               empty={t(locale, "No account is carrying a balance.")}
+              overdrawnLabel={t(locale, "overdrawn")}
               parts={[
                 {
                   key: "bank",
@@ -793,6 +846,57 @@ export default async function ManagerHome() {
               )}
             </p>
           </BentoCard>
+
+          {/* Side by side while there is room for it, stacked once the column
+              narrows — two cards this small should never own a row each. */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            <KpiCard
+              label={t(locale, "Collected against billed")}
+              /*
+                A VERDICT, NOT THE NUMBER AGAIN.
+
+                The ring prints the percentage in its own middle, so passing it
+                here put the same "62%" twice on one small card, two centimetres
+                apart. Today's takings were the obvious substitute and are wrong:
+                this card is about the MONTH, and a daily figure under a monthly
+                ring is the same mislabelling trap in a new place. So the headline
+                says what the percentage MEANS — which is the one thing a ring
+                cannot — and the number stays in the ring where it is drawn.
+              */
+              value={
+                finance.collectionRatePct === null
+                  ? t(locale, "Nothing billed")
+                  : finance.collectionRatePct >= 80
+                    ? t(locale, "Collecting well")
+                    : finance.collectionRatePct >= 40
+                      ? t(locale, "Half the month is out")
+                      : t(locale, "Barely collecting")
+              }
+              ringPct={finance.collectionRatePct ?? undefined}
+              ringLabel={t(locale, "Share of this month's billing already paid")}
+              hint={
+                finance.collectionRatePct === null
+                  ? t(locale, "nothing billed this month yet")
+                  : t(locale, "of this month's billing has come back")
+              }
+              icon={Wallet}
+              tone={
+                finance.collectionRatePct === null
+                  ? "info"
+                  : finance.collectionRatePct >= 60
+                    ? "success"
+                    : "warning"
+              }
+            />
+            <KpiCard
+              label={t(locale, "Customers using credit")}
+              numeric={customers.onCredit}
+              hint={t(locale, "carrying a live balance right now")}
+              icon={CreditCard}
+              tone="info"
+              href="/app/finance/credit"
+            />
+          </div>
         </div>
       </section>
 
