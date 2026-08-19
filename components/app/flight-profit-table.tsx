@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TriangleAlert } from "lucide-react";
+import { ChevronDown, TriangleAlert } from "lucide-react";
 
 import { currentRateValue, formatShillings } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -37,6 +37,26 @@ export type FlightProfit = {
  * has written them down. And a flight still carrying draft prices is flagged
  * too, because its revenue will move.
  */
+/*
+  FIVE BATCHES, THEN IT SCROLLS.
+
+  The owner: "this should carry only 5 batches... if we have more than 5 it
+  should be like needs attention, it has to scroll and not use too much space."
+  The business flies weekly, so this table grows on its own — left alone it
+  would be the tallest thing on the home screen by Christmas, and it is a
+  summary. The panel is now the same height whether there are two batches or
+  twenty, exactly like the attention centre above it.
+
+  Measured rather than guessed: a row is 41px, or 45px when it carries a flag
+  like "no costs recorded", and the column header is 33px. 258px therefore
+  holds the header plus five of the tallest rows — and when rows are the short
+  kind a sixth peeks over the edge, which is the cue that there is more.
+
+  The header is sticky inside the scroller: scrolling a money table whose
+  column names have gone is how a reader mistakes Collected for Outstanding.
+*/
+const VISIBLE_ROWS = 5;
+
 export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }) {
   const locale = await viewerLocale();
   /* Shillings, like every other money figure on the boss's screen. The dollar
@@ -44,6 +64,7 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
      away — this table is the one he scans, so it speaks his currency. */
   const rate = await currentRateValue();
   const money = (usd: number) => formatShillings(usd, rate);
+  const hidden = Math.max(0, flights.length - VISIBLE_ROWS);
 
   if (flights.length === 0) {
     return (
@@ -71,7 +92,10 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
           scrollbar but still asked the boss to drag a table sideways to find
           out whether a flight paid for itself; below md each batch becomes a
           card with its figures labelled. */}
-      <ul className="divide-y md:hidden">
+      {/* 440px on a phone: two cards of 177px and a clear slice of the third.
+          Five of them would be 885px — taller than the handset, which is the
+          "too much space" the owner was pointing at. */}
+      <ul className="max-h-[440px] divide-y overflow-y-auto md:hidden">
         {flights.map((f) => {
           const loss = f.profit < 0;
           return (
@@ -159,9 +183,9 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
         })}
       </ul>
 
-      <div className="hidden overflow-x-auto md:block">
+      <div className="hidden max-h-[258px] overflow-auto md:block">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-card">
             <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
               <th className="px-5 py-2 font-medium">{t(locale, "Batch")}</th>
               <th className="px-3 py-2 text-right font-medium">{t(locale, "Expected revenue")}</th>
@@ -236,6 +260,20 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
           </tbody>
         </table>
       </div>
+
+      {/* Said out loud, because a scroll area with no edge showing looks like
+          the whole list. The count is exact on the wide table, which shows five;
+          the phone shows fewer cards in the same height, so it does not claim a
+          number it cannot keep. */}
+      {hidden > 0 ? (
+        <p className="flex items-center justify-center gap-1.5 border-t px-4 py-1.5 text-xs text-muted-foreground">
+          <ChevronDown className="h-3 w-3" />
+          <span className="hidden md:inline">
+            {t(locale, "scroll for")} {hidden} {t(locale, "more")}
+          </span>
+          <span className="md:hidden">{t(locale, "scroll for more")}</span>
+        </p>
+      ) : null}
     </section>
   );
 }
