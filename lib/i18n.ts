@@ -401,6 +401,10 @@ const ZH: Record<string, string> = {
      also happens to be the only translation short enough to fail the
      description minimum when the picker fills it in. */
   "Bags": "包袋",
+  "Hats": "帽子",
+  "Bracelets": "手链",
+  "Fabrics": "布料",
+  "Camera (no battery)": "相机（不含电池）",
   "bags": "袋",
   "Balance": "余额",
   "Bank": "银行",
