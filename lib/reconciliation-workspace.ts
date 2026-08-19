@@ -3,6 +3,7 @@ import "server-only";
 import type { Prisma, ReviewState } from "@prisma/client";
 
 import { reviewsFor, type Standing } from "@/lib/control";
+import { reconciliation } from "@/lib/reconciliation";
 import { toNumber } from "@/lib/format";
 import { accountBalances } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
@@ -396,4 +397,46 @@ export async function accountPositions(): Promise<AccountPosition[]> {
       lastMovedAt,
     };
   });
+}
+
+
+/**
+ * WHAT EACH TAB IS CARRYING, for the row that sits on all four of them.
+ *
+ * A tab row that only counts the tab you are standing on tells you nothing you
+ * did not already know. These are the four "still waiting on you" figures, so
+ * the row itself says where the work is — records nobody has looked at,
+ * accounts never checked or moved since their check, flights with no verdict,
+ * and the arithmetic that disagrees.
+ */
+export async function reconciliationTabCounts(): Promise<Record<string, number>> {
+  const [{ reviewedIds }, totalEntries, positions, batches, checkRun] =
+    await Promise.all([
+      currentStandings(),
+      prisma.ledgerEntry.count(),
+      accountPositions(),
+      prisma.batch.findMany({
+        where: { status: { in: ["IN_TRANSIT", "ARRIVED", "VERIFIED", "CLOSED"] } },
+        orderBy: [{ departedAt: "desc" }, { createdAt: "desc" }],
+        take: 10,
+        select: { id: true },
+      }),
+      reconciliation(),
+    ]);
+
+  const batchStandings = await reviewsFor(
+    "BATCH",
+    batches.map((batch) => batch.id)
+  );
+
+  return {
+    "/app/manager/reconciliation": Math.max(0, totalEntries - reviewedIds.length),
+    "/app/manager/reconciliation/accounts": positions.filter(
+      (position) => !position.lastCheck || position.movedSinceCheck
+    ).length,
+    "/app/manager/reconciliation/batches": batches.filter(
+      (batch) => !batchStandings.get(batch.id)
+    ).length,
+    "/app/manager/reconciliation/checks": checkRun.checks.filter((check) => !check.ok).length,
+  };
 }

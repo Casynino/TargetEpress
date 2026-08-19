@@ -23,9 +23,8 @@ import {
 import { EmptyState } from "@/components/app/empty-state";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { PageHeader } from "@/components/app/page-header";
-import { ReconcileForm } from "@/components/app/reconcile-form";
+import { ReconcileNav } from "@/components/app/reconcile-nav";
 import { ReviewActions } from "@/components/app/review-actions";
-import { SectionLabel } from "@/components/app/section-label";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { reviewHistory } from "@/lib/control";
@@ -303,7 +302,14 @@ export default async function ManagerReconciliation({
     batches.map((batch) => batch.id)
   );
 
+
   const faults = checks.checks.filter((check) => !check.ok);
+  /* What each other tab is carrying, so the row says where the work is rather
+     than making him open all four to find out. */
+  const accountsWaiting = positions.filter(
+    (position) => !position.lastCheck || position.movedSinceCheck
+  ).length;
+  const batchesWaiting = batches.filter((batch) => !batchStandings.get(batch.id)).length;
 
   return (
     <>
@@ -343,6 +349,15 @@ export default async function ManagerReconciliation({
         }
       />
 
+      <ReconcileNav
+        counts={{
+          "/app/manager/reconciliation": queue.counts.PENDING,
+          "/app/manager/reconciliation/accounts": accountsWaiting,
+          "/app/manager/reconciliation/batches": batchesWaiting,
+          "/app/manager/reconciliation/checks": faults.length,
+        }}
+      />
+
       {/*
         WHERE THE WORK STANDS, in one line and four doors.
 
@@ -374,17 +389,35 @@ export default async function ManagerReconciliation({
             {progress}%
           </p>
         </div>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            aria-hidden
-            className="h-full rounded-full bg-success transition-[width] duration-500 ease-out-expo"
-            style={{ width: `${progress}%` }}
-          />
+        {/*
+          THE MIX, NOT A PERCENTAGE OF ONE COLOUR.
+
+          A single green bar at 0% is a grey rail that says nothing about what
+          the other hundred per cent is. Every state takes its share of the same
+          rail in its own colour, so the shape of the month is one glance:
+          mostly amber is untouched work, red is what disagrees, green is done.
+        */}
+        <div className="mt-3 flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-muted">
+          {QUEUE_STATES.filter((state) => queue.counts[state] > 0).map((state) => (
+            <span
+              key={state}
+              aria-hidden
+              title={`${t(locale, STATE_STYLE[state].label)}: ${queue.counts[state]}`}
+              className={cn(
+                "h-full first:rounded-l-full last:rounded-r-full transition-[width] duration-500 ease-out-expo",
+                STATE_STYLE[state].dot
+              )}
+              style={{
+                width: `${queue.total > 0 ? (queue.counts[state] / queue.total) * 100 : 0}%`,
+              }}
+            />
+          ))}
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
           {SUMMARY.map((state) => {
             const meta = STATE_STYLE[state];
+            const Icon = meta.icon;
             const active = params.status === state;
             return (
               <Link
@@ -392,141 +425,31 @@ export default async function ManagerReconciliation({
                 href={withParams(params, { status: active ? undefined : state, tx: undefined })}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "focus-ring rounded-lg border p-3 transition-colors",
-                  active ? meta.chip : "bg-muted/20 hover:bg-muted/40"
+                  /* Each card carries its own status colour rather than four
+                     grey boxes with a coloured freckle — the owner: "it does
+                     nt gave colors and the cards are boring". Colour here is
+                     the meaning: amber waiting, red disagreeing, blue being
+                     looked into, green agreed. */
+                  "focus-ring group rounded-lg border p-3 transition-all hover:-translate-y-px",
+                  meta.chip,
+                  active && "ring-2 ring-offset-2 ring-offset-card"
                 )}
               >
                 <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide">
-                  <span aria-hidden className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+                  <Icon className="h-3.5 w-3.5" />
                   {t(locale, meta.label)}
                 </p>
-                <p className="mt-1 font-display text-[22px] font-bold leading-none tabular-nums">
+                <p className="mt-1.5 font-display text-[24px] font-bold leading-none tabular-nums">
                   {queue.counts[state].toLocaleString("en-US")}
+                </p>
+                <p className="mt-1 text-[10px] uppercase tracking-wide opacity-70">
+                  {queue.total > 0
+                    ? `${Math.round((queue.counts[state] / queue.total) * 100)}%`
+                    : "—"}
                 </p>
               </Link>
             );
           })}
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------------ accounts */}
-      <section id="accounts" className="mb-5 scroll-mt-4">
-        <SectionLabel>{t(locale, "The accounts")}</SectionLabel>
-        <div className="rounded-xl border bg-card p-4 shadow-soft">
-          <p className="text-xs leading-snug text-muted-foreground">
-            {t(
-              locale,
-              "System is what the ledger says, worked out from its own lines. Actual is what somebody proved from outside it — a statement, a phone, a till count."
-            )}
-          </p>
-
-          {/*
-            ONE LINE PER ACCOUNT, and the column names said once.
-
-            The first cut of this gave every account a block of its own with the
-            same sentence under each — six accounts, seven hundred pixels, and
-            the actual work pushed below the fold. The owner has thrown that
-            shape out twice on other screens. A row states the three figures
-            under one header; the form to record a real balance opens inside the
-            row that needs it.
-          */}
-          <div className="mt-3 overflow-hidden rounded-lg border">
-            <div className="hidden border-b bg-muted/30 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem_5rem] sm:gap-3">
-              <span>{t(locale, "Account")}</span>
-              <span className="text-right">{t(locale, "System")}</span>
-              <span className="text-right">{t(locale, "Actual")}</span>
-              <span className="text-right">{t(locale, "Difference")}</span>
-              <span className="text-right">{t(locale, "Checked")}</span>
-            </div>
-            <ul className="divide-y">
-              {positions.map((position) => {
-                const Icon = ACCOUNT_ICON[position.kind] ?? Building2;
-                const check = position.lastCheck;
-                const difference = check ? check.difference : null;
-                const agrees = difference !== null && Math.abs(difference) < 0.01;
-                const active = params.account === position.id;
-                return (
-                  <li key={position.id} className={cn(active && "bg-brand/[0.05]")}>
-                    <div className="grid gap-1 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem_5rem] sm:items-baseline sm:gap-3">
-                      <Link
-                        href={withParams(params, {
-                          account: active ? undefined : position.id,
-                          tx: undefined,
-                        })}
-                        className="focus-ring inline-flex min-w-0 items-center gap-2 rounded text-sm font-medium hover:underline"
-                      >
-                        <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        <span className="truncate">{position.name}</span>
-                      </Link>
-                      <span
-                        className={cn(
-                          "font-mono text-xs tabular-nums sm:text-right",
-                          position.systemBalance < 0 ? "text-destructive" : ""
-                        )}
-                      >
-                        {/* The column header is a desktop luxury; on a phone the
-                            three figures stack, and unlabelled they are just
-                            three numbers. */}
-                        <span className="mr-1 text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">
-                          {t(locale, "System")}
-                        </span>
-                        {formatMoney(position.systemBalance, position.currency)}
-                      </span>
-                      <span className="font-mono text-xs tabular-nums text-muted-foreground sm:text-right">
-                        <span className="mr-1 text-[10px] uppercase tracking-wide sm:hidden">
-                          {t(locale, "Actual")}
-                        </span>
-                        {check ? formatMoney(check.actualBalance, position.currency) : "—"}
-                      </span>
-                      <span
-                        className={cn(
-                          "font-mono text-xs font-semibold tabular-nums sm:text-right",
-                          difference === null
-                            ? "text-muted-foreground"
-                            : agrees
-                              ? "text-success"
-                              : "text-destructive"
-                        )}
-                      >
-                        <span className="mr-1 text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">
-                          {t(locale, "Difference")}
-                        </span>
-                        {difference === null ? "—" : formatMoney(difference, position.currency)}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground sm:text-right">
-                        {check ? (
-                          position.movedSinceCheck ? (
-                            <span className="text-warning">{t(locale, "moved since")}</span>
-                          ) : (
-                            formatRelative(check.asOf, locale)
-                          )
-                        ) : (
-                          <span className="text-warning">{t(locale, "never")}</span>
-                        )}
-                      </span>
-                    </div>
-
-                    {canReconcile ? (
-                      <details className="px-3 pb-2">
-                        <summary className="focus-ring inline-flex cursor-pointer list-none items-center gap-1.5 rounded text-[11px] font-semibold text-brand hover:underline">
-                          <Scale className="h-3 w-3" />
-                          {t(locale, "Record what it actually holds")}
-                        </summary>
-                        <div className="mt-2">
-                          <ReconcileForm
-                            accountId={position.id}
-                            kind={position.kind as "BANK" | "MOBILE_MONEY" | "CASH"}
-                            systemBalance={position.systemBalance}
-                            currency={position.currency}
-                          />
-                        </div>
-                      </details>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
         </div>
       </section>
 
@@ -715,34 +638,43 @@ export default async function ManagerReconciliation({
                       href={withParams(params, { tx: entry.id })}
                       scroll={false}
                       className={cn(
-                        "focus-ring block border-l-2 px-4 py-3 transition-colors hover:bg-muted/40",
+                        "focus-ring block border-l-2 px-4 py-2.5 transition-colors hover:bg-muted/40",
                         active
                           ? "border-l-brand bg-brand/[0.06]"
                           : "border-l-transparent"
                       )}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{rowTitle(entry, locale)}</p>
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                            {formatDate(entry.occurredAt, locale)} ·{" "}
-                            {t(locale, KIND_LABEL[entry.kind] ?? entry.kind)} · {entry.account.name}
-                          </p>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p
-                            className={cn(
-                              "font-mono text-sm font-semibold tabular-nums",
-                              out ? "text-destructive" : "text-success"
-                            )}
-                          >
-                            {out ? "−" : "+"}
-                            {formatMoney(toNumber(entry.amount), entry.currency)}
-                          </p>
-                          <p className="mt-1 flex justify-end">
-                            <StateChip state={entry.state} locale={locale} />
-                          </p>
-                        </div>
+                      {/*
+                        TWO LINES, AND A BADGE ONLY WHERE ONE MEANS SOMETHING.
+
+                        Every row wore an amber "Pending" chip on a line of its
+                        own — twenty-seven identical badges saying the same
+                        thing, on a list whose default filter is Pending. They
+                        cost a third of the row's height to repeat what the
+                        heading already said, and they drowned the handful of
+                        rows that really do carry a verdict. Untouched is now
+                        the absence of a badge; anything else shows.
+                      */}
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="truncate text-sm font-medium">{rowTitle(entry, locale)}</p>
+                        <p
+                          className={cn(
+                            "shrink-0 font-mono text-sm font-semibold tabular-nums",
+                            out ? "text-destructive" : "text-success"
+                          )}
+                        >
+                          {out ? "−" : "+"}
+                          {formatMoney(toNumber(entry.amount), entry.currency)}
+                        </p>
+                      </div>
+                      <div className="mt-0.5 flex items-baseline justify-between gap-2">
+                        <p className="truncate text-xs text-muted-foreground">
+                          {formatDate(entry.occurredAt, locale)} ·{" "}
+                          {t(locale, KIND_LABEL[entry.kind] ?? entry.kind)} · {entry.account.name}
+                        </p>
+                        {entry.state === "PENDING" ? null : (
+                          <StateChip state={entry.state} locale={locale} />
+                        )}
                       </div>
                     </Link>
                   </li>
@@ -782,60 +714,6 @@ export default async function ManagerReconciliation({
           ) : null}
         </div>
 
-        {/* The arithmetic, which needs no verdict: these are two routes to one
-            figure, and a disagreement is a fault to chase rather than a record
-            to judge. */}
-        <div className="rounded-xl border bg-card p-4 shadow-soft">
-          <p className="text-xs leading-snug text-muted-foreground">
-            {t(
-              locale,
-              "Each figure asked twice, by two different routes. These need no verdict — they are arithmetic, and a disagreement is a fault to chase."
-            )}
-          </p>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {checks.checks.map((check) => (
-              <li
-                key={check.key}
-                className={cn(
-                  "rounded-lg border p-3 text-xs",
-                  check.ok ? "bg-muted/10" : "border-destructive/40 bg-destructive/[0.04]"
-                )}
-              >
-                <p className="flex items-center gap-1.5 font-semibold">
-                  {check.ok ? (
-                    <BadgeCheck className="h-3.5 w-3.5 text-success" />
-                  ) : (
-                    <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-                  )}
-                  {check.label}
-                </p>
-                <p className="mt-1 leading-snug text-muted-foreground">{check.question}</p>
-                {/* In shillings when the side IS money — the engine writes its
-                    figures in dollars and every other number on this screen
-                    leads in the currency of the room. A side that counts things
-                    rather than money carries no usd and prints as written. */}
-                <p className="mt-1 flex flex-wrap items-baseline gap-x-3 font-mono tabular-nums">
-                  <span>
-                    <span className="text-muted-foreground">{check.left.label} </span>
-                    {check.left.usd !== undefined ? shillings(check.left.usd) : check.left.value}
-                  </span>
-                  <span>
-                    <span className="text-muted-foreground">{check.right.label} </span>
-                    {check.right.usd !== undefined ? shillings(check.right.usd) : check.right.value}
-                  </span>
-                </p>
-                {check.expected ? (
-                  <p className="mt-1 leading-snug text-muted-foreground">{check.expected}</p>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          {faults.length > 0 ? (
-            <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/[0.05] px-3 py-2 text-xs font-medium text-destructive">
-              {faults.length} {t(locale, "check(s) disagree — chase these before agreeing the month.")}
-            </p>
-          ) : null}
-        </div>
         </div>
 
         {/* the record under the manager's eye */}
@@ -850,16 +728,33 @@ export default async function ManagerReconciliation({
           ) : (
             <div className="divide-y">
               <div className="px-4 py-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-display text-sm font-semibold">
                       {rowTitle(selected, locale)}
                     </p>
-                    <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+                    <p className="mt-0.5 flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
                       {selected.entryNumber}
+                      <StateChip state={selectedState} locale={locale} />
                     </p>
                   </div>
-                  <StateChip state={selectedState} locale={locale} />
+                  {/* The figure the verdict is about, beside the name of the
+                      thing it belongs to rather than in a band of its own. */}
+                  <div className="shrink-0 text-right">
+                    <p
+                      className={cn(
+                        "font-display text-[22px] font-bold leading-none tabular-nums",
+                        selected.direction === "OUT" ? "text-destructive" : "text-success"
+                      )}
+                    >
+                      {selected.direction === "OUT" ? "−" : "+"}
+                      {formatMoney(toNumber(selected.amount), selected.currency)}
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {formatMoney(toNumber(selected.amountUsd), "USD")}{" "}
+                      {t(locale, "on the invoice")}
+                    </p>
+                  </div>
                 </div>
                 <Link
                   href={withParams(params, { tx: undefined })}
@@ -871,189 +766,142 @@ export default async function ManagerReconciliation({
               </div>
 
               {/*
-                SYSTEM AND EVIDENCE, side by side and never merged.
+                ONE BAND OF FACTS, NOT FOUR.
 
-                A single transaction has no "actual" of its own — there is no
-                outside figure per line, only per account — so this states what
-                the ledger holds and what evidence sits behind it, and puts the
-                account's real system-versus-actual underneath. Printing an
-                invented per-row "actual" would be the one dishonest thing this
-                page could do.
+                This panel printed the record's own description three times —
+                as the heading, as the REFERENCE and again as DESCRIPTION — over
+                six labelled sections, and the owner could not read it: "the
+                arragement is not nice and big cnfusing". The amount belongs in
+                the heading beside the name; the account's position is one line;
+                the fields that repeat what is already on screen are dropped
+                rather than restated.
+
+                What does NOT get merged is system against actual. A transaction
+                has no "actual" of its own — there is no outside figure per line,
+                only per account — so the account's pair is stated as the
+                account's, under its own name, and never as this record's.
               */}
-              <div className="grid grid-cols-2 divide-x">
-                <div className="px-4 py-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {t(locale, "System record")}
+              <div className="px-4 py-3">
+                <dl className="flex flex-wrap gap-x-5 gap-y-2 text-xs">
+                  {[
+                    [t(locale, "Type"), t(locale, KIND_LABEL[selected.kind] ?? selected.kind)],
+                    [t(locale, "Date"), formatDate(selected.occurredAt, locale)],
+                    [t(locale, "Account"), selected.account.name],
+                    [t(locale, "Recorded by"), selected.recordedBy?.name ?? "—"],
+                    [t(locale, "Recorded at"), formatDateTime(selected.createdAt, locale)],
+                    [
+                      t(locale, "Method"),
+                      selected.payment?.method
+                        ? t(locale, PAYMENT_METHOD_LABELS[selected.payment.method])
+                        : "",
+                    ],
+                    [t(locale, "Reference"), selected.payment?.reference ?? ""],
+                    [t(locale, "Receipt"), selected.payment?.receipt?.receiptNumber ?? ""],
+                    [t(locale, "Invoice"), selected.payment?.invoice?.invoiceNumber ?? ""],
+                    [
+                      t(locale, "Batch"),
+                      selected.payment?.invoice?.shipment?.batch?.batchNumber ??
+                        selected.expense?.batch?.batchNumber ??
+                        "",
+                    ],
+                    [t(locale, "Customer"), selected.payment?.invoice?.customer?.name ?? ""],
+                    [t(locale, "Vendor"), selected.expense?.vendor ?? ""],
+                  ]
+                    /* Empty is not information, and neither is a field that
+                       repeats the heading two centimetres above it. */
+                    .filter(
+                      ([, value]) =>
+                        value && value !== "—" && value !== rowTitle(selected, locale)
+                    )
+                    .map(([label, value]) => (
+                      <div key={label} className="min-w-0">
+                        <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          {label}
+                        </dt>
+                        <dd className="truncate">{value}</dd>
+                      </div>
+                    ))}
+                </dl>
+
+                {selected.description &&
+                selected.description !== rowTitle(selected, locale) ? (
+                  <p className="mt-2 text-xs leading-snug text-muted-foreground">
+                    {selected.description}
                   </p>
-                  <p
-                    className={cn(
-                      "mt-1 font-display text-[20px] font-bold leading-none tabular-nums",
-                      selected.direction === "OUT" ? "text-destructive" : "text-success"
-                    )}
-                  >
-                    {selected.direction === "OUT" ? "−" : "+"}
-                    {formatMoney(toNumber(selected.amount), selected.currency)}
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {selected.currency !== "USD" && rate
-                      ? `${formatMoney(toNumber(selected.amountUsd), "USD")} ${t(locale, "on the invoice")}`
-                      : formatDate(selected.occurredAt, locale)}
-                  </p>
-                </div>
-                <div className="px-4 py-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {t(locale, "Evidence held")}
-                  </p>
-                  {documentsOf(selected).length > 0 || selected.payment?.receipt ? (
-                    <p className="mt-1 font-display text-[20px] font-bold leading-none text-success">
-                      {documentsOf(selected).length + (selected.payment?.receipt ? 1 : 0)}
-                    </p>
-                  ) : (
-                    <p className="mt-1 font-display text-[20px] font-bold leading-none text-warning">
-                      {t(locale, "None")}
-                    </p>
-                  )}
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {documentsOf(selected).length > 0 || selected.payment?.receipt
-                      ? t(locale, "documents attached")
-                      : t(locale, "nothing attached to check it against")}
-                  </p>
-                </div>
+                ) : null}
               </div>
 
-              {/* what the account it landed in stands at */}
+              {/* The account's own pair, on one line, under the account's name. */}
               {selectedAccount ? (
-                <div className="px-4 py-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {t(locale, "The account it landed in")}
-                  </p>
-                  <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-lg bg-muted/30 p-2">
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {t(locale, "System")}
-                      </p>
-                      <p className="mt-0.5 font-mono text-xs font-semibold tabular-nums">
-                        {formatMoney(selectedAccount.systemBalance, selectedAccount.currency)}
-                      </p>
-                    </div>
-                    <div className="rounded-lg bg-muted/30 p-2">
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {t(locale, "Actual")}
-                      </p>
-                      <p className="mt-0.5 font-mono text-xs font-semibold tabular-nums">
-                        {selectedAccount.lastCheck
-                          ? formatMoney(
-                              selectedAccount.lastCheck.actualBalance,
-                              selectedAccount.currency
-                            )
-                          : "—"}
-                      </p>
-                    </div>
-                    <div className="rounded-lg bg-muted/30 p-2">
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {t(locale, "Difference")}
-                      </p>
-                      <p
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 bg-muted/20 px-4 py-2 text-xs">
+                  <span className="font-medium">{selectedAccount.name}</span>
+                  <span className="flex flex-wrap items-baseline gap-x-4 font-mono tabular-nums">
+                    <span>
+                      <span className="text-[10px] uppercase text-muted-foreground">
+                        {t(locale, "System")}{" "}
+                      </span>
+                      {formatMoney(selectedAccount.systemBalance, selectedAccount.currency)}
+                    </span>
+                    <span>
+                      <span className="text-[10px] uppercase text-muted-foreground">
+                        {t(locale, "Actual")}{" "}
+                      </span>
+                      {selectedAccount.lastCheck
+                        ? formatMoney(
+                            selectedAccount.lastCheck.actualBalance,
+                            selectedAccount.currency
+                          )
+                        : t(locale, "never checked")}
+                    </span>
+                    {selectedAccount.lastCheck ? (
+                      <span
                         className={cn(
-                          "mt-0.5 font-mono text-xs font-bold tabular-nums",
-                          !selectedAccount.lastCheck
-                            ? "text-muted-foreground"
-                            : Math.abs(selectedAccount.lastCheck.difference) < 0.01
-                              ? "text-success"
-                              : "text-destructive"
+                          "font-semibold",
+                          Math.abs(selectedAccount.lastCheck.difference) < 0.01
+                            ? "text-success"
+                            : "text-destructive"
                         )}
                       >
-                        {selectedAccount.lastCheck
-                          ? formatMoney(
-                              selectedAccount.lastCheck.difference,
-                              selectedAccount.currency
-                            )
-                          : "—"}
-                      </p>
-                    </div>
-                  </div>
+                        <span className="text-[10px] uppercase text-muted-foreground">
+                          {t(locale, "Difference")}{" "}
+                        </span>
+                        {formatMoney(
+                          selectedAccount.lastCheck.difference,
+                          selectedAccount.currency
+                        )}
+                      </span>
+                    ) : null}
+                  </span>
                 </div>
               ) : null}
 
-              {/* the record itself, in full */}
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 px-4 py-3 text-xs">
-                {[
-                  [t(locale, "Type"), t(locale, KIND_LABEL[selected.kind] ?? selected.kind)],
-                  [t(locale, "Account"), selected.account.name],
-                  [t(locale, "Date"), formatDate(selected.occurredAt, locale)],
-                  [t(locale, "Recorded by"), selected.recordedBy?.name ?? "—"],
-                  [t(locale, "Recorded at"), formatDateTime(selected.createdAt, locale)],
-                  [
-                    t(locale, "Method"),
-                    /* PAYMENT_METHOD_LABELS, not the enum. The screen was
-                       printing MOBILE_MONEY at a manager. */
-                    selected.payment?.method
-                      ? t(locale, PAYMENT_METHOD_LABELS[selected.payment.method])
-                      : "—",
-                  ],
-                  [t(locale, "Reference"), selected.payment?.reference ?? selected.expense?.expenseNumber ?? "—"],
-                  [
-                    t(locale, "Receipt"),
-                    selected.payment?.receipt?.receiptNumber ?? "—",
-                  ],
-                  [t(locale, "Invoice"), selected.payment?.invoice?.invoiceNumber ?? "—"],
-                  [
-                    t(locale, "Batch"),
-                    selected.payment?.invoice?.shipment?.batch?.batchNumber ??
-                      selected.expense?.batch?.batchNumber ??
-                      "—",
-                  ],
-                  [
-                    t(locale, "Customer"),
-                    selected.payment?.invoice?.customer?.name ?? "—",
-                  ],
-                  [t(locale, "Vendor"), selected.expense?.vendor ?? "—"],
-                ]
-                  /* A panel of eight dashes is the empty space the owner keeps
-                     sending back. A field with nothing in it is not information
-                     about this record, so it does not take a line. */
-                  .filter(([, value]) => value && value !== "—")
-                  .map(([label, value]) => (
-                  <div key={label} className="min-w-0">
-                    <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      {label}
-                    </dt>
-                    <dd className="truncate">{value}</dd>
-                  </div>
-                ))}
-                <div className="col-span-2 min-w-0">
-                  <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    {t(locale, "Description")}
-                  </dt>
-                  <dd className="leading-snug">{selected.description}</dd>
-                </div>
-              </dl>
-
-              {/* the documents, openable */}
+              {/* Evidence: the documents themselves, or the single sentence that
+                  matters when there are none. It used to be said twice — once as
+                  a headline reading "None" and once as a paragraph. */}
               <div className="px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {t(locale, "Supporting documents")}
-                </p>
                 {documentsOf(selected).length === 0 ? (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t(locale, "Nothing attached. Ask for it before agreeing this one.")}
+                  <p className="flex items-center gap-1.5 text-xs text-warning">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    {t(locale, "No document attached. Ask for it before agreeing this one.")}
                   </p>
                 ) : (
-                  <ul className="mt-2 flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {t(locale, "Evidence")}
+                    </span>
                     {documentsOf(selected).map((doc, index) => (
-                      <li key={`${doc.url}-${index}`}>
-                        <a
-                          href={doc.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="focus-ring inline-flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium hover:bg-muted"
-                        >
-                          <Paperclip className="h-3.5 w-3.5" />
-                          {t(locale, doc.label)}
-                        </a>
-                      </li>
+                      <a
+                        key={`${doc.url}-${index}`}
+                        href={doc.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="focus-ring inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-success/40 bg-success/10 px-3 text-xs font-medium text-success hover:bg-success/15"
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                        {t(locale, doc.label)}
+                      </a>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
 
@@ -1168,72 +1016,6 @@ export default async function ManagerReconciliation({
               </div>
             </div>
           )}
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------------- batches */}
-      <section className="mb-6">
-        <SectionLabel action={{ href: "/app/manager/batches", label: t(locale, "Every batch") }}>
-          {t(locale, "Batches")}
-        </SectionLabel>
-        <div className="overflow-x-auto rounded-xl border bg-card shadow-soft">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                <th className="px-4 py-2 font-medium">{t(locale, "Batch")}</th>
-                <th className="px-3 py-2 text-right font-medium">{t(locale, "Billed")}</th>
-                <th className="px-3 py-2 text-right font-medium">{t(locale, "Collected")}</th>
-                <th className="px-3 py-2 text-right font-medium">{t(locale, "Still owed")}</th>
-                <th className="px-3 py-2 text-right font-medium">{t(locale, "Costs")}</th>
-                <th className="px-3 py-2 text-left font-medium">{t(locale, "Standing")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {batches.map((batch) => {
-                const standing = batchStandings.get(batch.id);
-                const state = (standing?.state as QueueState) ?? "PENDING";
-                return (
-                  <tr key={batch.id} className="border-b last:border-0 align-top">
-                    <td className="px-4 py-2.5">
-                      <Link
-                        href={`/app/shipments/${batch.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {batch.batchNumber}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">{shillings(batch.revenue)}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-success">
-                      {shillings(batch.collected)}
-                    </td>
-                    <td
-                      className={cn(
-                        "px-3 py-2.5 text-right tabular-nums",
-                        batch.outstanding > 0 ? "text-destructive" : "text-muted-foreground"
-                      )}
-                    >
-                      {shillings(batch.outstanding)}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-destructive">
-                      {shillings(batch.costs)}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <StateChip state={state} locale={locale} />
-                      {canReview ? (
-                        <ReviewActions
-                          className="mt-1.5"
-                          size="sm"
-                          target="BATCH"
-                          targetId={batch.id}
-                          offer={["RECONCILED", "SENT_BACK", "FLAGGED"]}
-                        />
-                      ) : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </div>
       </section>
 
