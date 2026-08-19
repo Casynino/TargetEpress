@@ -23,7 +23,7 @@ import {
 import { EmptyState } from "@/components/app/empty-state";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { PageHeader } from "@/components/app/page-header";
-import { ReconcileNav } from "@/components/app/reconcile-nav";
+import { ReconcileForm } from "@/components/app/reconcile-form";
 import { ReviewActions } from "@/components/app/review-actions";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -304,6 +304,13 @@ export default async function ManagerReconciliation({
 
 
   const faults = checks.checks.filter((check) => !check.ok);
+  /* The flight whose figures are open, and everything ever said about it. */
+  const selectedBatch = params.batch
+    ? batches.find((batch) => batch.id === params.batch) ?? null
+    : null;
+  const batchHistory = selectedBatch
+    ? await reviewHistory("BATCH", selectedBatch.id)
+    : [];
   /* What each other tab is carrying, so the row says where the work is rather
      than making him open all four to find out. */
   const accountsWaiting = positions.filter(
@@ -347,15 +354,6 @@ export default async function ManagerReconciliation({
             </a>
           </div>
         }
-      />
-
-      <ReconcileNav
-        counts={{
-          "/app/manager/reconciliation": queue.counts.PENDING,
-          "/app/manager/reconciliation/accounts": accountsWaiting,
-          "/app/manager/reconciliation/batches": batchesWaiting,
-          "/app/manager/reconciliation/checks": faults.length,
-        }}
       />
 
       {/*
@@ -1019,6 +1017,341 @@ export default async function ManagerReconciliation({
         </div>
       </section>
 
+
+      {/*
+        ONE PAGE, THREE BANDS: what the work stands at, the work itself, and the
+        material it is done against.
+
+        It briefly became four tabs and the owner sent that back too — "just
+        remove this sytle retunr to one page thing but i still dont like the
+        arragment you use beofre". So this is neither the long stack of
+        full-width sections nor a tab row: the three supporting panels sit
+        SIDE BY SIDE under the workspace, each the height of its own contents,
+        so the page ends where the material ends rather than three screens
+        later. Accounts takes the wider column because it carries a form; the
+        flights and the arithmetic stack in the narrower one.
+      */}
+      <section className="mb-4">
+        <div>
+          <p className="mb-2 flex items-baseline justify-between gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              {t(locale, "The accounts")}
+            </span>
+            {accountsWaiting > 0 ? (
+              <span className="text-[11px] font-semibold text-warning">
+                {accountsWaiting} {t(locale, "need a check")}
+              </span>
+            ) : null}
+          </p>
+        <div className="rounded-xl border bg-card p-4 shadow-soft">
+          <p className="text-xs leading-snug text-muted-foreground">
+            {t(
+              locale,
+              "System is what the ledger says, worked out from its own lines. Actual is what somebody proved from outside it — a statement, a phone, a till count."
+            )}
+          </p>
+
+          {/*
+            ONE LINE PER ACCOUNT, and the column names said once.
+
+            The first cut of this gave every account a block of its own with the
+            same sentence under each — six accounts, seven hundred pixels, and
+            the actual work pushed below the fold. The owner has thrown that
+            shape out twice on other screens. A row states the three figures
+            under one header; the form to record a real balance opens inside the
+            row that needs it.
+          */}
+          <div className="mt-3 overflow-hidden rounded-lg border">
+            <div className="hidden border-b bg-muted/30 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1.4fr)_8rem_8rem_8rem_6rem] sm:gap-4">
+              <span>{t(locale, "Account")}</span>
+              <span className="text-right">{t(locale, "System")}</span>
+              <span className="text-right">{t(locale, "Actual")}</span>
+              <span className="text-right">{t(locale, "Difference")}</span>
+              <span className="text-right">{t(locale, "Checked")}</span>
+            </div>
+            <ul className="divide-y">
+              {positions.map((position) => {
+                const Icon = ACCOUNT_ICON[position.kind] ?? Building2;
+                const check = position.lastCheck;
+                const difference = check ? check.difference : null;
+                const agrees = difference !== null && Math.abs(difference) < 0.01;
+                const active = params.account === position.id;
+                return (
+                  <li key={position.id} className={cn(active && "bg-brand/[0.05]")}>
+                    <div className="grid gap-1 px-3 py-2 sm:grid-cols-[minmax(0,1.4fr)_8rem_8rem_8rem_6rem] sm:items-baseline sm:gap-4">
+                      <Link
+                        href={withParams(params, {
+                          account: active ? undefined : position.id,
+                          tx: undefined,
+                        })}
+                        className="focus-ring inline-flex min-w-0 items-center gap-2 rounded text-sm font-medium hover:underline"
+                      >
+                        <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{position.name}</span>
+                      </Link>
+                      <span
+                        className={cn(
+                          "font-mono text-xs tabular-nums sm:text-right",
+                          position.systemBalance < 0 ? "text-destructive" : ""
+                        )}
+                      >
+                        {/* The column header is a desktop luxury; on a phone the
+                            three figures stack, and unlabelled they are just
+                            three numbers. */}
+                        <span className="mr-1 text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">
+                          {t(locale, "System")}
+                        </span>
+                        {formatMoney(position.systemBalance, position.currency)}
+                      </span>
+                      <span className="font-mono text-xs tabular-nums text-muted-foreground sm:text-right">
+                        <span className="mr-1 text-[10px] uppercase tracking-wide sm:hidden">
+                          {t(locale, "Actual")}
+                        </span>
+                        {check ? formatMoney(check.actualBalance, position.currency) : "—"}
+                      </span>
+                      <span
+                        className={cn(
+                          "font-mono text-xs font-semibold tabular-nums sm:text-right",
+                          difference === null
+                            ? "text-muted-foreground"
+                            : agrees
+                              ? "text-success"
+                              : "text-destructive"
+                        )}
+                      >
+                        <span className="mr-1 text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">
+                          {t(locale, "Difference")}
+                        </span>
+                        {difference === null ? "—" : formatMoney(difference, position.currency)}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground sm:text-right">
+                        {check ? (
+                          position.movedSinceCheck ? (
+                            <span className="text-warning">{t(locale, "moved since")}</span>
+                          ) : (
+                            formatRelative(check.asOf, locale)
+                          )
+                        ) : (
+                          <span className="text-warning">{t(locale, "never")}</span>
+                        )}
+                      </span>
+                    </div>
+
+                    {canReconcile ? (
+                      <details className="px-3 pb-2">
+                        {/* One word per row, not the same sentence six times.
+                            What it means is said once, above the table. */}
+                        <summary className="focus-ring inline-flex cursor-pointer list-none items-center gap-1.5 rounded text-[11px] font-semibold text-brand hover:underline">
+                          <Scale className="h-3 w-3" />
+                          {t(locale, "Check this one")}
+                        </summary>
+                        <div className="mt-2">
+                          <ReconcileForm
+                            accountId={position.id}
+                            kind={position.kind as "BANK" | "MOBILE_MONEY" | "CASH"}
+                            systemBalance={position.systemBalance}
+                            currency={position.currency}
+                          />
+                        </div>
+                      </details>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      {/* Full width apiece, and the arithmetic three across.
+
+          Side by side they were the wrong pair: two flights is a hundred and
+          forty pixels and the checks are five hundred, so the left column ended
+          a third of the way down and left exactly the hole this page keeps
+          being sent back for. Stacked, each band is as tall as its own
+          contents; the checks recover the width by going three across instead
+          of two. */}
+      <section className="mb-4">
+          <div>
+            <p className="mb-2 flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                {t(locale, "Flights")}
+              </span>
+              <Link
+                href="/app/manager/batches"
+                className="focus-ring rounded text-[11px] font-semibold text-brand hover:underline"
+              >
+                {t(locale, "Every batch")}
+              </Link>
+            </p>
+          <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
+            <div className="hidden border-b bg-muted/20 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem_7.5rem] sm:gap-3">
+              <span>{t(locale, "Flight")}</span>
+              <span className="text-right">{t(locale, "Billed")}</span>
+              <span className="text-right">{t(locale, "Collected")}</span>
+              <span className="text-right">{t(locale, "Still owed")}</span>
+            </div>
+
+            <ul className="divide-y">
+              {batches.map((batch) => {
+                const standing = batchStandings.get(batch.id);
+                const state = (standing?.state as QueueState) ?? "PENDING";
+                const active = selectedBatch?.id === batch.id;
+                return (
+                  <li key={batch.id}>
+                    <Link
+                      href={withParams(params, { batch: active ? undefined : batch.id })}
+                      scroll={false}
+                      className={cn(
+                        "focus-ring block border-l-2 px-4 py-2.5 transition-colors hover:bg-muted/40",
+                        active ? "border-l-brand bg-brand/[0.06]" : "border-l-transparent"
+                      )}
+                    >
+                      <div className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem_7.5rem] sm:items-baseline sm:gap-3">
+                        <span className="flex items-center gap-2 text-sm font-medium">
+                          {batch.batchNumber}
+                          {state === "PENDING" ? null : (
+                            <StateChip state={state} locale={locale} />
+                          )}
+                        </span>
+                        <span className="font-mono text-xs tabular-nums sm:text-right">
+                          <span className="mr-1 text-[10px] uppercase text-muted-foreground sm:hidden">
+                            {t(locale, "Billed")}
+                          </span>
+                          {shillings(batch.revenue)}
+                        </span>
+                        <span className="font-mono text-xs tabular-nums text-success sm:text-right">
+                          <span className="mr-1 text-[10px] uppercase text-muted-foreground sm:hidden">
+                            {t(locale, "Collected")}
+                          </span>
+                          {shillings(batch.collected)}
+                        </span>
+                        <span
+                          className={cn(
+                            "font-mono text-xs tabular-nums sm:text-right",
+                            batch.outstanding > 0 ? "text-destructive" : "text-muted-foreground"
+                          )}
+                        >
+                          <span className="mr-1 text-[10px] uppercase text-muted-foreground sm:hidden">
+                            {t(locale, "Still owed")}
+                          </span>
+                          {shillings(batch.outstanding)}
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* The verdict on the one he picked, once. */}
+            {selectedBatch ? (
+              <div className="border-t bg-muted/10 px-4 py-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-sm font-semibold">
+                    {selectedBatch.batchNumber}
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      {shillings(selectedBatch.revenue)} {t(locale, "billed")} ·{" "}
+                      {shillings(selectedBatch.collected)} {t(locale, "collected")} ·{" "}
+                      {shillings(selectedBatch.outstanding)} {t(locale, "still owed")} ·{" "}
+                    {shillings(selectedBatch.costs)} {t(locale, "cost")}
+                    </span>
+                  </p>
+                  {batchHistory.length > 0 ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      {t(locale, "Last said")}: {t(locale, STATE_STYLE[batchHistory[batchHistory.length - 1].state as QueueState]?.label ?? "")} ·{" "}
+                      {formatRelative(batchHistory[batchHistory.length - 1].createdAt, locale)}
+                    </p>
+                  ) : null}
+                </div>
+
+                {canReview ? (
+                  <ReviewActions
+                    key={selectedBatch.id}
+                    className="mt-2"
+                    size="sm"
+                    target="BATCH"
+                    targetId={selectedBatch.id}
+                    offer={["RECONCILED", "SENT_BACK", "FLAGGED"]}
+                  />
+                ) : null}
+              </div>
+            ) : (
+              <p className="border-t px-4 py-2 text-[11px] text-muted-foreground">
+                {t(locale, "Pick a flight to agree its figures or hand them back.")}
+              </p>
+            )}
+          </div>
+          </div>
+
+      </section>
+
+      <section>
+          <div>
+            <p className="mb-2 flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                {t(locale, "The books against themselves")}
+              </span>
+              {faults.length > 0 ? (
+                <span className="text-[11px] font-semibold text-destructive">
+                  {faults.length} {t(locale, "disagree")}
+                </span>
+              ) : null}
+            </p>
+          <div className="rounded-xl border bg-card p-4 shadow-soft">
+            <p className="text-xs leading-snug text-muted-foreground">
+              {t(
+                locale,
+                "Each figure asked twice, by two different routes. These need no verdict — they are arithmetic, and a disagreement is a fault to chase."
+              )}
+            </p>
+            <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {checks.checks.map((check) => (
+                <li
+                  key={check.key}
+                  className={cn(
+                    "rounded-lg border p-3 text-xs",
+                    check.ok ? "bg-muted/10" : "border-destructive/40 bg-destructive/[0.04]"
+                  )}
+                >
+                  <p className="flex items-center gap-1.5 font-semibold">
+                    {check.ok ? (
+                      <BadgeCheck className="h-3.5 w-3.5 text-success" />
+                    ) : (
+                      <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                    )}
+                    {check.label}
+                  </p>
+                  <p className="mt-1 leading-snug text-muted-foreground">{check.question}</p>
+                  {/* In shillings when the side IS money — the engine writes its
+                      figures in dollars and every other number on this screen
+                      leads in the currency of the room. A side that counts things
+                      rather than money carries no usd and prints as written. */}
+                  <p className="mt-1 flex flex-wrap items-baseline gap-x-3 font-mono tabular-nums">
+                    <span>
+                      <span className="text-muted-foreground">{check.left.label} </span>
+                      {check.left.usd !== undefined ? shillings(check.left.usd) : check.left.value}
+                    </span>
+                    <span>
+                      <span className="text-muted-foreground">{check.right.label} </span>
+                      {check.right.usd !== undefined ? shillings(check.right.usd) : check.right.value}
+                    </span>
+                  </p>
+                  {check.expected ? (
+                    <p className="mt-1 leading-snug text-muted-foreground">{check.expected}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            {faults.length > 0 ? (
+              <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/[0.05] px-3 py-2 text-xs font-medium text-destructive">
+                {faults.length} {t(locale, "check(s) disagree — chase these before agreeing the month.")}
+              </p>
+            ) : null}
+          </div>
+          </div>
+      </section>
     </>
   );
 }
