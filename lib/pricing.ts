@@ -6,6 +6,7 @@ import { routeFor } from "@/lib/cargo";
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
+import { othersLast } from "@/lib/cargo-types";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -218,13 +219,19 @@ export async function cargoTypesByCategory() {
     select: { id: true, name: true, category: true },
   });
 
-  return types.reduce<Record<string, { id: string; name: string }[]>>(
-    (grouped, type) => {
-      (grouped[type.category] ??= []).push({ id: type.id, name: type.name });
-      return grouped;
+  const grouped = types.reduce<Record<string, { id: string; name: string }[]>>(
+    (byCategory, type) => {
+      (byCategory[type.category] ??= []).push({ id: type.id, name: type.name });
+      return byCategory;
     },
     {}
   );
+
+  // The catch-all goes last in every group — see lib/cargo-types.ts.
+  for (const category of Object.keys(grouped)) {
+    grouped[category] = othersLast(grouped[category]);
+  }
+  return grouped;
 }
 
 /** Has the CEO published anything, or is the book still empty? */

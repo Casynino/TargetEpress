@@ -8,6 +8,7 @@ import { DeleteCargoForm } from "@/components/app/cargo-delete";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { cargoHistory } from "@/lib/actions/cargo-edit";
+import { othersLast } from "@/lib/cargo-types";
 import { formatDateTime, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -72,7 +73,7 @@ export default async function EditCargoPage({
     cargo.status === "READY_TO_DEPART" || can(user.role, "shipment.cancel");
   if (!editable) redirect(`/app/cargo/${cargo.trackingNumber}`);
 
-  const [items, history] = await Promise.all([
+  const [pickable, history] = await Promise.all([
     prisma.cargoType.findMany({
       where: { active: true },
       orderBy: [{ category: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
@@ -80,6 +81,7 @@ export default async function EditCargoPage({
     }),
     can(user.role, "audit.view") ? cargoHistory(cargo.id) : Promise.resolve([]),
   ]);
+  const items = othersLast(pickable);
 
   return (
     <>

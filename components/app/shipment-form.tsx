@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { createShipment, type ShipmentCreated } from "@/lib/actions/shipments";
+import { othersLast } from "@/lib/cargo-types";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import type { ActionResult } from "@/lib/actions/types";
@@ -105,10 +106,12 @@ export function ShipmentForm({
   const [addPending, setAddPending] = useState(false);
 
   const route = ROUTE_FOR_CATEGORY[category];
-  const types = [
+  // Types added at the counter land at the end of the list, which would drop
+  // them underneath the catch-all if it were not pushed down after the merge.
+  const types = othersLast([
     ...(typesByCategory[category] ?? []),
     ...(addedTypes[category] ?? []),
-  ];
+  ]);
   const created = state.ok && state.data?.trackingNumber;
 
   /*
