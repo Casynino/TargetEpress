@@ -617,12 +617,31 @@ export function MoneyFlowChart({
         ) : null}
       </svg>
 
+      {/*
+        THINNED, not shrunk.
+
+        Thirty-one daily labels across a phone rendered as a grey smear —
+        "20 21 22 Jul Jul Jul" — which is worse than no axis at all, because it
+        occupies the space an axis would and answers nothing. Every nth label is
+        drawn so the row stays readable at any width, and the first and last are
+        always among them: those two are what a reader actually needs to know
+        which stretch of time they are looking at.
+      */}
       <div className="mt-1.5 flex justify-between text-[10px] text-muted-foreground">
-        {labels.map((label, index) => (
-          <span key={`${label}-${index}`} className="tabular-nums">
-            {label}
-          </span>
-        ))}
+        {labels.map((label, index) => {
+          const step = Math.ceil(labels.length / 6);
+          const show =
+            index === 0 || index === labels.length - 1 || index % step === 0;
+          return (
+            <span
+              key={`${label}-${index}`}
+              className="tabular-nums"
+              aria-hidden={!show}
+            >
+              {show ? label : ""}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
