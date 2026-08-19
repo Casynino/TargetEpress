@@ -973,11 +973,14 @@ const MANAGER_SECTIONS: NavSection[] = [
     title: "Finance",
     group: { label: "Finance", icon: "ReceiptText" },
     items: [
+      /* The order the owner asked for, in his own list: what the department
+         holds, who owes on terms, who owes now, what it earned, every line
+         behind those figures, and last the check that the figures agree. */
       { href: "/app/finance", label: "Overview", icon: "Wallet" },
-      { href: "/app/finance/transactions", label: "Transactions", icon: "ArrowLeftRight" },
-      { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
+      { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp" },
+      { href: "/app/finance/transactions", label: "Transactions", icon: "ArrowLeftRight" },
       { href: "/app/manager/reconciliation", label: "Reconciliation", icon: "Scale" },
       /* No "Company accounts" or "Review transactions" rows. They were this
          desk's own copies of the accounts list and the ledger, and the owner
