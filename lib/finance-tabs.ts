@@ -108,20 +108,11 @@ export function financeTabs(role: Role): FinanceTab[] {
        row now — leaving a tab here would offer a doorway the page itself no
        longer wears, and the tab row would keep highlighting a page that has
        stopped being part of it. */
-    {
-      /*
-        With the records, not with the daily work.
-
-        It was second, on the argument that it is the sheet the department is
-        run on. It is — but only for flights that have already closed, and
-        nothing on it can be done today. The tabs ahead of it are the ones
-        somebody opens to act: where the money is, what is waiting to be
-        agreed, who has not paid. This one is read.
-      */
-      href: "/app/finance/income",
-      label: "Closed batches",
-      visible: can(role, "accounting.view"),
-    },
+    /* No Closed batches tab. The owner: "i dont want the closed batch to be
+       here". It is read rather than acted on — nothing on it can be done today
+       — and it now has a row of its own in every menu that reaches it: under
+       Operations for the manager, beside the ledger for Finance and the owner.
+       A tab as well would be a second door into a room nobody visits twice. */
     {
       href: "/app/finance/audit",
       label: "Audit",
