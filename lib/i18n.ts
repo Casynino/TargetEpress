@@ -397,7 +397,10 @@ const ZH: Record<string, string> = {
   "Back to shipment": "返回运单",
   "Back to site": "返回官网",
   "bag": "袋",
-  "Bags": "袋",
+  /* 包袋, not 袋. One character is a classifier, not a product name, and it
+     also happens to be the only translation short enough to fail the
+     description minimum when the picker fills it in. */
+  "Bags": "包袋",
   "bags": "袋",
   "Balance": "余额",
   "Bank": "银行",

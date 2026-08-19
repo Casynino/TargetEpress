@@ -75,7 +75,19 @@ export const shipmentSchema = z.object({
     .optional()
     .transform((v) => (v && v.length > 0 ? v : null)),
   goodsType: z.enum(GOODS_TYPES).optional().default("GENERAL_MERCHANDISE"),
-  description: z.string().trim().min(3, "Describe the cargo."),
+  /*
+    TWO CHARACTERS, NOT THREE.
+
+    Three was an English assumption and it quietly excluded most of the Chinese
+    product list: 衣服, 鞋子, 假发, 电池, 药品, 食品 — nineteen of the forty items
+    this system sells freight for are two characters, and every one of them is a
+    complete, precise description. A Guangzhou clerk typing the right word was
+    told to describe the cargo.
+
+    Two still does the job the rule exists for: it blocks empty and it blocks a
+    single stray keystroke. Nothing in between was ever worth refusing.
+  */
+  description: z.string().trim().min(2, "Describe the cargo."),
   packages: numeric("Number of packages", { min: 1 }),
   weightKg: numeric("Weight", { min: 0.01 }),
   volumeCbm: optionalNumeric,

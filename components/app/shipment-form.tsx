@@ -80,7 +80,11 @@ export function ShipmentForm({
     difference between a default and an override, and without it the box would
     fight the person filling it in every time they changed the category.
   */
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(() =>
+    /* Seeded from the category the form opens on, so even a clerk who changes
+       nothing in section 2 has a description by the time they reach the button. */
+    t(locale, CATEGORY_LABELS.NORMAL_GOODS)
+  );
   const [descriptionTouched, setDescriptionTouched] = useState(false);
 
   /*
@@ -106,6 +110,35 @@ export function ShipmentForm({
     ...(addedTypes[category] ?? []),
   ];
   const created = state.ok && state.data?.trackingNumber;
+
+  /*
+    ON REFUSAL, GO TO THE FIELD.
+
+    The error prints beside the submit button at the foot of a form five
+    sections long, and the field it is about is in section two — so a clerk read
+    "please fill in the cargo description", looked at the boxes around the
+    button, and saw nothing wrong. Two videos of the Guangzhou desk being stuck
+    were this, both times.
+
+    The message names the field; this puts the cursor in it. Matched on the
+    message rather than on a field code because ActionResult carries a sentence,
+    not a key — and the sentence is the same string the dictionary translated,
+    so the match works in both languages.
+  */
+  useEffect(() => {
+    if (state.ok || !state.error) return;
+    const target =
+      state.error === t(locale, "Describe the cargo.")
+        ? "description"
+        : state.error === t(locale, "Weigh it first.")
+          ? "weightKg"
+          : null;
+    if (!target) return;
+    const el = document.getElementById(target);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    (el as HTMLInputElement).focus({ preventScroll: true });
+  }, [state, locale]);
 
   if (created) {
     return (
@@ -211,7 +244,26 @@ export function ShipmentForm({
                   name="cargoCategory"
                   value={option}
                   checked={active}
-                  onChange={() => setCategory(option)}
+                  onChange={() => {
+                    setCategory(option);
+                    /*
+                      THE CATEGORY SEEDS THE DESCRIPTION TOO, not just the item.
+
+                      Picking a specific item already filled it. But a clerk who
+                      leaves the item as "not listed / mixed" — which is the
+                      default, and correct for a mixed box — got nothing, and
+                      that is exactly the case both stuck videos showed. Every
+                      consignment now starts with a true, if broad, description
+                      the moment the category is chosen, and the clerk sharpens
+                      it rather than inventing it from an empty box.
+
+                      Still only until they type: `touched` makes this a starting
+                      point rather than something that overwrites their words.
+                    */
+                    if (!descriptionTouched) {
+                      setDescription(t(locale, CATEGORY_LABELS[option]));
+                    }
+                  }}
                   className="mt-1 h-4 w-4 shrink-0 accent-[hsl(var(--signal))]"
                 />
                 <span className="min-w-0">
@@ -392,7 +444,14 @@ export function ShipmentForm({
         ) : null}
 
         <div className="mt-5 space-y-2">
-          <Label htmlFor="description">{t(locale, "Description")}</Label>
+          <Label htmlFor="description">
+            {t(locale, "Description")}{" "}
+            {/* The asterisk the photo section already carries. This field is
+                required and looked optional, which is most of why it was being
+                scrolled past. */}
+            <span aria-hidden className="text-destructive">*</span>
+            <span className="sr-only">{t(locale, "required")}</span>
+          </Label>
           <Input
             id="description"
             name="description"
