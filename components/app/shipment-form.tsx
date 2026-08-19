@@ -65,6 +65,23 @@ export function ShipmentForm({
 
   const [category, setCategory] = useState<CargoCategory>("NORMAL_GOODS");
   const [cargoTypeId, setCargoTypeId] = useState("");
+  /*
+    THE ITEM FILLS THE DESCRIPTION, until somebody types over it.
+
+    A Guangzhou clerk picked "Wigs" from the item list, left this box empty, and
+    was refused with "请填写货物名称" — please give the cargo a name. He had just
+    given it a name. Two fields on one form ask what is in the box: the item
+    list, which Finance prices from, and this, which the customer reads on their
+    tracking page. In Chinese the two labels are nearly the same sentence, so
+    the second one reads as a repeat of the first rather than a new question.
+
+    So choosing an item now writes it here, and typing anything of your own
+    stops that from ever happening again for this consignment — `touched` is the
+    difference between a default and an override, and without it the box would
+    fight the person filling it in every time they changed the category.
+  */
+  const [description, setDescription] = useState("");
+  const [descriptionTouched, setDescriptionTouched] = useState(false);
 
   /*
     Items this desk has just added, held here until the page is next fetched.
@@ -238,7 +255,14 @@ export function ShipmentForm({
               id="cargoTypeId"
               name="cargoTypeId"
               value={cargoTypeId}
-              onChange={(e) => setCargoTypeId(e.target.value)}
+              onChange={(e) => {
+                const id = e.target.value;
+                setCargoTypeId(id);
+                if (!descriptionTouched) {
+                  const picked = types.find((x) => x.id === id);
+                  setDescription(picked ? t(locale, picked.name) : "");
+                }
+              }}
             >
               <option value="">{t(locale, "Not listed / mixed")}</option>
               {/* Through the dictionary, like every other string on this form.
@@ -322,6 +346,9 @@ export function ShipmentForm({
                           ],
                         }));
                         setCargoTypeId(added.id);
+                        /* Same rule as picking one from the list: an item the
+                           clerk just typed is the best description there is. */
+                        if (!descriptionTouched) setDescription(added.name);
                         setNewItemName("");
                         setAddingItem(false);
                       }}
@@ -369,6 +396,11 @@ export function ShipmentForm({
           <Input
             id="description"
             name="description"
+            value={description}
+            onChange={(e) => {
+              setDescription(e.target.value);
+              setDescriptionTouched(true);
+            }}
             placeholder={t(locale, "What is actually in the boxes")}
             autoComplete="off"
             required
