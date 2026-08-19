@@ -316,7 +316,7 @@ export default async function ManagerHome() {
       </div>
 
       {/* ----------------------------------------------------------- the money */}
-      <section className="mb-7">
+      <section className="mb-5">
         <BandHeading
           title={t(locale, "The money")}
           hint={t(locale, "What was billed, what arrived, and what is left of it.")}
@@ -351,7 +351,51 @@ export default async function ManagerHome() {
             were "today" figures that always read zero; cutting those left a
             five-column grid holding two cards and three gaps, which is the same
             hole in a different costume. */}
-        <div className="mb-3 grid items-start grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* Three across, not two-and-a-lone-wide-one. The collection ring sat
+            in a row of its own and stretched the full width of the page for a
+            percentage and two words — the biggest hole left on this screen. */}
+        <div className="mb-3 grid items-start grid-cols-1 gap-3 sm:grid-cols-3">
+          <KpiCard
+            label={t(locale, "Collected against billed")}
+            /*
+              A VERDICT, NOT THE NUMBER AGAIN.
+
+              The ring prints the percentage in its own middle, so passing it
+              here put the same "62%" twice on one small card, two centimetres
+              apart. Today's takings were the obvious substitute and are wrong:
+              this card is about the MONTH, and a daily figure under a monthly
+              ring is the same mislabelling trap in a new place. So the headline
+              says what the percentage MEANS — which is the one thing a ring
+              cannot — and the number stays in the ring where it is drawn.
+            */
+            value={
+              finance.collectionRatePct === null
+                ? t(locale, "Nothing billed")
+                : finance.collectionRatePct >= 80
+                  ? t(locale, "Collecting well")
+                  : finance.collectionRatePct >= 40
+                    ? t(locale, "Half the month is out")
+                    : t(locale, "Barely collecting")
+            }
+            ringPct={finance.collectionRatePct ?? undefined}
+            ringLabel={t(locale, "Share of this month's billing already paid")}
+            hint={
+              finance.collectionRatePct === null
+                ? t(locale, "nothing billed this month yet")
+                : t(locale, "of this month's billing has come back")
+            }
+            icon={Wallet}
+            tone={
+              finance.collectionRatePct === null
+                ? "info"
+                : finance.collectionRatePct >= 60
+                  ? "success"
+                  : "warning"
+            }
+          />
+          
+          {/* Where the money actually sits, as one rail. Three tiles cannot say
+              "almost all of it is in the bank"; a bar says nothing else. */}
                                                 <MoneyTile
               label={t(locale, "Credit outstanding")}
               usd={finance.creditOutstandingUsd}
@@ -629,51 +673,6 @@ export default async function ManagerHome() {
           </BentoCard>
         </div>
 
-        {/* The two rings side by side, equal width — neither is more
-            important than the other and neither has more in it. */}
-        <div className="mt-3">
-          <KpiCard
-            label={t(locale, "Collected against billed")}
-            /*
-              A VERDICT, NOT THE NUMBER AGAIN.
-
-              The ring prints the percentage in its own middle, so passing it
-              here put the same "62%" twice on one small card, two centimetres
-              apart. Today's takings were the obvious substitute and are wrong:
-              this card is about the MONTH, and a daily figure under a monthly
-              ring is the same mislabelling trap in a new place. So the headline
-              says what the percentage MEANS — which is the one thing a ring
-              cannot — and the number stays in the ring where it is drawn.
-            */
-            value={
-              finance.collectionRatePct === null
-                ? t(locale, "Nothing billed")
-                : finance.collectionRatePct >= 80
-                  ? t(locale, "Collecting well")
-                  : finance.collectionRatePct >= 40
-                    ? t(locale, "Half the month is out")
-                    : t(locale, "Barely collecting")
-            }
-            ringPct={finance.collectionRatePct ?? undefined}
-            ringLabel={t(locale, "Share of this month's billing already paid")}
-            hint={
-              finance.collectionRatePct === null
-                ? t(locale, "nothing billed this month yet")
-                : t(locale, "of this month's billing has come back")
-            }
-            icon={Wallet}
-            tone={
-              finance.collectionRatePct === null
-                ? "info"
-                : finance.collectionRatePct >= 60
-                  ? "success"
-                  : "warning"
-            }
-          />
-          
-          {/* Where the money actually sits, as one rail. Three tiles cannot say
-              "almost all of it is in the bank"; a bar says nothing else. */}
-        </div>
 
         {/* The accounts rail is full width by nature — a proportion bar has to
             be long enough to read. */}
@@ -769,7 +768,7 @@ export default async function ManagerHome() {
       */}
 
       {/* -------------------------------------------------- batch profitability */}
-      <section className="mb-7">
+      <section className="mb-5">
         <BandHeading
           title={t(locale, "What each batch is making")}
           hint={t(
@@ -782,7 +781,7 @@ export default async function ManagerHome() {
       </section>
 
       {/* ------------------------------------------------------- the briefing */}
-      <section className="mb-7">
+      <section className="mb-5">
         <BandHeading
           title={t(locale, "The briefing")}
           hint={t(
@@ -797,7 +796,7 @@ export default async function ManagerHome() {
       </section>
 
       {/* ------------------------------------------------------ cargo in motion */}
-      <section className="mb-7">
+      <section className="mb-5">
         <BandHeading
           title={t(locale, "Cargo in motion")}
           hint={t(locale, "Everything the business is carrying, Guangzhou to the counter.")}
@@ -985,7 +984,7 @@ export default async function ManagerHome() {
 
 
       {/* ----------------------------------------------------------- the company */}
-      <section className="mb-7">
+      <section className="mb-5">
         <BandHeading
           title={t(locale, "The company")}
           hint={t(locale, "What is standing still until you decide, and who it is standing on.")}

@@ -120,7 +120,7 @@ export function BentoCard({
   children: React.ReactNode;
 }) {
   const shell = cn(
-    "group relative flex flex-col overflow-hidden rounded-xl p-3.5 shadow-soft transition-[transform,box-shadow] duration-200 ease-out-expo",
+    "group relative flex flex-col overflow-hidden rounded-xl p-3 shadow-soft transition-[transform,box-shadow] duration-200 ease-out-expo",
     CARD_TONES[tone],
     href &&
       "hover:scale-[1.015] hover:shadow-lift motion-reduce:hover:scale-100",
@@ -541,7 +541,10 @@ export function MoneyFlowChart({
   /* 200, not 250. This chart sets the height of the card beside it, and at 250
      the profit panel had to stretch to match — opening a band of nothing under
      its margin ring. The shape of a year reads perfectly well at 200. */
-  const H = 200;
+  /* 170. This chart and the profit panel beside it set the tallest row on the
+     page at 342px; the shape of a year is perfectly legible smaller, and the
+     twenty pixels come off both cards at once. */
+  const H = 170;
   const ceiling = Math.max(...moneyIn, ...moneyOut, 1);
 
   const inPoints = scalePoints(moneyIn, W, H, { min: 0, max: ceiling, padding: 8 });
@@ -552,7 +555,7 @@ export function MoneyFlowChart({
     <div className="mt-3 w-full flex-1">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="h-[200px] w-full"
+        className="h-[170px] w-full"
         preserveAspectRatio="none"
         role="img"
         aria-label={title}
@@ -716,15 +719,22 @@ export type QueueLine = {
  * days is the finding.
  */
 export function QueueList({ lines }: { lines: QueueLine[] }) {
+  /*
+    Tighter rows: gap-1.5 and py-2, not gap-2 and py-2.5.
+
+    Three bordered boxes at the old spacing made this card 56px taller than the
+    two stat cards beside it — the one uneven row left on the page. They still
+    read as pressable; they just stop being three separate panels inside a panel.
+  */
   return (
-    <ul className="mt-3 flex flex-1 flex-col gap-2">
+    <ul className="mt-2.5 flex flex-1 flex-col gap-1.5">
       {lines.map((line) => {
         const Icon = line.icon;
         return (
           <li key={line.key}>
             <Link
               href={line.href}
-              className="focus-ring flex items-center gap-3 rounded-lg border bg-background/60 px-3 py-2.5 transition-colors hover:bg-muted/60"
+              className="focus-ring flex items-center gap-3 rounded-lg border bg-background/60 px-3 py-2 transition-colors hover:bg-muted/60"
             >
               <span
                 className={cn(
