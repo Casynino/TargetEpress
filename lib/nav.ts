@@ -966,7 +966,6 @@ const MANAGER_SECTIONS: NavSection[] = [
       /* The life of a batch, in order: still loading, landed, signed off. */
       { href: "/app/shipments", label: "Arrived batches", icon: "PlaneTakeoff" },
       { href: "/app/batches", label: "Loading batches", icon: "Boxes" },
-      { href: "/app/exceptions", label: "Issues & Claims", icon: "TriangleAlert" },
     ],
   },
   {
@@ -1027,6 +1026,11 @@ const MANAGER_SECTIONS: NavSection[] = [
     items: [
       { href: "/app/admin/users", label: "Staff", icon: "UserCog", permission: "user.manage" },
       { href: "/app/support/tickets", label: "Support tickets", icon: "Headset", permission: "ticket.manage" },
+      /* Under Support tickets at the owner's instruction, and out of
+         Operations. A claim and a ticket are the same afternoon's work — a
+         customer with a problem — so they answer to one another rather than to
+         the batch lists it used to sit under. */
+      { href: "/app/exceptions", label: "Issues & Claims", icon: "TriangleAlert" },
     ],
   },
   {
