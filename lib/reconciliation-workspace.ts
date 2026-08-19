@@ -209,6 +209,15 @@ export async function reconciliationQueue(filters: QueueFilters) {
     scoped.id = { notIn: reviewedIds };
   } else if (status && QUEUE_STATES.includes(status)) {
     scoped.id = { in: byState.get(status as ReviewState) ?? ["__none__"] };
+  } else {
+    /* THE DEFAULT VIEW IS WHAT STILL NEEDS HIM. The owner: "if i reconsile i
+       dont they need to apper here again — this means they have been approved
+       and everything is correct". An agreed record is finished work, and a
+       queue that keeps finished work in it stops being a queue. The records
+       are not hidden — the Reconciled pill is one press away and the progress
+       counts still include them — they have simply left the desk. */
+    const agreed = byState.get("RECONCILED") ?? [];
+    if (agreed.length > 0) scoped.id = { notIn: agreed };
   }
 
   const [rows, total, filteredTotal, accounts, people] = await Promise.all([
@@ -295,15 +304,27 @@ export async function reconciliationQueue(filters: QueueFilters) {
  * shows forty rows and the answer is about all of them.
  */
 export async function queueTotals(filters: QueueFilters) {
-  const where = baseWhere(filters);
-  const [grouped, unreviewed] = await Promise.all([
+  const where: Prisma.LedgerEntryWhereInput = baseWhere(filters);
+  /* The same scoping as the queue itself — these figures sit in the list's own
+     header, and a header totalling rows the list no longer shows would be the
+     exact mislabelling this page exists to catch. */
+  const { reviewedIds, byState } = await currentStandings();
+  const status = filters.status as QueueState | undefined;
+  if (status === "PENDING") {
+    where.id = { notIn: reviewedIds };
+  } else if (status && QUEUE_STATES.includes(status)) {
+    where.id = { in: byState.get(status as ReviewState) ?? ["__none__"] };
+  } else {
+    const agreed = byState.get("RECONCILED") ?? [];
+    if (agreed.length > 0) where.id = { notIn: agreed };
+  }
+  const [grouped] = await Promise.all([
     prisma.ledgerEntry.groupBy({
       by: ["direction"],
       where,
       _sum: { amountUsd: true },
       _count: { _all: true },
     }),
-    currentStandings(),
   ]);
 
   const side = (direction: "IN" | "OUT") =>
@@ -311,7 +332,7 @@ export async function queueTotals(filters: QueueFilters) {
 
   const inUsd = side("IN");
   const outUsd = side("OUT");
-  return { inUsd, outUsd, netUsd: inUsd - outUsd, reviewedIds: unreviewed.reviewedIds.length };
+  return { inUsd, outUsd, netUsd: inUsd - outUsd };
 }
 
 export type AccountPosition = {

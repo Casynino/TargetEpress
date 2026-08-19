@@ -24,7 +24,7 @@ import {
 import { EmptyState } from "@/components/app/empty-state";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { PageHeader } from "@/components/app/page-header";
-import { ReconcileForm } from "@/components/app/reconcile-form";
+import { AccountCheckButton } from "@/components/app/account-check-button";
 import { RecordsQueue } from "@/components/app/records-queue";
 import { ReviewActions } from "@/components/app/review-actions";
 import { Input } from "@/components/ui/input";
@@ -593,8 +593,12 @@ export default async function ManagerReconciliation({
               !params.status ? "border-brand bg-brand text-brand-foreground" : "bg-card hover:bg-muted"
             )}
           >
-            {t(locale, "All")}
-            <span className="tabular-nums opacity-75">{queue.total}</span>
+            {/* Not "All" any more: the default view stopped carrying agreed
+                records, so its pill counts what is actually in it. */}
+            {t(locale, "To check")}
+            <span className="tabular-nums opacity-75">
+              {queue.total - queue.counts.RECONCILED}
+            </span>
           </Link>
           {QUEUE_STATES.map((state) => {
             const meta = STATE_STYLE[state];
@@ -711,7 +715,14 @@ export default async function ManagerReconciliation({
           */}
           <RecordsQueue
             canReview={canReview}
-            emptyLabel={t(locale, "No record matches these filters.")}
+            emptyLabel={
+              params.status || params.q || params.account || params.kind || params.person || params.period
+                ? t(locale, "No record matches these filters.")
+                : t(
+                    locale,
+                    "Nothing is waiting on you. Everything agreed sits under the Reconciled filter."
+                  )
+            }
             rows={queue.entries.map((entry) => ({
               id: entry.id,
               href: withParams(params, { tx: entry.id }),
@@ -1222,20 +1233,13 @@ export default async function ManagerReconciliation({
                     </p>
                   </div>
                   {canReconcile ? (
-                    <details className="shrink-0">
-                      <summary className="focus-ring inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-brand/30 bg-brand/10 px-2.5 py-1 text-[11px] font-semibold text-brand transition-colors hover:bg-brand/20">
-                        <Scale className="h-3 w-3" />
-                        {t(locale, "Check")}
-                      </summary>
-                      <div className="mt-3">
-                        <ReconcileForm
-                          accountId={position.id}
-                          kind={position.kind as "BANK" | "MOBILE_MONEY" | "CASH"}
-                          systemBalance={position.systemBalance}
-                          currency={position.currency}
-                        />
-                      </div>
-                    </details>
+                    <AccountCheckButton
+                      accountId={position.id}
+                      accountName={position.name}
+                      kind={position.kind as "BANK" | "MOBILE_MONEY" | "CASH"}
+                      systemBalance={position.systemBalance}
+                      currency={position.currency}
+                    />
                   ) : null}
                 </div>
               </div>

@@ -2400,6 +2400,9 @@ const ZH: Record<string, string> = {
   "Reconciliation": "对账",
   "Review transactions": "复核流水",
   "Manager actions": "经理操作",
+  "To check": "待核对",
+  "Nothing is waiting on you. Everything agreed sits under the Reconciled filter.":
+    "没有等待你处理的记录。已核对的都在“已核对”筛选里。",
   "scroll for": "向下滚动查看",
   "more": "条",
   "scroll for more": "向下滚动查看更多",
