@@ -958,14 +958,14 @@ const MANAGER_SECTIONS: NavSection[] = [
          earned is the question he opens the batch pages with, so it leads them
          rather than trailing them. */
       { href: "/app/manager/batches", label: "Batch finances", icon: "Boxes", permission: "profit.view" },
+      /* Directly under Batch finances, at the owner's instruction: the two
+         money questions about a flight, asked one after the other — what it
+         earned, and what was agreed when it closed. Same page Finance uses,
+         /app/finance/income. */
+      { href: "/app/finance/income", label: "Closed batches", icon: "ClipboardCheck", permission: "accounting.view" },
       /* The life of a batch, in order: still loading, landed, signed off. */
       { href: "/app/shipments", label: "Arrived batches", icon: "PlaneTakeoff" },
       { href: "/app/batches", label: "Loading batches", icon: "Boxes" },
-      /* Reachable before this only through a tab on the Finance overview,
-         which is three clicks from here and not where anyone looks for a
-         batch. Same page Finance uses — /app/finance/income, gated on
-         accounting.view, which this role carries. */
-      { href: "/app/finance/income", label: "Closed batches", icon: "ClipboardCheck", permission: "accounting.view" },
       { href: "/app/exceptions", label: "Issues & Claims", icon: "TriangleAlert" },
     ],
   },
@@ -1011,10 +1011,11 @@ const MANAGER_SECTIONS: NavSection[] = [
          — and now the first of them, because it is the one that has a deadline.
          Pending approvals kept its place between the two. */
       { href: "/app/manager/payroll", label: "Payroll", icon: "Wallet", permission: "payroll.approve" },
-      { href: "/app/manager/approvals", label: "Pending approvals", icon: "BadgeCheck" },
       /* The screen that answers "what needs me today" without the manager
          having to guess which queue to open. */
       { href: "/app/manager/control", label: "Control room", icon: "ShieldCheck" },
+      /* Last, at the owner's instruction. */
+      { href: "/app/manager/approvals", label: "Pending approvals", icon: "BadgeCheck" },
     ],
   },
   {
