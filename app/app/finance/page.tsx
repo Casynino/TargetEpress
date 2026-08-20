@@ -122,10 +122,16 @@ export default async function FinanceOverviewPage() {
       _sum: { total: true },
       _count: true,
     }),
-    prisma.payment.aggregate({
-      where: { paidAt: { gte: monthStart } },
-      _sum: { creditedAmount: true },
-      _count: true,
+    /*
+      Cancelled payments are not collections — the aggregate had no voidedAt
+      filter, so a payment recorded and then voided kept inflating the month.
+      Fetched as rows rather than aggregated because creditedAmount is null on
+      early records and SUM would silently drop them; the fallback to amount is
+      the same rule the trend chart already applies.
+    */
+    prisma.payment.findMany({
+      where: { paidAt: { gte: monthStart }, voidedAt: null },
+      select: { amount: true, creditedAmount: true },
     }),
     // Cargo that is paid for and cleared to go, still sitting on the shelf.
     // Distinct from everything else on this row: the money is already in, and
@@ -171,7 +177,10 @@ export default async function FinanceOverviewPage() {
   const rate = rateRow ? toNumber(rateRow.rate) : null;
 
   const draftValue = toNumber(drafts._sum.total);
-  const collectedMonth = toNumber(collectedThisMonth._sum.creditedAmount);
+  const collectedMonth = collectedThisMonth.reduce(
+    (sum, p) => sum + toNumber(p.creditedAmount ?? p.amount),
+    0
+  );
   const clearedNotCollected = activeNotes.reduce(
     (sum, note) => sum + toNumber(note.shipment.invoice?.total ?? 0),
     0
@@ -693,7 +702,9 @@ export default async function FinanceOverviewPage() {
               why: t(locale, "Every shilling in and out, in one register"),
             },
             {
-              href: "/app/finance/profit",
+              /* The route is /app/finance/reports — /app/finance/profit never
+                 existed, and this door 404'd on the one desk that opens it. */
+              href: "/app/finance/reports",
               label: t(locale, "Profit & loss"),
               why: t(locale, "Earned against spent, for a period"),
             },

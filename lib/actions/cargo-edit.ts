@@ -312,6 +312,16 @@ async function canEditAfterDeparture(user: SessionUser) {
 /** The change history for one shipment, newest first, in the reader's language. */
 export async function cargoHistory(shipmentId: string) {
   const locale = await viewerLocale();
+  /*
+    THE GUARD THE CALLERS ONLY PRETENDED TO BE.
+
+    Every page that shows this history first checks audit.view — but a "use
+    server" export is its own public endpoint, and this one answered anybody
+    who invoked it with a shipment id: every before/after value, every staff
+    name, every timestamp. The check the UI applies now lives where it can
+    actually refuse.
+  */
+  await authorize("audit.view");
   const rows = await prisma.fieldChange.findMany({
     where: { entity: "Shipment", entityId: shipmentId },
     orderBy: { createdAt: "desc" },

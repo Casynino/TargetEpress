@@ -74,7 +74,14 @@ export async function generateInvoice(
           packages: true,
           arrivedAt: true,
           deliveredAt: true,
-          invoice: { select: { id: true, amountPaid: true, invoiceNumber: true } },
+          invoice: {
+            select: {
+              id: true,
+              amountPaid: true,
+              invoiceNumber: true,
+              storageWaivedUsd: true,
+            },
+          },
         },
       });
       if (!shipment) throw new Error("Cargo not found.");
@@ -99,7 +106,20 @@ export async function generateInvoice(
       }
 
       const storageDays = storageDaysFor(shipment.arrivedAt, shipment.deliveredAt);
-      const storageCharge = storageDays * STORAGE_POLICY.perDayUsd;
+      /*
+        A WAIVER SURVIVES A REGENERATE. Rebuilding the bill used to re-charge
+        the storage while leaving the waiver record standing — an invoice that
+        said "charged" and "waived" at once, the exact state chargeStorageFee
+        and waiveStorageFee are written to make impossible. A fee somebody
+        forgave stays forgiven; reversing that decision is chargeStorageFee's
+        job, on the record, not a side effect of re-pricing the freight.
+      */
+      const waiverStands =
+        shipment.invoice !== null &&
+        toNumber(shipment.invoice.storageWaivedUsd) > 0;
+      const storageCharge = waiverStands
+        ? 0
+        : storageDays * STORAGE_POLICY.perDayUsd;
       const total = priced.total + storageCharge;
 
       // Freeze today's rate onto the invoice. A later change must never move a
@@ -1079,13 +1099,29 @@ export async function recordPayment(
       const newPaid = paid + credited;
       const settled = newPaid + 0.001 >= total;
 
-      await tx.invoice.update({
-        where: { id: invoice.id },
+      /*
+        CONDITIONAL ON THE FIGURE THIS TRANSACTION READ.
+
+        Two clerks recording the same customer's payment at the same moment
+        both read the same amountPaid, and under READ COMMITTED the plain
+        update let both through: two payments, two receipts, two ledger lines,
+        and one of the credits silently lost from the bill. The write now only
+        lands if amountPaid is still what was read; the loser touches nothing
+        further because this throw unwinds the whole transaction — payment,
+        receipt and ledger line included.
+      */
+      const claimed = await tx.invoice.updateMany({
+        where: { id: invoice.id, amountPaid: invoice.amountPaid },
         data: {
           amountPaid: new Prisma.Decimal(newPaid),
           status: settled ? "PAID" : "PARTIALLY_PAID",
         },
       });
+      if (claimed.count === 0) {
+        throw new Error(
+          "A payment landed on this bill a moment ago. Reload the page and check the balance before recording again."
+        );
+      }
 
       /*
         The flight shuts its own books.

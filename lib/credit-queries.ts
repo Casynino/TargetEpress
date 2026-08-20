@@ -75,6 +75,14 @@ const CREDIT_SELECT = {
       batch: { select: { id: true, batchNumber: true } },
     },
   },
+  /* The newest live payment — the one that settled the bill, for judging
+     whether a FINISHED credit was paid on time. */
+  payments: {
+    where: { voidedAt: null },
+    orderBy: { paidAt: "desc" },
+    take: 1,
+    select: { paidAt: true },
+  },
 } satisfies Prisma.InvoiceSelect;
 
 export type CreditRow = {
@@ -98,6 +106,8 @@ export type CreditRow = {
   requestNote: string | null;
   decidedBy: string | null;
   decisionNote: string | null;
+  /** When the last live payment landed — null while nothing has been paid. */
+  lastPaidAt: Date | null;
 } & CreditLine;
 
 function toRow(inv: Prisma.InvoiceGetPayload<{ select: typeof CREDIT_SELECT }>, now: Date): CreditRow {
@@ -122,6 +132,7 @@ function toRow(inv: Prisma.InvoiceGetPayload<{ select: typeof CREDIT_SELECT }>, 
     requestNote: inv.creditRequestNote,
     decidedBy: inv.creditDecidedBy?.name ?? null,
     decisionNote: inv.creditDecisionNote,
+    lastPaidAt: inv.payments[0]?.paidAt ?? null,
   };
 }
 
@@ -400,8 +411,20 @@ export async function customerCreditProfile(customerId: string, now = new Date()
     performance: (() => {
       const closed = rows.filter((r) => r.state === "PAID");
       if (closed.length === 0) return null;
+      /*
+        LATE MEANS PAID LATE, NOT "ITS DUE DATE HAS PASSED".
+
+        The old test used daysOverdue, which is measured from NOW — so a credit
+        settled a week early still turned "late" the day its due date went by,
+        and every customer's score decayed toward zero with the calendar. A
+        finished credit is judged by when the settling payment actually landed
+        against the date it was due.
+      */
       const late = closed.filter(
-        (r) => r.dueDate !== null && r.creditDate !== null && r.daysOverdue > 0
+        (r) =>
+          r.dueDate !== null &&
+          r.lastPaidAt !== null &&
+          r.lastPaidAt.getTime() > r.dueDate.getTime() + 86_400_000
       ).length;
       return {
         settled: closed.length,

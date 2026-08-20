@@ -139,6 +139,7 @@ export default async function ShipmentPage({
     , locale),
     category: item.cargoCategory,
     weightKg: toNumber(item.weightKg),
+    chargeableKg: item.chargeableKg === null ? undefined : toNumber(item.chargeableKg),
     packages: item.packages,
     packagesLabel: formatPackagesShort(item.packages, item.packageType, locale),
     status: item.status,

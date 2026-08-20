@@ -118,24 +118,76 @@ export async function chargeStorageFee(
       return fail(t(locale, "That storage fee is already on the bill."));
     }
 
-    /* The freight side is untouched; only the storage line and the total move. */
-    const freight =
-      invoice.freightOverride === null
-        ? toNumber(invoice.freightCost)
-        : toNumber(invoice.freightOverride);
-    const total =
-      freight +
-      status.chargeUsd +
-      toNumber(invoice.otherCharges) -
-      toNumber(invoice.discount);
-    /* This invoice's own rate — see the note at the top of the file. */
-    const rate =
-      invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
-    const totalLocal = rate === null ? null : toLocal(total, rate);
-
+    let total = 0;
+    let rate: number | null = null;
+    let totalLocal: number | null = null;
     await prisma.$transaction(async (tx) => {
-      await tx.invoice.update({
+      /*
+        THE MONEY FIELDS ARE RE-READ INSIDE THE TRANSACTION. The first version
+        computed the new total from a read taken before the transaction opened,
+        so a payment or an adjustment landing in between was silently written
+        over. The storage CLOCK (days, charge) may stay from the pre-read —
+        it is derived from dates, not from the row's money.
+      */
+      const fresh = await tx.invoice.findUnique({
         where: { id: invoice.id },
+        select: {
+          status: true,
+          amountPaid: true,
+          freightCost: true,
+          freightOverride: true,
+          otherCharges: true,
+          discount: true,
+          exchangeRate: true,
+          total: true,
+        },
+      });
+      if (!fresh) throw new Error(t(locale, "That invoice no longer exists."));
+
+      /* A dead bill cannot grow. VOID and WRITTEN_OFF are final words. */
+      if (fresh.status === "VOID" || fresh.status === "WRITTEN_OFF") {
+        throw new Error(
+          `${invoice.invoiceNumber} ${t(
+            locale,
+            "is closed, so nothing more can be charged on it."
+          )}`
+        );
+      }
+
+      const freight =
+        fresh.freightOverride === null
+          ? toNumber(fresh.freightCost)
+          : toNumber(fresh.freightOverride);
+      total =
+        freight +
+        status.chargeUsd +
+        toNumber(fresh.otherCharges) -
+        toNumber(fresh.discount);
+      rate = fresh.exchangeRate === null ? null : toNumber(fresh.exchangeRate);
+      totalLocal = rate === null ? null : toLocal(total, rate);
+
+      /*
+        THE STATUS FOLLOWS THE TOTAL. Charging storage on a settled bill used
+        to leave status at PAID while the total rose above amountPaid — and the
+        pickup gate reads the status, so the cargo walked out with the storage
+        unpaid. The label is re-derived from the same arithmetic every payment
+        uses.
+      */
+      const paidSoFar = toNumber(fresh.amountPaid);
+      const settled = paidSoFar + 0.001 >= total;
+      const nextStatus =
+        fresh.status === "DRAFT"
+          ? "DRAFT"
+          : settled
+            ? "PAID"
+            : paidSoFar > 0
+              ? "PARTIALLY_PAID"
+              : "UNPAID";
+
+      /* Conditional on the total this transaction read: a concurrent change
+         makes this touch nothing, and the person is told to look again. */
+      const claimed = await tx.invoice.updateMany({
+        where: { id: invoice.id, total: fresh.total },
         data: {
           storageDays: status.chargeableDays,
           storageCharge: new Prisma.Decimal(status.chargeUsd),
@@ -148,8 +200,14 @@ export async function chargeStorageFee(
           total: new Prisma.Decimal(total),
           totalLocal:
             totalLocal === null ? null : new Prisma.Decimal(totalLocal),
+          status: nextStatus,
         },
       });
+      if (claimed.count === 0) {
+        throw new Error(
+          t(locale, "This bill changed a moment ago. Reload the page and look again.")
+        );
+      }
 
       await recordAudit(
         {
@@ -218,22 +276,75 @@ export async function waiveStorageFee(
       );
     }
 
-    const freight =
-      invoice.freightOverride === null
-        ? toNumber(invoice.freightCost)
-        : toNumber(invoice.freightOverride);
-    /* Storage comes off the total; the freight, the extras and the discount are
-       exactly as they were. The waived figure is kept, not subtracted twice. */
-    const total =
-      freight + toNumber(invoice.otherCharges) - toNumber(invoice.discount);
-    /* This invoice's own rate — see the note at the top of the file. */
-    const rate =
-      invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
-    const totalLocal = rate === null ? null : toLocal(total, rate);
-
+    let total = 0;
+    let rate: number | null = null;
+    let totalLocal: number | null = null;
     await prisma.$transaction(async (tx) => {
-      await tx.invoice.update({
+      /* Same discipline as the charge: money fields re-read in-transaction. */
+      const fresh = await tx.invoice.findUnique({
         where: { id: invoice.id },
+        select: {
+          status: true,
+          amountPaid: true,
+          freightCost: true,
+          freightOverride: true,
+          otherCharges: true,
+          discount: true,
+          exchangeRate: true,
+          total: true,
+        },
+      });
+      if (!fresh) throw new Error(t(locale, "That invoice no longer exists."));
+      if (fresh.status === "VOID" || fresh.status === "WRITTEN_OFF") {
+        throw new Error(
+          `${invoice.invoiceNumber} ${t(
+            locale,
+            "is closed, so there is nothing on it to waive."
+          )}`
+        );
+      }
+
+      const freight =
+        fresh.freightOverride === null
+          ? toNumber(fresh.freightCost)
+          : toNumber(fresh.freightOverride);
+      /* Storage comes off the total; the freight, the extras and the discount
+         are exactly as they were. The waived figure is kept, not subtracted
+         twice. */
+      total = freight + toNumber(fresh.otherCharges) - toNumber(fresh.discount);
+      rate = fresh.exchangeRate === null ? null : toNumber(fresh.exchangeRate);
+      totalLocal = rate === null ? null : toLocal(total, rate);
+
+      /*
+        A WAIVER MUST NEVER MANUFACTURE A REFUND. If the customer has already
+        paid more than the bill would then say, dropping the total would leave
+        an overpaid invoice with no refund record — the exact arithmetic
+        adjustInvoice refuses for the same reason. This is handled through
+        Finance as a correction, not through a waiver.
+      */
+      const paidSoFar = toNumber(fresh.amountPaid);
+      if (paidSoFar > total + 0.001) {
+        throw new Error(
+          `${invoice.invoiceNumber} ${t(
+            locale,
+            "has already been paid beyond what the bill would then say. Correct it through Finance instead of waiving."
+          )}`
+        );
+      }
+
+      /* Waiving can legitimately SETTLE a bill the customer had part-paid. */
+      const settled = paidSoFar + 0.001 >= total;
+      const nextStatus =
+        fresh.status === "DRAFT"
+          ? "DRAFT"
+          : settled
+            ? "PAID"
+            : paidSoFar > 0
+              ? "PARTIALLY_PAID"
+              : "UNPAID";
+
+      const claimed = await tx.invoice.updateMany({
+        where: { id: invoice.id, total: fresh.total },
         data: {
           storageDays: status.chargeableDays,
           storageCharge: new Prisma.Decimal(0),
@@ -244,8 +355,14 @@ export async function waiveStorageFee(
           total: new Prisma.Decimal(total),
           totalLocal:
             totalLocal === null ? null : new Prisma.Decimal(totalLocal),
+          status: nextStatus,
         },
       });
+      if (claimed.count === 0) {
+        throw new Error(
+          t(locale, "This bill changed a moment ago. Reload the page and look again.")
+        );
+      }
 
       await recordAudit(
         {

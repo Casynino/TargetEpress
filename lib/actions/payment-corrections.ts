@@ -182,8 +182,44 @@ export async function voidPayment(
          reversal happens now, and backdating it would rewrite a month somebody
          may already have closed. */
       let reversedEntry: string | null = null;
-      if (payment.ledgerEntry && !payment.ledgerEntry.reversedBy) {
-        const e = payment.ledgerEntry;
+      /*
+        THE LINE TO REVERSE IS THE LIVE ONE, WHICHEVER IT IS.
+
+        Restoring a cancelled payment posts a fresh IN line, but paymentId is
+        unique on the ledger so the reinstated line rides on sourceEntity
+        "Payment" instead — which meant a second void found only the ORIGINAL
+        line, saw it already reversed, and reversed nothing: void → restore →
+        void left the account overstated by the whole payment, permanently.
+        So the search is for any un-reversed IN line belonging to this payment,
+        by either linkage.
+      */
+      const live = await tx.ledgerEntry.findFirst({
+        where: {
+          direction: "IN",
+          reversedBy: null,
+          reversesId: null,
+          OR: [
+            { paymentId: payment.id },
+            { sourceEntity: "Payment", sourceId: payment.id },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          entryNumber: true,
+          accountId: true,
+          currency: true,
+          direction: true,
+          kind: true,
+          amount: true,
+          amountUsd: true,
+          exchangeRate: true,
+          sourceEntity: true,
+          sourceId: true,
+        },
+      });
+      if (live) {
+        const e = live;
         await postLedgerEntry(tx, {
           accountId: e.accountId,
           currency: e.currency,

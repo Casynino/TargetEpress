@@ -176,7 +176,11 @@ export async function financeDashboard(
     prisma.invoice.findMany({
       where: {
         issuedAt: range,
-        status: { notIn: ["DRAFT", "VOID"] },
+        /* WRITTEN_OFF is debt the company formally abandoned; keeping it in
+           "billed" and "still owed" reported money nobody will ever chase, and
+           disagreed with pl.revenue in this same return value, which already
+           excluded it. One dashboard, one answer. */
+        status: { notIn: ["DRAFT", "VOID", "WRITTEN_OFF"] },
         ...(filters.batchId || filters.origin
           ? { shipment: { ...originWhere, ...(filters.batchId ? { batchId: filters.batchId } : {}) } }
           : {}),
@@ -265,7 +269,8 @@ export async function financeDashboard(
       prisma.invoice.findMany({
         where: {
           issuedAt: { gte: new Date(window.to.getFullYear() - 1, window.to.getMonth(), 1) },
-          status: { notIn: ["DRAFT", "VOID"] },
+          /* Same rule as the window figures above: abandoned debt is not revenue. */
+          status: { notIn: ["DRAFT", "VOID", "WRITTEN_OFF"] },
         },
         select: { issuedAt: true, total: true, shipment: { select: { weightKg: true } } },
       }),

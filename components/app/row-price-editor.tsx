@@ -29,6 +29,7 @@ export function RowPriceEditor({
   currency,
   rateBookFreight,
   weightKg,
+  chargeableKg,
   freightOverride,
   storage,
   otherCharges,
@@ -41,6 +42,8 @@ export function RowPriceEditor({
   rateBookFreight: number;
   /** What it weighs, so the freight can show its own working. */
   weightKg: number;
+  /** What the freight was actually billed on — 1 kg minimum applied. */
+  chargeableKg?: number;
   freightOverride: number | null;
   storage: number;
   otherCharges: number;
@@ -108,10 +111,15 @@ export function RowPriceEditor({
           commits it.
         */}
         <p className="text-[11px] text-muted-foreground">
-          {weightKg > 0 ? (
+          {/* Divided by the CHARGEABLE weight. Dividing by actual weight on a
+              parcel billed at the 1 kg minimum printed an implied rate double
+              the published one, beside a "fix the rate" link — inviting
+              Finance to correct a rate book that was right. */}
+          {(chargeableKg ?? weightKg) > 0 ? (
             <>
               <span className="tabular-nums text-foreground">
-                {weightKg.toFixed(1)} kg × {(rateBookFreight / weightKg).toFixed(2)}
+                {(chargeableKg ?? weightKg).toFixed(1)} kg ×{" "}
+                {(rateBookFreight / (chargeableKg ?? weightKg)).toFixed(2)}
               </span>{" "}
               ={" "}
             </>

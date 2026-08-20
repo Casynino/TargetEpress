@@ -32,6 +32,8 @@ export type CargoLine = {
   description: string;
   category: string;
   weightKg: number;
+  /** The billed weight — 1 kg minimum applied. Falls back to weightKg. */
+  chargeableKg?: number;
   packages: number;
   /** Pre-formatted with its unit. */
   packagesLabel: string;
@@ -439,6 +441,7 @@ export function ShipmentDetailTabs({
                   <div className="mt-2">
                     <RowPriceEditor
                       weightKg={line.weightKg}
+                      chargeableKg={line.chargeableKg}
                       invoiceId={line.price.edit.invoiceId}
                       trackingNumber={line.trackingNumber}
                       currency={line.price.currency}
@@ -575,6 +578,7 @@ export function ShipmentDetailTabs({
                             {line.price.edit && canEditPrice ? (
                               <RowPriceEditor
                                 weightKg={line.weightKg}
+                                chargeableKg={line.chargeableKg}
                                 invoiceId={line.price.edit.invoiceId}
                                 trackingNumber={line.trackingNumber}
                                 currency={line.price.currency}
