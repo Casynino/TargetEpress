@@ -101,6 +101,7 @@ export default async function ShipmentsPage() {
       arrivalDate: true,
       createdAt: true,
       shipments: {
+        where: { deletedAt: null },
         select: {
           weightKg: true,
           packages: true,

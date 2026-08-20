@@ -64,6 +64,7 @@ export default async function LoadingTablePage({
     include: {
       verifications: { select: { shipmentId: true, result: true } },
       shipments: {
+        where: { deletedAt: null },
         orderBy: { registeredAt: "desc" },
         include: {
           customer: { select: { name: true, phone: true } },

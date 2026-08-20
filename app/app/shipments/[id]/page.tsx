@@ -78,6 +78,7 @@ export default async function ShipmentPage({
       closedBy: { select: { name: true } },
       statement: { select: { status: true, reviewNote: true } },
       shipments: {
+        where: { deletedAt: null },
         orderBy: { registeredAt: "desc" },
         include: {
           customer: { select: { id: true, name: true, phone: true } },

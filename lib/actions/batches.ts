@@ -224,7 +224,7 @@ export async function sealBatch(
           id: true,
           status: true,
           batchNumber: true,
-          _count: { select: { shipments: true } },
+          _count: { select: { shipments: { where: { deletedAt: null } } } },
         },
       });
       if (!batch) throw new Error(t(locale, "Batch not found."));
@@ -297,7 +297,7 @@ export async function departBatch(
           status: true,
           batchNumber: true,
           shipments: {
-            where: { status: "READY_TO_DEPART" },
+            where: { status: "READY_TO_DEPART", deletedAt: null },
             select: { id: true, origin: true },
           },
         },
@@ -445,7 +445,7 @@ export async function dispatchLoadingTable(
           origin: true,
           permanent: true,
           shipments: {
-            where: { status: "READY_TO_DEPART" },
+            where: { status: "READY_TO_DEPART", deletedAt: null },
             select: { id: true },
           },
         },
@@ -1254,7 +1254,7 @@ export async function completeVerification(
           id: true,
           status: true,
           batchNumber: true,
-          _count: { select: { shipments: true, verifications: true } },
+          _count: { select: { shipments: { where: { deletedAt: null } }, verifications: true } },
         },
       });
       if (!batch) throw new Error("Batch not found.");

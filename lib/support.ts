@@ -823,6 +823,7 @@ export async function customerProfile(idOrCode: string) {
     where: { OR: [{ id: idOrCode }, { code: idOrCode.toUpperCase() }] },
     include: {
       shipments: {
+        where: { deletedAt: null },
         orderBy: { registeredAt: "desc" },
         select: {
           id: true,

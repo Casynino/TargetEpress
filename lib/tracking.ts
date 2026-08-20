@@ -731,7 +731,7 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
       origin: true,
       departureDate: true,
       arrivalDate: true,
-      _count: { select: { shipments: true } },
+      _count: { select: { shipments: { where: { deletedAt: null } } } },
     },
   });
 

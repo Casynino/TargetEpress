@@ -101,6 +101,7 @@ export default async function CustomersPage({
       city: true,
       createdAt: true,
       shipments: {
+        where: { deletedAt: null },
         orderBy: { registeredAt: "desc" },
         select: {
           status: true,

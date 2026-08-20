@@ -40,7 +40,7 @@ export async function GET(request: Request) {
       name: true,
       phone: true,
       city: true,
-      _count: { select: { shipments: true } },
+      _count: { select: { shipments: { where: { deletedAt: null } } } },
     },
   });
 

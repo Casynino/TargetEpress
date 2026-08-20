@@ -55,7 +55,7 @@ export async function loadingTables(prisma: TxClient) {
       id: true,
       batchNumber: true,
       origin: true,
-      _count: { select: { shipments: true } },
+      _count: { select: { shipments: { where: { deletedAt: null } } } },
     },
   });
 }

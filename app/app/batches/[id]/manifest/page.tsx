@@ -53,6 +53,7 @@ export default async function ManifestPage({
     where: { id },
     include: {
       shipments: {
+        where: { deletedAt: null },
         orderBy: { registeredAt: "desc" },
         include: {
           customer: { select: { name: true, phone: true } },

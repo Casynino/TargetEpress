@@ -45,7 +45,7 @@ export default async function BatchesPage() {
       id: true,
       origin: true,
       shipments: {
-        where: { status: "READY_TO_DEPART" },
+        where: { status: "READY_TO_DEPART", deletedAt: null },
         select: { weightKg: true, packages: true, registeredAt: true },
       },
     },
@@ -59,7 +59,7 @@ export default async function BatchesPage() {
       id: true,
       batchNumber: true,
       status: true,
-      _count: { select: { shipments: true } },
+      _count: { select: { shipments: { where: { deletedAt: null } } } },
     },
   });
 

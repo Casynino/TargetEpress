@@ -794,7 +794,7 @@ export async function batchUtilisation(take = 8) {
     take,
     select: {
       batchNumber: true,
-      shipments: { select: { weightKg: true } },
+      shipments: { where: { deletedAt: null }, select: { weightKg: true } },
     },
   });
 
@@ -992,8 +992,9 @@ export async function receivingQueue({
         waybillNumber: true,
         departureDate: true,
         arrivedAt: true,
-        _count: { select: { shipments: true, verifications: true, exceptions: true } },
+        _count: { select: { shipments: { where: { deletedAt: null } }, verifications: true, exceptions: true } },
         shipments: {
+          where: { deletedAt: null },
           select: {
             weightKg: true,
             packages: true,
@@ -1025,8 +1026,9 @@ export async function receivingQueue({
         departureDate: true,
         arrivedAt: true,
         verifiedAt: true,
-        _count: { select: { shipments: true, verifications: true, exceptions: true } },
+        _count: { select: { shipments: { where: { deletedAt: null } }, verifications: true, exceptions: true } },
         shipments: {
+          where: { deletedAt: null },
           select: {
             weightKg: true,
             packages: true,
@@ -1186,7 +1188,7 @@ export async function attentionItems(
               id: true,
               batchNumber: true,
               arrivedAt: true,
-              _count: { select: { shipments: true, verifications: true } },
+              _count: { select: { shipments: { where: { deletedAt: null } }, verifications: true } },
             },
           })
         : [],
@@ -1248,7 +1250,7 @@ export async function attentionItems(
               id: true,
               batchNumber: true,
               createdAt: true,
-              _count: { select: { shipments: true } },
+              _count: { select: { shipments: { where: { deletedAt: null } } } },
             },
           })
         : [],

@@ -102,7 +102,7 @@ export async function createCustomer(
         name: true,
         phone: true,
         city: true,
-        _count: { select: { shipments: true } },
+        _count: { select: { shipments: { where: { deletedAt: null } } } },
       },
     });
 

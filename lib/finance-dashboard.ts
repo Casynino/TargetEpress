@@ -243,6 +243,7 @@ export async function financeDashboard(
         status: true,
         arrivalDate: true,
         shipments: {
+          where: { deletedAt: null },
           select: {
             weightKg: true,
             invoice: { select: { total: true, amountPaid: true } },
