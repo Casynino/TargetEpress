@@ -2400,6 +2400,22 @@ const ZH: Record<string, string> = {
   "Reconciliation": "对账",
   "Review transactions": "复核流水",
   "Manager actions": "经理操作",
+  "Open the register behind this check": "打开这项核对背后的账页",
+  "Open the ledger and give each of these payments the account it landed in.":
+    "打开总账，为每笔付款补上它到账的账户。",
+  "Open the ledger and find the payment that is on one side and not the other.":
+    "打开总账，找出只出现在一边的那笔付款。",
+  "Open the credit book and chase the overdue names.": "打开赊账簿，催收逾期的客户。",
+  "Open the bill and fix the label, or record the payment it is missing.":
+    "打开账单，改正标签，或补录缺少的付款。",
+  "Open the account and set its opening balance, or find the entry that overdrew it.":
+    "打开该账户，设置期初余额，或找出导致透支的那笔记录。",
+  "Open the bills and see which list has the extra name.":
+    "打开账单，看哪份清单多出了名字。",
+  "Open the bills and find the figure the two lists disagree on.":
+    "打开账单，找出两份清单不一致的金额。",
+  "Open the bills for this period and re-add them.": "打开本期账单，重新核加。",
+  "Open the claims and rule on each one.": "打开付款申报，逐一裁定。",
   "To check": "待核对",
   "Nothing is waiting on you. Everything agreed sits under the Reconciled filter.":
     "没有等待你处理的记录。已核对的都在“已核对”筛选里。",

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   AlertTriangle,
+  ArrowRight,
   ArrowLeft,
   BadgeCheck,
   Banknote,
@@ -161,6 +162,26 @@ const STATE_STYLE: Record<
    three are still filters below; a summary card each would be seven boxes
    saying what four can. */
 const SUMMARY: QueueState[] = ["PENDING", "MISMATCH", "UNDER_REVIEW", "RECONCILED"];
+
+/*
+  WHAT TO DO WHEN A CHECK DIFFERS, in plain words per check.
+
+  The owner: "i just view and dont understand". A card that says two figures
+  disagree has done half its job; the other half is saying where to go and what
+  to change. The engine already carries the destination — every check has an
+  href — so the card becomes a door, and this map is the sentence on the door.
+*/
+const CHASE: Record<string, string> = {
+  posted: "Open the ledger and give each of these payments the account it landed in.",
+  collected: "Open the ledger and find the payment that is on one side and not the other.",
+  credit: "Open the credit book and chase the overdue names.",
+  status: "Open the bill and fix the label, or record the payment it is missing.",
+  negative: "Open the account and set its opening balance, or find the entry that overdrew it.",
+  owing: "Open the bills and see which list has the extra name.",
+  outstanding: "Open the bills and find the figure the two lists disagree on.",
+  billed: "Open the bills for this period and re-add them.",
+  claims: "Open the claims and rule on each one.",
+};
 
 /** Four flights on screen; the rest are a scroll away. See the list below. */
 const VISIBLE_FLIGHTS = 4;
@@ -1442,16 +1463,8 @@ export default async function ManagerReconciliation({
                     ? shillings(Math.abs(check.difference))
                     : Math.abs(check.difference).toLocaleString("en-US");
 
-                  return (
-                    <li
-                      key={check.key}
-                      className={cn(
-                        "relative overflow-hidden rounded-xl border p-3.5",
-                        check.ok
-                          ? "bg-card"
-                          : "border-destructive/40 bg-gradient-to-br from-destructive/[0.10] via-card to-card before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-destructive/60 before:to-transparent before:content-['']"
-                      )}
-                    >
+                  const body = (
+                    <>
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-semibold leading-snug">{check.label}</p>
                         <span
@@ -1511,6 +1524,36 @@ export default async function ManagerReconciliation({
                           {check.expected}
                         </p>
                       ) : null}
+
+                      {/* The door out: what to do about it, and where. Loud on
+                          a card that differs, quiet on one that agrees. */}
+                      <p
+                        className={cn(
+                          "mt-2 flex items-center gap-1 text-xs font-semibold",
+                          check.ok ? "text-brand/80" : "text-destructive"
+                        )}
+                      >
+                        {!check.ok && CHASE[check.key]
+                          ? t(locale, CHASE[check.key])
+                          : t(locale, "Open the register behind this check")}
+                        <ArrowRight className="h-3 w-3 shrink-0 transition-transform group-hover:translate-x-0.5" />
+                      </p>
+                    </>
+                  );
+
+                  return (
+                    <li key={check.key}>
+                      <Link
+                        href={check.href ?? "/app/finance/transactions"}
+                        className={cn(
+                          "focus-ring group relative block h-full overflow-hidden rounded-xl border p-3.5 transition-all hover:-translate-y-px hover:shadow-lift",
+                          check.ok
+                            ? "bg-card hover:border-brand/40"
+                            : "border-destructive/40 bg-gradient-to-br from-destructive/[0.10] via-card to-card before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-destructive/60 before:to-transparent before:content-['']"
+                        )}
+                      >
+                        {body}
+                      </Link>
                     </li>
                   );
                 })}
