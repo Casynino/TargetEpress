@@ -2400,6 +2400,9 @@ const ZH: Record<string, string> = {
   "Reconciliation": "对账",
   "Review transactions": "复核流水",
   "Manager actions": "经理操作",
+  "Delete it": "确认删除",
+  "Register it again": "重新登记",
+  "Back to": "返回",
   "Release on credit": "赊账放货",
   "Taking it on credit?": "客户要赊账？",
   "The cargo goes now and the bill stays owed, with a due date. No money is recorded until they actually pay.":

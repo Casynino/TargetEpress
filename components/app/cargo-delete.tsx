@@ -226,3 +226,121 @@ export function PurgeCargoForm({
     </div>
   );
 }
+
+/**
+ * The same deletion, reachable where the mistake is noticed.
+ *
+ * The owner: "deleting the cargo should not be complicated or hidden for the
+ * china warehouse, since she is the one putting the cargo in — mistakes happen.
+ * It should be as easy to delete as to edit." The form above lived at the foot
+ * of the EDIT page, which meant Maggie had to know deletion was a kind of
+ * editing to ever find it. This is the same action as a header button — beside
+ * Edit on the cargo page, and on the just-registered screen where the label is
+ * printed — opening over the page in the house dialog pattern.
+ *
+ * The guardrails are the server's, unchanged: only cargo still in China, only
+ * with a reason, never destroying the record.
+ */
+export function CargoDeleteButton({
+  shipmentId,
+  trackingNumber,
+  /** Where to go once it is gone — this page is about to stop existing. */
+  backHref,
+  backLabel,
+}: {
+  shipmentId: string;
+  trackingNumber: string;
+  backHref: string;
+  backLabel: string;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const [state, action] = useActionState(deleteCargo, undefined);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="focus-ring inline-flex h-9 items-center gap-2 rounded-lg border border-destructive/40 px-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+      >
+        <Trash2 className="h-4 w-4" />
+        {t("Delete")}
+      </button>
+
+      {open ? (
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-background/70 p-4 backdrop-blur-sm sm:p-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${t("Delete")} ${trackingNumber}`}
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !state?.ok) setOpen(false);
+          }}
+        >
+          <div className="mx-auto max-w-md">
+            <div className="rounded-xl border bg-card p-4 shadow-lift">
+              {state?.ok && state.data ? (
+                <div className="text-sm">
+                  <p className="font-medium">
+                    {state.data.trackingNumber} {t("deleted.")}
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    {t(
+                      "It is out of every list and the customer can no longer track it. An admin can restore it from Deleted records."
+                    )}
+                  </p>
+                  <a
+                    href={backHref}
+                    className="focus-ring mt-4 inline-flex h-10 items-center rounded-lg bg-brand px-4 text-sm font-semibold text-brand-foreground hover:bg-brand/90"
+                  >
+                    {backLabel}
+                  </a>
+                </div>
+              ) : (
+                <form action={action} className="space-y-3">
+                  <input type="hidden" name="shipmentId" value={shipmentId} />
+                  <p className="flex items-center gap-2 font-medium text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                    {t("Delete this cargo")} · {trackingNumber}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("Hidden everywhere, but kept on the record with its photos.")}
+                  </p>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="quickDeleteReason">
+                      {t("Why is it being deleted?")}
+                    </Label>
+                    <Textarea
+                      id="quickDeleteReason"
+                      name="reason"
+                      rows={2}
+                      required
+                      placeholder={t("e.g. Duplicate entry — same carton recorded twice")}
+                    />
+                  </div>
+                  <FormError state={state} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SubmitButton
+                      className="bg-destructive text-white hover:bg-destructive/90"
+                      pendingLabel={t("Deleting…")}
+                    >
+                      {t("Delete it")}
+                    </SubmitButton>
+                    <button
+                      type="button"
+                      onClick={() => setOpen(false)}
+                      className="focus-ring inline-flex h-10 items-center rounded-lg px-3 text-sm text-muted-foreground hover:text-foreground"
+                    >
+                      {t("Cancel")}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}

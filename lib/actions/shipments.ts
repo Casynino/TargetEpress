@@ -120,6 +120,9 @@ async function resolveCustomer(
 }
 
 export type ShipmentCreated = {
+  /* For the mistake caught ten seconds after pressing register: the success
+     screen offers delete, and delete addresses the row by id. */
+  id: string;
   trackingNumber: string;
   /** The loading table it landed on — the clerk never chose this. */
   batchNumber: string;
@@ -296,6 +299,7 @@ export async function createShipment(
     revalidatePath(`/app/batches/${result.assignment.batchId}`);
 
     return ok({
+      id: result.shipment.id,
       trackingNumber: result.shipment.trackingNumber,
       batchNumber: result.assignment.batchNumber,
       origin: result.shipment.origin,

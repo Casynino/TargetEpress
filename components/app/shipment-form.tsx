@@ -7,6 +7,7 @@ import { CheckCircle2, Info, Plane } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { PhotoCapture } from "@/components/app/photo-capture";
+import { CargoDeleteButton } from "@/components/app/cargo-delete";
 import { suggestCargoType } from "@/lib/actions/pricing";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -196,6 +197,21 @@ export function ShipmentForm({
             {t(locale, "Register another")}
           </a>
         </div>
+
+        {/* The mistake caught ten seconds after pressing register. The owner:
+            "even when he just record the cargo, where he needs to print he can
+            also be able to delete". Quiet, under the real actions — the common
+            path is print; this is the escape hatch beside it. */}
+        {state.ok && state.data?.id ? (
+          <div className="mt-4 flex justify-center">
+            <CargoDeleteButton
+              shipmentId={state.data.id}
+              trackingNumber={created as string}
+              backHref="/app/cargo/new"
+              backLabel={t(locale, "Register it again")}
+            />
+          </div>
+        ) : null}
       </div>
     );
   }

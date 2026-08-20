@@ -15,7 +15,7 @@ import {
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { CargoDocuments } from "@/components/app/cargo-documents";
-import { DeleteCargoForm } from "@/components/app/cargo-delete";
+import { CargoDeleteButton, DeleteCargoForm } from "@/components/app/cargo-delete";
 import { PendingSubmissionNotice } from "@/components/app/pending-submission-notice";
 import { ShipmentActions } from "@/components/app/shipment-actions";
 import { PackageList } from "@/components/app/package-list";
@@ -265,6 +265,26 @@ export default async function ShipmentDetailPage({
                   {t(locale, "Edit")}
                 </Link>
               </Button>
+            ) : null}
+            {/* As easy to delete as to edit, at the owner's instruction —
+                the desk that typed the mistake fixes it without hunting for
+                the control at the foot of the edit page. Same server gates:
+                still in China, reason required, nothing destroyed. */}
+            {can(user.role, "shipment.delete") &&
+            (shipment.status === "READY_TO_DEPART" ||
+              can(user.role, "shipment.cancel")) ? (
+              <CargoDeleteButton
+                shipmentId={shipment.id}
+                trackingNumber={shipment.trackingNumber}
+                /* backTo already knows a loading table from a flown batch;
+                   inventing the route again here is how the two disagree. */
+                backHref={backTo?.href ?? "/app/cargo/new"}
+                backLabel={
+                  backTo
+                    ? `${t(locale, "Back to")} ${backTo.label}`
+                    : t(locale, "Register another")
+                }
+              />
             ) : null}
             {/* The sticker is made in Guangzhou and travels on the box.
                 Every desk after that reads it; none of them prints another. */}
