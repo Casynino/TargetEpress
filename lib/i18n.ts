@@ -2400,6 +2400,10 @@ const ZH: Record<string, string> = {
   "Reconciliation": "对账",
   "Review transactions": "复核流水",
   "Manager actions": "经理操作",
+  "Release on credit": "赊账放货",
+  "Taking it on credit?": "客户要赊账？",
+  "The cargo goes now and the bill stays owed, with a due date. No money is recorded until they actually pay.":
+    "货现在放走，账单仍然欠着并带到期日。客户实际付款前不记任何钱。",
   "Accept & pay": "接受并支付",
   "Accepting pays it: one salaries expense for the total leaves the named account.":
     "接受即支付：总额作为一笔工资支出从所选账户划出。",

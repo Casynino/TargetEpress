@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import type { Role, ShipmentStatus } from "@prisma/client";
 import {
-  Ban,
+
+  CalendarClock,  Ban,
   Download,
   FileText,
   MessageCircle,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
+import { CreditRequest } from "@/components/app/credit-request";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +44,23 @@ type Props = {
   outstanding: number | null;
   /** Credit granted on this bill, so the cargo may go before the money does. */
   creditApproved?: boolean;
+  /**
+   * The credit door, when this viewer may open one.
+   *
+   * The owner, standing on this exact page as Finance and told the credit
+   * panel lived on the bill: "where". Fair — the one page a clerk has open
+   * when a customer asks for terms is the cargo itself, and the panel that
+   * carries Record payment must carry the other way of releasing the cargo
+   * too. Absent (undefined) when there is no bill, it is settled, credit is
+   * already granted or pending, or the viewer cannot ask.
+   */
+  credit?: {
+    invoiceId: string;
+    outstanding: string;
+    defaultTerm: number;
+    limitLabel: string | null;
+    canApprove: boolean;
+  };
   currency: string;
   pickupNoteId: string | null;
   pickupNoteNumber: string | null;
@@ -141,6 +160,29 @@ export function ShipmentActions(props: Props) {
             and a clerk with a customer at the counter should not have to read
             past two other panels to find the one button they came for. */}
         {canPay ? <PaymentPanel {...props} /> : null}
+        {props.credit ? (
+          <div className="border-l-2 border-warning bg-warning/5 p-5">
+            <p className="flex items-center gap-2 font-medium">
+              <CalendarClock className="h-5 w-5 text-warning" />
+              {t("Taking it on credit?")}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "The cargo goes now and the bill stays owed, with a due date. No money is recorded until they actually pay."
+              )}
+            </p>
+            <div className="mt-3">
+              <CreditRequest
+                invoiceId={props.credit.invoiceId}
+                outstanding={props.credit.outstanding}
+                defaultTerm={props.credit.defaultTerm}
+                limitLabel={props.credit.limitLabel}
+                outstandingLabel={null}
+                canApprove={props.credit.canApprove}
+              />
+            </div>
+          </div>
+        ) : null}
         {canCollect ? (
           <div className="border-l-2 border-brand bg-brand/5 p-5">
             <p className="flex items-center gap-2 font-medium">

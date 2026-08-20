@@ -860,6 +860,29 @@ export default async function ShipmentDetailPage({
                without this the server can issue a credit note and no button in
                the interface can ask it to. */
             creditApproved={shipment.invoice?.creditStatus === "APPROVED"}
+            /* The credit door, on the page where the customer is actually
+               asked. customer: true above already loads the term and limit. */
+            credit={
+              shipment.invoice &&
+              shipment.invoice.status !== "DRAFT" &&
+              shipment.invoice.status !== "VOID" &&
+              shipment.invoice.status !== "WRITTEN_OFF" &&
+              outstanding !== null &&
+              outstanding > 0 &&
+              shipment.invoice.creditStatus === "NONE" &&
+              can(user.role, "credit.request")
+                ? {
+                    invoiceId: shipment.invoice.id,
+                    outstanding: `${shipment.currency} ${outstanding.toFixed(2)}`,
+                    defaultTerm: shipment.customer.creditTermDays ?? 14,
+                    limitLabel:
+                      shipment.customer.creditLimitUsd === null
+                        ? null
+                        : `USD ${toNumber(shipment.customer.creditLimitUsd).toFixed(2)}`,
+                    canApprove: can(user.role, "credit.approve"),
+                  }
+                : undefined
+            }
             currency={shipment.currency}
             pickupNoteId={shipment.pickupNote?.id ?? null}
             pickupNoteNumber={shipment.pickupNote?.noteNumber ?? null}

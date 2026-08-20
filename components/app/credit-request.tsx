@@ -72,7 +72,10 @@ export function CreditRequest({
         className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition-colors hover:bg-accent hover:text-brand"
       >
         <CalendarClock className="h-3.5 w-3.5" />
-        {t("Ask for credit")}
+        {/* The word matches the authority. Finance saw "Ask for credit" and
+            expected a queue; their press grants it, and the button has to say
+            so before it is pressed, not after. */}
+        {canApprove ? t("Release on credit") : t("Ask for credit")}
       </button>
     );
   }
