@@ -12,7 +12,7 @@ import { nextExpenseNumber } from "@/lib/ids";
 import { postLedgerEntry } from "@/lib/ledger";
 import { toLocal } from "@/lib/money";
 import { codeFor, payrollRoster, runTotals } from "@/lib/payroll";
-import { prisma } from "@/lib/prisma";
+import { prisma, type TxClient } from "@/lib/prisma";
 import { authorize, type SessionUser } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -504,6 +504,9 @@ export async function decidePayrollRun(
     return fail(t(locale, "Say what is wrong with it before sending it back."));
   }
 
+  /* Needed the moment an acceptance lands, and read before the run is locked. */
+  const publishedRate = await currentRateValue();
+
   try {
     await prisma.$transaction(async (tx) => {
       const run = await tx.payrollRun.findUnique({
@@ -581,10 +584,31 @@ export async function decidePayrollRun(
         },
         tx
       );
+
+      /*
+        ACCEPTING IS THE PAYMENT, at the owner's instruction: "when he accept
+        the total amount must be deducted and written as salary". The old shape
+        left an APPROVED run sitting until somebody pressed a second button —
+        a step he never asked for, and a state in which he believes salaries
+        are paid and the account disagrees. Same transaction, so an acceptance
+        either books the money or fails whole with the run still waiting.
+      */
+      if (input.decision === "APPROVED") {
+        await settleApprovedRun(tx, {
+          runId: run.id,
+          user,
+          requestedPaidAt: null,
+          publishedRate,
+          locale,
+        });
+      }
     });
 
     revalidatePayroll();
-    return ok({ status: input.decision });
+    revalidatePath("/app/finance/expenses");
+    revalidatePath("/app/finance/accounts");
+    revalidatePath("/app/finance/transactions");
+    return ok({ status: input.decision === "APPROVED" ? "PAID" : input.decision });
   } catch (error) {
     return fail(t(locale, toActionError(error)));
   }
@@ -606,48 +630,35 @@ const paySchema = z.object({
 });
 
 /**
- * The money leaves. The only step in this file that moves any.
+ * THE MONEY LEAVES HERE, AND ONLY HERE.
  *
- * It books a SALARIES expense and posts its ledger line in the same
- * transaction, exactly as lib/actions/expenses.ts does for every other cost —
- * so the month's payroll reaches the profit and loss and the bank position
- * through the one route the rest of the app already trusts, and a run that
- * failed halfway cannot leave an expense with no ledger line or a line with no
- * expense.
+ * One SALARIES expense for the run's total and one ledger line behind it —
+ * never a line per worker. That is the owner's explicit instruction: "i dont
+ * want all the workers to appear in the ledger, only salary for that money and
+ * how much". The thirty names live on the run, one hop away through expenseId.
  *
- * The run is denominated in dollars and the account may be in shillings, so the
- * conversion happens once, here, at the published rate, and the rate is frozen
- * onto both the expense and the ledger line. Re-reading it later at a different
- * rate would restate what was paid.
+ * Extracted so three doors reach one room: the legacy pay button, the accept
+ * that now settles immediately, and the manager's one-action run. Whatever the
+ * door, the booking is this.
  */
-export async function payPayrollRun(
-  _prev: ActionResult<{ expenseNumber: string }> | undefined,
-  formData: FormData
-): Promise<ActionResult<{ expenseNumber: string }>> {
-  const locale = await viewerLocale();
-
-  let user: SessionUser;
-  try {
-    user = await authorize("payroll.approve");
-  } catch (error) {
-    return fail(t(locale, toActionError(error)));
+async function settleApprovedRun(
+  tx: TxClient,
+  {
+    runId,
+    user,
+    requestedPaidAt,
+    publishedRate,
+    locale,
+  }: {
+    runId: string;
+    user: SessionUser;
+    requestedPaidAt: Date | null;
+    publishedRate: number | null;
+    locale: Awaited<ReturnType<typeof viewerLocale>>;
   }
-
-  const parsed = paySchema.safeParse(
-    Object.fromEntries(formData) as Record<string, string>
-  );
-  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
-  const input = parsed.data;
-
-  // Read before the transaction opens, like the receipts in recordExpense: the
-  // rate lives in another table and has no business being fetched while the run
-  // is locked.
-  const publishedRate = await currentRateValue();
-
-  try {
-    const expenseNumber = await prisma.$transaction(async (tx) => {
+): Promise<string> {
       const run = await tx.payrollRun.findUnique({
-        where: { id: input.runId },
+        where: { id: runId },
         select: {
           id: true,
           code: true,
@@ -720,7 +731,7 @@ export async function payPayrollRun(
       }
       const amount = rate === null ? usd : toLocal(usd, rate);
 
-      const paidAt = input.paidAt ?? new Date();
+      const paidAt = requestedPaidAt ?? new Date();
 
       /*
         The claim, taken BEFORE anything is written.
@@ -819,7 +830,58 @@ export async function payPayrollRun(
       );
 
       return number;
-    });
+  return number;
+}
+
+/**
+ * The money leaves. The only step in this file that moves any.
+ *
+ * It books a SALARIES expense and posts its ledger line in the same
+ * transaction, exactly as lib/actions/expenses.ts does for every other cost —
+ * so the month's payroll reaches the profit and loss and the bank position
+ * through the one route the rest of the app already trusts, and a run that
+ * failed halfway cannot leave an expense with no ledger line or a line with no
+ * expense.
+ *
+ * The run is denominated in dollars and the account may be in shillings, so the
+ * conversion happens once, here, at the published rate, and the rate is frozen
+ * onto both the expense and the ledger line. Re-reading it later at a different
+ * rate would restate what was paid.
+ */
+export async function payPayrollRun(
+  _prev: ActionResult<{ expenseNumber: string }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ expenseNumber: string }>> {
+  const locale = await viewerLocale();
+
+  let user: SessionUser;
+  try {
+    user = await authorize("payroll.approve");
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  const parsed = paySchema.safeParse(
+    Object.fromEntries(formData) as Record<string, string>
+  );
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+  const input = parsed.data;
+
+  // Read before the transaction opens, like the receipts in recordExpense: the
+  // rate lives in another table and has no business being fetched while the run
+  // is locked.
+  const publishedRate = await currentRateValue();
+
+  try {
+    const expenseNumber = await prisma.$transaction(async (tx) =>
+      settleApprovedRun(tx, {
+        runId: input.runId,
+        user,
+        requestedPaidAt: input.paidAt,
+        publishedRate,
+        locale,
+      })
+    );
 
     revalidatePayroll();
     // The three money screens this now shows up on. Payroll is a cost like any
@@ -828,6 +890,147 @@ export async function payPayrollRun(
     revalidatePath("/app/finance/accounts");
     revalidatePath("/app/finance/transactions");
     return ok({ expenseNumber });
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+
+const runNowSchema = periodSchema.extend({
+  accountId: z.string().trim().min(1, "Choose the account the salaries leave."),
+});
+
+/**
+ * THE MANAGER RUNS THE MONTH HIMSELF, in one action.
+ *
+ * The owner: "manager can just run a payroll and the money will be deducted".
+ * The two-step month — Finance builds and sends up, the manager accepts — keeps
+ * its same-person guard; this is the deliberate exception to it, its own action
+ * behind payroll.approve, and the audit trail says in one line that one person
+ * did the whole thing. It builds the roster snapshot, marks the run agreed and
+ * settles it in a single transaction: one SALARIES expense, one ledger line.
+ *
+ * The one-run-per-month door still holds. If Finance already built the month,
+ * this refuses and points at their run instead of racing it.
+ */
+export async function runPayrollNow(
+  _prev: ActionResult<{ code: string; expenseNumber: string; headcount: number }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ code: string; expenseNumber: string; headcount: number }>> {
+  const locale = await viewerLocale();
+
+  let user: SessionUser;
+  try {
+    user = await authorize("payroll.approve");
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  const parsed = runNowSchema.safeParse(
+    Object.fromEntries(formData) as Record<string, string>
+  );
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+  const { year, month, accountId } = parsed.data;
+
+  if (new Date(year, month - 1, 1).getTime() > Date.now()) {
+    return fail(
+      `${codeFor(year, month)} ${t(locale, "is a month that has not started yet.")}`
+    );
+  }
+
+  const roster = await payrollRoster();
+  if (roster.length === 0) {
+    return fail(
+      t(
+        locale,
+        "Nobody on the staff register has a monthly salary set, so there is nothing to build. Set salaries on the staff records first."
+      )
+    );
+  }
+
+  const publishedRate = await currentRateValue();
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const existing = await tx.payrollRun.findUnique({
+        where: { year_month: { year, month } },
+        select: { code: true, status: true },
+      });
+      if (existing) {
+        throw new Error(
+          `${existing.code} ${t(
+            locale,
+            "already covers that month. Open it instead of building a second one."
+          )}`
+        );
+      }
+
+      const account = await tx.companyAccount.findUnique({
+        where: { id: accountId },
+        select: { id: true, name: true, active: true },
+      });
+      if (!account || !account.active) {
+        throw new Error(
+          t(locale, "That account is not live, so nothing can leave it. Choose another.")
+        );
+      }
+
+      const now = new Date();
+      const created = await tx.payrollRun.create({
+        data: {
+          code: codeFor(year, month),
+          year,
+          month,
+          status: "APPROVED",
+          preparedById: user.id,
+          submittedAt: now,
+          approvedById: user.id,
+          approvedAt: now,
+          decisionNote: "Run and paid in one action.",
+          accountId: account.id,
+          items: {
+            create: roster.map((person) => ({
+              userId: person.id,
+              name: person.name,
+              roleLabel: person.roleLabel,
+              employeeId: person.employeeId,
+              gross: new Prisma.Decimal(person.baseSalary),
+              allowance: new Prisma.Decimal(0),
+              deduction: new Prisma.Decimal(0),
+              net: new Prisma.Decimal(person.baseSalary),
+            })),
+          },
+        },
+        select: { id: true, code: true },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "payroll.runNow",
+          entity: "PayrollRun",
+          entityId: created.id,
+          summary: `Built, agreed and paid ${created.code} in one action — ${roster.length} staff`,
+        },
+        tx
+      );
+
+      const expenseNumber = await settleApprovedRun(tx, {
+        runId: created.id,
+        user,
+        requestedPaidAt: null,
+        publishedRate,
+        locale,
+      });
+
+      return { code: created.code, expenseNumber };
+    });
+
+    revalidatePayroll();
+    revalidatePath("/app/finance/expenses");
+    revalidatePath("/app/finance/accounts");
+    revalidatePath("/app/finance/transactions");
+    return ok({ ...result, headcount: roster.length });
   } catch (error) {
     return fail(t(locale, toActionError(error)));
   }

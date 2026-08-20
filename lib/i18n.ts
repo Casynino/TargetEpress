@@ -2400,6 +2400,23 @@ const ZH: Record<string, string> = {
   "Reconciliation": "对账",
   "Review transactions": "复核流水",
   "Manager actions": "经理操作",
+  "Accept & pay": "接受并支付",
+  "Accepting pays it: one salaries expense for the total leaves the named account.":
+    "接受即支付：总额作为一笔工资支出从所选账户划出。",
+  "Run this month yourself": "自己运行本月工资",
+  "staff on the register": "名在册员工",
+  "leaves the account you choose, as one salaries expense.":
+    "将作为一笔工资支出，从你选择的账户划出。",
+  "Run payroll": "运行工资单",
+  "Run payroll — the money leaves now": "运行工资单 — 立即划款",
+  "This month already has a run from Finance — it is in the list below and this press will refuse. Pick another month only if that is really what you mean.":
+    "本月财务已建了工资单——就在下方列表里，此操作会被拒绝。除非确有需要，不要另选月份。",
+  "Month": "月份",
+  "Choose an account": "选择账户",
+  "booked as": "记账为",
+  "Choose the account the salaries leave.": "选择工资划出的账户。",
+  "That account is not live, so nothing can leave it. Choose another.":
+    "该账户未启用，无法出账。请另选一个。",
   "Open the register behind this check": "打开这项核对背后的账页",
   "Open the ledger and give each of these payments the account it landed in.":
     "打开总账，为每笔付款补上它到账的账户。",

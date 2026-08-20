@@ -11,17 +11,17 @@ import { formatShillings, formatUsd } from "@/lib/money";
 import type { ActionResult } from "@/lib/actions/types";
 
 /**
- * Agree the month, or send it back with a reason.
+ * Accept the month — which pays it — or send it back with a reason.
  *
- * Agreeing is one press: the figures are on the screen above this, line by
- * line, and a manager who has read them is answering a question rather than
- * filling in a form. Sending it back opens a reason field and will not proceed
- * without one — the note is the only thing in this workflow that travels back
- * down, and a run returned blank sends Finance hunting through thirty lines for
- * an objection they cannot see.
+ * Accepting is one press and IT MOVES THE MONEY, at the owner's instruction:
+ * "when he accept the total amount must be deducted and written as salary".
+ * The action books one SALARIES expense for the run's total in the same
+ * transaction as the acceptance, so there is no state in which the manager
+ * believes salaries are paid and the account disagrees. The button says so.
  *
- * Neither press moves money. That is said here rather than assumed, because
- * "approve" in most systems means "and pay".
+ * Sending it back opens a reason field and will not proceed without one — the
+ * note is the only thing that travels back down, and a run returned blank
+ * sends Finance hunting through thirty lines for an objection they cannot see.
  */
 export function PayrollDecision({
   runId,
@@ -47,10 +47,10 @@ export function PayrollDecision({
             size="sm"
             variant="brand"
             className="h-7 px-2.5 text-[11px]"
-            pendingLabel={t("Agreeing…")}
+            pendingLabel={t("Paying…")}
           >
             <BadgeCheck className="mr-1.5 h-3.5 w-3.5" />
-            {t("Agree this run")}
+            {t("Accept & pay")}
           </SubmitButton>
         </form>
 
@@ -65,9 +65,7 @@ export function PayrollDecision({
         </button>
 
         <span className="text-[11px] text-muted-foreground">
-          {t(
-            "Agreeing does not pay it. The money leaves on a separate press, once it is agreed."
-          )}
+          {t("Accepting pays it: one salaries expense for the total leaves the named account.")}
         </span>
       </div>
 

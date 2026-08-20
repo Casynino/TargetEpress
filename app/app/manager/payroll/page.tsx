@@ -6,12 +6,15 @@ import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { PayrollAmount } from "@/components/app/payroll-amount";
 import { PayrollDecision, PayrollPay } from "@/components/app/payroll-decision";
+import { PayrollRunNow } from "@/components/app/payroll-run-now";
 import { PayrollLines } from "@/components/app/payroll-lines";
 import { SectionLabel } from "@/components/app/section-label";
 import { formatDate, formatMonthYear, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
-import { pendingPayrollApproval, payrollRun, payrollRuns } from "@/lib/payroll";
+import { activeAccounts } from "@/lib/accounts";
+import { formatShillings } from "@/lib/money";
+import { pendingPayrollApproval, payrollRoster, payrollRun, payrollRuns } from "@/lib/payroll";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 import { cn } from "@/lib/utils";
@@ -58,10 +61,12 @@ export default async function ManagerPayrollPage() {
   const user = await requirePermission("payroll.approve");
   const locale = await viewerLocale();
 
-  const [pending, runs, rateRow] = await Promise.all([
+  const [pending, runs, rateRow, roster, accounts] = await Promise.all([
     pendingPayrollApproval(),
     payrollRuns(12),
     currentRate(),
+    payrollRoster(),
+    activeAccounts(),
   ]);
   const rate = rateRow ? toNumber(rateRow.rate) : null;
 
@@ -92,6 +97,26 @@ export default async function ManagerPayrollPage() {
         title="Payroll"
         description="What Finance has prepared, name by name. Agree it, send it back with a reason, or pay what you have already agreed."
       />
+
+      {/* The owner's one-press month. The two-step queue keeps working below;
+          this is the deliberate shortcut for the chair that signs it anyway. */}
+      <div className="mb-5">
+        <PayrollRunNow
+          accounts={accounts.map((account) => ({ id: account.id, name: account.name }))}
+          headcount={roster.length}
+          totalLabel={formatShillings(
+            roster.reduce((sum, person) => sum + person.baseSalary, 0),
+            rate
+          )}
+          defaultYear={new Date().getFullYear()}
+          defaultMonth={new Date().getMonth() + 1}
+          monthTaken={runs.some(
+            (run) =>
+              run.year === new Date().getFullYear() &&
+              run.month === new Date().getMonth() + 1
+          )}
+        />
+      </div>
 
       {detailed.length === 0 ? (
         <EmptyState

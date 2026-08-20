@@ -504,6 +504,17 @@ const FINANCE: Permission[] = [
     name against it, and the CEO reads the same reports.
   */
   "profit.view",
+  /*
+    BUILDS THE SALARY RUN, AND ONLY BUILDS IT.
+
+    The owner's design in his own words: "the finance need to set and prepare
+    salary payroll for everyone but the manager is the one who pays". The grant
+    was simply missing — Finance was bounced off /app/finance/payroll by the
+    very gate the page names — so the flow the owner described could never
+    start. payroll.approve stays deliberately absent: the desk that writes the
+    figures must not be the desk that agrees them.
+  */
+  "payroll.prepare",
 ];
 
 /** The CEO sees and can do everything — but is never required to. */
