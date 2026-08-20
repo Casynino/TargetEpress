@@ -582,6 +582,14 @@ const FINANCE_SECTIONS: NavSection[] = [
         icon: "CalendarClock",
         permission: "credit.view",
       },
+      {
+        /* This desk BUILDS the run and cannot pay it; the manager agrees it
+           without writing the figures. Two screens, one for each half. */
+        href: "/app/finance/payroll",
+        label: "Payroll",
+        icon: "Wallet",
+        permission: "payroll.prepare",
+      },
       /*
         THE SIX BELOW CAME OFF THE TAB ROW, at the owner's instruction: "even on
         finance and manage remove them from here and just put them on the side
@@ -601,24 +609,10 @@ const FINANCE_SECTIONS: NavSection[] = [
         permission: "account.view",
       },
       {
-        href: "/app/finance/transactions",
-        label: "General ledger",
-        icon: "ArrowLeftRight",
-        permission: "ledger.view",
-      },
-      {
         href: "/app/finance/expenses",
         label: "Expenses",
         icon: "Receipt",
         permission: "expense.view",
-      },
-      {
-        /* This desk BUILDS the run and cannot pay it; the manager agrees it
-           without writing the figures. Two screens, one for each half. */
-        href: "/app/finance/payroll",
-        label: "Payroll",
-        icon: "Wallet",
-        permission: "payroll.prepare",
       },
       {
         /* Gated on profit.view, which the money desk does not hold — so this
@@ -633,6 +627,12 @@ const FINANCE_SECTIONS: NavSection[] = [
         label: "Pickup notes",
         icon: "QrCode",
         permission: "pickupNote.view",
+      },
+      {
+        href: "/app/finance/transactions",
+        label: "General ledger",
+        icon: "ArrowLeftRight",
+        permission: "ledger.view",
       },
       {
         /*
