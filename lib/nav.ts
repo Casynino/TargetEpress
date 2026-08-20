@@ -539,6 +539,14 @@ const FINANCE_SECTIONS: NavSection[] = [
         icon: "Boxes",
         permission: "batch.view",
       },
+      {
+        /* Below Loading batches, at the owner's instruction — the life of a
+           flight in order on this menu too: landed, loading, signed off. */
+        href: "/app/finance/income",
+        label: "Closed batches",
+        icon: "ClipboardCheck",
+        permission: "accounting.view",
+      },
     ],
   },
   {
@@ -611,12 +619,6 @@ const FINANCE_SECTIONS: NavSection[] = [
         label: "Payroll",
         icon: "Wallet",
         permission: "payroll.prepare",
-      },
-      {
-        href: "/app/finance/income",
-        label: "Closed batches",
-        icon: "ClipboardCheck",
-        permission: "accounting.view",
       },
       {
         /* Gated on profit.view, which the money desk does not hold — so this
