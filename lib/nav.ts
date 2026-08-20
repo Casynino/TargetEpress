@@ -568,12 +568,6 @@ const FINANCE_SECTIONS: NavSection[] = [
       // doors into one room: it is opened many times a day, and burying it a
       // click inside the ledger costs more than the duplication does.
       {
-        href: "/app/collections/follow-up",
-        label: "Collections",
-        icon: "Banknote",
-        permission: "collections.view",
-      },
-      {
         /* The credit book. Finance grants the terms, chases the debt and sets
            the limits, so this is its row — beside Collections, because an
            overdue credit and an unpaid bill are one afternoon's work. */
@@ -613,6 +607,12 @@ const FINANCE_SECTIONS: NavSection[] = [
         label: "Expenses",
         icon: "Receipt",
         permission: "expense.view",
+      },
+      {
+        href: "/app/collections/follow-up",
+        label: "Collections",
+        icon: "Banknote",
+        permission: "collections.view",
       },
       {
         /* Gated on profit.view, which the money desk does not hold — so this
