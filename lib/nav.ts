@@ -629,6 +629,12 @@ const FINANCE_SECTIONS: NavSection[] = [
         permission: "profit.view",
       },
       {
+        href: "/app/finance/pickup-notes",
+        label: "Pickup notes",
+        icon: "QrCode",
+        permission: "pickupNote.view",
+      },
+      {
         /*
           The rate book, with its own door.
 
@@ -641,12 +647,6 @@ const FINANCE_SECTIONS: NavSection[] = [
         label: "Price Configuration",
         icon: "Tags",
         permission: "pricing.view",
-      },
-      {
-        href: "/app/finance/pickup-notes",
-        label: "Pickup notes",
-        icon: "QrCode",
-        permission: "pickupNote.view",
       },
     ],
   },
