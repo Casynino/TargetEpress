@@ -58,8 +58,11 @@ export async function resolveScannedCode(raw: string): Promise<ScanTarget | null
     return { shipmentId: pkg.shipmentId, package: stripShipment(pkg) };
   }
 
+  /* deletedAt said explicitly, like the package branches above — the global
+     client filter already covers a direct read, but a scanner acting on
+     deleted cargo is bad enough that this line must not depend on it. */
   const shipment = await prisma.shipment.findUnique({
-    where: { qrToken: code.token },
+    where: { qrToken: code.token, deletedAt: null },
     select: { id: true },
   });
   if (shipment) return { shipmentId: shipment.id, package: null };

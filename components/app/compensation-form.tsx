@@ -69,6 +69,7 @@ export function ApproveCompensationForm({
 export function RecordCompensationForm({
   exceptionId,
   defaults,
+  accounts = [],
 }: {
   exceptionId: string;
   /**
@@ -81,7 +82,13 @@ export function RecordCompensationForm({
     paidAt: string | null;
     method: string | null;
     note: string | null;
+    accountId?: string | null;
   } | null;
+  /**
+   * Where the money can leave from. A payout with a payment date must name
+   * one — that is what puts the line on the general ledger.
+   */
+  accounts?: { id: string; name: string; currency: string }[];
 }) {
   const t = useT();
   const [state, action] = useActionState(recordCompensation, undefined);
@@ -138,6 +145,26 @@ export function RecordCompensationForm({
               </option>
             ))}
           </NativeSelect>
+        </div>
+        <div className="space-y-1 sm:col-span-2">
+          <Label htmlFor="compensation-account">{t("Paid from")}</Label>
+          <NativeSelect
+            id="compensation-account"
+            name="accountId"
+            defaultValue={defaults?.accountId ?? ""}
+          >
+            <option value="">{t("Not paid yet")}</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name} — {account.currency}
+              </option>
+            ))}
+          </NativeSelect>
+          <p className="text-xs text-muted-foreground">
+            {t(
+              "Required once a payment date is set — it puts the payout on the general ledger against this account."
+            )}
+          </p>
         </div>
       </div>
 

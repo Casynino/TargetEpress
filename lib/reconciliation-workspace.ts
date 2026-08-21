@@ -220,7 +220,14 @@ export async function reconciliationQueue(filters: QueueFilters) {
     if (agreed.length > 0) scoped.id = { notIn: agreed };
   }
 
-  const [rows, total, filteredTotal, accounts, people] = await Promise.all([
+  /* Counts within the same filters as the list, so a month's figures never sit
+     under a week's list. Each state's ids are counted against the filter with
+     a keyed lookup — this used to fetch every matching entry's id back into
+     the process and intersect sets by hand, which read the whole register on
+     every open of the page. */
+  const stateEntries = [...byState.entries()];
+
+  const [rows, total, filteredTotal, accounts, people, stateCounts] = await Promise.all([
     prisma.ledgerEntry.findMany({
       where: scoped,
       orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
@@ -242,6 +249,13 @@ export async function reconciliationQueue(filters: QueueFilters) {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    Promise.all(
+      stateEntries.map(([, ids]) =>
+        ids.length === 0
+          ? Promise.resolve(0)
+          : prisma.ledgerEntry.count({ where: { ...where, id: { in: ids } } })
+      )
+    ),
   ]);
 
   const standings = await reviewsFor(
@@ -258,14 +272,6 @@ export async function reconciliationQueue(filters: QueueFilters) {
     };
   });
 
-  /* Counts within the same filters as the list, so a month's figures never sit
-     under a week's list. Reviewed ids are counted by intersecting with the
-     filtered set rather than globally. */
-  const idsInFilter = new Set(
-    (
-      await prisma.ledgerEntry.findMany({ where, select: { id: true } })
-    ).map((r) => r.id)
-  );
   const counts: Record<QueueState, number> = {
     PENDING: 0,
     MISMATCH: 0,
@@ -276,11 +282,11 @@ export async function reconciliationQueue(filters: QueueFilters) {
     RECONCILED: 0,
   };
   let reviewedInFilter = 0;
-  for (const [state, ids] of byState) {
-    const n = ids.filter((id) => idsInFilter.has(id)).length;
+  stateEntries.forEach(([state], index) => {
+    const n = stateCounts[index];
     if (state in counts) counts[state as QueueState] = n;
     reviewedInFilter += n;
-  }
+  });
   counts.PENDING = Math.max(0, total - reviewedInFilter);
 
   return {

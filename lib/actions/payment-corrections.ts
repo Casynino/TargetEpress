@@ -170,13 +170,21 @@ export async function voidPayment(
         );
       }
 
-      await tx.invoice.update({
-        where: { id: invoice.id },
+      /* Conditional on the balance this transaction read — the payment-row
+         claim above stops a double VOID, but not a payment landing on the
+         same bill between our read and this write. The loser unwinds whole. */
+      const invoiceClaim = await tx.invoice.updateMany({
+        where: { id: invoice.id, amountPaid: invoice.amountPaid },
         data: {
           amountPaid: new Prisma.Decimal(newPaid),
           ...(newStatus ? { status: newStatus } : {}),
         },
       });
+      if (invoiceClaim.count === 0) {
+        throw new Error(
+          t(locale, "This bill's balance moved a moment ago. Reload and check it before cancelling.")
+        );
+      }
 
       /* The money coming back out of the account it went into. Dated today: the
          reversal happens now, and backdating it would rewrite a month somebody
@@ -398,13 +406,20 @@ export async function restorePayment(
         throw new Error("That payment was reinstated by somebody else a moment ago.");
       }
 
-      await tx.invoice.update({
-        where: { id: invoice.id },
+      /* Same discipline as void and recordPayment: the balance write only
+         lands if the balance is still what this transaction read. */
+      const invoiceClaim = await tx.invoice.updateMany({
+        where: { id: invoice.id, amountPaid: invoice.amountPaid },
         data: {
           amountPaid: new Prisma.Decimal(newPaid),
           ...(newStatus ? { status: newStatus } : {}),
         },
       });
+      if (invoiceClaim.count === 0) {
+        throw new Error(
+          t(locale, "This bill's balance moved a moment ago. Reload and check it before reinstating.")
+        );
+      }
 
       /* The money goes back in. A fresh line, because the account really does
          receive it again today — and because the reversal that took it out

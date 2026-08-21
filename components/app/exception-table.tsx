@@ -88,12 +88,15 @@ export function ExceptionTable({
   exceptions,
   allow,
   assignees,
+  accounts = [],
   closed = false,
 }: {
   exceptions: InvestigationRecord[];
   allow: InvestigationAllowances;
   /** Empty unless the viewer may reassign cases. */
   assignees: { id: string; name: string; roleLabel: string }[];
+  /** Empty unless the viewer may record payouts — feeds the "Paid from" picker. */
+  accounts?: { id: string; name: string; currency: string }[];
   /** A historical list rather than a live queue — styled back. */
   closed?: boolean;
 }) {
@@ -113,6 +116,7 @@ export function ExceptionTable({
               exception={exception}
               allow={allow}
               assignees={assignees}
+            accounts={accounts}
               closed={closed}
             />
           </li>
@@ -150,6 +154,7 @@ export function ExceptionTable({
                   exception={exception}
                   allow={allow}
                   assignees={assignees}
+            accounts={accounts}
                   closed={closed}
                 />
               ))}
@@ -172,11 +177,13 @@ function ExceptionCard({
   exception,
   allow,
   assignees,
+  accounts = [],
   closed,
 }: {
   exception: InvestigationRecord;
   allow: InvestigationAllowances;
   assignees: { id: string; name: string; roleLabel: string }[];
+  accounts?: { id: string; name: string; currency: string }[];
   closed: boolean;
 }) {
   const t = useT();
@@ -286,6 +293,7 @@ function ExceptionCard({
             exception={exception}
             allow={allow}
             assignees={assignees}
+            accounts={accounts}
             absent={absent}
             unit={unit}
           />
@@ -299,11 +307,13 @@ function ExceptionRow({
   exception,
   allow,
   assignees,
+  accounts = [],
   closed,
 }: {
   exception: InvestigationRecord;
   allow: InvestigationAllowances;
   assignees: { id: string; name: string; roleLabel: string }[];
+  accounts?: { id: string; name: string; currency: string }[];
   closed: boolean;
 }) {
   const t = useT();
@@ -429,6 +439,7 @@ function ExceptionRow({
               exception={exception}
               allow={allow}
               assignees={assignees}
+            accounts={accounts}
               absent={absent}
               unit={unit}
             />
@@ -450,12 +461,14 @@ function CaseRecord({
   exception,
   allow,
   assignees,
+  accounts = [],
   absent,
   unit,
 }: {
   exception: InvestigationRecord;
   allow: InvestigationAllowances;
   assignees: { id: string; name: string; roleLabel: string }[];
+  accounts?: { id: string; name: string; currency: string }[];
   absent: number[];
   unit: { one: string; many: string };
 }) {
@@ -608,7 +621,7 @@ function CaseRecord({
             </div>
           </Panel>
 
-          <CompensationPanel exception={exception} allow={allow} />
+          <CompensationPanel exception={exception} allow={allow} accounts={accounts} />
         </div>
 
         {/* ---- What was done about it ---------------------------------- */}
@@ -780,9 +793,11 @@ function PhotoStrip({
 function CompensationPanel({
   exception,
   allow,
+  accounts = [],
 }: {
   exception: InvestigationRecord;
   allow: InvestigationAllowances;
+  accounts?: { id: string; name: string; currency: string }[];
 }) {
   const t = useT();
   const locale = useLocale();
@@ -808,7 +823,7 @@ function CompensationPanel({
           {t("Compensation approved — no payout recorded yet.")}
         </p>
         {showRecord ? (
-          <RecordCompensationForm exceptionId={exception.id} />
+          <RecordCompensationForm exceptionId={exception.id} accounts={accounts} />
         ) : (
           <p className="text-xs text-muted-foreground">
             {t("Finance records the payout.")}
@@ -835,6 +850,11 @@ function CompensationPanel({
         {comp.methodLabel ? (
           <span className="text-muted-foreground">{comp.methodLabel}</span>
         ) : null}
+        {comp.accountName ? (
+          <span className="text-muted-foreground">
+            {t("from")} {comp.accountName}
+          </span>
+        ) : null}
       </p>
       {comp.note ? (
         <p className="mt-1 text-muted-foreground">{comp.note}</p>
@@ -853,6 +873,7 @@ function CompensationPanel({
       <div className="mt-3 border-t pt-3">
         <RecordCompensationForm
           exceptionId={exception.id}
+          accounts={accounts}
           defaults={
             comp.raw
               ? {
@@ -863,6 +884,7 @@ function CompensationPanel({
                     : null,
                   method: comp.raw.method,
                   note: comp.note,
+                  accountId: comp.raw.accountId,
                 }
               : null
           }

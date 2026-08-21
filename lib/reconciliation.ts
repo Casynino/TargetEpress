@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { AccountKind } from "@prisma/client";
+import type { AccountKind, Prisma } from "@prisma/client";
 
 import { collectionsOverview } from "@/lib/collections";
 import { creditNotInTheLedger } from "@/lib/credit-queries";
@@ -198,10 +198,9 @@ export async function reconciliation(locale: Locale = "en") {
   const period = windowFor("month", locale);
 
   const [
-    payments,
-    posted,
+    paymentAgg,
     postedSum,
-    invoices,
+    invoiceAgg,
     balances,
     accounts,
     credit,
@@ -209,41 +208,68 @@ export async function reconciliation(locale: Locale = "en") {
     collections,
     finance,
   ] = await Promise.all([
-      /* Every payment that still counts. A cancelled one was answered by a
-         reversing line, so both sides of the check drop it together. */
-      prisma.payment.findMany({
-        where: { voidedAt: null },
-        select: {
-          id: true,
-          amount: true,
-          creditedAmount: true,
-          currency: true,
-          accountId: true,
-        },
-      }),
-      prisma.ledgerEntry.findMany({
-        where: { kind: "CUSTOMER_PAYMENT", paymentId: { not: null } },
-        select: { paymentId: true },
-      }),
+      /* Every payment that still counts — a cancelled one was answered by a
+         reversing line, so both sides of the check drop it together.
+
+         One statement rather than the table: this used to fetch every payment
+         ever taken just to count the ones missing a register line and sum the
+         rest, which read the whole history on every open of the page. The
+         count, the sum, the offenders and the "all of them lack an account"
+         diagnostic now come out of a single snapshot, so they still describe
+         exactly the same rows as each other — which the old row-level pass
+         guaranteed and a handful of separate aggregates would not.
+
+         COALESCE(creditedAmount, amount) is the discipline every money total
+         in this codebase reads; lib/profit.ts documents what it cost the one
+         time a total read creditedAmount alone. */
+      prisma.$queryRaw<
+        {
+          taken: number;
+          collected: Prisma.Decimal;
+          unposted: number;
+          unattributed: number;
+        }[]
+      >`
+        SELECT
+          COUNT(*)::int AS "taken",
+          COALESCE(SUM(COALESCE("creditedAmount", "amount")), 0) AS "collected",
+          COUNT(*) FILTER (WHERE NOT EXISTS (
+            SELECT 1 FROM "LedgerEntry" l
+            WHERE l."paymentId" = "Payment"."id" AND l."kind" = 'CUSTOMER_PAYMENT'
+          ))::int AS "unposted",
+          COUNT(*) FILTER (WHERE "accountId" IS NULL AND NOT EXISTS (
+            SELECT 1 FROM "LedgerEntry" l
+            WHERE l."paymentId" = "Payment"."id" AND l."kind" = 'CUSTOMER_PAYMENT'
+          ))::int AS "unattributed"
+        FROM "Payment"
+        WHERE "voidedAt" IS NULL
+      `,
       prisma.ledgerEntry.aggregate({
         where: { kind: "CUSTOMER_PAYMENT" },
         _sum: { amountUsd: true },
       }),
-      /* Rows, not a count, because the check they feed is row-level: a label
-         can only be tested against its own bill's arithmetic, which no groupBy
-         returns. The figure printed beside it — "live bills" — is therefore the
-         size of the set this pass actually opened, and that is the only honest
-         denominator for "none of them disagree".
+      /* The label test is row-level — a status can only be judged against its
+         own bill's arithmetic — but the page never shows the rows, only how
+         many disagree. So the arithmetic moved into the statement, and the
+         denominator printed beside it ("live bills") is counted in the same
+         snapshot: the only honest denominator for "none of them disagree".
 
-         financeDashboard's groupBy runs the identical filter, and it is
-         deliberately not read here: it is taken at a different instant, so
-         quoting its total would claim to have examined bills this pass never
-         saw, and it exposes only its PAID, UNPAID and PARTIALLY_PAID buckets —
-         a written-off bill would silently leave the denominator. */
-      prisma.invoice.findMany({
-        where: { status: { notIn: ["DRAFT", "VOID"] } },
-        select: { id: true, status: true, total: true, amountPaid: true },
-      }),
+         financeDashboard's groupBy runs a similar filter and is deliberately
+         not read here: it is taken at a different instant, and it exposes only
+         its PAID, UNPAID and PARTIALLY_PAID buckets — a written-off bill would
+         silently leave the denominator. */
+      prisma.$queryRaw<{ live: number; mislabelled: number }[]>`
+        SELECT
+          COUNT(*)::int AS "live",
+          COUNT(*) FILTER (WHERE
+            ("status" = 'PAID' AND "amountPaid" + 0.005 < "total") OR
+            ("status" = 'UNPAID' AND "amountPaid" > 0.005) OR
+            ("status" = 'PARTIALLY_PAID'
+              AND ("amountPaid" <= 0.005 OR "amountPaid" + 0.005 >= "total"))
+          )::int AS "mislabelled"
+        FROM "Invoice"
+        WHERE "status" NOT IN ('DRAFT', 'VOID')
+      `,
       accountBalances(prisma),
       prisma.companyAccount.findMany({
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -284,12 +310,16 @@ export async function reconciliation(locale: Locale = "en") {
     ]);
 
   /* ---------------------------------------- 1. every payment on the register */
-  const postedIds = new Set(posted.map((p) => p.paymentId));
-  const unposted = payments.filter((p) => !postedIds.has(p.id));
+  const pay = paymentAgg[0] ?? {
+    taken: 0,
+    collected: 0,
+    unposted: 0,
+    unattributed: 0,
+  };
 
   /* ---------------------------------------- 2. the same money, both ways
 
-     Added up from the rows above rather than read from executiveStats()
+     Summed in the statement that counted them, rather than read from executiveStats()
      .allTimeCollected, which answers "money collected, all time" for the
      dashboard. Everywhere else in this file a second answer to a question is
      the bug; here it is the instrument. The check asks whether the payments and
@@ -299,18 +329,9 @@ export async function reconciliation(locale: Locale = "en") {
      reporting agreement for a company whose register was never written.
 
      It also has to describe exactly these rows. The check printed above it says
-     "N payments taken", counted from `payments`, and a total fetched by its own
-     aggregate a moment later can be a total of a different N.
-
-     And the two are not even the same arithmetic. That aggregate sums
-     `creditedAmount` alone, while every other money total in this codebase
-     reads COALESCE(creditedAmount, amount) — lib/profit.ts documents what that
-     cost the last time — so any payment whose credited column was never written
-     is worth nothing there and its full value here. */
-  const collectedUsd = payments.reduce(
-    (n, p) => n + toNumber(p.creditedAmount ?? p.amount),
-    0
-  );
+     "N payments taken", and both N and this total come out of the same
+     statement, so neither can describe a set the other never saw. */
+  const collectedUsd = toNumber(pay.collected);
   /* The register's own total nets its reversing lines, so a cancelled payment
      leaves +100 and −100 behind and contributes nothing — which is why this
      side reads every CUSTOMER_PAYMENT line while the other reads only live
@@ -319,14 +340,7 @@ export async function reconciliation(locale: Locale = "en") {
   const ledgerUsd = toNumber(postedSum._sum.amountUsd ?? 0);
 
   /* ---------------------------------------- 3. status against arithmetic */
-  const mislabelled = invoices.filter((inv) => {
-    const total = toNumber(inv.total);
-    const paid = toNumber(inv.amountPaid);
-    if (inv.status === "PAID") return paid + 0.005 < total;
-    if (inv.status === "UNPAID") return paid > 0.005;
-    if (inv.status === "PARTIALLY_PAID") return paid <= 0.005 || paid + 0.005 >= total;
-    return false;
-  });
+  const bills = invoiceAgg[0] ?? { live: 0, mislabelled: 0 };
 
   /* ---------------------------------------- 4. accounts below zero
 
@@ -361,15 +375,15 @@ export async function reconciliation(locale: Locale = "en") {
       key: "posted",
       label: "Payments on the register",
       question: "Every payment recorded against a bill should also be a line on the ledger.",
-      left: { label: "Payments taken", value: String(payments.length) },
-      right: { label: "Missing a line", value: String(unposted.length) },
-      difference: unposted.length,
-      ok: unposted.length === 0,
+      left: { label: "Payments taken", value: String(pay.taken) },
+      right: { label: "Missing a line", value: String(pay.unposted) },
+      difference: pay.unposted,
+      ok: pay.unposted === 0,
       /* The cause, where the data can name it, rather than a count somebody has
          to go and diagnose. A payment recorded without naming an account has
          nowhere to post to, so the register never hears about it. */
       expected:
-        unposted.length > 0 && unposted.every((p) => !p.accountId)
+        pay.unposted > 0 && pay.unposted === pay.unattributed
           ? "All of these were recorded without naming an account, so there was nowhere to post them. Attribute them to an account and they join the register."
           : undefined,
       href: "/app/finance/transactions",
@@ -411,10 +425,10 @@ export async function reconciliation(locale: Locale = "en") {
       key: "status",
       label: "Bills labelled correctly",
       question: "A bill marked paid should be paid in full, and one marked unpaid untouched.",
-      left: { label: "Live bills", value: String(invoices.length) },
-      right: { label: "Label disagrees", value: String(mislabelled.length) },
-      difference: mislabelled.length,
-      ok: mislabelled.length === 0,
+      left: { label: "Live bills", value: String(bills.live) },
+      right: { label: "Label disagrees", value: String(bills.mislabelled) },
+      difference: bills.mislabelled,
+      ok: bills.mislabelled === 0,
       href: "/app/finance/invoices",
     },
     {
@@ -626,7 +640,7 @@ export async function reconciliation(locale: Locale = "en") {
 
   return {
     checks,
-    unposted: unposted.length,
+    unposted: pay.unposted,
     negative,
     neverOpened,
     credit,

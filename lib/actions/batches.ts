@@ -1570,14 +1570,30 @@ export async function closeBatch(
       }
 
       if (chosen.length > 0) {
-        await tx.invoice.updateMany({
-          where: { id: { in: chosen.map((row) => row.invoiceId) } },
+        /* Only bills still genuinely owed. A payment landing between the
+           owing read and this write used to be overwritten to WRITTEN_OFF —
+           money collected and then formally abandoned in the same minute.
+           A bill that settled in the meantime simply is not written off, and
+           the count says so. */
+        const struck = await tx.invoice.updateMany({
+          where: {
+            id: { in: chosen.map((row) => row.invoiceId) },
+            status: { in: ["UNPAID", "PARTIALLY_PAID"] },
+          },
           data: {
             status: "WRITTEN_OFF",
             writtenOffAt: new Date(),
             writtenOffById: user.id,
           },
         });
+        if (struck.count !== chosen.length) {
+          throw new Error(
+            t(
+              locale,
+              "A bill on this flight was paid while you were closing it. Reload and close again with the fresh figures."
+            )
+          );
+        }
       }
 
       /*
@@ -1600,8 +1616,11 @@ export async function closeBatch(
                 ? "WRITTEN_OFF"
                 : "DEBT_KEPT";
 
-      await tx.batch.update({
-        where: { id: batchId },
+      /* The close itself is a claim: two people shutting the same flight at
+         once used to both succeed, the second silently rewriting the first's
+         statement inputs. */
+      const shut = await tx.batch.updateMany({
+        where: { id: batchId, closedAt: null },
         data: {
           status: "CLOSED",
           closedAt: new Date(),
@@ -1610,6 +1629,11 @@ export async function closeBatch(
           closeNote: note || null,
         },
       });
+      if (shut.count === 0) {
+        throw new Error(
+          t(locale, "Somebody closed this flight a moment ago. Reload to see their close.")
+        );
+      }
 
       /*
         The statement, written now and never again.

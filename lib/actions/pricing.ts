@@ -317,9 +317,22 @@ export async function publishRule(
           maxWeightKg:
             input.maxWeightKg === null ? null : new Prisma.Decimal(input.maxWeightKg),
           minChargeableKg:
-            input.minChargeableKg === null
-              ? null
-              : new Prisma.Decimal(input.minChargeableKg),
+            /*
+              A WEIGHT-BASED RATE ALWAYS CARRIES THE 1 KG FLOOR.
+
+              The field was optional and blank meant null, which the pricing
+              engine reads as "no minimum" — so re-publishing a rate (which
+              deactivates the old rule, floor and all) silently started billing
+              0.2 kg parcels at 0.2 kg. That exact gap once produced USD 1.35
+              invoices and needed a remediation script. Blank now means the
+              company floor; only a deliberately typed different figure — which
+              must be at least 1 — overrides it.
+            */
+            input.method === "WEIGHT_BASED"
+              ? new Prisma.Decimal(Math.max(1, input.minChargeableKg ?? 1))
+              : input.minChargeableKg === null
+                ? null
+                : new Prisma.Decimal(input.minChargeableKg),
           minCharge:
             input.minCharge === null ? null : new Prisma.Decimal(input.minCharge),
           notes: input.notes || null,

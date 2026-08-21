@@ -1086,6 +1086,12 @@ model Compensation {
   method PaymentMethod?
   note   String?
 
+  /// The company account the payout left. Null while the payment is pending —
+  /// no money has moved, so there is nothing to attribute. The ledger line is
+  /// the authority; this column is what lets the form pre-fill on amend.
+  accountId String?
+  account   CompanyAccount? @relation("CompensationPaidFrom", fields: [accountId], references: [id], onDelete: SetNull)
+
   recordedById String?
   recordedBy   User?   @relation("CompensationRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
 
@@ -2406,6 +2412,7 @@ model CompanyAccount {
   @@index([active, sortOrder])
   payrollRuns PayrollRun[]
   reconciliations AccountReconciliation[]
+  compensations Compensation[] @relation("CompensationPaidFrom")
 }
 
 enum LedgerDirection {

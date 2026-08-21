@@ -20,9 +20,11 @@ import {
   RESOLUTION_TYPE_LABELS,
 } from "@/lib/constants";
 import { desksHolding } from "@/lib/exception-audience";
-import { formatDate } from "@/lib/format";
+import { formatDate, toNumber } from "@/lib/format";
+import { currentRateValue } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { nextPickupNoteNumber } from "@/lib/ids";
+import { postLedgerEntry } from "@/lib/ledger";
 import { REPORTED_CARGO_ABSENT, restoredStatus } from "@/lib/investigations";
 import { notify } from "@/lib/notify";
 import { prisma, type TxClient } from "@/lib/prisma";
@@ -632,6 +634,11 @@ const compensationSchema = z
           v === null || (PAYMENT_METHODS as readonly string[]).includes(v),
         "Choose how the money went out."
       ),
+    accountId: z
+      .string()
+      .trim()
+      .optional()
+      .transform((v) => (v && v.length > 0 ? v : null)),
     note: z
       .string()
       .trim()
@@ -641,6 +648,16 @@ const compensationSchema = z
   .refine((v) => v.paidAt === null || v.method !== null, {
     message: "A payment date needs a payment method — cash, mobile money, bank transfer or cheque.",
     path: ["method"],
+  })
+  .refine((v) => v.paidAt === null || v.accountId !== null, {
+    message:
+      "Money that has gone out must name the account it left. Pick one under \"Paid from\".",
+    path: ["accountId"],
+  })
+  .refine((v) => v.accountId === null || v.paidAt !== null, {
+    message:
+      "Pick the payment date first — the account records where the money left on that day.",
+    path: ["paidAt"],
   });
 
 /**
@@ -676,6 +693,29 @@ export async function recordCompensation(
   if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
   const input = parsed.data;
 
+  // Valued before the transaction opens, exactly as expenses are: the ledger
+  // line carries the money in USD so totals can cross accounts, and a missing
+  // published rate should refuse loudly before anything is written.
+  let usd: number | null = null;
+  let rate: number | null = null;
+  if (input.paidAt) {
+    if (input.currency === "USD") {
+      usd = Number(input.amount);
+    } else {
+      const published = await currentRateValue();
+      if (!published) {
+        return fail(
+          t(
+            locale,
+            "No exchange rate is published, so a shilling cost cannot be valued in dollars. Publish one on Pricing & configuration first."
+          )
+        );
+      }
+      rate = published;
+      usd = Math.round((Number(input.amount) / published) * 100) / 100;
+    }
+  }
+
   try {
     const shipmentId = await prisma.$transaction(async (tx) => {
       const exception = await tx.shipmentException.findUnique({
@@ -694,6 +734,7 @@ export async function recordCompensation(
               currency: true,
               paidAt: true,
               method: true,
+              accountId: true,
             },
           },
         },
@@ -717,6 +758,27 @@ export async function recordCompensation(
 
       const amount = new Prisma.Decimal(input.amount);
 
+      /* Money that has gone out names the account it left, and the account
+         must be able to say so: alive, and in the same currency as the
+         figure. Same discipline as an expense. */
+      let account: { id: string; name: string; currency: string } | null = null;
+      if (input.paidAt && input.accountId) {
+        const found = await tx.companyAccount.findUnique({
+          where: { id: input.accountId },
+          select: { id: true, name: true, currency: true, active: true },
+        });
+        if (!found) throw new Error(t(locale, "That account no longer exists."));
+        if (!found.active) {
+          throw new Error(`${found.name} ${t(locale, "has been archived.")}`);
+        }
+        if (found.currency !== input.currency) {
+          throw new Error(
+            `${found.name} ${t(locale, "is a")} ${found.currency} ${t(locale, "account, so")} ${input.currency} ${Number(input.amount).toLocaleString()} ${t(locale, "cannot have left it.")}`
+          );
+        }
+        account = { id: found.id, name: found.name, currency: found.currency };
+      }
+
       const settlement = await tx.compensation.upsert({
         where: { exceptionId: exception.id },
         create: {
@@ -726,6 +788,7 @@ export async function recordCompensation(
           paidAt: input.paidAt,
           method: input.method,
           note: input.note,
+          accountId: input.accountId,
           recordedById: user.id,
         },
         update: {
@@ -734,9 +797,88 @@ export async function recordCompensation(
           paidAt: input.paidAt,
           method: input.method,
           note: input.note,
+          accountId: input.accountId,
           recordedById: user.id,
         },
       });
+
+      /*
+        The ledger, kept true to the record just written.
+
+        A payout is company money leaving a company account, and until this
+        block existed it left invisibly: the settlement was stored, no account
+        balance moved, and the general ledger had no line to show an auditor.
+        Kind COMPENSATION had been in the enum since the ledger was designed —
+        nothing wrote it.
+
+        Amending follows the append-only rule: the old line is answered by a
+        reversal pointing back at it, never edited. `reversesId` is unique, so
+        two people amending at once cannot both reverse the same line — the
+        second transaction unwinds whole.
+      */
+      const liveLines = await tx.ledgerEntry.findMany({
+        where: {
+          direction: "OUT",
+          reversedBy: null,
+          reversesId: null,
+          sourceEntity: "Compensation",
+          sourceId: settlement.id,
+        },
+        select: {
+          id: true,
+          entryNumber: true,
+          accountId: true,
+          currency: true,
+          amount: true,
+          amountUsd: true,
+          exchangeRate: true,
+          occurredAt: true,
+        },
+      });
+      const paidNow = Boolean(input.paidAt && account);
+      const keep = paidNow
+        ? liveLines.find(
+            (line) =>
+              line.accountId === account!.id &&
+              line.amount.equals(amount) &&
+              line.occurredAt.getTime() === input.paidAt!.getTime()
+          )
+        : undefined;
+      for (const line of liveLines) {
+        if (line === keep) continue;
+        await postLedgerEntry(tx, {
+          accountId: line.accountId,
+          currency: line.currency,
+          direction: "IN",
+          kind: "COMPENSATION",
+          amount: toNumber(line.amount),
+          amountUsd: toNumber(line.amountUsd),
+          exchangeRate:
+            line.exchangeRate === null ? null : toNumber(line.exchangeRate),
+          occurredAt: new Date(),
+          description: `${t(locale, "Cancels")} ${line.entryNumber} — ${exception.shipment.trackingNumber}`,
+          sourceEntity: "Compensation",
+          sourceId: settlement.id,
+          recordedById: user.id,
+          reversesId: line.id,
+        });
+      }
+      if (paidNow && !keep) {
+        await postLedgerEntry(tx, {
+          accountId: account!.id,
+          currency: account!.currency,
+          direction: "OUT",
+          kind: "COMPENSATION",
+          amount: toNumber(amount),
+          amountUsd: usd!,
+          exchangeRate: rate,
+          occurredAt: input.paidAt!,
+          description: `${t(locale, "Compensation")} — ${exception.shipment.trackingNumber}`,
+          sourceEntity: "Compensation",
+          sourceId: settlement.id,
+          recordedById: user.id,
+        });
+      }
 
       await logEvent(tx, {
         exceptionId: exception.id,
@@ -769,6 +911,7 @@ export async function recordCompensation(
             currency: input.currency,
             paidAt: input.paidAt ? input.paidAt.toISOString() : null,
             method: input.method,
+            account: account?.name ?? null,
             note: input.note,
             previous: existing
               ? {
@@ -776,6 +919,7 @@ export async function recordCompensation(
                   currency: existing.currency,
                   paidAt: existing.paidAt ? existing.paidAt.toISOString() : null,
                   method: existing.method,
+                  accountId: existing.accountId,
                 }
               : null,
           },

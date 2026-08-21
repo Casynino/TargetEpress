@@ -2400,6 +2400,20 @@ const ZH: Record<string, string> = {
   "Reconciliation": "对账",
   "Review transactions": "复核流水",
   "Manager actions": "经理操作",
+  "Money that has gone out must name the account it left. Pick one under \"Paid from\".":
+    "已经付出去的钱必须注明是从哪个账户支出的。请在\u201C付款账户\u201D中选择一个。",
+  "Pick the payment date first — the account records where the money left on that day.":
+    "请先选择付款日期——账户记录的是钱在那一天从哪里支出。",
+  "Required once a payment date is set — it puts the payout on the general ledger against this account.":
+    "填写付款日期后必填——赔偿金将以此账户记入总账。",
+  "A bill on this flight was paid while you were closing it. Reload and close again with the fresh figures.":
+    "在您关闭此航班时，其中一张账单刚被支付。请刷新后用最新数字重新关闭。",
+  "Somebody closed this flight a moment ago. Reload to see their close.":
+    "刚刚有人关闭了此航班。请刷新查看他们的关闭结果。",
+  "This bill's balance moved a moment ago. Reload and check it before reinstating.":
+    "此账单的余额刚刚发生了变动。恢复之前请刷新并核对。",
+  "This bill's balance moved a moment ago. Reload and check it before cancelling.":
+    "此账单的余额刚刚发生了变动。作废之前请刷新并核对。",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
   "has already been paid beyond what the bill would then say. Correct it through Finance instead of waiving.":

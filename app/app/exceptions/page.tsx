@@ -19,6 +19,7 @@ import {
   PAYMENT_METHOD_LABELS,
   ROLE_LABELS,
 } from "@/lib/constants";
+import { activeAccounts } from "@/lib/accounts";
 import { formatMoney, normaliseCode } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import type { InvestigationRecord } from "@/lib/investigation-lifecycle";
@@ -145,6 +146,8 @@ const EXCEPTION_INCLUDE = {
       paidAt: true,
       method: true,
       note: true,
+      accountId: true,
+      account: { select: { name: true } },
       recordedBy: { select: { name: true } },
     },
   },
@@ -236,11 +239,15 @@ function toRecord(
           // Free text can quote a figure, so it travels with the figure.
           note: canSeeMoney ? row.compensation.note : null,
           recordedByName: row.compensation.recordedBy?.name ?? null,
+          accountName: canSeeMoney
+            ? (row.compensation.account?.name ?? null)
+            : null,
           raw: canSeeMoney
             ? {
                 amount: row.compensation.amount.toFixed(2),
                 currency: row.compensation.currency,
                 method: row.compensation.method,
+                accountId: row.compensation.accountId,
               }
             : null,
         }
@@ -318,7 +325,7 @@ export default async function ExceptionsPage({
   };
   const canSeeMoney = can(user.role, "finance.view");
 
-  const [counts, rows, closedRows, pillCounts, unassigned, assigneeRows] =
+  const [counts, rows, closedRows, pillCounts, unassigned, assigneeRows, accounts] =
     await Promise.all([
       investigationCounts(),
       prisma.shipmentException.findMany({
@@ -373,6 +380,10 @@ export default async function ExceptionsPage({
             orderBy: { name: "asc" },
           })
         : Promise.resolve([]),
+      // The payout form's "Paid from" picker. Only fetched for a desk that can
+      // actually record a payout — everyone else gets an empty list and no
+      // control renders.
+      allow.compensate ? activeAccounts() : Promise.resolve([]),
     ]);
 
   const records = rows.map((row) => toRecord(row, canSeeMoney, locale));
@@ -539,6 +550,7 @@ export default async function ExceptionsPage({
             exceptions={records}
             allow={allow}
             assignees={assignees}
+            accounts={accounts}
             closed={set !== "open" && set !== "compensation"}
           />
         )}
@@ -556,6 +568,7 @@ export default async function ExceptionsPage({
             exceptions={closedRecords}
             allow={allow}
             assignees={assignees}
+            accounts={accounts}
             closed
           />
         </section>

@@ -250,7 +250,7 @@ export async function financeDashboard(
           where: { deletedAt: null },
           select: {
             weightKg: true,
-            invoice: { select: { total: true, amountPaid: true } },
+            invoice: { select: { total: true, amountPaid: true, status: true } },
           },
         },
         expenses: {
@@ -386,14 +386,29 @@ export async function financeDashboard(
 
   // ----------------------------------------------------------------- batches
   const batches: BatchPerformance[] = batchRows.map((batch) => {
-    const expected = batch.shipments.reduce(
-      (n, s) => n + toNumber(s.invoice?.total ?? 0),
+    /*
+      THE SAME BASIS AS profitByDispatch, because these two tables render side
+      by side. Counting every invoice at face value made a flight that closed
+      by writing off its debt look exactly as profitable as one that collected
+      all of it — and disagree with the batch page's own band. DRAFT and VOID
+      are not billing; a WRITTEN_OFF bill is worth what was actually paid on
+      it, and its abandoned remainder is not outstanding.
+    */
+    const billed = batch.shipments
+      .map((s) => s.invoice)
+      .filter(
+        (inv): inv is NonNullable<typeof inv> =>
+          inv !== null && inv.status !== "DRAFT" && inv.status !== "VOID"
+      );
+    const expected = billed.reduce(
+      (n, inv) =>
+        n +
+        (inv.status === "WRITTEN_OFF"
+          ? toNumber(inv.amountPaid)
+          : toNumber(inv.total)),
       0
     );
-    const collected = batch.shipments.reduce(
-      (n, s) => n + toNumber(s.invoice?.amountPaid ?? 0),
-      0
-    );
+    const collected = billed.reduce((n, inv) => n + toNumber(inv.amountPaid), 0);
     const spent = batch.expenses.reduce((n, e) => n + toNumber(e.amountUsd), 0);
     const profit = expected - spent;
     return {
