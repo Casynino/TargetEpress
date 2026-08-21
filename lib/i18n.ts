@@ -2400,6 +2400,8 @@ const ZH: Record<string, string> = {
   "Reconciliation": "对账",
   "Review transactions": "复核流水",
   "Manager actions": "经理操作",
+  "Approving authorises a payout on this case. Finance records the amount afterwards — the figure is theirs, the decision is yours.":
+    "批准即授权本案的赔付。之后由财务记录金额——数字归财务，决定权在您。",
   "Money that has gone out must name the account it left. Pick one under \"Paid from\".":
     "已经付出去的钱必须注明是从哪个账户支出的。请在\u201C付款账户\u201D中选择一个。",
   "Pick the payment date first — the account records where the money left on that day.":
@@ -2414,6 +2416,29 @@ const ZH: Record<string, string> = {
     "此账单的余额刚刚发生了变动。恢复之前请刷新并核对。",
   "This bill's balance moved a moment ago. Reload and check it before cancelling.":
     "此账单的余额刚刚发生了变动。作废之前请刷新并核对。",
+  "The credit on this bill was just decided by somebody else. Reload to see where it stands.":
+    "此账单的赊账刚被他人处理。请刷新查看其当前状态。",
+  "That date is before the bill was raised. A payment cannot be older than the invoice it settles.":
+    "该日期早于账单开出的日期。付款不能早于它所结清的账单。",
+  "Currency must be TZS or USD.": "币种必须是 TZS 或 USD。",
+  "A payout cannot be dated in the future.": "赔付日期不能是未来的日期。",
+  "A cost cannot be dated in the future.": "支出日期不能是未来的日期。",
+  "That date is not valid.": "该日期无效。",
+  "That name is too long.": "名称过长。",
+  "Keep the description under 500 characters.": "描述请控制在 500 字以内。",
+  "Keep internal notes under 1000 characters.": "内部备注请控制在 1000 字以内。",
+  "That reference is too long.": "参考号过长。",
+  "Keep the note under 1000 characters.": "备注请控制在 1000 字以内。",
+  "Only the person who submitted this can correct it. Ask them to, or let Finance decide it as it stands.":
+    "只有提交人本人才能更正。请让提交人修改，或由财务按原样处理。",
+  "No markets in the directory yet": "目录中还没有市场",
+  "Once the directory is written, every market appears here with what it sells and how it flies home.":
+    "目录建立后，每个市场都会显示在这里，包括其经营的商品和发货航线。",
+  "No markets yet": "还没有市场",
+  "The first one you add appears on the support desk and the public guide.":
+    "您添加的第一个市场会出现在客服台和公开指南中。",
+  "Something went wrong. Please message us on WhatsApp instead.":
+    "出了点问题。请改用 WhatsApp 联系我们。",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
   "has already been paid beyond what the bill would then say. Correct it through Finance instead of waiving.":
@@ -2585,7 +2610,8 @@ const ZH: Record<string, string> = {
   "Each desk's own standing count, and the one thing wrong on it.": "每个岗位各自的当前统计，以及其中存在的问题。",
   "Each figure asked twice, by two different routes. These need no verdict — they are arithmetic, and a disagreement is a fault to chase.": "每个数字都通过两条不同途径各算一次。这些无需裁定 — 它们是纯算术，不一致就是需要追查的故障。",
   "Each one covers the period chosen above, in the same money this page is showing. A few can only be read as at today; each says so on its own document.": "每份报表都覆盖上方所选期间，币种与本页显示一致。少数报表只能按今日数据读取，其文档中均有说明。",
-  "Each row is frozen at the day its batch closed, including the exchange rate. The Total row's rates are per kilo across the period, not column sums.": "每一行都冻结在其批次关闭当日的状态，包括汇率。“合计”行的费率是整个期间的每公斤均价，不是各列求和。",
+  "Each row is frozen at the day its batch closed, including the exchange rate. The Total row's shillings are priced at today's published rate, and its per-kilo rates are weighted across the period, not column sums.":
+    "每行数字都冻结在其批次关闭当日（含汇率）。合计行的先令按今日公布汇率计价，每公斤费率为期间加权值，而非各列相加。",
   "Earlier months": "更早月份",
   "Edit the cost": "编辑成本",
   "Edit the figure": "编辑数字",

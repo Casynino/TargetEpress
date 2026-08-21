@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { Prisma } from "@prisma/client";
 
 import {
@@ -187,52 +189,80 @@ export type CreditFilter = {
 };
 
 /**
+ * The whole credit book, fetched once per request.
+ *
+ * Half the functions in this file ask for every credit — the overview, the
+ * alerts, the collections queue, the register gap — and a composed screen calls
+ * several of them, so the identical no-filter fetch was running twice or more
+ * per request. cache() keys on its arguments, and `creditRows` takes a fresh
+ * filter object every call, so the memoised unit is this zero-arg fetch
+ * underneath it. Raw invoice rows rather than CreditRows, because every caller
+ * derives against its own `now`.
+ */
+const creditBook = cache(() =>
+  prisma.invoice.findMany({
+    where: {
+      creditStatus: "APPROVED",
+      status: { notIn: ["DRAFT", "VOID"] },
+    },
+    orderBy: [{ dueDate: "asc" }, { creditDecidedAt: "desc" }],
+    select: CREDIT_SELECT,
+  })
+);
+
+/**
  * Every credit ever granted, filtered.
  *
  * Note what is NOT filtered in the database: state. ACTIVE, OVERDUE and the rest
  * are derived from two amounts and a date, so filtering them in SQL would mean a
  * second implementation of the rules in `creditLine` — the exact duplication this
  * file exists to prevent. The date window and the text search go to the database;
- * the state is applied to derived rows.
+ * the state is applied to derived rows. With no filter at all the fetch is the
+ * shared per-request `creditBook` above.
  */
 export async function creditRows(
   filter: CreditFilter = {},
   now = new Date()
 ): Promise<CreditRow[]> {
   const q = filter.q?.trim();
-  const invoices = await prisma.invoice.findMany({
-    where: {
-      creditStatus: "APPROVED",
-      status: { notIn: ["DRAFT", "VOID"] },
-      ...(filter.customerId ? { customerId: filter.customerId } : {}),
-      ...(filter.batchId ? { shipment: { batchId: filter.batchId } } : {}),
-      ...(filter.from || filter.to
-        ? {
-            creditDecidedAt: {
-              ...(filter.from ? { gte: filter.from } : {}),
-              ...(filter.to ? { lt: filter.to } : {}),
-            },
-          }
-        : {}),
-      ...(q
-        ? {
-            OR: [
-              { invoiceNumber: { contains: q, mode: "insensitive" as const } },
-              { customer: { name: { contains: q, mode: "insensitive" as const } } },
-              { customer: { code: { contains: q, mode: "insensitive" as const } } },
-              { customer: { phone: { contains: q, mode: "insensitive" as const } } },
-              {
-                shipment: {
-                  trackingNumber: { contains: q, mode: "insensitive" as const },
+  const narrowed = Boolean(
+    filter.customerId || filter.batchId || filter.from || filter.to || q
+  );
+  const invoices = narrowed
+    ? await prisma.invoice.findMany({
+        where: {
+          creditStatus: "APPROVED",
+          status: { notIn: ["DRAFT", "VOID"] },
+          ...(filter.customerId ? { customerId: filter.customerId } : {}),
+          ...(filter.batchId ? { shipment: { batchId: filter.batchId } } : {}),
+          ...(filter.from || filter.to
+            ? {
+                creditDecidedAt: {
+                  ...(filter.from ? { gte: filter.from } : {}),
+                  ...(filter.to ? { lt: filter.to } : {}),
                 },
-              },
-            ],
-          }
-        : {}),
-    },
-    orderBy: [{ dueDate: "asc" }, { creditDecidedAt: "desc" }],
-    select: CREDIT_SELECT,
-  });
+              }
+            : {}),
+          ...(q
+            ? {
+                OR: [
+                  { invoiceNumber: { contains: q, mode: "insensitive" as const } },
+                  { customer: { name: { contains: q, mode: "insensitive" as const } } },
+                  { customer: { code: { contains: q, mode: "insensitive" as const } } },
+                  { customer: { phone: { contains: q, mode: "insensitive" as const } } },
+                  {
+                    shipment: {
+                      trackingNumber: { contains: q, mode: "insensitive" as const },
+                    },
+                  },
+                ],
+              }
+            : {}),
+        },
+        orderBy: [{ dueDate: "asc" }, { creditDecidedAt: "desc" }],
+        select: CREDIT_SELECT,
+      })
+    : await creditBook();
 
   const rows = invoices.map((i) => toRow(i, now));
   const state = filter.state;
@@ -265,7 +295,7 @@ export type CreditOverview = {
   overdueUsd: number;
   dueTodayUsd: number;
   dueThisWeekUsd: number;
-  /** Credit collected inside the current calendar month. */
+  /** Credit GRANTED this calendar month that is already settled in full. */
   collectedThisMonthUsd: number;
   waivedUsd: number;
   /** Storage that ended up inside credit receivables. */
@@ -331,9 +361,11 @@ export async function creditOverview(now = new Date()): Promise<CreditOverview> 
       ),
       (r) => r.outstandingUsd
     ),
-    /* Approximated by credits SETTLED this month rather than by payment rows,
-       because a payment can be split across months; a fully settled credit whose
-       last payment landed this month is the honest unit of "collected". */
+    /* Windowed on creditDate — the GRANT date — not on when any money landed.
+       So this is "how much of this month's lending has already come back", not
+       "what credit money arrived this month": a June credit settled today is
+       not in here, and a credit granted on the 1st and settled the same week
+       is. The payment rows, not this figure, answer what arrived when. */
     collectedThisMonthUsd: sum(
       rows.filter(
         (r) =>

@@ -105,7 +105,7 @@ export function LedgerEntryActions({
             )}
           </p>
           <FormError state={state} />
-          <SubmitButton className="h-8 bg-destructive text-xs text-white">
+          <SubmitButton className="h-11 md:h-8 bg-destructive text-xs text-white">
             {t("Cancel the movement")}
           </SubmitButton>
         </form>

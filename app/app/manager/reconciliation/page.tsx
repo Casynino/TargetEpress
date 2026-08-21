@@ -695,7 +695,7 @@ export default async function ManagerReconciliation({
             */}
             <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
               <div className="rounded-lg bg-muted/30 px-2 py-1.5">
-                <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {t(locale, "In")}
                 </dt>
                 <dd className="font-mono text-xs font-semibold tabular-nums text-success">
@@ -703,7 +703,7 @@ export default async function ManagerReconciliation({
                 </dd>
               </div>
               <div className="rounded-lg bg-muted/30 px-2 py-1.5">
-                <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {t(locale, "Out")}
                 </dt>
                 <dd className="font-mono text-xs font-semibold tabular-nums text-destructive">
@@ -711,7 +711,7 @@ export default async function ManagerReconciliation({
                 </dd>
               </div>
               <div className="rounded-lg bg-muted/30 px-2 py-1.5">
-                <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                   {t(locale, "Net")}
                 </dt>
                 <dd
@@ -898,7 +898,7 @@ export default async function ManagerReconciliation({
                     )
                     .map(([label, value]) => (
                       <div key={label} className="min-w-0">
-                        <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                           {label}
                         </dt>
                         <dd className="truncate">{value}</dd>
@@ -920,13 +920,13 @@ export default async function ManagerReconciliation({
                   <span className="font-medium">{selectedAccount.name}</span>
                   <span className="flex flex-wrap items-baseline gap-x-4 font-mono tabular-nums">
                     <span>
-                      <span className="text-[10px] uppercase text-muted-foreground">
+                      <span className="text-[11px] uppercase text-muted-foreground">
                         {t(locale, "System")}{" "}
                       </span>
                       {formatMoney(selectedAccount.systemBalance, selectedAccount.currency)}
                     </span>
                     <span>
-                      <span className="text-[10px] uppercase text-muted-foreground">
+                      <span className="text-[11px] uppercase text-muted-foreground">
                         {t(locale, "Actual")}{" "}
                       </span>
                       {selectedAccount.lastCheck
@@ -945,7 +945,7 @@ export default async function ManagerReconciliation({
                             : "text-destructive"
                         )}
                       >
-                        <span className="text-[10px] uppercase text-muted-foreground">
+                        <span className="text-[11px] uppercase text-muted-foreground">
                           {t(locale, "Difference")}{" "}
                         </span>
                         {formatMoney(
@@ -969,7 +969,7 @@ export default async function ManagerReconciliation({
                   </p>
                 ) : (
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
                       {t(locale, "Evidence")}
                     </span>
                     {documentsOf(selected).map((doc, index) => (
@@ -990,7 +990,7 @@ export default async function ManagerReconciliation({
 
               {/* the verdict */}
               <div className="px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   {t(locale, "Your verdict")}
                 </p>
                 {canReview ? (
@@ -1062,7 +1062,7 @@ export default async function ManagerReconciliation({
 
               {/* and everything ever said about it */}
               <div className="px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   {t(locale, "History")}
                 </p>
                 <ol className="mt-2 space-y-2">
@@ -1216,7 +1216,7 @@ export default async function ManagerReconciliation({
                   </div>
                   <span
                     className={cn(
-                      "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                      "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
                       TONE.chip
                     )}
                   >
@@ -1235,13 +1235,13 @@ export default async function ManagerReconciliation({
                 >
                   {formatMoney(position.systemBalance, position.currency)}
                 </p>
-                <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">
                   {t(locale, "what the ledger says")}
                 </p>
 
                 <div className="mt-3 flex items-end justify-between gap-2 border-t pt-2.5">
                   <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                       {t(locale, "Actual")}
                     </p>
                     <p className="truncate font-mono text-xs font-semibold tabular-nums">
@@ -1292,7 +1292,7 @@ export default async function ManagerReconciliation({
               </Link>
             </p>
           <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
-            <div className="hidden border-b bg-muted/20 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem_7.5rem] sm:gap-3">
+            <div className="hidden border-b bg-muted/20 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem_7.5rem] sm:gap-3">
               <span>{t(locale, "Flight")}</span>
               <span className="text-right">{t(locale, "Billed")}</span>
               <span className="text-right">{t(locale, "Collected")}</span>
@@ -1332,13 +1332,13 @@ export default async function ManagerReconciliation({
                           )}
                         </span>
                         <span className="font-mono text-xs tabular-nums sm:text-right">
-                          <span className="mr-1 text-[10px] uppercase text-muted-foreground sm:hidden">
+                          <span className="mr-1 text-[11px] uppercase text-muted-foreground sm:hidden">
                             {t(locale, "Billed")}
                           </span>
                           {shillings(batch.revenue)}
                         </span>
                         <span className="font-mono text-xs tabular-nums text-success sm:text-right">
-                          <span className="mr-1 text-[10px] uppercase text-muted-foreground sm:hidden">
+                          <span className="mr-1 text-[11px] uppercase text-muted-foreground sm:hidden">
                             {t(locale, "Collected")}
                           </span>
                           {shillings(batch.collected)}
@@ -1349,7 +1349,7 @@ export default async function ManagerReconciliation({
                             batch.outstanding > 0 ? "text-destructive" : "text-muted-foreground"
                           )}
                         >
-                          <span className="mr-1 text-[10px] uppercase text-muted-foreground sm:hidden">
+                          <span className="mr-1 text-[11px] uppercase text-muted-foreground sm:hidden">
                             {t(locale, "Still owed")}
                           </span>
                           {shillings(batch.outstanding)}
@@ -1469,7 +1469,7 @@ export default async function ManagerReconciliation({
                         <p className="text-sm font-semibold leading-snug">{check.label}</p>
                         <span
                           className={cn(
-                            "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                            "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
                             check.ok
                               ? "border-success/30 bg-success/10 text-success"
                               : "border-destructive/40 bg-destructive/15 text-destructive"
@@ -1498,7 +1498,7 @@ export default async function ManagerReconciliation({
                               check.ok ? "bg-muted/40" : "bg-background/60"
                             )}
                           >
-                            <p className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
+                            <p className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">
                               {side.label}
                             </p>
                             <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">

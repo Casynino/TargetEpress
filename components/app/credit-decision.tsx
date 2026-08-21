@@ -61,7 +61,7 @@ export function CreditDecision({
             name="termDays"
             defaultValue={String(termDays ?? 14)}
             aria-label={t("Payment terms")}
-            className="focus-ring h-7 rounded-md border bg-card px-1.5 text-[11px]"
+            className="focus-ring h-11 md:h-7 rounded-md border bg-card px-1.5 text-[11px]"
           >
             {CREDIT_TERMS.map((d) => (
               <option key={d} value={d}>
@@ -69,7 +69,7 @@ export function CreditDecision({
               </option>
             ))}
           </select>
-          <SubmitButton size="sm" className="h-7 px-2.5 text-[11px]">
+          <SubmitButton size="sm" className="h-11 md:h-7 px-2.5 text-[11px]">
             <BadgeCheck className="mr-1.5 h-3.5 w-3.5" />
             {warning === "over"
               ? t("Approve anyway")
@@ -81,7 +81,7 @@ export function CreditDecision({
           type="button"
           onClick={() => setRefusing((v) => !v)}
           aria-expanded={refusing}
-          className="focus-ring inline-flex h-7 items-center gap-1.5 rounded-md border border-destructive/40 px-2.5 text-[11px] font-medium text-destructive hover:bg-destructive/10"
+          className="focus-ring inline-flex h-11 md:h-7 items-center gap-1.5 rounded-md border border-destructive/40 px-2.5 text-[11px] font-medium text-destructive hover:bg-destructive/10"
         >
           <Ban className="h-3.5 w-3.5" />
           {t("Refuse")}
@@ -108,11 +108,11 @@ export function CreditDecision({
             required
             aria-label={`${t("Why is credit refused on")} ${invoiceNumber}`}
             placeholder={t("Why is the credit refused?")}
-            className="h-7 min-w-[220px] flex-1 text-[11px]"
+            className="h-11 md:h-7 min-w-[220px] flex-1 text-[11px]"
           />
           <SubmitButton
             size="sm"
-            className="h-7 bg-destructive px-2.5 text-[11px] text-white"
+            className="h-11 md:h-7 bg-destructive px-2.5 text-[11px] text-white"
           >
             {t("Refuse it")}
           </SubmitButton>

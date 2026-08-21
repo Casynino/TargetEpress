@@ -65,7 +65,6 @@ type Props = {
   pickupNoteId: string | null;
   pickupNoteNumber: string | null;
   pickupNoteStatus: string | null;
-  defaultFreight: number;
   /** Invoice number, when one exists — links straight to the document. */
   invoiceNumber: string | null;
   /**

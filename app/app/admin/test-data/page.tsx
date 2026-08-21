@@ -40,7 +40,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * A guided walkthrough of the live data, for trying the system out.
  *
  * This page exposes each shipment's QR payload, which is normally a credential
- * — so it is gated behind user.manage (CEO/Admin only). It exists because a QR
+ * — so it is gated behind user.manage (the CEO and the manager). It exists because a QR
  * code cannot be scanned off the same screen the camera is attached to, and
  * without a way in, none of the QR workflows can be tested at a desk.
  */

@@ -307,9 +307,19 @@ export default async function FinancePayrollPage({
                       ? ` · ${t(locale, "agreed by")} ${r.approvedBy.name}`
                       : ""}
                   </span>
+                  {/* A PAID month prints what the bank moved, off its expense —
+                      today's rate only prices the runs still ahead of payment. */}
                   <PayrollAmount
                     usd={r.totals.net}
                     rate={rate}
+                    paid={
+                      r.status === "PAID" && r.expense
+                        ? {
+                            amount: toNumber(r.expense.amount),
+                            currency: r.expense.currency,
+                          }
+                        : null
+                    }
                     strong
                     className="text-right"
                   />

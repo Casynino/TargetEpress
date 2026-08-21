@@ -469,10 +469,10 @@ export default async function ExpensesPage({
               )}
             >
               <div className="flex items-baseline justify-between gap-2">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                   {t(locale, k.label)}
                 </p>
-                <span className="rounded-full bg-background/70 px-1.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+                <span className="rounded-full bg-background/70 px-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
                   {total?.count ?? 0}
                 </span>
               </div>
@@ -720,7 +720,7 @@ export default async function ExpensesPage({
                             in every calculation; this is so a reader can tell
                             which part of the month's spending it was. */}
                         {expense.category === "EXECUTIVE_DRAW" ? (
-                          <span className="ml-2 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning">
+                          <span className="ml-2 rounded bg-warning/15 px-1.5 py-0.5 text-[11px] font-semibold text-warning">
                             {t(locale, "Executive")}
                           </span>
                         ) : null}

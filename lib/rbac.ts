@@ -152,6 +152,10 @@ export type Permission =
   | "account.view"
   /// Add or archive an account, and set the opening balance it started with.
   | "account.manage"
+  /// Move money between the company's accounts and count the cash tin. A
+  /// write, kept apart from account.view so that granting somebody a look at
+  /// the balances never quietly grants them the power to move them.
+  | "treasury.move"
   /// Read the register: every movement in and out, and what it left behind.
   | "ledger.view"
   /// See what the business spends and what it has spent.
@@ -450,6 +454,7 @@ const FINANCE: Permission[] = [
   // comes off a bank statement they are holding, so making them ask the CEO to
   // type it is ceremony, not control.
   "account.manage",
+  "treasury.move",
   "ledger.view",
   "expense.view",
   "expense.record",
@@ -662,8 +667,10 @@ export function canAny(role: Role | undefined | null, permissions: Permission[])
 }
 
 /**
- * Route guard table, evaluated longest-prefix-first in middleware and again in
- * the layout. Anything under /app not listed here needs only a valid session.
+ * Route guard table, evaluated longest-prefix-first in middleware. The /app
+ * layout only requires a session — each data-bearing page re-guards itself
+ * with requirePermission, and that pair is the whole defence. Anything under
+ * /app not listed here needs only a valid session.
  *
  * Listed longest-prefix-first for reading; `permissionForPath` sorts anyway, so
  * a misplaced row cannot open a hole.
@@ -756,12 +763,13 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/admin/users", permission: "user.manage" },
   { prefix: "/app/admin/audit", permission: "audit.view" },
   { prefix: "/app/admin", permission: "report.view" },
-  /* The manager's own pages. Guarded on report.view like the owner's, because
-     what they hold is oversight — and every action reachable from inside them
-     re-checks its own permission at the server, which is what actually keeps
-     the boundary. A route guard decides which door opens, never what may be
-     done once through it. */
-  { prefix: "/app/manager", permission: "report.view" },
+  /* The manager's own pages, guarded on the reviewer's permission rather than
+     report.view: Finance also reads reports, and the one desk this portal
+     exists to check must not be able to stand inside the workspace that
+     checks it. Every action inside still re-checks its own permission at the
+     server — a route guard decides which door opens, never what may be done
+     once through it. */
+  { prefix: "/app/manager", permission: "record.review" },
   { prefix: "/app/customers", permission: "customer.view" },
   { prefix: "/app/shipments", permission: "batch.view" },
   { prefix: "/app/batches", permission: "batch.view" },

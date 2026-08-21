@@ -387,7 +387,7 @@ export function ShipmentForm({
                       value={newItemName}
                       onChange={(e) => setNewItemName(e.target.value)}
                       placeholder={t(locale, "e.g. Power banks")}
-                      className="h-9 min-w-[160px] flex-1"
+                      className="h-11 min-w-[160px] flex-1"
                       maxLength={60}
                     />
                     <button
@@ -423,7 +423,7 @@ export function ShipmentForm({
                         setNewItemName("");
                         setAddingItem(false);
                       }}
-                      className="focus-ring inline-flex h-9 items-center rounded-md bg-brand px-3 text-sm font-semibold text-white disabled:opacity-50"
+                      className="focus-ring inline-flex h-11 items-center rounded-md bg-brand px-3 text-sm font-semibold text-white disabled:opacity-50"
                     >
                       {addPending ? t(locale, "Adding…") : t(locale, "Add it")}
                     </button>
@@ -434,7 +434,7 @@ export function ShipmentForm({
                         setNewItemName("");
                         setAddError(null);
                       }}
-                      className="focus-ring inline-flex h-9 items-center rounded-md px-2 text-sm text-muted-foreground hover:text-foreground"
+                      className="focus-ring inline-flex h-11 items-center rounded-md px-2 text-sm text-muted-foreground hover:text-foreground"
                     >
                       {t(locale, "Never mind")}
                     </button>

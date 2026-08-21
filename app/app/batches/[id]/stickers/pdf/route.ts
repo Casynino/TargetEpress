@@ -66,6 +66,7 @@ export async function GET(
   const cargo = await prisma.shipment.findMany({
     where: {
       batchId: batch.id,
+      deletedAt: null,
       ...(selected.length > 0 ? { id: { in: selected } } : {}),
     },
     orderBy: { registeredAt: "desc" },

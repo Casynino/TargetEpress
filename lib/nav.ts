@@ -228,7 +228,7 @@ const SECTIONS: NavSection[] = [
         href: "/app/collections/follow-up",
         label: "Payment follow-up",
         icon: "PhoneCall",
-        permission: "ticket.manage",
+        permission: "collections.view",
       },
       {
         href: "/app/support/markets",
@@ -615,8 +615,8 @@ const FINANCE_SECTIONS: NavSection[] = [
         permission: "collections.view",
       },
       {
-        /* Gated on profit.view, which the money desk does not hold — so this
-           row is the owner's and simply does not render for Finance. */
+        /* Gated on profit.view, which the money desk holds too — the owner
+           granted it so Finance reads the same P&L he does. */
         href: "/app/finance/reports",
         label: "Profit & loss",
         icon: "TrendingUp",

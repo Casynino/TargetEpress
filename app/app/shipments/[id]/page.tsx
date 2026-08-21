@@ -206,11 +206,6 @@ export default async function ShipmentPage({
         : null,
   }));
 
-  // Only fetched for desks that may see money — the warehouse opens this page
-  // too, and a figure never queried cannot leak through a prop.
-  const finance = can(user.role, "finance.view")
-    ? await batchFinance(dispatch.id, locale)
-    : null;
   const canConfirm = can(user.role, "invoice.manage");
 
   /*
@@ -221,88 +216,106 @@ export default async function ShipmentPage({
     is not sent the list of who has not paid.
   */
   const canClose = can(user.role, "batch.close");
-
-  /* The weight still sitting in the warehouse against an unpaid bill —
-     uncollected cargo is floor space as well as money. */
-  const unpaidWeight = canClose
-    ? toNumber(
-        (
-          await prisma.shipment.aggregate({
-            where: {
-              batchId: dispatch.id,
-              deletedAt: null,
-              invoice: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
-            },
-            _sum: { weightKg: true },
-          })
-        )._sum.weightKg
-      )
-    : 0;
-
-  /* What the flight's costs were FOR, so the close summary can say. */
-  const costBreakdown = canClose
-    ? (
-        await prisma.expense.groupBy({
-          by: ["category"],
-          where: {
-            batchId: dispatch.id,
-            status: { not: "VOID" },
-            expenseClass: "OPERATING",
-          },
-          _sum: { amountUsd: true },
-        })
-      )
-        .map((row) => ({
-          label: EXPENSE_CATEGORY_LABELS[row.category] ?? row.category,
-          usd: toNumber(row._sum.amountUsd),
-        }))
-        .sort((a, b) => b.usd - a.usd)
-    : [];
-  const owing = canClose ? await batchOwing(dispatch.id) : null;
-
-  /*
-    Where unpaid cargo could go instead of being given up on.
-
-    Any flight whose books are still open, this one excluded — a debt has to
-    land somewhere it can still be chased. The loading tables are excluded too:
-    they hold cargo that has not left China, and a Dar debt does not belong on
-    one.
-  */
-  /*
-    Where a mis-scanned box could go instead.
-
-    Same list the close panel uses for carrying cargo forward, and for the same
-    reason: a flight whose books are shut cannot take cargo, in either
-    direction. Fetched on shipment.move rather than batch.close, because the
-    desks that correct a wrong pile are not the desks that close flights.
-  */
   const canMoveCargo = can(user.role, "shipment.move");
 
-  const carryTargets = canClose || canMoveCargo
-    ? await prisma.batch.findMany({
-        where: {
-          permanent: false,
-          closedAt: null,
-          id: { not: dispatch.id },
-          status: { in: ["IN_TRANSIT", "ARRIVED", "VERIFIED"] },
-        },
-        orderBy: [{ departureDate: "desc" }, { createdAt: "desc" }],
-        take: 20,
-        select: { id: true, batchNumber: true },
-      })
-    : [];
+  /*
+    Six independent questions about the same dispatch, asked together rather
+    than queueing behind one another. Each stays behind exactly the permission
+    that gates the panel it feeds; a desk without the permission resolves the
+    empty answer without touching the database.
+  */
+  const [finance, unpaidWeight, costBreakdown, owing, carryTargets, carriedIn] =
+    await Promise.all([
+      // Only fetched for desks that may see money — the warehouse opens this
+      // page too, and a figure never queried cannot leak through a prop.
+      can(user.role, "finance.view")
+        ? batchFinance(dispatch.id, locale)
+        : Promise.resolve(null),
 
-  /* Cargo sitting on THIS batch that flew on a different one. */
-  const carriedIn = canClose
-    ? await prisma.shipment.findMany({
-        where: { batchId: dispatch.id, carriedFromBatchId: { not: null }, deletedAt: null },
-        select: {
-          id: true,
-          trackingNumber: true,
-          carriedFromBatch: { select: { batchNumber: true } },
-        },
-      })
-    : [];
+      /* The weight still sitting in the warehouse against an unpaid bill —
+         uncollected cargo is floor space as well as money. */
+      canClose
+        ? prisma.shipment
+            .aggregate({
+              where: {
+                batchId: dispatch.id,
+                deletedAt: null,
+                invoice: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
+              },
+              _sum: { weightKg: true },
+            })
+            .then((agg) => toNumber(agg._sum.weightKg))
+        : Promise.resolve(0),
+
+      /* What the flight's costs were FOR, so the close summary can say. */
+      canClose
+        ? prisma.expense
+            .groupBy({
+              by: ["category"],
+              where: {
+                batchId: dispatch.id,
+                status: { not: "VOID" },
+                expenseClass: "OPERATING",
+              },
+              _sum: { amountUsd: true },
+            })
+            .then((rows) =>
+              rows
+                .map((row) => ({
+                  label: EXPENSE_CATEGORY_LABELS[row.category] ?? row.category,
+                  usd: toNumber(row._sum.amountUsd),
+                }))
+                .sort((a, b) => b.usd - a.usd)
+            )
+        : Promise.resolve<{ label: string; usd: number }[]>([]),
+
+      canClose ? batchOwing(dispatch.id) : Promise.resolve(null),
+
+      /*
+        Where unpaid cargo could go instead of being given up on.
+
+        Any flight whose books are still open, this one excluded — a debt has to
+        land somewhere it can still be chased. The loading tables are excluded
+        too: they hold cargo that has not left China, and a Dar debt does not
+        belong on one.
+
+        Doubles as where a mis-scanned box could go: a flight whose books are
+        shut cannot take cargo, in either direction. Hence shipment.move beside
+        batch.close in the gate — the desks that correct a wrong pile are not
+        the desks that close flights.
+      */
+      canClose || canMoveCargo
+        ? prisma.batch.findMany({
+            where: {
+              permanent: false,
+              closedAt: null,
+              id: { not: dispatch.id },
+              status: { in: ["IN_TRANSIT", "ARRIVED", "VERIFIED"] },
+            },
+            orderBy: [{ departureDate: "desc" }, { createdAt: "desc" }],
+            take: 20,
+            select: { id: true, batchNumber: true },
+          })
+        : Promise.resolve<{ id: string; batchNumber: string }[]>([]),
+
+      /* Cargo sitting on THIS batch that flew on a different one. */
+      canClose
+        ? prisma.shipment.findMany({
+            where: { batchId: dispatch.id, carriedFromBatchId: { not: null }, deletedAt: null },
+            select: {
+              id: true,
+              trackingNumber: true,
+              carriedFromBatch: { select: { batchNumber: true } },
+            },
+          })
+        : Promise.resolve<
+            {
+              id: string;
+              trackingNumber: string;
+              carriedFromBatch: { batchNumber: string } | null;
+            }[]
+          >([]),
+    ]);
 
   /*
     What this flight cost, fetched on the same permission as what it earned.

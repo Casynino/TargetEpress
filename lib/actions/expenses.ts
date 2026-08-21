@@ -387,8 +387,12 @@ export async function payExpense(
       }
 
       const paidAt = new Date();
-      await tx.expense.update({
-        where: { id },
+      /* Claimed on a still-payable status: a void committing between the read
+         above and this write must not end with the money gone and the record
+         saying cancelled. The ledger's unique expenseId already stops a
+         double-pay; this stops the pay-versus-void interleaving. */
+      const claimed = await tx.expense.updateMany({
+        where: { id, status: { in: ["PENDING", "APPROVED"] } },
         data: {
           status: "PAID",
           accountId: account.id,
@@ -399,6 +403,11 @@ export async function payExpense(
             : {}),
         },
       });
+      if (claimed.count === 0) {
+        throw new Error(
+          `${expense.expenseNumber} changed a moment ago. Reload to see where it stands.`
+        );
+      }
 
       await postLedgerEntry(tx, {
         accountId: account.id,
@@ -472,10 +481,17 @@ export async function voidExpense(
       }
       if (expense.status === "VOID") return;
 
-      await tx.expense.update({
-        where: { id },
+      /* Same claim as paying, from the other side: if the pay landed first,
+         this refuses rather than stamping VOID over money that really left. */
+      const claimed = await tx.expense.updateMany({
+        where: { id, status: { in: ["PENDING", "APPROVED"] } },
         data: { status: "VOID", voidedAt: new Date(), voidReason: reason },
       });
+      if (claimed.count === 0) {
+        throw new Error(
+          `${expense.expenseNumber} changed a moment ago. Reload to see where it stands.`
+        );
+      }
 
       await recordAudit(
         {
@@ -539,7 +555,13 @@ const editSchema = z.object({
     .trim()
     .optional()
     .transform((v) => (v && v.length > 0 ? new Date(v) : null))
-    .refine((d) => d === null || !Number.isNaN(d.getTime()), "That date is not valid."),
+    .refine((d) => d === null || !Number.isNaN(d.getTime()), "That date is not valid.")
+    /* The same rule the record form enforces: a correction is not a way to
+       move a cost into a month that has not happened. */
+    .refine(
+      (d) => d === null || d.getTime() <= Date.now() + 86_400_000,
+      "A cost cannot be dated in the future."
+    ),
   /// Not optional. A correction without a reason is indistinguishable from a
   /// mistake, six months later, to the person trying to understand the books.
   reason: z.string().trim().min(3, "Say why this is being corrected."),

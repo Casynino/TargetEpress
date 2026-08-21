@@ -7,7 +7,9 @@ import { IncomeSheetTable } from "@/components/app/income-sheet";
 import { PageHeader } from "@/components/app/page-header";
 import { Input } from "@/components/ui/input";
 import { financeTabs } from "@/lib/finance-tabs";
+import { currentRateValue } from "@/lib/fx";
 import { incomeSheet } from "@/lib/income";
+import { formatLocal } from "@/lib/money";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -41,11 +43,19 @@ export default async function ClosedBatchesPage({
   const user = await requirePermission("accounting.view");
   const { month, status, q, period } = await searchParams;
 
-  const sheet = await incomeSheet(month, status, q, period);
+  const [sheet, rate] = await Promise.all([
+    incomeSheet(month, status, q, period),
+    currentRateValue(),
+  ]);
   const canReopen = can(user.role, "batch.close");
   /* Whole dollars — these are batches, not invoices, same as the table below. */
   const usd = (n: number) =>
     `USD ${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  /* The headline money leads in shillings at today's published rate — the same
+     doctrine as the rest of finance. Each row in the table keeps the rate its
+     batch closed at; only these summary figures are priced today. With no rate
+     published the dollar figure stands alone. */
+  const lead = (n: number) => (rate === null ? usd(n) : formatLocal(n * rate));
 
   /* Kept in the links so one filter does not silently drop another. */
   const withParams = (next: Record<string, string | undefined>) => {
@@ -282,24 +292,28 @@ export default async function ClosedBatchesPage({
               {
                 k: "Batches closed",
                 v: String(counted.length),
+                sub: null as string | null,
                 d: change(counted.length, p.batches),
                 up: counted.length >= p.batches,
               },
               {
                 k: "Weight closed",
                 v: `${sheet.totals.kg.toFixed(1)} kg`,
+                sub: null as string | null,
                 d: change(sheet.totals.kg, p.kg),
                 up: sheet.totals.kg >= p.kg,
               },
               {
                 k: "Billed",
-                v: usd(sheet.totals.worthUsd),
+                v: lead(sheet.totals.worthUsd),
+                sub: rate === null ? null : usd(sheet.totals.worthUsd),
                 d: change(sheet.totals.worthUsd, p.worthUsd),
                 up: sheet.totals.worthUsd >= p.worthUsd,
               },
               {
                 k: "Profit",
-                v: usd(sheet.totals.profitUsd),
+                v: lead(sheet.totals.profitUsd),
+                sub: rate === null ? null : usd(sheet.totals.profitUsd),
                 d: change(sheet.totals.profitUsd, p.profitUsd),
                 up: sheet.totals.profitUsd >= p.profitUsd,
               },
@@ -318,6 +332,12 @@ export default async function ClosedBatchesPage({
                 <dd className="mt-1 whitespace-nowrap font-display text-2xl font-bold leading-tight tabular-nums">
                   {cell.v}
                 </dd>
+                {/* The dollar figure the shillings were priced from. */}
+                {cell.sub ? (
+                  <p className="text-[11px] tabular-nums text-muted-foreground">
+                    {cell.sub}
+                  </p>
+                ) : null}
                 <p
                   className={cn(
                     "mt-0.5 text-[11px]",
@@ -350,6 +370,7 @@ export default async function ClosedBatchesPage({
           sheet={sheet}
           canReview={can(user.role, "statement.review")}
           canReopen={canReopen}
+          rateNow={rate}
         />
       )}
     </>

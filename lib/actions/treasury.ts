@@ -93,7 +93,7 @@ export async function recordTransfer(
 ): Promise<ActionResult<{ transferNumber: string }>> {
   let user: SessionUser;
   try {
-    user = await authorize("account.view");
+    user = await authorize("treasury.move");
   } catch (error) {
     return fail(toActionError(error));
   }
@@ -328,7 +328,7 @@ export async function recordCashCount(
 ): Promise<ActionResult<{ variance: number }>> {
   let user: SessionUser;
   try {
-    user = await authorize("account.view");
+    user = await authorize("treasury.move");
   } catch (error) {
     return fail(toActionError(error));
   }
@@ -515,10 +515,18 @@ export async function setOpeningBalance(
             ? Math.round((input.amount / rate) * 100) / 100
             : 0; // Only a zero opening balance can reach this — see the guard.
 
-      await tx.companyAccount.update({
-        where: { id: account.id },
+      /* The stamp is the claim: two opening balances racing each other used to
+         both pass the read above and both post, doubling the account. Only
+         the one that turns the null into a date gets to write the line. */
+      const stamped = await tx.companyAccount.updateMany({
+        where: { id: account.id, openingSetAt: null },
         data: { openingSetAt: occurredAt },
       });
+      if (stamped.count === 0) {
+        throw new Error(
+          `${account.name} already has an opening balance. Correct it with an adjustment so the change is visible, rather than by overwriting it.`
+        );
+      }
 
       await postLedgerEntry(tx, {
         accountId: account.id,

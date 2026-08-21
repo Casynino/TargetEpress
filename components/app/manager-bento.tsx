@@ -425,7 +425,7 @@ export function AccountRail({
                 {row.name}
               </span>
               {row.flag ? (
-                <span className="shrink-0 rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
+                <span className="shrink-0 rounded bg-destructive/10 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-destructive">
                   {row.flag}
                 </span>
               ) : null}
@@ -449,7 +449,7 @@ export function AccountRail({
                   }}
                 />
               </span>
-              <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
+              <span className="shrink-0 text-[11px] uppercase tracking-wide text-muted-foreground">
                 {row.kind} · {row.meta}
               </span>
             </div>
@@ -799,7 +799,7 @@ export function MoneyFlowChart({
         ) : null}
       </svg>
 
-      <div className="mt-1.5 flex justify-between text-[10px] text-muted-foreground">
+      <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground">
         {labels.map((label, index) => (
           <span key={`${label}-${index}`} className="tabular-nums">
             {label}

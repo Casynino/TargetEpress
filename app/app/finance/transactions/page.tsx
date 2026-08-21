@@ -656,7 +656,7 @@ export default async function LedgerPage({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
                         {entry.expense?.category === "EXECUTIVE_DRAW" ? (
-                          <span className="mr-1.5 rounded bg-warning px-1.5 py-0.5 text-[10px] font-bold text-warning-foreground">
+                          <span className="mr-1.5 rounded bg-warning px-1.5 py-0.5 text-[11px] font-bold text-warning-foreground">
                             {t(locale, "Executive draw")}
                           </span>
                         ) : null}

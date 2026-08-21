@@ -229,7 +229,7 @@ function StandingBadge({ standing, locale }: { standing: Standing; locale: Local
   const meta = STANDING_BADGE[standing.state] ?? STANDING_BADGE.PENDING;
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${meta.className}`}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${meta.className}`}
     >
       {t(locale, meta.label)}
     </span>
@@ -755,7 +755,7 @@ export default async function ManagerBatches({
                                 {cost.special ? (
                                   /* Real money, deliberately outside batch
                                      profit — see lib/expenses.ts on classes. */
-                                  <span className="ml-1.5 rounded-full border border-warning/40 bg-warning/10 px-1.5 py-px text-[10px] font-semibold text-warning">
+                                  <span className="ml-1.5 rounded-full border border-warning/40 bg-warning/10 px-1.5 py-px text-[11px] font-semibold text-warning">
                                     {t(locale, "Special — outside profit")}
                                   </span>
                                 ) : null}
@@ -789,7 +789,7 @@ export default async function ManagerBatches({
                                   ? formatLocal(cost.tsh)
                                   : formatShillings(cost.usd, rate)}
                               </p>
-                              <p className="tabular font-mono text-[10px] text-muted-foreground">
+                              <p className="tabular font-mono text-[11px] text-muted-foreground">
                                 {formatUsd(cost.usd)}
                               </p>
                             </div>

@@ -19,13 +19,26 @@ const GOODS_TYPES = [
 const ORIGINS = ["GUANGZHOU", "HONG_KONG"] as const;
 
 /** Form numbers arrive as strings; empty means "not provided", not zero. */
-const numeric = (label: string, { min = 0 }: { min?: number } = {}) =>
+const numeric = (
+  label: string,
+  { min = 0, max, int = false }: { min?: number; max?: number; int?: boolean } = {}
+) =>
   z
     .string()
     .trim()
     .min(1, `${label} is required.`)
-    .refine((v) => !Number.isNaN(Number(v)), `${label} must be a number.`)
+    /* isFinite, not just !isNaN: "Infinity" is a number to JavaScript and a
+       crash to a Decimal column. */
+    .refine((v) => Number.isFinite(Number(v)), `${label} must be a number.`)
     .refine((v) => Number(v) >= min, `${label} must be at least ${min}.`)
+    .refine(
+      (v) => max === undefined || Number(v) <= max,
+      `${label} cannot be more than ${max}.`
+    )
+    .refine(
+      (v) => !int || Number.isInteger(Number(v)),
+      `${label} must be a whole number.`
+    )
     .transform(Number);
 
 const optionalNumeric = z
@@ -51,7 +64,11 @@ export const shipmentSchema = z.object({
     .trim()
     .optional()
     .transform((v) => (v && v.length > 0 ? v : null)),
-  customerName: z.string().trim().min(2, "A name or shipping mark is required."),
+  customerName: z
+    .string()
+    .trim()
+    .min(2, "A name or shipping mark is required.")
+    .max(120, "That name is too long."),
   /// Empty only when an existing customer was picked — some of the customers
   /// imported from Guangzhou packing lists genuinely have no number on file.
   /// Creating a new customer always requires one; see the refine below.
@@ -87,11 +104,22 @@ export const shipmentSchema = z.object({
     Two still does the job the rule exists for: it blocks empty and it blocks a
     single stray keystroke. Nothing in between was ever worth refusing.
   */
-  description: z.string().trim().min(2, "Describe the cargo."),
-  packages: numeric("Number of packages", { min: 1 }),
-  weightKg: numeric("Weight", { min: 0.01 }),
+  description: z
+    .string()
+    .trim()
+    .min(2, "Describe the cargo.")
+    .max(500, "Keep the description under 500 characters."),
+  /* The same ceilings the edit door enforces (lib/actions/cargo-edit.ts):
+     registration materialises one Package row per unit, so an extra zero here
+     is not a typo in a column, it is hundreds of QR labels. */
+  packages: numeric("Number of packages", { min: 1, max: 999, int: true }),
+  weightKg: numeric("Weight", { min: 0.01, max: 5000 }),
   volumeCbm: optionalNumeric,
-  internalNotes: z.string().trim().optional(),
+  internalNotes: z
+    .string()
+    .trim()
+    .max(1000, "Keep internal notes under 1000 characters.")
+    .optional(),
   batchId: z.string().trim().optional(),
 })
   .refine(
@@ -159,8 +187,8 @@ export const paymentSchema = z.object({
       (v) => v === null || (Number.isFinite(v) && v >= 100 && v <= 100_000),
       "That rate looks wrong for USD→TZS. Check the number of digits."
     ),
-  reference: z.string().trim().optional(),
-  note: z.string().trim().optional(),
+  reference: z.string().trim().max(120, "That reference is too long.").optional(),
+  note: z.string().trim().max(1000, "Keep the note under 1000 characters.").optional(),
   /**
    * Which company account the money landed in — the CRDB account, the M-Pesa
    * till, the cash tin in the office.

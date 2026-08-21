@@ -270,7 +270,7 @@ export function RecordCollectionForm({
       <div className="space-y-1.5">
         <Label htmlFor="collectionReference" className="text-xs">
           {t("Reference from the customer")}{" "}
-          <span className="ml-1 rounded bg-signal/10 px-1.5 py-0.5 text-[10px] font-semibold text-signal">
+          <span className="ml-1 rounded bg-signal/10 px-1.5 py-0.5 text-[11px] font-semibold text-signal">
             {t("expected")}
           </span>
         </Label>

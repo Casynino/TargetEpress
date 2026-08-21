@@ -167,7 +167,7 @@ export function RowPriceEditor({
             },
           ].map((box) => (
             <label key={box.id} className="flex-1 space-y-0.5">
-              <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+              <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
                 {box.label}
               </span>
               <MoneyInput

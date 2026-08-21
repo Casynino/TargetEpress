@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Clock, Info, MapPin, Plane } from "lucide-react";
+import { Clock, Info, MapPin, Plane, Store } from "lucide-react";
 
+import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { t } from "@/lib/i18n";
@@ -44,6 +45,16 @@ export default async function MarketsPage() {
         </p>
       </div>
 
+      {markets.length === 0 ? (
+        <EmptyState
+          icon={Store}
+          title={t(locale, "No markets in the directory yet")}
+          description={t(
+            locale,
+            "Once the directory is written, every market appears here with what it sells and how it flies home."
+          )}
+        />
+      ) : (
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {markets.map((market) => (
           <article
@@ -133,6 +144,7 @@ export default async function MarketsPage() {
           </article>
         ))}
       </div>
+      )}
 
       <p className="mt-6 text-sm text-muted-foreground">
         {t(locale, "A customer who wants us to do the buying for them becomes a")}{" "}

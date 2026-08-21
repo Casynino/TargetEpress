@@ -116,8 +116,12 @@ export async function requestCredit(
     const dueDate = grantsDirectly ? dueDateFrom(now, parsed.data.termDays) : null;
 
     await prisma.$transaction(async (tx) => {
-      await tx.invoice.update({
-        where: { id: invoice.id },
+      /* Claimed on the creditStatus the eligibility check above actually read:
+         two clerks pressing the button together, or a request landing on a
+         credit Finance just decided, resolve to one winner and one clear
+         refusal instead of a silent overwrite. */
+      const claimed = await tx.invoice.updateMany({
+        where: { id: invoice.id, creditStatus: invoice.creditStatus },
         data: grantsDirectly
           ? {
               creditStatus: "APPROVED",
@@ -141,6 +145,11 @@ export async function requestCredit(
                  anything other than a cash bill and nothing has to be unwound. */
             },
       });
+      if (claimed.count === 0) {
+        throw new Error(
+          t(locale, "The credit on this bill was just decided by somebody else. Reload to see where it stands.")
+        );
+      }
 
       await recordAudit(
         {
@@ -639,8 +648,12 @@ export async function adjustCredit(
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.invoice.update({
-        where: { id: invoice.id },
+      /* The write re-states the condition the check above read outside the
+         transaction. rejectCredit deliberately clears the due date so a
+         refused credit never sits on the overdue list — a move committing
+         after that rejection would put it right back. */
+      const moved = await tx.invoice.updateMany({
+        where: { id: invoice.id, creditStatus: "APPROVED" },
         data: {
           dueDate: nextDue,
           /* Terms only when a term was chosen. A hand-picked date has no term
@@ -649,6 +662,11 @@ export async function adjustCredit(
           ...(termDays ? { creditTermDays: termDays } : {}),
         },
       });
+      if (moved.count === 0) {
+        throw new Error(
+          t(locale, "The credit on this bill was just decided by somebody else. Reload to see where it stands.")
+        );
+      }
 
       const owing = toNumber(invoice.total) - toNumber(invoice.amountPaid);
       const extending = before ? nextDue > before : true;

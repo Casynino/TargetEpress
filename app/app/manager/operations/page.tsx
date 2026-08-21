@@ -346,7 +346,7 @@ function Leg({
 
       <div className="border-t p-2">
         <div className="mb-1.5 flex items-baseline justify-between gap-2 px-1">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {leg.batchesLabel}
           </span>
           {can(role, leg.batchesPermission) ? (
@@ -433,7 +433,7 @@ function BatchRow({
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline gap-1.5">
           <span className="truncate text-xs font-semibold">{batch.batchNumber}</span>
-          <span className="shrink-0 text-[10px] text-muted-foreground">
+          <span className="shrink-0 text-[11px] text-muted-foreground">
             {batch.origin}
           </span>
         </span>
@@ -451,12 +451,12 @@ function BatchRow({
         <span className="shrink-0 text-right">
           <span className="tabular block text-xs font-semibold">
             {batch.days}
-            <span className="ml-0.5 text-[10px] font-normal text-muted-foreground">
+            <span className="ml-0.5 text-[11px] font-normal text-muted-foreground">
               {t(locale, "d")}
             </span>
           </span>
           {batch.daysLabel ? (
-            <span className="block text-[10px] text-muted-foreground">
+            <span className="block text-[11px] text-muted-foreground">
               {batch.daysLabel}
             </span>
           ) : null}
@@ -485,7 +485,7 @@ function DeskDetail({
 
   return (
     <section className="rounded-xl border bg-card p-2">
-      <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+      <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         {desk.desk}
       </p>
       <ul className="space-y-0.5">
@@ -498,7 +498,7 @@ function DeskDetail({
                   {row.label}
                 </span>
                 {row.detail ? (
-                  <span className="block truncate text-[10px] text-muted-foreground">
+                  <span className="block truncate text-[11px] text-muted-foreground">
                     {row.detail}
                   </span>
                 ) : null}
@@ -506,7 +506,7 @@ function DeskDetail({
               <span className="tabular shrink-0 text-sm font-semibold">
                 {row.value.toLocaleString()}
               </span>
-              <span className="w-8 shrink-0 text-right text-[10px] text-muted-foreground">
+              <span className="w-8 shrink-0 text-right text-[11px] text-muted-foreground">
                 {t(locale, HEAD[row.key])}
               </span>
             </>

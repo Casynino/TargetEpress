@@ -302,9 +302,10 @@ export async function receivablesAgeing(
  * quiet one on a chart with a single series, and those are the two months a
  * business most needs to tell apart.
  *
- * In is what actually arrived (payments), not what was billed. Out is expenses
- * by the date they were incurred, voided ones excluded — the same basis the
- * ledger uses, so this chart and the register cannot disagree.
+ * In is what actually arrived (payments, cancelled ones excluded), not what
+ * was billed. Out is expenses by the date they were incurred, voided ones
+ * excluded — the same basis the ledger uses, so this chart and the register
+ * cannot disagree.
  */
 export async function cashFlowByMonth(now = new Date(), locale: Locale = "en") {
   const year = now.getFullYear();
@@ -318,6 +319,7 @@ export async function cashFlowByMonth(now = new Date(), locale: Locale = "en") {
           COALESCE(SUM(COALESCE("creditedAmount", "amount")), 0) AS total
         FROM "Payment"
         WHERE "paidAt" >= ${from}
+          AND "voidedAt" IS NULL
         GROUP BY 1
         ORDER BY 1
       `
@@ -437,7 +439,13 @@ export async function deskPulse(
       where: {
         deletedAt: null,
         status: "RECEIVED_AT_DAR",
-        arrivedAt: { lt: new Date(Date.now() - STORAGE_POLICY.freeDays * 86_400_000) },
+        /* freeDays + 1, matching the fee engine: at exactly seven elapsed days
+           the clock still reads "last free day" and charges nothing, so the
+           attention count must not claim charging has begun. lib/floor.ts
+           applies the same rule to the same tile. */
+        arrivedAt: {
+          lt: new Date(Date.now() - (STORAGE_POLICY.freeDays + 1) * 86_400_000),
+        },
       },
     }),
     prisma.invoice.count({ where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } } }),
@@ -912,8 +920,7 @@ export const executiveStats = cache(async function executiveStats() {
     openExceptions,
     staff,
     customers,
-    revenueThisMonth,
-    allTimeCollected,
+    collectedAgg,
     outstandingAgg,
   ] = await Promise.all([
     prisma.shipment.count({
@@ -932,19 +939,21 @@ export const executiveStats = cache(async function executiveStats() {
     prisma.shipmentException.count({ where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } } }),
     prisma.user.count({ where: { active: true } }),
     prisma.customer.count(),
-    // USD, both of them: `creditedAmount` is the payment restated in the
-    // invoice's currency. Summing `amount` would add shillings to dollars.
-    prisma.payment.aggregate({
-      /* A cancelled payment is money that turned out never to have arrived, so
-         it is not collected cash. Excluded here rather than subtracted later:
-         a total that counts it and then corrects itself is two figures. */
-      where: { paidAt: { gte: monthStart }, voidedAt: null },
-      _sum: { creditedAmount: true },
-    }),
-    prisma.payment.aggregate({
-      where: { voidedAt: null },
-      _sum: { creditedAmount: true },
-    }),
+    /* Both collected figures in one statement, on the discipline every money
+       total reads: COALESCE(creditedAmount, amount) — a USD payment recorded
+       before the credited column existed is its own USD value, not zero.
+       Cancelled payments are money that turned out never to have arrived, so
+       they are excluded rather than subtracted later. */
+    prisma.$queryRaw<{ month: Prisma.Decimal; allTime: Prisma.Decimal }[]>(
+      Prisma.sql`
+        SELECT
+          COALESCE(SUM(COALESCE("creditedAmount", "amount"))
+            FILTER (WHERE "paidAt" >= ${monthStart}), 0) AS "month",
+          COALESCE(SUM(COALESCE("creditedAmount", "amount")), 0) AS "allTime"
+        FROM "Payment"
+        WHERE "voidedAt" IS NULL
+      `
+    ),
     prisma.invoice.aggregate({
       where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
       _sum: { total: true, amountPaid: true },
@@ -960,8 +969,8 @@ export const executiveStats = cache(async function executiveStats() {
     openExceptions,
     staff,
     customers,
-    revenueThisMonth: toNumber(revenueThisMonth._sum.creditedAmount),
-    allTimeCollected: toNumber(allTimeCollected._sum.creditedAmount),
+    revenueThisMonth: toNumber(collectedAgg[0]?.month ?? 0),
+    allTimeCollected: toNumber(collectedAgg[0]?.allTime ?? 0),
     outstanding:
       toNumber(outstandingAgg._sum.total) - toNumber(outstandingAgg._sum.amountPaid),
   };

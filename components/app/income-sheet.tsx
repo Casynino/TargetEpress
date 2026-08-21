@@ -59,12 +59,16 @@ export function IncomeSheetTable({
   sheet,
   canReview,
   canReopen = false,
+  rateNow = null,
 }: {
   sheet: IncomeSheet;
   canReview: boolean;
   /** Reopening the batch itself, which is a bigger door than sending a
       statement back — it lets costs and payments land on it again. */
   canReopen?: boolean;
+  /** Today's published rate, for the Total line only — each row keeps the
+      rate its own batch closed at. */
+  rateNow?: number | null;
 }) {
   const t = useT();
   const [open, setOpen] = useState<string | null>(null);
@@ -93,6 +97,23 @@ export function IncomeSheetTable({
   /* Each statement keeps the rate it was closed at, so shillings never move. */
   const tsh = (n: number | null, rate: number | null) =>
     n === null || rate === null ? "—" : formatLocal(n * rate);
+  /* The Total line is different: it is the figure Finance reads out TODAY, not
+     a frozen statement, so it leads in shillings at today's published rate with
+     the dollars it was priced from beneath. The rows above keep their own
+     frozen rates. With no rate published, the dollar figure stands alone. */
+  const totalMoney = (n: number | null) =>
+    n === null ? (
+      "—"
+    ) : rateNow === null ? (
+      usd(n)
+    ) : (
+      <>
+        <span className="block">{formatLocal(n * rateNow)}</span>
+        <span className="block text-[11px] font-normal text-muted-foreground">
+          USD {usd(n)}
+        </span>
+      </>
+    );
 
   if (rows.length === 0) {
     return (
@@ -183,7 +204,7 @@ export function IncomeSheetTable({
                 </Link>
                 <span
                   className={cn(
-                    "inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px]",
+                    "inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px]",
                     mark.tone
                   )}
                 >
@@ -247,13 +268,15 @@ export function IncomeSheetTable({
               /* Weighted, not summed: dollars-per-kilo cannot be added to
                  dollars-per-kilo and mean anything. */
               { k: t("Rate"), v: perKg(totals.sellRate), tone: "text-muted-foreground" },
-              { k: "$", v: usd(totals.worthUsd), tone: "" },
-              { k: t("Costs"), v: usd(totals.expensesUsd), tone: "text-destructive" },
-              { k: t("Profit"), v: usd(totals.profitUsd), tone: "" },
+              /* "Billed" rather than the table's "$": the figure leads in
+                 shillings here, so a dollar sign over it would mislabel it. */
+              { k: t("Billed"), v: totalMoney(totals.worthUsd), tone: "" },
+              { k: t("Costs"), v: totalMoney(totals.expensesUsd), tone: "text-destructive" },
+              { k: t("Profit"), v: totalMoney(totals.profitUsd), tone: "" },
               { k: t("Goods sold"), v: `${totals.soldKg.toFixed(1)} kg`, tone: "" },
-              { k: t("Actual received"), v: usd(totals.collectedUsd), tone: "text-success" },
+              { k: t("Actual received"), v: totalMoney(totals.collectedUsd), tone: "text-success" },
               { k: t("Carried kg"), v: totals.carriedKg.toFixed(1), tone: "text-muted-foreground" },
-              { k: t("Written off"), v: usd(totals.writtenOffUsd), tone: "text-destructive" },
+              { k: t("Written off"), v: totalMoney(totals.writtenOffUsd), tone: "text-destructive" },
             ].map((fact) => (
               <div key={fact.k} className="min-w-0">
                 <dt className="text-xs font-normal text-muted-foreground">
@@ -330,7 +353,7 @@ export function IncomeSheetTable({
                       </Link>
                       <span
                         className={cn(
-                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px]",
+                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px]",
                           mark.tone
                         )}
                       >
@@ -395,21 +418,27 @@ export function IncomeSheetTable({
               <td className={cn(cell, "text-muted-foreground")}>
                 {perKg(totals.sellRate)}
               </td>
-              <td className={cell}>{usd(totals.worthUsd)}</td>
-              <td className={cn(cell, "text-destructive")}>
-                {usd(totals.expensesUsd)}
+              {/* One cell across the $ and TZS pair: the rows' TZS column sums
+                  figures frozen at different rates, so a column total there
+                  would be a number no single rate produced. The Total states
+                  both currencies itself instead. */}
+              <td colSpan={2} className={cell}>
+                {totalMoney(totals.worthUsd)}
               </td>
-              <td className={cell}>{usd(totals.profitUsd)}</td>
+              <td className={cn(cell, "text-destructive")}>
+                {totalMoney(totals.expensesUsd)}
+              </td>
+              <td className={cell}>{totalMoney(totals.profitUsd)}</td>
               <td className={cn(cell, "border-l")}>{totals.soldKg.toFixed(1)}</td>
-              <td className={cell}>{usd(totals.soldUsd)}</td>
+              <td className={cell}>{totalMoney(totals.soldUsd)}</td>
               <td className={cn(cell, "text-success")}>
-                {usd(totals.collectedUsd)}
+                {totalMoney(totals.collectedUsd)}
               </td>
               <td className={cn(cell, "border-l text-muted-foreground")}>
                 {totals.carriedKg.toFixed(1)}
               </td>
               <td className={cn(cell, "text-destructive")}>
-                {usd(totals.writtenOffUsd)}
+                {totalMoney(totals.writtenOffUsd)}
               </td>
             </tr>
           </tfoot>
@@ -418,7 +447,7 @@ export function IncomeSheetTable({
 
       <p className="mt-2 text-xs text-muted-foreground">
         {t(
-          "Each row is frozen at the day its batch closed, including the exchange rate. The Total row's rates are per kilo across the period, not column sums."
+          "Each row is frozen at the day its batch closed, including the exchange rate. The Total row's shillings are priced at today's published rate, and its per-kilo rates are weighted across the period, not column sums."
         )}
       </p>
 

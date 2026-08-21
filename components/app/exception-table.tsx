@@ -13,7 +13,10 @@ import {
   type InvestigationAllowances,
 } from "@/components/app/investigation-actions";
 import { InvestigationTimeline } from "@/components/app/investigation-timeline";
-import { RecordCompensationForm } from "@/components/app/compensation-form";
+import {
+  ApproveCompensationForm,
+  RecordCompensationForm,
+} from "@/components/app/compensation-form";
 import { LifecycleSteps } from "@/components/app/lifecycle-steps";
 import { useLocale, useT } from "@/components/app/locale-provider";
 import { ResolveInvestigationForm } from "@/components/app/resolve-investigation-form";
@@ -815,7 +818,24 @@ function CompensationPanel({
   const showRecord = allow.compensate && !finished && (approved || Boolean(comp));
 
   if (!comp) {
-    if (!approved) return null;
+    /* The decision itself. The lifecycle stepper that used to carry "Approve
+       compensation" was removed with the status ping-pong, which quietly left
+       the CEO with no door at all: Finance's form refuses an unapproved case,
+       and nothing on any screen could approve one. The decision belongs here,
+       on the case, next to the record it authorises. */
+    if (!approved) {
+      if (!allow.approve || finished) return null;
+      return (
+        <Panel title={t("Compensation")}>
+          <p className="mb-3 text-xs text-muted-foreground">
+            {t(
+              "Approving authorises a payout on this case. Finance records the amount afterwards — the figure is theirs, the decision is yours."
+            )}
+          </p>
+          <ApproveCompensationForm exceptionId={exception.id} />
+        </Panel>
+      );
+    }
     return (
       <Panel title={t("Compensation")}>
         <p className="mb-3 flex items-center gap-2 rounded-md border border-warning/40 bg-warning/5 p-2 text-xs text-warning">

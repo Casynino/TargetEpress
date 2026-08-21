@@ -251,7 +251,7 @@ export function DataTable<T>({
                   <button
                     type="button"
                     onClick={() => setQuery("")}
-                    className="focus-ring rounded-md p-1 text-muted-foreground hover:text-foreground"
+                    className="focus-ring -m-2.5 rounded-md p-3.5 text-muted-foreground hover:text-foreground"
                     aria-label={t("Clear search")}
                   >
                     <X className="h-3.5 w-3.5" />

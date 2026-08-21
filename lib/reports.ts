@@ -26,6 +26,7 @@ import {
 import { ROLE_LABELS } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
+import { accountBalances } from "@/lib/ledger";
 import { runTotals } from "@/lib/payroll";
 import { prisma } from "@/lib/prisma";
 
@@ -1669,7 +1670,7 @@ async function monthlySummary(f: ReportFilters): Promise<ReportResult> {
 /* --------------------------------------------------- statements of position */
 
 async function financialStatement(f: ReportFilters): Promise<ReportResult> {
-  const [invoices, abandoned, operating, special, entries, rate] = await Promise.all([
+  const [invoices, abandoned, operating, special, perAccount, accountKinds, rate] = await Promise.all([
     prisma.invoice.aggregate({
       where: {
         /* The three statuses that are a real demand for money. This was
@@ -1706,17 +1707,23 @@ async function financialStatement(f: ReportFilters): Promise<ReportResult> {
       },
       _sum: { amountUsd: true },
     }),
-    prisma.ledgerEntry.findMany({
-      select: { direction: true, amountUsd: true, account: { select: { kind: true } } },
-    }),
+    /* The same GROUP BY the accounts screen reads its balances from, so the
+       three Held lines can never disagree with it — and the whole register is
+       never pulled into the process just to be added up by kind. */
+    accountBalances(prisma),
+    prisma.companyAccount.findMany({ select: { id: true, kind: true } }),
     currentRateValue(),
   ]);
 
+  /* Held by kind is the per-account net (IN − OUT, in USD) summed under the
+     account's kind. Balances arrive keyed by account id; the kinds live on the
+     account rows. */
+  const kindById = new Map(accountKinds.map((a) => [a.id, a.kind]));
   const held = { BANK: 0, MOBILE_MONEY: 0, CASH: 0 } as Record<string, number>;
-  for (const e of entries) {
-    const kind = e.account?.kind ?? "BANK";
-    const usd = toNumber(e.amountUsd);
-    held[kind] = (held[kind] ?? 0) + (e.direction === "IN" ? usd : -usd);
+  for (const row of perAccount) {
+    const kind = kindById.get(row.accountId) ?? "BANK";
+    held[kind] =
+      (held[kind] ?? 0) + toNumber(row.inflowUsd) - toNumber(row.outflowUsd);
   }
 
   /* What a written-off bill collected before it was given up on is still money

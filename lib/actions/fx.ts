@@ -92,7 +92,6 @@ export async function setExchangeRate(
     revalidatePath("/app/finance");
     revalidatePath("/app/finance/exchange-rate");
     revalidatePath("/app/admin/pricing");
-    revalidatePath("/calculator");
     return ok({ rate: parsed.data.rate });
   } catch (error) {
     return fail(t(locale, toActionError(error)));

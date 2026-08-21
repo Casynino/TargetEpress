@@ -5,7 +5,7 @@ import { batchCreditRevenue } from "@/lib/credit-queries";
 import { toNumber } from "@/lib/format";
 import { currentRateValue, toLocal } from "@/lib/fx";
 import type { Locale } from "@/lib/locale";
-import { quote } from "@/lib/pricing";
+import { quote, quoteContext } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -275,8 +275,10 @@ export async function batchFinance(
         : toNumber(piece.invoice.totalLocal);
   }
 
-  // Priced in parallel: the rate book is a handful of rows and every lookup is
-  // independent, so this is one round of concurrent reads rather than a walk.
+  // The rule book is fetched once and every estimate resolves from memory —
+  // a fresh manifest of unpriced lines used to cost two queries per line on
+  // every view of this page.
+  const pricebook = needsEstimate.length > 0 ? await quoteContext() : null;
   const estimates = await Promise.all(
     needsEstimate.map(async (piece) => {
       // The reason a piece cannot be priced is read by Finance on the batch
@@ -288,7 +290,8 @@ export async function batchFinance(
           weightKg: toNumber(piece.weightKg),
           quantity: piece.packages,
         },
-        locale
+        locale,
+        pricebook!
       );
       if (!priced.ok) {
         return {

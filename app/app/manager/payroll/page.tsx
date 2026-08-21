@@ -284,9 +284,21 @@ export default async function ManagerPayrollPage() {
                     ? ` · ${formatDate(r.paidAt, locale)}`
                     : ""}
                 </span>
+                {/* A PAID month prints what the bank moved, off its expense —
+                    today's rate only prices the runs still ahead of payment.
+                    A REJECTED run never paid anything, so it reads like the
+                    live ones. */}
                 <PayrollAmount
                   usd={r.totals.net}
                   rate={rate}
+                  paid={
+                    r.status === "PAID" && r.expense
+                      ? {
+                          amount: toNumber(r.expense.amount),
+                          currency: r.expense.currency,
+                        }
+                      : null
+                  }
                   strong
                   className="text-right"
                 />

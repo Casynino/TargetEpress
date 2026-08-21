@@ -89,6 +89,10 @@ export async function payrollRuns(take = 24) {
       preparedBy: { select: { id: true, name: true } },
       approvedBy: { select: { id: true, name: true } },
       account: { select: { id: true, name: true, currency: true } },
+      /* The expense a PAID run became carries the figure the bank actually
+         moved — amount, currency and the rate of the day. A paid month is
+         printed from that, never re-priced at today's rate. */
+      expense: { select: { amount: true, currency: true } },
       items: { select: LINE_MONEY },
     },
   });

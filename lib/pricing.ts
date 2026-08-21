@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { CargoCategory, Origin, PricingMethod } from "@prisma/client";
+import type { CargoCategory, Origin, PricingMethod, Prisma } from "@prisma/client";
 
 import { routeFor } from "@/lib/cargo";
 import { toNumber } from "@/lib/format";
@@ -70,22 +70,68 @@ export type Quote =
     }
   | { ok: false; reason: "no-rule"; message: string; route: Origin };
 
-async function resolveRule(input: QuoteInput) {
+type RuleRow = Prisma.PricingRuleGetPayload<{
+  include: { cargoType: { select: { name: true } } };
+}>;
+
+/**
+ * Everything quote() reads from the database, fetched once for a whole run.
+ *
+ * quote() alone costs two queries — the product's route and the candidate
+ * rules — which is right for one form and wrong for a manifest: pricing an
+ * 87-line check-in re-fetched the identical small rule table 87 times. A
+ * caller that is about to quote in a loop takes one of these first and every
+ * quote resolves from memory, against exactly the rows a lone quote would
+ * have read.
+ */
+export type QuoteContext = {
+  rules: RuleRow[];
+  routes: Map<string, Origin | null>;
+};
+
+export async function quoteContext(): Promise<QuoteContext> {
+  const [rules, types] = await Promise.all([
+    prisma.pricingRule.findMany({
+      where: { active: true },
+      orderBy: { effectiveFrom: "desc" },
+      include: { cargoType: { select: { name: true } } },
+    }),
+    prisma.cargoType.findMany({ select: { id: true, route: true } }),
+  ]);
+  return {
+    rules,
+    routes: new Map(types.map((type) => [type.id, type.route])),
+  };
+}
+
+async function resolveRule(input: QuoteInput, ctx?: QuoteContext) {
   const asOf = input.asOf ?? new Date();
 
-  const candidates = await prisma.pricingRule.findMany({
-    where: {
-      active: true,
-      category: input.category,
-      effectiveFrom: { lte: asOf },
-      OR: [
-        ...(input.cargoTypeId ? [{ cargoTypeId: input.cargoTypeId }] : []),
-        { cargoTypeId: null },
-      ],
-    },
-    orderBy: { effectiveFrom: "desc" },
-    include: { cargoType: { select: { name: true } } },
-  });
+  /* The in-memory filter is the where-clause verbatim: active rules only ever
+     enter the context, and order is already latest-effectiveFrom-first. */
+  const candidates = ctx
+    ? ctx.rules.filter(
+        (rule) =>
+          rule.category === input.category &&
+          rule.effectiveFrom <= asOf &&
+          (rule.cargoTypeId === null ||
+            (input.cargoTypeId !== null &&
+              input.cargoTypeId !== undefined &&
+              rule.cargoTypeId === input.cargoTypeId))
+      )
+    : await prisma.pricingRule.findMany({
+        where: {
+          active: true,
+          category: input.category,
+          effectiveFrom: { lte: asOf },
+          OR: [
+            ...(input.cargoTypeId ? [{ cargoTypeId: input.cargoTypeId }] : []),
+            { cargoTypeId: null },
+          ],
+        },
+        orderBy: { effectiveFrom: "desc" },
+        include: { cargoType: { select: { name: true } } },
+      });
 
   // Total weight is what a tier is judged on: three 4 kg boxes is a 12 kg
   // shipment and earns the over-10 kg rate. `weightKg` is already that total,
@@ -112,18 +158,21 @@ async function resolveRule(input: QuoteInput) {
 
 export async function quote(
   input: QuoteInput,
-  locale: Locale = "en"
+  locale: Locale = "en",
+  ctx?: QuoteContext
 ): Promise<Quote> {
   // A product may name its own airport — an LCD panel is normal goods out of
   // Guangzhou, a laptop is electronics out of Hong Kong. Falls back to the
   // category default when the product does not say.
   const productRoute = input.cargoTypeId
-    ? (
-        await prisma.cargoType.findUnique({
-          where: { id: input.cargoTypeId },
-          select: { route: true },
-        })
-      )?.route ?? null
+    ? ctx
+      ? (ctx.routes.get(input.cargoTypeId) ?? null)
+      : (
+          await prisma.cargoType.findUnique({
+            where: { id: input.cargoTypeId },
+            select: { route: true },
+          })
+        )?.route ?? null
     : null;
   const route = productRoute ?? routeFor(input.category);
   const quantity = Math.max(1, Math.round(input.quantity ?? 1));
@@ -131,7 +180,7 @@ export async function quote(
   // quantity prices per-item cargo, it does not scale the weight.
   const actualWeightKg = Math.max(0, input.weightKg);
 
-  const rule = await resolveRule(input);
+  const rule = await resolveRule(input, ctx);
 
   if (!rule) {
     return {

@@ -199,7 +199,7 @@ export function ReviewActions({
               className={cn(
                 "focus-ring inline-flex items-center gap-1.5 rounded-lg border font-semibold transition-colors",
                 size === "sm"
-                  ? "min-h-8 px-2.5 text-xs"
+                  ? "min-h-11 md:min-h-8 px-2.5 text-xs"
                   : "min-h-11 gap-2 px-3 text-sm",
                 active ? meta.solid : meta.tone
               )}
@@ -221,7 +221,7 @@ export function ReviewActions({
             <dl className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {facts.map((fact) => (
                 <div key={fact.label} className="rounded-lg bg-background/60 px-2 py-1.5">
-                  <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
                     {t(fact.label)}
                   </dt>
                   <dd

@@ -11,7 +11,7 @@ import {
   formatPackages,
 } from "@/lib/constants";
 import { normaliseCode, toNumber } from "@/lib/format";
-import { toLocal } from "@/lib/fx";
+import { currentRateValue, toLocal } from "@/lib/fx";
 import { quote } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import {
@@ -263,6 +263,14 @@ export type PublicShipment = {
   weightKg: number | null;
   /** The warehouse clock, once the cargo has landed. Null before then. */
   storage: PublicStorage | null;
+  /**
+   * Today's published USD→TZS rate, so the figures no invoice has frozen yet —
+   * the storage clock and the rate-book estimate — can lead in the money the
+   * customer actually pays with. Billed figures never use it: the charge keeps
+   * the invoice's own rate. Null when no rate is published, and the dollar
+   * figures stand alone. A number only — nothing about who set it or when.
+   */
+  publishedRate: number | null;
   origin: string;
   lastUpdate: string | null;
   timeline: PublicTimelineEntry[];
@@ -469,6 +477,10 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
           })
         )?.expectedArrival ?? null
       : null;
+
+    // The rate of the day, for the unbilled figures below. One request-cached
+    // read; an invoice, once raised, carries its own rate and ignores this.
+    const publishedRate = await currentRateValue();
 
     // Finance has not billed it yet, so price it from the published rate book.
     // This is the number a customer wants long before an invoice exists, and
@@ -701,6 +713,7 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
           waivedUsd,
         };
       })(),
+      publishedRate,
       origin: ORIGIN_PUBLIC[shipment.origin] ?? shipment.origin,
       lastUpdate: shipment.updatedAt.toISOString(),
       timeline: buildTimeline(

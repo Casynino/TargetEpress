@@ -6,7 +6,7 @@ import { STORAGE_POLICY, storageDaysFor } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { LOCAL_CURRENCY, currentRateValue, toLocal } from "@/lib/fx";
 import { nextInvoiceNumber } from "@/lib/ids";
-import { quote } from "@/lib/pricing";
+import { quote, quoteContext } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -65,13 +65,15 @@ export async function autoPriceShipments(
       packages: true,
       arrivedAt: true,
       deliveredAt: true,
-      invoice: { select: { id: true, status: true } },
+      invoice: { select: { id: true, status: true, storageWaivedUsd: true } },
     },
   });
 
   // One rate for the whole run, so eighty-seven drafts raised by one press of
-  // one button cannot be denominated at two different rates.
-  const rate = await currentRateValue();
+  // one button cannot be denominated at two different rates. The rule book is
+  // taken once for the same reason — and because re-reading the same small
+  // table per line priced a manifest in hundreds of round trips.
+  const [rate, pricebook] = await Promise.all([currentRateValue(), quoteContext()]);
 
   const blocked: AutoPriceResult["blocked"] = [];
   let priced = 0;
@@ -84,12 +86,16 @@ export async function autoPriceShipments(
       continue;
     }
 
-    const quoted = await quote({
-      category: shipment.cargoCategory,
-      cargoTypeId: shipment.cargoTypeId,
-      weightKg: toNumber(shipment.weightKg),
-      quantity: shipment.packages,
-    });
+    const quoted = await quote(
+      {
+        category: shipment.cargoCategory,
+        cargoTypeId: shipment.cargoTypeId,
+        weightKg: toNumber(shipment.weightKg),
+        quantity: shipment.packages,
+      },
+      "en",
+      pricebook
+    );
 
     if (!quoted.ok) {
       blocked.push({
@@ -107,7 +113,15 @@ export async function autoPriceShipments(
     }
 
     const storageDays = storageDaysFor(shipment.arrivedAt, shipment.deliveredAt);
-    const storageCharge = storageDays * STORAGE_POLICY.perDayUsd;
+    /* A waiver survives a re-run. Check-in is re-runnable by design, and a
+       draft whose fee Finance already forgave must not come back charged —
+       the same rule confirmInvoicePrice applies at confirmation. */
+    const waiverStands =
+      shipment.invoice !== null &&
+      toNumber(shipment.invoice.storageWaivedUsd ?? 0) > 0;
+    const storageCharge = waiverStands
+      ? 0
+      : storageDays * STORAGE_POLICY.perDayUsd;
     const total = quoted.total + storageCharge;
     const totalLocal = rate === null ? null : toLocal(total, rate);
 

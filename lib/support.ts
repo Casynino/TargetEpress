@@ -437,8 +437,10 @@ export function matchesFilter(row: FollowUpRow, filter: FollowUpFilter) {
   switch (filter) {
     case "awaiting-payment":
       /* Cash only. This pill meant "anything unpaid", and with credit in the
-         queue that read an arrangement the company granted as a late bill. */
-      return row.kind === "cash" && owing;
+         queue that read an arrangement the company granted as a late bill.
+         Drafts stay out too: until Finance confirms the price, no one owes
+         the figure — the row's action is "Confirm the price", not a chase. */
+      return row.kind === "cash" && owing && row.invoiceStatus !== "DRAFT";
     case "credit":
       return row.kind === "credit";
     case "overdue":
@@ -494,7 +496,12 @@ export function followUpTotals(rows: FollowUpRow[]) {
 
   return {
     count: rows.length,
-    cashUsd: total((row) => row.kind === "cash"),
+    /* A draft's figure is the system's guess, not a confirmed demand — the
+       same rule BILLED_INVOICE_STATUSES states — so "Cash owed" must not
+       include money nobody has been asked for yet. */
+    cashUsd: total(
+      (row) => row.kind === "cash" && row.invoiceStatus !== "DRAFT"
+    ),
     creditUsd: total((row) => row.kind === "credit"),
     overdueUsd: total((row) => (row.credit?.daysOverdue ?? 0) > 0),
     dueTodayUsd: total((row) => row.credit?.daysRemaining === 0),

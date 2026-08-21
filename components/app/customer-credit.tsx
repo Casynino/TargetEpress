@@ -244,7 +244,7 @@ export function CustomerCreditPanel({
                 {cell.v}
               </dd>
               {cell.hint ? (
-                <p className="text-[10px] leading-tight text-muted-foreground">
+                <p className="text-[11px] leading-tight text-muted-foreground">
                   {cell.hint}
                 </p>
               ) : null}

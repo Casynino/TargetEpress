@@ -33,10 +33,13 @@ export async function GET(
   const key = decodeURIComponent(id);
   const locale = await viewerLocale();
 
-  const shipment = await prisma.shipment.findUnique({
-    where: key.startsWith("TX-")
-      ? { trackingNumber: key.toUpperCase() }
-      : { id: key },
+  const shipment = await prisma.shipment.findFirst({
+    where: {
+      ...(key.startsWith("TX-")
+        ? { trackingNumber: key.toUpperCase() }
+        : { id: key }),
+      deletedAt: null,
+    },
     select: {
       trackingNumber: true,
       ...selectText("description"),

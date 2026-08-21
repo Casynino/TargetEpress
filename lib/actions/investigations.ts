@@ -612,8 +612,8 @@ const compensationSchema = z
       .optional()
       .transform((v) => (v && v.length > 0 ? v.toUpperCase() : "TZS"))
       .refine(
-        (v) => /^[A-Z]{3}$/.test(v),
-        "Currency is a three-letter code, e.g. TZS or USD."
+        (v): v is "TZS" | "USD" => v === "TZS" || v === "USD",
+        "Currency must be TZS or USD."
       ),
     paidAt: z
       .string()
@@ -623,6 +623,10 @@ const compensationSchema = z
       .refine(
         (v) => v === null || !Number.isNaN(v.getTime()),
         "That payment date is not a date."
+      )
+      .refine(
+        (v) => v === null || v.getTime() <= Date.now() + 86_400_000,
+        "A payout cannot be dated in the future."
       ),
     method: z
       .string()

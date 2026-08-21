@@ -102,6 +102,14 @@ export async function submitBooking(
   formData: FormData,
   locale: Locale = "en"
 ): Promise<ActionResult<{ reference: string }>> {
+  // Honeypot. Real people never fill a hidden field; scripts fill everything.
+  // Not named "company" as elsewhere — this form asks for a real company.
+  if (String(formData.get("website") ?? "").trim().length > 0) {
+    return fail(
+      t(locale, "Something went wrong. Please message us on WhatsApp instead.")
+    );
+  }
+
   const parsed = bookingSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
@@ -196,6 +204,13 @@ export async function submitPickup(
   formData: FormData,
   locale: Locale = "en"
 ): Promise<ActionResult<{ reference: string }>> {
+  // Honeypot. Real people never fill a hidden field; scripts fill everything.
+  if (String(formData.get("website") ?? "").trim().length > 0) {
+    return fail(
+      t(locale, "Something went wrong. Please message us on WhatsApp instead.")
+    );
+  }
+
   const parsed = pickupSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );

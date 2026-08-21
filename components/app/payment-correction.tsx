@@ -86,7 +86,7 @@ export function PaymentCorrection({
               placeholder={t("Why is it being reinstated?")}
               className="h-7 min-w-[200px] flex-1 text-[11px]"
             />
-            <SubmitButton size="sm" className="h-7 px-2.5 text-[11px]">
+            <SubmitButton size="sm" className="h-11 md:h-7 px-2.5 text-[11px]">
               {t("Reinstate it")}
             </SubmitButton>
           </form>
@@ -192,7 +192,7 @@ export function PaymentCorrection({
               placeholder={t("What was wrong with it?")}
               className="h-7 min-w-[160px] flex-1 text-[11px]"
             />
-            <SubmitButton size="sm" className="h-7 px-2.5 text-[11px]">
+            <SubmitButton size="sm" className="h-11 md:h-7 px-2.5 text-[11px]">
               {t("Save the correction")}
             </SubmitButton>
           </div>

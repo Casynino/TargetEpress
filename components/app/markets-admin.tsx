@@ -1,8 +1,9 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { Eye, EyeOff, Pencil, Plus } from "lucide-react";
+import { Eye, EyeOff, Pencil, Plus, Store } from "lucide-react";
 
+import { EmptyState } from "@/components/app/empty-state";
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
 import { Badge } from "@/components/ui/badge";
@@ -228,6 +229,21 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
         </p>
       ) : null}
 
+      {markets.length === 0 ? (
+        <EmptyState
+          icon={Store}
+          title={t("No markets yet")}
+          description={t(
+            "The first one you add appears on the support desk and the public guide."
+          )}
+          action={
+            <Button type="button" size="sm" onClick={() => startEdit(null)}>
+              <Plus className="mr-1 h-4 w-4" />
+              {t("New market")}
+            </Button>
+          }
+        />
+      ) : (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {markets.map((market) => (
           <article
@@ -298,6 +314,7 @@ export function MarketsAdmin({ markets }: { markets: MarketRow[] }) {
           </article>
         ))}
       </div>
+      )}
     </div>
   );
 }

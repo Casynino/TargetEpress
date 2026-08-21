@@ -153,7 +153,7 @@ export function PhotoCapture({
               more — a clerk with a flat battery still has to be able to record
               the cargo — so the prompt asks plainly instead of threatening. */}
           {required ? (
-            <span className="ml-1.5 rounded bg-signal/10 px-1.5 py-0.5 text-[10px] font-semibold text-signal">
+            <span className="ml-1.5 rounded bg-signal/10 px-1.5 py-0.5 text-[11px] font-semibold text-signal">
               {t("expected")}
             </span>
           ) : null}

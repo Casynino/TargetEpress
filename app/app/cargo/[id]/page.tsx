@@ -907,9 +907,6 @@ export default async function ShipmentDetailPage({
             pickupNoteId={shipment.pickupNote?.id ?? null}
             pickupNoteNumber={shipment.pickupNote?.noteNumber ?? null}
             pickupNoteStatus={shipment.pickupNote?.status ?? null}
-            defaultFreight={
-              toNumber(shipment.unitRate) * toNumber(shipment.weightKg)
-            }
             accounts={accounts}
           />
           {/* The code that is printed on the sticker, shown at a size a phone

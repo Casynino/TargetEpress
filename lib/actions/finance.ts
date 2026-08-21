@@ -767,8 +767,12 @@ export async function adjustInvoice(
       const rate = input.exchangeRate ?? currentRate;
       const totalLocal = rate === null ? null : toLocal(total, rate);
 
-      await tx.invoice.update({
-        where: { id: invoice.id },
+      /* The write only lands if amountPaid is still what the guard above
+         tested. A payment committing in between would otherwise slip the new
+         total below what the customer has now paid — the exact state the
+         guard exists to refuse. */
+      const adjusted = await tx.invoice.updateMany({
+        where: { id: invoice.id, amountPaid: invoice.amountPaid },
         data: {
           discount: new Prisma.Decimal(input.discount),
           otherCharges: new Prisma.Decimal(input.otherCharges),
@@ -788,6 +792,11 @@ export async function adjustInvoice(
           notes: input.notes || null,
         },
       });
+      if (adjusted.count === 0) {
+        throw new Error(
+          "A payment landed on this bill a moment ago. Reload and adjust it against the fresh balance."
+        );
+      }
 
       await recordAudit(
         {

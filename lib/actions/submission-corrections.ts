@@ -102,6 +102,13 @@ export async function editSubmission(
     if (sub.status !== "PENDING") {
       return fail(t(locale, closedMessage(sub.status, sub.submissionNumber)));
     }
+    /* "Your own typo" is the whole licence. The permission is department-wide,
+       the correction is not — a colleague's claim is theirs to fix. */
+    if (sub.submittedById !== user.id) {
+      return fail(
+        t(locale, "Only the person who submitted this can correct it. Ask them to, or let Finance decide it as it stands.")
+      );
+    }
 
     const before = {
       amount: toNumber(sub.amount),
@@ -182,6 +189,11 @@ export async function withdrawSubmission(
     if (!sub) return fail(t(locale, "That submission no longer exists."));
     if (sub.status !== "PENDING") {
       return fail(t(locale, closedMessage(sub.status, sub.submissionNumber)));
+    }
+    if (sub.submittedById !== user.id) {
+      return fail(
+        t(locale, "Only the person who submitted this can correct it. Ask them to, or let Finance decide it as it stands.")
+      );
     }
 
     await prisma.$transaction(async (tx) => {

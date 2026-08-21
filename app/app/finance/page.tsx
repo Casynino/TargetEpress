@@ -152,11 +152,13 @@ export default async function FinanceOverviewPage() {
     }),
     seesCompanyMoney ? accountBalances(prisma) : Promise.resolve([]),
     // Money taken with no account named. A job for this desk, not a statistic.
+    // Rows, not an aggregate: creditedAmount is null on older USD payments, so
+    // summing that column alone valued them at nothing. Cancelled payments are
+    // not money anyone still needs to attribute.
     seesCompanyMoney
-      ? prisma.payment.aggregate({
-          where: { accountId: null },
-          _sum: { creditedAmount: true },
-          _count: true,
+      ? prisma.payment.findMany({
+          where: { accountId: null, voidedAt: null },
+          select: { amount: true, creditedAmount: true },
         })
       : Promise.resolve(null),
     seesCompanyMoney
@@ -189,7 +191,11 @@ export default async function FinanceOverviewPage() {
     (sum, row) => sum + toNumber(row.inflowUsd) - toNumber(row.outflowUsd),
     0
   );
-  const unattributedUsd = toNumber(unattributed?._sum.creditedAmount ?? 0);
+  const unattributedCount = unattributed?.length ?? 0;
+  const unattributedUsd = (unattributed ?? []).reduce(
+    (sum, p) => sum + toNumber(p.creditedAmount ?? p.amount),
+    0
+  );
   const spentUsd = toNumber(spendThisMonth?._sum.amountUsd ?? 0);
   const owedOutUsd = toNumber(unpaidCosts?._sum.amountUsd ?? 0);
   const netMonth = collectedMonth - spentUsd;
@@ -275,10 +281,10 @@ export default async function FinanceOverviewPage() {
       urgent: true,
     },
     {
-      when: (unattributed?._count ?? 0) > 0,
-      label: `${unattributed?._count} ${t(
+      when: unattributedCount > 0,
+      label: `${unattributedCount} ${t(
         locale,
-        unattributed?._count === 1
+        unattributedCount === 1
           ? "payment with no account"
           : "payments with no account"
       )}`,
@@ -490,25 +496,25 @@ export default async function FinanceOverviewPage() {
                 of recording a payment, reachable from wherever somebody
                 happens to be standing.
               */}
-              <Button asChild variant="brand" size="sm" className="h-8 rounded-lg">
+              <Button asChild variant="brand" size="sm" className="h-11 md:h-8 rounded-lg">
                 <Link href="/app/finance/transactions?income=1">
                   <Banknote className="mr-1.5 h-3.5 w-3.5" />
                   {t(locale, "Record an income")}
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="sm" className="h-8 rounded-lg">
+              <Button asChild variant="outline" size="sm" className="h-11 md:h-8 rounded-lg">
                 <Link href="/app/finance/expenses">
                   <Receipt className="mr-1.5 h-3.5 w-3.5" />
                   {t(locale, "Record a cost")}
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="sm" className="h-8 rounded-lg">
+              <Button asChild variant="outline" size="sm" className="h-11 md:h-8 rounded-lg">
                 <Link href="/app/finance/accounts">
                   <ArrowLeftRight className="mr-1.5 h-3.5 w-3.5" />
                   {t(locale, "Move money")}
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="sm" className="h-8 rounded-lg">
+              <Button asChild variant="outline" size="sm" className="h-11 md:h-8 rounded-lg">
                 <Link href="/app/finance/accounts">
                   <Calculator className="mr-1.5 h-3.5 w-3.5" />
                   {t(locale, "Count the cash tin")}
@@ -672,7 +678,7 @@ export default async function FinanceOverviewPage() {
               href: "/app/finance/payments",
               label: t(locale, "Verify payments"),
               why: t(locale, "What customers say they have sent"),
-              count: unattributed?._count ?? 0,
+              count: unattributedCount,
               unit: t(locale, "waiting"),
               urgent: true,
             },

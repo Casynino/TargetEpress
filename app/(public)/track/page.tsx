@@ -25,6 +25,7 @@ import { TrackingTimeline } from "@/components/site/tracking-timeline";
 import { Button } from "@/components/ui/button";
 import { COMPANY, PAYMENT_METHODS } from "@/lib/constants";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { formatShillings, formatUsd, toLocal } from "@/lib/money";
 import {
   trackByCode,
   type PublicCharge,
@@ -363,8 +364,18 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
                       }`,
                     },
               {
+                /* The accrued charge leads in shillings, like the bill below —
+                   it is money this customer will hand over at the counter. The
+                   per-day figure beside "Days overdue" stays in dollars: that
+                   is the published tariff, not an amount anybody pays as-is.
+                   Converted at today's rate because no invoice has frozen one
+                   yet; with no rate published the dollar figure stands. */
                 k: result.storage.expired ? "Storage charges" : "Charged so far",
-                v: `USD ${result.storage.chargeUsd.toFixed(2)}`,
+                v: formatShillings(result.storage.chargeUsd, result.publishedRate),
+                sub:
+                  result.publishedRate === null
+                    ? null
+                    : formatUsd(result.storage.chargeUsd),
                 tone: result.storage.chargeUsd > 0 ? "text-destructive" : "",
               },
             ].map((cell) => (
@@ -379,6 +390,11 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
                 >
                   {cell.v}
                 </dd>
+                {"sub" in cell && cell.sub ? (
+                  <dd className="mt-0.5 font-mono text-[11px] text-muted-foreground tabular-nums">
+                    {cell.sub}
+                  </dd>
+                ) : null}
               </div>
             ))}
           </dl>
@@ -524,13 +540,40 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
       {result.estimate && !result.charge ? (
         <div className="border-t bg-muted/30 p-6">
           <h2 className="text-sm font-semibold">Estimated shipping cost</h2>
-          <p className="mt-2 font-display text-3xl font-bold tabular">
-            {result.estimate.currency}{" "}
-            {result.estimate.total.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </p>
+          {/*
+            Shillings lead for the same reason they lead on the bill below: it
+            is the money the customer will actually hand over. An estimate has
+            no frozen rate to keep, so it converts at today's published one,
+            with the dollar figure it came from underneath. No rate published —
+            or a rate book quoting something other than dollars — and the
+            quoted figure stands alone.
+          */}
+          {result.publishedRate !== null && result.estimate.currency === "USD" ? (
+            <>
+              <p className="mt-2 font-display text-3xl font-bold tabular">
+                <span className="mr-1.5 text-xl font-bold opacity-70">TSh</span>
+                {toLocal(
+                  result.estimate.total,
+                  result.publishedRate
+                ).toLocaleString("en-US")}
+              </p>
+              <p className="mt-1 font-mono text-sm text-muted-foreground">
+                {result.estimate.currency}{" "}
+                {result.estimate.total.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </p>
+            </>
+          ) : (
+            <p className="mt-2 font-display text-3xl font-bold tabular">
+              {result.estimate.currency}{" "}
+              {result.estimate.total.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </p>
+          )}
           <p className="mt-1 text-xs text-muted-foreground">
             {result.estimate.basis}
           </p>

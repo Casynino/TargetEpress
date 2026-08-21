@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { Prisma } from "@prisma/client";
+
 import { toNumber } from "@/lib/format";
 import { accountBalances } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
@@ -144,12 +146,21 @@ export async function financeDashboard(
     ...(filters.batchId ? { batchId: filters.batchId } : {}),
   };
 
+  /* The trend's floor: the same month a year before the one the window ends
+     in. One month more than the twelve buckets need, which the bucket guard
+     below simply ignores. */
+  const trendStart = new Date(
+    window.to.getFullYear() - 1,
+    window.to.getMonth(),
+    1
+  );
+
   const [
     pl,
     prior,
     landed,
     invoicesInWindow,
-    payments,
+    collectedAllTime,
     expenses,
     balances,
     accountList,
@@ -193,11 +204,18 @@ export async function financeDashboard(
       },
     }),
 
-    prisma.payment.findMany({
-      /* Cancelled payments are not collections. */
-      where: { paidAt: range, voidedAt: null },
-      select: { amount: true, creditedAmount: true },
-    }),
+    /* All-time collections, as one figure. It feeds the outstanding ratio,
+       whose other side — the receivable — carries no window either: mixing an
+       all-time receivable with one period's collections made the ratio move
+       with the filter dates while the debt stood still. Cancelled payments are
+       not collections, and COALESCE(creditedAmount, amount) is the same
+       money-sum discipline every payment total in this app uses — aggregate
+       cannot express it, so the database sums it directly. */
+    prisma.$queryRaw<{ collected: Prisma.Decimal | null }[]>`
+      SELECT SUM(COALESCE("creditedAmount", "amount")) AS "collected"
+      FROM "Payment"
+      WHERE "voidedAt" IS NULL
+    `,
 
     prisma.expense.findMany({
       where: { incurredAt: range, status: { not: "VOID" } },
@@ -261,37 +279,49 @@ export async function financeDashboard(
     }),
 
     /*
-      Twelve months of trend, in one pass over the year rather than twelve
-      round trips. Invoices and expenses are read by their own dates —
-      issuedAt and incurredAt — so a month shows the work that happened in it.
+      Twelve months of trend, summed by the database into one row per month.
+      The chart only ever reads monthly totals, so the year's documents are
+      grouped in SQL rather than carried into the process row by row. Invoices
+      and expenses are read by their own dates — issuedAt and incurredAt — so
+      a month shows the work that happened in it, and each WHERE restates the
+      window figures' own rules exactly: abandoned debt is not revenue, a void
+      cost is not a cost, and a cancelled payment is not a collection — voided
+      out here too, or a correction made today would leave a phantom spike in
+      a past month that no other screen agrees with.
     */
     Promise.all([
-      prisma.invoice.findMany({
-        where: {
-          issuedAt: { gte: new Date(window.to.getFullYear() - 1, window.to.getMonth(), 1) },
-          /* Same rule as the window figures above: abandoned debt is not revenue. */
-          status: { notIn: ["DRAFT", "VOID", "WRITTEN_OFF"] },
-        },
-        select: { issuedAt: true, total: true, shipment: { select: { weightKg: true } } },
-      }),
-      prisma.expense.findMany({
-        where: {
-          incurredAt: { gte: new Date(window.to.getFullYear() - 1, window.to.getMonth(), 1) },
-          status: { not: "VOID" },
-          expenseClass: { not: "NON_OPERATING" },
-        },
-        select: { incurredAt: true, amountUsd: true },
-      }),
-      prisma.payment.findMany({
-        where: {
-          paidAt: { gte: new Date(window.to.getFullYear() - 1, window.to.getMonth(), 1) },
-          /* The twelve-month trend excludes cancelled payments too, or a
-             correction made today would leave a phantom spike in a past month
-             that no other screen agrees with. */
-          voidedAt: null,
-        },
-        select: { paidAt: true, amount: true, creditedAmount: true },
-      }),
+      prisma.$queryRaw<
+        { month: Date; total: Prisma.Decimal | null; kg: Prisma.Decimal | null }[]
+      >`
+        SELECT
+          date_trunc('month', i."issuedAt") AS "month",
+          SUM(i."total")                    AS "total",
+          SUM(s."weightKg")                 AS "kg"
+        FROM "Invoice" i
+        LEFT JOIN "Shipment" s ON s."id" = i."shipmentId"
+        WHERE i."issuedAt" >= ${trendStart}
+          AND i."status" NOT IN ('DRAFT', 'VOID', 'WRITTEN_OFF')
+        GROUP BY 1
+      `,
+      prisma.$queryRaw<{ month: Date; total: Prisma.Decimal | null }[]>`
+        SELECT
+          date_trunc('month', "incurredAt") AS "month",
+          SUM("amountUsd")                  AS "total"
+        FROM "Expense"
+        WHERE "incurredAt" >= ${trendStart}
+          AND "status" <> 'VOID'
+          AND "expenseClass" <> 'NON_OPERATING'
+        GROUP BY 1
+      `,
+      prisma.$queryRaw<{ month: Date; total: Prisma.Decimal | null }[]>`
+        SELECT
+          date_trunc('month', "paidAt")             AS "month",
+          SUM(COALESCE("creditedAmount", "amount")) AS "total"
+        FROM "Payment"
+        WHERE "paidAt" >= ${trendStart}
+          AND "voidedAt" IS NULL
+        GROUP BY 1
+      `,
     ]),
   ]);
 
@@ -379,10 +409,7 @@ export async function financeDashboard(
   const counts = Object.fromEntries(
     invoiceCounts.map((row) => [row.status, row._count])
   ) as Record<string, number>;
-  const collectedAll = payments.reduce(
-    (n, p) => n + toNumber(p.creditedAmount ?? p.amount),
-    0
-  );
+  const collectedAllTimeUsd = toNumber(collectedAllTime[0]?.collected ?? 0);
 
   // ----------------------------------------------------------------- batches
   const batches: BatchPerformance[] = batchRows.map((batch) => {
@@ -443,22 +470,25 @@ export async function financeDashboard(
   const expenseBy = bucket();
   const kgBy = bucket();
   const collectedBy = bucket();
-  const keyOf = (d: Date) => `${d.getFullYear()}-${d.getMonth()}`;
-  for (const inv of trendInvoices) {
-    const k = keyOf(inv.issuedAt);
+  /* date_trunc hands the month back as a UTC timestamp, so its calendar month
+     is read in UTC — read locally, a west-of-Greenwich clock would file every
+     month under the one before it. */
+  const monthKey = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
+  for (const row of trendInvoices) {
+    const k = monthKey(row.month);
     if (revenueBy.has(k)) {
-      revenueBy.set(k, revenueBy.get(k)! + toNumber(inv.total));
-      kgBy.set(k, kgBy.get(k)! + toNumber(inv.shipment?.weightKg ?? 0));
+      revenueBy.set(k, revenueBy.get(k)! + toNumber(row.total));
+      kgBy.set(k, kgBy.get(k)! + toNumber(row.kg));
     }
   }
-  for (const e of trendExpenses) {
-    const k = keyOf(e.incurredAt);
-    if (expenseBy.has(k)) expenseBy.set(k, expenseBy.get(k)! + toNumber(e.amountUsd));
+  for (const row of trendExpenses) {
+    const k = monthKey(row.month);
+    if (expenseBy.has(k)) expenseBy.set(k, expenseBy.get(k)! + toNumber(row.total));
   }
-  for (const p of trendPayments) {
-    const k = keyOf(p.paidAt);
+  for (const row of trendPayments) {
+    const k = monthKey(row.month);
     if (collectedBy.has(k))
-      collectedBy.set(k, collectedBy.get(k)! + toNumber(p.creditedAmount ?? p.amount));
+      collectedBy.set(k, collectedBy.get(k)! + toNumber(row.total));
   }
 
   const revenueSeries = months.map((m) => revenueBy.get(m.key)!);
@@ -467,7 +497,10 @@ export async function financeDashboard(
   // ------------------------------------------------------------------ health
   const collectionRate = pct(paidOnThose, expectedUsd);
   const expenseRatio = pct(pl.costs, pl.revenue);
-  const outstandingRatio = pct(receivableUsd, receivableUsd + collectedAll);
+  /* Both sides all-time. The receivable carries no window, so the collected
+     half must not either — one period's collections under an all-time debt
+     made the ratio move with the filter dates while the debt stood still. */
+  const outstandingRatio = pct(receivableUsd, receivableUsd + collectedAllTimeUsd);
   const revenueGrowth =
     prior.revenue > 0
       ? Math.round(((pl.revenue - prior.revenue) / prior.revenue) * 1000) / 10

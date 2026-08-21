@@ -526,7 +526,12 @@ export async function editPayment(
         paidAt: true,
         voidedAt: true,
         invoice: {
-          select: { id: true, invoiceNumber: true, shipment: { select: { trackingNumber: true } } },
+          select: {
+            id: true,
+            invoiceNumber: true,
+            issuedAt: true,
+            shipment: { select: { trackingNumber: true } },
+          },
         },
       },
     });
@@ -543,6 +548,17 @@ export async function editPayment(
         : payment.paidAt;
     if (Number.isNaN(paidAt.getTime())) {
       return fail(t(locale, "That is not a valid date."));
+    }
+    /* The same two rules the record form enforces. A correction door that
+       accepted dates the front door refuses would make it the way around
+       them. */
+    if (paidAt.getTime() > Date.now() + 86_400_000) {
+      return fail(t(locale, "A payment cannot be dated in the future."));
+    }
+    if (payment.invoice.issuedAt && paidAt < payment.invoice.issuedAt) {
+      return fail(
+        t(locale, "That date is before the bill was raised. A payment cannot be older than the invoice it settles.")
+      );
     }
 
     const before = {

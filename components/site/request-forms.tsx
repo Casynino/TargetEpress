@@ -79,6 +79,13 @@ export function BookingForm() {
     <form action={action} className="space-y-5">
       <Error state={state} />
 
+      {/* Honeypot — hidden from people, irresistible to bots. Not named
+          "company" here, because this form asks for a real company. */}
+      <div className="hidden" aria-hidden="true">
+        <label htmlFor="b-website">Website</label>
+        <input id="b-website" name="website" tabIndex={-1} autoComplete="off" />
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className={labelClass} htmlFor="b-name">
@@ -237,6 +244,12 @@ export function PickupForm() {
   return (
     <form action={action} className="space-y-5">
       <Error state={state} />
+
+      {/* Honeypot — hidden from people, irresistible to bots. */}
+      <div className="hidden" aria-hidden="true">
+        <label htmlFor="p-website">Website</label>
+        <input id="p-website" name="website" tabIndex={-1} autoComplete="off" />
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>

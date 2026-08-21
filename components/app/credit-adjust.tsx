@@ -136,7 +136,7 @@ export function CreditAdjust({
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <SubmitButton size="sm" className="h-7 px-2.5 text-[11px]">
+        <SubmitButton size="sm" className="h-11 md:h-7 px-2.5 text-[11px]">
           {t("Save the new date")}
         </SubmitButton>
         <button

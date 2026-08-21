@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { Prisma, ReviewState } from "@prisma/client";
 
 import { reviewsFor, type Standing } from "@/lib/control";
@@ -179,8 +181,14 @@ export type QueueRow = Prisma.LedgerEntryGetPayload<{ include: typeof QUEUE_INCL
  * One query rather than one per row: `distinct` over a descending order is what
  * "current standing" means in an append-only table, and the whole page — the
  * counts, the filter and every row's badge — is answered from it.
+ *
+ * And once per request rather than once per caller. The queue and its totals
+ * are composed in one Promise.all on the page, and each needs the same verdict
+ * map — cache() shares the lookup, the same way currentRate does in lib/fx.ts.
+ * Zero arguments on purpose: cache keys on them, so this is the shape it works
+ * for.
  */
-async function currentStandings() {
+const currentStandings = cache(async () => {
   const rows = await prisma.managerReview.findMany({
     where: { target: "LEDGER_ENTRY" },
     orderBy: [{ targetId: "asc" }, { createdAt: "desc" }],
@@ -194,7 +202,7 @@ async function currentStandings() {
     byState.set(row.state, list);
   }
   return { reviewedIds: rows.map((r) => r.targetId), byState };
-}
+});
 
 export async function reconciliationQueue(filters: QueueFilters) {
   const page = Math.max(1, Number(filters.page) || 1);
