@@ -2400,6 +2400,30 @@ const ZH: Record<string, string> = {
   "Reconciliation": "对账",
   "Review transactions": "复核流水",
   "Manager actions": "经理操作",
+  "Cancel this bill": "取消此账单",
+  "Cancel the bill": "取消账单",
+  "Why is this bill being cancelled?": "为什么要取消这张账单？",
+  "is cancelled. The cargo will be priced again when Dar checks it in.":
+    "已取消。货物将在达累斯萨拉姆入库核对时重新计价。",
+  "The bill is removed and the cargo goes back to having no price. It will be priced again from the rate book when Dar checks it in. Who cancelled it, and why, stays on the audit log.":
+    "账单将被删除，货物恢复为未计价状态。达累斯萨拉姆入库核对时会按价目表重新计价。谁取消的、为什么取消，都会留在审计日志中。",
+  "This price was never signed off, so nobody has been asked for it. The cargo goes back to having no bill and will be priced again when Dar checks it in.":
+    "此价格从未确认，因此没有向任何人收取。货物恢复为无账单状态，达累斯萨拉姆入库核对时会重新计价。",
+  "That bill no longer exists.": "该账单已不存在。",
+  "Say why this bill is being cancelled.": "请说明取消这张账单的原因。",
+  "Keep the reason under 500 characters.": "原因请控制在 500 字以内。",
+  "This price has already been confirmed, so only the owner can cancel the bill. Ask him, or correct the figure instead.":
+    "此价格已确认，只有老板可以取消账单。请联系他，或改为修正金额。",
+  "was written off when its flight closed. That decision is part of a closed statement.":
+    "在其航班关闭时已被核销。该决定属于已关闭的结算单。",
+  "has money recorded against it. Cancel the payment first — then the bill can go.":
+    "已有款项记录在该账单上。请先取消付款，然后才能取消账单。",
+  "is still standing on this cargo, so it is cleared to leave. Cancel the pickup note first.":
+    "此货物仍有有效的提货单，已获准提走。请先取消提货单。",
+  "is closed and its statement is frozen. Reopen it before changing what it billed.":
+    "已关闭且结算单已冻结。如需更改其账单内容，请先重新开启。",
+  "This bill changed a moment ago. Reload and look at it again before cancelling.":
+    "此账单刚刚发生了变动。取消之前请刷新并重新查看。",
   "Approving authorises a payout on this case. Finance records the amount afterwards — the figure is theirs, the decision is yours.":
     "批准即授权本案的赔付。之后由财务记录金额——数字归财务，决定权在您。",
   "Money that has gone out must name the account it left. Pick one under \"Paid from\".":

@@ -12,6 +12,7 @@ import {
   storageDaysFor,
 } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import { LOCAL_CURRENCY, currentRateValue, toLocal } from "@/lib/fx";
 import { postLedgerEntry } from "@/lib/ledger";
 import { quote } from "@/lib/pricing";
@@ -1732,4 +1733,183 @@ export async function searchBillable(query: string): Promise<BillableHit[]> {
       status: inv.status,
     };
   });
+}
+
+/**
+ * Cancelling a bill that should never have been raised.
+ *
+ * Every other correction in this file changes what a bill SAYS. This one says
+ * the bill itself was a mistake — the flight is still in the air and somebody
+ * priced it early, the cargo was registered twice, the wrong customer was
+ * picked. Until now there was no way back from that: a cost can be voided and
+ * a payment can be voided, but a bill, once raised, was permanent, and the
+ * desk that made a two-second mistake had no button anywhere.
+ *
+ * THE ROW IS REMOVED RATHER THAN MARKED VOID, and that is forced by the
+ * schema: Invoice.shipmentId is unique, so a cancelled bill left in place
+ * would occupy the one slot that consignment has and the pricing engine —
+ * which only ever touches a DRAFT — would skip it forever. The cargo would
+ * arrive in Dar and could never be billed again. What is kept instead is the
+ * audit row written below: the number, the figures, who cancelled it and why,
+ * behind audit.view. A bill is not a ledger entry; nothing on the register
+ * moves here, because a bill with live money against it is refused outright.
+ *
+ * Refused when anything real is attached to it:
+ *   · a payment that has not been cancelled — cancel the payment first, so the
+ *     money is unwound deliberately and on its own record
+ *   · a pickup note still standing — the cargo has been cleared to leave
+ *   · a closed flight — its statement is frozen, and a bill vanishing out of a
+ *     profit figure the owner has already read is exactly what closing prevents
+ *
+ * A draft is nobody's demand for money, so Finance may drop its own. A
+ * confirmed bill has been quoted to a customer, and restating that is the
+ * CEO's, the same rule cancelling a payment follows.
+ */
+export async function voidInvoice(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  const locale = await viewerLocale();
+
+  const parsed = z
+    .object({
+      invoiceId: z.string().trim().min(1, "Missing invoice."),
+      reason: z
+        .string()
+        .trim()
+        .min(3, "Say why this bill is being cancelled.")
+        .max(500, "Keep the reason under 500 characters."),
+    })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+
+  let user: SessionUser;
+  try {
+    user = await authorize("invoice.manage");
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  try {
+    const trackingNumber = await prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.findUnique({
+        where: { id: parsed.data.invoiceId },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          status: true,
+          total: true,
+          amountPaid: true,
+          currency: true,
+          shipmentId: true,
+          shipment: {
+            select: {
+              trackingNumber: true,
+              batch: { select: { batchNumber: true, closedAt: true } },
+              pickupNote: { select: { noteNumber: true, status: true } },
+            },
+          },
+          payments: {
+            where: { voidedAt: null },
+            select: { id: true },
+          },
+        },
+      });
+      if (!invoice) throw new Error(t(locale, "That bill no longer exists."));
+
+      // A draft is the system's own guess and nobody has been asked for it.
+      // A confirmed figure has been quoted, and taking a quote back is the
+      // CEO's — same hand that cancels a payment.
+      if (invoice.status !== "DRAFT" && !can(user.role, "ledger.adjust")) {
+        throw new Error(
+          t(
+            locale,
+            "This price has already been confirmed, so only the owner can cancel the bill. Ask him, or correct the figure instead."
+          )
+        );
+      }
+
+      if (invoice.status === "WRITTEN_OFF") {
+        throw new Error(
+          `${invoice.invoiceNumber} ${t(locale, "was written off when its flight closed. That decision is part of a closed statement.")}`
+        );
+      }
+
+      if (invoice.payments.length > 0) {
+        throw new Error(
+          `${invoice.invoiceNumber} ${t(locale, "has money recorded against it. Cancel the payment first — then the bill can go.")}`
+        );
+      }
+      if (toNumber(invoice.amountPaid) > 0.005) {
+        throw new Error(
+          `${invoice.invoiceNumber} ${t(locale, "has money recorded against it. Cancel the payment first — then the bill can go.")}`
+        );
+      }
+
+      const note = invoice.shipment.pickupNote;
+      if (note && note.status !== "CANCELLED") {
+        throw new Error(
+          `${note.noteNumber} ${t(locale, "is still standing on this cargo, so it is cleared to leave. Cancel the pickup note first.")}`
+        );
+      }
+
+      const batch = invoice.shipment.batch;
+      if (batch?.closedAt) {
+        throw new Error(
+          `${batch.batchNumber} ${t(locale, "is closed and its statement is frozen. Reopen it before changing what it billed.")}`
+        );
+      }
+
+      /* The record of what was cancelled, written before the row goes and in
+         the same transaction, so the two cannot come apart. */
+      await recordAudit(
+        {
+          actor: user,
+          action: "invoice.void",
+          entity: "Invoice",
+          entityId: invoice.id,
+          summary: `Cancelled ${invoice.invoiceNumber} (${invoice.shipment.trackingNumber}) — ${parsed.data.reason}`,
+          metadata: {
+            invoiceNumber: invoice.invoiceNumber,
+            shipment: invoice.shipment.trackingNumber,
+            batch: batch?.batchNumber ?? null,
+            statusWhenCancelled: invoice.status,
+            total: toNumber(invoice.total).toFixed(2),
+            currency: invoice.currency,
+            reason: parsed.data.reason,
+          },
+        },
+        tx
+      );
+
+      /* Claimed on the balance and the status this transaction checked: a
+         payment landing between the guard above and this line would otherwise
+         be deleted along with the bill it settled. */
+      const removed = await tx.invoice.deleteMany({
+        where: {
+          id: invoice.id,
+          status: invoice.status,
+          amountPaid: invoice.amountPaid,
+        },
+      });
+      if (removed.count === 0) {
+        throw new Error(
+          t(
+            locale,
+            "This bill changed a moment ago. Reload and look at it again before cancelling."
+          )
+        );
+      }
+
+      return invoice.shipment.trackingNumber;
+    });
+
+    revalidatePath("/app/finance");
+    revalidatePath("/app/finance/invoices");
+    revalidatePath("/app/cargo");
+    revalidatePath(`/app/cargo/${trackingNumber}`);
+    return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
 }

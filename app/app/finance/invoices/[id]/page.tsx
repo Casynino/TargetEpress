@@ -8,6 +8,7 @@ import { InvoiceDocument } from "@/components/app/invoice-document";
 import { InvoiceEditor } from "@/components/app/invoice-editor";
 import { MessageComposer } from "@/components/app/message-composer";
 import { BackLink } from "@/components/app/page-header";
+import { InvoiceVoid } from "@/components/app/invoice-void";
 import { PaymentCorrection } from "@/components/app/payment-correction";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
@@ -220,6 +221,16 @@ export default async function InvoicePage({
     behind both.
   */
   const isDraft = invoice.status === "DRAFT";
+  /* A draft is nobody's demand for money, so the desk that raises bills may
+     drop its own; a confirmed figure has been quoted to a customer, and taking
+     that back is the owner's. Written-off bills belong to a closed statement,
+     and a bill with money on it needs the payment cancelled first — both are
+     refused by the action, and neither is offered a button here. */
+  const canCancelBill =
+    invoice.status !== "WRITTEN_OFF" &&
+    invoice.status !== "VOID" &&
+    toNumber(invoice.amountPaid) <= 0.005 &&
+    (isDraft ? can(user.role, "invoice.manage") : can(user.role, "ledger.adjust"));
 
   // What this invoice was issued with, not what Settings says today.
   const accounts = accountsForInvoice(invoice.paymentSnapshot);
@@ -400,6 +411,21 @@ export default async function InvoicePage({
             canCorrect={can(user.role, "ledger.adjust")}
             alreadyPaid={toNumber(invoice.amountPaid)}
             canDiscount={canDiscount}
+          />
+        </div>
+      ) : null}
+
+      {/* The way back out of a bill that should never have been raised —
+          priced early, cargo registered twice, wrong customer picked. Offered
+          only while there is nothing real attached to it: the action refuses a
+          bill with live money, a standing pickup note or a closed flight, and
+          re-checks the permission it is rendered behind. */}
+      {canCancelBill ? (
+        <div className="mb-6">
+          <InvoiceVoid
+            invoiceId={invoice.id}
+            invoiceNumber={invoice.invoiceNumber}
+            confirmed={!isDraft}
           />
         </div>
       ) : null}
