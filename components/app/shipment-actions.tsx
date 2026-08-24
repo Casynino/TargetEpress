@@ -275,6 +275,12 @@ function ConfirmPricePanel(props: Props) {
  */
 function InvoicePanel(props: Props) {
   const t = useT();
+  /* On our floor, or already gone from it. Anything earlier is still in
+     China or in the air, and has no final weight to be priced on. */
+  const arrived =
+    props.status === "RECEIVED_AT_DAR" ||
+    props.status === "READY_FOR_PICKUP" ||
+    props.status === "DELIVERED";
   const [state, action] = useActionState<
     ActionResult<{ invoiceNumber: string; total: number }>,
     FormData
@@ -337,6 +343,29 @@ function InvoicePanel(props: Props) {
   // cargo has not landed — either way, raising one by hand is the way out.
   return (
     <div className="p-5">
+      {/*
+        Nothing is priced before it lands.
+
+        The figure comes from the weight and piece count the Dar floor
+        confirms against the manifest, and the system raises the bill itself
+        at that moment. Offering the button any earlier invites a bill on a
+        packing list — which is exactly how a flight still in the air ended up
+        with two hand-raised invoices, one of them paid. The action refuses
+        this too; the panel simply stops asking for it.
+      */}
+      {!arrived ? (
+        <div className="space-y-2">
+          <p className="flex items-center gap-2 text-sm font-medium">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            {t("Priced at check-in")}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {t(
+              "This cargo has not been checked in at Dar yet, so there is no final weight to price it on. The bill is raised by the system the moment the warehouse checks it off the manifest."
+            )}
+          </p>
+        </div>
+      ) : (
       <form action={action} className="space-y-3">
         <input type="hidden" name="shipmentId" value={props.shipmentId} />
         <p className="flex items-center gap-2 text-sm font-medium">
@@ -360,6 +389,7 @@ function InvoicePanel(props: Props) {
           {t("Generate invoice")}
         </SubmitButton>
       </form>
+      )}
     </div>
   );
 }

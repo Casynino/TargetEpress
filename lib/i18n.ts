@@ -2401,6 +2401,11 @@ const ZH: Record<string, string> = {
   "Review transactions": "复核流水",
   "Manager actions": "经理操作",
   "Cancel this bill": "取消此账单",
+  "Priced at check-in": "入库核对时计价",
+  "This cargo has not been checked in at Dar yet, so there is no final weight to price it on. The bill is raised by the system the moment the warehouse checks it off the manifest.":
+    "此货物尚未在达累斯萨拉姆入库核对，因此没有可用于计价的最终重量。仓库在清单上核对完成的那一刻，系统会自动生成账单。",
+  "has not been checked in at Dar yet, so there is no final weight to price. The system raises the bill by itself the moment the warehouse checks it off the manifest.":
+    "尚未在达累斯萨拉姆入库核对，因此没有最终重量可用于计价。仓库在清单上核对完成的那一刻，系统会自动生成账单。",
   "Cancel the bill": "取消账单",
   "Why is this bill being cancelled?": "为什么要取消这张账单？",
   "is cancelled. The cargo will be priced again when Dar checks it in.":

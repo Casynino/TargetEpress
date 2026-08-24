@@ -50,11 +50,13 @@ export async function generateInvoice(
   _prev: ActionResult<{ invoiceNumber: string; total: number }> | undefined,
   formData: FormData
 ): Promise<ActionResult<{ invoiceNumber: string; total: number }>> {
+  const locale = await viewerLocale();
+
   let user: SessionUser;
   try {
     user = await authorize("invoice.manage");
   } catch (error) {
-    return fail(toActionError(error));
+    return fail(t(locale, toActionError(error)));
   }
 
   const shipmentId = String(formData.get("shipmentId") ?? "");
@@ -73,6 +75,7 @@ export async function generateInvoice(
           weightKg: true,
           volumeCbm: true,
           packages: true,
+          status: true,
           arrivedAt: true,
           deliveredAt: true,
           invoice: {
@@ -86,6 +89,31 @@ export async function generateInvoice(
         },
       });
       if (!shipment) throw new Error("Cargo not found.");
+
+      /*
+        NOTHING IS BILLED BEFORE IT LANDS.
+
+        The price is worked out from the weight and the piece count the Dar
+        floor confirms when it checks the boxes off the manifest — that is why
+        autoPriceShipments runs there and nowhere else. A bill raised while the
+        cargo is still in the air prices a packing list, and a customer who
+        pays that figure has to be argued with afterwards when the real weight
+        turns out different.
+
+        It had no guard at all: two bills were raised by hand on a flight that
+        had not left Guangzhou's airspace, one of them was paid, and neither
+        could be taken back. Refused here rather than only hidden in the
+        markup, because this action is reachable without the button.
+      */
+      if (
+        shipment.status !== "RECEIVED_AT_DAR" &&
+        shipment.status !== "READY_FOR_PICKUP" &&
+        shipment.status !== "DELIVERED"
+      ) {
+        throw new Error(
+          `${shipment.trackingNumber} ${t(locale, "has not been checked in at Dar yet, so there is no final weight to price. The system raises the bill by itself the moment the warehouse checks it off the manifest.")}`
+        );
+      }
 
       if (shipment.invoice && toNumber(shipment.invoice.amountPaid) > 0) {
         throw new Error(
