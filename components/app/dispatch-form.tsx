@@ -110,25 +110,33 @@ export function DispatchForm({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="waybillNumber">{t("Waybill number")}</Label>
+              <Label htmlFor="waybillNumber">
+                {t("Waybill number")}{" "}
+                <span className="font-normal text-muted-foreground">
+                  {t("if you have it")}
+                </span>
+              </Label>
               <Input
                 id="waybillNumber"
                 name="waybillNumber"
                 placeholder="157-88345678"
                 className="font-mono"
                 autoComplete="off"
-                required
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="airline">{t("Airline")}</Label>
+              <Label htmlFor="airline">
+                {t("Airline")}{" "}
+                <span className="font-normal text-muted-foreground">
+                  {t("if you have it")}
+                </span>
+              </Label>
               <Input
                 id="airline"
                 name="airline"
                 placeholder={t("Ethiopian Airlines")}
                 autoComplete="off"
-                required
               />
             </div>
 
@@ -149,8 +157,13 @@ export function DispatchForm({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="departureDate">{t("Departure date")}</Label>
-              <Input id="departureDate" name="departureDate" type="date" required />
+              <Label htmlFor="departureDate">
+                {t("Departure date")}{" "}
+                <span className="font-normal text-muted-foreground">
+                  {t("if you have it")}
+                </span>
+              </Label>
+              <Input id="departureDate" name="departureDate" type="date" />
             </div>
 
             <div className="space-y-1.5">

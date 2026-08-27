@@ -2401,6 +2401,24 @@ const ZH: Record<string, string> = {
   "Review transactions": "复核流水",
   "Manager actions": "经理操作",
   "Cancel this bill": "取消此账单",
+  "Edit flight": "修改航班",
+  "if you have it": "如果已经拿到",
+  "Flight details": "航班信息",
+  "Fill in whatever the airline has given you. Anything still unknown can stay empty and be added later — the cargo does not wait for it.":
+    "航空公司给到什么就填什么。尚未确定的可以留空，之后再补——货物不必等它。",
+  "Leave it empty until the airline issues it.": "在航空公司出单之前请留空。",
+  "The day it really left, not the day it was booked for.": "实际起飞的日期，而不是原定的日期。",
+  "What changed": "改动了什么",
+  "Airline moved the flight to the 25th": "航空公司把航班改到了 25 号",
+  "Save flight details": "保存航班信息",
+  "Missing flight.": "缺少航班。",
+  "That flight no longer exists.": "该航班已不存在。",
+  "A loading table has no flight details until it is dispatched.":
+    "装货批次在发运之前没有航班信息。",
+  "is closed and its statement is frozen. Reopen it before changing the flight.":
+    "已关闭且结算单已冻结。如需更改航班信息，请先重新开启。",
+  "This flight was closed a moment ago. Reload before changing it.":
+    "此航班刚刚被关闭。修改前请刷新。",
   "Priced at check-in": "入库核对时计价",
   "This cargo has not been checked in at Dar yet, so there is no final weight to price it on. The bill is raised by the system the moment the warehouse checks it off the manifest.":
     "此货物尚未在达累斯萨拉姆入库核对，因此没有可用于计价的最终重量。仓库在清单上核对完成的那一刻，系统会自动生成账单。",

@@ -375,18 +375,24 @@ export async function departBatch(
 const dispatchSchemaFor = (locale: Locale) =>
   z.object({
     batchId: z.string().trim().min(1, t(locale, "Missing loading table.")),
-    waybillNumber: z
-      .string()
-      .trim()
-      .min(3, t(locale, "The waybill number is required."))
-      .max(40),
-    airline: z
-      .string()
-      .trim()
-      .min(2, t(locale, "Which airline is carrying it?"))
-      .max(80),
+    /*
+      NONE OF THE FLIGHT IS REQUIRED TO SEND THE CARGO.
+
+      All four used to be compulsory, and the real yard does not work that
+      way: the boxes go to the airport and then wait — sometimes days — for
+      the airline to issue a waybill. A form that insists on the number
+      before the cargo may leave makes the clerk invent one, and an invented
+      waybill is worse than an empty field, because nothing on screen ever
+      says it was a guess.
+
+      So dispatch records what is true at that moment — these boxes have left
+      our warehouse — and every flight detail is filled in later, on the
+      dispatch itself, as the airline hands it over. See updateFlightDetails.
+    */
+    waybillNumber: z.string().trim().max(40).optional(),
+    airline: z.string().trim().max(80).optional(),
     flightNumber: z.string().trim().max(20).optional(),
-    departureDate: z.string().trim().min(1, t(locale, "When does it leave?")),
+    departureDate: z.string().trim().optional(),
     expectedArrival: z.string().trim().optional(),
     notes: z.string().trim().max(1000).optional(),
   });
@@ -421,8 +427,10 @@ export async function dispatchLoadingTable(
   if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
   const input = parsed.data;
 
-  const departureDate = new Date(input.departureDate);
-  if (Number.isNaN(departureDate.getTime())) {
+  // Left blank means "not known yet", not "today". A guessed departure date
+  // reads on every later screen exactly like a real one.
+  const departureDate = input.departureDate ? new Date(input.departureDate) : null;
+  if (departureDate && Number.isNaN(departureDate.getTime())) {
     return fail(t(locale, "That departure date is not valid."));
   }
 
@@ -432,7 +440,7 @@ export async function dispatchLoadingTable(
   if (expectedArrival && Number.isNaN(expectedArrival.getTime())) {
     return fail(t(locale, "That expected arrival date is not valid."));
   }
-  if (expectedArrival && expectedArrival < departureDate) {
+  if (expectedArrival && departureDate && expectedArrival < departureDate) {
     return fail(t(locale, "The cargo cannot arrive before it leaves."));
   }
 
@@ -469,8 +477,8 @@ export async function dispatchLoadingTable(
           origin: table.origin,
           permanent: false,
           status: "IN_TRANSIT",
-          waybillNumber: input.waybillNumber,
-          airline: input.airline,
+          waybillNumber: input.waybillNumber || null,
+          airline: input.airline || null,
           flightNumber: input.flightNumber?.toUpperCase() || null,
           departureDate,
           expectedArrival,
@@ -499,10 +507,15 @@ export async function dispatchLoadingTable(
           fromStatus: "READY_TO_DEPART" as const,
           toStatus: "IN_TRANSIT" as const,
           location: "China → Tanzania",
+          /* Says only what is known. A flight that left before its waybill
+             was issued reads "Dispatched as GZ-0002." and gains the airline
+             and the number when somebody fills them in. */
           note:
-            `Dispatched as ${dispatch.batchNumber} on ${input.airline}` +
+            `Dispatched as ${dispatch.batchNumber}` +
+            (input.airline ? ` on ${input.airline}` : "") +
             (input.flightNumber ? ` ${input.flightNumber.toUpperCase()}` : "") +
-            ` (waybill ${input.waybillNumber}).`,
+            (input.waybillNumber ? ` (waybill ${input.waybillNumber})` : "") +
+            ".",
           actorId: user.id,
         })),
       });
@@ -2159,5 +2172,169 @@ export async function moveShipmentToBatch(
     return ok({ to: moved.batchNumber });
   } catch (error) {
     return fail(toActionError(error));
+  }
+}
+
+/**
+ * Filling the flight in after the cargo has already gone.
+ *
+ * The yard sends the boxes to the airport and then waits — sometimes days —
+ * for the airline to issue a waybill, and the real flight and its date are
+ * only settled at the same moment. Dispatch therefore records what is true
+ * when the lorry leaves, and this is where the rest arrives: waybill, airline,
+ * flight number, the day it actually left, the day it is expected, and the
+ * note. Editable as many times as it takes, because "we were told 23rd, then
+ * they moved it to the 25th" is the ordinary case, not an exception.
+ *
+ * WHAT IT WILL NOT TOUCH: the day it actually landed. Arrival is written by
+ * the Dar floor pressing "Mark as arrived", and the storage clock starts from
+ * it — a date typed here could put a customer a week into storage charges, or
+ * take a week off them, without anybody handling the cargo.
+ *
+ * Closed flights are refused. The statement is frozen and its dates are part
+ * of what was signed off; reopen it first, exactly as a cost would have to be.
+ */
+export async function updateFlightDetails(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  const locale = await viewerLocale();
+
+  let user: SessionUser;
+  try {
+    user = await authorize("shipment.depart");
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  const parsed = z
+    .object({
+      batchId: z.string().trim().min(1, t(locale, "Missing flight.")),
+      waybillNumber: z.string().trim().max(40).optional(),
+      airline: z.string().trim().max(80).optional(),
+      flightNumber: z.string().trim().max(20).optional(),
+      departureDate: z.string().trim().optional(),
+      expectedArrival: z.string().trim().optional(),
+      notes: z.string().trim().max(1000).optional(),
+      reason: z.string().trim().max(300).optional(),
+    })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+  const input = parsed.data;
+
+  const departureDate = input.departureDate ? new Date(input.departureDate) : null;
+  if (departureDate && Number.isNaN(departureDate.getTime())) {
+    return fail(t(locale, "That departure date is not valid."));
+  }
+  const expectedArrival = input.expectedArrival
+    ? new Date(input.expectedArrival)
+    : null;
+  if (expectedArrival && Number.isNaN(expectedArrival.getTime())) {
+    return fail(t(locale, "That expected arrival date is not valid."));
+  }
+  if (expectedArrival && departureDate && expectedArrival < departureDate) {
+    return fail(t(locale, "The cargo cannot arrive before it leaves."));
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const batch = await tx.batch.findUnique({
+        where: { id: input.batchId },
+        select: {
+          id: true,
+          batchNumber: true,
+          permanent: true,
+          closedAt: true,
+          waybillNumber: true,
+          airline: true,
+          flightNumber: true,
+          departureDate: true,
+          expectedArrival: true,
+          notes: true,
+        },
+      });
+      if (!batch) throw new Error(t(locale, "That flight no longer exists."));
+      if (batch.permanent) {
+        throw new Error(
+          t(locale, "A loading table has no flight details until it is dispatched.")
+        );
+      }
+      if (batch.closedAt) {
+        throw new Error(
+          `${batch.batchNumber} ${t(locale, "is closed and its statement is frozen. Reopen it before changing the flight.")}`
+        );
+      }
+
+      const next = {
+        waybillNumber: input.waybillNumber || null,
+        airline: input.airline || null,
+        flightNumber: input.flightNumber?.toUpperCase() || null,
+        departureDate,
+        expectedArrival,
+        notes: input.notes || null,
+      };
+
+      /* What actually moved, in words, so the log reads as a story rather
+         than a diff nobody can interpret two months later. */
+      const asText = (v: unknown) =>
+        v instanceof Date ? v.toISOString().slice(0, 10) : ((v as string | null) ?? "—");
+      const changed = (
+        Object.keys(next) as (keyof typeof next)[]
+      ).filter((key) => asText(batch[key]) !== asText(next[key]));
+      if (changed.length === 0) {
+        throw new Error(t(locale, "Nothing was changed."));
+      }
+
+      /* The departure date is also stamped on every consignment on the
+         flight — the cargo's own record of when it left — so the two cannot
+         be allowed to drift apart. Deleted cargo is left alone: it is not on
+         this flight any more in any view that matters. */
+      const moved = await tx.batch.updateMany({
+        where: { id: batch.id, closedAt: null },
+        data: next,
+      });
+      if (moved.count === 0) {
+        throw new Error(
+          t(locale, "This flight was closed a moment ago. Reload before changing it.")
+        );
+      }
+      if (asText(batch.departureDate) !== asText(departureDate)) {
+        await tx.shipment.updateMany({
+          where: { batchId: batch.id, deletedAt: null },
+          data: { departedAt: departureDate },
+        });
+      }
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "batch.flightDetails",
+          entity: "Batch",
+          entityId: batch.id,
+          summary:
+            `Updated ${changed.join(", ")} on ${batch.batchNumber}` +
+            (input.reason ? ` — ${input.reason}` : ""),
+          metadata: {
+            batch: batch.batchNumber,
+            reason: input.reason ?? null,
+            changes: Object.fromEntries(
+              changed.map((key) => [
+                key,
+                { from: asText(batch[key]), to: asText(next[key]) },
+              ])
+            ),
+          },
+        },
+        tx
+      );
+    });
+
+    revalidatePath("/app/shipments");
+    revalidatePath(`/app/shipments/${input.batchId}`);
+    revalidatePath("/app/batches");
+    revalidatePath(`/app/batches/${input.batchId}`);
+    return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
   }
 }

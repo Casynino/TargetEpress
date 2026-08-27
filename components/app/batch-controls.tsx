@@ -210,7 +210,7 @@ function DeparturePanel({ batchId }: { batchId: string }) {
           <Label htmlFor="airline" className="text-xs">
             Airline
           </Label>
-          <Input id="airline" name="airline" list="airlines" required />
+          <Input id="airline" name="airline" list="airlines" />
           <datalist id="airlines">
             {AIRLINE_SUGGESTIONS.map((a) => (
               <option key={a} value={a} />
@@ -231,7 +231,6 @@ function DeparturePanel({ batchId }: { batchId: string }) {
               name="flightNumber"
               placeholder="ET 8611"
               className="uppercase"
-              required
             />
           </div>
           <div className="space-y-1.5">
@@ -243,7 +242,6 @@ function DeparturePanel({ batchId }: { batchId: string }) {
               name="departureDate"
               type="date"
               defaultValue={today}
-              required
             />
           </div>
         </div>
@@ -252,7 +250,7 @@ function DeparturePanel({ batchId }: { batchId: string }) {
           <Label htmlFor="waybillNumber" className="text-xs">
             Waybill number
           </Label>
-          <Input id="waybillNumber" name="waybillNumber" required />
+          <Input id="waybillNumber" name="waybillNumber" />
         </div>
 
         <FormError state={state} />

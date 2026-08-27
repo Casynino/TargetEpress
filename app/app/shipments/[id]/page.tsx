@@ -11,6 +11,7 @@ import {
   type TimelineEntry,
 } from "@/components/app/shipment-detail-tabs";
 import { BatchClosePanel } from "@/components/app/batch-close-panel";
+import { FlightDetailsForm } from "@/components/app/flight-details-form";
 import { BatchExpenses } from "@/components/app/batch-expenses";
 import { BatchFinanceBand } from "@/components/app/batch-finance-band";
 import { ConfirmPricesBanner } from "@/components/app/confirm-prices-banner";
@@ -48,6 +49,11 @@ export async function generateMetadata(): Promise<Metadata> {
  * how many customers, where is it, when does it land — and the tabs hold the
  * detail for whoever needs to sit down with it.
  */
+/** yyyy-mm-dd for a date input, which will not take anything else. */
+function isoDay(value: Date | null) {
+  return value ? value.toISOString().slice(0, 10) : null;
+}
+
 export default async function ShipmentPage({
   params,
 }: {
@@ -216,6 +222,9 @@ export default async function ShipmentPage({
     is not sent the list of who has not paid.
   */
   const canClose = can(user.role, "batch.close");
+  /* The desk that sends the flight is the desk that hears from the airline
+     afterwards, so it is the one that keeps these right. */
+  const canDispatch = can(user.role, "shipment.depart");
   const canMoveCargo = can(user.role, "shipment.move");
 
   /*
@@ -498,6 +507,24 @@ export default async function ShipmentPage({
             </span>
           </span>
         ))}
+
+        {/* The yard sends cargo to the airport and waits days for the waybill,
+            so these are filled in and corrected long after the lorry left.
+            Sits in the strip it edits — the details and the way to fix them in
+            the same place. Gone once the flight is closed: the statement is
+            signed off and its dates are part of it. */}
+        {canDispatch && !dispatch.closedAt ? (
+          <FlightDetailsForm
+            batchId={dispatch.id}
+            batchNumber={dispatch.batchNumber}
+            waybillNumber={dispatch.waybillNumber}
+            airline={dispatch.airline}
+            flightNumber={dispatch.flightNumber}
+            departureDate={isoDay(dispatch.departureDate)}
+            expectedArrival={isoDay(dispatch.expectedArrival)}
+            notes={dispatch.notes}
+          />
+        ) : null}
       </div>
 
       {/* The job before the numbers: sign the system's prices off. Shown only
