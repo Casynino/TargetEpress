@@ -9,7 +9,11 @@ import { useT } from "@/components/app/locale-provider";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { STORAGE_POLICY, formatPackagesShort } from "@/lib/constants";
+import {
+  STORAGE_POLICY,
+  chargeableStorageDays,
+  formatPackagesShort,
+} from "@/lib/constants";
 import { formatWeight } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -78,7 +82,7 @@ function matchesSegment(row: InventoryRow, segment: Segment) {
 
 /** Whether the cargo has outstayed the free storage window. */
 function isAging(row: InventoryRow) {
-  return row.daysHeld !== null && row.daysHeld > STORAGE_POLICY.freeDays;
+  return row.daysHeld !== null && chargeableStorageDays(row.daysHeld) > 0;
 }
 
 function DaysHeld({ row }: { row: InventoryRow }) {
@@ -267,15 +271,17 @@ export function InventoryTable({ rows }: { rows: InventoryRow[] }) {
       label: t("How long held"),
       options: [
         { value: "fresh", label: t("3 days or less") },
-        { value: "week", label: `4–${STORAGE_POLICY.freeDays} days` },
-        { value: "aging", label: `Over ${STORAGE_POLICY.freeDays} days` },
+        { value: "week", label: `4–${STORAGE_POLICY.freeDays - 1} ${t("days")}` },
+        /* The aging option is the charging option — it must select exactly the
+           rows the table paints red, and both ask the fee engine. */
+        { value: "aging", label: `${STORAGE_POLICY.freeDays}+ ${t("days")}` },
       ],
       match: (row, value) => {
         if (row.daysHeld === null) return false;
         if (value === "fresh") return row.daysHeld <= 3;
         if (value === "week")
-          return row.daysHeld > 3 && row.daysHeld <= STORAGE_POLICY.freeDays;
-        return row.daysHeld > STORAGE_POLICY.freeDays;
+          return row.daysHeld > 3 && chargeableStorageDays(row.daysHeld) === 0;
+        return chargeableStorageDays(row.daysHeld) > 0;
       },
     },
     {

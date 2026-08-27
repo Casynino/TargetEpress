@@ -10,6 +10,7 @@ import {
   EXCEPTION_TYPE_LABELS,
   STORAGE_POLICY,
   DRAFT_INVOICE,
+  storageChargingSince,
 } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { chinaProblems, floorSnapshot } from "@/lib/floor";
@@ -439,13 +440,11 @@ export async function deskPulse(
       where: {
         deletedAt: null,
         status: "RECEIVED_AT_DAR",
-        /* freeDays + 1, matching the fee engine: at exactly seven elapsed days
-           the clock still reads "last free day" and charges nothing, so the
-           attention count must not claim charging has begun. lib/floor.ts
-           applies the same rule to the same tile. */
-        arrivedAt: {
-          lt: new Date(Date.now() - (STORAGE_POLICY.freeDays + 1) * 86_400_000),
-        },
+        /* The fee engine's boundary, asked of the database: the eighth day is
+           charged from the moment it starts, so cargo that landed seven days
+           ago is already on the meter. lib/floor.ts applies the same rule to
+           the same tile. */
+        arrivedAt: { lte: storageChargingSince() },
       },
     }),
     prisma.invoice.count({ where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } } }),

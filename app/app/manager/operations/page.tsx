@@ -14,6 +14,7 @@ import { DeskPulsePanel } from "@/components/app/desk-pulse";
 import { IconHint } from "@/components/app/icon-hint";
 import { PageHeader } from "@/components/app/page-header";
 import { SectionLabel } from "@/components/app/section-label";
+import { chargeableStorageDays } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -178,7 +179,7 @@ export default async function ManagerOperationsPage() {
         ) : (
           <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
             {ops.storage.rows.map((row) => {
-              const over = row.days > ops.storage.freeDays;
+              const over = chargeableStorageDays(row.days) > 0;
               return (
                 <li key={row.id}>
                   <ProofRow href={row.href} open={can(user.role, "shipment.view")}>

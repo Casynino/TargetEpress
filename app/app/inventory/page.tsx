@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/app/page-header";
 import {
   EXCEPTION_OPEN_STATUSES,
   STORAGE_POLICY,
+  chargeableStorageDays,
 } from "@/lib/constants";
 import { ON_THE_FLOOR, weightOnFloor } from "@/lib/floor";
 import { formatDate, formatWeight, toNumber } from "@/lib/format";
@@ -144,7 +145,7 @@ export default async function InventoryPage() {
   );
   const totalWeight = rows.reduce((sum, row) => sum + row.weightHereKg, 0);
   const aging = rows.filter(
-    (row) => row.daysHeld !== null && row.daysHeld > STORAGE_POLICY.freeDays
+    (row) => row.daysHeld !== null && chargeableStorageDays(row.daysHeld) > 0
   );
   const longestHeld = rows.reduce(
     (max, row) => Math.max(max, row.daysHeld ?? 0),

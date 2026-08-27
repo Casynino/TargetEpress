@@ -2,7 +2,11 @@ import "server-only";
 
 import type { Prisma } from "@prisma/client";
 
-import { EXCEPTION_OPEN_STATUSES, STORAGE_POLICY } from "@/lib/constants";
+import {
+  EXCEPTION_OPEN_STATUSES,
+  STORAGE_POLICY,
+  chargeableStorageDays,
+} from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
@@ -136,7 +140,7 @@ export async function floorSnapshot(): Promise<FloorSnapshot> {
         0,
         Math.floor((now - shipment.arrivedAt.getTime()) / DAY_MS)
       );
-      if (days > STORAGE_POLICY.freeDays) aging += 1;
+      if (chargeableStorageDays(days) > 0) aging += 1;
       if (days > longestHeldDays) longestHeldDays = days;
     }
   }
@@ -191,10 +195,18 @@ export async function floorAgeing(now = new Date(), locale: Locale = "en") {
       count: 0,
       packages: 0,
     },
-    { key: "week", label: t(locale, "2–7 days"), count: 0, packages: 0 },
+    {
+      key: "week",
+      label: `2–${STORAGE_POLICY.freeDays - 1} ${t(locale, "days")}`,
+      count: 0,
+      packages: 0,
+    },
     {
       key: "over",
-      label: `8–${STORAGE_POLICY.freeDays * 2} ${t(locale, "days")}`,
+      /* Starts where the money starts. The bucket a consignment falls into and
+         the tile that says it is charging read the same boundary, so the floor
+         cannot show a box as comfortable while the meter runs on it. */
+      label: `${STORAGE_POLICY.freeDays}–${STORAGE_POLICY.freeDays * 2} ${t(locale, "days")}`,
       count: 0,
       packages: 0,
     },
@@ -214,7 +226,7 @@ export async function floorAgeing(now = new Date(), locale: Locale = "en") {
     const bucket =
       days <= 1
         ? buckets[0]
-        : days <= 7
+        : chargeableStorageDays(days) === 0
           ? buckets[1]
           : days <= STORAGE_POLICY.freeDays * 2
             ? buckets[2]

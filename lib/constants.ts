@@ -316,6 +316,31 @@ export function storagePolicyText(locale: Locale = "en"): string[] {
 }
 
 /**
+ * Chargeable days once the cargo has stood `daysHeld` whole days in the shed.
+ *
+ * The owner's rule is that the eighth day is charged the moment it begins, not
+ * once it has finished: the arrival day and the six after it are the free week,
+ * so at seven elapsed days the meter already reads one day. Everything that
+ * decides whether storage is running comes through here — a queue that says
+ * "still free" while the invoice charges is how a customer is told seven days
+ * on the phone and billed for eight.
+ */
+export function chargeableStorageDays(daysHeld: number): number {
+  return Math.max(0, daysHeld - STORAGE_POLICY.freeDays + 1);
+}
+
+/**
+ * The arrival instant at which storage has just started charging.
+ *
+ * The same boundary as `chargeableStorageDays`, as a date, for the counts that
+ * ask the database instead of walking rows — Postgres cannot subtract `now()`
+ * from a column inside a Prisma filter, so the cutoff has to arrive computed.
+ */
+export function storageChargingSince(now: Date = new Date()): Date {
+  return new Date(now.getTime() - STORAGE_POLICY.freeDays * 86_400_000);
+}
+
+/**
  * Chargeable storage days for a shipment sitting in the Dar warehouse.
  *
  * Counts from arrival, not from invoicing, and stops counting once the cargo
@@ -329,7 +354,7 @@ export function storageDaysFor(
   if (!arrivedAt) return 0;
   const end = deliveredAt ?? now;
   const days = Math.floor((end.getTime() - arrivedAt.getTime()) / 86_400_000);
-  return Math.max(0, days - STORAGE_POLICY.freeDays);
+  return chargeableStorageDays(Math.max(0, days));
 }
 
 /** Everything true about one shipment's storage, in one object. */
@@ -394,7 +419,7 @@ export function storageStatus(
     0,
     Math.floor((end.getTime() - arrivedAt.getTime()) / 86_400_000)
   );
-  const chargeableDays = Math.max(0, daysInWarehouse - freeDays);
+  const chargeableDays = chargeableStorageDays(daysInWarehouse);
 
   return {
     arrivedAt,
@@ -405,8 +430,9 @@ export function storageStatus(
     perDayUsd,
     freeDays,
     expired: chargeableDays > 0,
-    /* The day the free week runs out, which is the day to ring somebody. */
-    lastFreeDay: deliveredAt === null && daysInWarehouse === freeDays,
+    /* The seventh day: the last one that costs nothing, and so the day to
+       ring somebody — tomorrow the meter starts. */
+    lastFreeDay: deliveredAt === null && daysInWarehouse === freeDays - 1,
     collected: deliveredAt !== null,
   };
 }
