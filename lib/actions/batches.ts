@@ -2212,7 +2212,6 @@ export async function updateFlightDetails(
       batchId: z.string().trim().min(1, t(locale, "Missing flight.")),
       waybillNumber: z.string().trim().max(40).optional(),
       airline: z.string().trim().max(80).optional(),
-      flightNumber: z.string().trim().max(20).optional(),
       departureDate: z.string().trim().optional(),
       expectedArrival: z.string().trim().optional(),
       notes: z.string().trim().max(1000).optional(),
@@ -2265,10 +2264,14 @@ export async function updateFlightDetails(
         );
       }
 
+      /* No flightNumber. The owner took the field off every form — the
+         waybill is what the airline is chased on and what the manifest is
+         filed under, and a second number nobody uses was one more box to
+         leave blank. It is not listed here either, so a save cannot quietly
+         null out what an older dispatch already carries. */
       const next = {
         waybillNumber: input.waybillNumber || null,
         airline: input.airline || null,
-        flightNumber: input.flightNumber?.toUpperCase() || null,
         departureDate,
         expectedArrival,
         notes: input.notes || null,

@@ -27,7 +27,6 @@ export function FlightDetailsForm({
   batchNumber,
   waybillNumber,
   airline,
-  flightNumber,
   departureDate,
   expectedArrival,
   notes,
@@ -36,7 +35,6 @@ export function FlightDetailsForm({
   batchNumber: string;
   waybillNumber: string | null;
   airline: string | null;
-  flightNumber: string | null;
   /** ISO yyyy-mm-dd, or null when nobody knows yet. */
   departureDate: string | null;
   expectedArrival: string | null;
@@ -76,18 +74,9 @@ export function FlightDetailsForm({
       </p>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="space-y-1">
+        <div className="space-y-1 sm:col-span-2">
           <Label htmlFor="fd-airline" className="text-xs">{t("Airline")}</Label>
           <Input id="fd-airline" name="airline" defaultValue={airline ?? ""} />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="fd-flight" className="text-xs">{t("Flight number")}</Label>
-          <Input
-            id="fd-flight"
-            name="flightNumber"
-            defaultValue={flightNumber ?? ""}
-            className="font-mono"
-          />
         </div>
         <div className="space-y-1 sm:col-span-2">
           <Label htmlFor="fd-waybill" className="text-xs">{t("Waybill number")}</Label>

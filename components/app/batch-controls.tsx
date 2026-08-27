@@ -223,17 +223,6 @@ function DeparturePanel({ batchId }: { batchId: string }) {
             that. Departure gets recorded from the China floor, on a phone. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="flightNumber" className="text-xs">
-              Flight number
-            </Label>
-            <Input
-              id="flightNumber"
-              name="flightNumber"
-              placeholder="ET 8611"
-              className="uppercase"
-            />
-          </div>
-          <div className="space-y-1.5">
             <Label htmlFor="departureDate" className="text-xs">
               Departure date
             </Label>

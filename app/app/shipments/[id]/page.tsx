@@ -519,7 +519,6 @@ export default async function ShipmentPage({
             batchNumber={dispatch.batchNumber}
             waybillNumber={dispatch.waybillNumber}
             airline={dispatch.airline}
-            flightNumber={dispatch.flightNumber}
             departureDate={isoDay(dispatch.departureDate)}
             expectedArrival={isoDay(dispatch.expectedArrival)}
             notes={dispatch.notes}

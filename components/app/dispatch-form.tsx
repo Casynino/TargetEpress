@@ -141,22 +141,6 @@ export function DispatchForm({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="flightNumber">
-                {t("Flight number")}{" "}
-                <span className="font-normal text-muted-foreground">
-                  {t("optional")}
-                </span>
-              </Label>
-              <Input
-                id="flightNumber"
-                name="flightNumber"
-                placeholder="ET 605"
-                className="font-mono uppercase"
-                autoComplete="off"
-              />
-            </div>
-
-            <div className="space-y-1.5">
               <Label htmlFor="departureDate">
                 {t("Departure date")}{" "}
                 <span className="font-normal text-muted-foreground">
