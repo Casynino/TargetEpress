@@ -3033,6 +3033,8 @@ const ZH: Record<string, string> = {
   "This batch was reopened after you sent it back. Finance has to close it again before it can be confirmed.": "你退回后该批次被重新打开。财务必须再次关闭它才能确认。",
   "This cargo has already left China. Only the owner or a manager can correct it now.": "该货物已离开中国。现在只有老板或经理可以更正。",
   "This cargo has already left China. Only the owner or a manager can remove it now.": "该货物已离开中国。现在只有老板或经理可以移除。",
+  "This cargo has already left China. Only Guangzhou, a manager or the owner can correct it now.": "该货物已离开中国。现在只有广州仓、经理或老板可以更正。",
+  "This cargo has already left China. Only Guangzhou, a manager or the owner can remove it now.": "该货物已离开中国。现在只有广州仓、经理或老板可以移除。",
   "This cargo is checked in — do not check it in again. Working out its price failed, so no invoice was raised: ask Finance to raise it.": "该货物已完成入库——请勿重复入库。计价失败，未能生成账单：请通知财务补开。",
   "This cargo was not carried from anywhere.": "该货物没有从任何批次转入。",
   "This consignment is already approved for credit.": "这批货物已获准赊账。",

@@ -1,4 +1,4 @@
-import type { Role } from "@prisma/client";
+import type { Role, ShipmentStatus } from "@prisma/client";
 
 /**
  * Permission model.
@@ -19,6 +19,24 @@ export type Permission =
   /// this. Erasing a record for good is `shipment.purge`, and only the CEO
   /// holds that.
   | "shipment.delete"
+  /**
+   * Correct or remove a consignment after it has left China.
+   *
+   * `shipment.edit` and `shipment.delete` both close the moment the cargo is on
+   * a plane, because its numbers are by then on a printed manifest. This reopens
+   * that window, and it is deliberately its own key rather than
+   * `shipment.cancel` — which was doing this job by accident and also carries
+   * the deleted-records page, cancelling a consignment outright, and removing
+   * another desk's documents. Borrowing it again would have handed Guangzhou
+   * all three.
+   *
+   * Held by Guangzhou, the manager and the owner. Guangzhou because it is the
+   * desk that typed the record in the first place: a weight entered wrong on
+   * Monday is still wrong on Wednesday, and the mistake belongs to the people
+   * who made it. Dar is still absent — its disagreement with the manifest is
+   * raised as an exception, never written over the top of China's record.
+   */
+  | "shipment.amendInFlight"
   | "shipment.purge"
   | "shipment.viewInternal" // internal notes, cost inputs, staff names
   | "shipment.scan" // holds physical cargo and reads its label
@@ -244,10 +262,14 @@ const CHINA: Permission[] = [
      the floor can label cargo correctly without being able to price it. */
   "cargoType.suggest",
   "shipment.edit",
-  // The desk that took the cargo in is the desk that mistyped the weight. Both
-  // are limited to cargo still sitting in China — once it is on a plane the
-  // record has been invoiced against and printed onto a manifest.
+  // The desk that took the cargo in is the desk that mistyped the weight.
   "shipment.delete",
+  /* And still the desk that mistyped it after the plane has gone, at the
+     owner's instruction. Guangzhou fills the record in, so Guangzhou is who
+     notices — and a flight sits in the air for days, which was long enough for
+     a wrong weight to reach Dar with nobody able to touch it but the owner.
+     Dar remains unable to: see the permission's own note. */
+  "shipment.amendInFlight",
   "shipment.depart",
   "shipment.viewInternal",
   // The supplier's invoice and the packing list arrive at this desk, with the
@@ -664,6 +686,26 @@ export function can(role: Role | undefined | null, permission: Permission) {
 
 export function canAny(role: Role | undefined | null, permissions: Permission[]) {
   return permissions.some((p) => can(role, p));
+}
+
+/**
+ * Is this consignment's own record still open to being changed?
+ *
+ * The window, and nothing about who may walk through it — the caller still asks
+ * for `shipment.edit` or `shipment.delete` beside this. While the cargo sits in
+ * Guangzhou anybody holding those may act; once it has flown, only a desk with
+ * `shipment.amendInFlight` may.
+ *
+ * It lives here, alone, because four places used to compute it by hand — the
+ * two buttons on the cargo page, the edit page that decides whether to open,
+ * and the two server actions. A door that opens on a wider rule than the action
+ * behind it is a form that refuses to save, and that had already happened once.
+ */
+export function canAmendCargo(
+  role: Role | undefined | null,
+  status: ShipmentStatus
+) {
+  return status === "READY_TO_DEPART" || can(role, "shipment.amendInFlight");
 }
 
 /**

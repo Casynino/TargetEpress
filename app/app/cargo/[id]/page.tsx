@@ -45,7 +45,7 @@ import { t } from "@/lib/i18n";
 import { composeMessage, whatsappLink } from "@/lib/messages";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
-import { can } from "@/lib/rbac";
+import { can, canAmendCargo } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { StorageStatusCard } from "@/components/app/storage-status-card";
 import { STORAGE_POLICY, storageStatus } from "@/lib/constants";
@@ -253,12 +253,11 @@ export default async function ShipmentDetailPage({
             ))}
             {/* Offered only while the record can actually be changed — a
                 disabled button that explains itself on click is worse than no
-                button. The post-departure half is shipment.cancel, matching
-                editCargo and the edit page; it read shipment.purge, so the
-                manager was shown no Edit button on cargo already in the air. */}
+                button. canAmendCargo is the same predicate editCargo and the
+                edit page use; when this was spelled out here by hand it drifted
+                from them twice. */}
             {can(user.role, "shipment.edit") &&
-            (shipment.status === "READY_TO_DEPART" ||
-              can(user.role, "shipment.cancel")) ? (
+            canAmendCargo(user.role, shipment.status) ? (
               <Button asChild variant="outline" size="sm" className="rounded-lg">
                 <Link href={`/app/cargo/${shipment.trackingNumber}/edit`}>
                   <Pencil className="mr-2 h-4 w-4" />
@@ -269,10 +268,9 @@ export default async function ShipmentDetailPage({
             {/* As easy to delete as to edit, at the owner's instruction —
                 the desk that typed the mistake fixes it without hunting for
                 the control at the foot of the edit page. Same server gates:
-                still in China, reason required, nothing destroyed. */}
+                the amend window, reason required, nothing destroyed. */}
             {can(user.role, "shipment.delete") &&
-            (shipment.status === "READY_TO_DEPART" ||
-              can(user.role, "shipment.cancel")) ? (
+            canAmendCargo(user.role, shipment.status) ? (
               <CargoDeleteButton
                 shipmentId={shipment.id}
                 trackingNumber={shipment.trackingNumber}

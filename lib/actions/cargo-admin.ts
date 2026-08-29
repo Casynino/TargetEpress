@@ -6,7 +6,7 @@ import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
-import { can } from "@/lib/rbac";
+import { canAmendCargo } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -82,19 +82,18 @@ export async function deleteCargo(
     if (cargo.deletedAt) return fail(t(locale, "That cargo is already deleted."));
 
     // Once cargo has flown it is on a printed manifest and in a customs file.
-    // Management can still remove it; a warehouse cannot.
+    // Guangzhou and management can still remove it; Dar cannot.
     //
-    // The override is shipment.cancel, which is granted in the ALL list alone
-    // and so resolves to exactly the owner and the manager. It read
-    // shipment.purge until the manager role existed — purge is the owner's key
-    // for destroying a record for good, borrowed here to mean "senior enough",
-    // and the day a second senior role appeared that borrowing locked the
-    // manager out of a REVERSIBLE soft delete and told them to ask management.
-    if (cargo.status !== "READY_TO_DEPART" && !can(user.role, "shipment.cancel")) {
+    // The window is canAmendCargo, the same call the Delete button on the cargo
+    // page makes to decide whether to render at all. It rode on shipment.cancel
+    // until Guangzhou was given this back — and cancel also carries the
+    // deleted-records page and other desks' documents, which is not what a
+    // duplicate registration needs to be undone.
+    if (!canAmendCargo(user.role, cargo.status)) {
       return fail(
         t(
           locale,
-          "This cargo has already left China. Only the owner or a manager can remove it now."
+          "This cargo has already left China. Only Guangzhou, a manager or the owner can remove it now."
         )
       );
     }

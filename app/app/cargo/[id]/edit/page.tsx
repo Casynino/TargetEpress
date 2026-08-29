@@ -12,7 +12,7 @@ import { othersLast } from "@/lib/cargo-types";
 import { formatDateTime, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
-import { can } from "@/lib/rbac";
+import { can, canAmendCargo } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { storageIsDurable } from "@/lib/storage";
 import { viewerLocale } from "@/lib/viewer";
@@ -66,12 +66,12 @@ export default async function EditCargoPage({
   // Once cargo has flown, its numbers are on a manifest and an invoice. The
   // page is not offered rather than offered and refused.
   //
-  // Deliberately the same predicate as editCargo in lib/actions/cargo-edit.ts —
-  // shipment.cancel, which is the owner and the manager. If the door and the
-  // action ever disagree the reader gets a form that refuses to save.
-  const editable =
-    cargo.status === "READY_TO_DEPART" || can(user.role, "shipment.cancel");
-  if (!editable) redirect(`/app/cargo/${cargo.trackingNumber}`);
+  // The same call editCargo makes in lib/actions/cargo-edit.ts. If the door and
+  // the action ever disagree the reader gets a form that refuses to save, which
+  // is why the rule is one function and not a copy in each.
+  if (!canAmendCargo(user.role, cargo.status)) {
+    redirect(`/app/cargo/${cargo.trackingNumber}`);
+  }
 
   const [pickable, history] = await Promise.all([
     prisma.cargoType.findMany({
