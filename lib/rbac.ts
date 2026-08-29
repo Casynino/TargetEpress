@@ -20,36 +20,40 @@ export type Permission =
   /// holds that.
   | "shipment.delete"
   /**
-   * Correct or remove a consignment after it has left China.
+   * CUSTODY. The two halves of a consignment's life, and who owns the record in
+   * each — the owner's rule, and the reason `canAmendCargo` exists.
    *
-   * `shipment.edit` and `shipment.delete` both close the moment the cargo is on
-   * a plane, because its numbers are by then on a printed manifest. This reopens
-   * that window, and it is deliberately its own key rather than
-   * `shipment.cancel` — which was doing this job by accident and also carries
-   * the deleted-records page, cancelling a consignment outright, and removing
-   * another desk's documents. Borrowing it again would have handed Guangzhou
-   * all three.
+   * `amendOutbound` covers cargo still in the Guangzhou warehouse or in the air.
+   * `amendLanded` covers cargo from the moment Dar confirms it arrived. Editing,
+   * deleting and cancelling all ask one of these beside `shipment.edit` /
+   * `shipment.delete` / `shipment.cancel`, so a desk can hold the verb and still
+   * be unable to use it on cargo that is not its own.
    *
-   * Held by Guangzhou, the manager and the owner. Guangzhou because it is the
-   * desk that typed the record in the first place: a weight entered wrong on
-   * Monday is still wrong on Wednesday, and the mistake belongs to the people
-   * who made it. Dar is still absent — its disagreement with the manifest is
-   * raised as an exception, never written over the top of China's record.
+   * Guangzhou holds outbound because it typed the record and is who notices the
+   * mistake; a flight sits in the air for days, which was long enough for a
+   * wrong weight to reach Dar with nobody able to touch it. Dar holds landed
+   * because by confirming arrival it has said the boxes are here, counted and
+   * intact — after that the cargo is on Dar's floor and is Dar's to answer for.
+   * The handover is the arrival scan, and it is one-way: Guangzhou cannot reach
+   * back into a landed consignment, and Dar cannot reach forward into one that
+   * has not arrived.
    */
-  | "shipment.amendInFlight"
+  | "shipment.amendOutbound"
+  | "shipment.amendLanded"
   | "shipment.purge"
   | "shipment.viewInternal" // internal notes, cost inputs, staff names
   | "shipment.scan" // holds physical cargo and reads its label
   /**
    * Attach the consignment's supporting paperwork, and take a file back off it.
    *
-   * Not folded into `shipment.edit`, and the reason is the Dar floor. Editing is
-   * gated on the cargo still sitting in China precisely so Dar cannot rewrite
-   * China's weights and counts — but Dar is the desk holding the customs entry
-   * and the signed damage report. Reusing shipment.edit here would have forced a
-   * choice between "Dar cannot file the paperwork it is holding" and "Dar can
-   * rewrite the manifest", and the paperwork would have stayed in WhatsApp,
-   * which is the whole thing this is for.
+   * Not folded into `shipment.edit`, and the reason is custody. Editing follows
+   * the cargo — Guangzhou's until it lands, Dar's after — but paperwork does
+   * not: the supplier invoice arrives at one end and the customs entry at the
+   * other, and both must be filable the day they turn up. Tying this to
+   * shipment.edit would have meant Dar could not file the entry in its hand
+   * until the plane touched down, and Guangzhou could not add a packing list
+   * afterwards, so the paper would have stayed in WhatsApp — which is the whole
+   * thing this exists to stop.
    *
    * Every department that talks about a consignment holds it, because every one
    * of them ends up holding one of its documents. What it does NOT carry is any
@@ -244,6 +248,26 @@ export type Permission =
    */
   | "pricing.manage"
   | "audit.view"
+  /**
+   * Read the deleted-records register at /app/admin/deleted.
+   *
+   * Split off `shipment.cancel`, which was standing in for "senior enough" and
+   * so quietly bundled three unrelated things: cancelling a consignment, this
+   * register, and taking another desk's file off a shipment. The moment both
+   * warehouses were given cancelling — each over its own half of the journey —
+   * that bundle would have handed a warehouse the whole company's deleted
+   * records. Management only.
+   */
+  | "records.viewDeleted"
+  /**
+   * Take a file off a consignment that somebody else attached.
+   *
+   * Anyone who may attach can always remove their OWN upload; this is the key
+   * for removing another desk's. Also split off `shipment.cancel`, and for the
+   * same reason — Guangzhou correcting a weight should not also be able to
+   * delete Dar's customs entry. Management only.
+   */
+  | "document.removeAny"
   | "report.view";
 
 const CHINA: Permission[] = [
@@ -264,12 +288,13 @@ const CHINA: Permission[] = [
   "shipment.edit",
   // The desk that took the cargo in is the desk that mistyped the weight.
   "shipment.delete",
-  /* And still the desk that mistyped it after the plane has gone, at the
-     owner's instruction. Guangzhou fills the record in, so Guangzhou is who
-     notices — and a flight sits in the air for days, which was long enough for
-     a wrong weight to reach Dar with nobody able to touch it but the owner.
-     Dar remains unable to: see the permission's own note. */
-  "shipment.amendInFlight",
+  // And the desk that decides a consignment should not travel at all.
+  "shipment.cancel",
+  /* All three above hold until Dar confirms arrival, and not one minute past
+     it — see the custody note on the permission. This floor owns the record
+     while the cargo is on its shelf or in the air, which is the whole time it
+     is Guangzhou's problem; the arrival scan hands it to Dar. */
+  "shipment.amendOutbound",
   "shipment.depart",
   "shipment.viewInternal",
   // The supplier's invoice and the packing list arrive at this desk, with the
@@ -299,19 +324,23 @@ const CHINA: Permission[] = [
  * checks the boxes against it, stores them, and releases them once Finance says
  * the bill is settled. It never writes the China record and never touches money.
  *
- * Deliberately absent, and each for a reason:
+ * It edits, deletes and cancels — but only its own half of the journey. At the
+ * owner's instruction: by confirming a consignment arrived, this floor has said
+ * the boxes are here, counted and intact, and from that scan onward the cargo
+ * is standing on Dar's floor and is Dar's to answer for. `shipment.amendLanded`
+ * is what makes that half-and-half possible; without it, granting the three
+ * verbs here would have let Dar rewrite and delete cargo still sitting in
+ * Guangzhou, which is the one thing the spec has always forbidden.
  *
- * `shipment.edit` / `shipment.delete` — both are gated on the cargo still being
- * READY_TO_DEPART, which means "still sitting in the China warehouse". Granting
- * them to Dar does not give Dar a way to correct cargo it is holding; it gives
- * Dar a way to rewrite and soft-delete China's cargo that has not flown yet —
- * exactly the thing the spec forbids. A weight or count that disagrees with the
- * manifest is raised as an exception (`exception.raise`), which is a record of
- * the disagreement, not a silent overwrite of it.
+ * Note the direction. Before arrival, a weight that disagrees with the manifest
+ * is still an exception (`exception.raise`) — a record of the disagreement, not
+ * a silent overwrite of Guangzhou's figures. After arrival, it is simply Dar's
+ * record to correct.
  *
- * Also absent: shipment.create, batch.create, batch.manage (batches are China's
- * and management's), and every finance/invoice/payment permission — Finance
- * confirms payment and issues the pickup note, Dar only scans it.
+ * Deliberately absent: shipment.create, batch.create, batch.manage (batches are
+ * China's and management's), records.viewDeleted and document.removeAny (both
+ * management), and every finance/invoice/payment permission — Finance confirms
+ * payment and issues the pickup note, Dar only scans it.
  */
 const DAR: Permission[] = [
   "shipment.view",
@@ -320,10 +349,18 @@ const DAR: Permission[] = [
   "cargoType.suggest",
   "shipment.viewInternal",
   // The customs entry, the duty receipt, the inspection note. This floor is
-  // where that paper physically is, and it is not shipment.edit — see the
-  // permission's own note for why the two had to be separated.
+  // where that paper physically is. Separate from shipment.edit because this
+  // one holds from the day the cargo is registered — filing Dar's paperwork
+  // never depended on whose half of the journey the cargo was in.
   "shipment.attach",
   "shipment.scan",
+  /* The floor that is holding the cargo is the floor that corrects its record.
+     All three are useless to Dar until the arrival scan — see the custody note
+     on shipment.amendOutbound / amendLanded. */
+  "shipment.edit",
+  "shipment.delete",
+  "shipment.cancel",
+  "shipment.amendLanded",
   // Batch data is readable because a shipment names its batch and flight; there
   // is no batch.create / batch.manage here, so there is no way in to managing
   // one.
@@ -552,6 +589,15 @@ const ALL: Permission[] = Array.from(
     ...FINANCE,
     ...CUSTOMER_CARE,
     "shipment.cancel",
+    /* Both halves of the journey, so management is never the desk that has to
+       wait for a warehouse. Each floor holds one; only this list holds both. */
+    "shipment.amendOutbound",
+    "shipment.amendLanded",
+    /* The two that used to travel inside shipment.cancel. Split out when both
+       warehouses were given cancelling, so that neither inherited the deleted
+       records register or the right to bin another desk's paperwork. */
+    "records.viewDeleted",
+    "document.removeAny",
     // Erasing a record for good. Nobody else has it, at any rank.
     "shipment.purge",
     // What every customer is told: the collection accounts, the office
@@ -688,24 +734,54 @@ export function canAny(role: Role | undefined | null, permissions: Permission[])
   return permissions.some((p) => can(role, p));
 }
 
+/** Whose floor a consignment's record belongs to, by where the cargo is. */
+export type CargoCustody = "OUTBOUND" | "LANDED";
+
 /**
- * Is this consignment's own record still open to being changed?
+ * Guangzhou's half of the journey, or Dar's.
  *
- * The window, and nothing about who may walk through it — the caller still asks
- * for `shipment.edit` or `shipment.delete` beside this. While the cargo sits in
- * Guangzhou anybody holding those may act; once it has flown, only a desk with
- * `shipment.amendInFlight` may.
+ * OUTBOUND is the cargo Guangzhou is still answerable for: on its shelf, or in
+ * the air. Everything else is LANDED — from the arrival scan onward the boxes
+ * are on Dar's floor, and Dar said so by confirming them.
  *
- * It lives here, alone, because four places used to compute it by hand — the
- * two buttons on the cargo page, the edit page that decides whether to open,
- * and the two server actions. A door that opens on a wider rule than the action
- * behind it is a form that refuses to save, and that had already happened once.
+ * The three tail states are deliberately LANDED rather than a third case.
+ * UNDER_INVESTIGATION is a box Dar reported it could not find, and Dar works
+ * the investigation. DELIVERED and CANCELLED are finished, and a finished
+ * consignment is nobody's to retype — in practice only management touches one,
+ * and management holds both halves anyway.
+ */
+export function cargoCustody(status: ShipmentStatus): CargoCustody {
+  return status === "READY_TO_DEPART" || status === "IN_TRANSIT"
+    ? "OUTBOUND"
+    : "LANDED";
+}
+
+/**
+ * May this desk change this consignment's record at all?
+ *
+ * Custody, and nothing else — the caller still asks for `shipment.edit`,
+ * `shipment.delete` or `shipment.cancel` beside it. Holding the verb is not
+ * enough: a warehouse may only use it on cargo that is currently its own, which
+ * is what stops Guangzhou reaching into a landed consignment and Dar reaching
+ * into one that has not arrived. Management holds both halves and so is never
+ * blocked here.
+ *
+ * It lives here, alone, because these rules used to be spelled out at every
+ * call site — both buttons on the cargo page, the edit page deciding whether to
+ * open, and each server action — and they had already drifted apart twice. A
+ * door that opens on a wider rule than the action behind it is a form that
+ * refuses to save.
  */
 export function canAmendCargo(
   role: Role | undefined | null,
   status: ShipmentStatus
 ) {
-  return status === "READY_TO_DEPART" || can(role, "shipment.amendInFlight");
+  return can(
+    role,
+    cargoCustody(status) === "OUTBOUND"
+      ? "shipment.amendOutbound"
+      : "shipment.amendLanded"
+  );
 }
 
 /**
@@ -799,7 +875,7 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // Everything above this line that a non-accounting desk needs has its own
   // rule; longest prefix wins, so those still resolve.
   { prefix: "/app/finance", permission: "accounting.view" },
-  { prefix: "/app/admin/deleted", permission: "shipment.cancel" },
+  { prefix: "/app/admin/deleted", permission: "records.viewDeleted" },
   { prefix: "/app/admin/pricing", permission: "pricing.manage" },
   { prefix: "/app/admin/markets", permission: "settings.manage" },
   { prefix: "/app/admin/users", permission: "user.manage" },

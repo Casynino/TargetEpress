@@ -33,7 +33,7 @@ import {
 import { cancelShipment } from "@/lib/actions/shipments";
 import type { ActionResult } from "@/lib/actions/types";
 import { PAYMENT_METHOD_LABELS, enumOptions } from "@/lib/constants";
-import { can } from "@/lib/rbac";
+import { can, canAmendCargo } from "@/lib/rbac";
 
 type Props = {
   shipmentId: string;
@@ -141,8 +141,15 @@ export function ShipmentActions(props: Props) {
     props.outstanding !== null &&
     props.outstanding > 0;
 
+  /* Cancelling is now both warehouses', each over its own half of the journey,
+     so holding the permission is no longer the whole question — canAmendCargo
+     asks whose cargo this currently is. cancelShipment enforces the same pair.
+
+     DELIVERED and CANCELLED stay out regardless: one is finished and the other
+     already is this. */
   const canCancel =
     can(role, "shipment.cancel") &&
+    canAmendCargo(role, status) &&
     status !== "DELIVERED" &&
     status !== "CANCELLED";
 

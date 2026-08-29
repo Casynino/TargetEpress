@@ -26,7 +26,7 @@ export const metadata: Metadata = { title: "Deleted records" };
  * from being a way to make evidence disappear.
  */
 export default async function DeletedRecordsPage() {
-  const user = await requirePermission("shipment.cancel");
+  const user = await requirePermission("records.viewDeleted");
   const locale = await viewerLocale();
 
   /*

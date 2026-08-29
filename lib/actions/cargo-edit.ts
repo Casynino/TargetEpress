@@ -11,7 +11,7 @@ import { packageReference } from "@/lib/ids";
 import { generateQrToken } from "@/lib/ids";
 import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
-import { canAmendCargo } from "@/lib/rbac";
+import { canAmendCargo, cargoCustody } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
 import { filesFrom, putImages } from "@/lib/storage";
 import { viewerLocale } from "@/lib/viewer";
@@ -22,9 +22,9 @@ import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types"
  *
  * The desk that took it in is the desk that mistyped the weight, so warehouse
  * staff can fix their own work rather than registering a second shipment for
- * the same boxes. What stops that being dangerous is the window: only cargo
- * still sitting in China can be edited, because once it is on a plane it has
- * been printed onto a manifest and billed against.
+ * the same boxes. What stops that being dangerous is custody: a floor may only
+ * correct cargo that is currently its own — Guangzhou's until Dar confirms it
+ * arrived, Dar's from that moment on. See canAmendCargo in lib/rbac.ts.
  *
  * Every saved change is diffed field by field and written to FieldChange. The
  * warehouse sees only the current version; the CEO can read the whole history,
@@ -135,11 +135,11 @@ export async function updateCargo(
     });
     if (!before) return fail(t(locale, "That cargo no longer exists."));
 
-    // The window. A record can still be corrected after it has flown — a weight
-    // genuinely does get typed wrong, and the flight is in the air for days —
-    // but only by Guangzhou, who wrote it, and management. Dar cannot, because
-    // the manifest in the customs officer's hand would stop matching a record
-    // Dar rewrote; its disagreement is an exception instead.
+    // The window is custody: whichever floor is holding the cargo corrects its
+    // record. A weight genuinely does get typed wrong and a flight sits in the
+    // air for days, so Guangzhou keeps the record until Dar confirms arrival —
+    // and from that scan onward it is Dar's, because Dar has said the boxes are
+    // here and counted.
     //
     // /app/cargo/[id]/edit/page.tsx calls the same function to decide whether to
     // open the page at all. The two must agree: a door that opens on a wider
@@ -148,7 +148,9 @@ export async function updateCargo(
       return fail(
         t(
           locale,
-          "This cargo has already left China. Only Guangzhou, a manager or the owner can correct it now."
+          cargoCustody(before.status) === "LANDED"
+            ? "This cargo has landed in Dar. Only the Dar warehouse, a manager or the owner can change it now."
+            : "This cargo has not landed in Dar yet. Only Guangzhou, a manager or the owner can change it now."
         )
       );
     }

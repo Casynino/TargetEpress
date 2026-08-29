@@ -282,7 +282,7 @@ const SECTIONS: NavSection[] = [
         href: "/app/admin/deleted",
         label: "Deleted records",
         icon: "Trash2",
-        permission: "shipment.cancel",
+        permission: "records.viewDeleted",
       },
       {
         href: "/app/admin/audit",
@@ -905,7 +905,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     group: { label: "Administration", icon: "SlidersHorizontal" },
     items: [
       { href: "/app/admin/users", label: "Staff", icon: "UserCog", permission: "user.manage" },
-      { href: "/app/admin/deleted", label: "Deleted records", icon: "Trash2", permission: "shipment.cancel" },
+      { href: "/app/admin/deleted", label: "Deleted records", icon: "Trash2", permission: "records.viewDeleted" },
       { href: "/app/admin/settings", label: "Company settings", icon: "SlidersHorizontal", permission: "settings.manage" },
     ],
   },

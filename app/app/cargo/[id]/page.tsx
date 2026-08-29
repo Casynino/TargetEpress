@@ -518,7 +518,7 @@ export default async function ShipmentDetailPage({
             // Removing somebody else's attachment: the same predicate
             // removeCargoDocument enforces, so the Remove control appears
             // exactly where it will be honoured.
-            canRemoveAny={can(user.role, "shipment.cancel")}
+            canRemoveAny={can(user.role, "document.removeAny")}
             showNames={showInternal}
             durable={storageIsDurable()}
           />
@@ -940,7 +940,12 @@ export default async function ShipmentDetailPage({
             </p>
           ) : null}
 
-          {can(user.role, "shipment.cancel") ? (
+          {/* The same pair the header button asks. It read shipment.cancel,
+              which was management-only and so needed no window; both warehouses
+              hold cancelling now, and a delete door with no custody rule would
+              let Guangzhou remove a consignment standing on Dar's floor. */}
+          {can(user.role, "shipment.delete") &&
+          canAmendCargo(user.role, shipment.status) ? (
             <DeleteCargoForm
               shipmentId={shipment.id}
               trackingNumber={shipment.trackingNumber}

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
-import { canAmendCargo } from "@/lib/rbac";
+import { canAmendCargo, cargoCustody } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -81,19 +81,17 @@ export async function deleteCargo(
     if (!cargo) return fail(t(locale, "That cargo no longer exists."));
     if (cargo.deletedAt) return fail(t(locale, "That cargo is already deleted."));
 
-    // Once cargo has flown it is on a printed manifest and in a customs file.
-    // Guangzhou and management can still remove it; Dar cannot.
-    //
-    // The window is canAmendCargo, the same call the Delete button on the cargo
-    // page makes to decide whether to render at all. It rode on shipment.cancel
-    // until Guangzhou was given this back — and cancel also carries the
-    // deleted-records page and other desks' documents, which is not what a
-    // duplicate registration needs to be undone.
+    // Custody, not seniority. The floor holding the cargo removes it: Guangzhou
+    // while it is on the shelf or in the air, Dar from the arrival scan onward.
+    // canAmendCargo is the same call the Delete button on the cargo page makes
+    // to decide whether to render at all.
     if (!canAmendCargo(user.role, cargo.status)) {
       return fail(
         t(
           locale,
-          "This cargo has already left China. Only Guangzhou, a manager or the owner can remove it now."
+          cargoCustody(cargo.status) === "LANDED"
+            ? "This cargo has landed in Dar. Only the Dar warehouse, a manager or the owner can change it now."
+            : "This cargo has not landed in Dar yet. Only Guangzhou, a manager or the owner can change it now."
         )
       );
     }

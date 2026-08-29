@@ -208,7 +208,7 @@ export async function removeCargoDocument(
     }
 
     const mine = document.uploadedById === user.id;
-    if (!mine && !can(user.role, "shipment.cancel")) {
+    if (!mine && !can(user.role, "document.removeAny")) {
       return fail(
         t(
           locale,

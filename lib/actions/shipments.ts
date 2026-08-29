@@ -20,6 +20,7 @@ import {
 import { assignToLoadingTable } from "@/lib/batching";
 import { quote } from "@/lib/pricing";
 import { prisma, type TxClient } from "@/lib/prisma";
+import { canAmendCargo, cargoCustody } from "@/lib/rbac";
 import { translateText, translationColumns } from "@/lib/translate";
 import { filesFrom, putImages } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -411,6 +412,16 @@ export async function cancelShipment(
       if (!shipment) throw new Error("Shipment not found.");
       if (shipment.status === "DELIVERED") {
         throw new Error("Delivered cargo cannot be cancelled.");
+      }
+      /* Holding shipment.cancel is not the whole question since both warehouses
+         hold it — each over its own half of the journey. The Cancel control on
+         the cargo page asks the same pair before it renders. */
+      if (!canAmendCargo(user.role, shipment.status)) {
+        throw new Error(
+          cargoCustody(shipment.status) === "LANDED"
+            ? "This cargo has landed in Dar. Only the Dar warehouse, a manager or the owner can cancel it now."
+            : "This cargo has not landed in Dar yet. Only Guangzhou, a manager or the owner can cancel it now."
+        );
       }
 
       await tx.shipment.update({
