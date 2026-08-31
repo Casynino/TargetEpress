@@ -47,18 +47,66 @@ type CargoTypeOption = { id: string; name: string };
  *  - the departure airport. It is derived from the cargo category and shown
  *    read-only, so cargo cannot be sent to the wrong hub by a mis-click.
  */
-export function ShipmentForm({
-  locale = "en",
-  typesByCategory,
-  canAddItem,
-  photosDurable,
-}: {
+type ShipmentFormProps = {
   /** The reader's language. Passed in: a client component cannot ask. */
   locale?: Locale;
   typesByCategory: Record<string, CargoTypeOption[]>;
   /** Whether this desk may add an item that is not on the list. */
   canAddItem: boolean;
   photosDurable: boolean;
+};
+
+/**
+ * REGISTERING THE NEXT ONE MUST NOT BE A JOURNEY.
+ *
+ * Guangzhou registers cargo in runs — box, weigh, type, print, next box — and
+ * "Register another" used to be a link back to this same page. On a desktop
+ * browser that reloads. Installed to a phone's home screen it is a link to the
+ * page you are already standing on, so it did nothing at all, and the desk was
+ * reduced to reaching for the tab bar and coming in through the front door
+ * between every consignment. Maggie, 31 Aug 2026: "很麻烦" — very troublesome.
+ *
+ * So there is no navigation any more. The round below is remounted under a new
+ * key, which throws away the submitted state and every field with it, and the
+ * clerk is looking at an empty form in the time it takes to lift a finger.
+ *
+ * `addedTypes` is deliberately held out here, above the key. An item typed in
+ * at the counter used to survive because the page reloaded and the server had
+ * it by then; nothing reloads now, so the list would forget an item between one
+ * consignment and the next — which is exactly when a desk registers the second
+ * box of the same kind.
+ */
+export function ShipmentForm(props: ShipmentFormProps) {
+  const [round, setRound] = useState(0);
+  const [addedTypes, setAddedTypes] = useState<
+    Record<string, CargoTypeOption[]>
+  >({});
+
+  return (
+    <RegistrationRound
+      key={round}
+      {...props}
+      addedTypes={addedTypes}
+      setAddedTypes={setAddedTypes}
+      onRegisterAnother={() => setRound((r) => r + 1)}
+    />
+  );
+}
+
+function RegistrationRound({
+  locale = "en",
+  typesByCategory,
+  canAddItem,
+  photosDurable,
+  addedTypes,
+  setAddedTypes,
+  onRegisterAnother,
+}: ShipmentFormProps & {
+  addedTypes: Record<string, CargoTypeOption[]>;
+  setAddedTypes: React.Dispatch<
+    React.SetStateAction<Record<string, CargoTypeOption[]>>
+  >;
+  onRegisterAnother: () => void;
 }) {
   const [state, formAction] = useActionState<
     ActionResult<ShipmentCreated>,
@@ -98,9 +146,6 @@ export function ShipmentForm({
     into the picker locally and selected, and the server's copy catches up on
     the next load.
   */
-  const [addedTypes, setAddedTypes] = useState<
-    Record<string, CargoTypeOption[]>
-  >({});
   const [addingItem, setAddingItem] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
@@ -190,12 +235,15 @@ export function ShipmentForm({
           >
             {t(locale, "View cargo")}
           </Link>
-          <a
-            href="/app/cargo/new"
+          {/* A button, not a link. See the note on ShipmentForm: this page is
+              the page it used to navigate to. */}
+          <button
+            type="button"
+            onClick={onRegisterAnother}
             className="inline-flex h-11 items-center justify-center rounded-md border px-4 text-sm hover:bg-muted"
           >
             {t(locale, "Register another")}
-          </a>
+          </button>
         </div>
 
         {/* The mistake caught ten seconds after pressing register. The owner:
@@ -209,6 +257,7 @@ export function ShipmentForm({
               trackingNumber={created as string}
               backHref="/app/cargo/new"
               backLabel={t(locale, "Register it again")}
+              onDone={onRegisterAnother}
             />
           </div>
         ) : null}

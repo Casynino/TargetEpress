@@ -247,11 +247,16 @@ export function CargoDeleteButton({
   /** Where to go once it is gone — this page is about to stop existing. */
   backHref,
   backLabel,
+  /* Unless the caller can simply put the screen right without going anywhere.
+     The registration form's own "back" is this same URL, and a link to the page
+     you are already on does nothing in an installed app — see ShipmentForm. */
+  onDone,
 }: {
   shipmentId: string;
   trackingNumber: string;
   backHref: string;
   backLabel: string;
+  onDone?: () => void;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -290,12 +295,22 @@ export function CargoDeleteButton({
                       "It is out of every list and the customer can no longer track it. An admin can restore it from Deleted records."
                     )}
                   </p>
-                  <a
-                    href={backHref}
-                    className="focus-ring mt-4 inline-flex h-10 items-center rounded-lg bg-brand px-4 text-sm font-semibold text-brand-foreground hover:bg-brand/90"
-                  >
-                    {backLabel}
-                  </a>
+                  {onDone ? (
+                    <button
+                      type="button"
+                      onClick={onDone}
+                      className="focus-ring mt-4 inline-flex h-10 items-center rounded-lg bg-brand px-4 text-sm font-semibold text-brand-foreground hover:bg-brand/90"
+                    >
+                      {backLabel}
+                    </button>
+                  ) : (
+                    <a
+                      href={backHref}
+                      className="focus-ring mt-4 inline-flex h-10 items-center rounded-lg bg-brand px-4 text-sm font-semibold text-brand-foreground hover:bg-brand/90"
+                    >
+                      {backLabel}
+                    </a>
+                  )}
                 </div>
               ) : (
                 <form action={action} className="space-y-3">
