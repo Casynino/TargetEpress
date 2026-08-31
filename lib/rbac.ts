@@ -796,6 +796,9 @@ export function canAmendCargo(
 export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   { prefix: "/app/scan", permission: "shipment.scan" },
   { prefix: "/app/cargo/new", permission: "shipment.create" },
+  /* The printer belongs to the desk that makes stickers, and so does the
+     question of whether the app can drive it. */
+  { prefix: "/app/tools/printer", permission: "label.print" },
   { prefix: "/app/batches/new", permission: "batch.create" },
   { prefix: "/app/receive", permission: "batch.receive" },
   { prefix: "/app/release", permission: "shipment.release" },

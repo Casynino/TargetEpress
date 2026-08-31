@@ -109,6 +109,19 @@ export default async function LabelPage({
         hint={t(locale, "One code per box — never copy a label onto two.")}
       />
 
+      {/* Guangzhou's printer will not appear in the print dialog, so Print
+          quietly saves a PDF instead. Until that is settled one way or the
+          other, the desk needs a way to reach the test — and an installed app
+          has no address bar to type one into. */}
+      <p className="no-print -mt-3 mb-6 text-xs text-muted-foreground">
+        <Link
+          href="/app/tools/printer"
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          {t(locale, "Printer not in the list?")}
+        </Link>
+      </p>
+
       <div className="flex flex-col items-center gap-4 print:gap-0">
         {stickers.map((sticker) => (
           <CargoSticker key={sticker.packageRef} data={sticker} />
