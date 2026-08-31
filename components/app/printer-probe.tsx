@@ -48,13 +48,26 @@ export function PrinterProbe() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Probe | null>(null);
   /* Read after mount, never during render: the server has no navigator, and a
-     value that differs between the two is a hydration error. */
-  const [supported, setSupported] = useState<boolean | null>(null);
+     value that differs between the two is a hydration error.
+
+     Three answers, not two. "This browser cannot" sent the owner to install
+     Chrome on an iPhone, which cannot work and never will: every browser on
+     iOS is Safari's engine in someone else's coat, and none of them carries
+     Web Bluetooth. Telling somebody to try again on a device that is
+     incapable is worse than telling them nothing. */
+  const [support, setSupport] = useState<"yes" | "ios" | "no" | null>(null);
 
   useEffect(() => {
-    setSupported(
-      typeof navigator !== "undefined" && "bluetooth" in navigator
-    );
+    if (typeof navigator === "undefined") return;
+    if ("bluetooth" in navigator) {
+      setSupport("yes");
+      return;
+    }
+    const ua = navigator.userAgent ?? "";
+    const isApple =
+      /iPad|iPhone|iPod/.test(ua) ||
+      /Macintosh/.test(ua) && (navigator.maxTouchPoints ?? 0) > 1;
+    setSupport(isApple ? "ios" : "no");
   }, []);
 
   async function scan() {
@@ -137,10 +150,18 @@ export function PrinterProbe() {
         </p>
       </div>
 
-      {supported === false ? (
+      {support === "ios" ? (
         <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">
           {t(
-            "This browser cannot search for Bluetooth devices. Open the app in Chrome and try again."
+            "An iPhone or iPad cannot search for Bluetooth from any browser, Chrome included. Run this test on the Android phone."
+          )}
+        </p>
+      ) : null}
+
+      {support === "no" ? (
+        <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">
+          {t(
+            "This browser cannot search for Bluetooth devices. Open this page in Chrome on the Android phone."
           )}
         </p>
       ) : null}
@@ -148,7 +169,7 @@ export function PrinterProbe() {
       <button
         type="button"
         onClick={scan}
-        disabled={busy || supported === false}
+        disabled={busy || (support !== null && support !== "yes")}
         className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-brand px-5 text-sm font-semibold text-brand-foreground hover:bg-brand/90 disabled:opacity-60"
       >
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
