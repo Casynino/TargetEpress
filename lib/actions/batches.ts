@@ -1861,9 +1861,17 @@ export async function undoBatchArrival(
 
       /* Only the ones this arrival moved. A consignment sitting UNDER
          INVESTIGATION is a case somebody is working, and quietly closing it by
-         putting the box back on a plane would erase that. */
+         putting the box back on a plane would erase that.
+
+         READY_FOR_PICKUP counts as moved too: a flight that never landed
+         cannot have cargo waiting at a counter for it. In practice one only
+         reaches here with its note already cancelled, because a standing note
+         is refused above. */
       const returned = await tx.shipment.updateMany({
-        where: { id: { in: shipmentIds }, status: "RECEIVED_AT_DAR" },
+        where: {
+          id: { in: shipmentIds },
+          status: { in: ["RECEIVED_AT_DAR", "READY_FOR_PICKUP"] },
+        },
         data: { status: "IN_TRANSIT", arrivedAt: null, readyForPickup: null },
       });
 

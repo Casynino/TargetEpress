@@ -28,6 +28,142 @@ import { firstError, releaseSchema } from "@/lib/validation";
  * — the delivery note, the status history line, the audit summary — stays in
  * English, because both floors read those rows afterwards.
  */
+/**
+ * A handover that never happened.
+ *
+ * Releasing is the one act in this system that says the cargo is no longer
+ * ours: the delivery record is written, the pickup note is spent, every box is
+ * marked handed over and the storage clock stops. It is also the only one that
+ * had no way back — so a release recorded against the wrong consignment, or
+ * during a test, was permanent, and the cargo sat "Delivered" while the boxes
+ * were still on the shelf.
+ *
+ * The exact inverse of releaseShipment, and it hides nothing. The delivery
+ * record goes and the proof-of-delivery photographs go with it, because a
+ * photograph captioned "Released to Ronald Uisso" against a handover that is
+ * being retracted is worse than no photograph — but the audit line keeps who
+ * was named, when, and why it was taken back. That is the same trade voidInvoice
+ * makes: the row goes, the record of the row does not.
+ *
+ * The pickup note returns to ACTIVE, which is precisely where it stood a second
+ * before the release. That is deliberately not the end of the story — if the
+ * money has since been taken back too, the note has to be cancelled through its
+ * own door, and this says so rather than guessing which the operator meant.
+ *
+ * Management only. Dar hands cargo over; unwinding a handover is a correction
+ * of the record, and the desk that made the mistake is not the desk that
+ * should be able to erase it.
+ */
+export async function undoRelease(
+  _prev: ActionResult<{ trackingNumber: string }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ trackingNumber: string }>> {
+  const locale = await viewerLocale();
+  let user: SessionUser;
+  try {
+    user = await authorize("shipment.cancel");
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  const shipmentId = String(formData.get("shipmentId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!shipmentId) return fail(t(locale, "Missing cargo."));
+  if (reason.length < 4) {
+    return fail(t(locale, "Say why this handover is being taken back."));
+  }
+
+  try {
+    const trackingNumber = await prisma.$transaction(async (tx) => {
+      const shipment = await tx.shipment.findUnique({
+        where: { id: shipmentId },
+        select: {
+          id: true,
+          trackingNumber: true,
+          status: true,
+          deliveredAt: true,
+          delivery: {
+            select: { id: true, receiverName: true, releasedAt: true },
+          },
+          pickupNote: { select: { id: true, noteNumber: true, status: true } },
+        },
+      });
+      if (!shipment) throw new Error(t(locale, "That cargo no longer exists."));
+      if (shipment.status !== "DELIVERED") {
+        throw new Error(t(locale, "This cargo has not been handed over."));
+      }
+
+      await tx.deliveryRecord.deleteMany({ where: { shipmentId: shipment.id } });
+
+      /* The proof of a handover that is being retracted. Deleted with the
+         record it belongs to, never left behind to be found later by somebody
+         reading it as evidence the cargo went out. */
+      const photos = await tx.shipmentPhoto.deleteMany({
+        where: { shipmentId: shipment.id, kind: "PROOF_OF_DELIVERY" },
+      });
+
+      await tx.package.updateMany({
+        where: { shipmentId: shipment.id },
+        data: { deliveredAt: null },
+      });
+
+      /* Back to the state the release moved it out of. The note goes with it:
+         it was spent by this handover and nothing else. */
+      if (shipment.pickupNote && shipment.pickupNote.status === "USED") {
+        await tx.pickupNote.update({
+          where: { id: shipment.pickupNote.id },
+          data: { status: "ACTIVE", usedAt: null },
+        });
+      }
+
+      await tx.shipment.update({
+        where: { id: shipment.id },
+        data: { status: "READY_FOR_PICKUP", deliveredAt: null },
+      });
+
+      await tx.shipmentStatusHistory.create({
+        data: {
+          shipmentId: shipment.id,
+          fromStatus: "DELIVERED",
+          toStatus: "READY_FOR_PICKUP",
+          location: "Dar es Salaam warehouse",
+          note: `Handover taken back: ${reason}`,
+          actorId: user.id,
+        },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "shipment.releaseUndone",
+          entity: "Shipment",
+          entityId: shipment.id,
+          summary: `Took back the handover of ${shipment.trackingNumber} — ${reason}`,
+          /* Everything the deleted record said, kept here instead. */
+          metadata: {
+            reason,
+            receiverName: shipment.delivery?.receiverName ?? null,
+            releasedAt: shipment.delivery?.releasedAt?.toISOString() ?? null,
+            pickupNote: shipment.pickupNote?.noteNumber ?? null,
+            deliveryPhotosRemoved: photos.count,
+          },
+        },
+        tx
+      );
+
+      return shipment.trackingNumber;
+    });
+
+    revalidatePath(`/app/cargo/${trackingNumber}`);
+    revalidatePath("/app/release");
+    revalidatePath("/app/pickup-queue");
+    revalidatePath("/app/inventory");
+    return ok({ trackingNumber });
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
 export async function releaseShipment(
   _prev: ActionResult<{ trackingNumber: string }> | undefined,
   formData: FormData

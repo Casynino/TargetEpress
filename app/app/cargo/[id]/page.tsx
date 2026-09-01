@@ -17,6 +17,7 @@ import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { CargoDocuments } from "@/components/app/cargo-documents";
 import { CargoDeleteButton, DeleteCargoForm } from "@/components/app/cargo-delete";
 import { PendingSubmissionNotice } from "@/components/app/pending-submission-notice";
+import { ReleaseUndo } from "@/components/app/release-undo";
 import { ShipmentActions } from "@/components/app/shipment-actions";
 import { PackageList } from "@/components/app/package-list";
 import { Badge } from "@/components/ui/badge";
@@ -749,6 +750,17 @@ export default async function ShipmentDetailPage({
                   </div>
                 ))}
               </dl>
+
+              {/* The way back, at the foot of the record it undoes. Management
+                  only: Dar hands cargo over, and the desk that made the
+                  mistake is not the desk that should erase it. */}
+              {can(user.role, "shipment.cancel") ? (
+                <ReleaseUndo
+                  shipmentId={shipment.id}
+                  trackingNumber={shipment.trackingNumber}
+                  receiverName={shipment.delivery.receiverName}
+                />
+              ) : null}
             </section>
           ) : null}
 
