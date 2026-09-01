@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 
 import {
   DocumentFooter,
@@ -140,6 +140,19 @@ export default async function ManifestPage({
                 </Link>
               </Button>
               <PrintButton label={t(locale, "Print manifest")} />
+              {/* Printing is for the floor; the file is for everyone else —
+                  the clearing agent, a customs query six months later, and
+                  whoever is asked for the manifest while nowhere near a
+                  printer. Downloaded in English: see the route. */}
+              <Button asChild variant="outline" size="sm">
+                <Link
+                  href={`/app/batches/${batch.id}/manifest/pdf`}
+                  prefetch={false}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  {t(locale, "Download PDF")}
+                </Link>
+              </Button>
             </>
           }
         />
