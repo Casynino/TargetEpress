@@ -15,6 +15,7 @@ import {
 import { autoPriceShipments } from "@/lib/auto-price";
 import { recordAudit } from "@/lib/audit";
 import { CLOSEABLE_FROM, batchOwing, buildStatement } from "@/lib/batch-close";
+import { toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
 import { notifyReceivingOutcome } from "@/lib/exception-audience";
 import { contributorsTo, notify } from "@/lib/notify";
@@ -1801,7 +1802,15 @@ export async function undoBatchArrival(
               id: true,
               trackingNumber: true,
               status: true,
-              invoice: { select: { id: true, status: true, invoiceNumber: true } },
+              invoice: {
+                select: {
+                  id: true,
+                  status: true,
+                  invoiceNumber: true,
+                  amountPaid: true,
+                  total: true,
+                },
+              },
               pickupNote: { select: { status: true, noteNumber: true } },
             },
           },
@@ -1833,21 +1842,56 @@ export async function undoBatchArrival(
         );
       }
 
-      const billed = batch.shipments.find(
-        (s) => s.invoice && s.invoice.status !== "DRAFT"
+      /*
+        MONEY, not paperwork, is what stops this.
+
+        The first version refused any bill past DRAFT and named one at a time,
+        which on a seventy-consignment flight meant voiding seventy invoices by
+        hand before the flight could be corrected — the owner's word for it was
+        "forever", and he was right. It was also the wrong test. A bill raised
+        against cargo that never landed is not a debt anybody owes; it is the
+        same mistake as the arrival, and generateInvoice would refuse to write
+        it today. What matters is whether money actually moved.
+
+        So: anything with a shilling against it stops the flight and is answered
+        through its own door, and everything else goes with the arrival that
+        created it. Written-off bills stop it too — writing one off is a
+        decision about a customer, not a by-product of a check-in.
+      */
+      const paid = batch.shipments.find(
+        (s) => s.invoice && toNumber(s.invoice.amountPaid) > 0.005
       );
-      if (billed) {
+      if (paid) {
         throw new Error(
-          `${billed.invoice!.invoiceNumber} ${t(locale, "has been raised against this cargo. Cancel the bill first.")}`
+          `${paid.invoice!.invoiceNumber} ${t(locale, "has money against it. Cancel the payment first.")}`
+        );
+      }
+
+      const writtenOff = batch.shipments.find(
+        (s) => s.invoice && s.invoice.status === "WRITTEN_OFF"
+      );
+      if (writtenOff) {
+        throw new Error(
+          `${writtenOff.invoice!.invoiceNumber} ${t(locale, "was written off, which is a decision about a customer. Answer it on the bill first.")}`
         );
       }
 
       const shipmentIds = batch.shipments.map((s) => s.id);
 
-      /* The working figures go. Nobody owes a draft, and a price worked out
-         from a check-in that did not happen is not a price. */
-      const draftsRemoved = await tx.invoice.deleteMany({
-        where: { shipmentId: { in: shipmentIds }, status: "DRAFT" },
+      /* Every bill on the flight, not only the drafts. None of them has money
+         against it — that was refused above — and a price worked out from a
+         check-in that did not happen is not a price. The numbers and figures
+         are written into the audit below, so nothing disappears unrecorded. */
+      const removedInvoices = batch.shipments
+        .filter((s) => s.invoice)
+        .map((s) => ({
+          invoiceNumber: s.invoice!.invoiceNumber,
+          status: s.invoice!.status,
+          total: toNumber(s.invoice!.total),
+          trackingNumber: s.trackingNumber,
+        }));
+      await tx.invoice.deleteMany({
+        where: { shipmentId: { in: shipmentIds } },
       });
 
       /* Un-receipt the boxes. The manifest count falls back to zero, which is
@@ -1891,7 +1935,8 @@ export async function undoBatchArrival(
             reason,
             consignments: batch.shipments.length,
             returnedToTransit: returned.count,
-            draftInvoicesRemoved: draftsRemoved.count,
+            invoicesRemoved: removedInvoices.length,
+            invoices: removedInvoices,
           },
         },
         tx

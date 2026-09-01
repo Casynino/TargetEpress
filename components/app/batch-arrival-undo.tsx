@@ -97,7 +97,7 @@ export function BatchArrivalUndo({
           {/* What is about to happen, in the numbers of this flight. A warning
               that does not say how much it is about to touch is decoration. */}
           <p className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
-            {consignments} {t("consignment(s) go back to in transit, and any draft prices on them are removed. Cargo already collected, a standing pickup note or a raised bill will stop this — undo those first.")}
+            {consignments} {t("consignment(s) go back to in transit, and every bill and price on this flight is cancelled with it. Cargo already collected, a standing pickup note, or money already taken will stop this — undo those first.")}
           </p>
 
           <SubmitButton variant="destructive" pendingLabel="Putting it back…">
