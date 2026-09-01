@@ -1737,6 +1737,170 @@ export async function closeBatch(
 }
 
 /**
+ * The flight had not landed. Put it back in the air.
+ *
+ * Dar marks a batch arrived and then ticks its cargo off the manifest, and
+ * those two acts together are what tells the whole system the boxes are on the
+ * floor: each consignment is stamped RECEIVED_AT_DAR, its packages are
+ * receipted, it is priced, and — the one that costs money quietly — its
+ * storage clock starts. A flight marked in by mistake therefore does not just
+ * read wrong; seven days later it starts charging customers USD 2 a day for a
+ * shelf their cargo has never stood on.
+ *
+ * So this is the exact inverse of receiveBatch and verifyShipment, and nothing
+ * more. It refuses every case where undoing would be a lie about money rather
+ * than a correction of a mistake:
+ *
+ *   · cargo already collected — it left the building; it landed
+ *   · a pickup note still standing — Finance has told a customer to come
+ *   · an invoice past DRAFT — somebody has been billed, and a bill is answered
+ *     by voidInvoice, which keeps the audit, not by deleting the flight it sat on
+ *   · a closed flight — reopen it first, deliberately, exactly as a cost would
+ *
+ * Draft invoices ARE deleted. A draft is the system's own working figure and
+ * nobody owes it, and "nothing is billed before it lands" is the rule the
+ * pricing engine was built around — leaving priced drafts against cargo that is
+ * still in the air is precisely the state this whole door exists to clear. The
+ * real check-in prices them again from the real weights.
+ *
+ * Management only. Dar can mark a flight in; taking seventy consignments back
+ * off the floor is a different size of act.
+ */
+export async function undoBatchArrival(
+  _prev: ActionResult<Record<string, never>> | undefined,
+  formData: FormData
+): Promise<ActionResult<Record<string, never>>> {
+  const locale = await viewerLocale();
+
+  let user: SessionUser;
+  try {
+    user = await authorize("shipment.cancel");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const batchId = String(formData.get("batchId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!batchId) return fail(t(locale, "Missing batch."));
+  if (reason.length < 4) {
+    return fail(t(locale, "Say why this flight is being put back in the air."));
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const batch = await tx.batch.findUnique({
+        where: { id: batchId },
+        select: {
+          id: true,
+          batchNumber: true,
+          status: true,
+          closedAt: true,
+          shipments: {
+            where: { deletedAt: null },
+            select: {
+              id: true,
+              trackingNumber: true,
+              status: true,
+              invoice: { select: { id: true, status: true, invoiceNumber: true } },
+              pickupNote: { select: { status: true, noteNumber: true } },
+            },
+          },
+        },
+      });
+      if (!batch) throw new Error(t(locale, "Batch not found."));
+      if (batch.closedAt) {
+        throw new Error(
+          t(locale, "This flight's books are closed. Reopen it first.")
+        );
+      }
+      if (batch.status !== "ARRIVED" && batch.status !== "VERIFIED") {
+        throw new Error(t(locale, "This flight is not marked as arrived."));
+      }
+
+      const delivered = batch.shipments.find((s) => s.status === "DELIVERED");
+      if (delivered) {
+        throw new Error(
+          `${delivered.trackingNumber} ${t(locale, "has already been collected, so this flight did land.")}`
+        );
+      }
+
+      const noted = batch.shipments.find(
+        (s) => s.pickupNote && s.pickupNote.status === "ACTIVE"
+      );
+      if (noted) {
+        throw new Error(
+          `${noted.pickupNote!.noteNumber} ${t(locale, "is still standing. Cancel the pickup note first.")}`
+        );
+      }
+
+      const billed = batch.shipments.find(
+        (s) => s.invoice && s.invoice.status !== "DRAFT"
+      );
+      if (billed) {
+        throw new Error(
+          `${billed.invoice!.invoiceNumber} ${t(locale, "has been raised against this cargo. Cancel the bill first.")}`
+        );
+      }
+
+      const shipmentIds = batch.shipments.map((s) => s.id);
+
+      /* The working figures go. Nobody owes a draft, and a price worked out
+         from a check-in that did not happen is not a price. */
+      const draftsRemoved = await tx.invoice.deleteMany({
+        where: { shipmentId: { in: shipmentIds }, status: "DRAFT" },
+      });
+
+      /* Un-receipt the boxes. The manifest count falls back to zero, which is
+         what the warehouse will fill in when the plane actually lands. */
+      await tx.package.updateMany({
+        where: { shipmentId: { in: shipmentIds } },
+        data: { receivedAt: null, receivedById: null },
+      });
+
+      await tx.batchVerification.deleteMany({ where: { batchId } });
+
+      /* Only the ones this arrival moved. A consignment sitting UNDER
+         INVESTIGATION is a case somebody is working, and quietly closing it by
+         putting the box back on a plane would erase that. */
+      const returned = await tx.shipment.updateMany({
+        where: { id: { in: shipmentIds }, status: "RECEIVED_AT_DAR" },
+        data: { status: "IN_TRANSIT", arrivedAt: null, readyForPickup: null },
+      });
+
+      await tx.batch.update({
+        where: { id: batchId },
+        data: { status: "IN_TRANSIT", arrivalDate: null, arrivedAt: null },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "batch.arrivalUndone",
+          entity: "Batch",
+          entityId: batch.id,
+          summary: `${batch.batchNumber} put back in the air — ${reason}`,
+          metadata: {
+            reason,
+            consignments: batch.shipments.length,
+            returnedToTransit: returned.count,
+            draftInvoicesRemoved: draftsRemoved.count,
+          },
+        },
+        tx
+      );
+    });
+
+    revalidatePath(`/app/shipments/${batchId}`);
+    revalidatePath("/app/shipments");
+    revalidatePath("/app/receive");
+    revalidatePath("/app/inventory");
+    return ok({});
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
+
+/**
  * Open a closed flight's books again.
  *
  * Needed because closing is a judgement and judgements are wrong sometimes — a

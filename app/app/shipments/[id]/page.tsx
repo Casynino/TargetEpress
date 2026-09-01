@@ -10,6 +10,7 @@ import {
   type DocumentEntry,
   type TimelineEntry,
 } from "@/components/app/shipment-detail-tabs";
+import { BatchArrivalUndo } from "@/components/app/batch-arrival-undo";
 import { BatchClosePanel } from "@/components/app/batch-close-panel";
 import { FlightDetailsForm } from "@/components/app/flight-details-form";
 import { BatchExpenses } from "@/components/app/batch-expenses";
@@ -541,6 +542,24 @@ export default async function ShipmentPage({
           Everyone else goes straight to the cargo. */}
       {finance ? (
         <BatchFinanceBand finance={finance} showCosts={showCosts} />
+      ) : null}
+
+      {/* A flight marked in that never landed. Management only, and shut until
+          somebody opens it — the warehouse's ordinary day never touches this,
+          and it is the storage clock rather than the status that makes it
+          urgent. See undoBatchArrival. */}
+      {(dispatch.status === "ARRIVED" || dispatch.status === "VERIFIED") &&
+      !dispatch.closedAt &&
+      can(user.role, "shipment.cancel") ? (
+        <div className="mt-6">
+          <BatchArrivalUndo
+            batchId={dispatch.id}
+            batchNumber={dispatch.batchNumber}
+            consignments={
+              dispatch.shipments.filter((piece) => piece.deletedAt === null).length
+            }
+          />
+        </div>
       ) : null}
 
       {/* The line under the flight, directly under the figures it draws it
