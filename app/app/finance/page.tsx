@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
+import { sumShillings, sumUsd } from "@/lib/money-totals";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { accountBalances } from "@/lib/ledger";
@@ -131,7 +132,10 @@ export default async function FinanceOverviewPage() {
     */
     prisma.payment.findMany({
       where: { paidAt: { gte: monthStart }, voidedAt: null },
-      select: { amount: true, creditedAmount: true },
+      /* `currency`, because a shilling payment must be added up as shillings —
+         see lib/money-totals.ts. Without it this tile disagreed with the
+         ledger's own MONEY IN by four shillings on the same month. */
+      select: { amount: true, creditedAmount: true, currency: true },
     }),
     // Cargo that is paid for and cleared to go, still sitting on the shelf.
     // Distinct from everything else on this row: the money is already in, and
@@ -162,15 +166,17 @@ export default async function FinanceOverviewPage() {
         })
       : Promise.resolve(null),
     seesCompanyMoney
-      ? prisma.expense.aggregate({
+      ? prisma.expense.groupBy({
+          by: ["currency"],
           where: { status: "PAID", paidAt: { gte: monthStart } },
-          _sum: { amountUsd: true },
+          _sum: { amount: true, amountUsd: true },
         })
       : Promise.resolve(null),
     seesCompanyMoney
-      ? prisma.expense.aggregate({
+      ? prisma.expense.groupBy({
+          by: ["currency"],
           where: { status: { in: ["PENDING", "APPROVED"] } },
-          _sum: { amountUsd: true },
+          _sum: { amount: true, amountUsd: true },
           _count: true,
         })
       : Promise.resolve(null),
@@ -179,6 +185,27 @@ export default async function FinanceOverviewPage() {
   const rate = rateRow ? toNumber(rateRow.rate) : null;
 
   const draftValue = toNumber(drafts._sum.total);
+  /*
+    THE SAME MONEY, ADDED UP THE SAME WAY EVERYWHERE.
+
+    These tiles read TSh 59,994 for two office costs of 20,000 and 40,000, and
+    TSh 896,670 for a month the ledger totalled at 896,674 — one business, three
+    screens, three answers. Every one came from summing the dollar snapshot and
+    multiplying back by 2,700. That snapshot is a Decimal(12,2) kept so two
+    currencies can share a total; it is not the money.
+
+    Shilling money is added as shillings now, in the unit it was typed in, and
+    only genuinely foreign money goes through the snapshot. The dollar figures
+    stay for the cards that state one, and for the no-rate fallback.
+  */
+  const collectedMonthTsh = sumShillings(
+    collectedThisMonth.map((p) => ({
+      currency: p.currency,
+      amount: p.amount,
+      amountUsd: p.creditedAmount ?? p.amount,
+    })),
+    rate
+  );
   const collectedMonth = collectedThisMonth.reduce(
     (sum, p) => sum + toNumber(p.creditedAmount ?? p.amount),
     0
@@ -196,9 +223,27 @@ export default async function FinanceOverviewPage() {
     (sum, p) => sum + toNumber(p.creditedAmount ?? p.amount),
     0
   );
-  const spentUsd = toNumber(spendThisMonth?._sum.amountUsd ?? 0);
-  const owedOutUsd = toNumber(unpaidCosts?._sum.amountUsd ?? 0);
+  const spendRows = (spendThisMonth ?? []).map((row) => ({
+    currency: row.currency,
+    amount: row._sum.amount,
+    amountUsd: row._sum.amountUsd,
+  }));
+  const owedRows = (unpaidCosts ?? []).map((row) => ({
+    currency: row.currency,
+    amount: row._sum.amount,
+    amountUsd: row._sum.amountUsd,
+  }));
+  /* groupBy returns a row per currency, so the count is summed rather than read
+     off one aggregate. */
+  const owedOutCount = (unpaidCosts ?? []).reduce(
+    (n, row) => n + (row._count as unknown as number),
+    0
+  );
+  const spentUsd = sumUsd(spendRows, rate);
+  const spentTsh = sumShillings(spendRows, rate);
+  const owedOutUsd = sumUsd(owedRows, rate);
   const netMonth = collectedMonth - spentUsd;
+  const netMonthTsh = collectedMonthTsh - spentTsh;
 
   const countFor = (...statuses: string[]) =>
     position
@@ -319,10 +364,10 @@ export default async function FinanceOverviewPage() {
       urgent: false,
     },
     {
-      when: seesCompanyMoney && (unpaidCosts?._count ?? 0) > 0,
-      label: `${unpaidCosts?._count} ${t(
+      when: seesCompanyMoney && owedOutCount > 0,
+      label: `${owedOutCount} ${t(
         locale,
-        unpaidCosts?._count === 1 ? "cost to pay" : "costs to pay"
+        owedOutCount === 1 ? "cost to pay" : "costs to pay"
       )}`,
       detail: t(locale, "Recorded, not yet disbursed"),
       usd: owedOutUsd,
@@ -355,6 +400,11 @@ export default async function FinanceOverviewPage() {
     return "text-sm 2xl:text-base";
   };
 
+  /* For figures already in shillings — nothing is multiplied a second time. */
+  const shillings = (value: number, usdFallback: number) =>
+    rate
+      ? `TSh ${Math.round(value).toLocaleString("en-US")}`
+      : formatUsd(usdFallback);
   const tsh = (usd: number) =>
     rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : formatUsd(usd);
 
@@ -415,7 +465,7 @@ export default async function FinanceOverviewPage() {
             },
             {
               k: t(locale, "In this month"),
-              v: tsh(collectedMonth),
+              v: shillings(collectedMonthTsh, collectedMonth),
               tone: "text-success",
               wash: "from-success/10",
               hint: t(locale, "Money that came in"),
@@ -424,14 +474,14 @@ export default async function FinanceOverviewPage() {
               ? [
                   {
                     k: t(locale, "Out this month"),
-                    v: tsh(spentUsd),
+                    v: shillings(spentTsh, spentUsd),
                     tone: "text-destructive",
                     wash: "from-destructive/10",
                     hint: t(locale, "Costs paid"),
                   },
                   {
                     k: t(locale, "Net this month"),
-                    v: tsh(netMonth),
+                    v: shillings(netMonthTsh, netMonth),
                     tone: netMonth >= 0 ? "text-foreground" : "text-destructive",
                     wash: netMonth >= 0 ? "from-success/10" : "from-destructive/10",
                     hint: netMonth >= 0 ? t(locale, "Ahead") : t(locale, "Behind"),

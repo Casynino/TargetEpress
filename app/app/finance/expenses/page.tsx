@@ -18,6 +18,7 @@ import {
 import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
 import { currentRate, formatShillings, formatUsd } from "@/lib/fx";
+import { sumShillings, sumUsd } from "@/lib/money-totals";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -258,23 +259,26 @@ export default async function ExpensesPage({
     }),
     /* What the period COST — dated when it was incurred, which is the same
        basis the profit page uses and the same one this list is ordered by. */
-    prisma.expense.aggregate({
+    prisma.expense.groupBy({
+      by: ["currency"],
       where: moneyWhere,
-      _sum: { amountUsd: true },
+      _sum: { amount: true, amountUsd: true },
       _count: true,
     }),
     /* What actually LEFT an account inside the period. Different question,
        different date, and both belong on a page about spending. */
-    prisma.expense.aggregate({
+    prisma.expense.groupBy({
+      by: ["currency"],
       where: { status: "PAID", ...(inWindow ? { paidAt: inWindow } : {}) },
-      _sum: { amountUsd: true },
+      _sum: { amount: true, amountUsd: true },
       _count: true,
     }),
     /* Still owed, whenever it was incurred — a bill from March that nobody has
        paid is this week's problem, not March's. */
-    prisma.expense.aggregate({
+    prisma.expense.groupBy({
+      by: ["currency"],
       where: { status: { in: ["PENDING", "APPROVED"] } },
-      _sum: { amountUsd: true },
+      _sum: { amount: true, amountUsd: true },
       _count: true,
     }),
     prisma.expense.groupBy({
@@ -299,16 +303,28 @@ export default async function ExpensesPage({
                 : k.key === "executive"
                   ? { category: "EXECUTIVE_DRAW" as const }
                   : {};
-        const agg = await prisma.expense.aggregate({
+        const rows = await prisma.expense.groupBy({
+          by: ["currency"],
           where: {
             ...(inWindow ? { incurredAt: inWindow } : {}),
             status: { not: "VOID" as const },
             ...where,
           },
-          _sum: { amountUsd: true },
+          _sum: { amount: true, amountUsd: true },
           _count: true,
         });
-        return { key: k.key, usd: toNumber(agg._sum.amountUsd), count: agg._count };
+        const money = rows.map((row) => ({
+          currency: row.currency,
+          amount: row._sum.amount,
+          amountUsd: row._sum.amountUsd,
+        }));
+        return {
+          key: k.key,
+          usd: sumUsd(money, null),
+          /* Exact for shilling costs; the chip is read in shillings. */
+          rows: money,
+          count: rows.reduce((n, row) => n + (row._count as unknown as number), 0),
+        };
       })
     ),
     currentRate(),
@@ -339,9 +355,38 @@ export default async function ExpensesPage({
   const rate = rateRow ? toNumber(rateRow.rate) : null;
   const money = (usd: number) => formatShillings(usd, rate);
 
-  const recordedUsd = toNumber(recorded._sum.amountUsd);
-  const paidUsd = toNumber(paidInWindow._sum.amountUsd);
-  const unpaidUsd = toNumber(unpaid._sum.amountUsd);
+  /*
+    Costs are added up in the currency they were paid in.
+
+    TSh 20,000 and TSh 40,000 read as TSh 59,994 on this page, because each was
+    stored as a rounded dollar snapshot — 7.41 and 14.81 — and 22.22 back
+    through 2,700 is not 60,000. The ledger, the Overview and this page each
+    produced a different sixty thousand. See lib/money-totals.ts.
+  */
+  const asMoney = (
+    rows: { currency: string; _sum: { amount: unknown; amountUsd: unknown } }[]
+  ) =>
+    rows.map((row) => ({
+      currency: row.currency,
+      amount: row._sum.amount as never,
+      amountUsd: row._sum.amountUsd as never,
+    }));
+  const countOf = (rows: { _count: unknown }[]) =>
+    rows.reduce((n, row) => n + (row._count as number), 0);
+
+  const recordedRows = asMoney(recorded);
+  const paidRows = asMoney(paidInWindow);
+  const unpaidRows = asMoney(unpaid);
+
+  const recordedUsd = sumUsd(recordedRows, rate);
+  const paidUsd = sumUsd(paidRows, rate);
+  const unpaidUsd = sumUsd(unpaidRows, rate);
+  const recordedTsh = sumShillings(recordedRows, rate);
+  const paidTsh = sumShillings(paidRows, rate);
+  const unpaidTsh = sumShillings(unpaidRows, rate);
+  /* Figures already in shillings — never multiplied a second time. */
+  const shillings = (value: number, usdFallback: number) =>
+    rate ? `TSh ${Math.round(value).toLocaleString("en-US")}` : formatUsd(usdFallback);
   const biggest = byCategory[0];
 
   const seen = new Set<string>();
@@ -441,6 +486,8 @@ export default async function ExpensesPage({
           const total = kindTotals.find((row) => row.key === k.key);
           const active = kind === k.key;
           const usd = total?.usd ?? 0;
+          /* The chip is read in shillings, so it is summed in shillings. */
+          const tshTotal = sumShillings(total?.rows ?? [], rate);
           const share =
             k.key === "all" || recordedUsd <= 0
               ? 100
@@ -482,7 +529,7 @@ export default async function ExpensesPage({
                   active ? tone.text : "text-foreground"
                 )}
               >
-                {money(usd)}
+                {shillings(tshTotal, usd)}
               </p>
               {/* Its share of everything spent, so the row reads as a
                   breakdown and not five unrelated figures. */}
@@ -536,7 +583,8 @@ export default async function ExpensesPage({
             href={link({ status: "PENDING", period: "all" })}
             className="text-sm font-medium text-destructive hover:underline"
           >
-            {money(unpaidUsd)} {t(locale, "still to pay")} ({unpaid._count})
+            {shillings(unpaidTsh, unpaidUsd)} {t(locale, "still to pay")} (
+            {countOf(unpaid)})
           </Link>
         </p>
       ) : (
