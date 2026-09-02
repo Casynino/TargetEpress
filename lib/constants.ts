@@ -11,6 +11,7 @@ import type {
   ResolutionType,
   Role,
   ShipmentStatus,
+  SubmissionStatus,
 } from "@prisma/client";
 
 import { t } from "@/lib/i18n";
@@ -680,6 +681,25 @@ export const EXCEPTION_TYPE_LABELS: Record<ExceptionType, string> = {
  * distinguishes "open" from "under investigation" is asking the floor to
  * maintain a distinction that changes nothing about the cargo.
  */
+/**
+ * Where a customer's payment claim has got to, in one set of words.
+ *
+ * Support reads it on their own queue, Finance reads it on the cargo page, and
+ * the customer is told it over the phone — so it says what is true rather than
+ * naming the enum. "with Finance" answered where it was but not what it meant;
+ * a desk that has to explain a delay needs the sentence, not the state.
+ *
+ * REJECTED is "Returned to Support" on purpose. Nothing was refused about the
+ * customer: the claim goes back to the desk that raised it, with a reason
+ * attached, to be answered and re-sent.
+ */
+export const SUBMISSION_STATUS_LABELS: Record<SubmissionStatus, string> = {
+  PENDING: "Pending Finance verification",
+  VERIFIED: "Verified",
+  REJECTED: "Returned to Support",
+  WITHDRAWN: "Withdrawn",
+};
+
 export const EXCEPTION_STATUS_LABELS: Record<ExceptionStatus, string> = {
   OPEN: "Under investigation",
   UNDER_INVESTIGATION: "Under investigation",

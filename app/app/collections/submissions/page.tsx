@@ -13,6 +13,7 @@ import { SearchBox } from "@/components/app/search-box";
 import { SubmissionCorrection } from "@/components/app/submission-correction";
 import { Badge } from "@/components/ui/badge";
 import { submissionQueue } from "@/lib/collections";
+import { SUBMISSION_STATUS_LABELS } from "@/lib/constants";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { can } from "@/lib/rbac";
@@ -262,9 +263,7 @@ export default async function SubmissionsPage({
                           : "text-warning"
                     }`}
                   >
-                    {row.status === "PENDING"
-                      ? t(locale, "with Finance")
-                      : t(locale, row.status.toLowerCase())}
+                    {t(locale, SUBMISSION_STATUS_LABELS[row.status])}
                   </span>
                 </p>
                 <p className="shrink-0 font-display text-sm font-bold tabular">

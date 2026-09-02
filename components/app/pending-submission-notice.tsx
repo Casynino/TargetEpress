@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Hourglass, Paperclip } from "lucide-react";
 
+import { VerifySubmission } from "@/components/app/verify-submission";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatMoney, formatRelative } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -8,6 +9,8 @@ import { viewerLocale } from "@/lib/viewer";
 import type { PaymentMethod } from "@prisma/client";
 
 export type PendingSubmission = {
+  /** Needed to act on it from here rather than only to name it. */
+  id: string;
   submissionNumber: string;
   amount: number;
   currency: string;
@@ -38,10 +41,13 @@ export type PendingSubmission = {
 export async function PendingSubmissionNotice({
   submissions,
   canVerify,
+  accounts,
 }: {
   submissions: PendingSubmission[];
   /** payment.verify — Finance and the CEO. */
   canVerify: boolean;
+  /** Where the money landed. Empty for desks that may not verify. */
+  accounts: { id: string; name: string; currency: string }[];
 }) {
   if (submissions.length === 0) return null;
 
@@ -95,6 +101,22 @@ export async function PendingSubmissionNotice({
                 </>
               ) : null}
             </p>
+
+            {/*
+              The decision, on the row it belongs to.
+
+              Finance used to be sent to another screen to agree money it was
+              already looking at, and the server now refuses a second payment
+              outright — so without this the refusal would be a dead end rather
+              than a redirection. Same component the verify queue uses, so a
+              claim settled from here produces exactly the receipt, ledger line
+              and pickup note it would have produced there.
+            */}
+            {canVerify ? (
+              <div className="mt-3">
+                <VerifySubmission submissionId={s.id} accounts={accounts} />
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>
@@ -107,7 +129,7 @@ export async function PendingSubmissionNotice({
             <p className="text-xs text-muted-foreground">
               {t(
                 locale,
-                "Do not record this again below — check it here and it posts to the ledger itself."
+                "Agree it above and it posts to the ledger itself. Recording it again below is refused — it would take the same money twice."
               )}
             </p>
             <Link

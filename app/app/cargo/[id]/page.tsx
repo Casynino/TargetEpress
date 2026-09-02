@@ -186,6 +186,7 @@ export default async function ShipmentDetailPage({
    */
   const pendingSubmissions = showMoney
     ? (shipment.invoice?.submissions ?? []).map((s) => ({
+        id: s.id,
         submissionNumber: s.submissionNumber,
         amount: toNumber(s.amount),
         currency: s.currency,
@@ -199,7 +200,13 @@ export default async function ShipmentDetailPage({
   // Only for the desk that can take money. Nobody else is offered a question
   // about which company account something landed in, and the list is not
   // fetched for them either.
-  const accounts = can(user.role, "payment.record") ? await activeAccounts() : [];
+  /* Also for the desk that VERIFIES money, not only the one that takes it —
+     agreeing a claim has to say which account it landed in, and that decision
+     is now made on this page rather than on another one. */
+  const accounts =
+    can(user.role, "payment.record") || canVerifyPayments
+      ? await activeAccounts()
+      : [];
   // Rounded to the cent: this figure is both shown to a person and used as the
   // default in a step="0.01" amount input, which refuses a raw float remainder.
   const outstanding = shipment.invoice
@@ -804,6 +811,7 @@ export default async function ShipmentDetailPage({
           <PendingSubmissionNotice
             submissions={pendingSubmissions}
             canVerify={canVerifyPayments}
+            accounts={accounts}
           />
 
               {/*
