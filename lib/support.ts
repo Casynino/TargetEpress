@@ -229,6 +229,16 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
           confirmedAt: true,
           issuedAt: true,
           storageWaivedUsd: true,
+          /* Money the customer has already handed over and Finance has not
+             agreed to yet. Without it this list cannot tell a bill nobody has
+             paid from one that is sitting in the verification queue, and rings
+             the customer either way. */
+          submissions: {
+            where: { status: "PENDING" },
+            orderBy: { submittedAt: "desc" },
+            take: 1,
+            select: { submissionNumber: true, submittedAt: true },
+          },
         },
       },
       messages: {
@@ -268,6 +278,23 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
           ? "Paid — tell them to collect"
           : "Paid — awaiting pickup note";
       urgency = 30;
+    } else if (invoice.submissions.length > 0) {
+      /*
+        THE CUSTOMER HAS PAID. NOBODY HAS AGREED IT YET.
+
+        The bill still reads as owing, because a claim is not money until
+        Finance verifies it — and this list, which exists to decide who gets
+        rung, could not tell the two apart. So the desk rang customers who had
+        already sent their shillings and had the screenshot to prove it, which
+        is the one call that costs you a customer rather than collecting from
+        one.
+
+        Urgency drops below every genuine debt on the list. There is nothing for
+        Support to do here: the ball is with Finance, and saying so is the whole
+        point of the row.
+      */
+      nextAction = "Waiting on Finance to verify";
+      urgency = 20;
     } else {
       // Counted from when the bill became real, not from when somebody pressed
       // send. Invoices are generated automatically, so "sent" is a step nobody
@@ -281,9 +308,15 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       urgency = 50 + Math.min(daysBilled * 3, 30);
     }
 
-    // Storage is money leaking away from a customer who has stopped paying
-    // attention, so it outranks everything else in the queue.
-    if (storageDays > 0) urgency += 25 + Math.min(storageDays * 2, 40);
+    /* Storage is money leaking away from a customer who has stopped paying
+       attention, so it outranks everything else in the queue — unless the
+       customer has already paid and it is Finance who has not looked yet.
+       Ringing them about a storage fee they cannot stop is worse than not
+       ringing at all, and it would put the row straight back to the top that
+       the branch above just moved it off. */
+    if (storageDays > 0 && (invoice?.submissions.length ?? 0) === 0) {
+      urgency += 25 + Math.min(storageDays * 2, 40);
+    }
 
     return {
       id: shipment.id,
