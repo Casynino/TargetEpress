@@ -194,6 +194,10 @@ export default async function LedgerPage({
               proofs: { select: { url: true }, take: 1 },
               invoice: {
                 select: {
+                  /* So an income line can be corrected from here too. The edit
+                     and the void both live on the bill's own page, where the
+                     balance they change is on the screen beside them. */
+                  invoiceNumber: true,
                   customer: { select: { name: true } },
                   /* Which side of §13 this line is on. A payment against a bill
                      that was released on credit is a debt being settled, not a
@@ -1021,6 +1025,23 @@ export default async function LedgerPage({
                               <Link
                                 href={`/app/finance/expenses?q=${entry.expense.expenseNumber}`}
                                 aria-label={t(locale, "Edit the cost")}
+                                className="focus-ring rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Link>
+                            </IconHint>
+                          ) : null}
+                          {/* Income could only ever be cancelled from here, never
+                              corrected — so a payment typed as 45,000 instead of
+                              54,000 had to be voided and rewritten, which costs a
+                              receipt number and leaves two lines where one
+                              belongs. editPayment already existed; nothing on
+                              this register pointed at it. */}
+                          {entry.payment?.invoice ? (
+                            <IconHint label={t(locale, "Edit this payment")}>
+                              <Link
+                                href={`/app/finance/invoices/${entry.payment.invoice.invoiceNumber}`}
+                                aria-label={t(locale, "Edit this payment")}
                                 className="focus-ring rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
                               >
                                 <Pencil className="h-3.5 w-3.5" />

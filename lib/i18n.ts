@@ -3036,6 +3036,7 @@ const ZH: Record<string, string> = {
   "This cargo has already left China. Only Guangzhou, a manager or the owner can correct it now.": "该货物已离开中国。现在只有广州仓、经理或老板可以更正。",
   "This cargo has already left China. Only Guangzhou, a manager or the owner can remove it now.": "该货物已离开中国。现在只有广州仓、经理或老板可以移除。",
   "Bluetooth printer test": "蓝牙打印机测试",
+  "Edit this payment": "修改这笔收款",
   "Waiting on Finance to verify": "等待财务核实",
   "Pending Finance verification": "等待财务核实",
   "Returned to Support": "已退回客服",
