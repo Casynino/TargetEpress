@@ -97,8 +97,27 @@ export default async function RecordCustomerPaymentPage({
               {t(locale, "Nobody matched that.")}
             </p>
           ) : null}
+          {/*
+            POSSIBLY THE SAME PERSON.
+
+            Cargo registration already matches on a normalised phone number, so
+            two records only survive when one of them has no phone — which is
+            exactly how "Dickson Ndomba" and "dickson ndomba" became two
+            customers with a bill each. Flagged, never merged: the desk knows
+            things the database does not, and quietly joining two people's money
+            because their names match is a far worse mistake than showing two
+            rows.
+          */}
           <ul className="divide-y">
-            {matches.map((customer) => (
+            {matches.map((customer) => {
+              const twin = matches.some(
+                (other) =>
+                  other.id !== customer.id &&
+                  (other.name.trim().toLowerCase() ===
+                    customer.name.trim().toLowerCase() ||
+                    (other.phone !== null && other.phone === customer.phone))
+              );
+              return (
               <li key={customer.id}>
                 <Link
                   href={`/app/finance/payments/new?customer=${customer.id}`}
@@ -113,11 +132,17 @@ export default async function RecordCustomerPaymentPage({
                       {customer.phone ? ` · ${customer.phone}` : ""} ·{" "}
                       {customer._count.invoices} {t(locale, "open bill(s)")}
                     </span>
+                    {twin ? (
+                      <span className="mt-1 inline-block rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
+                        {t(locale, "Possibly the same customer as another below — check the phone before recording")}
+                      </span>
+                    ) : null}
                   </span>
                   <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </Link>
               </li>
-            ))}
+              );
+            })}
           </ul>
           {!q ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
