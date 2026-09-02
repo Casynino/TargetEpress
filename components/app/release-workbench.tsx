@@ -180,6 +180,9 @@ export function ReleaseWorkbench({
         scanned={scanned}
         opened={opened}
         onScan={setScanned}
+        /* The label on the carton is torn, soaked or was never legible. The
+           counter is already holding the box; what it cannot do is read it. */
+        onNoLabel={() => setOpened("noLabel")}
         photosDurable={photosDurable}
         onDone={reset}
       />
@@ -334,6 +337,7 @@ function ReleaseScreen({
   scanned,
   opened,
   onScan,
+  onNoLabel,
   photosDurable,
   onDone,
 }: {
@@ -341,6 +345,7 @@ function ReleaseScreen({
   scanned: string;
   opened: Opened;
   onScan: (code: string) => void;
+  onNoLabel: () => void;
   photosDurable: boolean;
   onDone: () => void;
 }) {
@@ -400,6 +405,7 @@ function ReleaseScreen({
           scanned={scanned}
           opened={opened}
           onScan={onScan}
+          onNoLabel={onNoLabel}
           photosDurable={photosDurable}
           onDone={onDone}
           onReleased={setReleased}
@@ -761,6 +767,7 @@ function ReleaseForm({
   scanned,
   opened,
   onScan,
+  onNoLabel,
   photosDurable,
   onDone,
   onReleased,
@@ -770,6 +777,7 @@ function ReleaseForm({
   scanned: string;
   opened: Opened;
   onScan: (code: string) => void;
+  onNoLabel: () => void;
   photosDurable: boolean;
   onDone: () => void;
   onReleased: (trackingNumber: string) => void;
@@ -858,6 +866,29 @@ function ReleaseForm({
               onResult={onScan}
               label={t("Point the camera at the QR on the carton")}
             />
+            {/*
+              The way out, for the box whose label cannot be read.
+
+              This escape already existed, but only on the scan screen — reach
+              the same cargo from the pickup queue and there was none, so a
+              clerk holding a carton with a soaked label was told to scan it and
+              had nowhere to go. Typing the tracking number was the obvious
+              guess and it fails, because the code on the sticker is a QR token
+              and not the tracking number: "the label is not valid".
+
+              It does not skip a check so much as name what is actually being
+              relied on. Nothing here proves the right box is on the counter —
+              the row was opened from a list, and a typed number would prove no
+              more than that — so the handover photograph becomes the proof, and
+              the release is recorded as made without a scan.
+            */}
+            <button
+              type="button"
+              onClick={onNoLabel}
+              className="focus-ring mt-3 min-h-11 text-left text-xs font-medium text-warning underline underline-offset-2"
+            >
+              {t("The label cannot be read — release without scanning")}
+            </button>
           </div>
         )}
 
