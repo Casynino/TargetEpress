@@ -6,6 +6,7 @@ import { CollectionsNav } from "@/components/app/collections-nav";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
 import { PageHeader } from "@/components/app/page-header";
+import { Button } from "@/components/ui/button";
 import { IconHint } from "@/components/app/icon-hint";
 import { RecordIncome } from "@/components/app/record-income";
 import { SearchBox } from "@/components/app/search-box";
@@ -205,11 +206,25 @@ export default async function FollowUpPage({
            list of people who might ring back to say they have paid. */
         actions={
           canTakePayments ? (
-            <RecordIncome
-              accounts={payAccounts}
-              rate={liveRate}
-              canRecord={canBankIt}
-            />
+            <>
+              {/* The customer who rings back to say they have paid often has
+                  three consignments and has sent one transfer for all of them.
+                  Settling those one at a time makes three receipts and three
+                  account movements for a deposit the bank shows once, so the
+                  way to do it properly belongs on the page where that call is
+                  answered. */}
+              <Button asChild variant="outline" size="sm">
+                <Link href="/app/finance/payments/new">
+                  <Banknote className="mr-2 h-4 w-4" />
+                  {t(locale, "One payment, several bills")}
+                </Link>
+              </Button>
+              <RecordIncome
+                accounts={payAccounts}
+                rate={liveRate}
+                canRecord={canBankIt}
+              />
+            </>
           ) : null
         }
       />
