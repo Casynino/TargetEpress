@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { Banknote, Wallet } from "lucide-react";
+import { Banknote, SlidersHorizontal, Wallet } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
@@ -23,19 +23,23 @@ export type OpenBill = {
 };
 
 /**
- * One transfer, spread across the bills it answers.
+ * TICK THE CARGO. RECORD THE PAYMENT.
  *
- * The arithmetic is the screen. A clerk holding a customer's M-Pesa message for
- * TSh 330,000 and three unpaid consignments needs to see, at every keystroke,
- * how much of it is still in their hand — so Received, Allocated and Left over
- * are always on the page, and Left over is a fact rather than an error. Money
- * beyond the bills stays with the customer as credit; forcing it onto an
- * invoice is how a balance nobody can explain gets created.
+ * The first version of this asked the clerk to type a figure against each bill.
+ * That is the accountant's model of the job — allocations, distribution,
+ * splitting — and it is not what happens at the counter. What happens is: this
+ * customer has three consignments, they have paid for all three, take the
+ * money. Somebody typing 100,000 then 150,000 then 80,000 to describe one
+ * 330,000 transfer is doing arithmetic the system already knows.
  *
- * The one thing it will not let you do is allocate more than arrived. Everything
- * else the server checks again — a bill's balance can move between opening this
- * page and pressing the button, and only the figures read inside the
- * transaction are current.
+ * So selection is the whole flow. Tick the bills, the total fills itself in,
+ * press the button. Typing a share is the exception, kept behind a toggle for
+ * the day a customer pays part of one — because that day does come, and the
+ * flow for it must not be the flow for every other day.
+ *
+ * Nothing about the cargo is merged. Each consignment keeps its own tracking
+ * number, batch, weight, storage clock, bill and pickup note; the only thing
+ * being grouped is the act of paying. That distinction is the whole design.
  */
 export function CustomerPaymentForm({
   customerId,
@@ -55,37 +59,47 @@ export function CustomerPaymentForm({
   >(recordCustomerPayment, { ok: true });
 
   const [currency, setCurrency] = useState(bills[0]?.currency ?? "TZS");
-  const [received, setReceived] = useState("");
-  /** invoiceId → what the clerk has typed against it. */
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  /* Only ever consulted in split mode. A share typed, then abandoned by
+     unticking the bill, must not travel with the form. */
   const [shares, setShares] = useState<Record<string, string>>({});
+  const [split, setSplit] = useState(false);
+  /** Null while the total is following the selection, which is nearly always. */
+  const [typedTotal, setTypedTotal] = useState<string | null>(null);
 
   const payable = useMemo(
     () => bills.filter((b) => b.currency === currency),
     [bills, currency]
   );
 
-  const receivedNum = Number(received) || 0;
   const allocations = payable
-    .map((b) => ({ invoiceId: b.invoiceId, amount: Number(shares[b.invoiceId]) || 0 }))
+    .filter((b) => picked.has(b.invoiceId))
+    .map((b) => ({
+      invoiceId: b.invoiceId,
+      amount: split
+        ? Number(shares[b.invoiceId] ?? b.outstanding) || 0
+        : b.outstanding,
+    }))
     .filter((a) => a.amount > 0);
+
   const allocated = allocations.reduce((sum, a) => sum + a.amount, 0);
-  const left = receivedNum - allocated;
+  /* The figure the customer actually sent. It follows what was ticked until
+     somebody says otherwise, because in the ordinary case they are the same
+     number and asking for it twice is how a 330,000 becomes a 33,000. */
+  const received = typedTotal === null ? allocated : Number(typedTotal) || 0;
+  const left = received - allocated;
   const over = left < -0.005;
 
   const money = (n: number) =>
     `${currency} ${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
-  /** Fill downwards from what is left, oldest bill first. */
-  function spread() {
-    let remaining = receivedNum;
-    const next: Record<string, string> = {};
-    for (const bill of payable) {
-      const take = Math.min(remaining, bill.outstanding);
-      if (take > 0.005) next[bill.invoiceId] = String(Number(take.toFixed(2)));
-      remaining -= take;
-      if (remaining <= 0.005) break;
-    }
-    setShares(next);
+  function toggle(invoiceId: string) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(invoiceId)) next.delete(invoiceId);
+      else next.add(invoiceId);
+      return next;
+    });
   }
 
   if (state.ok && state.data) {
@@ -105,6 +119,8 @@ export function CustomerPaymentForm({
   return (
     <form action={action} className="space-y-5">
       <input type="hidden" name="customerId" value={customerId} />
+      <input type="hidden" name="currency" value={currency} />
+      <input type="hidden" name="amount" value={received || ""} />
       <input
         type="hidden"
         name="allocations"
@@ -113,43 +129,162 @@ export function CustomerPaymentForm({
 
       <FormError state={state} />
 
+      {/* THE JOB, FIRST. Which cargo is this customer paying for. */}
+      <section className="panel overflow-hidden">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
+          <div>
+            <h2 className="font-display font-semibold">
+              {t("Which cargo are they paying for?")}
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {t("Tick everything this payment covers.")}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {bills.some((b) => b.currency !== currency) ? (
+              <NativeSelect
+                aria-label={t("Currency")}
+                className="h-9 w-24"
+                value={currency}
+                onChange={(e) => {
+                  setCurrency(e.target.value);
+                  /* Bills in the old currency have left the page; their
+                     selections must not be submitted from behind it. */
+                  setPicked(new Set());
+                  setShares({});
+                  setTypedTotal(null);
+                }}
+              >
+                <option value="TZS">TSh</option>
+                <option value="USD">USD</option>
+              </NativeSelect>
+            ) : null}
+            <button
+              type="button"
+              onClick={() =>
+                setPicked(
+                  picked.size === payable.length
+                    ? new Set()
+                    : new Set(payable.map((b) => b.invoiceId))
+                )
+              }
+              className="focus-ring rounded-full border px-3 py-1.5 text-xs font-semibold"
+            >
+              {picked.size === payable.length && payable.length > 0
+                ? t("Clear")
+                : t("Select all")}
+            </button>
+          </div>
+        </header>
+
+        {payable.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-muted-foreground">
+            {t("This customer has no open bills in this currency.")}
+          </p>
+        ) : (
+          <ul className="divide-y">
+            {payable.map((bill) => {
+              const on = picked.has(bill.invoiceId);
+              return (
+                <li key={bill.invoiceId}>
+                  {/* The whole row is the target. A 16px checkbox is not a
+                      thing to aim at on a warehouse phone. */}
+                  <label className="flex cursor-pointer items-center gap-3 px-5 py-3 hover:bg-accent/40">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() => toggle(bill.invoiceId)}
+                      className="h-5 w-5 shrink-0 accent-[var(--brand)]"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {bill.trackingNumber}{" "}
+                        <span className="text-muted-foreground">
+                          {bill.description}
+                        </span>
+                      </span>
+                      <span className="block font-mono text-xs text-muted-foreground">
+                        {bill.invoiceNumber}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="block font-display text-sm font-bold tabular-nums">
+                        {money(bill.outstanding)}
+                      </span>
+                    </span>
+                  </label>
+
+                  {/* Only when somebody has asked to pay part of a bill. */}
+                  {split && on ? (
+                    <div className="flex items-center justify-end gap-2 px-5 pb-3">
+                      <span className="text-xs text-muted-foreground">
+                        {t("Put against this bill")}
+                      </span>
+                      <div className="w-36">
+                        <MoneyInput
+                          name={`share_${bill.invoiceId}`}
+                          aria-label={`${t("Put against this bill")} ${bill.invoiceNumber}`}
+                          value={shares[bill.invoiceId] ?? String(bill.outstanding)}
+                          onValueChange={(raw) =>
+                            setShares((prev) => ({
+                              ...prev,
+                              [bill.invoiceId]: raw,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted/20 px-5 py-3">
+          <div>
+            <p className="text-xs text-muted-foreground">
+              {picked.size} {t("selected")}
+            </p>
+            <p className="font-display text-lg font-bold tabular-nums">
+              {money(allocated)}
+            </p>
+          </div>
+          {/* The exception, and it looks like one. */}
+          <button
+            type="button"
+            onClick={() => setSplit((v) => !v)}
+            className="focus-ring inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {split ? t("Pay them in full") : t("They are paying part of a bill")}
+          </button>
+        </footer>
+      </section>
+
+      {/* THE MONEY, SECOND. Pre-filled from what was ticked. */}
       <section className="panel space-y-4 p-5">
         <h2 className="font-display font-semibold">
           {t("What arrived from")} {customerName}
         </h2>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="amount">{t("Amount received")}</Label>
+          <div className="min-w-0 space-y-1.5">
+            <Label htmlFor="amountShown">{t("Amount received")}</Label>
             <MoneyInput
-              id="amount"
-              name="amount"
-              value={received}
-              onValueChange={setReceived}
-              required
+              id="amountShown"
+              name="amountShown"
+              value={typedTotal ?? String(allocated || "")}
+              onValueChange={(raw) => setTypedTotal(raw)}
             />
+            <p className="text-xs text-muted-foreground">
+              {typedTotal === null
+                ? t("Following what you ticked. Change it if they sent a different amount.")
+                : t("Typed by you.")}
+            </p>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="currency">{t("Currency")}</Label>
-            <NativeSelect
-              id="currency"
-              name="currency"
-              className="h-11"
-              value={currency}
-              onChange={(e) => {
-                setCurrency(e.target.value);
-                /* Bills in the old currency are no longer on the page, so their
-                   shares must not travel with the form. */
-                setShares({});
-              }}
-            >
-              <option value="TZS">TZS</option>
-              <option value="USD">USD</option>
-            </NativeSelect>
-          </div>
-
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="method">{t("How it was paid")}</Label>
             <NativeSelect id="method" name="method" className="h-11" defaultValue="MOBILE_MONEY">
               <option value="MOBILE_MONEY">{t("Mobile money")}</option>
@@ -159,7 +294,7 @@ export function CustomerPaymentForm({
             </NativeSelect>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="reference">{t("Reference")}</Label>
             <Input
               id="reference"
@@ -169,7 +304,7 @@ export function CustomerPaymentForm({
             />
           </div>
 
-          <div className="space-y-1.5 sm:col-span-2">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="accountId">{t("Which account did it land in?")}</Label>
             <NativeSelect id="accountId" name="accountId" className="h-11" defaultValue="">
               <option value="">{t("Not said yet")}</option>
@@ -183,103 +318,40 @@ export function CustomerPaymentForm({
             </NativeSelect>
           </div>
 
-          <div className="space-y-1.5 sm:col-span-2">
+          <div className="min-w-0 space-y-1.5 sm:col-span-2">
             <Label htmlFor="note">{t("Note")}</Label>
             <Textarea id="note" name="note" rows={2} />
           </div>
         </div>
-      </section>
 
-      <section className="panel overflow-hidden">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
-          <h2 className="font-display font-semibold">
-            {t("Which bills does it settle?")}
-          </h2>
-          <button
-            type="button"
-            onClick={spread}
-            disabled={receivedNum <= 0}
-            className="focus-ring rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+        {/* Shown only when the two figures differ, because in the ordinary case
+            they are the same and a row of matching numbers is just noise. */}
+        {Math.abs(left) > 0.005 ? (
+          <div
+            className={`rounded-lg border p-3 text-sm ${
+              over
+                ? "border-destructive/40 bg-destructive/5"
+                : "border-warning/40 bg-warning/5"
+            }`}
           >
-            {t("Spread it, oldest first")}
-          </button>
-        </header>
-
-        {payable.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-muted-foreground">
-            {t("This customer has no open bills in this currency.")}
-          </p>
-        ) : (
-          <ul className="divide-y">
-            {payable.map((bill) => (
-              <li
-                key={bill.invoiceId}
-                className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {bill.trackingNumber}{" "}
-                    <span className="text-muted-foreground">{bill.description}</span>
-                  </p>
-                  <p className="font-mono text-xs text-muted-foreground">
-                    {bill.invoiceNumber} · {t("owes")}{" "}
-                    {bill.currency} {bill.outstanding.toLocaleString()}
-                  </p>
-                </div>
-                <div className="w-36 shrink-0">
-                  {/* Named for the browser's sake only — the server reads the
-                      allocations off the hidden JSON field, which is the one
-                      place the pairs stay together. */}
-                  <MoneyInput
-                    name={`share_${bill.invoiceId}`}
-                    aria-label={`${t("Allocate to")} ${bill.invoiceNumber}`}
-                    value={shares[bill.invoiceId] ?? ""}
-                    onValueChange={(raw) =>
-                      setShares((prev) => ({ ...prev, [bill.invoiceId]: raw }))
-                    }
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* The three figures the clerk is actually watching. Left over is a
-            fact, not a fault — it stays with the customer as credit. */}
-        <footer className="grid grid-cols-3 gap-3 border-t bg-muted/20 px-5 py-3 text-sm">
-          <div>
-            <p className="text-xs text-muted-foreground">{t("Received")}</p>
-            <p className="font-display font-bold tabular-nums">{money(receivedNum)}</p>
+            {over ? (
+              t(
+                "You have put more against bills than the customer sent. Untick a bill, or raise the amount received."
+              )
+            ) : (
+              <>
+                <span className="font-medium">
+                  {money(left)} {t("left over")}
+                </span>{" "}
+                {t("stays with the customer as credit for next time.")}
+              </>
+            )}
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">{t("Allocated")}</p>
-            <p className="font-display font-bold tabular-nums">{money(allocated)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">
-              {over ? t("Over-allocated") : t("Left as customer credit")}
-            </p>
-            <p
-              className={`font-display font-bold tabular-nums ${
-                over ? "text-destructive" : left > 0.005 ? "text-warning" : ""
-              }`}
-            >
-              {money(Math.abs(left))}
-            </p>
-          </div>
-        </footer>
+        ) : null}
       </section>
-
-      {over ? (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
-          {t(
-            "You have put more against bills than the customer sent. Reduce a share, or raise the amount received."
-          )}
-        </p>
-      ) : null}
 
       <SubmitButton
-        disabled={over || receivedNum <= 0 || allocations.length === 0}
+        disabled={over || received <= 0 || allocations.length === 0}
         pendingLabel="Recording…"
       >
         {left > 0.005 ? (
@@ -287,7 +359,8 @@ export function CustomerPaymentForm({
         ) : (
           <Banknote className="mr-2 h-4 w-4" />
         )}
-        {t("Record")} {money(receivedNum)}
+        {t("Record")} {money(received)} · {allocations.length}{" "}
+        {t("cargo")}
       </SubmitButton>
     </form>
   );
