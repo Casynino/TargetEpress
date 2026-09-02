@@ -877,6 +877,11 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // The bare prefix is the ledger workspace itself — the business's books.
   // Everything above this line that a non-accounting desk needs has its own
   // rule; longest prefix wins, so those still resolve.
+  /* Taking a customer's money is payment.record, not the books-wide
+     accounting.view that guards the rest of this section — Support collects at
+     the counter and never opens a ledger. Longer prefix, so it is matched
+     first. */
+  { prefix: "/app/finance/payments", permission: "payment.record" },
   { prefix: "/app/finance", permission: "accounting.view" },
   { prefix: "/app/admin/deleted", permission: "records.viewDeleted" },
   { prefix: "/app/admin/pricing", permission: "pricing.manage" },
