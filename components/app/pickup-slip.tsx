@@ -20,6 +20,16 @@ export type PickupSlipData = {
   invoiceNumber: string | null;
   /** "Paid in full", already worded — the slip states a fact, not a figure. */
   paymentStatus: string;
+  /**
+   * Whether the money is actually in, and the note still stands.
+   *
+   * The green stamp used to be the default and `credit` the only thing that
+   * could take it away — so a note whose payment had been reversed, or which
+   * had since been cancelled outright, still printed PAID IN FULL in green on
+   * the copy in the customer's hand. Being on credit is one reason not to print
+   * green; it is not the only one.
+   */
+  settled: boolean;
   amountLabel: string | null;
   /**
    * Set when this cargo left on credit and the bill is not settled.
@@ -85,6 +95,9 @@ const OFFICE = COMPANY.offices[0];
 export async function PickupSlip({ data }: { data: PickupSlipData }) {
   const locale = await viewerLocale();
   const spent = data.status !== "ACTIVE";
+  /* The one condition that earns the green stamp. Both halves matter: money in,
+     and a note that still stands. */
+  const paidTone = data.settled && !data.credit;
 
   return (
     <article
@@ -278,15 +291,20 @@ export async function PickupSlip({ data }: { data: PickupSlipData }) {
         the figure beside them is what is STILL OWED rather than what was paid,
         and the box is ruled so the block reads as a stamp in black and white.
       */}
+      {/* Green is a claim about money, so it is earned rather than assumed:
+          the bill is settled AND the note still stands. Anything else — an open
+          credit, a payment since reversed, a note cancelled outright — prints
+          in the warning treatment, because the customer holds this card and
+          reads the colour before the words. */}
       <div
         className="shrink-0"
         style={{
           marginTop: "1.8mm",
           padding: "1.6mm 2.6mm",
-          backgroundColor: data.credit
-            ? "rgba(216,30,42,0.12)"
-            : "rgba(17,116,71,0.12)",
-          border: data.credit ? "0.3mm solid rgba(176,23,34,0.5)" : undefined,
+          backgroundColor: paidTone
+            ? "rgba(17,116,71,0.12)"
+            : "rgba(216,30,42,0.12)",
+          border: paidTone ? undefined : "0.3mm solid rgba(176,23,34,0.5)",
         }}
       >
         <div className="flex items-baseline justify-between" style={{ gap: "2mm" }}>
@@ -294,7 +312,7 @@ export async function PickupSlip({ data }: { data: PickupSlipData }) {
             className="font-display font-bold uppercase leading-none"
             style={{
               fontSize: "10.5pt",
-              color: data.credit ? "#B01722" : "#117447",
+              color: paidTone ? "#117447" : "#B01722",
               letterSpacing: "0.04em",
             }}
           >
@@ -303,7 +321,7 @@ export async function PickupSlip({ data }: { data: PickupSlipData }) {
           {data.amountLabel ? (
             <p
               className="font-mono font-bold leading-none tabular"
-              style={{ fontSize: "10pt", color: data.credit ? "#B01722" : "#117447" }}
+              style={{ fontSize: "10pt", color: paidTone ? "#117447" : "#B01722" }}
             >
               {data.amountLabel}
             </p>

@@ -772,12 +772,29 @@ function PickupNotePanel(props: Props) {
           )}
         </p>
         {props.pickupNoteId ? (
-          <Button asChild variant="outline" size="sm" className="mt-3">
-            <Link href={`/app/finance/pickup-notes/${props.pickupNoteId}`}>
-              <Printer className="mr-2 h-4 w-4" />
-              {t("Open & print")}
-            </Link>
-          </Button>
+          /* Print is for the counter; the file is for the customer who is not
+             standing at it. The invoice beside this block has offered both for
+             months — the note, which is the document the customer actually
+             brings back, offered only a print dialog. Same permission either
+             way: the PDF route asks for pickupNote.view, exactly what put this
+             panel on the screen. */
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/app/finance/pickup-notes/${props.pickupNoteId}`}>
+                <Printer className="mr-2 h-4 w-4" />
+                {t("Open & print")}
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a
+                href={`/app/finance/pickup-notes/${props.pickupNoteId}/pdf`}
+                download
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {t("Download PDF")}
+              </a>
+            </Button>
+          </div>
         ) : null}
       </div>
     );

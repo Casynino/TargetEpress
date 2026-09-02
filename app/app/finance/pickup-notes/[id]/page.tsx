@@ -54,6 +54,11 @@ export default async function PickupNotePage({
               invoiceNumber: true,
               storageCharge: true,
               storageWaivedUsd: true,
+              /* Outstanding is derived, never stored — so the stamp is read
+                 from the bill at the moment the card is drawn, and a payment
+                 reversed since it was issued takes the green with it. */
+              total: true,
+              amountPaid: true,
             },
           },
         },
@@ -99,6 +104,22 @@ export default async function PickupNotePage({
   const storageCharged = toNumber(note.shipment.invoice?.storageCharge ?? 0);
   const storageWaived = toNumber(note.shipment.invoice?.storageWaivedUsd ?? 0);
 
+  /*
+    Does this card still say something true?
+
+    The stamp was green whenever there was no open credit, because issuing a
+    note used to be the last word on the money. It is not: a payment can be
+    cancelled afterwards, and the note itself can be cancelled outright — and
+    both happened on the same consignment, leaving a card stamped CANCELLED
+    across the top and PAID IN FULL in green underneath. The customer reads the
+    green.
+  */
+  const outstanding =
+    toNumber(note.shipment.invoice?.total ?? 0) -
+    toNumber(note.shipment.invoice?.amountPaid ?? 0);
+  const moneyIn = note.shipment.invoice !== null && outstanding <= 0.005;
+  const settled = note.status !== "CANCELLED" && moneyIn;
+
   const data: PickupSlipData = {
     noteNumber: note.noteNumber,
     status: note.status,
@@ -120,12 +141,17 @@ export default async function PickupNotePage({
       note.shipment.packageType
     , locale),
     invoiceNumber: note.shipment.invoice?.invoiceNumber ?? null,
+    settled,
     paymentStatus:
-      pendingCredit === null
-        ? t(locale, "Paid in full")
-        : waived
-          ? t(locale, "Written off")
-          : t(locale, "Credit — payment pending"),
+      note.status === "CANCELLED"
+        ? t(locale, "Cancelled — this note is not valid")
+        : pendingCredit === null
+          ? moneyIn
+            ? t(locale, "Paid in full")
+            : t(locale, "Payment not received")
+          : waived
+            ? t(locale, "Written off")
+            : t(locale, "Credit — payment pending"),
     /*
       The figure only for the desks allowed one.
 

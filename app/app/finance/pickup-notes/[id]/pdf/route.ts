@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { cardFileName, pdfHeaders, renderPickupSlipPdf } from "@/lib/card-pdf";
 import { COMPANY, formatPackages } from "@/lib/constants";
-import { formatDate, formatMoney, formatWeight } from "@/lib/format";
+import { formatDate, formatMoney, formatWeight, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { invoiceCredit } from "@/lib/credit-queries";
 import { prisma } from "@/lib/prisma";
@@ -44,7 +44,17 @@ export async function GET(
           packages: true,
           packageType: true,
           weightKg: true,
-          invoice: { select: { id: true, invoiceNumber: true } },
+          /* Outstanding is derived at read time, so the stamp on the copy the
+             customer keeps reflects the bill now — not what it said the day
+             the note was printed. */
+          invoice: {
+            select: {
+              id: true,
+              invoiceNumber: true,
+              total: true,
+              amountPaid: true,
+            },
+          },
         },
       },
     },
@@ -59,6 +69,11 @@ export async function GET(
 
   /* Null unless this consignment actually went out on credit, so an ordinary
      settled note keeps its settled wording untouched. */
+  const outstanding =
+    toNumber(note.shipment.invoice?.total ?? 0) -
+    toNumber(note.shipment.invoice?.amountPaid ?? 0);
+  const moneyIn = note.shipment.invoice !== null && outstanding <= 0.005;
+
   const credit = note.shipment.invoice
     ? await invoiceCredit(note.shipment.invoice.id)
     : null;
@@ -91,11 +106,24 @@ export async function GET(
       stamped it on a consignment released on credit — the exact thing the rule
       exists to prevent, on the more widely seen of the two documents.
     */
-    paymentStatus: credit
-      ? credit.state === "WAIVED"
-        ? "Written off"
-        : "Credit — payment pending"
-      : "Paid in full",
+    /*
+      What this bill actually is, right now.
+
+      "Paid in full" whenever there was no open credit put a green PAID stamp on
+      a card that had been cancelled and whose payment had been reversed — on
+      the more widely seen of the two documents, and the one the customer brings
+      back to the counter.
+    */
+    paymentStatus:
+      note.status === "CANCELLED"
+        ? "Cancelled — this note is not valid"
+        : credit
+          ? credit.state === "WAIVED"
+            ? "Written off"
+            : "Credit — payment pending"
+          : moneyIn
+            ? "Paid in full"
+            : "Payment not received",
     credit: credit
       ? {
           dueOn: credit.dueDate ? formatDate(credit.dueDate, locale) : null,
