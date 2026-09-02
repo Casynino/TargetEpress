@@ -180,6 +180,14 @@ export async function voidPayment(
           ...(newStatus ? { status: newStatus } : {}),
         },
       });
+      /* The settlement goes with the money.
+         A void hands the invoice back exactly what this payment put against it,
+         so leaving the allocation behind would have the bill reading as settled
+         by a payment that no longer settles anything — and the invariant every
+         reconciliation depends on, that a bill's allocations add up to what it
+         has been paid, would drift on the first cancellation. */
+      await tx.paymentAllocation.deleteMany({ where: { paymentId: payment.id } });
+
       if (invoiceClaim.count === 0) {
         throw new Error(
           t(locale, "This bill's balance moved a moment ago. Reload and check it before cancelling.")
