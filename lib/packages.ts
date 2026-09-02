@@ -25,6 +25,16 @@ export type ScanTarget = {
     receivedAt: Date | null;
     deliveredAt: Date | null;
   } | null;
+  /**
+   * True when this was TYPED, not read off a label.
+   *
+   * The distinction is the whole point of the QR. A scan says "this box is in
+   * my hand"; a tracking number typed off a phone screen or a customer's
+   * WhatsApp message says only "this is the cargo I mean" — the box could be
+   * anywhere. Both find the consignment; only one of them is evidence, and
+   * releaseShipment records which happened.
+   */
+  typed?: boolean;
 };
 
 /**
@@ -37,7 +47,21 @@ export type ScanTarget = {
  */
 export async function resolveScannedCode(raw: string): Promise<ScanTarget | null> {
   const code = parseQrPayload(raw);
-  if (!code) return null;
+  /*
+    TYPED, because the label could not be read.
+
+    A soaked or torn sticker is an ordinary morning in a warehouse, and the
+    counter's instinct is to type the number printed beside the code —
+    TX-000086, or TX-000086-P1 for one box of several. That returned "That code
+    is not a Target Express label", which is true of the parser and useless to
+    the person holding the carton: the number they typed is on our own sticker,
+    under our own QR.
+
+    So it resolves, and is marked `typed` so nothing downstream can mistake it
+    for proof the box was present. Finding the cargo and proving you are holding
+    it are two different claims, and only the scanner makes the second.
+  */
+  if (!code) return resolveTypedReference(raw);
 
   const PACKAGE_FIELDS = {
     id: true,
@@ -133,4 +157,42 @@ export function packageProgress(
     // "4/5 cartons received" and "4/5 纸箱 已核收" are the same sentence.
     label: `${received}/${formatPackages(total, packageType, locale)} ${t(locale, "received")}`,
   };
+}
+
+/**
+ * A tracking number or a package reference, typed by hand.
+ *
+ * Deliberately strict about shape: TX-000086 or TX-000086-P1, nothing else. A
+ * loose search belongs on the search screen, where a wrong guess costs a second
+ * look; here a wrong match is the wrong box leaving the building.
+ */
+async function resolveTypedReference(raw: string): Promise<ScanTarget | null> {
+  const value = raw.trim().toUpperCase();
+  if (!/^TX-\d+(-P\d+)?$/.test(value)) return null;
+
+  const PACKAGE_FIELDS = {
+    id: true,
+    sequence: true,
+    reference: true,
+    receivedAt: true,
+    deliveredAt: true,
+    shipmentId: true,
+    shipment: { select: { deletedAt: true } },
+  } as const;
+
+  if (value.includes("-P")) {
+    const pkg = await prisma.package.findFirst({
+      where: { reference: value },
+      select: PACKAGE_FIELDS,
+    });
+    if (!pkg || pkg.shipment.deletedAt) return null;
+    const { shipment: _shipment, shipmentId, ...rest } = pkg;
+    return { shipmentId, package: rest, typed: true };
+  }
+
+  const shipment = await prisma.shipment.findUnique({
+    where: { trackingNumber: value, deletedAt: null },
+    select: { id: true },
+  });
+  return shipment ? { shipmentId: shipment.id, package: null, typed: true } : null;
 }

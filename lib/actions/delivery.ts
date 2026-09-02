@@ -192,6 +192,16 @@ export async function releaseShipment(
   const scanned = input.shipmentQr
     ? await resolveScannedCode(input.shipmentQr)
     : null;
+  /*
+    Found is not the same as proved.
+
+    A tracking number typed by hand resolves to the same consignment a scan
+    would, and is how the counter gets past a label it cannot read. It is not
+    evidence the carton was on the counter, so everything below that asks "was
+    this box in somebody's hand" asks THIS, and the handover photograph carries
+    the proof instead — the same footing as the unreadable-label list.
+  */
+  const provedByScan = scanned !== null && scanned.typed !== true;
   if (input.shipmentQr && !scanned) {
     return fail(t(locale, "That code is not a Target Express label."));
   }
@@ -343,7 +353,7 @@ export async function releaseShipment(
             photograph must be distinguishable months later, when it is the
             thing a claim turns on.
           */
-          note: scanned
+          note: provedByScan
             ? input.note || null
             : [
                 "Released without scanning the label (label unreadable).",
@@ -407,8 +417,8 @@ export async function releaseShipment(
             deliveryPhotos: uploaded.length,
             packagesReleased: note.shipment.packageList.length,
             // The audit line says which box was read, or that none was.
-            scannedPackage: scanned
-              ? (scanned.package?.reference ?? "shipment label")
+            scannedPackage: provedByScan
+              ? (scanned!.package?.reference ?? "shipment label")
               : "none — label unreadable",
           },
         },
