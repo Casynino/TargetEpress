@@ -5,7 +5,7 @@ import { Paperclip } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
-import { ExpenseForm } from "@/components/app/expense-form";
+import { RecordCostButton } from "@/components/app/record-cost-button";
 import { ExpenseRowActions } from "@/components/app/expense-row-actions";
 import { SearchBox } from "@/components/app/search-box";
 import { Badge } from "@/components/ui/badge";
@@ -450,7 +450,15 @@ export default async function ExpensesPage({
         )}
         actions={
           canRecord ? (
-            <ExpenseForm
+            /* A dialog, not a form unfolding inside the page header.
+
+               The header's actions slot has no width of its own, so opening the
+               form there let it grow to whatever it liked: it ran off the right
+               edge of the screen, took the "Paid from" field and the receipt row
+               with it, and sat on top of the page title. The ledger has opened
+               this as a centred dialog for months; the Expenses page now does
+               the same thing, which is also the smaller change. */
+            <RecordCostButton
               categories={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
                 value,
                 label: t(locale, label),

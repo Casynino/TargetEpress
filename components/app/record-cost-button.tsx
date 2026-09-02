@@ -23,10 +23,15 @@ export function RecordCostButton({
   accounts,
   quick,
   rate,
+  categories = [],
+  dispatches = [],
 }: {
   accounts: ExpenseAccount[];
   quick: QuickExpense[];
   rate: number | null;
+  /** The Expenses page names its own; the ledger takes the defaults. */
+  categories?: { value: string; label: string }[];
+  dispatches?: { id: string; label: string }[];
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -52,7 +57,7 @@ export function RecordCostButton({
             if (e.target === e.currentTarget) setOpen(false);
           }}
         >
-          <div className="mx-auto max-w-3xl">
+          <div className="mx-auto w-full max-w-2xl">
             <div className="mb-3 flex justify-end">
               <button
                 type="button"
@@ -64,9 +69,9 @@ export function RecordCostButton({
               </button>
             </div>
             <ExpenseForm
-              categories={[]}
+              categories={categories}
               accounts={accounts}
-              dispatches={[]}
+              dispatches={dispatches}
               quick={quick}
               rate={rate}
               alwaysOpen

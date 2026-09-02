@@ -143,13 +143,16 @@ export function ExpenseForm({
             <Zap className="h-3.5 w-3.5" />
             {t("The usual")}
           </p>
-          <div className="flex flex-wrap gap-1.5">
+          {/* One row that scrolls, not a block that grows. Twelve usual costs
+              wrapped into four lines and pushed the amount field — the only
+              field that always has to be filled — below the fold. */}
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
             {quick.map((item) => (
               <button
                 key={item.label}
                 type="button"
                 onClick={() => pick(item)}
-                className={`focus-ring rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                className={`focus-ring shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                   description === item.label
                     ? "border-brand bg-brand text-brand-foreground"
                     : "bg-card hover:bg-accent"
@@ -174,8 +177,17 @@ export function ExpenseForm({
         {fixedDispatch ? (
           <input type="hidden" name="batchId" value={fixedDispatch.id} />
         ) : null}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <div className="space-y-1.5 lg:col-span-4">
+        {/*
+          Two columns, and `min-w-0` on every one of them.
+
+          This was a twelve-column grid keyed to the WINDOW's width, while the
+          form now sits in a dialog a third of it — so on a wide screen it laid
+          three columns into 670px and pushed "Paid from" and the receipt row off
+          the edge. A grid track's default minimum is its content, which is what
+          turns a long account name into a page that scrolls sideways.
+        */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="min-w-0 space-y-1.5 sm:col-span-2">
             <Label htmlFor="description" className="text-xs">
               {t("What was it for")}
             </Label>
@@ -189,7 +201,7 @@ export function ExpenseForm({
             />
           </div>
 
-          <div className="space-y-1.5 lg:col-span-4">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="expenseAmount" className="text-xs">
               {t("Amount")}
             </Label>
@@ -214,7 +226,7 @@ export function ExpenseForm({
             </div>
           </div>
 
-          <div className="space-y-1.5 lg:col-span-4">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="expenseAccount" className="text-xs">
               {t("Paid from")}
             </Label>
@@ -233,7 +245,7 @@ export function ExpenseForm({
             </p>
           </div>
 
-          <div className="space-y-1.5 lg:col-span-5">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="category" className="text-xs">
               {t("Category")}
             </Label>
@@ -253,7 +265,7 @@ export function ExpenseForm({
 
           {/* First class, not behind a disclosure: the moment the receipt is
               easiest to attach is the moment the cost is being recorded. */}
-          <div className="space-y-1.5 lg:col-span-7">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="receipt" className="flex items-center gap-1.5 text-xs">
               <Paperclip className="h-3.5 w-3.5" />
               {t("Receipt or photo")}
@@ -268,7 +280,7 @@ export function ExpenseForm({
             />
           </div>
 
-          <div className="lg:col-span-12">
+          <div className="sm:col-span-2">
             <button
               type="button"
               onClick={() => setMore((v) => !v)}
@@ -285,7 +297,7 @@ export function ExpenseForm({
 
           {more ? (
             <>
-              <div className="space-y-1.5 lg:col-span-4">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="vendor" className="text-xs">
                   {t("Paid to")}
                 </Label>
@@ -296,7 +308,7 @@ export function ExpenseForm({
                 />
               </div>
               {!fixedDispatch && dispatches && dispatches.length > 0 ? (
-                <div className="space-y-1.5 lg:col-span-4">
+                <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="expenseBatch" className="text-xs">
                     {t("Against a dispatch")}
                   </Label>
@@ -310,7 +322,7 @@ export function ExpenseForm({
                   </NativeSelect>
                 </div>
               ) : null}
-              <div className="space-y-1.5 lg:col-span-4">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="incurredAt" className="text-xs">
                   {t("Date")}
                 </Label>
@@ -323,7 +335,7 @@ export function ExpenseForm({
                 behind "more" for the same reason — the one desk that needs the
                 other option knows it needs it.
               */}
-              <div className="space-y-1.5 lg:col-span-4">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="expenseClass" className="text-xs">
                   {t("Counts towards profit")}
                 </Label>
