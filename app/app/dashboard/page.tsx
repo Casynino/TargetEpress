@@ -15,6 +15,7 @@ import {
   PackagePlus,
   Plane,
   Printer,
+  Layers,
   QrCode,
   Scale,
   ShieldCheck,
@@ -1790,6 +1791,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
        the one that took more clicks. It opens the ledger with the panel
        already up rather than carrying a second copy of the form. */
     { href: "/app/finance/transactions?income=1", label: t(locale, "Record an income"), icon: Banknote, weight: "secondary", tone: "success" },
+    /* The customer with three consignments and one M-Pesa message. It existed
+       and was reachable only by typing the URL, which is the same as not
+       existing — the desk starts on this screen, so the way in belongs on it. */
+    { href: "/app/finance/payments/new", label: t(locale, "One payment, several cargo"), icon: Layers, weight: "secondary", tone: "success" },
     { href: "/app/finance/transactions", label: t(locale, "Record a cost"), icon: Banknote, weight: "secondary", tone: "signal" },
     // Verify payments, not Payments. What Finance starts here is the queue
     // Customer Support hands up — proofs collected at the counter that are
