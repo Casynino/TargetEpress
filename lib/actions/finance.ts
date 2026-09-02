@@ -963,6 +963,42 @@ export async function recordPayment(
         );
       }
 
+      /*
+        ONE REAL PAYMENT = ONE PAYMENT RECORD.
+
+        Support collects a customer's proof at the counter and sends it up; it
+        is not money until Finance agrees, so the bill still reads as owing and
+        this form still offers the full balance pre-filled. Finance then opens
+        the cargo, sees a balance, and records the same money a second time —
+        two payments, two receipts, two ledger lines, one customer's shillings.
+        The notice above the form has warned about this for months, and a
+        warning is not a control: the desk that is busy is exactly the desk that
+        does not read it.
+
+        The submission is claimed through its own door instead, which posts the
+        ledger line itself. The message says so, because "refused" without the
+        next step just moves the problem to WhatsApp.
+      */
+      const pending = await tx.paymentSubmission.findFirst({
+        where: { invoiceId: invoice.id, status: "PENDING" },
+        orderBy: { submittedAt: "asc" },
+        select: {
+          submissionNumber: true,
+          amount: true,
+          currency: true,
+          submittedBy: { select: { name: true } },
+        },
+      });
+      if (pending) {
+        const who = pending.submittedBy?.name ?? "Customer Support";
+        throw new Error(
+          `${who} has already recorded this payment (${pending.submissionNumber}, ` +
+            `${pending.currency} ${toNumber(pending.amount).toLocaleString()}) and it is ` +
+            `waiting for you to verify it. Verify that one in Finance → Verify payments ` +
+            `— recording it here as well would take the same money twice.`
+        );
+      }
+
       // Money cannot arrive before the bill exists. The form already refuses a
       // future date; this is the other end of the same sanity check, and it is
       // what catches a mis-scrolled year on a date picker.
@@ -1052,6 +1088,41 @@ export async function recordPayment(
             `${account.name} is a ${account.currency} account, so a payment of ${tenderedCurrency} ${input.amount.toLocaleString()} cannot have landed in it. Pick the account the money actually went to.`
           );
         }
+      }
+
+      /*
+        THE SAME PAYMENT, TWICE, FROM ONE PAIR OF HANDS.
+
+        The conditional claim further down catches two clerks racing each other,
+        because they read the same amountPaid. It cannot catch one clerk whose
+        first submission SUCCEEDED — a double-tapped button, or a page refreshed
+        while the spinner was up — because the second attempt reads the new
+        figure and is arithmetically fine. On a bill settled in full the
+        outstanding check stops it; on a part payment nothing did.
+
+        So the same amount, in the same currency, by the same method, against
+        the same bill, within two minutes, is treated as the same money. A
+        customer genuinely paying twice inside two minutes types a reference or
+        waits — and is a great deal rarer than a warehouse phone on a bad
+        connection.
+      */
+      const echo = await tx.payment.findFirst({
+        where: {
+          invoiceId: invoice.id,
+          amount: new Prisma.Decimal(input.amount),
+          currency: tenderedCurrency,
+          method: input.method,
+          reference: input.reference || null,
+          createdAt: { gte: new Date(Date.now() - 120_000) },
+        },
+        select: { receipt: { select: { receiptNumber: true } } },
+      });
+      if (echo) {
+        throw new Error(
+          `This payment has just been recorded${
+            echo.receipt ? ` on receipt ${echo.receipt.receiptNumber}` : ""
+          }. Reload the page — recording it again would take the same money twice.`
+        );
       }
 
       const payment = await tx.payment.create({
