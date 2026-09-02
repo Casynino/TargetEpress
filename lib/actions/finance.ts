@@ -945,9 +945,6 @@ export async function recordPayment(
           currency: true,
           exchangeRate: true,
           issuedAt: true,
-          /* The payer, carried onto the payment: money that arrives ahead of a
-             bill, or beyond every bill, still belongs to somebody. */
-          customerId: true,
           shipment: { select: { id: true, trackingNumber: true, batchId: true } },
         },
       });
@@ -1131,7 +1128,6 @@ export async function recordPayment(
       const payment = await tx.payment.create({
         data: {
           invoiceId: invoice.id,
-          customerId: invoice.customerId,
           amount: new Prisma.Decimal(input.amount),
           currency: tenderedCurrency,
           creditedAmount: new Prisma.Decimal(credited),
@@ -1152,23 +1148,6 @@ export async function recordPayment(
               uploadedById: user.id,
             })),
           },
-        },
-      });
-
-      /*
-        WHAT THIS PAYMENT SETTLED, written as its own record.
-        One allocation today, because this form still takes one bill at a time.
-        It moves no money — the payment above already did that, once — it only
-        says which bill this share answered, which is what lets a later transfer
-        answer three bills without becoming three payments. `credited` and not
-        `input.amount`: a bill is settled in its own currency.
-      */
-      await tx.paymentAllocation.create({
-        data: {
-          paymentId: payment.id,
-          invoiceId: invoice.id,
-          amount: new Prisma.Decimal(credited),
-          createdById: user.id,
         },
       });
 

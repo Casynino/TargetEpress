@@ -365,16 +365,16 @@ enum ReceiverRelationship {
 // ---------------------------------------------------------------------------
 
 model User {
-  storageWaivers Invoice[]  @relation("StorageWaivedBy")
-  id             String     @id @default(cuid())
-  name           String
-  email          String     @unique
-  phone          String?
-  passwordHash   String
-  role           Role
-  department     Department
-  active         Boolean    @default(true)
-  lastLoginAt    DateTime?
+  storageWaivers Invoice[] @relation("StorageWaivedBy")
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  phone        String?
+  passwordHash String
+  role         Role
+  department   Department
+  active       Boolean    @default(true)
+  lastLoginAt  DateTime?
 
   /// Set by the CEO when the account is made, and never editable afterwards —
   /// it is what payroll and the audit trail refer to.
@@ -390,10 +390,10 @@ model User {
   /// What this person is paid a month, in USD like every other money column.
   /// Null means "not on the payroll" — a run skips them rather than guessing
   /// zero, because a zero line on a salary slip is a statement, not a silence.
-  baseSalary   Decimal?  @db.Decimal(12, 2)
-  joinedAt     DateTime  @default(now())
+  baseSalary Decimal? @db.Decimal(12, 2)
+  joinedAt          DateTime       @default(now())
   /// Touched on every authenticated page load, so "online" means something.
-  lastActiveAt DateTime?
+  lastActiveAt      DateTime?
 
   verifiedTerms   CargoTerm[]
   logins          LoginEvent[]
@@ -451,10 +451,6 @@ model User {
   /// separate relations because "requested by me" and "approved by me" must
   /// never collapse into one — the split IS the control.
   voidedPayments        Payment[]               @relation("PaymentVoidedBy")
-  /// Settlements this person decided: which share of a payment answered which
-  /// bill. Kept because reallocating money between a customer's invoices is a
-  /// judgement, and judgements have names on them.
-  paymentAllocations    PaymentAllocation[]     @relation("PaymentAllocationsMade")
   creditRequests        Invoice[]               @relation("CreditRequestedBy")
   creditDecisions       Invoice[]               @relation("CreditDecidedBy")
   creditFacilities      Customer[]              @relation("CustomerCreditApprovedBy")
@@ -483,11 +479,6 @@ model Customer {
   code String @unique // CUS-000123
   name String
 
-  /// Money this customer has handed over, whatever it was for. What each
-  /// payment settled is on its allocations; what it did not settle is this
-  /// customer's credit, derived from the difference and never stored.
-  payments Payment[]
-
   /// Preferred identity for warehouse lookup and auto-fill, but genuinely
   /// optional: consolidated cargo regularly arrives from a Guangzhou packing
   /// list with a name and no number. Postgres allows many NULLs in a unique
@@ -505,16 +496,18 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  /**
-   * The credit facility, if this customer has one.
-   * Null limit means no credit: the answer to "can they take cargo without
-   * paying" is no by default, for everybody, and becomes yes only when somebody
-   * with the authority sets a figure here. Stored in USD because that is the
-   * currency every price in this system is derived in; the shilling figure a
-   * customer is quoted is always a conversion of it.
-   * The limit caps EXPOSURE, not any single sale — what matters is everything
-   * they already owe plus what they are asking for now.
-   */
+  /*
+    The credit facility, if this customer has one.
+
+    Null limit means no credit: the answer to "can they take cargo without
+    paying" is no by default, for everybody, and becomes yes only when somebody
+    with the authority sets a figure here. Stored in USD because that is the
+    currency every price in this system is derived in; the shilling figure a
+    customer is quoted is always a conversion of it.
+
+    The limit caps EXPOSURE, not any single sale — what matters is everything
+    they already owe plus what they are asking for now.
+  */
   creditLimitUsd     Decimal?  @db.Decimal(14, 2)
   /// Default payment terms for this customer, in days. 7, 14 and 30 in practice.
   creditTermDays     Int?
@@ -939,7 +932,7 @@ model ShipmentDocument {
   shipmentId String
   shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
 
-  kind  ShipmentDocumentKind @default(OTHER)
+  kind ShipmentDocumentKind @default(OTHER)
   /// The "what is this" line, in whoever-attached-it's own words. Optional: the
   /// filename usually says it, and demanding a description is how an attachment
   /// stops being attached.
@@ -1145,7 +1138,7 @@ model PayrollRun {
   status PayrollStatus @default(DRAFT)
 
   preparedById String
-  preparedBy   User     @relation("PayrollPreparedBy", fields: [preparedById], references: [id], onDelete: Restrict)
+  preparedBy   User   @relation("PayrollPreparedBy", fields: [preparedById], references: [id], onDelete: Restrict)
   preparedAt   DateTime @default(now())
 
   /// Set the moment it leaves Finance's hands, so "waiting since" is real.
@@ -1432,19 +1425,21 @@ model Invoice {
   confirmedById String?
   confirmedBy   User?     @relation("InvoiceConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
 
-  /**
-   * CASH or CREDIT, and the whole approval trail behind the answer.
-   * None of this is derived, because none of it is arithmetic: it is a record of
-   * what people decided. The desk that asks cannot be the desk that grants —
-   * `creditRequestedById` and `creditDecidedById` are compared before a credit
-   * is approved, so nobody signs off their own request.
-   * Deliberately absent: any stored figure for how much credit is outstanding.
-   * That is `total - amountPaid`, it already exists, and a second copy of it
-   * would be a second answer to the same question. The same reason there is no
-   * stored storage fee and no stored account balance anywhere in this schema.
-   */
+  /*
+    CASH or CREDIT, and the whole approval trail behind the answer.
+
+    None of this is derived, because none of it is arithmetic: it is a record of
+    what people decided. The desk that asks cannot be the desk that grants —
+    `creditRequestedById` and `creditDecidedById` are compared before a credit
+    is approved, so nobody signs off their own request.
+
+    Deliberately absent: any stored figure for how much credit is outstanding.
+    That is `total - amountPaid`, it already exists, and a second copy of it
+    would be a second answer to the same question. The same reason there is no
+    stored storage fee and no stored account balance anywhere in this schema.
+  */
   paymentType  InvoicePaymentType @default(CASH)
-  creditStatus CreditStatus       @default(NONE)
+  creditStatus CreditStatus        @default(NONE)
 
   /// Terms granted on THIS bill, in days — copied from the customer's default
   /// at request time so changing the default later cannot silently move a due
@@ -1460,9 +1455,9 @@ model Invoice {
   /// One pair for both outcomes: `creditStatus` already says which it was, and
   /// two nullable pairs would allow the impossible state of being approved and
   /// rejected at once.
-  creditDecidedAt    DateTime?
-  creditDecidedById  String?
-  creditDecidedBy    User?     @relation("CreditDecidedBy", fields: [creditDecidedById], references: [id], onDelete: SetNull)
+  creditDecidedAt   DateTime?
+  creditDecidedById String?
+  creditDecidedBy   User?     @relation("CreditDecidedBy", fields: [creditDecidedById], references: [id], onDelete: SetNull)
   /// Required on a rejection. A no that nobody explained gets asked again.
   creditDecisionNote String?
 
@@ -1475,10 +1470,9 @@ model Invoice {
 
   updatedAt DateTime @updatedAt
 
-  payments           Payment[]
-  submissions        PaymentSubmission[]
-  messages           CustomerMessage[]
-  paymentAllocations PaymentAllocation[]
+  payments    Payment[]
+  submissions PaymentSubmission[]
+  messages    CustomerMessage[]
 
   @@index([status])
   @@index([customerId])
@@ -1495,24 +1489,8 @@ model Invoice {
 model Payment {
   id String @id @default(cuid())
 
-  /// The bill this payment was RAISED against.
-  ///
-  /// Kept, and kept required in the client, so nothing that reads it changes on
-  /// the day allocations arrive. It is no longer what SETTLES anything — that
-  /// is the allocation list below, which is how one transfer can clear three
-  /// consignments while remaining one payment, one ledger line and one movement
-  /// on the bank statement. The column is nullable in the database, ready for
-  /// money taken as pure customer credit against no bill at all.
   invoiceId String
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-
-  /// Who paid. Needed for money that arrives ahead of any invoice, or beyond
-  /// all of them: an overpayment held as credit belongs to somebody.
-  customerId String?
-  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
-
-  /// What this payment actually settled, bill by bill.
-  allocations PaymentAllocation[]
 
   /// What the customer actually handed over, in `currency`. The receipt says
   /// this, because it is what happened at the counter.
@@ -1546,23 +1524,25 @@ model Payment {
   receivedBy   User?    @relation(fields: [receivedById], references: [id], onDelete: SetNull)
   paidAt       DateTime @default(now())
 
-  /**
-   * A payment recorded by mistake, and the trail of the correction.
-   * NOT a deletion. A payment that reached this table changed an invoice, moved a
-   * company account and printed a receipt somebody may be holding, so removing
-   * the row would leave four other records describing money that no longer
-   * exists anywhere. It is marked void instead: the ledger gets a reversing line,
-   * the invoice gives back exactly what this payment settled, and the row stays
-   * with the name of whoever corrected it and why.
-   * A void can itself be a mistake, so it can be lifted — which is why these are
-   * nullable fields rather than a status flip. Both halves stay in the audit log.
-   */
-  voidedAt   DateTime?
-  voidedById String?
-  voidedBy   User?     @relation("PaymentVoidedBy", fields: [voidedById], references: [id], onDelete: SetNull)
+  /*
+    A payment recorded by mistake, and the trail of the correction.
+
+    NOT a deletion. A payment that reached this table changed an invoice, moved a
+    company account and printed a receipt somebody may be holding, so removing
+    the row would leave four other records describing money that no longer
+    exists anywhere. It is marked void instead: the ledger gets a reversing line,
+    the invoice gives back exactly what this payment settled, and the row stays
+    with the name of whoever corrected it and why.
+
+    A void can itself be a mistake, so it can be lifted — which is why these are
+    nullable fields rather than a status flip. Both halves stay in the audit log.
+  */
+  voidedAt    DateTime?
+  voidedById  String?
+  voidedBy    User?     @relation("PaymentVoidedBy", fields: [voidedById], references: [id], onDelete: SetNull)
   /// Required to void. "Why is there no payment against a receipt we printed"
   /// is the first question anybody asks about this record later.
-  voidReason String?
+  voidReason  String?
 
   createdAt DateTime @default(now())
 
@@ -1579,7 +1559,6 @@ model Payment {
   proofs      PaymentProof[]
 
   @@index([invoiceId])
-  @@index([customerId])
   @@index([paidAt])
   @@index([method])
   @@index([accountId])
@@ -2423,19 +2402,17 @@ model CompanyAccount {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  payments        Payment[]
-  /// Every settlement written against this bill, by whichever payment made it.
-  allocations     PaymentAllocation[]
-  expenses        Expense[]
-  ledgerEntries   LedgerEntry[]
-  transfersOut    AccountTransfer[]       @relation("TransferFrom")
-  transfersIn     AccountTransfer[]       @relation("TransferTo")
-  cashCounts      CashCount[]
-  payrollRuns     PayrollRun[]
-  reconciliations AccountReconciliation[]
-  compensations   Compensation[]          @relation("CompensationPaidFrom")
+  payments      Payment[]
+  expenses      Expense[]
+  ledgerEntries LedgerEntry[]
+  transfersOut  AccountTransfer[] @relation("TransferFrom")
+  transfersIn   AccountTransfer[] @relation("TransferTo")
+  cashCounts    CashCount[]
 
   @@index([active, sortOrder])
+  payrollRuns PayrollRun[]
+  reconciliations AccountReconciliation[]
+  compensations Compensation[] @relation("CompensationPaidFrom")
 }
 
 enum LedgerDirection {
@@ -2451,14 +2428,15 @@ enum LedgerKind {
   TRANSFER_IN
   TRANSFER_OUT
   ADJUSTMENT
-  /**
-   * Kept for one historical row, not because the feature still exists.
-   * A short-lived "executive account" wrote GL-2026-000024 with this kind
-   * before the idea was withdrawn. The row is real money — TSh 100,000 that
-   * genuinely left CRDB — so it stays, and Prisma refuses to read an enum value
-   * it does not know. Removing these two would break the general ledger page on
-   * a register that is otherwise correct. Nothing writes them any more.
-   */
+  /*
+    Kept for one historical row, not because the feature still exists.
+
+    A short-lived "executive account" wrote GL-2026-000024 with this kind
+    before the idea was withdrawn. The row is real money — TSh 100,000 that
+    genuinely left CRDB — so it stays, and Prisma refuses to read an enum value
+    it does not know. Removing these two would break the general ledger page on
+    a register that is otherwise correct. Nothing writes them any more.
+  */
   EXECUTIVE_DRAW
   EXECUTIVE_RETURN
 }
@@ -2673,9 +2651,6 @@ model Expense {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  /// Set when this expense IS a payroll run being paid.
-  payrollRun PayrollRun?
-
   @@index([status])
   @@index([incurredAt])
   @@index([paidAt])
@@ -2692,6 +2667,9 @@ model Expense {
   @@index([category, incurredAt])
   @@index([expenseClass, incurredAt])
   @@index([batchId, incurredAt])
+
+  /// Set when this expense IS a payroll run being paid.
+  payrollRun PayrollRun?
 }
 
 /// The receipt, invoice or till slip behind an expense. Exactly the shape of
@@ -2876,50 +2854,4 @@ model CompanySetting {
   updatedById String?
   updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
   updatedAt   DateTime @updatedAt
-}
-
-/// WHAT ONE PAYMENT SETTLED, BILL BY BILL.
-///
-/// A customer with three unpaid consignments sends one mobile-money transfer
-/// for all three. Before this, that had to be recorded as three payments —
-/// three receipts, three ledger lines, three account movements, for one deposit
-/// the bank statement shows exactly once, which reconciliation could never
-/// match.
-///
-/// So settlement is no longer a column on the payment. The payment stays ONE
-/// row, ONE ledger line, ONE movement of money; this is the list of what it was
-/// put against. An allocation moves no money of its own — it only says which
-/// bill a share of an existing payment answered — which is precisely why the
-/// account balance can never be inflated by adding another one.
-///
-/// The difference between what a payment received and what its allocations
-/// settle is the customer's unallocated credit. Derived, like every other
-/// figure in this system, and never stored.
-model PaymentAllocation {
-  id String @id @default(cuid())
-
-  paymentId String
-  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-
-  invoiceId String
-  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-
-  /// In the INVOICE's currency, which is what settles a bill — the same
-  /// discipline as Payment.creditedAmount, and never the tendered figure.
-  amount Decimal @db.Decimal(12, 2)
-
-  /// Why this share went to this bill, when somebody had to choose.
-  note String?
-
-  createdById      String?
-  createdBy        User?           @relation("PaymentAllocationsMade", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt        DateTime        @default(now())
-  companyAccount   CompanyAccount? @relation(fields: [companyAccountId], references: [id])
-  companyAccountId String?
-
-  /// One line per bill per payment. A second settlement of the same bill by the
-  /// same payment is an edit of the first, not another row — which keeps "how
-  /// much did this payment put against that bill" a question with one answer.
-  @@unique([paymentId, invoiceId])
-  @@index([invoiceId])
 }
