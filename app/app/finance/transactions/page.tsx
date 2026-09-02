@@ -231,17 +231,23 @@ export default async function LedgerPage({
         },
       }),
       prisma.ledgerEntry.count({ where }),
+      /* By currency as well as direction, because the two are summed
+         differently — see the note where these are added up. */
       prisma.ledgerEntry.groupBy({
-        by: ["direction"],
+        by: ["direction", "currency"],
         where,
-        _sum: { amountUsd: true },
+        _sum: { amount: true, amountUsd: true },
       }),
       currentRate(),
       // Costs recorded but not yet disbursed have no ledger line, because no
       // money has moved. They still have to be visible somewhere.
-      prisma.expense.aggregate({
+      /* By currency, for the same reason the ledger totals are: a shilling cost
+         is a shilling cost, and adding up its dollar snapshot instead loses
+         money on the way back. */
+      prisma.expense.groupBy({
+        by: ["currency"],
         where: { status: { in: ["PENDING", "APPROVED"] } },
-        _sum: { amountUsd: true },
+        _sum: { amount: true, amountUsd: true },
         _count: true,
       }),
       /* Broken down, because the total alone is a mystery. Thirty-four
@@ -264,12 +270,59 @@ export default async function LedgerPage({
     ]);
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
-  const inUsd = toNumber(
-    totals.find((t) => t.direction === "IN")?._sum.amountUsd ?? 0
+  /*
+    SHILLING MONEY IS ADDED UP AS SHILLINGS.
+
+    `amountUsd` is a Decimal(12,2) snapshot kept so movements in different
+    currencies can be totalled against each other. It is not the money. Summing
+    it and multiplying back by the rate loses a fraction of a cent per entry and
+    then magnifies it by 2,700: two office-cash costs of TSh 20,000 and TSh
+    40,000 were reported by the Dar desk as TSh 59,994, because 7.41 + 14.81 is
+    22.22 and 22.22 x 2700 is not 60,000. The rows underneath were right the
+    whole time — they read `amount` — so the register disagreed with its own
+    total, which is the worst way for a figure to be wrong.
+
+    Every entry carries the account's own currency in `amount`, exactly. So
+    shillings are added as shillings and never leave the unit they were typed
+    in; only genuinely foreign money goes through the USD snapshot, which is the
+    one job that column exists for. The schema says as much: "balances never
+    touch this".
+  */
+  const totalsFor = (dir: "IN" | "OUT") =>
+    totals.filter((row) => row.direction === dir);
+  const usdTotal = (dir: "IN" | "OUT") =>
+    totalsFor(dir).reduce((sum, row) => sum + toNumber(row._sum.amountUsd ?? 0), 0);
+  /** Exact for shilling money; foreign money converted at today's rate. */
+  const tshTotal = (dir: "IN" | "OUT") =>
+    totalsFor(dir).reduce(
+      (sum, row) =>
+        sum +
+        (row.currency === "TZS"
+          ? toNumber(row._sum.amount ?? 0)
+          : toNumber(row._sum.amountUsd ?? 0) * (rate ?? 0)),
+      0
+    );
+
+  /* The unpaid costs, added the same way: shillings as shillings. */
+  const unpaidCount = unpaid.reduce((n, row) => n + row._count, 0);
+  const unpaidUsd = unpaid.reduce(
+    (sum, row) => sum + toNumber(row._sum.amountUsd ?? 0),
+    0
   );
-  const outUsd = toNumber(
-    totals.find((t) => t.direction === "OUT")?._sum.amountUsd ?? 0
+  const unpaidTsh = unpaid.reduce(
+    (sum, row) =>
+      sum +
+      (row.currency === "TZS"
+        ? toNumber(row._sum.amount ?? 0)
+        : toNumber(row._sum.amountUsd ?? 0) * (rate ?? 0)),
+    0
   );
+
+  /* Kept for the no-rate fallback, where there is nothing to show but dollars. */
+  const inUsd = usdTotal("IN");
+  const outUsd = usdTotal("OUT");
+  const inTsh = tshTotal("IN");
+  const outTsh = tshTotal("OUT");
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const single = accounts.find((a) => a.id === params.account) ?? null;
 
@@ -310,6 +363,12 @@ export default async function LedgerPage({
 
   const tsh = (usd: number) =>
     rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : formatUsd(usd);
+  /* For figures already worked out in shillings. Same shape as tsh() above so
+     the tiles read the same, but nothing is multiplied a second time. */
+  const shillings = (value: number, usdFallback: number) =>
+    rate
+      ? `TSh ${Math.round(value).toLocaleString("en-US")}`
+      : formatUsd(usdFallback);
   const showBalance = (value: number) =>
     single ? formatMoney(value, single.currency) : tsh(value);
 
@@ -432,23 +491,23 @@ export default async function LedgerPage({
         {[
           {
             k: t(locale, "Money in"),
-            v: tsh(inUsd),
+            v: shillings(inTsh, inUsd),
             tone: "text-success",
             wash: "from-success/10",
             hint: t(locale, "Freight collected and money moved in"),
           },
           {
             k: t(locale, "Money out"),
-            v: tsh(outUsd),
+            v: shillings(outTsh, outUsd),
             tone: "text-destructive",
             wash: "from-destructive/10",
             hint: t(locale, "Costs paid and money moved out"),
           },
           {
             k: t(locale, "Net"),
-            v: tsh(inUsd - outUsd),
-            tone: inUsd - outUsd >= 0 ? "text-foreground" : "text-destructive",
-            wash: inUsd - outUsd >= 0 ? "from-brand/10" : "from-destructive/10",
+            v: shillings(inTsh - outTsh, inUsd - outUsd),
+            tone: inTsh - outTsh >= 0 ? "text-foreground" : "text-destructive",
+            wash: inTsh - outTsh >= 0 ? "from-brand/10" : "from-destructive/10",
             hint: `${total} ${t(locale, total === 1 ? "movement" : "movements")}`,
           },
         ].map((cell) => (
@@ -479,13 +538,13 @@ export default async function LedgerPage({
         settled, so no money has moved and nothing above can include them.
         The line now says what they are, then why they are not in the totals.
       */}
-      {unpaid._count > 0 ? (
+      {unpaidCount > 0 ? (
         <p className="mb-4 text-sm text-muted-foreground">
           <Link
             href="/app/finance/transactions?kind=EXPENSE"
             className="font-medium text-warning hover:underline"
           >
-            {tsh(toNumber(unpaid._sum.amountUsd))} {t(locale, "in costs still to pay")}
+            {shillings(unpaidTsh, unpaidUsd)} {t(locale, "in costs still to pay")}
           </Link>
           {" — "}
           {(() => {
@@ -498,12 +557,12 @@ export default async function LedgerPage({
               EXPENSE_CATEGORY_LABELS[biggest.category] ?? biggest.category
             ).toLowerCase();
             const share =
-              toNumber(biggest._sum.amountUsd) / toNumber(unpaid._sum.amountUsd);
+              toNumber(biggest._sum.amountUsd) / unpaidUsd;
             return (
               <>
                 {unpaidByKind.length === 1 || share > 0.6
                   ? `${t(locale, "mostly")} ${label}`
-                  : `${unpaid._count} ${t(locale, unpaid._count === 1 ? "cost" : "costs")}`}
+                  : `${unpaidCount} ${t(locale, unpaidCount === 1 ? "cost" : "costs")}`}
                 {", "}
               </>
             );
