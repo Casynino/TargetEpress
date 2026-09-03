@@ -1312,10 +1312,10 @@ export async function recordPayment(
           currency: tenderedCurrency,
           creditedAmount: new Prisma.Decimal(credited),
           exchangeRate: rateUsed === null ? null : new Prisma.Decimal(rateUsed),
-          method: methodForKind(account!.kind),
+          method: methodForKind(mustHaveAccount(account).kind),
           reference: input.reference || null,
           note: input.note || null,
-          accountId: account?.id ?? null,
+          accountId: mustHaveAccount(account).id,
           // Defaults to now in the schema when the desk leaves it blank.
           ...(input.paidAt ? { paidAt: input.paidAt } : {}),
           receivedById: user.id,
@@ -1868,7 +1868,7 @@ export async function attributePayment(
 
       const account = await tx.companyAccount.findUnique({
         where: { id: accountId },
-        select: { id: true, name: true, currency: true, active: true },
+        select: { id: true, name: true, kind: true, currency: true, active: true },
       });
       if (!account) throw new Error("That account no longer exists.");
       if (!account.active) throw new Error(`${account.name} has been archived.`);
@@ -1880,7 +1880,12 @@ export async function attributePayment(
 
       await tx.payment.update({
         where: { id: payment.id },
-        data: { accountId: account.id },
+        /* The method comes with the account. This is the one path that names an
+           account on a payment that never had one, and every such payment was
+           booked with a method somebody guessed at before they knew where the
+           money was — leaving it would keep a row whose stored method
+           contradicts the account it now names. */
+        data: { accountId: account.id, method: methodForKind(account.kind) },
       });
 
       // The line that was never written, written now — at the rate and on the
@@ -1927,6 +1932,28 @@ export async function attributePayment(
   } catch (error) {
     return fail(toActionError(error));
   }
+}
+
+/**
+ * The account, insisted upon at the point of writing.
+ *
+ * Both payment writes load their account inside `if (input.accountId)`, which
+ * dates from when naming one was optional. It is required now — the schemas
+ * refuse a payment without it — so this can only be null if that rule is ever
+ * relaxed without revisiting the writes.
+ *
+ * It matters because `Payment.method` is NOT NULL and indexed, and is derived
+ * from this account. A bare `account!.kind` would hand Prisma an undefined and
+ * fail deep inside the transaction with a schema error nobody at a counter can
+ * act on. This says what actually went wrong.
+ */
+function mustHaveAccount<T>(account: T | null): T {
+  if (!account) {
+    throw new Error(
+      "This payment names no account, so there is nothing to record it against. Pick where the money landed and try again."
+    );
+  }
+  return account;
 }
 
 /** One bill the search turned up, with everything the form needs to fill itself. */
@@ -2732,10 +2759,10 @@ export async function recordCustomerPayment(
                 ) / 100
               : input.amount
           ),
-          method: methodForKind(account!.kind),
+          method: methodForKind(mustHaveAccount(account).kind),
           reference: input.reference || null,
           note: input.note || null,
-          accountId: account?.id ?? null,
+          accountId: mustHaveAccount(account).id,
           ...(input.paidAt ? { paidAt: input.paidAt } : {}),
           receivedById: user.id,
           proofs: {

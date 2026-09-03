@@ -124,9 +124,10 @@ export function SubmissionCorrection({
                 bouncing the claim back for it costs them a rejection. */}
             <NativeSelect
               name="accountId"
+              required
               defaultValue={accountId ?? ""}
               aria-label={t("Where did it land")}
-              className="h-7 w-auto min-w-[9rem] text-[11px]"
+              className="h-7 w-auto min-w-[11rem] text-[11px]"
             >
               <option value="" disabled>
                 {t("Choose the account")}

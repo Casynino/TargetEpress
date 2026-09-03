@@ -34,7 +34,6 @@ export async function GET(
         select: {
           amount: true,
           currency: true,
-          method: true,
           reference: true,
           paidAt: true,
           voidedAt: true,
@@ -152,7 +151,6 @@ export async function GET(
     customerCode: payment.customer?.code ?? "",
     customerPhone: payment.customer?.phone ?? null,
     tendered: { amount: toNumber(payment.amount), currency: tenderedCurrency },
-    method: payment.method,
     reference: payment.reference,
     account: payment.account?.name ?? null,
     receivedBy: payment.receivedBy?.name ?? receipt.issuedBy?.name ?? null,

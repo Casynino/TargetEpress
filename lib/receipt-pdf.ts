@@ -11,7 +11,6 @@ export type CombinedReceiptInput = {
   customerPhone: string | null;
   /** What actually arrived, in the money it arrived in. */
   tendered: { amount: number; currency: string };
-  method: string;
   reference: string | null;
   account: string | null;
   receivedBy: string | null;

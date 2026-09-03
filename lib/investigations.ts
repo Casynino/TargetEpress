@@ -2,7 +2,6 @@ import "server-only";
 
 import type {
   ExceptionType,
-  PaymentMethod,
   Role,
   ShipmentStatus,
 } from "@prisma/client";
@@ -93,7 +92,7 @@ export function restoredStatus(
  * payload, and simply is not present in the object a component receives.
  *
  * Everything outside `money` is safe for any desk that can open the case: that
- * a settlement exists, whether it has been paid, when and by what method. The
+ * a settlement exists, whether it has been paid, when and from which account. The
  * Dar floor needs that much to answer a customer at the counter, and none of it
  * is a price.
  */
@@ -103,7 +102,6 @@ export type CompensationView = {
   /** Recorded but not yet paid out — the dashboard's "Compensation Pending". */
   pending: boolean;
   paidAt: Date | null;
-  method: PaymentMethod | null;
   note: string | null;
   recordedByName: string | null;
   recordedAt: Date | null;
@@ -120,7 +118,6 @@ const EMPTY: CompensationView = {
   exists: false,
   pending: false,
   paidAt: null,
-  method: null,
   note: null,
   recordedByName: null,
   recordedAt: null,
@@ -137,7 +134,6 @@ export async function getCompensation(
       amount: true,
       currency: true,
       paidAt: true,
-      method: true,
       note: true,
       createdAt: true,
       recordedBy: { select: { name: true } },
@@ -157,7 +153,6 @@ export async function getCompensation(
     exists: true,
     pending: row.paidAt === null,
     paidAt: row.paidAt,
-    method: row.method,
     // Free text can quote a figure, so it travels with the figure — the same
     // gate app/app/exceptions/page.tsx applies to this column.
     note: money ? row.note : null,
