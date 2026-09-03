@@ -54,6 +54,10 @@ export function CustomerPicker({
   const [saving, startSaving] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reusedExisting, setReusedExisting] = useState(false);
+  /* For a customer already on the books with no number against them. Cargo can
+     no longer be registered without one, so the desk supplies it here and the
+     account is completed on the way past. */
+  const [fillPhone, setFillPhone] = useState("");
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -124,6 +128,8 @@ export function CustomerPicker({
 
   const pick = (customer: PickedCustomer | null) => {
     if (!customer) setReusedExisting(false);
+    /* A number typed for one customer must never travel to the next. */
+    setFillPhone("");
     setPicked(customer);
     setTouched(true);
     onPick?.(customer);
@@ -140,7 +146,11 @@ export function CustomerPicker({
             renamed. */}
         <input type="hidden" name="customerId" value={picked.id} />
         <input type="hidden" name="customerName" value={picked.name} />
-        <input type="hidden" name="customerPhone" value={picked.phone ?? ""} />
+        <input
+          type="hidden"
+          name="customerPhone"
+          value={picked.phone ?? fillPhone}
+        />
         <input type="hidden" name="customerCity" value={picked.city ?? ""} />
 
         <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-success/40 bg-success/5 p-4">
@@ -171,6 +181,37 @@ export function CustomerPicker({
                   "That number was already on the books — this is the existing customer, not a new one."
                 )}
               </p>
+            ) : null}
+
+            {/*
+              THE HOLE DUPLICATES CAME OUT OF, CLOSED ONE CUSTOMER AT A TIME.
+
+              Some accounts predate the rule and carry no number, and the phone
+              is the only key this system matches customers on: without it the
+              same person acquires a second record and their money splits across
+              two balances. Asked for here, saved onto the account when the
+              cargo is registered.
+            */}
+            {picked.phone === null ? (
+              <div className="mt-3 max-w-xs space-y-1.5">
+                <Label htmlFor="fill-phone" className="text-xs">
+                  {t(locale, "This customer has no number. Add it to continue")}
+                </Label>
+                <Input
+                  id="fill-phone"
+                  value={fillPhone}
+                  onChange={(event) => setFillPhone(event.target.value)}
+                  placeholder="+255 7XX XXX XXX"
+                  inputMode="tel"
+                  autoComplete="off"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  {t(
+                    locale,
+                    "It is saved onto their account, so it only has to be asked for once."
+                  )}
+                </p>
+              </div>
             ) : null}
           </div>
           <button

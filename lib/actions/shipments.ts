@@ -81,20 +81,46 @@ async function resolveCustomer(
   input: {
     customerId: string | null;
     customerName: string;
-    customerPhone: string | null;
+    customerPhone: string;
     customerCity?: string;
   },
   actorId: string
 ) {
+  const phone = normalisePhone(input.customerPhone);
+
   if (input.customerId) {
     const picked = await tx.customer.findUnique({ where: { id: input.customerId } });
     if (!picked) throw new Error("That customer no longer exists.");
+
+    /*
+      The number is now collected on every consignment, and the customer the
+      clerk picked may predate that. Two things can be true of what they typed:
+    */
+    if (picked.phone === null) {
+      /* The account had none. Fill it in — this is the hole duplicates came
+         out of, and it closes one record at a time as cargo arrives. */
+      const clash = await tx.customer.findUnique({ where: { phone } });
+      if (clash) {
+        throw new Error(
+          `${phone} is already on file as ${clash.name} (${clash.code}). Register this cargo against them, or use a different number.`
+        );
+      }
+      await tx.customer.update({ where: { id: picked.id }, data: { phone } });
+      return { ...picked, phone };
+    }
+
+    if (picked.phone !== phone) {
+      /* The account has a different one. Silently keeping either is wrong: the
+         clerk has told us something the record disagrees with, and guessing
+         which is right is how one customer's cargo reaches another. */
+      throw new Error(
+        `${picked.name} (${picked.code}) is on file as ${picked.phone}, not ${phone}. Pick the customer this number belongs to, or correct the number.`
+      );
+    }
     return picked;
   }
 
-  const phone = input.customerPhone ? normalisePhone(input.customerPhone) : null;
-
-  if (phone) {
+  {
     const existing = await tx.customer.findUnique({ where: { phone } });
     if (existing) {
       if (existing.name !== input.customerName) {

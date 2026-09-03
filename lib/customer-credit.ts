@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import { recordAudit } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
+import { LOCAL_CURRENCY } from "@/lib/money-totals";
 import type { TxClient } from "@/lib/prisma";
 import type { SessionUser } from "@/lib/session";
 
@@ -21,30 +22,94 @@ import type { SessionUser } from "@/lib/session";
  * is right.
  */
 
-/** In the currency the payments were taken in; this business bills in one. */
+/**
+ * What a payment still has left, IN THE MONEY IT ARRIVED IN.
+ *
+ * A deposit is taken in shillings and the bill it will answer is written in
+ * dollars, so the two sides of "received minus spent" are in different
+ * currencies unless one of them is moved. This moves the spent side: each
+ * allocation is stated in its own invoice's currency, and comes back at that
+ * invoice's FROZEN rate — the rate the customer was quoted on that bill, which
+ * is the only rate either party ever agreed to.
+ *
+ * The payment's own `amount` is the received side, exact and untouched. Never
+ * the dollar snapshot: a shilling deposit that goes out to dollars and back
+ * loses a fraction of a cent per allocation, and this figure decides whether a
+ * customer's cargo is released.
+ *
+ * Null when a conversion is needed and no rate exists to do it with. That
+ * payment is not spare money we can reason about, so it is left alone rather
+ * than guessed at.
+ */
+function spareOf(payment: {
+  amount: Prisma.Decimal;
+  currency: string;
+  allocations: {
+    amount: Prisma.Decimal;
+    invoice: { currency: string; exchangeRate: Prisma.Decimal | null };
+  }[];
+}): number | null {
+  let spent = 0;
+  for (const allocation of payment.allocations) {
+    const settled = toNumber(allocation.amount);
+    if (allocation.invoice.currency === payment.currency) {
+      spent += settled;
+      continue;
+    }
+    const frozen = toNumber(allocation.invoice.exchangeRate);
+    if (!frozen) return null;
+    /* Back into what the customer handed over: a dollar bill settled from a
+       shilling payment consumed `settled x rate` of it. */
+    spent +=
+      payment.currency === LOCAL_CURRENCY ? settled * frozen : settled / frozen;
+  }
+  return Math.max(0, toNumber(payment.amount) - spent);
+}
+
+const CREDIT_SELECT = {
+  id: true,
+  amount: true,
+  currency: true,
+  receipt: { select: { receiptNumber: true } },
+  allocations: {
+    select: {
+      amount: true,
+      invoice: { select: { currency: true, exchangeRate: true } },
+    },
+  },
+} as const;
+
+/**
+ * Money this customer has handed over that no bill has claimed, in `currency`.
+ *
+ * Payments in any currency are counted, each converted at the rate frozen onto
+ * the bill being asked about — a shilling deposit is real money against a
+ * dollar bill, and refusing to see it is how a customer who paid in March gets
+ * asked again in August.
+ */
 export async function availableCredit(
   tx: TxClient,
   customerId: string,
-  currency: string
+  currency: string,
+  /** The rate frozen onto the bill asking. Required to see other currencies. */
+  invoiceRate: number | null = null
 ): Promise<number> {
   const payments = await tx.payment.findMany({
-    where: { customerId, currency, voidedAt: null },
-    select: {
-      amount: true,
-      creditedAmount: true,
-      allocations: { select: { amount: true } },
-    },
+    where: { customerId, voidedAt: null },
+    select: CREDIT_SELECT,
   });
 
-  return payments.reduce((spare, payment) => {
-    /* COALESCE(creditedAmount, amount) — the house rule. Older payments have a
-       null credited column and would count as nothing otherwise. */
-    const received = toNumber(payment.creditedAmount ?? payment.amount);
-    const used = payment.allocations.reduce(
-      (sum, a) => sum + toNumber(a.amount),
-      0
+  return payments.reduce((total, payment) => {
+    const spare = spareOf(payment);
+    if (spare === null || spare <= 0.005) return total;
+    if (payment.currency === currency) return total + spare;
+    if (!invoiceRate) return total;
+    return (
+      total +
+      (payment.currency === LOCAL_CURRENCY
+        ? spare / invoiceRate
+        : spare * invoiceRate)
     );
-    return spare + Math.max(0, received - used);
   }, 0);
 }
 
@@ -70,39 +135,53 @@ export async function applyCreditToInvoice(
     customerId: string;
     currency: string;
     outstanding: number;
+    /** The rate frozen onto this bill. Without it, only same-currency money. */
+    invoiceRate?: number | null;
     user: SessionUser;
   }
 ): Promise<number> {
   if (args.outstanding <= 0.005) return 0;
 
   const payments = await tx.payment.findMany({
-    where: { customerId: args.customerId, currency: args.currency, voidedAt: null },
+    where: { customerId: args.customerId, voidedAt: null },
     orderBy: { paidAt: "asc" },
-    select: {
-      id: true,
-      amount: true,
-      creditedAmount: true,
-      receipt: { select: { receiptNumber: true } },
-      allocations: { select: { amount: true } },
-    },
+    select: CREDIT_SELECT,
   });
 
+  const rate = args.invoiceRate ?? null;
   let remaining = args.outstanding;
   let applied = 0;
-  const used: { payment: string; amount: number }[] = [];
+  const used: { payment: string; amount: number; tendered?: string }[] = [];
 
   for (const payment of payments) {
     if (remaining <= 0.005) break;
 
-    const received = toNumber(payment.creditedAmount ?? payment.amount);
-    const spent = payment.allocations.reduce(
-      (sum, a) => sum + toNumber(a.amount),
-      0
-    );
-    const spare = received - spent;
-    if (spare <= 0.005) continue;
+    const spare = spareOf(payment);
+    if (spare === null || spare <= 0.005) continue;
 
-    const take = Math.min(spare, remaining);
+    /*
+      The deposit restated against THIS bill.
+
+      A shilling deposit answering a dollar bill converts at the bill's own
+      frozen rate — the figure the customer was quoted — never at today's, or a
+      deposit taken in March would settle a different amount depending on the
+      day the cargo happened to land.
+    */
+    const cross = payment.currency !== args.currency;
+    if (cross && !rate) continue;
+    const worth = !cross
+      ? spare
+      : payment.currency === LOCAL_CURRENCY
+        ? spare / rate!
+        : spare * rate!;
+
+    let take = Math.min(worth, remaining);
+    /* Rounded to the cent the bill is written in, then snapped when it lands
+       within one of clearing it: a bill left a cent short never reads as paid,
+       and its cargo sits in the warehouse over a rounding error. */
+    take = Math.round(take * 100) / 100;
+    if (Math.abs(take - remaining) <= 0.01) take = remaining;
+    if (take <= 0.005) continue;
 
     /* One allocation per payment per bill — the unique index says so, and it is
        what keeps "how much did this payment put against that invoice" a
@@ -118,6 +197,10 @@ export async function applyCreditToInvoice(
       select: { id: true, amount: true },
     });
 
+    const note = cross
+      ? `${payment.currency} deposit applied at ${rate!.toLocaleString()}`
+      : "Deposit applied when the bill was raised at check-in.";
+
     if (existing) {
       await tx.paymentAllocation.update({
         where: { id: existing.id },
@@ -130,7 +213,7 @@ export async function applyCreditToInvoice(
           invoiceId: args.invoiceId,
           amount: new Prisma.Decimal(take),
           createdById: args.user.id,
-          note: "Deposit applied when the bill was raised at check-in.",
+          note,
         },
       });
     }
@@ -145,6 +228,7 @@ export async function applyCreditToInvoice(
     used.push({
       payment: payment.receipt?.receiptNumber ?? payment.id,
       amount: take,
+      ...(cross ? { tendered: payment.currency } : {}),
     });
     applied += take;
     remaining -= take;
@@ -161,7 +245,12 @@ export async function applyCreditToInvoice(
       summary:
         `${args.currency} ${applied.toFixed(2)} of the customer's deposit settled this bill ` +
         `the moment it was raised (${used.map((u) => u.payment).join(", ")})`,
-      metadata: { applied, currency: args.currency, payments: used },
+      metadata: {
+        applied,
+        currency: args.currency,
+        exchangeRate: rate,
+        payments: used,
+      },
     },
     tx
   );

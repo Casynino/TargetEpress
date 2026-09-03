@@ -69,15 +69,31 @@ export const shipmentSchema = z.object({
     .trim()
     .min(2, "A name or shipping mark is required.")
     .max(120, "That name is too long."),
-  /// Empty only when an existing customer was picked — some of the customers
-  /// imported from Guangzhou packing lists genuinely have no number on file.
-  /// Creating a new customer always requires one; see the refine below.
+  /**
+   * Required. On every consignment, for every customer, new or existing.
+   *
+   * The phone number is the only key this system matches customers on, so cargo
+   * registered without one cannot be joined to the person it belongs to — and
+   * that is exactly how "Dickson Ndomba" and "dickson ndomba" became two
+   * accounts with a bill each, one balance visible to the desk and the other
+   * not. It was optional for customers imported from Guangzhou packing lists;
+   * the cost of that convenience is paid later by Finance, so the number is
+   * collected at the counter where it is easy to ask for.
+   */
   customerPhone: z
-    .string()
+    .string({
+      /* Missing entirely, not just short — the field never reached the server,
+         which is what an existing customer with no number on file looked like
+         before the picker started asking for one. */
+      message: "A phone number is required — cargo cannot be registered without one.",
+    })
     .trim()
-    .optional()
-    .transform((v) => (v && v.length > 0 ? v : null))
-    .refine((v) => v === null || v.length >= 7, "That phone number is too short."),
+    .min(7, "A phone number is required — cargo cannot be registered without one.")
+    .max(30)
+    .regex(
+      /^[\d+\s()-]+$/,
+      "That does not look like a phone number."
+    ),
   customerCity: z.string().trim().optional(),
   cargoCategory: z.enum(["NORMAL_GOODS", "ELECTRONICS", "LIQUID_SPECIAL"]),
   /// Required, not defaulted. A quantity with a silently assumed unit is the
@@ -121,14 +137,7 @@ export const shipmentSchema = z.object({
     .max(1000, "Keep internal notes under 1000 characters.")
     .optional(),
   batchId: z.string().trim().optional(),
-})
-  .refine(
-    (input) => input.customerId !== null || input.customerPhone !== null,
-    {
-      message: "A phone number is required for a new customer.",
-      path: ["customerPhone"],
-    }
-  );
+});
 
 export const batchSchema = z.object({
   origin: z.enum(ORIGINS),

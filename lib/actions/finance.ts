@@ -442,6 +442,11 @@ export async function confirmInvoicePrice(
         invoiceId: invoice.id,
         customerId: invoice.customerId,
         currency: invoice.currency,
+        /* This bill's own frozen rate, so a deposit taken in shillings can
+           answer a dollar bill at the figure the customer was quoted. Without
+           it only same-currency money is visible, which is how a customer who
+           paid in March got asked again in August. */
+        invoiceRate: rate,
         outstanding: total - toNumber(invoice.amountPaid),
         user,
       });
