@@ -144,7 +144,7 @@ export async function VerifyQueue() {
                           <>
                             <span>·</span>
                             <span className="text-destructive">
-                              {t(locale, "no proof")}
+                              {t(locale, "nothing attached")}
                             </span>
                           </>
                         ) : (

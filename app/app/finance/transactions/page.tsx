@@ -890,12 +890,25 @@ export default async function LedgerPage({
                     {entry.recordedBy ? (
                       <>
                         <span aria-hidden>·</span>
-                        <span className="whitespace-nowrap">
-                          {entry.recordedBy.name}
-                          {collectedBy && collectedBy !== entry.recordedBy.name
-                            ? ` · ${t(locale, "collected by")} ${collectedBy}`
-                            : ""}
-                        </span>
+                        {collectedBy && collectedBy !== entry.recordedBy.name ? (
+                          <>
+                            <span className="whitespace-nowrap">
+                              {t(locale, "Submitted by")}{" "}
+                              <span className="text-brand">{collectedBy}</span>
+                            </span>
+                            <span aria-hidden>·</span>
+                            <span className="whitespace-nowrap">
+                              {t(locale, "Verified by")}{" "}
+                              <span className="text-success">
+                                {entry.recordedBy.name}
+                              </span>
+                            </span>
+                          </>
+                        ) : (
+                          <span className="whitespace-nowrap">
+                            {entry.recordedBy.name}
+                          </span>
+                        )}
                       </>
                     ) : null}
                   </p>
@@ -1034,9 +1047,9 @@ export default async function LedgerPage({
                    was to notice a separate "Correction" row further down and
                    match the figures by hand. */
                 const cancelled = Boolean(entry.reversedBy);
-                /* Null for money taken at the counter: one person did the whole
-                   thing, and "collected by" repeating the name above it is
-                   noise rather than a second fact. */
+                /* Null for money taken at the counter: one person did the
+                   whole thing, and naming them twice is noise rather than a
+                   second fact. */
                 const collectedBy =
                   entry.payment?.submission?.submittedBy?.name ?? null;
 
@@ -1135,18 +1148,41 @@ export default async function LedgerPage({
                         {entry.account.name}
                       </Link>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell py-2.5 text-xs text-muted-foreground">
-                      {/* Two people, when two people were involved: the one who
-                          collected it and the one who signed it off. Stacked
-                          rather than joined with an arrow — the column is
-                          narrow, and the second line is the quieter of the
-                          two facts. */}
-                      {entry.recordedBy?.name ?? "—"}
+                    <TableCell className="hidden lg:table-cell min-w-[8.5rem] py-2.5 text-xs text-muted-foreground">
+                      {/* Two people, when two people were involved, said in the
+                          words the desk uses: submitted, then verified.
+
+                          Coloured rather than labelled twice over — the eye
+                          reads the pairing off the two tints before it reads
+                          the words, and at this size that is the difference
+                          between a fact and a smudge. One line each, kept from
+                          wrapping, so a row stays the height it always was. */}
                       {collectedBy && collectedBy !== entry.recordedBy?.name ? (
-                        <span className="block text-[11px] text-muted-foreground/70">
-                          {t(locale, "collected by")} {collectedBy}
+                        <span className="flex max-w-[9rem] flex-col gap-0.5 text-[11px] leading-tight">
+                          <span
+                            className="truncate"
+                            title={`${t(locale, "Submitted by")} ${collectedBy}`}
+                          >
+                            <span className="text-muted-foreground/60">
+                              {t(locale, "Submitted by")}{" "}
+                            </span>
+                            <span className="text-brand">{collectedBy}</span>
+                          </span>
+                          <span
+                            className="truncate"
+                            title={`${t(locale, "Verified by")} ${entry.recordedBy?.name ?? ""}`}
+                          >
+                            <span className="text-muted-foreground/60">
+                              {t(locale, "Verified by")}{" "}
+                            </span>
+                            <span className="text-success">
+                              {entry.recordedBy?.name}
+                            </span>
+                          </span>
                         </span>
-                      ) : null}
+                      ) : (
+                        (entry.recordedBy?.name ?? "—")
+                      )}
                     </TableCell>
 
                     {/* Two columns, because that is how a ledger is read. */}

@@ -94,7 +94,7 @@ export async function submissionQueue(
          checking their own work. */
       accountId: true,
       account: { select: { id: true, name: true, currency: true } },
-      submittedBy: { select: { name: true } },
+      submittedBy: { select: { id: true, name: true } },
       reviewedBy: { select: { name: true } },
       proofs: { select: { id: true, url: true, filename: true, contentType: true } },
       payment: { select: { receipt: { select: { receiptNumber: true } } } },

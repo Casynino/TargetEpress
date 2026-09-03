@@ -356,18 +356,32 @@ export default async function SubmissionsPage({
                           <span className="font-mono">{row.reference}</span>
                         </>
                       ) : null}
-                      {/* Who sent it up and exactly when, to the minute. Named
-                          as "Submitted by", because a bare name beside a name
-                          further along the line reads as one person doing both
-                          — and the desk that raised a claim loses the credit
-                          for it the moment Finance signs it off. */}
+                      {/* When it went up, to the minute — and who sent it,
+                          but only when that was somebody else.
+
+                          Named as "Submitted by" rather than left as a bare
+                          name, because further along the line is the name of
+                          whoever decided it, and two bare names read as one
+                          person doing both. The desk that raised a claim was
+                          losing the credit for it the moment Finance signed
+                          it off.
+
+                          Suppressed on your own rows. This is the page a desk
+                          opens to see its own work, so every line repeating
+                          the reader's own name is noise standing where a fact
+                          should be. */}
                       <span>·</span>
                       <span>
-                        {t(locale, "Submitted by")}{" "}
-                        <span className="text-foreground">
-                          {row.submittedBy?.name ?? "—"}
-                        </span>{" "}
-                        · {formatDateTime(row.submittedAt, locale)}
+                        {row.submittedBy && row.submittedBy.id !== user.id ? (
+                          <>
+                            {t(locale, "Submitted by")}{" "}
+                            <span className="text-foreground">
+                              {row.submittedBy.name}
+                            </span>{" "}
+                            ·{" "}
+                          </>
+                        ) : null}
+                        {formatDateTime(row.submittedAt, locale)}
                       </span>
                       {row.proofs.length > 0 ? (
                         <>
@@ -387,7 +401,13 @@ export default async function SubmissionsPage({
                       ) : (
                         <>
                           <span>·</span>
-                          <span>{t(locale, "nothing attached")}</span>
+                          {/* The one thing on this row that is a problem
+                              rather than a detail: a claim with nothing
+                              behind it is somebody's word, and Finance is
+                              about to move money on it. */}
+                          <span className="text-destructive">
+                            {t(locale, "nothing attached")}
+                          </span>
                         </>
                       )}
                       {/* What became of it, on the same line rather than in a

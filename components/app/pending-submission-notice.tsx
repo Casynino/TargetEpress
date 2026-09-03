@@ -71,8 +71,8 @@ export async function PendingSubmissionNotice({
               <span className="font-semibold tabular-nums">
                 {formatMoney(s.amount, s.currency)}
               </span>{" "}
-              {t(locale, "collected by")}{" "}
-              <span className="font-medium">
+              {t(locale, "Submitted by")}{" "}
+              <span className="font-medium text-brand">
                 {s.submittedByName ?? t(locale, "Customer Support")}
               </span>{" "}
               <span className="text-muted-foreground">
