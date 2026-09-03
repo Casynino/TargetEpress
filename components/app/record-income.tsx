@@ -560,8 +560,11 @@ export function RecordIncome({
               that.
             */}
             <label className="flex min-w-0 flex-col gap-1">
-              <span className="text-[11px] text-muted-foreground">
-                {t("Proof")} <span className="opacity-70">{t("(optional)")}</span>
+              {/* Named for what it is and why, not shrugged off as
+                  "(optional)" — see AttachmentManager for the same wording
+                  everywhere else evidence is asked for. */}
+              <span className="text-[11px] font-medium text-foreground">
+                {t("Payment proof — the slip or the screenshot")}
               </span>
               <Input
                 name="proof"

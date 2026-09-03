@@ -330,6 +330,13 @@ export function RecordCollectionForm({
               {t("choose a file")}
             </button>
           </p>
+          {/* Why it is worth the extra ten seconds. The same sentence sits on
+              every other place evidence is asked for — see AttachmentManager. */}
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            {t(
+              "Not compulsory, but it is what settles an argument months from now. Without it Finance is agreeing to this on somebody's word."
+            )}
+          </p>
           <input
             ref={inputRef}
             id="collectionProof"

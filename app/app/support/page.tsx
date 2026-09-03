@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Banknote,
   Boxes,
-  CalendarClock,
   Headset,
   Layers,
   MessageSquare,
@@ -30,6 +29,7 @@ import { formatDateTime, formatWeekdayDate, toNumber } from "@/lib/format";
 import { currentRate, formatLocal, formatShillings, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { AskForCredit } from "@/components/app/ask-for-credit";
 import { activeAccounts } from "@/lib/accounts";
 import { REJECTED_NEEDING_A_CALL } from "@/lib/collections";
 import { can } from "@/lib/rbac";
@@ -79,6 +79,9 @@ export default async function SupportHome() {
   /* Support files a claim, Finance banks it — both hold payment.submit, and the
      record screen behind this already knows which of the two is standing there. */
   const canTakePayments = can(user.role, "payment.submit");
+  /* Asking for a consignment to be released unpaid. This desk asks; Finance
+     grants — which is why the panel is opened here with canApprove false. */
+  const canAskForCredit = can(user.role, "credit.request");
   const locale = await viewerLocale();
 
   // Read the name from the record rather than the session token, which carries
@@ -419,9 +422,17 @@ export default async function SupportHome() {
              not a destination, so it cannot be a pill of its own. */
           afterHref="/app/collections"
           after={
-            canTakePayments ? (
-              <RecordIncome accounts={payAccounts} rate={rate} canRecord={false} />
-            ) : null
+            <>
+              {canTakePayments ? (
+                <RecordIncome accounts={payAccounts} rate={rate} canRecord={false} />
+              ) : null}
+              {/* Asking for credit is an action too, and it was the one thing
+                  in this row that walked you somewhere to press a second
+                  button. The customer asking for time is on the phone now. */}
+              {canAskForCredit ? (
+                <AskForCredit rate={rate} canApprove={false} />
+              ) : null}
+            </>
           }
           items={[
             // Whatever the call is about it starts with a consignment, and the
@@ -449,11 +460,6 @@ export default async function SupportHome() {
                   },
                 ]
               : []),
-            /* Credit sits on the far side of Record Payment, so the three
-               money things read as one group: who owes us, take a payment, who
-               owes us on terms. The action is anchored after Collections, which
-               puts it between the two. */
-            { href: "/app/finance/credit", label: t(locale, "Credit"), icon: CalendarClock, tone: "violet" },
             // Sourcing came out: it has a sidebar row and is a slow job worked
             // through a queue, not something reached with a customer waiting.
             // Credit replaces Customers and Loading batches here. Both of those

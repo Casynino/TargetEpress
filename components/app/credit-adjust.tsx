@@ -5,9 +5,9 @@ import { CalendarClock } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
+import { TermDaysField } from "@/components/app/term-days-field";
 import { Input } from "@/components/ui/input";
 import { adjustCredit } from "@/lib/actions/credit";
-import { CREDIT_TERMS } from "@/lib/credit";
 import type { ActionResult } from "@/lib/actions/types";
 
 /**
@@ -114,18 +114,12 @@ export function CreditAdjust({
       {/* Or count from today, when the sentence is "another two weeks". */}
       <label className="block text-[11px] text-muted-foreground">
         {t("Or from today")}
-        <select
-          name="termDays"
-          defaultValue=""
-          className="focus-ring mt-1 h-8 w-full rounded-md border bg-card px-2 text-xs"
-        >
-          <option value="">{t("— use the date above —")}</option>
-          {CREDIT_TERMS.map((d) => (
-            <option key={d} value={d}>
-              +{d} {t("days")}
-            </option>
-          ))}
-        </select>
+        <span className="mt-1 block">
+          <TermDaysField
+            defaultValue=""
+            emptyLabel={t("— use the date above —")}
+          />
+        </span>
       </label>
 
       <Input

@@ -6,11 +6,11 @@ import { HandCoins, SlidersHorizontal } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useLocale, useT } from "@/components/app/locale-provider";
+import { TermDaysField } from "@/components/app/term-days-field";
 import { Input } from "@/components/ui/input";
 import { setCreditLimit } from "@/lib/actions/credit";
 import {
   CREDIT_STATE_LABEL,
-  CREDIT_TERMS,
   creditCheck,
   dueLabel,
   type CreditState,
@@ -415,17 +415,7 @@ function CreditLimitForm({
 
         <label className="text-[11px] text-muted-foreground">
           <span className="mb-0.5 block">{t("Terms")}</span>
-          <select
-            name="termDays"
-            defaultValue={String(termDays)}
-            className="focus-ring h-8 rounded-md border bg-card px-2 text-sm"
-          >
-            {CREDIT_TERMS.map((d) => (
-              <option key={d} value={d}>
-                {d} {t("days")}
-              </option>
-            ))}
-          </select>
+          <TermDaysField defaultValue={String(termDays)} />
         </label>
 
         <label className="min-w-[200px] flex-1 text-[11px] text-muted-foreground">

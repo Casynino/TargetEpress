@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Paperclip, X } from "lucide-react";
+import { Paperclip, Upload, X } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -116,11 +116,11 @@ export function AttachmentManager({
 
   return (
     <div className="space-y-1.5">
-      {attachments.length === 0 ? (
+      {attachments.length === 0 && !editable ? (
         <p className="text-xs text-muted-foreground">
           {t("Nothing attached.")}
         </p>
-      ) : (
+      ) : attachments.length === 0 ? null : (
         <ul className="space-y-1">
           {attachments.map((a) => (
             <li
@@ -159,23 +159,58 @@ export function AttachmentManager({
       )}
 
       {editable ? (
-        <div className="flex items-center gap-1.5">
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,application/pdf"
-            className="block flex-1 text-xs text-muted-foreground file:mr-2 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-medium"
-          />
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-7 shrink-0 px-2 text-[11px]"
-            disabled={pending}
-            onClick={addFile}
-          >
-            {pending ? t("Adding…") : t("Add")}
-          </Button>
+        /*
+          Said like it matters, because it does.
+
+          It was a bare file input under the words "Nothing attached." — the
+          quietest thing on a panel about money, and the desks read that as
+          "skip me". Nothing is enforced: a customer paying cash at the counter
+          has no screenshot, and refusing the record would lose the payment
+          rather than the proof. But a claim with nothing behind it is one
+          Finance agrees to on somebody's word, and this is the last moment
+          anybody can do something about that.
+
+          Dashed rather than solid: it reads as a space waiting to be filled
+          instead of a field that has been left blank.
+        */
+        <div
+          className={`rounded-lg border border-dashed p-3 ${
+            attachments.length === 0
+              ? "border-warning/50 bg-warning/[0.04]"
+              : "border-border"
+          }`}
+        >
+          <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+            <Upload className="h-3.5 w-3.5 shrink-0 text-warning" />
+            {attachments.length === 0
+              ? t("Add payment proof — the slip or the screenshot")
+              : t("Add another")}
+          </p>
+          {attachments.length === 0 ? (
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {t(
+                "Not compulsory, but it is what settles an argument months from now. Without it Finance is agreeing to this on somebody's word."
+              )}
+            </p>
+          ) : null}
+          <div className="mt-2 flex items-center gap-1.5">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              className="block flex-1 text-xs text-muted-foreground file:mr-2 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-medium"
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 shrink-0 px-2 text-[11px]"
+              disabled={pending}
+              onClick={addFile}
+            >
+              {pending ? t("Adding…") : t("Add")}
+            </Button>
+          </div>
         </div>
       ) : null}
 

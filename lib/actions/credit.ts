@@ -6,7 +6,9 @@ import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import {
-  CREDIT_TERMS,
+  CREDIT_TERM_MAX,
+  CREDIT_TERM_MIN,
+  isCreditTerm,
   DEFAULT_CREDIT_TERM,
   canRequestCredit,
   creditCheck,
@@ -48,7 +50,10 @@ const requestSchema = z.object({
   termDays: z.coerce
     .number()
     .int()
-    .refine((v) => (CREDIT_TERMS as readonly number[]).includes(v), "Choose 7, 14 or 30 days."),
+    .refine(
+      isCreditTerm,
+      `Terms are a whole number of days, from ${CREDIT_TERM_MIN} to ${CREDIT_TERM_MAX}.`
+    ),
   note: z.string().trim().optional(),
 });
 
@@ -260,7 +265,7 @@ export async function approveCredit(
 
       const termDays =
         parsed.data.termDays &&
-        (CREDIT_TERMS as readonly number[]).includes(parsed.data.termDays)
+        isCreditTerm(parsed.data.termDays)
           ? parsed.data.termDays
           : (invoice.creditTermDays ?? invoice.customer.creditTermDays ?? DEFAULT_CREDIT_TERM);
 
@@ -484,7 +489,7 @@ export async function setCreditLimit(
     const after = parsed.data.limitUsd;
     const termDays =
       parsed.data.termDays &&
-      (CREDIT_TERMS as readonly number[]).includes(parsed.data.termDays)
+      isCreditTerm(parsed.data.termDays)
         ? parsed.data.termDays
         : undefined;
 
@@ -620,7 +625,7 @@ export async function adjustCredit(
       }
     } else if (
       parsed.data.termDays &&
-      (CREDIT_TERMS as readonly number[]).includes(parsed.data.termDays)
+      isCreditTerm(parsed.data.termDays)
     ) {
       termDays = parsed.data.termDays;
       nextDue = dueDateFrom(today, termDays);

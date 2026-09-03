@@ -5,9 +5,9 @@ import { BadgeCheck, Ban } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
+import { TermDaysField } from "@/components/app/term-days-field";
 import { Input } from "@/components/ui/input";
 import { approveCredit, rejectCredit } from "@/lib/actions/credit";
-import { CREDIT_TERMS } from "@/lib/credit";
 import type { ActionResult } from "@/lib/actions/types";
 
 /**
@@ -57,18 +57,7 @@ export function CreditDecision({
       <div className="flex flex-wrap items-center gap-1.5">
         <form action={approve} className="flex items-center gap-1.5">
           <input type="hidden" name="invoiceId" value={invoiceId} />
-          <select
-            name="termDays"
-            defaultValue={String(termDays ?? 14)}
-            aria-label={t("Payment terms")}
-            className="focus-ring h-11 md:h-7 rounded-md border bg-card px-1.5 text-[11px]"
-          >
-            {CREDIT_TERMS.map((d) => (
-              <option key={d} value={d}>
-                {d} {t("days")}
-              </option>
-            ))}
-          </select>
+          <TermDaysField defaultValue={String(termDays ?? 14)} />
           <SubmitButton size="sm" className="h-11 md:h-7 px-2.5 text-[11px]">
             <BadgeCheck className="mr-1.5 h-3.5 w-3.5" />
             {warning === "over"

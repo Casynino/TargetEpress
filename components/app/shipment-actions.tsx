@@ -645,8 +645,13 @@ function PaymentPanel(props: Props) {
           ) : null}
           <div className="space-y-1.5">
             <Label htmlFor="proof" className="text-xs">
-              {t("Proof of payment")}
+              {t("Payment proof — the slip or the screenshot")}
             </Label>
+            <p className="text-[11px] text-muted-foreground">
+              {t(
+                "Not compulsory, but it is what settles an argument months from now. Without it Finance is agreeing to this on somebody's word."
+              )}
+            </p>
             <Input
               id="proof"
               name="proof"

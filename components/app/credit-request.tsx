@@ -5,9 +5,9 @@ import { CalendarClock, Clock } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
+import { TermDaysField } from "@/components/app/term-days-field";
 import { Input } from "@/components/ui/input";
 import { requestCredit } from "@/lib/actions/credit";
-import { CREDIT_TERMS } from "@/lib/credit";
 import type { ActionResult } from "@/lib/actions/types";
 
 /**
@@ -103,17 +103,7 @@ export function CreditRequest({
         <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Clock className="h-3.5 w-3.5" />
           {t("Terms")}
-          <select
-            name="termDays"
-            defaultValue={String(defaultTerm)}
-            className="focus-ring h-8 rounded-md border bg-card px-2 text-xs"
-          >
-            {CREDIT_TERMS.map((d) => (
-              <option key={d} value={d}>
-                {d} {t("days")}
-              </option>
-            ))}
-          </select>
+          <TermDaysField defaultValue={String(defaultTerm)} />
         </label>
       </div>
 

@@ -693,12 +693,12 @@ export function CustomerPaymentForm({
           </div>
 
           <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="proof">
-              {t("Proof of payment")}{" "}
-              <span className="font-normal text-muted-foreground">
-                {t("(optional)")}
-              </span>
-            </Label>
+            <Label htmlFor="proof">{t("Payment proof — the slip or the screenshot")}</Label>
+            <p className="text-[11px] text-muted-foreground">
+              {t(
+                "Not compulsory, but it is what settles an argument months from now. Without it Finance is agreeing to this on somebody's word."
+              )}
+            </p>
             <input
               id="proof"
               name="proof"

@@ -23,9 +23,37 @@ type Money = number | string | Prisma.Decimal | null | undefined;
  * is why collecting a credit must never create a new sale.
  */
 
-/** Terms the business actually offers, in days. */
+/**
+ * The terms the desk reaches for, in days.
+ *
+ * Suggestions now, not the whole list. They were the only three the system
+ * would accept, and a customer negotiating 45 days had to be written down as
+ * 30 — a due date the company never agreed, which is the one thing the credit
+ * engine must never be handed. Any whole number of days inside the bounds
+ * below is allowed; these are the three that fill the picker.
+ */
 export const CREDIT_TERMS = [7, 14, 30] as const;
 export type CreditTerm = (typeof CREDIT_TERMS)[number];
+
+/**
+ * What a term may be at all.
+ *
+ * One day at the bottom, because "pay me tomorrow" is a real arrangement. A
+ * year at the top, because a term beyond that is not credit on a consignment —
+ * it is a debt somebody should be deciding about deliberately, not typing into
+ * a box on a call.
+ */
+export const CREDIT_TERM_MIN = 1;
+export const CREDIT_TERM_MAX = 365;
+
+/** Whether a typed term is one the business will stand behind. */
+export function isCreditTerm(days: number) {
+  return (
+    Number.isInteger(days) &&
+    days >= CREDIT_TERM_MIN &&
+    days <= CREDIT_TERM_MAX
+  );
+}
 
 export const DEFAULT_CREDIT_TERM: CreditTerm = 14;
 
