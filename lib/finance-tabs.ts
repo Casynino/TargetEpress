@@ -53,6 +53,17 @@ export function financeTabs(role: Role): FinanceTab[] {
       visible: can(role, "collections.view"),
     },
     {
+      /*
+        Beside Collections, because the two are one question asked twice: who
+        owes us, and who owes us on terms we granted. It had a sidebar row and
+        no place in this row at all, so the money desk reading the finance tabs
+        could see every unpaid bill and not the credit sitting behind them.
+      */
+      href: "/app/finance/credit",
+      label: "Credit",
+      visible: can(role, "credit.view"),
+    },
+    {
       href: "/app/finance/transactions",
       // One register. Payments-in and Expenses were two more readings of the
       // same movements, each with its own totals to reconcile by eye.

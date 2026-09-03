@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Banknote,
+  CalendarClock,
   Boxes,
   ChartNoAxesCombined,
   ClipboardCheck,
@@ -1835,25 +1836,36 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
    * page that already knows whether Dar has actually checked a flight in and
    * put something in front of you to sign off.
    */
+  /*
+    In the order the money desk's day runs, which is the order the owner set.
+
+    Verify leads because it is the only one with people waiting on it —
+    Customer Support has handed proofs up and nothing settles until this desk
+    agrees with them. Then the two ways money is taken, then credit, then the
+    two lists that say who has not paid and what is ready to go home. Money
+    out sits last: a cost is not what anybody opens this screen for.
+  */
   const shortcuts: ActionPill[] = [
-    /* Money in beside money out. They are the two halves of the same job and
-       were a tab apart, so the commoner of the two — customers paying — was
-       the one that took more clicks. It opens the ledger with the panel
-       already up rather than carrying a second copy of the form. */
-    { href: "/app/finance/transactions?income=1", label: t(locale, "Record Payment"), icon: Banknote, weight: "secondary", tone: "success" },
-    /* The customer with three consignments and one M-Pesa message. It existed
-       and was reachable only by typing the URL, which is the same as not
-       existing — the desk starts on this screen, so the way in belongs on it. */
-    { href: "/app/finance/payments/new", label: t(locale, "Merge Payment"), icon: Layers, weight: "secondary", tone: "success" },
-    { href: "/app/finance/transactions", label: t(locale, "Record a cost"), icon: Banknote, weight: "secondary", tone: "signal" },
     // Verify payments, not Payments. What Finance starts here is the queue
     // Customer Support hands up — proofs collected at the counter that are
     // worth nothing until this desk agrees with them. The payments list is a
     // record to read, and it is not even in the Finance tab row; this is a
     // job with people waiting on it.
     { href: "/app/finance/verify", label: t(locale, "Verify payments"), icon: ShieldCheck, tone: "info" },
-    { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), icon: QrCode, tone: "success" },
+    /* Money in. It opens the ledger with the panel already up rather than
+       carrying a second copy of the form. */
+    { href: "/app/finance/transactions?income=1", label: t(locale, "Record Payment"), icon: Banknote, weight: "secondary", tone: "success" },
+    /* The customer with three consignments and one M-Pesa message. It existed
+       and was reachable only by typing the URL, which is the same as not
+       existing — the desk starts on this screen, so the way in belongs on it. */
+    { href: "/app/finance/payments/new", label: t(locale, "Merge Payment"), icon: Layers, weight: "secondary", tone: "success" },
+    /* Beside Merge Payment, because it is the third answer to the same call:
+       they have paid, they are paying several at once, or they want time. The
+       credit book is a place to browse; this is the act. */
+    { href: "/app/finance/credit", label: t(locale, "Release on credit"), icon: CalendarClock, tone: "violet" },
     { href: "/app/collections/follow-up", label: t(locale, "Payment follow-up"), icon: Clock, tone: "warning" },
+    { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), icon: QrCode, tone: "success" },
+    { href: "/app/finance/transactions", label: t(locale, "Record a cost"), icon: Banknote, weight: "secondary", tone: "signal" },
   ];
 
   return (

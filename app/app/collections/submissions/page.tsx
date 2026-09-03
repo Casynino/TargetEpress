@@ -441,8 +441,9 @@ export default async function SubmissionsPage({
                               rather than a detail: a claim with nothing
                               behind it is somebody's word, and Finance is
                               about to move money on it. */}
-                          <span className="text-destructive">
-                            {t(locale, "nothing attached")}
+                          <span className="inline-flex items-center gap-1 whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-[11px] font-medium text-destructive">
+                            <Paperclip className="h-3 w-3" />
+                            {t(locale, "no proof attached")}
                           </span>
                         </>
                       )}

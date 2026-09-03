@@ -145,8 +145,14 @@ export async function VerifyQueue() {
                         {row.proofs.length === 0 ? (
                           <>
                             <span>·</span>
-                            <span className="text-destructive">
-                              {t(locale, "nothing attached")}
+                            {/* A badge, not loose red words. On a row with a
+                                long figure the meta line wraps and this landed
+                                alone on the second line, reading as a mistake
+                                rather than a flag. Shaped, it reads the same
+                                wherever it falls. */}
+                            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded bg-destructive/15 px-1.5 py-0.5 text-[11px] font-medium text-destructive">
+                              <Paperclip className="h-3 w-3" />
+                              {t(locale, "no proof attached")}
                             </span>
                           </>
                         ) : (

@@ -261,34 +261,18 @@ export function RecordCollectionForm({
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="collectionReference" className="text-xs">
-          {t("Reference from the customer")}{" "}
-          <span className="ml-1 rounded bg-signal/10 px-1.5 py-0.5 text-[11px] font-semibold text-signal">
-            {t("expected")}
-          </span>
-        </Label>
-        {/*
-          Asked for firmly, not enforced.
+      /*
+        No Reference field.
 
-          It is the one thing that is not already in the system and it is what
-          Finance checks the money against — so the field says so and is marked
-          expected. It no longer blocks: a customer who paid cash across the
-          counter has no M-Pesa code, and refusing the record over a missing
-          one loses the payment rather than the reference.
-        */}
-        <Input
-          id="collectionReference"
-          name="reference"
-          placeholder={t("The M-Pesa code, slip number or cheque number")}
-          className="h-11"
-        />
-        <p className="text-xs text-muted-foreground">
-          {t(
-            "The one thing that is not already in the system. Finance checks the money against this — add it if the customer gave you one."
-          )}
-        </p>
-      </div>
+        This asked, firmly and with a badge, for the M-Pesa code — beside a
+        drop zone for the screenshot that already shows it. The owner took it
+        out: it is one fact recorded twice, and the retyped half is the one
+        that gets a digit wrong at a counter with a customer waiting. The
+        evidence below is what Finance opens.
+
+        The column stays and older references still display; nothing new is
+        asked for.
+      */
 
       {/* The evidence. A submission without it is refused by the action, so it
           is given the room that importance deserves rather than being a row of

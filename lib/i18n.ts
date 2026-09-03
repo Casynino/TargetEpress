@@ -1594,6 +1594,7 @@ const ZH: Record<string, string> = {
   "No account has an opening balance yet": "还没有账户设置期初余额",
   "No account named": "未指明账户",
   "no account named": "未指定账户",
+  "no proof attached": "无凭证",
   "Add payment proof — the slip or the screenshot": "添加付款凭证——转账单或截图",
   "Payment proof — the slip or the screenshot": "付款凭证——转账单或截图",
   "Add another": "再添加一个",

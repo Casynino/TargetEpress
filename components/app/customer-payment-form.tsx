@@ -677,20 +677,19 @@ export function CustomerPaymentForm({
             across a counter has no screenshot and no code, and refusing the
             payment does not produce one, it produces a payment nobody records.
           */}
-          <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="reference">
-              {t("Reference")}{" "}
-              <span className="font-normal text-muted-foreground">
-                {t("(optional)")}
-              </span>
-            </Label>
-            <Input
-              id="reference"
-              name="reference"
-              className="h-11"
-              placeholder={t("M-Pesa code, slip number")}
-            />
-          </div>
+          /*
+              No Reference field.
+
+              The owner took it out: the desk was typing an M-Pesa code beside
+              the screenshot that already shows it, and the screenshot is the
+              thing anybody actually opens in an argument. Two records of one
+              fact, one of them retyped by hand at a counter with a customer
+              waiting.
+
+              The COLUMN stays and is still shown wherever an older payment has
+              one — it is on receipts, it is searchable, and rewriting history
+              is not on the table. Nothing new is asked for.
+            */
 
           <div className="min-w-0 space-y-1.5">
             <Label htmlFor="proof">{t("Payment proof — the slip or the screenshot")}</Label>

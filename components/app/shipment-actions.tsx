@@ -666,22 +666,19 @@ function PaymentPanel(props: Props) {
               )}
             </p>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="reference" className="text-xs">
-              {t("Reference")}{" "}
-              <span className="text-muted-foreground">({t("optional")})</span>
-            </Label>
-            <Input
-              id="reference"
-              name="reference"
-              placeholder={t("M-Pesa ID, slip or cheque number")}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t(
-                "Worth typing as well as attaching: it is what you search for when matching this against a bank statement."
-              )}
-            </p>
-          </div>
+          /*
+              No Reference field.
+
+              The owner took it out: the desk was typing an M-Pesa code beside
+              the screenshot that already shows it, and the screenshot is the
+              thing anybody actually opens in an argument. Two records of one
+              fact, one of them retyped by hand at a counter with a customer
+              waiting.
+
+              The COLUMN stays and is still shown wherever an older payment has
+              one — it is on receipts, it is searchable, and rewriting history
+              is not on the table. Nothing new is asked for.
+            */
           <div className="space-y-1.5">
             <Label htmlFor="paidAt" className="text-xs">
               {t("Payment date")}
