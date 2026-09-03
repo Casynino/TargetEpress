@@ -19,7 +19,7 @@ import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { authorize } from "@/lib/session";
-import { viewerLocale } from "@/lib/viewer";
+import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { firstError } from "@/lib/validation";
 
@@ -701,4 +701,233 @@ export async function adjustCredit(
   } catch (error) {
     return fail(t(locale, toActionError(error)));
   }
+}
+
+/** One bill that could be released on credit, with everything the ask needs. */
+export type CreditCandidate = {
+  invoiceId: string;
+  invoiceNumber: string;
+  trackingNumber: string | null;
+  customerId: string;
+  customerName: string;
+  goods: string;
+  currency: string;
+  outstanding: number;
+  /** The rate frozen on the bill, so the figure can lead in shillings. */
+  rate: number | null;
+  /** This customer's agreed terms, and where they already stand against them. */
+  termDays: number;
+  limitUsd: number | null;
+  alreadyOwesUsd: number;
+};
+
+/**
+ * Who could be let take their cargo now and pay later.
+ *
+ * The same shape as the Record Payment panel, and for the same reason: asking
+ * for credit began at a bill somebody had to already know how to find. The
+ * question in the room is "this customer on the phone wants time" — so the
+ * panel opens holding the list, and the search box narrows it.
+ *
+ * Only bills where the question is live: still owed, price confirmed, and no
+ * credit already asked for or granted. A draft is not something to grant terms
+ * on — until Finance confirms the price, nobody knows what is being lent.
+ */
+export async function creditCandidates(
+  query?: string
+): Promise<CreditCandidate[]> {
+  try {
+    /* Anybody who may ask may look. Asking commits nothing — the cargo does
+       not move and the bill does not change until Finance answers. */
+    await authorize("credit.request");
+  } catch {
+    return [];
+  }
+
+  const locale = await viewerLocale();
+  const q = query?.trim() ?? "";
+
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      status: { in: ["UNPAID", "PARTIALLY_PAID"] },
+      creditStatus: "NONE",
+      ...(q.length >= 2
+        ? {
+            OR: [
+              { invoiceNumber: { contains: q, mode: "insensitive" } },
+              { customer: { name: { contains: q, mode: "insensitive" } } },
+              { customer: { phone: { contains: q } } },
+              {
+                shipment: {
+                  trackingNumber: { contains: q, mode: "insensitive" },
+                },
+              },
+            ],
+          }
+        : {}),
+    },
+    /* Oldest first: the bill that has been owed longest is the one a customer
+       is most likely to be ringing about. */
+    orderBy: [{ issuedAt: "asc" }],
+    take: 40,
+    select: {
+      id: true,
+      invoiceNumber: true,
+      currency: true,
+      total: true,
+      amountPaid: true,
+      exchangeRate: true,
+      customer: {
+        select: {
+          id: true,
+          name: true,
+          creditTermDays: true,
+          creditLimitUsd: true,
+        },
+      },
+      shipment: {
+        select: { trackingNumber: true, ...selectText("description") },
+      },
+    },
+  });
+
+  /* What each of these customers already owes on credit, in one query rather
+     than one per row. A request made without it is a request Finance has to
+     research before it can answer. */
+  const customerIds = [...new Set(invoices.map((inv) => inv.customer.id))];
+  const standing = await prisma.invoice.groupBy({
+    by: ["customerId"],
+    where: {
+      customerId: { in: customerIds },
+      creditStatus: "APPROVED",
+      status: { in: ["UNPAID", "PARTIALLY_PAID"] },
+    },
+    _sum: { total: true, amountPaid: true },
+  });
+  const owedByCustomer = new Map(
+    standing.map((row) => [
+      row.customerId,
+      Math.max(
+        0,
+        toNumber(row._sum.total ?? 0) - toNumber(row._sum.amountPaid ?? 0)
+      ),
+    ])
+  );
+
+  return invoices
+    .map((inv) => ({
+      invoiceId: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      trackingNumber: inv.shipment?.trackingNumber ?? null,
+      customerId: inv.customer.id,
+      customerName: inv.customer.name,
+      goods: inv.shipment ? cargoText(locale, inv.shipment, "description") : "",
+      currency: inv.currency,
+      outstanding: Math.max(
+        0,
+        toNumber(inv.total) - toNumber(inv.amountPaid)
+      ),
+      rate: inv.exchangeRate === null ? null : toNumber(inv.exchangeRate),
+      termDays: inv.customer.creditTermDays ?? 14,
+      limitUsd:
+        inv.customer.creditLimitUsd === null
+          ? null
+          : toNumber(inv.customer.creditLimitUsd),
+      alreadyOwesUsd: owedByCustomer.get(inv.customer.id) ?? 0,
+    }))
+    /* A bill with nothing left on it is not something to grant terms on. */
+    .filter((row) => row.outstanding > 0.005);
+}
+
+/**
+ * The credit context for one bill, fetched when the desk actually asks for it.
+ *
+ * The row icon on the call list used to be a link to the invoice, where you
+ * pressed "Ask for credit" a second time — a step that existed only because two
+ * screens met. Pressing it now opens the ask itself, and this is what fills it
+ * in: the customer's agreed terms, their limit, and where they already stand.
+ *
+ * One query on open rather than three more joins on every one of a hundred and
+ * thirty-four rows, almost none of which will be pressed.
+ */
+export async function creditContextFor(
+  invoiceId: string
+): Promise<CreditCandidate | null> {
+  try {
+    await authorize("credit.request");
+  } catch {
+    return null;
+  }
+
+  const locale = await viewerLocale();
+  const inv = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: {
+      id: true,
+      invoiceNumber: true,
+      currency: true,
+      total: true,
+      amountPaid: true,
+      exchangeRate: true,
+      status: true,
+      creditStatus: true,
+      customer: {
+        select: {
+          id: true,
+          name: true,
+          creditTermDays: true,
+          creditLimitUsd: true,
+        },
+      },
+      shipment: {
+        select: { trackingNumber: true, ...selectText("description") },
+      },
+    },
+  });
+  /* The same three conditions the list applies, re-asked here: the icon was
+     rendered from a row that may have been fetched minutes ago, and terms must
+     not be granted on a bill that has since been paid or already has credit. */
+  if (
+    !inv ||
+    inv.creditStatus !== "NONE" ||
+    (inv.status !== "UNPAID" && inv.status !== "PARTIALLY_PAID")
+  ) {
+    return null;
+  }
+
+  const standing = await prisma.invoice.aggregate({
+    where: {
+      customerId: inv.customer.id,
+      creditStatus: "APPROVED",
+      status: { in: ["UNPAID", "PARTIALLY_PAID"] },
+    },
+    _sum: { total: true, amountPaid: true },
+  });
+
+  const outstanding = Math.max(
+    0,
+    toNumber(inv.total) - toNumber(inv.amountPaid)
+  );
+  if (outstanding <= 0.005) return null;
+
+  return {
+    invoiceId: inv.id,
+    invoiceNumber: inv.invoiceNumber,
+    trackingNumber: inv.shipment?.trackingNumber ?? null,
+    customerId: inv.customer.id,
+    customerName: inv.customer.name,
+    goods: inv.shipment ? cargoText(locale, inv.shipment, "description") : "",
+    currency: inv.currency,
+    outstanding,
+    rate: inv.exchangeRate === null ? null : toNumber(inv.exchangeRate),
+    termDays: inv.customer.creditTermDays ?? 14,
+    limitUsd:
+      inv.customer.creditLimitUsd === null
+        ? null
+        : toNumber(inv.customer.creditLimitUsd),
+    alreadyOwesUsd: Math.max(
+      0,
+      toNumber(standing._sum.total ?? 0) - toNumber(standing._sum.amountPaid ?? 0)
+    ),
+  };
 }

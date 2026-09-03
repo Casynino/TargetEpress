@@ -326,19 +326,26 @@ export default async function SubmissionsPage({
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">
                       {row.invoice.customer.name}
-                      <span
-                        className={`ml-2 rounded px-1.5 py-0.5 text-[11px] font-normal ${
-                          row.status === "VERIFIED"
-                            ? "bg-success/15 text-success"
-                            : row.status === "REJECTED"
-                              ? "bg-destructive/15 text-destructive"
-                              : row.status === "WITHDRAWN"
-                                ? "bg-muted text-muted-foreground"
-                                : "bg-warning/15 text-warning"
-                        }`}
-                      >
-                        {t(locale, SUBMISSION_STATUS_LABELS[row.status])}
-                      </span>
+                      {/* Only where the list is mixed. On the Sent back tab
+                          every row is sent back, and the line underneath
+                          already names who sent it back and why — so the badge
+                          was the same fact a third time, in red, on every
+                          row. */}
+                      {active === "ALL" ? (
+                        <span
+                          className={`ml-2 rounded px-1.5 py-0.5 text-[11px] font-normal ${
+                            row.status === "VERIFIED"
+                              ? "bg-success/15 text-success"
+                              : row.status === "REJECTED"
+                                ? "bg-destructive/15 text-destructive"
+                                : row.status === "WITHDRAWN"
+                                  ? "bg-muted text-muted-foreground"
+                                  : "bg-warning/15 text-warning"
+                          }`}
+                        >
+                          {t(locale, SUBMISSION_STATUS_LABELS[row.status])}
+                        </span>
+                      ) : null}
                     </p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                       <span className="font-mono">{row.submissionNumber}</span>
@@ -455,12 +462,25 @@ export default async function SubmissionsPage({
                       ) : null}
                       {row.status === "REJECTED" ? (
                         <>
-                          <span>·</span>
-                          <span className="text-destructive">
-                            {t(locale, "Sent back by")}{" "}
-                            {row.reviewedBy?.name ?? t(locale, "Finance")}
-                            {row.rejectionReason ? `: ${row.rejectionReason}` : ""}
-                          </span>
+                          {/* Only where the list is mixed. On the Sent back
+                              tab every row was sent back, and this repeated
+                              the same name and the same sentence down the
+                              whole page — in red, so it read as twenty-one
+                              different problems. Who refused it and what they
+                              said is in the panel that opens, beside the
+                              fields for answering it. */}
+                          {active === "ALL" ? (
+                            <>
+                              <span>·</span>
+                              <span className="text-destructive">
+                                {t(locale, "Sent back by")}{" "}
+                                {row.reviewedBy?.name ?? t(locale, "Finance")}
+                                {row.rejectionReason
+                                  ? `: ${row.rejectionReason}`
+                                  : ""}
+                              </span>
+                            </>
+                          ) : null}
                           {/* Under Everything, a refused claim whose bill has
                               since been settled would otherwise read as work
                               still owed. It is the record, not a job — the

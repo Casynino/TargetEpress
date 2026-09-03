@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CreditAdjust } from "@/components/app/credit-adjust";
 import { CreditDecision } from "@/components/app/credit-decision";
 import { EmptyState } from "@/components/app/empty-state";
+import { AskForCredit } from "@/components/app/ask-for-credit";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchBox } from "@/components/app/search-box";
 import { CREDIT_STATE_LABEL, dueLabel, type CreditState } from "@/lib/credit";
@@ -104,6 +105,14 @@ export default async function CreditPage({
           locale,
           "Cargo released before payment. None of this is cash — it is money customers still owe, and the oldest debt is the one to ring about."
         )}
+        /* The book showed what had been granted and offered no way to grant
+           anything: a page whose empty state says "Support asks, Finance
+           approves" and then makes you leave to do either. */
+        actions={
+          canMoveDates ? (
+            <AskForCredit rate={rate} canApprove={canDecide} />
+          ) : null
+        }
       />
 
       {/*

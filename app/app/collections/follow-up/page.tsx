@@ -10,6 +10,7 @@ import {
   Search,
 } from "lucide-react";
 
+import { AskForCredit, CreditOnRow } from "@/components/app/ask-for-credit";
 import { CollectionsNav } from "@/components/app/collections-nav";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
@@ -248,6 +249,12 @@ export default async function FollowUpPage({
                   {t(locale, "Merge Payment")}
                 </Link>
               </Button>
+              {/* Credit beside the two payment doors, because it is the third
+                  answer to the same phone call: they have paid, they are
+                  paying several at once, or they want time. */}
+              {canAskForCredit ? (
+                <AskForCredit rate={liveRate} canApprove={canDecideCredit} />
+              ) : null}
               {/* ?record=1 opens the panel on arrival, so the sidebar's
                   Record Payment row lands on the form rather than on a page
                   with a button to press a second time. */}
@@ -792,15 +799,18 @@ export default async function FollowUpPage({
                       row.invoiceStatus !== "DRAFT" &&
                       row.outstanding !== null &&
                       row.outstanding > 0 ? (
-                        <IconHint label={t(locale, "Ask for credit")}>
-                          <Link
-                            href={`/app/finance/invoices/${row.invoiceId}`}
-                            aria-label={`${t(locale, "Ask for credit on")} ${row.invoiceNumber ?? row.trackingNumber}`}
-                            className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-chart-4/40 text-chart-4 transition-colors hover:bg-chart-4/10"
-                          >
-                            <CalendarClock className="h-3.5 w-3.5" />
-                          </Link>
-                        </IconHint>
+                        /* Straight to the ask. It used to open the invoice,
+                           where you pressed "Ask for credit" a second time —
+                           a step that existed only because two screens met. */
+                        <CreditOnRow
+                          invoiceId={row.invoiceId}
+                          canApprove={canDecideCredit}
+                          label={
+                            canDecideCredit
+                              ? t(locale, "Release on credit")
+                              : t(locale, "Ask for credit")
+                          }
+                        />
                       ) : null
                     ) : (
                       <IconHint

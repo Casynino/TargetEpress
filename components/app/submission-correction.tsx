@@ -412,12 +412,34 @@ export function SubmissionCorrection({
                   <>
                     {/* What Finance said, kept in front of whoever is fixing
                         it — the correction is an answer to this sentence. */}
-                    {canRaiseAgain && subject.rejectionReason ? (
-                      <p className="rounded-lg border border-destructive/40 bg-destructive/[0.06] px-3 py-2 text-xs text-destructive">
-                        {t("Sent back by")}{" "}
-                        {subject.reviewedByName ?? t("Finance")}:{" "}
-                        {subject.rejectionReason}
-                      </p>
+                    {/*
+                      What Finance said, marked as THEIR words rather than as
+                      an instruction to the reader.
+
+                      Refusals had been typed as advice about what would happen
+                      next — "will update through batch" — and printed plain
+                      after a colon they read as a direction: wait for the
+                      batch. They are not directions. The desk can fix the
+                      claim here and send it straight back up, so the panel
+                      says that underneath in its own voice.
+                    */}
+                    {canRaiseAgain ? (
+                      <div className="space-y-1 rounded-lg border border-destructive/40 bg-destructive/[0.06] px-3 py-2">
+                        <p className="text-xs font-medium text-destructive">
+                          {t("Sent back by")}{" "}
+                          {subject.reviewedByName ?? t("Finance")}
+                        </p>
+                        {subject.rejectionReason ? (
+                          <p className="text-xs italic text-destructive/90">
+                            “{subject.rejectionReason}”
+                          </p>
+                        ) : null}
+                        <p className="text-[11px] text-muted-foreground">
+                          {t(
+                            "Fix whatever was wrong below and send it straight back up — nothing has to wait for anything else."
+                          )}
+                        </p>
+                      </div>
                     ) : null}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1.5">
