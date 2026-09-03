@@ -76,16 +76,33 @@ export default async function CustomerProfilePage({
   /* Empty in, empty out: normalisePhone("") answers "+", which would match
      every record that has no number at all. */
   const digits = customer.phone ? normalisePhone(customer.phone) : "";
-  const twins = canMerge
+  /*
+    Matched on a normalised name rather than the stored one. "Dickson Ndomba",
+    "dickson ndomba" and "Dickson  Ndomba " are one person typed by three
+    people, and an exact comparison finds none of them; Postgres does the
+    lowering and the whitespace collapsing so the comparison happens on the
+    same shape on both sides. POSIX [[:space:]] rather than \s because a
+    backslash in a tagged template never reaches the database.
+  */
+  const normalName = customer.name.trim().toLowerCase().replace(/\s+/g, " ");
+  const twinIds = canMerge
+    ? await prisma.$queryRaw<{ id: string }[]>`
+        SELECT c."id"
+        FROM "Customer" c
+        WHERE c."id" <> ${customer.id}
+          AND (
+            regexp_replace(btrim(lower(c."name")), '[[:space:]]+', ' ', 'g')
+              = ${normalName}
+            OR (${digits} <> '' AND c."phone" = ${digits})
+          )
+        ORDER BY c."createdAt" ASC
+        LIMIT 8
+      `
+    : [];
+
+  const twins = twinIds.length
     ? await prisma.customer.findMany({
-        where: {
-          id: { not: customer.id },
-          OR: [
-            { name: { equals: customer.name, mode: "insensitive" } },
-            ...(digits ? [{ phone: digits }] : []),
-          ],
-        },
-        take: 8,
+        where: { id: { in: twinIds.map((row) => row.id) } },
         orderBy: { createdAt: "asc" },
         select: {
           id: true,
