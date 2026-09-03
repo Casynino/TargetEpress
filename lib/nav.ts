@@ -469,6 +469,11 @@ const SUPPORT_SECTIONS: NavSection[] = [
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode" },
+      /* The dashboard pill is the fast way in; this is the way in for
+         somebody who came down the sidebar instead, browsing rather than
+         starting a job — the same reason every other billing job has a row
+         here too. */
+      { href: "/app/finance/payments/new", label: "Merge Payment", icon: "Layers" },
       // Read-only for this desk: they quote from the rate book and answer
       // "what will this cost", they do not set it. pricing.manage is Finance's.
       { href: "/app/finance/pricing", label: "Price Configuration", icon: "Tags" },
