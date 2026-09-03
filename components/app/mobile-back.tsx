@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
 import { useT } from "@/components/app/locale-provider";
+import { labelForPath, previous, readTrail } from "@/lib/nav-trail";
 
 /**
  * The way back, on a phone.
@@ -108,12 +110,27 @@ export function MobileBack() {
   const pathname = usePathname() ?? "";
   const t = useT();
 
+  /*
+    THE TRAIL FIRST, and it is read after mount so the server pass and the first
+    paint agree. It is the workflow the reader actually walked — Collections to
+    a payment to its bill to the cargo — where history counts redirects and
+    filter changes as steps, and the parent map below can only ever name a
+    record's relationships.
+  */
+  const [walked, setWalked] = useState<{ href: string; label: string } | null>(
+    null
+  );
+  useEffect(() => {
+    const back = previous(readTrail());
+    setWalked(back ? { href: back, label: labelForPath(back) ?? "Back" } : null);
+  }, [pathname]);
+
   if (ROOTS.has(pathname)) return null;
 
   const match = PARENTS.find(
     (p) => pathname.startsWith(p.prefix) && pathname !== p.parent
   );
-  const label = match ? t(match.label) : t("Back");
+  const label = walked ? t(walked.label) : match ? t(match.label) : t("Back");
 
   return (
     <button
@@ -127,7 +144,10 @@ export function MobileBack() {
           WeChat webview starts at 1, and calling back() there does nothing at
           all, which is the failure the desk actually hit.
         */
-        if (typeof window !== "undefined" && window.history.length > 1) {
+        if (walked) {
+          /* Where they came from, with its filters and its page number. */
+          router.push(walked.href);
+        } else if (typeof window !== "undefined" && window.history.length > 1) {
           router.back();
         } else if (match) {
           router.push(match.parent);

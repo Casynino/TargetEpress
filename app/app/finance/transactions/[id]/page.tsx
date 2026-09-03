@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, FileText, Paperclip } from "lucide-react";
+import { FileText, Paperclip } from "lucide-react";
 
 import { LedgerEntryActions } from "@/components/app/ledger-entry-actions";
 import { LedgerRowFix } from "@/components/app/ledger-row-fix";
@@ -185,18 +185,12 @@ export default async function LedgerEntryPage({
 
   return (
     <>
-      <Link
-        href="/app/finance/transactions"
-        className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t(locale, "The Ledger")}
-      </Link>
-
       <div className="flex flex-wrap items-start justify-between gap-3">
+        {/* backTo's label is a raw key — SmartBack translates it once itself. */}
         <PageHeader
           title={entry.expense?.description ?? entry.description}
           description={`${t(locale, KIND_LABEL[entry.kind] ?? entry.kind)} · ${entry.account.name}`}
+          backTo={{ href: "/app/finance/transactions", label: "The Ledger" }}
         />
         {/*
           The same two controls the register carries, on the record itself.

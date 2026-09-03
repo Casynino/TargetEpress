@@ -223,7 +223,7 @@ export default async function FollowUpPage({
               <Button asChild variant="outline" size="sm">
                 <Link href="/app/finance/payments/new">
                   <Banknote className="mr-2 h-4 w-4" />
-                  {t(locale, "One payment, several bills")}
+                  {t(locale, "One Bill")}
                 </Link>
               </Button>
               <RecordIncome

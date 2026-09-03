@@ -3,6 +3,7 @@ import { ChevronLeft } from "lucide-react";
 
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { SmartBack } from "@/components/app/smart-back";
 import { viewerLocale } from "@/lib/viewer";
 
 /**
@@ -97,7 +98,16 @@ export async function PageHeader({
       )}
     >
       <div className="min-w-0">
-        {backTo ? <BackLink {...backTo} className="mb-0.5" /> : null}
+        {/* The trail decides where back goes; what the page passed is the
+            fallback for somebody who arrived from a link and walked nowhere.
+            See lib/nav-trail.ts — relationship is not navigation. */}
+        {backTo ? (
+          <SmartBack
+            fallbackHref={backTo.href}
+            fallbackLabel={backTo.label}
+            className="mb-0.5"
+          />
+        ) : null}
         <h1 className="font-display text-2xl font-bold tracking-tight">
           {t(locale, title)}
         </h1>

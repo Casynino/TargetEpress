@@ -1,11 +1,10 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { ShieldAlert } from "lucide-react";
 
 import { ActivityBars } from "@/components/app/activity-bars";
+import { BackLinkButton } from "@/components/app/back-link-button";
 import { ProfileHeader } from "@/components/app/profile-header";
-import { Button } from "@/components/ui/button";
 import { auditSentence } from "@/lib/audit-humanise";
 import { DEPARTMENT_LABELS, ROLE_LABELS } from "@/lib/constants";
 import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
@@ -89,12 +88,7 @@ export default async function EmployeeProfilePage({
   return (
     <>
       <div className="mb-4">
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/app/admin/users">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {t(locale, "All staff")}
-          </Link>
-        </Button>
+        <BackLinkButton fallbackHref="/app/admin/users" fallbackLabel="All staff" />
       </div>
 
       <ProfileHeader

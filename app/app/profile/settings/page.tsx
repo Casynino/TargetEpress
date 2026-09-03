@@ -1,14 +1,13 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 
+import { BackLinkButton } from "@/components/app/back-link-button";
 import { PageHeader } from "@/components/app/page-header";
 import {
   PasswordForm,
   PersonalDetailsForm,
 } from "@/components/app/profile-settings";
-import { Button } from "@/components/ui/button";
 import { DEPARTMENT_LABELS, ROLE_LABELS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -48,12 +47,7 @@ export default async function ProfileSettingsPage() {
         title="Personal details"
         description="Yours to change. Anything about your employment is set by management."
         actions={
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/app/profile">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Profile
-            </Link>
-          </Button>
+          <BackLinkButton fallbackHref="/app/profile" fallbackLabel="Profile" />
         }
       />
 

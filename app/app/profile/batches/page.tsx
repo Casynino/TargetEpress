@@ -1,9 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft, Boxes } from "lucide-react";
+import { Boxes } from "lucide-react";
 
+import { BackLinkButton } from "@/components/app/back-link-button";
 import { PageHeader } from "@/components/app/page-header";
-import { Button } from "@/components/ui/button";
 import { t } from "@/lib/i18n";
 import { myBatches } from "@/lib/profile";
 import { requireUser } from "@/lib/session";
@@ -41,12 +41,7 @@ export default async function MyBatchesPage() {
             : `${batches.length} batches · ${totals.shipments} consignments · ${totals.weight.toFixed(1)} kg registered by you`
         }
         actions={
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/app/profile">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t(locale, "Profile")}
-            </Link>
-          </Button>
+          <BackLinkButton fallbackHref="/app/profile" fallbackLabel="Profile" />
         }
       />
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, User } from "lucide-react";
+import { User } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { SourcingWorkflow } from "@/components/app/support-forms";
@@ -47,20 +47,14 @@ export default async function SourcingRequestPage({
 
   return (
     <>
-      <Link
-        href="/app/support/sourcing"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t(locale, "All requests")}
-      </Link>
-
+      {/* backTo's label is a raw key — SmartBack translates it once itself. */}
       <PageHeader
         title={request.product}
         description={`${request.requestNumber} · ${t(
           locale,
           TYPE_LABEL[request.type] ?? request.type
         )} · ${t(locale, "opened")} ${formatDateTime(request.createdAt, locale)}`}
+        backTo={{ href: "/app/support/sourcing", label: "All requests" }}
         actions={
           <>
             <Badge variant="outline">

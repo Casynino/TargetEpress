@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
 
+import { BackLinkButton } from "@/components/app/back-link-button";
 import { CargoSticker, type StickerData } from "@/components/app/cargo-sticker";
 import { PrintBar } from "@/components/app/print-bar";
-import { Button } from "@/components/ui/button";
 import { formatPackages } from "@/lib/constants";
 import { formatDate, formatWeight } from "@/lib/format";
 import { recordAudit } from "@/lib/audit";
@@ -93,12 +92,10 @@ export default async function LabelPage({
   return (
     <div className="mx-auto max-w-3xl print:max-w-none">
       <div className="no-print">
-        <Button asChild variant="ghost" size="sm">
-          <Link href={`/app/cargo/${shipment.trackingNumber}`}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {t(locale, "Back to cargo")}
-          </Link>
-        </Button>
+        <BackLinkButton
+          fallbackHref={`/app/cargo/${shipment.trackingNumber}`}
+          fallbackLabel="Back to cargo"
+        />
       </div>
 
       <PrintBar

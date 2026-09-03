@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 
+import { BackLinkButton } from "@/components/app/back-link-button";
 import { PageHeader } from "@/components/app/page-header";
 import { VerificationList } from "@/components/app/verification-list";
 import { BatchStatusBadge } from "@/components/app/status-badge";
@@ -86,12 +87,7 @@ export default async function VerifyBatchPage({
                 {t(locale, "Manifest")}
               </Link>
             </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/app/receive">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                {t(locale, "Back")}
-              </Link>
-            </Button>
+            <BackLinkButton fallbackHref="/app/receive" fallbackLabel="Receive" />
           </>
         }
       />

@@ -422,7 +422,7 @@ export default async function SupportHome() {
             // waiting on there — and "has mine flown yet" is the whole
             // difference between them, asked on this desk all day.
             { href: "/app/collections", label: t(locale, "Collections"), icon: Banknote, weight: "primary", tone: "signal" },
-            /* Credit sits on the far side of Record an income, so the three
+            /* Credit sits on the far side of Record Payment, so the three
                money things read as one group: who owes us, take a payment, who
                owes us on terms. The action is anchored after Collections, which
                puts it between the two. */

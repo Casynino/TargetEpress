@@ -1,10 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
 
+import { BackLinkButton } from "@/components/app/back-link-button";
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
-import { Button } from "@/components/ui/button";
 import { t } from "@/lib/i18n";
 import { myShipments, profileStats } from "@/lib/profile";
 import { requireUser } from "@/lib/session";
@@ -38,12 +37,7 @@ export default async function MyShipmentsPage() {
         title="My cargo"
         description={`${stats.totalShipments} registered by you · ${stats.totalWeightKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg · ${stats.totalPackages} packages`}
         actions={
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/app/profile">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t(locale, "Profile")}
-            </Link>
-          </Button>
+          <BackLinkButton fallbackHref="/app/profile" fallbackLabel="Profile" />
         }
       />
 

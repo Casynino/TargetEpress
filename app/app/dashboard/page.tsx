@@ -1527,6 +1527,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     accounts,
     balances,
     drafts,
+    draftBatches,
     unattributed,
     owedOut,
     spent,
@@ -1554,6 +1555,21 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       where: { status: "DRAFT" },
       _count: true,
       _sum: { total: true },
+    }),
+    /*
+      WHICH FLIGHT THE PRICES ARE WAITING ON.
+
+      Confirming prices is done a flight at a time — the batch page lists its
+      own consignments and signs them off in one press — so sending the desk to
+      a list of every batch makes them find the one that landed before they can
+      start. Two is fetched, not one: with a single flight waiting the link goes
+      straight to it, and with more than one the list is the honest destination
+      rather than a guess at which flight the desk meant.
+    */
+    prisma.batch.findMany({
+      where: { shipments: { some: { invoice: { status: "DRAFT" } } } },
+      select: { id: true, batchNumber: true },
+      take: 2,
     }),
     // Money we hold that nobody has said where it landed. It is in no account
     // and therefore in no balance, so it can only be seen by asking.
@@ -1599,6 +1615,15 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : formatUsd(usd);
 
   const draftValue = toNumber(drafts._sum.total);
+  /* One flight waiting → straight to it. More than one → the list, which is
+     the honest destination rather than a guess at which flight was meant. */
+  const draftBatch = draftBatches.length === 1 ? draftBatches[0] : null;
+  /* /app/shipments/[id] is the arrived side of a batch's page — where prices
+     are confirmed. /app/batches/[id] is the same model on China's loading
+     side, before departure, and has no Confirm prices banner at all. */
+  const draftBatchHref = draftBatch
+    ? `/app/shipments/${draftBatch.id}`
+    : "/app/shipments";
   const unattributedUsd = toNumber(unattributed._sum.creditedAmount);
   const owedOutUsd = sumUsd(owedOut, rate);
   const owedOutLocal = sumShillings(owedOut, rate);
@@ -1671,8 +1696,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
         "Priced automatically at check-in. Nothing can be invoiced, and no cargo released, until you sign them off."
       ),
       usd: draftValue,
-      href: "/app/shipments",
-      cta: t(locale, "Review by batch"),
+      href: draftBatchHref,
+      cta: draftBatch
+        ? `${t(locale, "Confirm")} ${draftBatch.batchNumber}`
+        : t(locale, "Review by batch"),
       urgent: true,
     },
     {
@@ -1805,16 +1832,16 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
    * this" amber. A pill that changes colour between screens is not a landmark.
    */
   const shortcuts: ActionPill[] = [
-    { href: "/app/shipments", label: t(locale, "Confirm prices"), icon: ClipboardCheck, weight: "primary", tone: "brand" },
+    { href: draftBatchHref, label: t(locale, "Confirm prices"), icon: ClipboardCheck, weight: "primary", tone: "brand" },
     /* Money in beside money out. They are the two halves of the same job and
        were a tab apart, so the commoner of the two — customers paying — was
        the one that took more clicks. It opens the ledger with the panel
        already up rather than carrying a second copy of the form. */
-    { href: "/app/finance/transactions?income=1", label: t(locale, "Record an income"), icon: Banknote, weight: "secondary", tone: "success" },
+    { href: "/app/finance/transactions?income=1", label: t(locale, "Record Payment"), icon: Banknote, weight: "secondary", tone: "success" },
     /* The customer with three consignments and one M-Pesa message. It existed
        and was reachable only by typing the URL, which is the same as not
        existing — the desk starts on this screen, so the way in belongs on it. */
-    { href: "/app/finance/payments/new", label: t(locale, "One payment, several cargo"), icon: Layers, weight: "secondary", tone: "success" },
+    { href: "/app/finance/payments/new", label: t(locale, "One Bill"), icon: Layers, weight: "secondary", tone: "success" },
     { href: "/app/finance/transactions", label: t(locale, "Record a cost"), icon: Banknote, weight: "secondary", tone: "signal" },
     // Verify payments, not Payments. What Finance starts here is the queue
     // Customer Support hands up — proofs collected at the counter that are

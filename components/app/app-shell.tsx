@@ -1,10 +1,12 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 
 import { LanguageSwitch } from "@/components/app/language-switch";
 import { LocaleProvider, useLocale } from "@/components/app/locale-provider";
 import { MobileBack } from "@/components/app/mobile-back";
+import { NavTrail } from "@/components/app/nav-trail";
 import { MobileTabbar } from "@/components/app/mobile-tabbar";
 import { NewVersionNotice } from "@/components/app/new-version-notice";
 import { BUILD_ID } from "@/lib/build-id";
@@ -147,6 +149,17 @@ export function AppShell({
     // components resolve it themselves; a client component has no session to
     // read it from, so the shell hands it down once per request.
     <LocaleProvider locale={user.locale}>
+    {/*
+      Records where the reader has been, so every back control in the app knows
+      the workflow rather than the record's relationships. Mounted once, here,
+      because wiring it into each of the ~180 links into detail pages would
+      leave whichever one was missed still teleporting people to a batch.
+      See lib/nav-trail.ts.
+    */}
+    <Suspense fallback={null}>
+      <NavTrail />
+    </Suspense>
+
     {/* Offered, never forced: a clerk half-way through a consignment must not
         have the form pulled out from under them. See the component. */}
     <NewVersionNotice build={BUILD_ID} />

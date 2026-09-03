@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, Package, Receipt, User } from "lucide-react";
+import { Package, Receipt, User } from "lucide-react";
 
 import { CollectionsNav } from "@/components/app/collections-nav";
 import { FinanceNav } from "@/components/app/finance-nav";
@@ -112,17 +112,11 @@ export default async function RecordCollectionPage({
 
   return (
     <>
-      <Link
-        href="/app/collections/follow-up"
-        className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t(locale, "Awaiting payment")}
-      </Link>
-
+      {/* backTo's label is a raw key — SmartBack translates it once itself. */}
       <PageHeader
         title="Record a customer payment"
         description="What the customer says they sent, with their proof. Finance checks it before anything is settled."
+        backTo={{ href: "/app/collections/follow-up", label: "Awaiting payment" }}
       />
       {/*
         The finance tab row stays put.

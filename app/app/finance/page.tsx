@@ -549,7 +549,7 @@ export default async function FinanceOverviewPage() {
               <Button asChild variant="brand" size="sm" className="h-11 md:h-8 rounded-lg">
                 <Link href="/app/finance/transactions?income=1">
                   <Banknote className="mr-1.5 h-3.5 w-3.5" />
-                  {t(locale, "Record an income")}
+                  {t(locale, "Record Payment")}
                 </Link>
               </Button>
               <Button asChild variant="outline" size="sm" className="h-11 md:h-8 rounded-lg">

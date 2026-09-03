@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Role } from "@prisma/client";
-import { ArrowLeft, Package, User } from "lucide-react";
+import { Package, User } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import { TicketNoteForm, TicketWorkflow } from "@/components/app/support-forms";
@@ -74,19 +74,13 @@ export default async function TicketPage({
 
   return (
     <>
-      <Link
-        href="/app/support/tickets"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t(locale, "All tickets")}
-      </Link>
-
+      {/* backTo's label is a raw key — SmartBack translates it once itself. */}
       <PageHeader
         title={ticket.subject}
         description={`${ticket.ticketNumber} · ${t(locale, "opened")} ${formatDateTime(ticket.createdAt, locale)}${
           ticket.openedBy ? ` ${t(locale, "by")} ${ticket.openedBy.name}` : ""
         }`}
+        backTo={{ href: "/app/support/tickets", label: "All tickets" }}
         actions={
           <>
             <Badge variant="outline">

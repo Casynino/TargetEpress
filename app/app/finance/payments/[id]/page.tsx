@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import {
-  ArrowLeft,
   ArrowLeftRight,
   Banknote,
   FileText,
@@ -148,17 +147,14 @@ export default async function PaymentDetailPage({
 
   return (
     <>
-      {/* Back to the register, not to the old payments list: the Ledger is
-          where this line was opened from and the only money page in the nav. */}
-      <Link
-        href="/app/finance/transactions"
-        className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t(locale, "The Ledger")}
-      </Link>
-
       <div className="flex flex-wrap items-start justify-between gap-3">
+        {/*
+          Falls back to the Ledger, not the old payments list — the Ledger is
+          the only money page in the nav, and where this line usually opens
+          from. The trail overrides it whenever there really is somewhere else
+          the reader came from; backTo's label is a raw key, translated once
+          by SmartBack itself.
+        */}
         <PageHeader
           title={payment.receipt?.receiptNumber ?? t(locale, "Payment")}
           description={
@@ -166,6 +162,7 @@ export default async function PaymentDetailPage({
               ? `${invoice.customer.name} · ${invoice.shipment.trackingNumber}`
               : t(locale, "Customer deposit")
           }
+          backTo={{ href: "/app/finance/transactions", label: "The Ledger" }}
         />
         {/*
           Correct it and cancel it, on the record itself.

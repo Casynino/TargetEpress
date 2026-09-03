@@ -223,7 +223,7 @@ export function RecordIncome({
         onClick={() => setOpen(true)}
       >
         <Plus className="mr-1.5 h-4 w-4" />
-        {t("Record an income")}
+        {t("Record Payment")}
       </Button>
     );
   }
@@ -249,7 +249,7 @@ export function RecordIncome({
       <section className="relative w-full max-w-4xl overflow-hidden rounded-xl border border-success/30 bg-card shadow-lg">
       <div className="flex items-center justify-between border-b border-success/20 bg-success/[0.06] px-5 py-2.5">
         <p className="text-xs font-semibold uppercase tracking-wide text-success">
-          {t("Record an income")}
+          {t("Record Payment")}
         </p>
         <button
           type="button"

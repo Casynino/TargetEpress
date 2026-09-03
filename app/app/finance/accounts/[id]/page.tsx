@@ -1,15 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import {
-  ArrowLeft,
-  Building2,
-  Paperclip,
-  Smartphone,
-  Wallet,
-} from "lucide-react";
+import { Building2, Paperclip, Smartphone, Wallet } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { SmartBack } from "@/components/app/smart-back";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -148,13 +143,11 @@ export default async function AccountDetailPage({
 
   return (
     <>
-      <Link
-        href="/app/finance/accounts"
-        className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t(locale, "All accounts")}
-      </Link>
+      <SmartBack
+        fallbackHref="/app/finance/accounts"
+        fallbackLabel="All accounts"
+        className="mb-4"
+      />
 
       {/* The account itself, stated once and unmistakably. Somebody
           reconciling has a bank statement open beside this screen, so the

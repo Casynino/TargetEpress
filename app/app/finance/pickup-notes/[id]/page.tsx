@@ -1,11 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
 
+import { BackLinkButton } from "@/components/app/back-link-button";
 import { PickupSlip, type PickupSlipData } from "@/components/app/pickup-slip";
 import { PrintBar } from "@/components/app/print-bar";
-import { Button } from "@/components/ui/button";
 import { formatPackages } from "@/lib/constants";
 import { invoiceCredit } from "@/lib/credit-queries";
 import { formatDate, formatMoney, formatWeight, toNumber } from "@/lib/format";
@@ -207,12 +205,10 @@ export default async function PickupNotePage({
   return (
     <div className="mx-auto max-w-3xl print:max-w-none">
       <div className="no-print">
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/app/finance/pickup-notes">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {t(locale, "All pickup notes")}
-          </Link>
-        </Button>
+        <BackLinkButton
+          fallbackHref="/app/finance/pickup-notes"
+          fallbackLabel="All pickup notes"
+        />
       </div>
 
       <PrintBar

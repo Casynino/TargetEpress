@@ -1,11 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
 
+import { BackLinkButton } from "@/components/app/back-link-button";
 import { CargoSticker, type StickerData } from "@/components/app/cargo-sticker";
 import { PrintBar } from "@/components/app/print-bar";
-import { Button } from "@/components/ui/button";
 import { formatPackages } from "@/lib/constants";
 import { formatDate, formatWeight } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -95,12 +93,10 @@ export default async function BatchStickersPage({
   return (
     <div className="mx-auto max-w-3xl print:max-w-none">
       <div className="no-print">
-        <Button asChild variant="ghost" size="sm">
-          <Link href={`/app/batches/${batch.id}`}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {t(locale, "Back to batch")}
-          </Link>
-        </Button>
+        <BackLinkButton
+          fallbackHref={`/app/batches/${batch.id}`}
+          fallbackLabel="Back to batch"
+        />
         <p className="mt-1 text-sm text-muted-foreground">
           One sticker per package, for {cargo.length} consignment
           {cargo.length === 1 ? "" : "s"}

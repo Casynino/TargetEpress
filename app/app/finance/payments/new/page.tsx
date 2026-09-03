@@ -230,7 +230,7 @@ export default async function RecordCustomerPaymentPage({
           title={t(locale, "Record a payment")}
           description={t(
             locale,
-            "Customers with more than one unpaid consignment. Pick one and tick what they are paying for."
+            "A customer with several boxes pays once. Pick them, tick the cargo their money covers, and it is taken as one bill — one payment, one receipt, one movement in the account, however many consignments it settles. Each box keeps its own invoice, its own flight and its own pickup note."
           )}
         />
 

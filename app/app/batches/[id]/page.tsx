@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, Clock, FileText, Package, Scale, TriangleAlert, Users } from "lucide-react";
+import { Clock, FileText, Package, Scale, TriangleAlert, Users } from "lucide-react";
 
+import { BackLinkButton } from "@/components/app/back-link-button";
 import { CargoGrid } from "@/components/app/cargo-grid";
 import { KpiCard } from "@/components/app/kpi-card";
 import { DispatchForm } from "@/components/app/dispatch-form";
@@ -150,12 +151,7 @@ export default async function LoadingTablePage({
                 {t(locale, "Manifest")}
               </Link>
             </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/app/batches">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                {t(locale, "Both batches")}
-              </Link>
-            </Button>
+            <BackLinkButton fallbackHref="/app/batches" fallbackLabel="Both batches" />
           </>
         }
       />

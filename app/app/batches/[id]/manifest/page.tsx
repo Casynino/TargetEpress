@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, Download } from "lucide-react";
+import { Download } from "lucide-react";
 
+import { BackLinkButton } from "@/components/app/back-link-button";
 import {
   DocumentFooter,
   DocumentHeader,
@@ -133,12 +134,10 @@ export default async function ManifestPage({
           )}
           actions={
             <>
-              <Button asChild variant="ghost" size="sm">
-                <Link href={`/app/batches/${batch.id}`}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  {t(locale, "Back")}
-                </Link>
-              </Button>
+              <BackLinkButton
+                fallbackHref={`/app/batches/${batch.id}`}
+                fallbackLabel="Back"
+              />
               <PrintButton label={t(locale, "Print manifest")} />
               {/* Printing is for the floor; the file is for everyone else —
                   the clearing agent, a customs query six months later, and

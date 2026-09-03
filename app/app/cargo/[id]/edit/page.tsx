@@ -1,12 +1,10 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
 
+import { BackLinkButton } from "@/components/app/back-link-button";
 import { CargoEditForm } from "@/components/app/cargo-edit-form";
 import { DeleteCargoForm } from "@/components/app/cargo-delete";
 import { PageHeader } from "@/components/app/page-header";
-import { Button } from "@/components/ui/button";
 import { cargoHistory } from "@/lib/actions/cargo-edit";
 import { othersLast } from "@/lib/cargo-types";
 import { formatDateTime, toNumber } from "@/lib/format";
@@ -92,12 +90,10 @@ export default async function EditCargoPage({
           "Correct what was recorded. Every change is kept on the record."
         )}
         actions={
-          <Button asChild variant="ghost" size="sm">
-            <Link href={`/app/cargo/${cargo.trackingNumber}`}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t(locale, "Back to cargo")}
-            </Link>
-          </Button>
+          <BackLinkButton
+            fallbackHref={`/app/cargo/${cargo.trackingNumber}`}
+            fallbackLabel="Back to cargo"
+          />
         }
       />
 
