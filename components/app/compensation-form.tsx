@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { BadgeCheck } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
@@ -88,10 +88,25 @@ export function RecordCompensationForm({
    * Where the money can leave from. A payout with a payment date must name
    * one — that is what puts the line on the general ledger.
    */
-  accounts?: { id: string; name: string; currency: string }[];
+  accounts?: {
+    id: string;
+    name: string;
+    currency: string;
+    kind?: "BANK" | "MOBILE_MONEY" | "CASH";
+  }[];
 }) {
   const t = useT();
   const [state, action] = useActionState(recordCompensation, undefined);
+  /* Which account the payout leaves, and therefore how it was paid. Empty
+     until one is named: until then it genuinely has not been paid. */
+  const [accountId, setAccountId] = useState(defaults?.accountId ?? "");
+  const payoutMethod = (() => {
+    const account = accounts.find((a) => a.id === accountId);
+    if (!account) return "";
+    if (account.kind === "CASH") return "CASH";
+    if (account.kind === "MOBILE_MONEY") return "MOBILE_MONEY";
+    return "BANK_TRANSFER";
+  })();
 
   return (
     <form action={action} className="space-y-3">
@@ -131,27 +146,21 @@ export function RecordCompensationForm({
             {t("Leave empty until the money has actually gone out.")}
           </p>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="compensation-method">{t("Payment method")}</Label>
-          <NativeSelect
-            id="compensation-method"
-            name="method"
-            defaultValue={defaults?.method ?? ""}
-          >
-            <option value="">{t("Not paid yet")}</option>
-            {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {t(label)}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
+        {/* Never asked. Which account the payout LEFT says how it was paid:
+            the tin is cash, a till is mobile money, a bank is a transfer. Two
+            questions with one answer is two answers that can disagree, and a
+            payout whose method and account contradict each other is a line
+            nobody can reconcile against a statement. Empty until an account is
+            named, because until then it genuinely has not been paid. */}
+        <input type="hidden" name="method" value={payoutMethod} />
+
         <div className="space-y-1 sm:col-span-2">
           <Label htmlFor="compensation-account">{t("Paid from")}</Label>
           <NativeSelect
             id="compensation-account"
             name="accountId"
-            defaultValue={defaults?.accountId ?? ""}
+            value={accountId}
+            onChange={(event) => setAccountId(event.target.value)}
           >
             <option value="">{t("Not paid yet")}</option>
             {accounts.map((account) => (

@@ -237,6 +237,22 @@ export async function mergeCustomers(input: {
         .count;
 
       /*
+        THE NUMBERS COME TOO.
+
+        The losing record exists because the customer registered from a second
+        SIM. Dropping that number would leave the very consignment that created
+        the duplicate unable to find them next time — the merge would have to be
+        done again, every time they used that phone. Demoted to secondary: the
+        survivor's own number is the one staff already ring.
+      */
+      moved.phones = (
+        await tx.customerPhone.updateMany({
+          where: { customerId: merge.id },
+          data: { customerId: keep.id, isPrimary: false },
+        })
+      ).count;
+
+      /*
         The phone is the matching key, and the record being removed is often the
         one that has it — the duplicate was created precisely because somebody
         typed the number the first record never had. Adopt it, but never
@@ -253,6 +269,20 @@ export async function mergeCustomers(input: {
         await tx.customer.update({
           where: { id: keep.id },
           data: { phone: adoptPhone },
+        });
+        await tx.customerPhone.updateMany({
+          where: { customerId: keep.id, phone: adoptPhone },
+          data: { isPrimary: true },
+        });
+      } else if (keep.phone) {
+        /* Exactly one primary per customer, and it is the survivor's own. */
+        await tx.customerPhone.updateMany({
+          where: { customerId: keep.id, phone: { not: keep.phone } },
+          data: { isPrimary: false },
+        });
+        await tx.customerPhone.updateMany({
+          where: { customerId: keep.id, phone: keep.phone },
+          data: { isPrimary: true },
         });
       }
 
@@ -285,6 +315,221 @@ export async function mergeCustomers(input: {
     revalidatePath(`/app/customers/${input.keepId}`);
     revalidatePath("/app/finance/payments/new");
     return ok(result);
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
+
+/**
+ * ADD A NUMBER TO A CUSTOMER WHO ALREADY EXISTS.
+ *
+ * "That's her other line." One person, two SIMs, and until the second number
+ * was on their account every consignment sent from it created a fresh customer
+ * with the same name and half the balance. Recording it here means the next one
+ * finds them.
+ *
+ * The number must belong to nobody else. That is the whole property that makes
+ * a phone usable as a key: two owners for one number is two answers to "whose
+ * cargo is this", and the desk is told by name and code who has it rather than
+ * being left to guess.
+ */
+export async function addCustomerPhone(input: {
+  customerId: string;
+  phone: string;
+  label?: string;
+}): Promise<ActionResult<{ phone: string }>> {
+  const locale = await viewerLocale();
+  let user: SessionUser;
+  try {
+    user = await authorize("customer.manage");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const phone = normalisePhone(input.phone.trim());
+  if (input.phone.trim().length < 7) {
+    return fail(t(locale, "That phone number is too short."));
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const customer = await tx.customer.findUnique({
+        where: { id: input.customerId },
+        select: { id: true, name: true, code: true, phone: true },
+      });
+      if (!customer) throw new Error(t(locale, "That customer no longer exists."));
+
+      const taken = await tx.customerPhone.findUnique({
+        where: { phone },
+        select: { customerId: true },
+      });
+      if (taken) {
+        if (taken.customerId === customer.id) {
+          throw new Error(
+            t(locale, "That number is already on this customer.")
+          );
+        }
+        const owner = await tx.customer.findUnique({
+          where: { id: taken.customerId },
+          select: { name: true, code: true },
+        });
+        throw new Error(
+          `${phone} belongs to ${owner?.name ?? "another customer"} (${owner?.code ?? ""}). If they are the same person, merge the two records instead.`
+        );
+      }
+      /* The unique column too — a number on one customer's `phone` and another
+         customer's list would be two owners by a different route. */
+      const primaryOf = await tx.customer.findUnique({
+        where: { phone },
+        select: { id: true, name: true, code: true },
+      });
+      if (primaryOf && primaryOf.id !== customer.id) {
+        throw new Error(
+          `${phone} belongs to ${primaryOf.name} (${primaryOf.code}). If they are the same person, merge the two records instead.`
+        );
+      }
+
+      const first = customer.phone === null;
+      await tx.customerPhone.create({
+        data: {
+          customerId: customer.id,
+          phone,
+          /* Their first number becomes the one staff ring. A second one does
+             not displace it — that is a deliberate change, not a side effect
+             of recording another SIM. */
+          isPrimary: first,
+          label: input.label?.trim() || null,
+          addedById: user.id,
+        },
+      });
+      if (first) {
+        await tx.customer.update({
+          where: { id: customer.id },
+          data: { phone },
+        });
+      }
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "customer.update",
+          entity: "Customer",
+          entityId: customer.id,
+          summary: `Added ${phone} to ${customer.name} (${customer.code})`,
+          metadata: { phone, primary: first, label: input.label ?? null },
+        },
+        tx
+      );
+
+      return { phone };
+    });
+
+    revalidatePath(`/app/customers/${input.customerId}`);
+    revalidatePath("/app/customers");
+    return ok(result);
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}
+
+/**
+ * Make one of a customer's numbers the one staff ring, or take a number off.
+ *
+ * Removing is for a number typed wrong or a SIM the customer has given up. It
+ * refuses to take the last one: the phone is how cargo finds its owner, and a
+ * customer with none is the hole every duplicate came out of.
+ */
+export async function updateCustomerPhone(input: {
+  customerId: string;
+  phone: string;
+  action: "primary" | "remove";
+}): Promise<ActionResult<undefined>> {
+  const locale = await viewerLocale();
+  let user: SessionUser;
+  try {
+    user = await authorize("customer.manage");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const row = await tx.customerPhone.findUnique({
+        where: { phone: input.phone },
+        select: { id: true, customerId: true, phone: true },
+      });
+      if (!row || row.customerId !== input.customerId) {
+        throw new Error(t(locale, "That number is not on this customer."));
+      }
+      const customer = await tx.customer.findUnique({
+        where: { id: input.customerId },
+        select: { name: true, code: true },
+      });
+
+      if (input.action === "primary") {
+        await tx.customerPhone.updateMany({
+          where: { customerId: input.customerId },
+          data: { isPrimary: false },
+        });
+        await tx.customerPhone.update({
+          where: { id: row.id },
+          data: { isPrimary: true },
+        });
+        await tx.customer.update({
+          where: { id: input.customerId },
+          data: { phone: row.phone },
+        });
+      } else {
+        const count = await tx.customerPhone.count({
+          where: { customerId: input.customerId },
+        });
+        if (count <= 1) {
+          throw new Error(
+            t(
+              locale,
+              "A customer must keep at least one number — it is how their cargo finds them."
+            )
+          );
+        }
+        await tx.customerPhone.delete({ where: { id: row.id } });
+        /* If the one being taken off was the primary, another has to become
+           it: the column is what every screen reads. */
+        const survivor = await tx.customerPhone.findFirst({
+          where: { customerId: input.customerId },
+          orderBy: { createdAt: "asc" },
+          select: { id: true, phone: true },
+        });
+        if (survivor) {
+          await tx.customerPhone.update({
+            where: { id: survivor.id },
+            data: { isPrimary: true },
+          });
+          await tx.customer.update({
+            where: { id: input.customerId },
+            data: { phone: survivor.phone },
+          });
+        }
+      }
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "customer.update",
+          entity: "Customer",
+          entityId: input.customerId,
+          summary:
+            input.action === "primary"
+              ? `${row.phone} is now the main number for ${customer?.name ?? "a customer"} (${customer?.code ?? ""})`
+              : `Removed ${row.phone} from ${customer?.name ?? "a customer"} (${customer?.code ?? ""})`,
+          metadata: { phone: row.phone, action: input.action },
+        },
+        tx
+      );
+    });
+
+    revalidatePath(`/app/customers/${input.customerId}`);
+    revalidatePath("/app/customers");
+    return ok();
   } catch (error) {
     return fail(toActionError(error));
   }

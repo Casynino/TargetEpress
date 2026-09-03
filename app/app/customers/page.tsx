@@ -71,9 +71,11 @@ export default async function CustomersPage({
           { name: { contains: search, mode: "insensitive" } },
           { code: { contains: search, mode: "insensitive" } },
           { city: { contains: search, mode: "insensitive" } },
-          ...phoneVariants(search).map((phone) => ({
-            phone: { contains: phone },
-          })),
+          /* Any number they use, not just the primary. */
+          ...phoneVariants(search).flatMap((phone) => [
+            { phone: { contains: phone } },
+            { phones: { some: { phone: { contains: phone } } } },
+          ]),
         ],
       }
     : {};

@@ -29,6 +29,8 @@ export type ExpenseAccount = {
   name: string;
   currency: string;
   accountNumber: string | null;
+  /** Bank, till or tin. What an account IS decides how money reached it. */
+  kind?: "BANK" | "MOBILE_MONEY" | "CASH";
 };
 
 export type ExpenseDispatch = { id: string; label: string };

@@ -431,7 +431,10 @@ function PaymentPanel(props: Props) {
     if (props.invoiceRate === null) return String(props.outstanding);
     return String(Math.round(props.outstanding * props.invoiceRate));
   });
-  const [method, setMethod] = useState("CASH");
+  /* Follows the account. Mobile money until one is named, which is what it is
+     at this counter nine times in ten. */
+  const [method, setMethod] = useState("MOBILE_MONEY");
+  const [accountId, setAccountId] = useState("");
   const [state, action] = useActionState<
     ActionResult<{ receiptNumber: string; pickupNoteNumber: string | null }>,
     FormData
@@ -439,18 +442,29 @@ function PaymentPanel(props: Props) {
 
   const settled = props.outstanding !== null && props.outstanding <= 0;
 
-  // Only accounts that could really have received this money.
-  //
-  // Two filters, both physical rather than fussy: an account holds one
-  // currency, so shillings cannot land in the dollar account; and cash goes in
-  // the tin, mobile money into a till, a cheque or transfer into a bank. A
-  // picker that offers impossible answers is a picker people stop reading.
-  const eligibleAccounts = (props.accounts ?? []).filter((account) => {
-    if (account.currency !== currency) return false;
-    if (method === "CASH") return account.kind === "CASH";
-    if (method === "MOBILE_MONEY") return account.kind === "MOBILE_MONEY";
-    return account.kind === "BANK";
-  });
+  /*
+    Only accounts that could really have received this money.
+
+    One filter now, and it is physical: an account holds one currency, so
+    shillings cannot land in the dollar account. It used to filter by method as
+    well, which had it backwards — the clerk was asked HOW it was paid and then
+    shown the accounts that answer matched. The account IS the answer: money in
+    the tin is cash, money in a till is mobile money, money in a bank is a
+    transfer. Asking both invites them to disagree, and a payment whose method
+    and account contradict each other cannot be reconciled against a statement.
+  */
+  const eligibleAccounts = (props.accounts ?? []).filter(
+    (account) => account.currency === currency
+  );
+
+  /** Derived from where it landed, never asked. */
+  const methodOf = (id: string) => {
+    const account = eligibleAccounts.find((a) => a.id === id);
+    if (!account) return "MOBILE_MONEY";
+    if (account.kind === "CASH") return "CASH";
+    if (account.kind === "MOBILE_MONEY") return "MOBILE_MONEY";
+    return "BANK_TRANSFER";
+  };
 
   // Shown as the clerk types, so the figure that will land against the bill is
   // visible before it is committed. The server recomputes it from the invoice's
@@ -604,23 +618,9 @@ function PaymentPanel(props: Props) {
               ) : null}
             </p>
           ) : null}
-          <div className="space-y-1.5">
-            <Label htmlFor="method" className="text-xs">
-              {t("Method")}
-            </Label>
-            <NativeSelect
-              id="method"
-              name="method"
-              value={method}
-              onChange={(e) => setMethod(e.target.value)}
-            >
-              {enumOptions(PAYMENT_METHOD_LABELS).map((o) => (
-                <option key={o.value} value={o.value}>
-                  {t(o.label)}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
+          {/* Never asked — see eligibleAccounts. Where it landed says how it
+              was paid, and nothing named yet is mobile money at this counter. */}
+          <input type="hidden" name="method" value={method} />
           {/* Where the money landed.
               Optional, and last among the money fields, because taking the
               payment is the job and bookkeeping follows it — a clerk who does
@@ -634,7 +634,15 @@ function PaymentPanel(props: Props) {
                 {t("Landed in")}{" "}
                 <span className="text-muted-foreground">({t("optional")})</span>
               </Label>
-              <NativeSelect id="accountId" name="accountId" defaultValue="">
+              <NativeSelect
+                id="accountId"
+                name="accountId"
+                value={accountId}
+                onChange={(event) => {
+                  setAccountId(event.target.value);
+                  setMethod(methodOf(event.target.value));
+                }}
+              >
                 <option value="">{t("Not recorded")}</option>
                 {eligibleAccounts.map((account) => (
                   <option key={account.id} value={account.id}>

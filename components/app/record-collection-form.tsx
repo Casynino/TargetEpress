@@ -256,13 +256,12 @@ export function RecordCollectionForm({
               <input type="hidden" name="method" value={methodOf(chosen)} />
             </>
           ) : (
-            <NativeSelect id="collectionMethod" name="method" className="h-11">
-              {METHODS.map((method) => (
-                <option key={method.value} value={method.value}>
-                  {t(method.label)}
-                </option>
-              ))}
-            </NativeSelect>
+            /* No account to derive from — mobile money, which is what it is
+               here nine times in ten, and Finance's account settles it for
+               good when the claim is verified. Never asked: the account IS the
+               method, and two questions with one answer is two answers that
+               can disagree. */
+            <input type="hidden" name="method" value="MOBILE_MONEY" />
           )}
         </div>
       </div>

@@ -27,9 +27,13 @@ export async function GET(request: Request) {
       OR: [
         { name: { contains: query, mode: "insensitive" } },
         { code: { contains: query, mode: "insensitive" } },
-        ...phoneVariants(query).map((phone) => ({
-          phone: { contains: phone },
-        })),
+        /* Any number they use, not just the primary. A customer with two SIMs
+           registers cargo from whichever one is in their hand, and searching
+           only the primary is what made a second account for the same person. */
+        ...phoneVariants(query).flatMap((phone) => [
+          { phone: { contains: phone } },
+          { phones: { some: { phone: { contains: phone } } } },
+        ]),
       ],
     },
     orderBy: { name: "asc" },

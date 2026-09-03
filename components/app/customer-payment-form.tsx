@@ -221,10 +221,13 @@ export function CustomerPaymentForm({
   const chosen = accounts.find((a) => a.id === accountId) ?? null;
   /* Bank, mobile money or cash — the account already knows, and a CHEQUE is
      banked, so it lands in a bank account like any other transfer. */
-  const derivedMethod =
-    chosen?.kind === "CASH"
+  const derivedMethod = !chosen
+    ? /* Nothing named yet. At this counter that is nearly always mobile money,
+         and Finance's account settles it at verification. */
+      "MOBILE_MONEY"
+    : chosen.kind === "CASH"
       ? "CASH"
-      : chosen?.kind === "MOBILE_MONEY"
+      : chosen.kind === "MOBILE_MONEY"
         ? "MOBILE_MONEY"
         : "BANK_TRANSFER";
 
@@ -639,29 +642,23 @@ export function CustomerPaymentForm({
           </div>
           ) : null}
 
-          {/* Only when nobody has said where the money landed — the one case
-              the account cannot answer for. Always for Support: they are
-              reporting what a customer told them, and where it landed is
-              precisely what Finance checks. */}
-          {chosen && canRecord ? (
-            <input type="hidden" name="method" value={derivedMethod} />
-          ) : (
-            <div className="min-w-0 space-y-1.5">
-              <Label htmlFor="method">{t("How it was paid")}</Label>
-              <NativeSelect
-                id="method"
-                name="method"
-                className="h-11"
-                defaultValue="MOBILE_MONEY"
-              >
-                {Object.entries(METHOD_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {t(label)}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
-          )}
+          {/*
+            NEVER ASKED, ALWAYS DERIVED.
+
+            "How it was paid" and "which account did it land in" were two
+            questions with one answer — money in M-Pesa arrived by mobile money,
+            money in CRDB by transfer, money in the tin as cash — and asking
+            twice invites them to disagree, which is a payment nobody can
+            reconcile against a statement.
+
+            Where no account has been named yet: Support is claiming what a
+            customer told them and does not know where it landed, and mobile
+            money is what that is here nine times in ten. It is not the last
+            word either way — Finance names the account when it verifies, and
+            the method is taken from that account, so what is stored is what
+            the bank actually shows.
+          */}
+          <input type="hidden" name="method" value={derivedMethod} />
 
           {/*
             THE PROOF, IF THERE IS ANY.

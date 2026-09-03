@@ -9,6 +9,7 @@ import {
   type MergeCandidate,
 } from "@/components/app/customer-merge";
 import { CustomerNotesForm } from "@/components/app/customer-notes";
+import { CustomerPhones } from "@/components/app/customer-phones";
 import { MessageComposer } from "@/components/app/message-composer";
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
@@ -72,6 +73,13 @@ export default async function CustomerProfilePage({
     Fetched only for the desks that may act on it; a warehouse reading a
     tracking number off this page has no business being shown a merge.
   */
+  /* Every number this customer registers cargo from — see CustomerPhones. */
+  const numbers = await prisma.customerPhone.findMany({
+    where: { customerId: customer.id },
+    orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+    select: { phone: true, isPrimary: true, label: true },
+  });
+
   const canMerge = can(user.role, "customer.merge");
   /* Empty in, empty out: normalisePhone("") answers "+", which would match
      every record that has no number at all. */
@@ -712,6 +720,12 @@ export default async function CustomerProfilePage({
               />
             </section>
           ) : null}
+
+          <CustomerPhones
+            customerId={customer.id}
+            numbers={numbers}
+            canEdit={can(user.role, "customer.manage")}
+          />
 
           <section className="rounded-xl border bg-card p-5 shadow-soft">
             <h2 className="mb-3 font-semibold">{t(locale, "Notes")}</h2>

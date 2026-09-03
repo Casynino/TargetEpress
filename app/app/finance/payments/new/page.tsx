@@ -126,6 +126,7 @@ export default async function RecordCustomerPaymentPage({
             OR: [
               { name: { contains: q, mode: "insensitive" } },
               { phone: { contains: q } },
+              { phones: { some: { phone: { contains: q } } } },
               { code: { contains: q, mode: "insensitive" } },
               {
                 shipments: {

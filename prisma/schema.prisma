@@ -410,6 +410,7 @@ model User {
 
   // Operational back-references
   createdCustomers      Customer[]              @relation("CustomerCreatedBy")
+  addedCustomerPhones   CustomerPhone[]         @relation("CustomerPhoneAddedBy")
   createdShipments      Shipment[]              @relation("ShipmentCreatedBy")
   createdBatches        Batch[]                 @relation("BatchCreatedBy")
   closedBatches         Batch[]                 @relation("BatchClosedBy")
@@ -488,12 +489,24 @@ model Customer {
   /// customer's credit, derived from the difference and never stored.
   payments Payment[]
 
-  /// Preferred identity for warehouse lookup and auto-fill, but genuinely
-  /// optional: consolidated cargo regularly arrives from a Guangzhou packing
-  /// list with a name and no number. Postgres allows many NULLs in a unique
-  /// index, so "no phone" never collides.
+  /// The number staff ring, print on paperwork and see on every screen.
+  ///
+  /// ONE of possibly several — see `phones`. A customer with two SIMs used to
+  /// become two customers, because this column was the only key the system
+  /// matched on. It stays as the primary, and stays unique, because it is what
+  /// every existing screen reads and what a clerk means by "their number".
   phone    String? @unique
+  /// Superseded by `phones`, kept so nothing that reads it breaks. The second
+  /// number is a row in CustomerPhone now, like every other.
   altPhone String?
+
+  /// Every number this customer registers cargo from.
+  ///
+  /// Cargo arrives under whichever SIM they happened to use, and matching on
+  /// one number made a second account for the same person — two balances, and
+  /// a customer told they owe a third of what they owe. A number belongs to
+  /// exactly one customer, which is what makes it usable as a key.
+  phones CustomerPhone[]
   email    String?
   city     String?
   address  String?
@@ -539,6 +552,36 @@ model Customer {
   @@index([createdAt])
   /// The credit customer list, and it alone — most customers have no facility.
   @@index([creditLimitUsd])
+}
+
+/// One number a customer registers cargo from.
+///
+/// The phone is the key this system matches customers on, so a number belongs
+/// to exactly one of them: two owners for one number is two answers to "whose
+/// cargo is this". A customer may have as many as they actually use.
+model CustomerPhone {
+  id String @id @default(cuid())
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  /// Normalised to +255… before it is written, exactly as Customer.phone is.
+  /// Unique across the whole book — that is what makes it a key.
+  phone String @unique
+
+  /// The one staff ring and the one printed on paperwork. Exactly one per
+  /// customer, kept in step with Customer.phone.
+  isPrimary Boolean @default(false)
+
+  /// "her husband", "the shop line" — why this number is on the account.
+  label String?
+
+  addedById String?
+  addedBy   User?   @relation("CustomerPhoneAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([customerId])
 }
 
 // ---------------------------------------------------------------------------

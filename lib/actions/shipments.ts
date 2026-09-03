@@ -96,32 +96,55 @@ async function resolveCustomer(
       The number is now collected on every consignment, and the customer the
       clerk picked may predate that. Two things can be true of what they typed:
     */
-    if (picked.phone === null) {
-      /* The account had none. Fill it in — this is the hole duplicates came
-         out of, and it closes one record at a time as cargo arrives. */
-      const clash = await tx.customer.findUnique({ where: { phone } });
-      if (clash) {
-        throw new Error(
-          `${phone} is already on file as ${clash.name} (${clash.code}). Register this cargo against them, or use a different number.`
-        );
-      }
-      await tx.customer.update({ where: { id: picked.id }, data: { phone } });
-      return { ...picked, phone };
+    /* Already one of theirs — the ordinary case, and the reason this table
+       exists: a customer registers from whichever SIM they happened to use. */
+    const theirs = await tx.customerPhone.findUnique({ where: { phone } });
+    if (theirs?.customerId === picked.id) return picked;
+
+    if (theirs) {
+      /* It belongs to somebody else. Guessing which record is right is how one
+         customer's cargo reaches another. */
+      const owner = await tx.customer.findUnique({
+        where: { id: theirs.customerId },
+        select: { name: true, code: true },
+      });
+      throw new Error(
+        `${phone} is already on file as ${owner?.name ?? "another customer"} (${owner?.code ?? ""}). Register this cargo against them, or use a different number.`
+      );
     }
 
-    if (picked.phone !== phone) {
-      /* The account has a different one. Silently keeping either is wrong: the
-         clerk has told us something the record disagrees with, and guessing
-         which is right is how one customer's cargo reaches another. */
-      throw new Error(
-        `${picked.name} (${picked.code}) is on file as ${picked.phone}, not ${phone}. Pick the customer this number belongs to, or correct the number.`
-      );
+    /*
+      A NEW NUMBER FOR A CUSTOMER WE ALREADY KNOW.
+
+      Two SIMs is not two people. It used to be: the second number matched
+      nobody, so a second account appeared with the same name and half the
+      balance. Now it joins the account the clerk actually picked, and every
+      future consignment from that SIM finds them.
+    */
+    await tx.customerPhone.create({
+      data: {
+        customerId: picked.id,
+        phone,
+        /* Primary only if they had none at all — the number staff already ring
+           is not replaced because a customer texted from their other SIM. */
+        isPrimary: picked.phone === null,
+        addedById: actorId,
+      },
+    });
+    if (picked.phone === null) {
+      await tx.customer.update({ where: { id: picked.id }, data: { phone } });
+      return { ...picked, phone };
     }
     return picked;
   }
 
   {
-    const existing = await tx.customer.findUnique({ where: { phone } });
+    /* Any of their numbers, not just the primary. */
+    const known = await tx.customerPhone.findUnique({
+      where: { phone },
+      select: { customer: true },
+    });
+    const existing = known?.customer ?? null;
     if (existing) {
       if (existing.name !== input.customerName) {
         // Keep the most recent spelling the desk used, but never reassign the
@@ -142,6 +165,8 @@ async function resolveCustomer(
       phone,
       city: input.customerCity || null,
       createdById: actorId,
+      /* Mirrored, so every lookup has one place to ask. */
+      phones: { create: { phone, isPrimary: true, addedById: actorId } },
     },
   });
 }

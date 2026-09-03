@@ -91,6 +91,16 @@ export function RecordIncome({
 }) {
   const t = useT();
   const [open, setOpen] = useState(autoOpen);
+  /* Where it landed, and therefore how it arrived. Mobile money until an
+     account is named, which is what it is here nine times in ten. */
+  const [accountId, setAccountId] = useState("");
+  const method = (() => {
+    const account = accounts.find((a) => a.id === accountId);
+    if (!account?.kind) return "MOBILE_MONEY";
+    if (account.kind === "CASH") return "CASH";
+    if (account.kind === "MOBILE_MONEY") return "MOBILE_MONEY";
+    return "BANK_TRANSFER";
+  })();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<BillableHit[]>([]);
   const [picked, setPicked] = useState<BillableHit | null>(null);
@@ -411,16 +421,12 @@ export function RecordIncome({
               </NativeSelect>
             </label>
 
-            <label className="flex flex-col gap-1">
-              <span className="text-[11px] text-muted-foreground">{t("How")}</span>
-              <NativeSelect name="method" defaultValue="MOBILE_MONEY" className="w-40 bg-card">
-                {METHODS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {t(m.label)}
-                  </option>
-                ))}
-              </NativeSelect>
-            </label>
+            {/* Never asked. The account this landed in says how it arrived:
+                the tin is cash, a till is mobile money, a bank is a transfer.
+                Two questions with one answer is two answers that can disagree,
+                and a movement whose method and account contradict each other
+                cannot be reconciled against a statement. */}
+            <input type="hidden" name="method" value={method} />
 
             {/* Only for the desk that banks it. Support has no idea which of our
                 accounts the money reached, and a guess is worse than silence. */}
@@ -429,7 +435,12 @@ export function RecordIncome({
               <span className="whitespace-nowrap text-[11px] text-muted-foreground">
                 {t("Into which account")}
               </span>
-              <NativeSelect name="accountId" defaultValue="" className="w-52 bg-card">
+              <NativeSelect
+                name="accountId"
+                value={accountId}
+                onChange={(event) => setAccountId(event.target.value)}
+                className="w-52 bg-card"
+              >
                 <option value="">{t("Say later")}</option>
                 {accounts
                   .filter((a) => a.currency === tendered)

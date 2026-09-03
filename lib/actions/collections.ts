@@ -364,7 +364,33 @@ export async function verifyPaymentSubmission(
   const handover = new FormData();
   handover.set("amount", toNumber(submission.amount).toString());
   handover.set("currency", submission.currency);
-  handover.set("method", submission.method);
+  /*
+    THE ACCOUNT FINANCE NAMES DECIDES HOW IT WAS PAID.
+
+    Support claims what a customer told them and does not know where the money
+    landed; the claim carries mobile money because that is what it is here nine
+    times in ten. Finance then names the account it actually reached, and that
+    account is the answer — the tin is cash, a till is mobile money, a bank is
+    a transfer. Keeping the claimed method over the named account is how a
+    payment ends up saying it arrived by a route its own account cannot
+    receive, which is a line nobody can reconcile against a statement.
+  */
+  const account = accountId
+    ? await prisma.companyAccount.findUnique({
+        where: { id: accountId },
+        select: { kind: true },
+      })
+    : null;
+  handover.set(
+    "method",
+    account
+      ? account.kind === "CASH"
+        ? "CASH"
+        : account.kind === "MOBILE_MONEY"
+          ? "MOBILE_MONEY"
+          : "BANK_TRANSFER"
+      : submission.method
+  );
   if (submission.reference) handover.set("reference", submission.reference);
   if (submission.note) handover.set("note", submission.note);
   if (accountId) handover.set("accountId", accountId);
