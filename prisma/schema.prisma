@@ -1503,8 +1503,16 @@ model Payment {
   /// consignments while remaining one payment, one ledger line and one movement
   /// on the bank statement. The column is nullable in the database, ready for
   /// money taken as pure customer credit against no bill at all.
-  invoiceId String
-  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  /// Null when the money arrived before any bill existed.
+  ///
+  /// A customer who pays while their cargo is still in China has handed over
+  /// real money against nothing yet — the bill cannot be raised until Dar
+  /// weighs the boxes. That payment is a DEPOSIT: it belongs to the customer,
+  /// it sits in the account it landed in, and it settles their invoice the
+  /// moment check-in raises one. The column is nullable in the database for
+  /// exactly this.
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   /// Who paid. Needed for money that arrives ahead of any invoice, or beyond
   /// all of them: an overpayment held as credit belongs to somebody.

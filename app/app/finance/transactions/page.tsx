@@ -411,7 +411,7 @@ export default async function LedgerPage({
       );
     }
     if (entry.payment) {
-      return entry.payment.invoice.creditStatus === "APPROVED"
+      return entry.payment.invoice?.creditStatus === "APPROVED"
         ? t(locale, "Credit payment")
         : t(locale, "Cash sale");
     }
@@ -679,10 +679,12 @@ export default async function LedgerPage({
             let title = entry.description;
             let purpose: string | null = null;
             if (entry.payment) {
-              title = entry.payment.invoice.customer.name;
+              title =
+                entry.payment.invoice?.customer.name ??
+                t(locale, "Customer deposit");
               purpose = cargoText(
                 locale,
-                entry.payment.invoice.shipment,
+                entry.payment.invoice?.shipment ?? {},
                 "description"
               );
             } else if (entry.expense) {
@@ -702,7 +704,7 @@ export default async function LedgerPage({
                 entry.expense?.expenseNumber ??
                 entry.transfer?.transferNumber ??
                 entry.entryNumber,
-              entry.payment?.invoice.shipment.trackingNumber,
+              entry.payment?.invoice?.shipment.trackingNumber,
             ].filter((v): v is string => Boolean(v));
 
             return (
@@ -834,10 +836,14 @@ export default async function LedgerPage({
                 let purpose: string | null = null;
 
                 if (entry.payment) {
-                  title = entry.payment.invoice.customer.name;
+                  /* A deposit names the customer who handed the money over;
+                     there is no consignment behind it yet to describe. */
+                  title =
+                    entry.payment.invoice?.customer.name ??
+                    t(locale, "Customer deposit");
                   purpose = cargoText(
                     locale,
-                    entry.payment.invoice.shipment,
+                    entry.payment.invoice?.shipment ?? {},
                     "description"
                   );
                 } else if (entry.expense) {
@@ -860,7 +866,7 @@ export default async function LedgerPage({
                     entry.expense?.expenseNumber ??
                     entry.transfer?.transferNumber ??
                     entry.entryNumber,
-                  entry.payment?.invoice.shipment.trackingNumber,
+                  entry.payment?.invoice?.shipment.trackingNumber,
                   entry.payment?.reference,
                 ].filter((v): v is string => Boolean(v));
 
@@ -1040,7 +1046,7 @@ export default async function LedgerPage({
                           {entry.payment?.invoice ? (
                             <IconHint label={t(locale, "Edit this payment")}>
                               <Link
-                                href={`/app/finance/invoices/${entry.payment.invoice.invoiceNumber}`}
+                                href={`/app/finance/invoices/${entry.payment.invoice?.invoiceNumber}`}
                                 aria-label={t(locale, "Edit this payment")}
                                 className="focus-ring rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
                               >

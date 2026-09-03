@@ -1714,7 +1714,7 @@ export async function attributePayment(
       // The line that was never written, written now — at the rate and on the
       // date the money actually moved, not today's.
       const usdValue =
-        payment.invoice.currency === "USD"
+        payment.invoice?.currency === "USD"
           ? toNumber(payment.creditedAmount ?? payment.amount)
           : toNumber(payment.amount);
 
@@ -1728,7 +1728,7 @@ export async function attributePayment(
         exchangeRate:
           payment.exchangeRate === null ? null : toNumber(payment.exchangeRate),
         occurredAt: payment.paidAt,
-        description: `${payment.receipt?.receiptNumber ?? "Payment"} — ${payment.invoice.invoiceNumber} for ${payment.invoice.shipment.trackingNumber}`,
+        description: `${payment.receipt?.receiptNumber ?? "Payment"} — ${payment.invoice?.invoiceNumber} for ${payment.invoice?.shipment.trackingNumber}`,
         sourceEntity: "Payment",
         sourceId: payment.id,
         paymentId: payment.id,

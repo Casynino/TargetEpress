@@ -216,13 +216,13 @@ export default async function PaymentsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link
-                      href={`/app/cargo/${payment.invoice.shipment.trackingNumber}`}
+                      href={`/app/cargo/${payment.invoice?.shipment.trackingNumber}`}
                       className="block font-mono text-sm font-semibold tabular hover:text-brand"
                     >
-                      {payment.invoice.shipment.trackingNumber}
+                      {payment.invoice?.shipment.trackingNumber}
                     </Link>
                     <p className="mt-0.5 truncate text-sm">
-                      {payment.invoice.customer.name}
+                      {payment.invoice?.customer.name}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
@@ -230,7 +230,7 @@ export default async function PaymentsPage() {
                       {formatMoney(payment.amount, payment.currency)}
                     </p>
                     {payment.creditedAmount !== null &&
-                    payment.currency !== payment.invoice.currency ? (
+                    payment.currency !== payment.invoice?.currency ? (
                       <p className="text-xs text-muted-foreground">
                         {t(locale, "settled")}{" "}
                         {formatUsd(toNumber(payment.creditedAmount))}
@@ -342,14 +342,14 @@ export default async function PaymentsPage() {
                     </TableCell>
                     <TableCell>
                       <Link
-                        href={`/app/cargo/${payment.invoice.shipment.trackingNumber}`}
+                        href={`/app/cargo/${payment.invoice?.shipment.trackingNumber}`}
                         className="font-mono text-sm tabular hover:text-brand"
                       >
-                        {payment.invoice.shipment.trackingNumber}
+                        {payment.invoice?.shipment.trackingNumber}
                       </Link>
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-sm">
-                      {payment.invoice.customer.name}
+                      {payment.invoice?.customer.name}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm font-medium tabular">
                       {/* What was handed over at the counter — the receipt
@@ -358,7 +358,7 @@ export default async function PaymentsPage() {
                           bill moved by, so both are shown. */}
                       {formatMoney(payment.amount, payment.currency)}
                       {payment.creditedAmount !== null &&
-                      payment.currency !== payment.invoice.currency ? (
+                      payment.currency !== payment.invoice?.currency ? (
                         <span className="block text-xs font-normal text-muted-foreground">
                           {t(locale, "settled")}{" "}
                           {formatUsd(toNumber(payment.creditedAmount))}

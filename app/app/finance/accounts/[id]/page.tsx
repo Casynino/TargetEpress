@@ -299,7 +299,7 @@ export default async function AccountDetailPage({
           {entries.map((entry) => {
             const inbound = entry.direction === "IN";
             const detail =
-              entry.payment?.invoice.customer.name ??
+              entry.payment?.invoice?.customer.name ??
               entry.expense?.vendor ??
               entry.description;
             const related =
@@ -307,7 +307,7 @@ export default async function AccountDetailPage({
               entry.expense?.expenseNumber ??
               entry.transfer?.transferNumber ??
               null;
-            const tracking = entry.payment?.invoice.shipment.trackingNumber ?? null;
+            const tracking = entry.payment?.invoice?.shipment.trackingNumber ?? null;
             const proof =
               entry.payment?.proofs[0]?.url ??
               entry.expense?.receipts[0]?.url ??
@@ -405,13 +405,13 @@ export default async function AccountDetailPage({
               {entries.map((entry) => {
                 const inbound = entry.direction === "IN";
                 const tracking =
-                  entry.payment?.invoice.shipment.trackingNumber ?? null;
+                  entry.payment?.invoice?.shipment.trackingNumber ?? null;
                 const proof =
                   entry.payment?.proofs[0]?.url ??
                   entry.expense?.receipts[0]?.url ??
                   null;
                 const detail =
-                  entry.payment?.invoice.customer.name ??
+                  entry.payment?.invoice?.customer.name ??
                   entry.expense?.vendor ??
                   entry.description;
                 const related =

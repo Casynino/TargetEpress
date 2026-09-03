@@ -1042,10 +1042,10 @@ export default async function FinanceOverviewPage() {
                     </TableCell>
                     <TableCell className="py-2.5">
                       <Link
-                        href={`/app/cargo/${payment.invoice.shipment.trackingNumber}`}
+                        href={`/app/cargo/${payment.invoice?.shipment.trackingNumber}`}
                         className="font-mono text-xs tabular hover:text-brand"
                       >
-                        {payment.invoice.shipment.trackingNumber}
+                        {payment.invoice?.shipment.trackingNumber}
                       </Link>
                     </TableCell>
                     <TableCell className="py-2.5 text-xs">
@@ -1060,7 +1060,7 @@ export default async function FinanceOverviewPage() {
                       <span className="whitespace-nowrap font-mono text-sm font-semibold tabular-nums">
                         {formatMoney(payment.amount, payment.currency)}
                       </span>
-                      {payment.currency !== payment.invoice.currency &&
+                      {payment.currency !== payment.invoice?.currency &&
                       payment.creditedAmount !== null ? (
                         <span className="block font-mono text-xs tabular-nums text-muted-foreground">
                           {t(locale, "settled")}{" "}

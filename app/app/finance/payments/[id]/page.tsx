@@ -86,9 +86,12 @@ export default async function PaymentDetailPage({
   const tendered = toNumber(payment.amount);
   const credited =
     payment.creditedAmount === null ? null : toNumber(payment.creditedAmount);
-  const converted = payment.currency !== payment.invoice.currency;
-  const owing =
-    toNumber(payment.invoice.total) - toNumber(payment.invoice.amountPaid);
+  const invoice = payment.invoice;
+  const converted = payment.currency !== (invoice?.currency ?? payment.currency);
+  /* Nothing is owing on a deposit — there is no bill for it to be owing on. */
+  const owing = invoice
+    ? toNumber(invoice.total) - toNumber(invoice.amountPaid)
+    : 0;
 
   const facts: { label: string; value: React.ReactNode }[] = [
     {
@@ -147,7 +150,11 @@ export default async function PaymentDetailPage({
 
       <PageHeader
         title={payment.receipt?.receiptNumber ?? t(locale, "Payment")}
-        description={`${payment.invoice.customer.name} · ${payment.invoice.shipment.trackingNumber}`}
+        description={
+          invoice
+            ? `${invoice.customer.name} · ${invoice.shipment.trackingNumber}`
+            : t(locale, "Customer deposit")
+        }
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_1fr]">
@@ -264,86 +271,103 @@ export default async function PaymentDetailPage({
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-2xl border bg-card p-5">
-            <h2 className="flex items-center gap-2 font-semibold">
-              <Receipt className="h-4 w-4 text-muted-foreground" />
-              {t(locale, "The bill")}
-            </h2>
-            <dl className="mt-4 space-y-3 text-sm">
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">{t(locale, "Invoice")}</dt>
-                <dd>
-                  <Link
-                    href={`/app/finance/invoices/${payment.invoice.id}`}
-                    className="font-mono text-xs hover:text-brand"
+          {/*
+            A deposit has no bill and no cargo yet — that is what makes it a
+            deposit. Rather than print empty rows where an invoice and a
+            tracking number belong, the two panels stand down and the page
+            says what this money actually is.
+          */}
+          {invoice ? (
+            <>
+            <section className="rounded-2xl border bg-card p-5">
+              <h2 className="flex items-center gap-2 font-semibold">
+                <Receipt className="h-4 w-4 text-muted-foreground" />
+                {t(locale, "The bill")}
+              </h2>
+              <dl className="mt-4 space-y-3 text-sm">
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-muted-foreground">{t(locale, "Invoice")}</dt>
+                  <dd>
+                    <Link
+                      href={`/app/finance/invoices/${invoice.id}`}
+                      className="font-mono text-xs hover:text-brand"
+                    >
+                      {invoice.invoiceNumber}
+                    </Link>
+                  </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-muted-foreground">{t(locale, "Total")}</dt>
+                  <dd className="font-mono tabular-nums">
+                    {formatUsd(toNumber(invoice.total))}
+                  </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-muted-foreground">
+                    {t(locale, "Paid to date")}
+                  </dt>
+                  <dd className="font-mono tabular-nums">
+                    {formatUsd(toNumber(invoice.amountPaid))}
+                  </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3 border-t pt-3">
+                  <dt className="font-medium">{t(locale, "Still owing")}</dt>
+                  <dd
+                    className={`font-mono font-semibold tabular-nums ${
+                      owing > 0 ? "text-warning" : "text-success"
+                    }`}
                   >
-                    {payment.invoice.invoiceNumber}
-                  </Link>
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">{t(locale, "Total")}</dt>
-                <dd className="font-mono tabular-nums">
-                  {formatUsd(toNumber(payment.invoice.total))}
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">
-                  {t(locale, "Paid to date")}
-                </dt>
-                <dd className="font-mono tabular-nums">
-                  {formatUsd(toNumber(payment.invoice.amountPaid))}
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-3 border-t pt-3">
-                <dt className="font-medium">{t(locale, "Still owing")}</dt>
-                <dd
-                  className={`font-mono font-semibold tabular-nums ${
-                    owing > 0 ? "text-warning" : "text-success"
-                  }`}
+                    {formatUsd(owing)}
+                  </dd>
+                </div>
+              </dl>
+              <Badge variant="outline" className="mt-3 font-normal">
+                {t(locale, invoice.status.replace("_", " ").toLowerCase())}
+              </Badge>
+            </section>
+  
+            <section className="rounded-2xl border bg-card p-5">
+              <h2 className="flex items-center gap-2 font-semibold">
+                <User className="h-4 w-4 text-muted-foreground" />
+                {t(locale, "Customer")}
+              </h2>
+              <p className="mt-3 text-sm font-medium">
+                <Link
+                  href={`/app/customers/${invoice.customer.id}`}
+                  className="hover:text-brand"
                 >
-                  {formatUsd(owing)}
-                </dd>
-              </div>
-            </dl>
-            <Badge variant="outline" className="mt-3 font-normal">
-              {t(locale, payment.invoice.status.replace("_", " ").toLowerCase())}
-            </Badge>
-          </section>
-
-          <section className="rounded-2xl border bg-card p-5">
-            <h2 className="flex items-center gap-2 font-semibold">
-              <User className="h-4 w-4 text-muted-foreground" />
-              {t(locale, "Customer")}
-            </h2>
-            <p className="mt-3 text-sm font-medium">
-              <Link
-                href={`/app/customers/${payment.invoice.customer.id}`}
-                className="hover:text-brand"
-              >
-                {payment.invoice.customer.name}
-              </Link>
-            </p>
-            <p className="font-mono text-xs text-muted-foreground">
-              {payment.invoice.customer.phone}
-            </p>
-
-            <h2 className="mt-5 flex items-center gap-2 font-semibold">
-              <Package className="h-4 w-4 text-muted-foreground" />
-              {t(locale, "Cargo")}
-            </h2>
-            <p className="mt-3 text-sm">
-              <Link
-                href={`/app/cargo/${payment.invoice.shipment.trackingNumber}`}
-                className="font-mono hover:text-brand"
-              >
-                {payment.invoice.shipment.trackingNumber}
-              </Link>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {cargoText(locale, payment.invoice.shipment, "description")}
-            </p>
-          </section>
+                  {invoice.customer.name}
+                </Link>
+              </p>
+              <p className="font-mono text-xs text-muted-foreground">
+                {invoice.customer.phone}
+              </p>
+  
+              <h2 className="mt-5 flex items-center gap-2 font-semibold">
+                <Package className="h-4 w-4 text-muted-foreground" />
+                {t(locale, "Cargo")}
+              </h2>
+              <p className="mt-3 text-sm">
+                <Link
+                  href={`/app/cargo/${invoice.shipment.trackingNumber}`}
+                  className="font-mono hover:text-brand"
+                >
+                  {invoice.shipment.trackingNumber}
+                </Link>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {cargoText(locale, invoice.shipment, "description")}
+              </p>
+            </section>
+            </>
+          ) : (
+            <section className="rounded-2xl border border-warning/40 bg-warning/5 p-5">
+              <h2 className="font-semibold">{t(locale, "Held as customer credit")}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {t(locale, "This money arrived before the cargo landed, so there is no bill against it yet. It settles the customer's invoice by itself the moment Dar checks their cargo in.")}
+              </p>
+            </section>
+          )}
 
           {!payment.account ? (
             <section className="rounded-2xl border border-warning/40 bg-warning/5 p-5">

@@ -132,7 +132,7 @@ export default async function DeletedRecordsPage() {
               <li key={v.id} className="px-4 py-2.5">
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="min-w-0 truncate text-sm font-semibold">
-                    {v.invoice.customer.name}
+                    {v.invoice?.customer.name}
                     <span className="ml-2 text-[11px] font-normal text-warning">
                       {t(locale, "payment cancelled")}
                     </span>
@@ -144,9 +144,9 @@ export default async function DeletedRecordsPage() {
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                   <span className="font-mono">
                     {v.receipt?.receiptNumber ? `${v.receipt.receiptNumber} · ` : ""}
-                    {v.invoice.invoiceNumber}
-                    {v.invoice.shipment?.trackingNumber
-                      ? ` · ${v.invoice.shipment.trackingNumber}`
+                    {v.invoice?.invoiceNumber}
+                    {v.invoice?.shipment?.trackingNumber
+                      ? ` · ${v.invoice?.shipment.trackingNumber}`
                       : ""}
                   </span>
                   {v.voidedBy?.name ? ` · ${t(locale, "by")} ${v.voidedBy.name}` : ""}

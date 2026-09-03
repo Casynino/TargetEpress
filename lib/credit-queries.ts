@@ -593,12 +593,15 @@ export async function customerCreditOutcomes(customerId: string, now = new Date(
           rate:
             payment.exchangeRate !== null
               ? toNumber(payment.exchangeRate)
-              : payment.invoice.exchangeRate !== null
-                ? toNumber(payment.invoice.exchangeRate)
+              : payment.invoice?.exchangeRate !== null
+                ? toNumber(payment.invoice?.exchangeRate)
                 : null,
           method: payment.method,
-          invoiceId: payment.invoice.id,
-          invoiceNumber: payment.invoice.invoiceNumber,
+          /* A credit settlement always has a bill behind it — this branch only
+             runs for money put against one. The fallbacks are for the type,
+             not for a case that reaches here. */
+          invoiceId: payment.invoice?.id ?? "",
+          invoiceNumber: payment.invoice?.invoiceNumber ?? "",
         }
       : null,
     waivedUsd: waived

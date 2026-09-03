@@ -147,11 +147,24 @@ export async function voidPayment(
         throw new Error("That payment has already been cancelled.");
       }
 
+      /*
+        A DEPOSIT HAS NO BILL TO HAND ANYTHING BACK TO.
+
+        Money taken before the cargo landed belongs to the customer and settles
+        nothing yet, so cancelling it is only the ledger line coming back out of
+        the account. Everything below that restores an invoice balance is
+        skipped for one — there is no balance to restore, and pretending there
+        is would be inventing a bill.
+      */
       const invoice = payment.invoice;
       const gave = settledAmount(payment);
-      const total = toNumber(invoice.total);
-      const newPaid = Math.max(0, toNumber(invoice.amountPaid) - gave);
-      const newStatus = statusFor(invoice.status, newPaid, total);
+      const total = invoice ? toNumber(invoice.total) : 0;
+      const newPaid = invoice
+        ? Math.max(0, toNumber(invoice.amountPaid) - gave)
+        : 0;
+      const newStatus = invoice
+        ? statusFor(invoice.status, newPaid, total)
+        : null;
 
       /* The claim. If two people press cancel at once, the second finds the row
          already voided and updates nothing, rather than reversing the ledger
@@ -173,13 +186,15 @@ export async function voidPayment(
       /* Conditional on the balance this transaction read — the payment-row
          claim above stops a double VOID, but not a payment landing on the
          same bill between our read and this write. The loser unwinds whole. */
-      const invoiceClaim = await tx.invoice.updateMany({
-        where: { id: invoice.id, amountPaid: invoice.amountPaid },
-        data: {
-          amountPaid: new Prisma.Decimal(newPaid),
-          ...(newStatus ? { status: newStatus } : {}),
-        },
-      });
+      const invoiceClaim = invoice
+        ? await tx.invoice.updateMany({
+            where: { id: invoice.id, amountPaid: invoice.amountPaid },
+            data: {
+              amountPaid: new Prisma.Decimal(newPaid),
+              ...(newStatus ? { status: newStatus } : {}),
+            },
+          })
+        : { count: 1 };
       /* The settlement goes with the money.
          A void hands the invoice back exactly what this payment put against it,
          so leaving the allocation behind would have the bill reading as settled
@@ -245,7 +260,9 @@ export async function voidPayment(
           amountUsd: toNumber(e.amountUsd),
           exchangeRate: e.exchangeRate === null ? null : toNumber(e.exchangeRate),
           occurredAt: new Date(),
-          description: `${t(locale, "Cancels")} ${e.entryNumber} — ${invoice.invoiceNumber}: ${parsed.data.reason}`,
+          description: `${t(locale, "Cancels")} ${e.entryNumber} — ${
+            invoice ? invoice.invoiceNumber : t(locale, "customer deposit")
+          }: ${parsed.data.reason}`,
           sourceEntity: e.sourceEntity,
           sourceId: e.sourceId,
           recordedById: user.id,
@@ -267,9 +284,10 @@ export async function voidPayment(
         with the warehouse. The honest outcome there is a live debt and a loud
         line in the audit log, which is exactly what somebody needs to chase.
       */
-      const note = invoice.shipment.pickupNote;
+      /* A deposit has released no cargo, so there is no note to withdraw. */
+      const note = invoice?.shipment.pickupNote ?? null;
       let noteOutcome: "cancelled" | "already-collected" | "none" = "none";
-      if (note && newStatus !== "PAID") {
+      if (invoice && note && newStatus !== "PAID") {
         if (note.status === "USED") {
           noteOutcome = "already-collected";
         } else {
@@ -296,7 +314,11 @@ export async function voidPayment(
           entity: "Payment",
           entityId: payment.id,
           summary:
-            `${invoice.invoiceNumber} (${invoice.shipment.trackingNumber}): payment of ` +
+            `${
+              invoice
+                ? `${invoice.invoiceNumber} (${invoice.shipment.trackingNumber})`
+                : "Customer deposit"
+            }: payment of ` +
             `${payment.currency} ${toNumber(payment.amount).toFixed(2)} cancelled — ${parsed.data.reason}` +
             (noteOutcome === "already-collected"
               ? ` — WARNING: pickup note ${note?.noteNumber} was already used, the cargo has been collected and this debt is now live again`
@@ -308,10 +330,10 @@ export async function voidPayment(
             amount: toNumber(payment.amount),
             currency: payment.currency,
             settledAmount: gave,
-            invoicePaidBefore: toNumber(invoice.amountPaid),
-            invoicePaidAfter: newPaid,
-            invoiceStatusBefore: invoice.status,
-            invoiceStatusAfter: newStatus ?? invoice.status,
+            invoicePaidBefore: invoice ? toNumber(invoice.amountPaid) : null,
+            invoicePaidAfter: invoice ? newPaid : null,
+            invoiceStatusBefore: invoice?.status ?? null,
+            invoiceStatusAfter: invoice ? (newStatus ?? invoice.status) : null,
             ledgerReversed: reversedEntry,
             pickupNote: note?.noteNumber ?? null,
             pickupNoteOutcome: noteOutcome,
@@ -323,8 +345,8 @@ export async function voidPayment(
       );
 
       return {
-        invoiceId: invoice.id,
-        invoiceNumber: invoice.invoiceNumber,
+        invoiceId: invoice?.id ?? null,
+        invoiceNumber: invoice?.invoiceNumber ?? null,
         noteOutcome,
       };
     });
@@ -400,11 +422,15 @@ export async function restorePayment(
         throw new Error("That payment is not cancelled, so there is nothing to reinstate.");
       }
 
+      /* A reinstated deposit puts money back in the account and settles
+         nothing, exactly as it did before it was cancelled. */
       const invoice = payment.invoice;
       const gave = settledAmount(payment);
-      const total = toNumber(invoice.total);
-      const newPaid = toNumber(invoice.amountPaid) + gave;
-      const newStatus = statusFor(invoice.status, newPaid, total);
+      const total = invoice ? toNumber(invoice.total) : 0;
+      const newPaid = invoice ? toNumber(invoice.amountPaid) + gave : 0;
+      const newStatus = invoice
+        ? statusFor(invoice.status, newPaid, total)
+        : null;
 
       const claimed = await tx.payment.updateMany({
         where: { id: payment.id, voidedAt: { not: null } },
@@ -416,13 +442,15 @@ export async function restorePayment(
 
       /* Same discipline as void and recordPayment: the balance write only
          lands if the balance is still what this transaction read. */
-      const invoiceClaim = await tx.invoice.updateMany({
-        where: { id: invoice.id, amountPaid: invoice.amountPaid },
-        data: {
-          amountPaid: new Prisma.Decimal(newPaid),
-          ...(newStatus ? { status: newStatus } : {}),
-        },
-      });
+      const invoiceClaim = invoice
+        ? await tx.invoice.updateMany({
+            where: { id: invoice.id, amountPaid: invoice.amountPaid },
+            data: {
+              amountPaid: new Prisma.Decimal(newPaid),
+              ...(newStatus ? { status: newStatus } : {}),
+            },
+          })
+        : { count: 1 };
       if (invoiceClaim.count === 0) {
         throw new Error(
           t(locale, "This bill's balance moved a moment ago. Reload and check it before reinstating.")
@@ -437,7 +465,9 @@ export async function restorePayment(
           payment.exchangeRate === null ? null : toNumber(payment.exchangeRate);
         const amount = toNumber(payment.amount);
         const invoiceRate =
-          invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
+          !invoice || invoice.exchangeRate === null
+            ? null
+            : toNumber(invoice.exchangeRate);
         const usd =
           payment.account.currency === "USD"
             ? amount
@@ -454,7 +484,11 @@ export async function restorePayment(
           amountUsd: usd,
           exchangeRate: rate,
           occurredAt: new Date(),
-          description: `${t(locale, "Reinstated")} ${payment.receipt?.receiptNumber ?? invoice.invoiceNumber} — ${parsed.data.reason}`,
+          description: `${t(locale, "Reinstated")} ${
+            payment.receipt?.receiptNumber ??
+            invoice?.invoiceNumber ??
+            t(locale, "customer deposit")
+          } — ${parsed.data.reason}`,
           sourceEntity: "Payment",
           sourceId: payment.id,
           recordedById: user.id,
@@ -467,13 +501,17 @@ export async function restorePayment(
           action: "payment.restore",
           entity: "Payment",
           entityId: payment.id,
-          summary: `${invoice.invoiceNumber} (${invoice.shipment.trackingNumber}): cancelled payment of ${payment.currency} ${toNumber(payment.amount).toFixed(2)} reinstated — ${parsed.data.reason}`,
+          summary: `${
+            invoice
+              ? `${invoice.invoiceNumber} (${invoice.shipment.trackingNumber})`
+              : "Customer deposit"
+          }: cancelled payment of ${payment.currency} ${toNumber(payment.amount).toFixed(2)} reinstated — ${parsed.data.reason}`,
           metadata: {
             receipt: payment.receipt?.receiptNumber ?? null,
             amount: toNumber(payment.amount),
             settledAmount: gave,
-            invoicePaidAfter: newPaid,
-            invoiceStatusAfter: newStatus ?? invoice.status,
+            invoicePaidAfter: invoice ? newPaid : null,
+            invoiceStatusAfter: invoice ? (newStatus ?? invoice.status) : null,
             previousVoidReason: payment.voidReason,
             reason: parsed.data.reason,
           },
@@ -481,10 +519,12 @@ export async function restorePayment(
         tx
       );
 
-      return { invoiceId: invoice.id };
+      return { invoiceId: invoice?.id ?? null };
     });
 
-    revalidatePath(`/app/finance/invoices/${result.invoiceId}`);
+    if (result.invoiceId) {
+      revalidatePath(`/app/finance/invoices/${result.invoiceId}`);
+    }
     revalidatePath("/app/finance/transactions");
     revalidatePath("/app/finance/ledger");
     return ok();
@@ -563,7 +603,9 @@ export async function editPayment(
     if (paidAt.getTime() > Date.now() + 86_400_000) {
       return fail(t(locale, "A payment cannot be dated in the future."));
     }
-    if (payment.invoice.issuedAt && paidAt < payment.invoice.issuedAt) {
+    /* A deposit predates every bill by definition — that is what makes it a
+       deposit — so the "not older than the invoice" rule has nothing to test. */
+    if (payment.invoice?.issuedAt && paidAt < payment.invoice.issuedAt) {
       return fail(
         t(locale, "That date is before the bill was raised. A payment cannot be older than the invoice it settles.")
       );
@@ -611,14 +653,20 @@ export async function editPayment(
           action: "payment.edit",
           entity: "Payment",
           entityId: payment.id,
-          summary: `${payment.invoice.invoiceNumber} (${payment.invoice.shipment.trackingNumber}): payment details corrected (${changed.join(", ")}) — ${parsed.data.reason}`,
+          summary: `${
+            payment.invoice
+              ? `${payment.invoice.invoiceNumber} (${payment.invoice.shipment.trackingNumber})`
+              : "Customer deposit"
+          }: payment details corrected (${changed.join(", ")}) — ${parsed.data.reason}`,
           metadata: { before, after, changed, reason: parsed.data.reason },
         },
         tx
       );
     });
 
-    revalidatePath(`/app/finance/invoices/${payment.invoice.id}`);
+    if (payment.invoice) {
+      revalidatePath(`/app/finance/invoices/${payment.invoice.id}`);
+    }
     revalidatePath("/app/finance/transactions");
     revalidatePath("/app/finance/ledger");
     return ok();
