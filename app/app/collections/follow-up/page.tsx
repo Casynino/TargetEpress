@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Banknote, Download, FileText, MessageCircle, Search } from "lucide-react";
+import {
+  Banknote,
+  Download,
+  FileText,
+  MessageCircle,
+  PackageOpen,
+  Search,
+} from "lucide-react";
 
 import { CollectionsNav } from "@/components/app/collections-nav";
 import { FinanceNav } from "@/components/app/finance-nav";
@@ -637,6 +644,29 @@ export default async function FollowUpPage({
                       are generated, so the only message this desk sends is a
                       reminder, and there is one button for it. */}
                   <div className="flex items-center justify-end gap-1.5">
+                    {/*
+                      THE WHOLE CONSIGNMENT, FIRST.
+
+                      Everything else on this row acts on one thing — send a
+                      reminder, take a payment, hand over the bill. This opens
+                      the page that has all of it: the boxes, the photos, the
+                      storage clock, the packages checked in, and the payment
+                      form with the balance already in it. The tracking number
+                      was already a link and nobody found it, because a link
+                      that looks like text is not a door.
+                    */}
+                    {row.trackingNumber ? (
+                      <IconHint label={t(locale, "Open the cargo")}>
+                        <Link
+                          href={`/app/cargo/${row.trackingNumber}`}
+                          aria-label={`${t(locale, "Open")} ${row.trackingNumber}`}
+                          className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-brand/40 text-brand transition-colors hover:bg-brand/10"
+                        >
+                          <PackageOpen className="h-3.5 w-3.5" />
+                        </Link>
+                      </IconHint>
+                    ) : null}
+
                     {row.customerPhone ? (
                       <IconHint
                         label={

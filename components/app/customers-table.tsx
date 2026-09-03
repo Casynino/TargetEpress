@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, PackageOpen } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
 import { useLocale, useT } from "@/components/app/locale-provider";
@@ -139,18 +139,40 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
       id: "reach",
       header: "",
       align: "right",
-      cell: (row) =>
-        row.phone ? (
-          <a
-            href={`https://wa.me/${row.phone.replace(/[^\d]/g, "")}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`WhatsApp ${row.name}`}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      cell: (row) => (
+        /*
+          OPEN THEM, AND REACH THEM.
+
+          The row was clickable and nothing said so, which both desks found the
+          hard way: Finance looking for a customer's cargo and Support looking
+          for their history each had to guess that the name was a link. An
+          explicit door, and it carries the count so the reader knows whether
+          there is anything behind it.
+        */
+        <div className="flex items-center justify-end gap-1.5">
+          {row.phone ? (
+            <a
+              href={`https://wa.me/${row.phone.replace(/[^\d]/g, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`WhatsApp ${row.name}`}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-success/40 text-success transition-colors hover:bg-success/10"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+            </a>
+          ) : null}
+          <Link
+            href={`/app/customers/${row.id}`}
+            aria-label={`${t("Open")} ${row.name}`}
+            className="focus-ring inline-flex h-8 items-center gap-1 rounded-md border border-brand/40 px-2 text-xs font-medium text-brand transition-colors hover:bg-brand/10"
           >
-            <MessageCircle className="h-3.5 w-3.5" />
-          </a>
-        ) : null,
+            <PackageOpen className="h-3.5 w-3.5" />
+            {row.activeShipments > 0
+              ? t("{n} active").replace("{n}", String(row.activeShipments))
+              : t("Open")}
+          </Link>
+        </div>
+      ),
     },
   ];
 

@@ -3039,6 +3039,7 @@ const ZH: Record<string, string> = {
   "Nobody has more than one unpaid consignment right now. Search for a customer to take a payment or hold a deposit.": "目前没有客户有多于一票的未付货物。可以搜索客户来收款或登记预付款。",
   "A newer version is live.": "已有新版本上线。",
   "Reload": "刷新",
+  "{n} active": "{n} 票在途",
   "Their numbers": "客户电话",
   "Add a number": "添加号码",
   "No number on file. Cargo cannot be registered against them until there is one.": "该客户没有电话号码。在补充之前无法为其登记货物。",
