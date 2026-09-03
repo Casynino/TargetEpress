@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Prisma } from "@prisma/client";
-import { Ban, ChevronRight, Paperclip, Pencil } from "lucide-react";
+import { ChevronRight, Paperclip } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { IconHint } from "@/components/app/icon-hint";
@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { activeAccounts } from "@/lib/accounts";
+import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { RecordIncome } from "@/components/app/record-income";
 import { creditNotInTheLedger } from "@/lib/credit-queries";
 import {
@@ -189,6 +190,10 @@ export default async function LedgerPage({
           recordedBy: { select: { name: true } },
           payment: {
             select: {
+              /* The register corrects and cancels in place now — see
+                 LedgerRowFix — so it needs what those actions address. */
+              id: true,
+              note: true,
               reference: true,
               receipt: { select: { receiptNumber: true } },
               proofs: { select: { url: true }, take: 1 },
@@ -217,6 +222,7 @@ export default async function LedgerPage({
           },
           expense: {
             select: {
+              id: true,
               expenseNumber: true,
               description: true,
               vendor: true,
@@ -224,6 +230,8 @@ export default async function LedgerPage({
               receipts: { select: { url: true }, take: 1 },
             },
           },
+          /* Whether this line has already been answered. */
+          reversedBy: { select: { id: true } },
           transfer: {
             select: {
               transferNumber: true,
@@ -1025,45 +1033,36 @@ export default async function LedgerPage({
                     */}
                     {canFix ? (
                       <TableCell className="w-20 py-2.5 pr-1 text-right">
-                        <span className="relative z-10 inline-flex items-center gap-1">
-                          {entry.expense ? (
-                            <IconHint label={t(locale, "Edit the cost")}>
-                              <Link
-                                href={`/app/finance/expenses?q=${entry.expense.expenseNumber}`}
-                                aria-label={t(locale, "Edit the cost")}
-                                className="focus-ring rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Link>
-                            </IconHint>
-                          ) : null}
-                          {/* Income could only ever be cancelled from here, never
-                              corrected — so a payment typed as 45,000 instead of
-                              54,000 had to be voided and rewritten, which costs a
-                              receipt number and leaves two lines where one
-                              belongs. editPayment already existed; nothing on
-                              this register pointed at it. */}
-                          {entry.payment?.invoice ? (
-                            <IconHint label={t(locale, "Edit this payment")}>
-                              <Link
-                                href={`/app/finance/invoices/${entry.payment.invoice?.invoiceNumber}`}
-                                aria-label={t(locale, "Edit this payment")}
-                                className="focus-ring rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Link>
-                            </IconHint>
-                          ) : null}
-                          <IconHint label={t(locale, "Cancel this movement")}>
-                            <Link
-                              href={`/app/finance/transactions/${entry.id}`}
-                              aria-label={t(locale, "Cancel this movement")}
-                              className="focus-ring rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                            >
-                              <Ban className="h-3.5 w-3.5" />
-                            </Link>
-                          </IconHint>
-                        </span>
+                        {/*
+                          Both of these used to be links: the pencil opened the
+                          invoice, the cancel opened the entry's own page. A desk
+                          reading down the register is looking at the line it
+                          wants to fix, and sending it away to find the bill and
+                          then find its way back is how a fifty-four shilling
+                          test entry survives a week.
+
+                          Cancelling is still a reversal, not a deletion — the
+                          ledger is append-only, which is why no figure here has
+                          ever drifted. What the desk means by delete happens in
+                          full; it is recorded rather than hidden.
+                        */}
+                        <LedgerRowFix
+                          subject={{
+                            entryId: entry.id,
+                            paymentId: entry.payment?.id ?? null,
+                            paymentReference: entry.payment?.reference ?? null,
+                            paymentNote: entry.payment?.note ?? null,
+                            expenseId: entry.expense?.id ?? null,
+                            expenseDescription:
+                              entry.expense?.description ?? null,
+                            /* A line already answered by a reversing line has
+                               nothing left to do — and a correction is itself a
+                               line, which must not be cancellable in turn. */
+                            reversed: Boolean(
+                              entry.reversedBy || entry.reversesId
+                            ),
+                          }}
+                        />
                       </TableCell>
                     ) : null}
 
