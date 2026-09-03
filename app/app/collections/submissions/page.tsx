@@ -28,9 +28,16 @@ const FILTERS = [
   { key: "PENDING", label: "With Finance" },
   { key: "VERIFIED", label: "Verified" },
   { key: "REJECTED", label: "Sent back" },
-  /* Separate from "Sent back" on purpose: Finance refusing a claim and this desk
-     taking its own back are different facts about a customer. */
-  { key: "WITHDRAWN", label: "Withdrawn" },
+  /*
+    No tab of its own for WITHDRAWN.
+
+    The STATUS is still necessary — it is what taking a claim back produces,
+    and keeping it apart from REJECTED is what stops "we sent this by mistake"
+    being recorded as "Finance refused it", which is a different fact about a
+    customer. But nobody works a list of the desk's own cancellations, and a
+    tab nobody opens is a tab that teaches people to stop reading the row.
+    They are still there under Everything, where the record lives.
+  */
   { key: "ALL", label: "Everything" },
 ] as const;
 
@@ -206,7 +213,7 @@ export default async function SubmissionsPage({
               ? "text-success"
               : active === "REJECTED"
                 ? "text-destructive"
-                : active === "WITHDRAWN"
+                : active === "ALL"
                   ? "text-muted-foreground"
                   : "text-warning"
           }`}

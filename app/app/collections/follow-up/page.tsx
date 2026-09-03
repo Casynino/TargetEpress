@@ -29,6 +29,9 @@ import { paymentReminderSwahili, whatsappLink } from "@/lib/messages";
 import { requirePermission } from "@/lib/session";
 import {
   FOLLOW_UP_FILTERS,
+  FOLLOW_UP_SORTS,
+  sortFollowUp,
+  type FollowUpSort,
   followUpQueue,
   followUpTotals,
   matchesFilter,
@@ -69,7 +72,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function FollowUpPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string; q?: string; record?: string }>;
+  searchParams: Promise<{
+    filter?: string;
+    q?: string;
+    record?: string;
+    sort?: string;
+  }>;
 }) {
   const user = await requirePermission("collections.view");
   /* Support files a claim, Finance banks it — the record screen behind this knows
@@ -84,7 +92,7 @@ export default async function FollowUpPage({
   const locale = await viewerLocale();
   const canRecord = can(user.role, "payment.record");
   const canCollect = !canRecord && can(user.role, "payment.submit");
-  const { filter, q, record } = await searchParams;
+  const { filter, q, record, sort } = await searchParams;
   const query = q?.trim() ?? "";
 
   // Credit only for a reader entitled to it. Every desk that can open this page
@@ -183,6 +191,10 @@ export default async function FollowUpPage({
     the database would mean a second definition of "matches", and the two would
     disagree the first time a column changed.
   */
+  /* Newest arrivals lead unless the desk says otherwise — see sortFollowUp. */
+  const order = (FOLLOW_UP_SORTS.find((o) => o.key === sort)?.key ??
+    "newest") as FollowUpSort;
+
   const needle = query.toLowerCase();
   const visible = rows
     .filter((row) => matchesFilter(row, active))
@@ -200,6 +212,7 @@ export default async function FollowUpPage({
             .toLowerCase()
             .includes(needle)
     );
+  const ordered = sortFollowUp(visible, order);
 
   /* Added up in one place for both this strip and the support desk's copy of the
      queue, and deliberately never added to each other: an unpaid bill and a
@@ -210,7 +223,7 @@ export default async function FollowUpPage({
     <>
       <PageHeader
         title="Payment follow-up"
-        description="Every customer who owes us money — bills nobody has paid and credit we released on terms — ordered by who needs a phone call most."
+        description="Every customer who owes us money — bills nobody has paid and credit we released on terms. Newest arrivals first; sort and filter it however the job needs."
         /* The action belongs on the page where the call happens: this IS the
            list of people who might ring back to say they have paid. */
         actions={
@@ -334,6 +347,32 @@ export default async function FollowUpPage({
           ) : null}
         </div>
 
+        <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
+        {/* How it is ordered, said out loud and changeable. The list has always
+            been ranked by urgency and never said so, which on a day when every
+            consignment landed together reads as no order at all. */}
+        <div className="inline-flex shrink-0 overflow-hidden rounded-lg border">
+          {FOLLOW_UP_SORTS.map((option) => {
+            const isActive = option.key === order;
+            return (
+              <Link
+                key={option.key}
+                href={`/app/collections/follow-up?filter=${active}&sort=${option.key}${
+                  query ? `&q=${encodeURIComponent(query)}` : ""
+                }`}
+                className={`inline-flex shrink-0 items-center whitespace-nowrap border-r px-3 py-1.5 text-xs font-medium transition-colors last:border-r-0 ${
+                  isActive
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                {t(locale, option.label)}
+              </Link>
+            );
+          })}
+        </div>
+        </div>
+
         <div className="overflow-x-auto border-b px-4 py-3">
         <div className="inline-flex overflow-hidden rounded-lg border">
           {FOLLOW_UP_FILTERS.map((option) => {
@@ -342,7 +381,7 @@ export default async function FollowUpPage({
             return (
               <Link
                 key={option.key}
-                href={`/app/collections/follow-up?filter=${option.key}${
+                href={`/app/collections/follow-up?filter=${option.key}&sort=${order}${
                   query ? `&q=${encodeURIComponent(query)}` : ""
                 }`}
                 title={t(locale, option.hint)}
@@ -458,7 +497,7 @@ export default async function FollowUpPage({
             </tr>
           </thead>
           <tbody>
-            {visible.map((row) => (
+            {ordered.map((row) => (
               <tr
                 key={row.id}
                 id={row.trackingNumber ?? undefined}

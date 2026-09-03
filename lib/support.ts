@@ -46,7 +46,11 @@ export type FollowUpFilter =
   | "due-week"
   | "part-paid"
   | "ready"
-  | "storage";
+  | "storage"
+  | "never-called"
+  | "gone-quiet"
+  | "with-finance"
+  | "long-wait";
 
 /**
  * Paid, or not paid — and, for a credit, paid LATE or not yet due.
@@ -73,7 +77,58 @@ export const FOLLOW_UP_FILTERS: { key: FollowUpFilter; label: string; hint: stri
   { key: "part-paid", label: "Partly paid", hint: "Something came in, the rest did not" },
   { key: "ready", label: "Ready for pickup", hint: "Paid, waiting to be collected" },
   { key: "storage", label: "Overdue storage", hint: "Past the free storage window" },
+  /*
+    Four more, and they answer the question the money pills cannot: not "what
+    is owed" but "who has nobody been talking to".
+
+    A hundred and thirty-four rows all reading "Awaiting payment" is one
+    undifferentiated list, and the desk was picking from the top of it. These
+    split it by the desk's own work rather than by the bill's state.
+  */
+  { key: "never-called", label: "Never called", hint: "Nobody has contacted this customer yet" },
+  { key: "gone-quiet", label: "Not called in a week", hint: "Last contacted more than seven days ago" },
+  { key: "with-finance", label: "Paid, with Finance", hint: "The customer has paid and it is waiting to be checked" },
+  { key: "long-wait", label: "Waiting over a week", hint: "Standing in Dar more than seven days" },
 ];
+
+/** How the queue is ordered. The desk picks; the default is newest arrivals. */
+export type FollowUpSort = "newest" | "waiting" | "owed" | "urgent";
+
+export const FOLLOW_UP_SORTS: { key: FollowUpSort; label: string }[] = [
+  { key: "newest", label: "Newest first" },
+  { key: "waiting", label: "Waiting longest" },
+  { key: "owed", label: "Most owed" },
+  { key: "urgent", label: "Most urgent" },
+];
+
+/**
+ * One comparator, so the page never sorts by hand.
+ *
+ * Newest leads because that is what the desk is actually asked about: a plane
+ * lands, those customers ring, and the consignment that arrived this morning is
+ * the conversation of the day. Urgency is still one click away and still what
+ * ranks a credit that has gone past its date.
+ */
+export function sortFollowUp(rows: FollowUpRow[], sort: FollowUpSort) {
+  const byArrival = (row: FollowUpRow) =>
+    row.arrivedAt ? Date.parse(row.arrivedAt) : 0;
+  return [...rows].sort((a, b) => {
+    switch (sort) {
+      case "waiting":
+        return b.daysInWarehouse - a.daysInWarehouse || byArrival(a) - byArrival(b);
+      case "owed":
+        return (b.outstanding ?? 0) - (a.outstanding ?? 0);
+      case "urgent":
+        return b.urgency - a.urgency || byArrival(b) - byArrival(a);
+      case "newest":
+      default:
+        /* Ties broken by urgency rather than left to the database's order —
+           a hundred consignments that landed on the same day would otherwise
+           come back in whatever order Postgres felt like. */
+        return byArrival(b) - byArrival(a) || b.urgency - a.urgency;
+    }
+  });
+}
 
 /**
  * What this row is owed under: an ordinary bill, or terms the company granted.
@@ -498,6 +553,21 @@ export function matchesFilter(row: FollowUpRow, filter: FollowUpFilter) {
       return row.status === "READY_FOR_PICKUP";
     case "storage":
       return row.storageDays > 0;
+    case "never-called":
+      /* Nobody has rung or messaged this customer at all. The most answerable
+         row on the page and the one with nothing on it to say so. */
+      return row.lastContactAt === null;
+    case "gone-quiet":
+      return (
+        row.lastContactAt !== null &&
+        daysBetween(new Date(row.lastContactAt)) > 7
+      );
+    case "with-finance":
+      /* Already paid as far as the customer is concerned. Ringing them is the
+         wrong call — this pill exists so the desk can see them and skip them. */
+      return row.nextAction === "Waiting on Finance to verify";
+    case "long-wait":
+      return row.daysInWarehouse > 7;
     case "all":
     default:
       return true;

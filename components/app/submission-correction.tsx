@@ -306,7 +306,9 @@ export function SubmissionCorrection({
           {subject.receiptNumber ? ` · ${subject.receiptNumber}` : ""}
         </p>
       ) : null}
-      {subject.status === "REJECTED" ? (
+      {/* Not while the edit banner is showing the same sentence in red three
+          lines below — one fact, said once. */}
+      {subject.status === "REJECTED" && open !== "edit" ? (
         <p className="text-xs text-destructive">
           {t("Sent back by")} {subject.reviewedByName ?? t("Finance")}
           {subject.rejectionReason ? `: ${subject.rejectionReason}` : ""}
@@ -352,7 +354,7 @@ export function SubmissionCorrection({
             <Pencil className="h-3.5 w-3.5" />
             {canRaiseAgain ? t("Fix and send again") : t("Edit Payment")}
           </button>
-          {canDelete && editable ? (
+          {canDelete && (editable || canRaiseAgain) ? (
             <button
               type="button"
               onClick={() => setOpen("withdraw")}
@@ -506,9 +508,13 @@ export function SubmissionCorrection({
 
                 {open === "withdraw" ? (
                   <p className="text-sm text-muted-foreground">
-                    {t(
-                      "Nothing has moved yet, so deleting it costs the customer nothing. It is recorded as withdrawn by us, not refused by Finance."
-                    )}
+                    {canRaiseAgain
+                      ? t(
+                          "Nothing moved, so nothing is undone. The bill stays exactly as it is and the cargo stays on the chase list — when the money does arrive, record it again from scratch."
+                        )
+                      : t(
+                          "Nothing has moved yet, so deleting it costs the customer nothing. It is recorded as withdrawn by us, not refused by Finance."
+                        )}
                   </p>
                 ) : null}
 
@@ -556,7 +562,7 @@ export function SubmissionCorrection({
                 {/* Deleting is reachable from inside the edit, so somebody who
                     opened the wrong door does not have to close it and go
                     looking for the other one. */}
-                {open === "edit" && canDelete && editable ? (
+                {open === "edit" && canDelete && (editable || canRaiseAgain) ? (
                   <button
                     type="button"
                     onClick={() => {

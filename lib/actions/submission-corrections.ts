@@ -55,6 +55,9 @@ async function pendingOnly(id: string) {
       reference: true,
       note: true,
       accountId: true,
+      /* Finance's words, kept when a refused claim is taken back rather than
+         overwritten by the desk's own reason. */
+      rejectionReason: true,
       submittedById: true,
       invoice: {
         select: {
@@ -235,10 +238,25 @@ export async function withdrawSubmission(
 
     const sub = await pendingOnly(parsed.data.submissionId);
     if (!sub) return fail(t(locale, "That submission no longer exists."));
-    if (sub.status !== "PENDING") {
+    /*
+      Two states can be taken back, and for the same reason: nothing has moved.
+
+      PENDING — sent up by mistake, or twice.
+
+      REJECTED — Finance refused it and the desk has decided there is no
+      corrected claim coming. The owner's words: cancel it and the cargo just
+      stays on the chase list to be recorded again from scratch. That is
+      exactly what happens, because the bill is what puts a customer on that
+      list and the bill is untouched by any of this.
+
+      VERIFIED is the one that cannot: a real payment exists, and unwinding it
+      is voidPayment's job.
+    */
+    const takeable = sub.status === "PENDING" || sub.status === "REJECTED";
+    if (!takeable) {
       return fail(t(locale, closedMessage(sub.status, sub.submissionNumber)));
     }
-    if (sub.submittedById !== user.id) {
+    if (sub.submittedById !== user.id && !can(user.role, "payment.verify")) {
       return fail(
         t(locale, "Only the person who submitted this can correct it. Ask them to, or let Finance decide it as it stands.")
       );
@@ -246,7 +264,7 @@ export async function withdrawSubmission(
 
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.paymentSubmission.updateMany({
-        where: { id: sub.id, status: "PENDING" },
+        where: { id: sub.id, status: sub.status },
         data: {
           status: "WITHDRAWN",
           reviewedById: user.id,
@@ -254,13 +272,21 @@ export async function withdrawSubmission(
           /* The reason lands in rejectionReason because that column already
              means "why this claim went nowhere", and a second nullable reason
              column would leave two places to look for one answer. The status
-             says who decided it — Finance refused, or we took it back. */
-          rejectionReason: parsed.data.reason,
+             says who decided it — Finance refused, or we took it back.
+
+             Finance's own words are kept in front of the new reason rather
+             than overwritten. Losing why a claim was refused, at the moment
+             somebody gives up on it, is losing the only sentence that explains
+             the whole row. */
+          rejectionReason:
+            sub.status === "REJECTED" && sub.rejectionReason
+              ? `${parsed.data.reason} (Finance had said: ${sub.rejectionReason})`
+              : parsed.data.reason,
         },
       });
       if (claimed.count === 0) {
         throw new Error(
-          `${sub.submissionNumber} was decided by Finance a moment ago, so it can no longer be withdrawn.`
+          `${sub.submissionNumber} was decided by somebody else a moment ago, so it can no longer be taken back.`
         );
       }
 
