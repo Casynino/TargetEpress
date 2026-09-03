@@ -69,6 +69,7 @@ export function RecordIncome({
   rate,
   autoOpen = false,
   canRecord = true,
+  compact = false,
 }: {
   accounts: ExpenseAccount[];
   /** Today's USD→TZS, shown so nobody has to guess what a dollar bill is worth. */
@@ -95,6 +96,15 @@ export function RecordIncome({
    * has been bitten by four times.
    */
   canRecord?: boolean;
+  /**
+   * One word instead of two.
+   *
+   * The ledger header carries four money doors now — payment, cost, merge,
+   * credit — and four full phrases wrapped the row onto a second line above
+   * the page's own title. The icon does the naming; the tooltip carries the
+   * full words for anybody who wants them.
+   */
+  compact?: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState(autoOpen);
@@ -260,10 +270,11 @@ export function RecordIncome({
         variant="outline"
         size="sm"
         className="h-9 rounded-lg"
+        title={t("Record Payment")}
         onClick={() => setOpen(true)}
       >
         <Plus className="mr-1.5 h-4 w-4" />
-        {t("Record Payment")}
+        {compact ? t("Payment") : t("Record Payment")}
       </Button>
     );
   }

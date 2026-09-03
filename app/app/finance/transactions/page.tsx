@@ -1,13 +1,14 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { Prisma } from "@prisma/client";
-import { ChevronRight, Paperclip } from "lucide-react";
+import { ChevronRight, Layers, Paperclip } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { IconHint } from "@/components/app/icon-hint";
 import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { LedgerFilters } from "@/components/app/ledger-filters";
+import { AskForCredit } from "@/components/app/ask-for-credit";
 import { RecordCostButton } from "@/components/app/record-cost-button";
 import {
   Table,
@@ -109,6 +110,10 @@ export default async function LedgerPage({
   /* Money in is a different permission from money out: the desk that records
      costs is not automatically the desk that takes customers' payments. */
   const canTakeMoney = can(user.role, "payment.record");
+  /* The other two money doors this page was missing: a combined payment, and
+     letting a consignment go on terms. */
+  const canAskForCredit = can(user.role, "credit.request");
+  const canDecideCredit = can(user.role, "credit.approve");
 
   const where: Prisma.LedgerEntryWhereInput = {};
   if (params.account) where.accountId = params.account;
@@ -517,9 +522,19 @@ export default async function LedgerPage({
           "Every movement of money — freight collected, costs paid, transfers between accounts — with its account, who recorded it, and a running balance."
         )}
         actions={
+          /*
+            Every door money goes through, on the page money is read on.
+
+            Payment, cost, merge and credit — the four things a money desk
+            actually does — and they were split across three screens. One word
+            each with its icon, because four full phrases wrapped this row onto
+            a second line above the page's own title; the full names are on
+            hover and inside each panel.
+          */
           <div className="flex flex-wrap items-center gap-2">
             {canTakeMoney ? (
               <RecordIncome
+                compact
                 accounts={accounts.map((a) => ({
                   id: a.id,
                   name: a.name,
@@ -533,6 +548,7 @@ export default async function LedgerPage({
             ) : null}
             {canRecord ? (
             <RecordCostButton
+              compact
               accounts={accounts.map((a) => ({
                 id: a.id,
                 name: a.name,
@@ -542,6 +558,19 @@ export default async function LedgerPage({
               quick={COMMON_EXPENSES}
               rate={rate}
             />
+            ) : null}
+            {canTakeMoney ? (
+              <Link
+                href="/app/finance/payments/new"
+                title={t(locale, "Merge Payment")}
+                className="focus-ring inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-sm font-medium transition-colors hover:bg-accent"
+              >
+                <Layers className="h-4 w-4" />
+                {t(locale, "Merge")}
+              </Link>
+            ) : null}
+            {canAskForCredit ? (
+              <AskForCredit compact rate={rate} canApprove={canDecideCredit} />
             ) : null}
           </div>
         }

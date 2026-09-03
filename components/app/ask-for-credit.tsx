@@ -48,6 +48,7 @@ function inShillings(usd: number, rate: number | null) {
 export function AskForCredit({
   rate,
   canApprove,
+  compact = false,
 }: {
   /** Today's USD→TZS, for bills that carry no frozen rate of their own. */
   rate: number | null;
@@ -59,6 +60,8 @@ export function AskForCredit({
    * they have to say it before the press, not after.
    */
   canApprove: boolean;
+  /** One word instead of three — see RecordIncome's own compact mode. */
+  compact?: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -94,10 +97,15 @@ export function AskForCredit({
       <button
         type="button"
         onClick={() => setOpen(true)}
+        title={canApprove ? t("Release on credit") : t("Ask for credit")}
         className="focus-ring inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg border px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-warning"
       >
         <CalendarClock className="h-4 w-4" />
-        {canApprove ? t("Release on credit") : t("Ask for credit")}
+        {compact
+          ? t("Credit")
+          : canApprove
+            ? t("Release on credit")
+            : t("Ask for credit")}
       </button>
     );
   }

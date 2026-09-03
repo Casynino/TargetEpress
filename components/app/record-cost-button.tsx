@@ -25,6 +25,7 @@ export function RecordCostButton({
   rate,
   categories = [],
   dispatches = [],
+  compact = false,
 }: {
   accounts: ExpenseAccount[];
   quick: QuickExpense[];
@@ -32,6 +33,8 @@ export function RecordCostButton({
   /** The Expenses page names its own; the ledger takes the defaults. */
   categories?: { value: string; label: string }[];
   dispatches?: { id: string; label: string }[];
+  /** One word instead of three — see RecordIncome's own compact mode. */
+  compact?: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -41,10 +44,11 @@ export function RecordCostButton({
       <Button
         variant="brand"
         className="rounded-lg"
+        title={t("Record a cost")}
         onClick={() => setOpen(true)}
       >
         <Plus className="mr-2 h-4 w-4" />
-        {t("Record a cost")}
+        {compact ? t("Cost") : t("Record a cost")}
       </Button>
 
       {open ? (
