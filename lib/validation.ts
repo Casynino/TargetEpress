@@ -178,9 +178,17 @@ export const customerPaymentSchema = z.object({
       (d) => d === null || (!Number.isNaN(d.getTime()) && d.getTime() <= Date.now() + 86_400_000),
       "Money cannot have arrived in the future."
     ),
+  /**
+   * Which bills this money is being put against — possibly none of them.
+   *
+   * An empty list is a DEPOSIT: the customer has paid before their cargo
+   * landed, so there is no bill yet to settle. The money is theirs, it sits in
+   * the account it arrived in, and it settles their invoice the moment Dar
+   * checks the cargo in.
+   */
   allocations: z
     .string()
-    .min(2, "Choose at least one bill for this payment to settle.")
+    .min(2, "Allocations could not be read.")
     .transform((raw, ctx) => {
       let parsed: unknown;
       try {
@@ -191,7 +199,6 @@ export const customerPaymentSchema = z.object({
       }
       const rows = z
         .array(z.object({ invoiceId: z.string().min(1), amount: z.number().finite() }))
-        .min(1, "Choose at least one bill for this payment to settle.")
         .safeParse(parsed);
       if (!rows.success) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: "The allocations could not be read." });

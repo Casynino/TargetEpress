@@ -137,7 +137,7 @@ export function CustomerPaymentForm({
               {t("Which cargo are they paying for?")}
             </h2>
             <p className="text-xs text-muted-foreground">
-              {t("Tick everything this payment covers.")}
+              {t("Tick everything this payment covers. Tick nothing and it is held as their credit until their cargo lands.")}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -350,17 +350,18 @@ export function CustomerPaymentForm({
         ) : null}
       </section>
 
-      <SubmitButton
-        disabled={over || received <= 0 || allocations.length === 0}
-        pendingLabel="Recording…"
-      >
+      {/* Nothing ticked is a legitimate answer: the customer has paid for cargo
+          that has not landed, so there is no bill to tick. The money is held as
+          their credit and settles the invoice by itself at check-in. */}
+      <SubmitButton disabled={over || received <= 0} pendingLabel="Recording…">
         {left > 0.005 ? (
           <Wallet className="mr-2 h-4 w-4" />
         ) : (
           <Banknote className="mr-2 h-4 w-4" />
         )}
-        {t("Record")} {money(received)} · {allocations.length}{" "}
-        {t("cargo")}
+        {allocations.length === 0
+          ? `${t("Record")} ${money(received)} · ${t("held as their credit")}`
+          : `${t("Record")} ${money(received)} · ${allocations.length} ${t("cargo")}`}
       </SubmitButton>
     </form>
   );

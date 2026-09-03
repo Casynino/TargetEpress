@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { settleBatchIfClear } from "@/lib/batch-close";
+import { applyCreditToInvoice } from "@/lib/customer-credit";
 import {
   EXCEPTION_OPEN_STATUSES,
   STORAGE_POLICY,
@@ -297,6 +298,11 @@ export async function confirmInvoicePrice(
           discount: true,
           otherCharges: true,
           freightOverride: true,
+          /* The three the deposit needs: whose money may settle this, in what
+             currency, and what has already been put against it. */
+          customerId: true,
+          currency: true,
+          amountPaid: true,
           /* So re-pricing can see a waiver and leave it alone. */
           storageWaivedUsd: true,
           /* And a granted credit, whose due date it must not overwrite. */
@@ -407,6 +413,41 @@ export async function confirmInvoicePrice(
           ...(invoice.creditStatus === "APPROVED" ? {} : { dueDate: new Date() }),
         },
       });
+
+      /*
+        THE DEPOSIT SETTLES THE BILL THE MOMENT THE BILL EXISTS.
+
+        A customer whose cargo was still in China when they paid has money
+        sitting against nothing — the price could not be worked out until Dar
+        weighed the boxes, so no invoice existed to take it. This is the first
+        instant one does: the draft has just become a real bill with a
+        confirmed price, which is exactly when money is allowed to touch it.
+
+        Not at invoice creation, which is a DRAFT — nobody has agreed that
+        figure yet, and taking money against a price nobody has looked at is
+        the thing the confirm step exists to prevent.
+
+        Anything left over stays as their credit for the next consignment, and
+        a bill this clears in full releases its own cargo below.
+      */
+      const applied = await applyCreditToInvoice(tx, {
+        invoiceId: invoice.id,
+        customerId: invoice.customerId,
+        currency: invoice.currency,
+        outstanding: total - toNumber(invoice.amountPaid),
+        user,
+      });
+
+      if (applied > 0.005) {
+        const nowPaid = toNumber(invoice.amountPaid) + applied;
+        await tx.invoice.update({
+          where: { id: invoice.id },
+          data: {
+            amountPaid: new Prisma.Decimal(nowPaid),
+            status: nowPaid + 0.001 >= total ? "PAID" : "PARTIALLY_PAID",
+          },
+        });
+      }
 
       // Keep the working on the shipment in step with the confirmed figure.
       await tx.shipment.update({
@@ -2210,11 +2251,16 @@ export async function recordCustomerPayment(
       /* The payment is anchored to one of the bills it settles, because that
          column is what every existing reader of a payment still uses. Which one
          is arbitrary and says nothing — the allocations below are the truth. */
-      const anchor = byId.get(input.allocations[0].invoiceId)!;
+      /* Null for a deposit: money that has arrived against no bill yet. The
+         column exists for the case where this payment was raised against one
+         particular bill; the allocations are what actually settle anything. */
+      const anchor = input.allocations.length
+        ? byId.get(input.allocations[0].invoiceId)!
+        : null;
 
       const payment = await tx.payment.create({
         data: {
-          invoiceId: anchor.id,
+          invoiceId: anchor?.id ?? null,
           customerId: customer.id,
           amount: new Prisma.Decimal(input.amount),
           currency: input.currency,
@@ -2266,7 +2312,9 @@ export async function recordCustomerPayment(
           occurredAt: input.paidAt ?? payment.paidAt,
           description:
             `${receipt.receiptNumber} — ${customer.name}, ` +
-            `${input.allocations.length} bill(s) settled`,
+            (input.allocations.length
+              ? `${input.allocations.length} bill(s) settled`
+              : "deposit, no bill yet"),
           sourceEntity: "Payment",
           sourceId: payment.id,
           paymentId: payment.id,
@@ -2356,9 +2404,11 @@ export async function recordCustomerPayment(
           action: "payment.record",
           entity: "Payment",
           entityId: payment.id,
-          summary:
-            `Received ${input.currency} ${input.amount.toLocaleString()} from ${customer.name} ` +
-            `(${receipt.receiptNumber}) across ${input.allocations.length} bill(s)`,
+          summary: input.allocations.length
+            ? `Received ${input.currency} ${input.amount.toLocaleString()} from ${customer.name} ` +
+              `(${receipt.receiptNumber}) across ${input.allocations.length} bill(s)`
+            : `Received ${input.currency} ${input.amount.toLocaleString()} from ${customer.name} ` +
+              `(${receipt.receiptNumber}) as a deposit — no bill raised yet`,
           metadata: {
             method: input.method,
             reference: input.reference ?? null,
