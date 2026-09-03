@@ -705,20 +705,19 @@ function PaymentPanel(props: Props) {
               )}
             </p>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="paymentNote" className="text-xs">
-              {t("Notes")}{" "}
-              <span className="text-muted-foreground">({t("optional")})</span>
-            </Label>
-            <Textarea
-              id="paymentNote"
-              name="note"
-              rows={2}
-              placeholder={t(
-                "Anything the next person reading this receipt should know."
-              )}
-            />
-          </div>
+          {/*
+              No Reference and no Note.
+
+              The owner's rule, applied to every place a payment is recorded:
+              the attachment is the record. A typed M-Pesa code duplicates the
+              screenshot that already shows it, and a free-text note beside it
+              is a third place for a fact nobody goes looking for. What matters
+              — how much, into which account, and the proof — is on the form
+              above.
+
+              Both COLUMNS stay and older values still display wherever they
+              were written. Nothing new is asked for.
+            */}
           <FormError state={state} />
           <FormSuccess
             message={

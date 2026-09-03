@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 
 import { ActivityFeed } from "@/components/app/activity-feed";
+import { AskForCredit } from "@/components/app/ask-for-credit";
 import { ActionPills, type ActionPill } from "@/components/app/action-pills";
 import { DeskHero } from "@/components/app/desk-hero";
 import { DeskPulsePanel } from "@/components/app/desk-pulse";
@@ -1612,6 +1613,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
   ]);
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
+  /* Asking is Support's and Finance's; granting is Finance's alone, and the
+     button says which of the two this reader is doing. */
+  const canAskCredit = can(role, "credit.request");
+  const canGrantCredit = can(role, "credit.approve");
   const tsh = (usd: number) =>
     rate ? `TSh ${Math.round(usd * rate).toLocaleString("en-US")}` : formatUsd(usd);
 
@@ -1859,10 +1864,6 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
        and was reachable only by typing the URL, which is the same as not
        existing — the desk starts on this screen, so the way in belongs on it. */
     { href: "/app/finance/payments/new", label: t(locale, "Merge Payment"), icon: Layers, weight: "secondary", tone: "success" },
-    /* Beside Merge Payment, because it is the third answer to the same call:
-       they have paid, they are paying several at once, or they want time. The
-       credit book is a place to browse; this is the act. */
-    { href: "/app/finance/credit", label: t(locale, "Release on credit"), icon: CalendarClock, tone: "violet" },
     { href: "/app/collections/follow-up", label: t(locale, "Payment follow-up"), icon: Clock, tone: "warning" },
     { href: "/app/finance/pickup-notes", label: t(locale, "Pickup notes"), icon: QrCode, tone: "success" },
     { href: "/app/finance/transactions", label: t(locale, "Record a cost"), icon: Banknote, weight: "secondary", tone: "signal" },
@@ -1870,7 +1871,19 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
 
   return (
     <div className="space-y-7">
-      <ActionPills items={shortcuts} />
+      {/* Credit is an ACT here, not a destination — pressing it used to open
+          the credit book and ask for the same press again. Anchored after
+          Merge Payment, which is where the owner put it: the third answer to
+          the same phone call. */}
+      <ActionPills
+        items={shortcuts}
+        afterHref="/app/finance/payments/new"
+        after={
+          canAskCredit ? (
+            <AskForCredit rate={rate} canApprove={canGrantCredit} />
+          ) : null
+        }
+      />
 
       {/* ---- The work, before the score ---- */}
       <div>

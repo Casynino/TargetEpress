@@ -20,6 +20,8 @@ import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { ReconcileForm } from "@/components/app/reconcile-form";
+import { activeAccounts } from "@/lib/accounts";
+import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -65,6 +67,9 @@ export default async function AccountDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const user = await requirePermission("account.view");
+  /* Same authority the register asks for. A movement is put right in one
+     place or in neither. */
+  const canFix = can(user.role, "ledger.adjust");
   const locale = await viewerLocale();
   const { id } = await params;
 
@@ -75,19 +80,36 @@ export default async function AccountDetailPage({
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
 
-  const [entries, totals, monthTotals] = await Promise.all([
+  const [entries, totals, monthTotals, fixAccounts] = await Promise.all([
     prisma.ledgerEntry.findMany({
       where: { accountId: account.id },
       orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
       take: 200,
       include: {
         recordedBy: { select: { name: true } },
+        /* Everything LedgerRowFix addresses. The account page listed the same
+           movements as the register and offered no way to put one right, so a
+           desk reading a balance had to go and find the line again somewhere
+           else. Same component, same data. */
         payment: {
           select: {
+            id: true,
             reference: true,
-            method: true,
+            note: true,
+            accountId: true,
+            invoiceId: true,
+            voidReason: true,
+            voidedBy: { select: { name: true } },
             receipt: { select: { receiptNumber: true } },
-            proofs: { select: { url: true }, take: 1 },
+            proofs: {
+              select: {
+                id: true,
+                url: true,
+                filename: true,
+                contentType: true,
+                bytes: true,
+              },
+            },
             invoice: {
               select: {
                 invoiceNumber: true,
@@ -99,12 +121,31 @@ export default async function AccountDetailPage({
         },
         expense: {
           select: {
+            id: true,
             expenseNumber: true,
+            description: true,
             vendor: true,
             category: true,
-            receipts: { select: { url: true }, take: 1 },
+            expenseClass: true,
+            note: true,
+            accountId: true,
+            batchId: true,
+            incurredAt: true,
+            status: true,
+            receipts: {
+              select: {
+                id: true,
+                url: true,
+                filename: true,
+                contentType: true,
+                bytes: true,
+              },
+            },
           },
         },
+        /* Whether this line has already been answered by a reversing one, and
+           whether it IS one — a correction must not be cancellable in turn. */
+        reversedBy: { select: { id: true } },
         transfer: {
           select: {
             transferNumber: true,
@@ -125,6 +166,10 @@ export default async function AccountDetailPage({
       where: { accountId: account.id, occurredAt: { gte: monthStart } },
       _sum: { amount: true },
     }),
+    /* Every account, not just this one — a correction here may be moving the
+       money to a different account, which is half of what a correction is
+       for. */
+    canFix ? activeAccounts() : Promise.resolve([]),
   ]);
 
   const sum = (
@@ -383,15 +428,15 @@ export default async function AccountDetailPage({
                   {t(locale, "Recorded by")}
                 </TableHead>
                 <TableHead className="text-right">{t(locale, "Amount")}</TableHead>
-                <TableHead className="hidden xl:table-cell">
-                  {t(locale, "Reference")}
-                </TableHead>
                 <TableHead className="hidden md:table-cell">
                   {t(locale, "Related")}
                 </TableHead>
                 <TableHead className="hidden sm:table-cell">
                   {t(locale, "Proof")}
                 </TableHead>
+                {canFix ? (
+                  <TableHead className="text-right">{t(locale, "Fix")}</TableHead>
+                ) : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -455,9 +500,6 @@ export default async function AccountDetailPage({
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="hidden xl:table-cell font-mono text-xs text-muted-foreground">
-                      {entry.payment?.reference ?? "—"}
-                    </TableCell>
                     <TableCell className="hidden md:table-cell text-xs">
                       {tracking ? (
                         <Link
@@ -489,6 +531,51 @@ export default async function AccountDetailPage({
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
+
+                    {/* The same controls the register carries, on the same
+                        movements. A desk reading a balance was finding a wrong
+                        line here and having to go somewhere else to put it
+                        right — which is how a wrong figure survives a week. */}
+                    {canFix ? (
+                      <TableCell className="w-36 py-2.5 pr-1 text-right">
+                        <LedgerRowFix
+                          accounts={fixAccounts}
+                          subject={{
+                            entryId: entry.id,
+                            paymentId: entry.payment?.id ?? null,
+                            paymentReference: entry.payment?.reference ?? null,
+                            paymentNote: entry.payment?.note ?? null,
+                            paymentAccountId: entry.payment?.accountId ?? null,
+                            amount: toNumber(entry.amount),
+                            currency: entry.currency,
+                            amountEditable: Boolean(entry.payment?.invoiceId),
+                            expenseId: entry.expense?.id ?? null,
+                            expenseDescription: entry.expense?.description ?? null,
+                            expenseCategory: entry.expense?.category ?? null,
+                            expenseClass: entry.expense?.expenseClass ?? null,
+                            expenseVendor: entry.expense?.vendor ?? null,
+                            expenseNote: entry.expense?.note ?? null,
+                            expenseAccountId: entry.expense?.accountId ?? null,
+                            expenseBatchId: entry.expense?.batchId ?? null,
+                            expenseIncurredAt: entry.expense
+                              ? entry.expense.incurredAt
+                                  .toISOString()
+                                  .slice(0, 10)
+                              : null,
+                            expenseStatus: entry.expense?.status ?? null,
+                            attachments:
+                              entry.payment?.proofs ??
+                              entry.expense?.receipts ??
+                              [],
+                            reversed: Boolean(
+                              entry.reversedBy || entry.reversesId
+                            ),
+                            voidReason: entry.payment?.voidReason ?? null,
+                            voidedByName: entry.payment?.voidedBy?.name ?? null,
+                          }}
+                        />
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 );
               })}

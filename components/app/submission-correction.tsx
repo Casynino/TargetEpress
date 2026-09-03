@@ -129,8 +129,11 @@ export function SubmissionCorrection({
      offering a choice that can only end in an error message. */
   const [currency, setCurrency] = useState(subject.currency);
   const [accountId, setAccountId] = useState(subject.accountId ?? "");
-  const [reference, setReference] = useState(subject.reference ?? "");
-  const [note, setNote] = useState(subject.note ?? "");
+  /* Held, not asked for. The fields are gone, but a claim raised before they
+     went carries values, and posting empty strings over them would erase what
+     somebody typed. */
+  const reference = subject.reference ?? "";
+  const note = subject.note ?? "";
   const [reason, setReason] = useState("");
   /* New evidence for a claim being sent up again. Optional on purpose — often
      the fix is a corrected figure and the screenshot never changed — but often
@@ -513,24 +516,9 @@ export function SubmissionCorrection({
                           )}
                     </p>
 
-                    <div className="space-y-1.5">
-                      <Label htmlFor="sub-reference">{t("Reference")}</Label>
-                      <Input
-                        id="sub-reference"
-                        value={reference}
-                        onChange={(event) => setReference(event.target.value)}
-                        placeholder={t("M-Pesa code, slip number")}
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label htmlFor="sub-note">{t("Note")}</Label>
-                      <Input
-                        id="sub-note"
-                        value={note}
-                        onChange={(event) => setNote(event.target.value)}
-                      />
-                    </div>
+                    {/* No Reference and no Note. The attachment below is the
+                        record — see AttachmentManager. Both columns stay and
+                        older values still display; nothing new is asked for. */}
                   </>
                 ) : null}
 

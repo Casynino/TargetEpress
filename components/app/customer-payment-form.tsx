@@ -712,8 +712,7 @@ export function CustomerPaymentForm({
           </div>
 
           <div className="min-w-0 space-y-1.5 sm:col-span-2">
-            <Label htmlFor="note">{t("Note")}</Label>
-            <Textarea id="note" name="note" rows={2} />
+            {/* No Note — see the comment where Reference used to be. */}
           </div>
         </div>
 

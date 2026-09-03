@@ -120,7 +120,10 @@ export function LedgerRowFix({
   const router = useRouter();
   const [open, setOpen] = useState<"cancel" | "edit" | "restore" | null>(null);
   const [reason, setReason] = useState("");
-  const [reference, setReference] = useState(subject.paymentReference ?? "");
+  /* Held, not asked for. The field is gone, but a payment recorded before it
+     went carries a value, and posting an empty string over it would erase what
+     somebody typed. */
+  const reference = subject.paymentReference ?? "";
   const [note, setNote] = useState(subject.paymentNote ?? "");
   const [paymentAccountId, setPaymentAccountId] = useState(
     subject.paymentAccountId ?? ""
@@ -463,25 +466,32 @@ export function LedgerRowFix({
                     )}
                   </>
                 ) : null}
-                <div className="grid grid-cols-2 gap-2">
+                {/*
+                  No Reference, and no Note on a payment.
+
+                  The owner's rule: on a payment the attachment is the record.
+                  A typed M-Pesa code duplicates the screenshot that already
+                  shows it, and a note beside it is a third place for a fact
+                  nobody goes looking for.
+
+                  A COST keeps its note — "what it was for" is the description,
+                  and the note is where the rest of the story goes, with no
+                  screenshot standing in for it.
+
+                  Both columns stay and older values still display. Whatever
+                  a record already carries is posted back unchanged, so
+                  removing the field does not erase what somebody typed.
+                */}
+                {isExpense ? (
                   <div className="space-y-1.5">
-                    <Label htmlFor="fix-reference">{t("Reference")}</Label>
+                    <Label htmlFor="fix-note">{t("Note")}</Label>
                     <Input
-                      id="fix-reference"
-                      value={reference}
-                      onChange={(event) => setReference(event.target.value)}
-                      placeholder={t("M-Pesa code, slip number")}
+                      id="fix-note"
+                      value={note}
+                      onChange={(event) => setNote(event.target.value)}
                     />
                   </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="fix-note">{t("Note")}</Label>
-                  <Input
-                    id="fix-note"
-                    value={note}
-                    onChange={(event) => setNote(event.target.value)}
-                  />
-                </div>
+                ) : null}
                 {subject.amountEditable ? null : (
                   <p className="text-xs text-muted-foreground">
                     {t(

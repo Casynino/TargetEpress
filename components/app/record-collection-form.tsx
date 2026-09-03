@@ -365,19 +365,6 @@ export function RecordCollectionForm({
         ) : null}
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="collectionNote" className="text-xs">
-          {t("Anything Finance should know")}{" "}
-          <span className="text-muted-foreground">({t("optional")})</span>
-        </Label>
-        <Input
-          id="collectionNote"
-          name="note"
-          placeholder={t("e.g. paid in two transfers, second one tomorrow")}
-          className="h-11"
-        />
-      </div>
-
       <FormError state={state} />
       <FormSuccess
         message={
