@@ -938,7 +938,49 @@ export async function reverseExpense(
           `${expense.expenseNumber} ${t(locale, "has not been paid, so cancel it instead of reversing it.")}`
         );
       }
-      if (expense.ledgerEntry.reversedBy) {
+      /*
+        The line that is actually standing, which is not always the one the
+        expense points at.
+
+        Expense.ledgerEntry is a unique 1:1, so it keeps naming the FIRST line
+        ever posted for this cost. Correcting a paid cost reverses that line
+        and posts a fresh one — and the fresh one cannot take the expenseId,
+        because the column is unique. So after one correction the expense
+        pointed at a reversed line, this guard read "already reversed", and
+        Cancel was permanently broken on every corrected cost: the button was
+        there and always refused.
+
+        The live line is the newest one raised for this expense that is not
+        itself a reversal and has not been reversed. Its figure and its account
+        are the corrected ones, which is what the reversal has to be equal and
+        opposite to — reversing the ORIGINAL amount against a corrected line
+        would leave the difference adrift on the account.
+      */
+      const live = await tx.ledgerEntry.findFirst({
+        where: {
+          direction: "OUT",
+          reversesId: null,
+          reversedBy: { is: null },
+          /* Either linkage, exactly as voidPayment searches — the first line
+             carries expenseId, corrections ride on sourceEntity because that
+             column is unique. Looking through only one of the two is how the
+             payment side once left an account overstated. */
+          OR: [
+            { expenseId: expense.id },
+            { sourceEntity: "Expense", sourceId: expense.id },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          accountId: true,
+          currency: true,
+          amount: true,
+          amountUsd: true,
+          exchangeRate: true,
+        },
+      });
+      if (!live) {
         throw new Error(
           `${expense.expenseNumber} ${t(locale, "has already been reversed.")}`
         );
@@ -948,14 +990,14 @@ export async function reverseExpense(
 
       // The opposite leg: money back IN to the account it left.
       await postLedgerEntry(tx, {
-        accountId: expense.accountId,
-        currency: expense.currency,
+        accountId: live.accountId,
+        currency: live.currency,
         direction: "IN",
         kind: "ADJUSTMENT",
-        amount: toNumber(expense.amount),
-        amountUsd: toNumber(expense.amountUsd),
+        amount: toNumber(live.amount),
+        amountUsd: toNumber(live.amountUsd),
         exchangeRate:
-          expense.exchangeRate === null ? null : toNumber(expense.exchangeRate),
+          live.exchangeRate === null ? null : toNumber(live.exchangeRate),
         occurredAt,
         description: `Reversal of ${expense.expenseNumber} — ${reason}`,
         sourceEntity: "Expense",
@@ -971,7 +1013,7 @@ export async function reverseExpense(
           the expense.
         */
         recordedById: user.id,
-        reversesId: expense.ledgerEntry.id,
+        reversesId: live.id,
       });
 
       await tx.expense.update({
@@ -988,10 +1030,12 @@ export async function reverseExpense(
           summary: `Reversed ${expense.expenseNumber} — ${reason}`,
           metadata: {
             reason,
-            amount: toNumber(expense.amount),
-            currency: expense.currency,
-            amountUsd: toNumber(expense.amountUsd),
-            reversedLedgerEntryId: expense.ledgerEntry.id,
+            /* The figure actually taken off the account — the corrected one
+               where this cost had been corrected. */
+            amount: toNumber(live.amount),
+            currency: live.currency,
+            amountUsd: toNumber(live.amountUsd),
+            reversedLedgerEntryId: live.id,
           },
         },
         tx
