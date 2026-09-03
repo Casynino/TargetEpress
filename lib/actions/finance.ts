@@ -2098,11 +2098,17 @@ export async function voidInvoice(
  * is called by the counter, by Finance and by the verification flow, and money
  * code that grows a second shape is money code nobody can reason about.
  *
- * One currency per payment, and every bill it settles must share it. A transfer
- * split across a USD bill and a shilling bill needs a rate per allocation, a
- * decision per allocation about which rate, and a receipt that states four
- * figures — a genuinely different feature, and the single-invoice form already
- * settles a USD bill in shillings properly. Refused here rather than guessed.
+ * Bills are priced in dollars and customers pay in shillings, so the money that
+ * arrives is almost never in the currency of the bills it settles. It converts
+ * at the rate FROZEN ONTO THE BILL — the rate the customer was quoted — never
+ * at today's, or the same bill would settle for a different amount depending on
+ * the day it was paid.
+ *
+ * What is still refused, because it cannot be answered without guessing: bills
+ * in two different currencies in one payment, and bills quoted at two different
+ * rates. Either would need a rate per allocation and a receipt stating four
+ * figures. They are rare, they are separable, and the customer's own cargo page
+ * settles each one properly on its own.
  */
 export async function recordCustomerPayment(
   _prev: ActionResult<{ receiptNumber: string; settled: number }> | undefined,
@@ -2147,6 +2153,9 @@ export async function recordCustomerPayment(
           invoiceNumber: true,
           status: true,
           currency: true,
+          /* The rate the customer was quoted, frozen when the bill was raised.
+             It is what a payment in another currency converts at. */
+          exchangeRate: true,
           total: true,
           amountPaid: true,
           customerId: true,
@@ -2177,13 +2186,6 @@ export async function recordCustomerPayment(
         if (invoice.status === "VOID" || invoice.status === "WRITTEN_OFF") {
           throw new Error(`${invoice.invoiceNumber} is not a live bill.`);
         }
-        if (invoice.currency !== input.currency) {
-          throw new Error(
-            `${invoice.invoiceNumber} is a ${invoice.currency} bill and this payment is in ` +
-              `${input.currency}. Settle that one on its own cargo page, where the rate is ` +
-              `frozen onto the bill.`
-          );
-        }
         /* The same refusal the single-invoice form makes, for the same reason:
            money already claimed and awaiting Finance must not be taken twice. */
         if (invoice.submissions.length > 0) {
@@ -2194,18 +2196,98 @@ export async function recordCustomerPayment(
         }
       }
 
+      /*
+        SHILLINGS IN, DOLLARS OFF THE BILL.
+
+        Everything below is stated in TWO currencies and they must not be
+        confused. `input.amount` and every allocation the form sent are in the
+        currency the customer PAID — that is what the clerk is holding and what
+        they ticked. `invoice.amountPaid`, and the allocation rows this writes,
+        are in the currency of the BILL, because that is what a bill is
+        denominated in and what "settled" is measured against.
+
+        One rate for the whole payment, taken off the bills themselves. Bills in
+        two currencies, or quoted at two different rates, would each need their
+        own — a different receipt and a different conversation. Refused, not
+        guessed.
+      */
+      const allocatedInvoices = input.allocations.map((a) => byId.get(a.invoiceId)!);
+      const billCurrencies = new Set(allocatedInvoices.map((i) => i.currency));
+      if (billCurrencies.size > 1) {
+        throw new Error(
+          `Those bills are in ${[...billCurrencies].join(" and ")}. One payment settles ` +
+            `bills in one currency — take them separately.`
+        );
+      }
+      const billCurrency = [...billCurrencies][0] ?? input.currency;
+      const crossCurrency = billCurrency !== input.currency;
+
+      let rateUsed: number | null = null;
+      if (crossCurrency) {
+        const rates = new Set(
+          allocatedInvoices.map((i) =>
+            i.exchangeRate === null ? null : toNumber(i.exchangeRate)
+          )
+        );
+        if (rates.has(null)) {
+          const bare = allocatedInvoices.find((i) => i.exchangeRate === null)!;
+          throw new Error(
+            `${bare.invoiceNumber} carries no exchange rate, so a payment in ` +
+              `${input.currency} cannot be converted against it. Publish a rate and ` +
+              `regenerate that bill, or settle it on its own cargo page.`
+          );
+        }
+        if (rates.size > 1) {
+          throw new Error(
+            `Those bills were quoted at different exchange rates, so one ` +
+              `${input.currency} figure cannot settle them together. Take them separately ` +
+              `— each cargo page settles its own bill at the rate it was quoted.`
+          );
+        }
+        rateUsed = [...rates][0] as number;
+      }
+
+      /*
+        What one tendered figure is worth against the bill.
+
+        Rounded to the cent the bill is denominated in, then snapped to the
+        outstanding when it lands within a cent of it. The customer was quoted a
+        whole number of shillings; converting that back can miss the last cent,
+        and a bill left one cent short is a bill that never reads as paid — the
+        pickup note is never issued and the cargo sits in the warehouse over a
+        rounding error.
+      */
+      function credit(tendered: number, outstanding: number): number {
+        if (rateUsed === null) return tendered;
+        const converted =
+          input.currency === LOCAL_CURRENCY
+            ? tendered / rateUsed
+            : tendered * rateUsed;
+        const rounded = Math.round(converted * 100) / 100;
+        return Math.abs(rounded - outstanding) <= 0.01 ? outstanding : rounded;
+      }
+
       /* Nothing may be put against a bill beyond what it still owes. Overpayment
          is legitimate and stays with the customer as credit; overpayment hidden
          inside a bill is a balance nobody can explain later. */
+      const credited = new Map<string, number>();
       for (const alloc of input.allocations) {
         const invoice = byId.get(alloc.invoiceId)!;
         const outstanding = toNumber(invoice.total) - toNumber(invoice.amountPaid);
-        if (alloc.amount > outstanding + 0.005) {
+        const against = credit(alloc.amount, outstanding);
+        if (against > outstanding + 0.005) {
           throw new Error(
-            `${invoice.invoiceNumber} only owes ${invoice.currency} ${outstanding.toLocaleString()}. ` +
-              `Allocate the rest to another bill, or leave it as the customer's credit.`
+            crossCurrency
+              ? `${input.currency} ${alloc.amount.toLocaleString()} is ${billCurrency} ` +
+                `${against.toLocaleString()} at this bill's rate — more than the ` +
+                `${billCurrency} ${outstanding.toLocaleString()} ${invoice.invoiceNumber} ` +
+                `still owes. Allocate the rest to another bill, or leave it as the ` +
+                `customer's credit.`
+              : `${invoice.invoiceNumber} only owes ${invoice.currency} ${outstanding.toLocaleString()}. ` +
+                `Allocate the rest to another bill, or leave it as the customer's credit.`
           );
         }
+        credited.set(alloc.invoiceId, against);
       }
 
       /* One pair of hands, twice — a double tap or a refreshed page. The
@@ -2264,8 +2346,19 @@ export async function recordCustomerPayment(
           customerId: customer.id,
           amount: new Prisma.Decimal(input.amount),
           currency: input.currency,
-          /* Same currency throughout, so what was handed over is what settles. */
-          creditedAmount: new Prisma.Decimal(input.amount),
+          /* What the WHOLE payment is worth in the currency of the bills — not
+             just the allocated part. Anything beyond what was allocated is the
+             customer's credit, and `availableCredit` reads it from here against
+             the allocation rows below, both in the bills' currency. */
+          creditedAmount: new Prisma.Decimal(
+            rateUsed === null
+              ? input.amount
+              : Math.round(
+                  (input.currency === LOCAL_CURRENCY
+                    ? input.amount / rateUsed
+                    : input.amount * rateUsed) * 100
+                ) / 100
+          ),
           method: input.method,
           reference: input.reference || null,
           note: input.note || null,
@@ -2280,8 +2373,17 @@ export async function recordCustomerPayment(
           data: {
             paymentId: payment.id,
             invoiceId: alloc.invoiceId,
-            amount: new Prisma.Decimal(alloc.amount),
+            /* In the BILL's currency. An allocation says how much of a bill was
+               answered, and a bill is only ever answered in its own money. */
+            amount: new Prisma.Decimal(credited.get(alloc.invoiceId)!),
             createdById: user.id,
+            ...(crossCurrency
+              ? {
+                  note:
+                    `${input.currency} ${alloc.amount.toLocaleString()} at ` +
+                    `${rateUsed!.toLocaleString()}`,
+                }
+              : {}),
           },
         });
       }
@@ -2325,7 +2427,7 @@ export async function recordCustomerPayment(
       const settledNumbers: string[] = [];
       for (const alloc of input.allocations) {
         const invoice = byId.get(alloc.invoiceId)!;
-        const newPaid = toNumber(invoice.amountPaid) + alloc.amount;
+        const newPaid = toNumber(invoice.amountPaid) + credited.get(alloc.invoiceId)!;
         const settled = newPaid + 0.001 >= toNumber(invoice.total);
 
         /* Conditional on the figure this transaction read, per bill — the same
@@ -2418,9 +2520,16 @@ export async function recordCustomerPayment(
                ask about: money in hand that answers no bill yet. */
             unallocated: Math.max(0, input.amount - allocated),
             settledInFull: settledNumbers,
+            billCurrency,
+            /* Only when the two differ — a null rate on a same-currency payment
+               would read as a missing figure rather than an absent question. */
+            exchangeRate: rateUsed,
             allocations: input.allocations.map((a) => ({
               invoice: byId.get(a.invoiceId)!.invoiceNumber,
-              amount: a.amount,
+              /* Both figures: what was handed over against this bill, and what
+                 it settled. They are the same number until they are not. */
+              tendered: a.amount,
+              amount: credited.get(a.invoiceId)!,
             })),
           },
         },

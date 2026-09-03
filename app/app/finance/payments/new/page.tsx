@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, Search, Users } from "lucide-react";
+import { ArrowRight, ReceiptText, Search, Users, Wallet } from "lucide-react";
 
 import { CustomerPaymentForm, type OpenBill } from "@/components/app/customer-payment-form";
 import { PageHeader } from "@/components/app/page-header";
@@ -86,7 +86,7 @@ export default async function RecordCustomerPaymentPage({
           where: {
             invoices: { some: { status: { in: [...BILLED_INVOICE_STATUSES] } } },
           },
-          take: 40,
+          take: 200,
           orderBy: { name: "asc" },
           select: pick,
         });
@@ -105,14 +105,11 @@ export default async function RecordCustomerPaymentPage({
               },
             ],
           },
-          take: 20,
+          take: 40,
           orderBy: { name: "asc" },
           select: pick,
         })
-      : /* Only those with more than one — a customer with a single bill is
-           settled from their own cargo page, and listing them here would bury
-           the handful this screen exists for. */
-        withSeveral.filter((customer) => customer.invoices.length > 1);
+      : withSeveral;
 
     /*
       WHAT THEY OWE, NOT JUST HOW MANY BILLS.
@@ -128,7 +125,16 @@ export default async function RecordCustomerPaymentPage({
     const rate = await currentRateValue();
     const matches = found
       .map((customer) => {
-        const rows: MoneyRow[] = customer.invoices.map((invoice) => {
+        /* A bill that has been paid is not a bill this screen is waiting on,
+           whatever its status still says: PAID stays on the record, and a
+           customer whose two consignments are both settled was being listed
+           here owing nothing. Half a cent of tolerance, because a converted
+           settlement can land a fraction under its own total. */
+        const open = customer.invoices.filter(
+          (invoice) =>
+            toNumber(invoice.total) - toNumber(invoice.amountPaid) > 0.005
+        );
+        const rows: MoneyRow[] = open.map((invoice) => {
           const outstanding =
             toNumber(invoice.total) - toNumber(invoice.amountPaid);
           const invoiceRate = toNumber(invoice.exchangeRate);
@@ -151,11 +157,16 @@ export default async function RecordCustomerPaymentPage({
           name: customer.name,
           phone: customer.phone,
           code: customer.code,
-          bills: customer.invoices.length,
+          bills: open.length,
           shillings: sumShillings(rows, rate),
           usd: sumUsd(rows, rate),
         };
       })
+      /* Only those with more than one still owing. A customer with a single
+         bill is settled from their own cargo page, and listing them here would
+         bury the handful this screen exists for. A search is a deliberate act,
+         so it answers with whoever it found. */
+      .filter((customer) => (q ? customer.bills > 0 : customer.bills > 1))
       /* Most owed first. The customer at the top of this list is the one
          whose money the business is most waiting on. */
       .sort((a, b) => b.shillings - a.shillings || b.bills - a.bills);
@@ -166,12 +177,13 @@ export default async function RecordCustomerPaymentPage({
       (sum, row) => ({
         shillings: sum.shillings + row.shillings,
         usd: sum.usd + row.usd,
+        bills: sum.bills + row.bills,
       }),
-      { shillings: 0, usd: 0 }
+      { shillings: 0, usd: 0, bills: 0 }
     );
 
     return (
-      <div className="mx-auto w-full max-w-3xl">
+      <div className="space-y-6">
         <PageHeader
           title={t(locale, "Record a payment")}
           description={t(
@@ -179,6 +191,53 @@ export default async function RecordCustomerPaymentPage({
             "Customers with more than one unpaid consignment. Pick one and tick what they are paying for."
           )}
         />
+
+        {/*
+          THE SIZE OF THE MORNING, BEFORE THE LIST OF IT.
+
+          Three figures a clerk would otherwise get by scrolling and adding up:
+          how many people owe, how many bills that is, and what it comes to.
+        */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-brand/30 bg-brand/5 p-5">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand">
+              <Users className="h-3.5 w-3.5" />
+              {t(locale, "Waiting to pay")}
+            </p>
+            <p className="mt-2 font-display text-3xl font-bold tabular-nums">
+              {matches.length}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t(locale, "customers with more than one open bill")}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-warning/30 bg-warning/5 p-5">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-warning">
+              <ReceiptText className="h-3.5 w-3.5" />
+              {t(locale, "Open bills")}
+            </p>
+            <p className="mt-2 font-display text-3xl font-bold tabular-nums">
+              {owed.bills}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t(locale, "consignments still to be settled")}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-destructive">
+              <Wallet className="h-3.5 w-3.5" />
+              {t(locale, "Outstanding")}
+            </p>
+            <p className="mt-2 font-display text-3xl font-bold tabular-nums">
+              {formatShillingTotal(owed.shillings, owed.usd, rate)}
+            </p>
+            <p className="font-mono text-xs text-muted-foreground">
+              {formatUsd(owed.usd)}
+            </p>
+          </div>
+        </div>
 
         <div className="panel overflow-hidden">
           <div className="border-b p-5">
@@ -189,28 +248,6 @@ export default async function RecordCustomerPaymentPage({
             />
           </div>
 
-          {/* What the list below adds up to, so the size of the morning is
-              legible before anybody scrolls it. */}
-          {matches.length > 0 ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-5 py-3">
-              <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <Users className="h-3.5 w-3.5" />
-                {t(locale, "{n} customer(s) waiting to pay").replace(
-                  "{n}",
-                  String(matches.length)
-                )}
-              </span>
-              <span className="text-right">
-                <span className="block text-sm font-semibold tabular-nums">
-                  {formatShillingTotal(owed.shillings, owed.usd, rate)}
-                </span>
-                <span className="block font-mono text-[11px] text-muted-foreground">
-                  {formatUsd(owed.usd)}
-                </span>
-              </span>
-            </div>
-          ) : null}
-
           {/*
             POSSIBLY THE SAME PERSON.
 
@@ -218,12 +255,14 @@ export default async function RecordCustomerPaymentPage({
             two records only survive when one of them has no phone — which is
             exactly how "Dickson Ndomba" and "dickson ndomba" became two
             customers with a bill each. Flagged, never merged from here: the
-            desk knows things the database does not, and quietly joining two
-            people's money because their names match is a far worse mistake
-            than showing two rows. Merging lives on the customer's own page,
-            behind its own permission.
+            desk knows things the database does not. Merging lives on the
+            customer's own page, behind its own permission.
+
+            Two columns from xl up. A finance desk runs this on a laptop and a
+            single column of short rows down the middle of a wide screen wastes
+            the half of it that would have shown the rest of the queue.
           */}
-          <ul className="divide-y">
+          <ul className="grid grid-cols-1 gap-px bg-border xl:grid-cols-2">
             {matches.map((customer) => {
               const twin = matches.some(
                 (other) =>
@@ -241,14 +280,14 @@ export default async function RecordCustomerPaymentPage({
                 .map((part) => part[0]?.toUpperCase() ?? "")
                 .join("");
               return (
-                <li key={customer.id}>
+                <li key={customer.id} className="bg-card">
                   <Link
                     href={`/app/finance/payments/new?customer=${customer.id}`}
-                    className="focus-ring flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/40"
+                    className="focus-ring group flex h-full items-center gap-4 p-5 transition-colors hover:bg-accent/40"
                   >
                     <span
                       aria-hidden
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-sm font-semibold text-brand"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand/10 text-sm font-semibold text-brand"
                     >
                       {initials}
                     </span>
@@ -261,18 +300,27 @@ export default async function RecordCustomerPaymentPage({
                         {customer.code}
                         {customer.phone ? ` · ${customer.phone}` : ""}
                       </span>
+                      <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        <ReceiptText className="h-3 w-3" />
+                        {t(locale, "{n} bills").replace(
+                          "{n}",
+                          String(customer.bills)
+                        )}
+                      </span>
                       {twin ? (
-                        <span className="mt-1.5 inline-block rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
-                          {t(
-                            locale,
-                            "Possibly the same customer as another below — check the phone before recording"
-                          )}
+                        <span className="mt-1.5 block">
+                          <span className="inline-block rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
+                            {t(
+                              locale,
+                              "Possibly the same customer as another below — check the phone before recording"
+                            )}
+                          </span>
                         </span>
                       ) : null}
                     </span>
 
                     <span className="shrink-0 text-right">
-                      <span className="block text-sm font-semibold tabular-nums">
+                      <span className="block font-display text-lg font-bold tabular-nums">
                         {formatShillingTotal(
                           customer.shillings,
                           customer.usd,
@@ -282,15 +330,9 @@ export default async function RecordCustomerPaymentPage({
                       <span className="block font-mono text-[11px] text-muted-foreground">
                         {formatUsd(customer.usd)}
                       </span>
-                      <span className="mt-1 inline-block rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                        {t(locale, "{n} bills").replace(
-                          "{n}",
-                          String(customer.bills)
-                        )}
-                      </span>
                     </span>
 
-                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                   </Link>
                 </li>
               );
@@ -328,6 +370,9 @@ export default async function RecordCustomerPaymentPage({
           id: true,
           invoiceNumber: true,
           currency: true,
+          /* The rate this bill was quoted at. A customer paying in shillings
+             for a dollar bill converts at this and never at today's. */
+          exchangeRate: true,
           total: true,
           amountPaid: true,
           shipment: {
@@ -362,6 +407,8 @@ export default async function RecordCustomerPaymentPage({
       trackingNumber: invoice.shipment.trackingNumber,
       description: cargoText(locale, invoice.shipment, "description"),
       currency: invoice.currency,
+      exchangeRate:
+        invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate),
       outstanding: toNumber(invoice.total) - toNumber(invoice.amountPaid),
     }))
     .filter((bill) => bill.outstanding > 0.005);

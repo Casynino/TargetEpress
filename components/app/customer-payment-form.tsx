@@ -20,7 +20,12 @@ export type OpenBill = {
   description: string;
   currency: string;
   outstanding: number;
+  /** The rate frozen onto this bill — what a payment in another currency
+      converts at. Null on bills raised before rates were stored. */
+  exchangeRate: number | null;
 };
+
+const LOCAL = "TZS";
 
 /**
  * TICK THE CARGO. RECORD THE PAYMENT.
@@ -58,7 +63,17 @@ export function CustomerPaymentForm({
     FormData
   >(recordCustomerPayment, { ok: true });
 
-  const [currency, setCurrency] = useState(bills[0]?.currency ?? "TZS");
+  /*
+    TWO CURRENCIES, AND THEY ARE DIFFERENT QUESTIONS.
+
+    `billCurrency` is which bills are being settled — the customer's dollar
+    bills or, rarely, their shilling ones. `payCurrency` is what they actually
+    handed over, which for this business is nearly always shillings against a
+    dollar bill. Conflating the two is what made the screen refuse the most
+    common payment it will ever be asked to take.
+  */
+  const [billCurrency, setBillCurrency] = useState(bills[0]?.currency ?? "TZS");
+  const [payCurrency, setPayCurrency] = useState(bills[0]?.currency ?? "TZS");
   const [picked, setPicked] = useState<Set<string>>(new Set());
   /* Only ever consulted in split mode. A share typed, then abandoned by
      unticking the bill, must not travel with the form. */
@@ -68,17 +83,43 @@ export function CustomerPaymentForm({
   const [typedTotal, setTypedTotal] = useState<string | null>(null);
 
   const payable = useMemo(
-    () => bills.filter((b) => b.currency === currency),
-    [bills, currency]
+    () => bills.filter((b) => b.currency === billCurrency),
+    [bills, billCurrency]
   );
+
+  /*
+    One rate for the whole payment, off the bills themselves — the same rule the
+    action enforces, checked here so the screen never offers a payment the
+    server will refuse. Bills quoted at two different rates, or one carrying no
+    rate at all, can only be settled one at a time.
+  */
+  const rate = useMemo(() => {
+    const rates = new Set(payable.map((b) => b.exchangeRate));
+    return rates.size === 1 ? [...rates][0] : null;
+  }, [payable]);
+  const canCross = rate !== null && rate > 0;
+  const cross = payCurrency !== billCurrency;
+
+  /** A bill's figure, restated in what the customer is handing over. */
+  const inPay = (billAmount: number) => {
+    if (!cross || !rate) return billAmount;
+    const converted =
+      payCurrency === LOCAL ? billAmount * rate : billAmount / rate;
+    /* Shillings are whole numbers at a counter; cents are not handed over. */
+    return payCurrency === LOCAL
+      ? Math.round(converted)
+      : Math.round(converted * 100) / 100;
+  };
 
   const allocations = payable
     .filter((b) => picked.has(b.invoiceId))
     .map((b) => ({
       invoiceId: b.invoiceId,
+      /* Sent in the currency that ARRIVED. The server converts each one back at
+         the bill's own frozen rate and settles the bill in its own money. */
       amount: split
-        ? Number(shares[b.invoiceId] ?? b.outstanding) || 0
-        : b.outstanding,
+        ? Number(shares[b.invoiceId] ?? inPay(b.outstanding)) || 0
+        : inPay(b.outstanding),
     }))
     .filter((a) => a.amount > 0);
 
@@ -90,8 +131,10 @@ export function CustomerPaymentForm({
   const left = received - allocated;
   const over = left < -0.005;
 
-  const money = (n: number) =>
-    `${currency} ${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  const money = (n: number, currency = payCurrency) =>
+    `${currency === LOCAL ? "TSh" : currency} ${n.toLocaleString(undefined, {
+      maximumFractionDigits: currency === LOCAL ? 0 : 2,
+    })}`;
 
   function toggle(invoiceId: string) {
     setPicked((prev) => {
@@ -119,7 +162,7 @@ export function CustomerPaymentForm({
   return (
     <form action={action} className="space-y-5">
       <input type="hidden" name="customerId" value={customerId} />
-      <input type="hidden" name="currency" value={currency} />
+      <input type="hidden" name="currency" value={payCurrency} />
       <input type="hidden" name="amount" value={received || ""} />
       <input
         type="hidden"
@@ -141,13 +184,16 @@ export function CustomerPaymentForm({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {bills.some((b) => b.currency !== currency) ? (
+            {bills.some((b) => b.currency !== billCurrency) ? (
               <NativeSelect
-                aria-label={t("Currency")}
-                className="h-9 w-24"
-                value={currency}
+                aria-label={t("Which bills")}
+                className="h-9 w-28"
+                value={billCurrency}
                 onChange={(e) => {
-                  setCurrency(e.target.value);
+                  setBillCurrency(e.target.value);
+                  /* The money follows the bills by default; a customer paying
+                     for their dollar cargo is quoted in dollars first. */
+                  setPayCurrency(e.target.value);
                   /* Bills in the old currency have left the page; their
                      selections must not be submitted from behind it. */
                   setPicked(new Set());
@@ -155,8 +201,8 @@ export function CustomerPaymentForm({
                   setTypedTotal(null);
                 }}
               >
-                <option value="TZS">TSh</option>
-                <option value="USD">USD</option>
+                <option value="TZS">{t("TSh bills")}</option>
+                <option value="USD">{t("USD bills")}</option>
               </NativeSelect>
             ) : null}
             <button
@@ -209,8 +255,16 @@ export function CustomerPaymentForm({
                     </span>
                     <span className="shrink-0 text-right">
                       <span className="block font-display text-sm font-bold tabular-nums">
-                        {money(bill.outstanding)}
+                        {money(inPay(bill.outstanding))}
                       </span>
+                      {/* What the bill itself says, kept in view: the customer
+                          is handing over shillings, but the document they were
+                          given and the balance that clears are in dollars. */}
+                      {cross ? (
+                        <span className="block font-mono text-[11px] text-muted-foreground">
+                          {money(bill.outstanding, bill.currency)}
+                        </span>
+                      ) : null}
                     </span>
                   </label>
 
@@ -264,13 +318,58 @@ export function CustomerPaymentForm({
 
       {/* THE MONEY, SECOND. Pre-filled from what was ticked. */}
       <section className="panel space-y-4 p-5">
-        <h2 className="font-display font-semibold">
-          {t("What arrived from")} {customerName}
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-display font-semibold">
+            {t("What arrived from")} {customerName}
+          </h2>
+
+          {/*
+            The bills are in dollars and the money is in shillings, which is the
+            ordinary case here, not the exception. Offered only when the bills
+            agree on one rate — the server refuses the rest, and a screen that
+            offers what the server refuses is worse than one that does not.
+          */}
+          {canCross ? (
+            <div className="inline-flex rounded-full border p-0.5">
+              {[billCurrency, billCurrency === LOCAL ? "USD" : LOCAL].map(
+                (option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => {
+                      setPayCurrency(option);
+                      /* Every figure on the page has just changed unit. A total
+                         typed in the old one would now mean something else. */
+                      setTypedTotal(null);
+                      setShares({});
+                    }}
+                    className={`focus-ring rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                      payCurrency === option
+                        ? "bg-brand text-brand-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t("Paid in")} {option === LOCAL ? "TSh" : "USD"}
+                  </button>
+                )
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        {cross ? (
+          <p className="rounded-lg border border-brand/30 bg-brand/5 px-3 py-2 text-xs text-muted-foreground">
+            {t(
+              "Converted at {rate}, the rate frozen onto these bills when they were raised — not today's."
+            ).replace("{rate}", rate!.toLocaleString())}
+          </p>
+        ) : null}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="amountShown">{t("Amount received")}</Label>
+            <Label htmlFor="amountShown">
+              {t("Amount received")} ({payCurrency === LOCAL ? "TSh" : "USD"})
+            </Label>
             <MoneyInput
               id="amountShown"
               name="amountShown"
@@ -309,7 +408,7 @@ export function CustomerPaymentForm({
             <NativeSelect id="accountId" name="accountId" className="h-11" defaultValue="">
               <option value="">{t("Not said yet")}</option>
               {accounts
-                .filter((a) => a.currency === currency)
+                .filter((a) => a.currency === payCurrency)
                 .map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
