@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { FileText, Paperclip } from "lucide-react";
+import { Paperclip } from "lucide-react";
 
 import { CollectionsNav } from "@/components/app/collections-nav";
 import { FinanceNav } from "@/components/app/finance-nav";
@@ -10,7 +10,6 @@ import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchBox } from "@/components/app/search-box";
 import { SubmissionCorrection } from "@/components/app/submission-correction";
-import { Badge } from "@/components/ui/badge";
 import { submissionQueue } from "@/lib/collections";
 import { PAYMENT_METHOD_LABELS, SUBMISSION_STATUS_LABELS } from "@/lib/constants";
 import { currentRateValue } from "@/lib/fx";
@@ -291,163 +290,153 @@ export default async function SubmissionsPage({
         />
       ) : (
         /*
-          One card per claim, reading the way the Verify queue does.
+          A register, not a stack of cards.
 
-          Finance's own copy of this exact list — reference, method, who sent
-          it and when, the evidence, the decision — turned out to be the
-          right shape for this page too: this desk raises exactly what that
-          one settles, so the two should read as the same fact told from
-          either side, not as a dense line here and a full card there.
+          This was tried as one full card per claim, matching Finance's verify
+          queue — and it is the wrong shape for a desk reading down a list of
+          thirteen. Four lines and a bordered panel each is a morning of
+          scrolling; the Expenses register answers the same question in two
+          lines and is the page this desk asked to be shown instead.
+
+          Everything the card carried is still here: who and how much, the
+          method, the reference, who sent it and exactly when, the evidence,
+          what Finance decided, and the two ways to put it right.
         */
-        <ul className="space-y-3">
-          {visible.map((row) => {
-            const outstanding =
-              toNumber(row.invoice.total) - toNumber(row.invoice.amountPaid);
-            return (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
+          <ul className="divide-y">
+            {visible.map((row) => (
               <li
                 key={row.id}
                 id={row.submissionNumber}
-                className="panel scroll-mt-24 overflow-hidden"
+                className="scroll-mt-6 px-4 py-2.5"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b px-5 py-3.5">
-                  <div className="min-w-0">
-                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">
                       {row.invoice.customer.name}
-                      <Badge
-                        variant="outline"
-                        className={`font-normal ${
+                      <span
+                        className={`ml-2 rounded px-1.5 py-0.5 text-[11px] font-normal ${
                           row.status === "VERIFIED"
-                            ? "border-success/40 text-success"
+                            ? "bg-success/15 text-success"
                             : row.status === "REJECTED"
-                              ? "border-destructive/40 text-destructive"
+                              ? "bg-destructive/15 text-destructive"
                               : row.status === "WITHDRAWN"
-                                ? "text-muted-foreground"
-                                : "border-warning/40 text-warning"
+                                ? "bg-muted text-muted-foreground"
+                                : "bg-warning/15 text-warning"
                         }`}
                       >
                         {t(locale, SUBMISSION_STATUS_LABELS[row.status])}
-                      </Badge>
+                      </span>
                     </p>
-                    <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-                      {row.submissionNumber} ·{" "}
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                      <span className="font-mono">{row.submissionNumber}</span>
+                      <span>·</span>
                       <Link
                         href={`/app/cargo/${row.invoice.shipment.trackingNumber}`}
-                        className="hover:text-brand"
+                        className="font-mono hover:text-brand"
                       >
                         {row.invoice.shipment.trackingNumber}
-                      </Link>{" "}
-                      · {row.invoice.invoiceNumber}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-display text-xl font-bold leading-none tabular">
-                      {formatMoney(toNumber(row.amount), row.currency)}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {t(locale, "owed")}{" "}
-                      {formatMoney(outstanding, row.invoice.currency)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_auto]">
-                  <div className="space-y-2">
-                    <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3">
-                      {[
-                        {
-                          label: t(locale, "Reference"),
-                          value: row.reference ?? t(locale, "none given"),
-                        },
-                        {
-                          label: t(locale, "Method"),
-                          value: t(locale, PAYMENT_METHOD_LABELS[row.method]),
-                        },
-                        {
-                          label: t(locale, "Submitted"),
-                          value: `${row.submittedBy?.name ?? "—"} · ${formatDateTime(row.submittedAt, locale)}`,
-                        },
-                      ].map((fact) => (
-                        <div key={fact.label}>
-                          <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                            {fact.label}
-                          </dt>
-                          <dd className="mt-0.5 text-sm font-medium">
-                            {fact.value}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-
-                    {/* What became of it, once Finance has actually looked —
-                        a second fact line rather than a colour Support has to
-                        already know how to read. */}
-                    {row.status === "VERIFIED" ? (
-                      <p className="text-xs text-success">
-                        {t(locale, "Verified by")}{" "}
-                        {row.reviewedBy?.name ?? t(locale, "Finance")}
-                        {row.reviewedAt
-                          ? ` · ${formatDateTime(row.reviewedAt, locale)}`
-                          : ""}
-                        {row.payment?.receipt
-                          ? ` · ${row.payment.receipt.receiptNumber}`
-                          : ""}
-                      </p>
-                    ) : null}
-                    {row.status === "REJECTED" ? (
-                      <p className="text-xs text-destructive">
-                        {t(locale, "Sent back by")}{" "}
-                        {row.reviewedBy?.name ?? t(locale, "Finance")}
-                        {row.reviewedAt
-                          ? ` · ${formatDateTime(row.reviewedAt, locale)}`
-                          : ""}
-                        {row.rejectionReason ? `: ${row.rejectionReason}` : ""}
-                      </p>
-                    ) : null}
-                    {row.status === "WITHDRAWN" ? (
-                      <p className="text-xs text-muted-foreground">
-                        {t(locale, "Withdrawn by us")}
-                        {row.reviewedAt
-                          ? ` · ${formatDateTime(row.reviewedAt, locale)}`
-                          : ""}
-                        {row.rejectionReason ? `: ${row.rejectionReason}` : ""}
-                      </p>
-                    ) : null}
-                    {row.note ? (
-                      <p className="text-xs text-muted-foreground">{row.note}</p>
-                    ) : null}
-
-                    <ul className="flex flex-wrap gap-2 pt-1">
-                      {row.proofs.length === 0 ? (
-                        <li className="text-xs text-muted-foreground">
-                          {t(locale, "nothing attached")}
-                        </li>
+                      </Link>
+                      <span>·</span>
+                      <span className="font-mono">
+                        {row.invoice.invoiceNumber}
+                      </span>
+                      {/* How it arrived, and the code off the customer's
+                          message — the two things Finance checks it against. */}
+                      <span>·</span>
+                      <span>{t(locale, PAYMENT_METHOD_LABELS[row.method])}</span>
+                      {row.reference ? (
+                        <>
+                          <span>·</span>
+                          <span className="font-mono">{row.reference}</span>
+                        </>
+                      ) : null}
+                      {/* Who sent it up and exactly when, to the minute. */}
+                      <span>·</span>
+                      <span>
+                        {row.submittedBy?.name ?? "—"} ·{" "}
+                        {formatDateTime(row.submittedAt, locale)}
+                      </span>
+                      {row.proofs.length > 0 ? (
+                        <>
+                          <span>·</span>
+                          <a
+                            href={row.proofs[0].url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 hover:text-brand"
+                          >
+                            <Paperclip className="h-3 w-3" />
+                            {row.proofs.length === 1
+                              ? t(locale, "proof")
+                              : `${row.proofs.length} ${t(locale, "proofs")}`}
+                          </a>
+                        </>
                       ) : (
-                        row.proofs.map((proof) => (
-                          <li key={proof.id}>
-                            <a
-                              href={proof.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="focus-ring inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-brand/40 hover:text-brand"
-                            >
-                              {proof.contentType.startsWith("image/") ? (
-                                <Paperclip className="h-3 w-3" />
-                              ) : (
-                                <FileText className="h-3 w-3" />
-                              )}
-                              {proof.filename ?? t(locale, "Proof")}
-                            </a>
-                          </li>
-                        ))
+                        <>
+                          <span>·</span>
+                          <span>{t(locale, "nothing attached")}</span>
+                        </>
                       )}
-                    </ul>
+                      {/* What became of it, on the same line rather than in a
+                          block of its own. */}
+                      {row.status === "VERIFIED" ? (
+                        <>
+                          <span>·</span>
+                          <span className="text-success">
+                            {t(locale, "Verified by")}{" "}
+                            {row.reviewedBy?.name ?? t(locale, "Finance")}
+                            {row.payment?.receipt
+                              ? ` · ${row.payment.receipt.receiptNumber}`
+                              : ""}
+                          </span>
+                        </>
+                      ) : null}
+                      {row.status === "REJECTED" ? (
+                        <>
+                          <span>·</span>
+                          <span className="text-destructive">
+                            {t(locale, "Sent back by")}{" "}
+                            {row.reviewedBy?.name ?? t(locale, "Finance")}
+                            {row.rejectionReason ? `: ${row.rejectionReason}` : ""}
+                          </span>
+                        </>
+                      ) : null}
+                      {row.status === "WITHDRAWN" ? (
+                        <>
+                          <span>·</span>
+                          <span>
+                            {t(locale, "Withdrawn by us")}
+                            {row.rejectionReason ? `: ${row.rejectionReason}` : ""}
+                          </span>
+                        </>
+                      ) : null}
+                      {row.note ? (
+                        <>
+                          <span>·</span>
+                          <span>{row.note}</span>
+                        </>
+                      ) : null}
+                    </p>
                   </div>
 
-                  {/* Fix it or take it back, while it is still only a claim —
-                      same corner Finance's own Verify/Send back pair sits in,
-                      so the two decisions read as the same kind of act. */}
-                  {canCorrect ? (
-                    <div className="lg:min-w-[15rem]">
+                  {/* Money and the two ways to put it right, on the same line
+                      as the claim — the Expenses register's own shape. */}
+                  <div className="flex shrink-0 items-center gap-3">
+                    <div className="text-right">
+                      <p className="font-mono text-sm font-medium tabular-nums">
+                        {formatMoney(toNumber(row.amount), row.currency)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {t(locale, "owed")}{" "}
+                        {formatMoney(
+                          toNumber(row.invoice.total) -
+                            toNumber(row.invoice.amountPaid),
+                          row.invoice.currency
+                        )}
+                      </p>
+                    </div>
+                    {canCorrect ? (
                       <SubmissionCorrection
                         submissionId={row.id}
                         invoiceId={row.invoice.id}
@@ -457,13 +446,13 @@ export default async function SubmissionsPage({
                         note={row.note}
                         status={row.status}
                       />
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </div>
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </ul>
+        </div>
       )}
     </>
   );

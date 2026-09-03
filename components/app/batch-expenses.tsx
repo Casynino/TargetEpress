@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Ban, ChevronDown, Paperclip, Pencil, Plus } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
@@ -95,6 +95,17 @@ export function BatchExpenses({
   const [choice, setChoice] = useState<string>("");
   /** The row whose editor is open, if any. One at a time. */
   const [editing, setEditing] = useState<string | null>(null);
+  /**
+   * The row asking to be deleted, if any — separate from `editing`.
+   *
+   * Delete used to open the same full panel as Edit, reason field and all,
+   * because the two shared one kill form. But a desk pressing Delete has
+   * already decided; asking them to look at the whole record first, the way
+   * Edit does, is a second decision nobody asked for. Delete now asks one
+   * question — why — and acts. Edit still opens the full panel, with the
+   * same delete door inside it, for whoever opened it to look first.
+   */
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const [state, action] = useActionState<
     ActionResult<{ expenseNumber: string }>,
@@ -337,7 +348,10 @@ export function BatchExpenses({
                 <span className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => setEditing(editing === e.id ? null : e.id)}
+                    onClick={() => {
+                      setDeleting(null);
+                      setEditing(editing === e.id ? null : e.id);
+                    }}
                     aria-label={`${t("Edit")} ${e.description}`}
                     className="focus-ring inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border bg-card px-2 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-accent"
                   >
@@ -346,12 +360,15 @@ export function BatchExpenses({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditing(editing === e.id ? null : e.id)}
-                    aria-label={`${t("Cancel")} ${e.description}`}
+                    onClick={() => {
+                      setEditing(null);
+                      setDeleting(deleting === e.id ? null : e.id);
+                    }}
+                    aria-label={`${t("Delete")} ${e.description}`}
                     className="focus-ring inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border bg-card px-2 text-xs font-medium text-foreground shadow-sm transition-colors hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
                   >
                     <Ban className="h-3.5 w-3.5" />
-                    {t("Cancel")}
+                    {t("Delete")}
                   </button>
                 </span>
               ) : (
@@ -365,6 +382,13 @@ export function BatchExpenses({
                   accounts={accounts}
                   onDone={() => setEditing(null)}
                 />
+            ) : null}
+            {deleting === e.id ? (
+              <ExpenseQuickDelete
+                expenseId={e.id}
+                paid={e.status === "PAID"}
+                onDone={() => setDeleting(null)}
+              />
             ) : null}
             </li>
           ))}
@@ -508,6 +532,87 @@ export function BatchExpenses({
       ) : null}
       </div>
     </section>
+  );
+}
+
+/**
+ * One question, then it's gone. The whole reason Delete is its own button.
+ *
+ * A cost not yet paid is voided outright; one whose money has already left
+ * an account is answered with an opposite entry — same rule ExpenseEditor's
+ * own kill form follows, kept here as its own small copy rather than shared,
+ * because sharing it would mean rendering (and hiding) the rest of that form
+ * just to reach this one piece of it.
+ */
+function ExpenseQuickDelete({
+  expenseId,
+  paid,
+  onDone,
+}: {
+  expenseId: string;
+  paid: boolean;
+  onDone: () => void;
+}) {
+  const t = useT();
+  /* Initial state is undefined, not { ok: true } — the same shape a real
+     success takes. Starting there made the panel indistinguishable from
+     "just succeeded" before the button was ever pressed, which is what
+     closing it immediately on submit actually did: hid whatever error came
+     back rather than showing it. Only a real result closes the panel now. */
+  const [killState, kill] = useActionState<ActionResult<unknown> | undefined, FormData>(
+    paid
+      ? (reverseExpense as unknown as (
+          prev: ActionResult<unknown> | undefined,
+          data: FormData
+        ) => Promise<ActionResult<unknown>>)
+      : (voidExpense as unknown as (
+          prev: ActionResult<unknown> | undefined,
+          data: FormData
+        ) => Promise<ActionResult<unknown>>),
+    undefined
+  );
+
+  useEffect(() => {
+    if (killState?.ok) onDone();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [killState]);
+
+  return (
+    <div className="border-t bg-destructive/[0.04] px-5 py-3">
+      <form action={kill} className="flex flex-wrap items-end gap-2">
+        <input type="hidden" name="expenseId" value={expenseId} />
+        <label className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="text-[11px] text-muted-foreground">
+            {paid
+              ? t("The money already left an account, so an opposite entry brings the balance back")
+              : t("It should never have been recorded")}
+          </span>
+          <Input
+            name="reason"
+            required
+            minLength={3}
+            placeholder={t("Why")}
+            className="h-9 bg-card text-sm"
+            autoFocus
+          />
+        </label>
+        <SubmitButton
+          variant="ghost"
+          className="h-9 border border-destructive/35 bg-destructive/10 px-3 text-destructive hover:bg-destructive/20 hover:text-destructive"
+          pendingLabel={t("Working…")}
+        >
+          {t("Delete")}
+        </SubmitButton>
+        <button
+          type="button"
+          onClick={onDone}
+          className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
+        >
+          {t("Keep it")}
+        </button>
+      </form>
+      <FormError state={killState} />
+    </div>
   );
 }
 
@@ -732,16 +837,24 @@ function ExpenseEditor({
       </form>
       <FormError state={editState} />
 
-      {/* Taking it back out. A cost that never happened is cancelled; one whose
-          money moved is reversed, and the difference is not the user's to
-          remember — the row already knows which it is. */}
+      {/*
+        Taking it back out. A cost that never happened is voided outright;
+        one whose money already left an account is answered with an opposite
+        entry instead — the row already knows which it is.
+
+        Both read as "Delete" to the desk pressing the button, because that
+        is what it is to them: the cost is gone from what the business owes
+        or has spent. "Reverse" was the accounting word for the paid case,
+        and it read as a different, unfamiliar action instead of the same
+        one — the explanation still says what actually happens underneath.
+      */}
       <form action={kill} className="mt-2 flex flex-wrap items-end gap-2">
         <input type="hidden" name="expenseId" value={row.id} />
         <label className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="text-[11px] text-muted-foreground">
             {paid
-              ? t("Reverse this cost — an opposite entry, so the account balance comes back")
-              : t("Cancel this cost — it should never have been recorded")}
+              ? t("Delete this cost — the money already left an account, so an opposite entry brings the balance back")
+              : t("Delete this cost — it should never have been recorded")}
           </span>
           <Input
             name="reason"
@@ -756,7 +869,7 @@ function ExpenseEditor({
           className="h-9 border border-destructive/35 bg-destructive/10 px-3 text-destructive hover:bg-destructive/20 hover:text-destructive"
           pendingLabel={t("Working…")}
         >
-          {paid ? t("Reverse") : t("Cancel this cost")}
+          {t("Delete")}
         </SubmitButton>
       </form>
       <FormError state={killState} />
