@@ -35,7 +35,13 @@ const expenseSchema = z.object({
   currency: z.enum(["TZS", "USD"]),
   /// Which account it left. Blank means it has not been paid yet — the cost is
   /// recorded and waits.
-  accountId: z.string().trim().optional(),
+  /* Required, the same rule every payment obeys.
+     The owner's decision: a cost is money that has left an account, so there
+     is always one to name. The old optional form recorded a bill the company
+     owed without touching any account — a real thing, but one this business
+     never once used in production, and the single place money was written
+     down without saying where it came from. */
+  accountId: z.string().trim().min(1, "Say which account the money came out of."),
   batchId: z.string().trim().optional(),
   /// When the cost was incurred. Blank means today.
   incurredAt: z
@@ -171,37 +177,23 @@ export async function recordExpense(
         }
       }
 
-      let account: {
-        id: string;
-        name: string;
-        currency: string;
-        active: boolean;
-      } | null = null;
-
-      if (input.accountId) {
-        account = await tx.companyAccount.findUnique({
-          where: { id: input.accountId },
-          select: { id: true, name: true, currency: true, active: true },
-        });
-        if (!account) {
-          throw new Error(t(locale, "That account no longer exists."));
-        }
-        if (!account.active) {
-          throw new Error(`${account.name} ${t(locale, "has been archived.")}`);
-        }
-        if (account.currency !== input.currency) {
-          // The account name, both currency codes and the figure are data; the
-          // words between them are the only part that changes language.
-          throw new Error(
-            `${account.name} ${t(locale, "is a")} ${account.currency} ${t(locale, "account, so")} ${input.currency} ${input.amount.toLocaleString()} ${t(locale, "cannot have left it.")}`
-          );
-        }
+      const account = await tx.companyAccount.findUnique({
+        where: { id: input.accountId },
+        select: { id: true, name: true, currency: true, active: true },
+      });
+      if (!account) {
+        throw new Error(t(locale, "That account no longer exists."));
       }
-
-      // Paid now only if the money really left an account AND nobody needs to
-      // sign it off first. Otherwise it waits, and no ledger line is written —
-      // because no money has moved.
-      const paidNow = Boolean(account);
+      if (!account.active) {
+        throw new Error(`${account.name} ${t(locale, "has been archived.")}`);
+      }
+      if (account.currency !== input.currency) {
+        // The account name, both currency codes and the figure are data; the
+        // words between them are the only part that changes language.
+        throw new Error(
+          `${account.name} ${t(locale, "is a")} ${account.currency} ${t(locale, "account, so")} ${input.currency} ${input.amount.toLocaleString()} ${t(locale, "cannot have left it.")}`
+        );
+      }
 
       const number = await nextExpenseNumber(tx, incurredAt.getFullYear());
       const expense = await tx.expense.create({
@@ -217,10 +209,10 @@ export async function recordExpense(
           currency: input.currency,
           amountUsd: new Prisma.Decimal(usd),
           exchangeRate: rate === null ? null : new Prisma.Decimal(rate),
-          accountId: account?.id ?? null,
-          status: paidNow ? "PAID" : "PENDING",
+          accountId: account.id,
+          status: "PAID",
           incurredAt,
-          paidAt: paidNow ? new Date() : null,
+          paidAt: new Date(),
           batchId: input.batchId || null,
           recordedById: user.id,
           receipts: {
@@ -235,33 +227,31 @@ export async function recordExpense(
         },
       });
 
-      if (paidNow && account) {
-        await postLedgerEntry(tx, {
-          accountId: account.id,
-          currency: account.currency,
-          direction: "OUT",
-          kind: "EXPENSE",
-          amount: input.amount,
-          amountUsd: usd,
-          exchangeRate: rate,
-          occurredAt: expense.paidAt!,
-          description: `${number} — ${input.description}${input.vendor ? ` (${input.vendor})` : ""}`,
-          sourceEntity: "Expense",
-          sourceId: expense.id,
-          expenseId: expense.id,
-          recordedById: user.id,
-        });
-      }
+      /* Always written. A cost is money that has left an account, so the
+         ledger line is not conditional on anything. */
+      await postLedgerEntry(tx, {
+        accountId: account.id,
+        currency: account.currency,
+        direction: "OUT",
+        kind: "EXPENSE",
+        amount: input.amount,
+        amountUsd: usd,
+        exchangeRate: rate,
+        occurredAt: expense.paidAt!,
+        description: `${number} — ${input.description}${input.vendor ? ` (${input.vendor})` : ""}`,
+        sourceEntity: "Expense",
+        sourceId: expense.id,
+        expenseId: expense.id,
+        recordedById: user.id,
+      });
 
       await recordAudit(
         {
           actor: user,
-          action: paidNow ? "expense.recordAndPay" : "expense.record",
+          action: "expense.recordAndPay",
           entity: "Expense",
           entityId: expense.id,
-          summary: paidNow
-            ? `Paid ${input.currency} ${input.amount.toLocaleString()} from ${account!.name} — ${input.description}`
-            : `Recorded ${input.currency} ${input.amount.toLocaleString()} — ${input.description}`,
+          summary: `Paid ${input.currency} ${input.amount.toLocaleString()} from ${account.name} — ${input.description}`,
         },
         tx
       );
@@ -652,6 +642,13 @@ export async function editExpense(
       const amountChanged =
         input.amount !== null && input.amount !== toNumber(before.amount);
       const nextAccountId = input.accountId || null;
+      /* A cost always names the account the money left. Clearing it used to
+         put a paid cost back to "not paid yet" — a state this system no
+         longer has, and one that would leave a ledger line with nothing
+         behind it. */
+      if (!nextAccountId) {
+        throw new Error(t(locale, "Say which account the money came out of."));
+      }
       const accountChanged = nextAccountId !== before.accountId;
 
       /*
@@ -735,10 +732,8 @@ export async function editExpense(
         ...(accountChanged
           ? {
               accountId: nextAccountId,
-              // No account is not a missing answer, it is "not paid yet" —
-              // which is how a cost marked paid by mistake is put back.
-              status: nextAccountId ? ("PAID" as const) : ("PENDING" as const),
-              paidAt: nextAccountId ? paidAt : null,
+              status: "PAID" as const,
+              paidAt,
             }
           : {}),
         ...(amountChanged

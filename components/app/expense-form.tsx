@@ -254,8 +254,25 @@ export function ExpenseForm({
             <Label htmlFor="expenseAccount" className="text-xs">
               {t("Paid from")}
             </Label>
-            <NativeSelect id="expenseAccount" name="accountId" defaultValue="">
-              <option value="">{t("Not paid yet")}</option>
+            {/*
+              Compulsory, like every other place money is written down.
+
+              "Not paid yet" used to sit at the top of this list and record a
+              bill the company owed with no account against it. A real thing —
+              but never once used here, and the single gap in the owner's rule
+              that nothing is recorded without saying where the money is. A
+              cost is money that has left an account, so there is always one
+              to name.
+            */}
+            <NativeSelect
+              id="expenseAccount"
+              name="accountId"
+              required
+              defaultValue=""
+            >
+              <option value="" disabled>
+                {t("Choose the account")}
+              </option>
               {eligible.map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name}
@@ -263,9 +280,7 @@ export function ExpenseForm({
               ))}
             </NativeSelect>
             <p className="text-xs text-muted-foreground">
-              {t(
-                "Name it and the cost is paid in one step. Leave it and you choose the account when you settle it."
-              )}
+              {t("Where the money actually left. The cost is paid in one step.")}
             </p>
           </div>
 

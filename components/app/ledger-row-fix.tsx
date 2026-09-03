@@ -567,12 +567,19 @@ export function LedgerRowFix({
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="fix-cost-account">{t("Paid from")}</Label>
+                  {/* No "Not paid yet". A cost is money that has left an
+                      account — clearing this used to put a paid cost back to
+                      unpaid, which is now the one state the system does not
+                      have. */}
                   <NativeSelect
                     id="fix-cost-account"
+                    required
                     value={accountId}
                     onChange={(event) => setAccountId(event.target.value)}
                   >
-                    <option value="">{t("Not paid yet")}</option>
+                    <option value="" disabled>
+                      {t("Choose the account")}
+                    </option>
                     {eligibleAccounts.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}
