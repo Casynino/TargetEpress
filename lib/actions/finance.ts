@@ -16,7 +16,6 @@ import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import {
   LOCAL_CURRENCY,
-  billedTotal,
   billingRate,
   currentRateValue,
   toLocal,
@@ -160,8 +159,7 @@ export async function generateInvoice(
       const storageCharge = waiverStands
         ? 0
         : storageDays * STORAGE_POLICY.perDayUsd;
-      /* Whole dollars, once, on the total — see billedTotal. */
-      const total = billedTotal(priced.total + storageCharge);
+      const total = priced.total + storageCharge;
 
       // Freeze today's rate onto the invoice. A later change must never move a
       // figure a customer has already been quoted.
@@ -391,9 +389,7 @@ export async function confirmInvoicePrice(
           ? null
           : toNumber(invoice.freightOverride);
       const billedFreight = override ?? priced.total;
-      const total = billedTotal(
-        billedFreight + storageCharge + otherCharges - discount
-      );
+      const total = billedFreight + storageCharge + otherCharges - discount;
       if (total < 0) {
         throw new Error(
           "The discount on this draft is larger than the rest of the invoice."
@@ -885,9 +881,7 @@ export async function adjustInvoice(
                  re-stamp last week's waiver with today's date and my name. */
               {};
 
-      const total = billedTotal(
-        freight + storage + input.otherCharges - input.discount
-      );
+      const total = freight + storage + input.otherCharges - input.discount;
       if (total < 0) {
         throw new Error("The discount is larger than the rest of the invoice.");
       }

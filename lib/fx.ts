@@ -14,7 +14,6 @@ export {
   BASE_CURRENCY,
   LOCAL_CURRENCY,
   formatLocal,
-  billedTotal,
   formatShillings,
   formatShillingTotal,
   formatUsd,
