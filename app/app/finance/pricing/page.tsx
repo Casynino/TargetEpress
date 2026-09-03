@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { ExchangeRateForm } from "@/components/app/exchange-rate-form";
+import { FillInvoiceRates } from "@/components/app/fill-invoice-rates";
 import { PageHeader } from "@/components/app/page-header";
 import {
   ProductCatalogue,
@@ -223,6 +224,15 @@ export default async function PricingConfigurationPage() {
         made a page that governs the whole system look like a third tab of
         somebody else's workspace.
       */}
+
+      {/* A bill with no rate is a fault this page is responsible for, because
+          this page is where rates are published. It shows itself only when
+          there are any. */}
+      {canManage ? (
+        <div className="mb-6">
+          <FillInvoiceRates />
+        </div>
+      ) : null}
 
       {!canManage ? (
         <p className="mb-6 rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">

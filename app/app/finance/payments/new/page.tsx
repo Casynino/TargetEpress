@@ -478,7 +478,7 @@ export default async function RecordCustomerPaymentPage({
 
   if (!customer) {
     return (
-      <div className="mx-auto w-full max-w-3xl">
+      <div className="w-full">
         <PageHeader title={t(locale, "Record a payment")} />
         <p className="panel p-5 text-sm">{t(locale, "That customer no longer exists.")}</p>
       </div>
@@ -502,7 +502,7 @@ export default async function RecordCustomerPaymentPage({
     .filter((bill) => bill.outstanding > 0.005);
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="w-full">
       <PageHeader
         title={customer.name}
         description={t(

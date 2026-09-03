@@ -77,6 +77,38 @@ export async function currentRateValue(asOf?: Date): Promise<number | null> {
   return row ? toNumber(row.rate) : null;
 }
 
+/**
+ * A RATE FOR A BILL, ALWAYS.
+ *
+ * `rateAt` answers "what was published on or before this date", and null is a
+ * truthful answer to that question — but it is not an acceptable answer for an
+ * invoice. A bill with no rate cannot be stated in the money the customer
+ * actually pays in: the counter cannot take shillings for it, the customer is
+ * quoted dollars they do not hold, and every screen that leads in shillings has
+ * to print a gap. That is how bills raised before anybody published a rate
+ * ended up permanently unquotable.
+ *
+ * So when nothing was effective yet, the EARLIEST rate ever published stands.
+ * It is not the rate of the day — nothing was — but it is a real rate somebody
+ * set, and a real rate is the honest floor. Only a rate book that is completely
+ * empty returns null, and that is a setup fault the caller must refuse on
+ * rather than write into a bill.
+ */
+export async function billingRate(asOf: Date): Promise<number | null> {
+  const effective = await rateAt(asOf);
+  if (effective) return toNumber(effective.rate);
+
+  const earliest = await prisma.exchangeRate.findFirst({
+    where: {
+      active: true,
+      fromCurrency: BASE_CURRENCY,
+      toCurrency: LOCAL_CURRENCY,
+    },
+    orderBy: { effectiveFrom: "asc" },
+  });
+  return earliest ? toNumber(earliest.rate) : null;
+}
+
 /** Rate history, newest first, for the management screen. */
 export async function rateHistory(take = 20) {
   return prisma.exchangeRate.findMany({

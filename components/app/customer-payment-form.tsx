@@ -1,7 +1,13 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { Banknote, SlidersHorizontal, Wallet } from "lucide-react";
+import {
+  Banknote,
+  Download,
+  FileText,
+  SlidersHorizontal,
+  Wallet,
+} from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
@@ -26,6 +32,14 @@ export type OpenBill = {
 };
 
 const LOCAL = "TZS";
+
+/** One place, so the label and the stored value cannot drift apart. */
+const METHOD_LABELS: Record<string, string> = {
+  MOBILE_MONEY: "Mobile money",
+  BANK_TRANSFER: "Bank transfer",
+  CASH: "Cash",
+  CHEQUE: "Cheque",
+};
 
 /**
  * TICK THE CARGO. RECORD THE PAYMENT.
@@ -55,7 +69,7 @@ export function CustomerPaymentForm({
   customerId: string;
   customerName: string;
   bills: OpenBill[];
-  accounts: { id: string; name: string; currency: string }[];
+  accounts: { id: string; name: string; currency: string; kind: string }[];
 }) {
   const t = useT();
   const [state, action] = useActionState<
@@ -89,17 +103,35 @@ export function CustomerPaymentForm({
   */
   const [payCurrency, setPayCurrency] = useState(() => {
     const first = bills[0]?.currency ?? LOCAL;
-    const rates = new Set(
-      bills.filter((b) => b.currency === first).map((b) => b.exchangeRate)
-    );
-    const only = rates.size === 1 ? [...rates][0] : null;
-    return only && only > 0 ? LOCAL : first;
+    const group = bills.filter((b) => b.currency === first);
+    /* Every bill needs a rate of its own, not one rate between them: two bills
+       quoted a fortnight apart carry two, and both are right. Same test as
+       canCross below, so the screen never opens on a currency it will not
+       then offer. */
+    const quotable =
+      group.length > 0 &&
+      group.every((b) => b.exchangeRate !== null && b.exchangeRate > 0);
+    return quotable ? LOCAL : first;
   });
   const [picked, setPicked] = useState<Set<string>>(new Set());
   /* Only ever consulted in split mode. A share typed, then abandoned by
      unticking the bill, must not travel with the form. */
   const [shares, setShares] = useState<Record<string, string>>({});
   const [split, setSplit] = useState(false);
+  /*
+    THE ACCOUNT IS THE METHOD.
+
+    "How it was paid" and "Which account did it land in?" were two questions
+    with one answer: money in Vodacom M-Pesa arrived by mobile money, money in
+    CRDB arrived by transfer, money in the office tin was cash. Asking twice
+    invites them to disagree, and a payment whose method and account contradict
+    each other is one nobody can reconcile against a statement.
+
+    So the account is picked and the method follows it. The method is asked for
+    only when nobody has said where the money landed yet — the one case where
+    it cannot be derived.
+  */
+  const [accountId, setAccountId] = useState("");
   /** Null while the total is following the selection, which is nearly always. */
   const [typedTotal, setTypedTotal] = useState<string | null>(null);
 
@@ -171,6 +203,16 @@ export function CustomerPaymentForm({
   const left = received - allocated;
   const over = left < -0.005;
 
+  const chosen = accounts.find((a) => a.id === accountId) ?? null;
+  /* Bank, mobile money or cash — the account already knows, and a CHEQUE is
+     banked, so it lands in a bank account like any other transfer. */
+  const derivedMethod =
+    chosen?.kind === "CASH"
+      ? "CASH"
+      : chosen?.kind === "MOBILE_MONEY"
+        ? "MOBILE_MONEY"
+        : "BANK_TRANSFER";
+
   const money = (n: number, currency = payCurrency) =>
     `${currency === LOCAL ? "TSh" : currency} ${n.toLocaleString(undefined, {
       maximumFractionDigits: currency === LOCAL ? 0 : 2,
@@ -187,20 +229,61 @@ export function CustomerPaymentForm({
 
   if (state.ok && state.data) {
     return (
-      <div className="panel space-y-2 border-success/40 p-5">
-        <p className="font-display text-lg font-bold text-success">
-          {t("Payment recorded")} — {state.data.receiptNumber}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {state.data.settled} {t("bill(s) settled in full.")}{" "}
-          {t("The account moved once, for the money that actually arrived.")}
-        </p>
+      <div className="panel space-y-4 border-success/40 p-5">
+        <div>
+          <p className="font-display text-lg font-bold text-success">
+            {t("Payment recorded")} — {state.data.receiptNumber}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {state.data.settled} {t("bill(s) settled in full.")}{" "}
+            {t("The account moved once, for the money that actually arrived.")}
+          </p>
+        </div>
+
+        {/*
+          ONE RECEIPT, NAMING EVERY CONSIGNMENT IT ANSWERED.
+
+          The customer's question after paying for four consignments is "is all
+          of it paid for", and four separate receipts cannot answer it — they
+          describe four payments, which is the thing this screen exists to stop.
+          Offered here rather than found later, because this is the moment the
+          customer is still on the phone.
+        */}
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={`/app/finance/receipts/${state.data.receiptNumber}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="focus-ring inline-flex items-center gap-2 rounded-lg border border-brand/40 px-3 py-2 text-sm font-medium text-brand hover:bg-brand/10"
+          >
+            <Download className="h-4 w-4" />
+            {t("Download the receipt")}
+          </a>
+          <a
+            href="/app/finance/payments/new"
+            className="focus-ring inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-accent/40"
+          >
+            {t("Another customer")}
+          </a>
+        </div>
       </div>
     );
   }
 
   return (
-    <form action={action} className="space-y-5">
+    /*
+      TWO COLUMNS ON A DESK, ONE ON A PHONE.
+
+      The cargo list and the payment details were stacked down the middle of a
+      1,900px screen with six hundred pixels of nothing either side, so the
+      clerk ticked bills at the top, scrolled past empty space, and typed the
+      amount out of sight of what they had ticked. Side by side, the figure
+      being typed and the figure it should match are in view at once.
+    */
+    <form
+      action={action}
+      className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,440px)]"
+    >
       <input type="hidden" name="customerId" value={customerId} />
       <input type="hidden" name="currency" value={payCurrency} />
       <input type="hidden" name="amount" value={received || ""} />
@@ -210,9 +293,10 @@ export function CustomerPaymentForm({
         value={JSON.stringify(allocations)}
       />
 
-      <FormError state={state} />
+      {/* LEFT: the job. Which cargo is this customer paying for. */}
+      <div className="space-y-5">
+        <FormError state={state} />
 
-      {/* THE JOB, FIRST. Which cargo is this customer paying for. */}
       <section className="panel overflow-hidden">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
           <div>
@@ -234,11 +318,11 @@ export function CustomerPaymentForm({
                   setBillCurrency(next);
                   /* Shillings again, if that set of bills can be read in them.
                      Same reason as the initial state above. */
-                  const rates = new Set(
-                    bills.filter((b) => b.currency === next).map((b) => b.exchangeRate)
-                  );
-                  const only = rates.size === 1 ? [...rates][0] : null;
-                  setPayCurrency(only && only > 0 ? LOCAL : next);
+                  const group = bills.filter((b) => b.currency === next);
+                  const quotable =
+                    group.length > 0 &&
+                    group.every((b) => b.exchangeRate !== null && b.exchangeRate > 0);
+                  setPayCurrency(quotable ? LOCAL : next);
                   /* Bills in the old currency have left the page; their
                      selections must not be submitted from behind it. */
                   setPicked(new Set());
@@ -385,9 +469,39 @@ export function CustomerPaymentForm({
             {split ? t("Pay them in full") : t("They are paying part of a bill")}
           </button>
         </footer>
-      </section>
 
-      {/* THE MONEY, SECOND. Pre-filled from what was ticked. */}
+        {/*
+          THE BILL FOR ALL OF IT, TO SEND BEFORE THEY PAY.
+
+          Four consignments means four invoices, and sending four asks four
+          questions when the customer has one: how much do I transfer? This is
+          the covering statement that answers it — every open bill, each at its
+          own frozen rate, one total. Nothing is merged: each consignment keeps
+          its own invoice, its own batch and its own pickup note.
+        */}
+        {bills.length > 1 ? (
+          <div className="border-t px-5 py-3">
+            <a
+              href={`/app/finance/customers/${customerId}/bill/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="focus-ring inline-flex items-center gap-2 text-xs font-medium text-brand hover:underline"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              {t("Download the combined bill for all {n} consignments").replace(
+                "{n}",
+                String(bills.length)
+              )}
+            </a>
+          </div>
+        ) : null}
+      </section>
+      </div>
+
+      {/* RIGHT: the money. Pre-filled from what was ticked, and beside it —
+          the amount and the total it should match are read together. Sticky on
+          a tall screen so a long cargo list does not scroll the button away. */}
+      <div className="space-y-5 xl:sticky xl:top-4">
       <section className="panel space-y-4 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display font-semibold">
@@ -460,15 +574,6 @@ export function CustomerPaymentForm({
             </p>
           </div>
 
-          <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="method">{t("How it was paid")}</Label>
-            <NativeSelect id="method" name="method" className="h-11" defaultValue="MOBILE_MONEY">
-              <option value="MOBILE_MONEY">{t("Mobile money")}</option>
-              <option value="CASH">{t("Cash")}</option>
-              <option value="BANK_TRANSFER">{t("Bank transfer")}</option>
-              <option value="CHEQUE">{t("Cheque")}</option>
-            </NativeSelect>
-          </div>
 
           <div className="min-w-0 space-y-1.5">
             <Label htmlFor="reference">{t("Reference")}</Label>
@@ -481,8 +586,14 @@ export function CustomerPaymentForm({
           </div>
 
           <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="accountId">{t("Which account did it land in?")}</Label>
-            <NativeSelect id="accountId" name="accountId" className="h-11" defaultValue="">
+            <Label htmlFor="accountId">{t("Where did it land?")}</Label>
+            <NativeSelect
+              id="accountId"
+              name="accountId"
+              className="h-11"
+              value={accountId}
+              onChange={(event) => setAccountId(event.target.value)}
+            >
               <option value="">{t("Not said yet")}</option>
               {accounts
                 .filter((a) => a.currency === payCurrency)
@@ -492,6 +603,62 @@ export function CustomerPaymentForm({
                   </option>
                 ))}
             </NativeSelect>
+            {chosen ? (
+              <p className="text-xs text-muted-foreground">
+                {t("Recorded as")} {t(METHOD_LABELS[derivedMethod])}.
+              </p>
+            ) : null}
+          </div>
+
+          {/* Only when nobody has said where the money landed — the one case
+              the account cannot answer for. */}
+          {chosen ? (
+            <input type="hidden" name="method" value={derivedMethod} />
+          ) : (
+            <div className="min-w-0 space-y-1.5">
+              <Label htmlFor="method">{t("How it was paid")}</Label>
+              <NativeSelect
+                id="method"
+                name="method"
+                className="h-11"
+                defaultValue="MOBILE_MONEY"
+              >
+                {Object.entries(METHOD_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {t(label)}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          )}
+
+          {/*
+            THE PROOF, IF THERE IS ANY.
+
+            Optional and always was: cash across the counter has no screenshot,
+            and refusing the payment does not produce one — it produces a
+            payment nobody records. But an M-Pesa confirmation attached now is
+            the difference between a verified figure and somebody's word in six
+            weeks, so it is asked for where the money is.
+          */}
+          <div className="min-w-0 space-y-1.5 sm:col-span-2">
+            <Label htmlFor="proof">
+              {t("Proof of payment")}{" "}
+              <span className="font-normal text-muted-foreground">
+                {t("(optional)")}
+              </span>
+            </Label>
+            <input
+              id="proof"
+              name="proof"
+              type="file"
+              multiple
+              accept="image/*,application/pdf"
+              className="focus-ring block w-full rounded-lg border bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-medium"
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("The M-Pesa message, a bank slip, a photo of the receipt.")}
+            </p>
           </div>
 
           <div className="min-w-0 space-y-1.5 sm:col-span-2">
@@ -529,7 +696,11 @@ export function CustomerPaymentForm({
       {/* Nothing ticked is a legitimate answer: the customer has paid for cargo
           that has not landed, so there is no bill to tick. The money is held as
           their credit and settles the invoice by itself at check-in. */}
-      <SubmitButton disabled={over || received <= 0} pendingLabel="Recording…">
+      <SubmitButton
+        className="w-full"
+        disabled={over || received <= 0}
+        pendingLabel="Recording…"
+      >
         {left > 0.005 ? (
           <Wallet className="mr-2 h-4 w-4" />
         ) : (
@@ -539,6 +710,7 @@ export function CustomerPaymentForm({
           ? `${t("Record")} ${money(received)} · ${t("held as their credit")}`
           : `${t("Record")} ${money(received)} · ${allocations.length} ${t("cargo")}`}
       </SubmitButton>
+      </div>
     </form>
   );
 }

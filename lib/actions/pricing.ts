@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
+import { LOCAL_CURRENCY, billingRate, toLocal } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
@@ -635,5 +636,92 @@ export async function suggestCargoType(
     return ok(created);
   } catch (error) {
     return fail(t(locale, toActionError(error)));
+  }
+}
+
+/**
+ * GIVE EVERY BILL THE EXCHANGE RATE IT SHOULD ALWAYS HAVE HAD.
+ *
+ * A bill raised before anybody published a rate was written with none, and it
+ * keeps none forever: the counter cannot take shillings for it, the customer is
+ * quoted dollars they do not hold, and every screen that leads in shillings has
+ * to print a gap where its figure should be. That is a fault in how the bill
+ * was created — now prevented at the source by `billingRate` — and this repairs
+ * the ones already out.
+ *
+ * IT CHANGES NOTHING ANYBODY OWES. The dollar total is not touched. What it
+ * fills in is the shilling figure that was never there, at the rate that was
+ * effective on the day that bill was raised — the rate that would have been
+ * frozen onto it had one existed — falling back to the earliest rate ever
+ * published for bills older than the rate book itself.
+ *
+ * Idempotent: it only ever looks at bills where the rate is null, so running it
+ * twice does nothing the second time.
+ */
+export async function fillMissingInvoiceRates(input: {
+  preview: boolean;
+}): Promise<ActionResult<{ filled: number; noRateBook: boolean }>> {
+  let user: SessionUser;
+  try {
+    user = await authorize("pricing.manage");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  try {
+    const bare = await prisma.invoice.findMany({
+      where: { exchangeRate: null, status: { not: "VOID" } },
+      select: { id: true, invoiceNumber: true, total: true, issuedAt: true },
+      orderBy: { issuedAt: "asc" },
+    });
+
+    if (bare.length === 0) return ok({ filled: 0, noRateBook: false });
+
+    /* The rate as it stood on each bill's own day. A bill from March is worth
+       March's rate, not today's — that is what "frozen onto the bill" means,
+       and backfilling them all at today's rate would quietly restate a year of
+       billing in a single figure. */
+    const rates = new Map<string, number>();
+    for (const invoice of bare) {
+      const key = invoice.issuedAt.toISOString().slice(0, 10);
+      if (rates.has(key)) continue;
+      const rate = await billingRate(invoice.issuedAt);
+      if (rate !== null) rates.set(key, rate);
+    }
+    if (rates.size === 0) return ok({ filled: 0, noRateBook: true });
+
+    if (input.preview) return ok({ filled: bare.length, noRateBook: false });
+
+    let filled = 0;
+    for (const invoice of bare) {
+      const rate = rates.get(invoice.issuedAt.toISOString().slice(0, 10));
+      if (rate === undefined) continue;
+      /* Conditional on still being null, so a bill somebody re-priced while
+         this was running keeps the rate they gave it. */
+      const claimed = await prisma.invoice.updateMany({
+        where: { id: invoice.id, exchangeRate: null },
+        data: {
+          exchangeRate: new Prisma.Decimal(rate),
+          totalLocal: new Prisma.Decimal(toLocal(toNumber(invoice.total), rate)),
+          localCurrency: LOCAL_CURRENCY,
+        },
+      });
+      filled += claimed.count;
+    }
+
+    await recordAudit({
+      actor: user,
+      action: "invoice.reprice",
+      entity: "Invoice",
+      summary: `Filled the missing exchange rate on ${filled} bill(s) — no dollar total changed`,
+      metadata: { filled, considered: bare.length },
+    });
+
+    revalidatePath("/app/finance");
+    revalidatePath("/app/finance/pricing");
+    revalidatePath("/app/finance/payments/new");
+    return ok({ filled, noRateBook: false });
+  } catch (error) {
+    return fail(toActionError(error));
   }
 }

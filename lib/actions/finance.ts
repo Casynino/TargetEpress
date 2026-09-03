@@ -17,6 +17,7 @@ import { t } from "@/lib/i18n";
 import {
   LOCAL_CURRENCY,
   billedTotal,
+  billingRate,
   currentRateValue,
   toLocal,
 } from "@/lib/fx";
@@ -164,7 +165,16 @@ export async function generateInvoice(
 
       // Freeze today's rate onto the invoice. A later change must never move a
       // figure a customer has already been quoted.
-      const rate = await currentRateValue();
+      /* A bill without a rate cannot be stated in the money the customer pays
+         in, so it is not allowed to exist. billingRate falls back to the
+         earliest rate ever published when nothing was effective yet; only an
+         empty rate book returns null, and that is a setup fault, not a bill. */
+      const rate = await billingRate(new Date());
+      if (rate === null) {
+        throw new Error(
+          "No exchange rate has ever been published, so this bill cannot be stated in shillings. Publish a USD→TZS rate in Pricing & Configuration first."
+        );
+      }
       const totalLocal = rate === null ? null : toLocal(total, rate);
 
       // Keep the working on the shipment so a customer query in three months
@@ -390,7 +400,16 @@ export async function confirmInvoicePrice(
         );
       }
 
-      const rate = await currentRateValue();
+      /* A bill without a rate cannot be stated in the money the customer pays
+         in, so it is not allowed to exist. billingRate falls back to the
+         earliest rate ever published when nothing was effective yet; only an
+         empty rate book returns null, and that is a setup fault, not a bill. */
+      const rate = await billingRate(new Date());
+      if (rate === null) {
+        throw new Error(
+          "No exchange rate has ever been published, so this bill cannot be stated in shillings. Publish a USD→TZS rate in Pricing & Configuration first."
+        );
+      }
       const totalLocal = rate === null ? null : toLocal(total, rate);
 
       await tx.invoice.update({
@@ -904,7 +923,10 @@ export async function adjustInvoice(
         );
       }
 
-      const rate = input.exchangeRate ?? currentRate;
+      /* An older bill may carry none at all. Filling it in is not a re-quote —
+         the dollar total is untouched — it is giving a bill the shilling figure
+         it should always have had, so the counter can take shillings for it. */
+      const rate = input.exchangeRate ?? currentRate ?? (await billingRate(new Date()));
       const totalLocal = rate === null ? null : toLocal(total, rate);
 
       /* The write only lands if amountPaid is still what the guard above
@@ -2227,6 +2249,30 @@ export async function recordCustomerPayment(
   if (!parsed.success) return fail(firstError(parsed.error));
   const input = parsed.data;
 
+  /*
+    THE PROOF, IF THERE IS ANY.
+
+    Stored BEFORE the transaction opens, deliberately. Uploading inside it would
+    hold a database transaction open across a network call to blob storage; and
+    a proof that fails to store has to fail the whole thing loudly rather than
+    leaving a payment whose evidence nobody can find.
+
+    Optional, always. Cash across the counter has no screenshot, and refusing
+    the payment does not produce one — it produces a payment nobody records.
+  */
+  let proofs: { url: string; contentType: string; bytes: number; filename: string }[];
+  try {
+    const files = filesFrom(formData, "proof");
+    proofs = await Promise.all(
+      files.map(async (file) => {
+        const stored = await putDocument(file, "proof");
+        return { ...stored, filename: file.name || "proof" };
+      })
+    );
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
   const allocated = input.allocations.reduce((sum, a) => sum + a.amount, 0);
   /* Checked here for a plain answer, and again inside the transaction against
      figures read there — this one only saves a round trip. */
@@ -2493,6 +2539,15 @@ export async function recordCustomerPayment(
           accountId: account?.id ?? null,
           ...(input.paidAt ? { paidAt: input.paidAt } : {}),
           receivedById: user.id,
+          proofs: {
+            create: proofs.map((proof) => ({
+              url: proof.url,
+              contentType: proof.contentType,
+              bytes: proof.bytes,
+              filename: proof.filename,
+              uploadedById: user.id,
+            })),
+          },
         },
       });
 
@@ -2650,6 +2705,7 @@ export async function recordCustomerPayment(
             /* Derived, and written down because it is the figure somebody will
                ask about: money in hand that answers no bill yet. */
             unallocated: Math.max(0, input.amount - allocated),
+            proofs: proofs.length,
             settledInFull: settledNumbers,
             billCurrency,
             /* Only when the two differ — a null rate on a same-currency payment
