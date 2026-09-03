@@ -58,6 +58,7 @@ const ICON_TONES: Record<Tone, string> = {
 export async function MoneyTile({
   label,
   usd,
+  local,
   rate,
   hint,
   icon: Icon,
@@ -69,6 +70,18 @@ export async function MoneyTile({
 }: {
   label: string;
   usd: number;
+  /**
+   * The figure already added up AS SHILLINGS, when the caller has it.
+   *
+   * `usd * rate` is only honest when the dollar figure is the real one. It is
+   * not for money typed in shillings: a cost of TSh 20,000 is stored as USD
+   * 7.41 — Decimal(12,2), the eighth of a cent gone — and multiplying that
+   * back prints TSh 20,007, a figure nobody typed. The error is per row, so
+   * the busiest month is furthest out. Callers that total native shilling
+   * rows pass this; the dollar figure stays for the tooltip and for when no
+   * rate is published. See lib/money-totals.ts.
+   */
+  local?: number;
   /** Live USD→TZS rate. Null when none is published — then no conversion shows. */
   rate: number | null;
   hint?: string;
@@ -90,7 +103,9 @@ export async function MoneyTile({
 }) {
   const locale = await viewerLocale();
   /* Digits, not dollars: the shilling figure is what has to fit. */
-  const figure = rate ? Math.round(usd * rate).toLocaleString("en-US") : "";
+  const figure = rate
+    ? Math.round(local ?? usd * rate).toLocaleString("en-US")
+    : "";
   /*
     Sized against the card it is standing in, not against a breakpoint.
 

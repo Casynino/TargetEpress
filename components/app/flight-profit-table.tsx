@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronDown, TriangleAlert } from "lucide-react";
 
-import { currentRateValue, formatShillings } from "@/lib/fx";
+import { currentRateValue, formatShillingTotal } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -14,6 +14,15 @@ export type FlightProfit = {
   outstanding: number;
   costs: number;
   profit: number;
+  /* The same five, added up as shillings rather than converted from the
+     dollar totals beside them. A cost of TSh 20,000 is stored as USD 7.41,
+     and 7.41 x 2,700 is 20,007 — a figure nobody typed, on the flight they
+     paid it for. See lib/money-totals.ts. */
+  revenueLocal: number;
+  collectedLocal: number;
+  outstandingLocal: number;
+  costsLocal: number;
+  profitLocal: number;
   margin: number | null;
   unconfirmed: number;
   hasCosts: boolean;
@@ -63,7 +72,11 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
      amounts are what the invoices say, and the profit page keeps them one tap
      away — this table is the one he scans, so it speaks his currency. */
   const rate = await currentRateValue();
-  const money = (usd: number) => formatShillings(usd, rate);
+  /* Takes both: the exact shilling total to show, and the dollar total to fall
+     back on when no rate is published and there is nothing honest to convert
+     with. Never `usd * rate` on a figure already summed in shillings. */
+  const money = (local: number, usd: number) =>
+    formatShillingTotal(local, usd, rate);
   const hidden = Math.max(0, flights.length - VISIBLE_ROWS);
 
   if (flights.length === 0) {
@@ -125,14 +138,14 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
                   <dt className="text-xs text-muted-foreground">
                     {t(locale, "Expected revenue")}
                   </dt>
-                  <dd className="truncate tabular-nums">{money(f.revenue)}</dd>
+                  <dd className="truncate tabular-nums">{money(f.revenueLocal, f.revenue)}</dd>
                 </div>
                 <div className="min-w-0">
                   <dt className="text-xs text-muted-foreground">
                     {t(locale, "Collected")}
                   </dt>
                   <dd className="truncate tabular-nums text-success">
-                    {money(f.collected)}
+                    {money(f.collectedLocal, f.collected)}
                   </dd>
                 </div>
                 <div className="min-w-0">
@@ -146,7 +159,7 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
                         : "text-muted-foreground"
                     }`}
                   >
-                    {money(f.outstanding)}
+                    {money(f.outstandingLocal, f.outstanding)}
                   </dd>
                 </div>
                 <div className="min-w-0">
@@ -154,7 +167,7 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
                     {t(locale, "Expenses")}
                   </dt>
                   <dd className="truncate tabular-nums text-destructive">
-                    {money(f.costs)}
+                    {money(f.costsLocal, f.costs)}
                   </dd>
                 </div>
                 <div className="min-w-0">
@@ -166,7 +179,9 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
                       loss ? "text-destructive" : ""
                     }`}
                   >
-                    {loss ? `(${money(Math.abs(f.profit))})` : money(f.profit)}
+                    {loss
+                      ? `(${money(Math.abs(f.profitLocal), Math.abs(f.profit))})`
+                      : money(f.profitLocal, f.profit)}
                   </dd>
                 </div>
                 <div className="min-w-0">
@@ -222,23 +237,23 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
                     ) : null}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums">
-                    {money(f.revenue)}
+                    {money(f.revenueLocal, f.revenue)}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-success">
-                    {money(f.collected)}
+                    {money(f.collectedLocal, f.collected)}
                   </td>
                   <td
                     className={`px-3 py-2.5 text-right tabular-nums ${
                       f.outstanding > 0 ? "text-destructive" : "text-muted-foreground"
                     }`}
                   >
-                    {money(f.outstanding)}
+                    {money(f.outstandingLocal, f.outstanding)}
                   </td>
                   {/* Money out, in the same red as everywhere else it is
                       shown. A cost set in grey on the one screen that compares
                       batches is the column a reader skips. */}
                   <td className="px-3 py-2.5 text-right tabular-nums text-destructive">
-                    {money(f.costs)}
+                    {money(f.costsLocal, f.costs)}
                   </td>
                   {/* Green is reserved for money in the bank, which on this
                       row is Collected. An expected profit is set plain, and
@@ -248,7 +263,9 @@ export async function FlightProfitTable({ flights }: { flights: FlightProfit[] }
                       loss ? "text-destructive" : ""
                     }`}
                   >
-                    {loss ? `(${money(Math.abs(f.profit))})` : money(f.profit)}
+                    {loss
+                      ? `(${money(Math.abs(f.profitLocal), Math.abs(f.profit))})`
+                      : money(f.profitLocal, f.profit)}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums">
                     {/* Nothing billed means no margin yet, not a margin of zero. */}

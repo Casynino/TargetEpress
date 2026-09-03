@@ -14,7 +14,12 @@ import { ORIGIN_LABELS } from "@/lib/constants";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate, formatMonthYear, toNumber } from "@/lib/format";
-import { currentRate, formatShillings, formatUsd } from "@/lib/fx";
+import {
+  currentRate,
+  formatShillings,
+  formatShillingTotal,
+  formatUsd,
+} from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { financeDashboard } from "@/lib/finance-dashboard";
 import { profitAndLoss, profitByDispatch, windowFor } from "@/lib/profit";
@@ -175,6 +180,13 @@ export default async function FinanceReportsPage({
   const inUsd = currency === "usd" || rate === null;
   const money = (amount: number) =>
     inUsd ? formatUsd(amount) : formatShillings(amount, rate);
+  /* A figure already added up as shillings. The dollar total is still the one
+     shown when this page is being read in dollars, and the one it falls back
+     on with no rate published — but it is never multiplied back up, which is
+     what turned a TSh 20,000 cost into TSh 20,007. */
+  const exact = (local: number, usd: number) =>
+    inUsd ? formatUsd(usd) : formatShillingTotal(local, usd, rate);
+
   /** The same figure in the other currency — null when there is no rate. */
   const alt = (amount: number) =>
     rate === null ? null : inUsd ? formatShillings(amount, rate) : formatUsd(amount);
@@ -363,7 +375,7 @@ export default async function FinanceReportsPage({
             },
             {
               k: "Total expenses",
-              v: money(pl.costs),
+              v: exact(pl.costsLocal, pl.costs),
               alt: alt(pl.costs),
               sub: change(pl.costs, prior.costs),
               tone: "text-destructive",
@@ -371,7 +383,7 @@ export default async function FinanceReportsPage({
             },
             {
               k: pl.profit < 0 ? "Net loss" : "Net profit",
-              v: money(Math.abs(pl.profit)),
+              v: exact(Math.abs(pl.profitLocal), Math.abs(pl.profit)),
               alt: alt(Math.abs(pl.profit)),
               sub: change(pl.profit, prior.profit),
               tone: pl.profit < 0 ? "text-destructive" : "text-success",
@@ -402,7 +414,7 @@ export default async function FinanceReportsPage({
             },
             {
               k: "Paid out",
-              v: money(pl.cashOut),
+              v: exact(pl.cashOutLocal, pl.cashOut),
               alt: alt(pl.cashOut),
               sub: change(pl.cashOut, prior.cashOut),
               tone: "text-destructive",
@@ -527,7 +539,7 @@ export default async function FinanceReportsPage({
         <p className="text-xs text-muted-foreground">{pl.window.label}</p>
         <p className="mt-1 flex items-baseline gap-3">
           <span className="font-display text-3xl font-bold tabular-nums">
-            {money(pl.profit)}
+            {exact(pl.profitLocal, pl.profit)}
           </span>
           <span
             className={`inline-flex items-center gap-1 text-sm font-medium ${
@@ -557,7 +569,7 @@ export default async function FinanceReportsPage({
             locale,
             pl.invoices === 1 ? "confirmed invoice" : "confirmed invoices"
           )}
-          , {t(locale, "less")} {money(pl.costs)}{" "}
+          , {t(locale, "less")} {exact(pl.costsLocal, pl.costs)}{" "}
           {t(
             locale,
             "of costs incurred. Counted from the day the work happened, not the day the money moved."
@@ -584,12 +596,12 @@ export default async function FinanceReportsPage({
             />
             <Row
               label={t(locale, "Costs incurred")}
-              value={`− ${money(pl.costs)}`}
+              value={`− ${exact(pl.costsLocal, pl.costs)}`}
               alt={alt(pl.costs)}
             />
             <Row
               label={t(locale, "Profit")}
-              value={money(pl.profit)}
+              value={exact(pl.profitLocal, pl.profit)}
               alt={alt(pl.profit)}
               strong
             />
@@ -612,7 +624,7 @@ export default async function FinanceReportsPage({
             />
             <Row
               label={t(locale, "Paid out")}
-              value={`− ${money(pl.cashOut)}`}
+              value={`− ${exact(pl.cashOutLocal, pl.cashOut)}`}
               alt={alt(pl.cashOut)}
             />
             <Row
@@ -652,7 +664,7 @@ export default async function FinanceReportsPage({
                       )}
                     </span>
                     <span className="font-mono tabular-nums">
-                      {money(row.amount)}
+                      {exact(row.amountLocal, row.amount)}
                     </span>
                   </div>
                   {/* A bar against the largest category, so the shape of the
@@ -705,9 +717,9 @@ export default async function FinanceReportsPage({
                           ? `${t(locale, "flew")} ${formatDate(batch.departedAt, locale)}`
                           : t(locale, "not departed")}
                         {" · "}
-                        {money(batch.revenue)} {t(locale, "in")}
+                        {exact(batch.revenueLocal, batch.revenue)} {t(locale, "in")}
                         {batch.hasCosts
-                          ? `, ${money(batch.costs)} ${t(locale, "out")}`
+                          ? `, ${exact(batch.costsLocal, batch.costs)} ${t(locale, "out")}`
                           : ""}
                       </p>
                     </div>
@@ -718,7 +730,7 @@ export default async function FinanceReportsPage({
                             batch.profit >= 0 ? "text-success" : "text-destructive"
                           }`}
                         >
-                          {money(batch.profit)}
+                          {exact(batch.profitLocal, batch.profit)}
                         </p>
                       ) : (
                         <p className="text-xs text-muted-foreground">
@@ -813,13 +825,13 @@ export default async function FinanceReportsPage({
               },
               {
                 k: "Expenses",
-                v: money(pl.costs),
+                v: exact(pl.costsLocal, pl.costs),
                 d: move(pl.costs, prior.costs),
                 up: pl.costs <= prior.costs,
               },
               {
                 k: pl.profit < 0 ? "Net loss" : "Net profit",
-                v: money(Math.abs(pl.profit)),
+                v: exact(Math.abs(pl.profitLocal), Math.abs(pl.profit)),
                 d: move(pl.profit, prior.profit),
                 up: pl.profit >= prior.profit,
               },
@@ -1159,9 +1171,9 @@ export default async function FinanceReportsPage({
           </div>
           <dl className="grid grid-cols-3 gap-px border-b bg-border">
             {[
-              { k: "Batch costs", v: money(dash.expenses.batchUsd) },
-              { k: "Office costs", v: money(dash.expenses.officeUsd) },
-              { k: "Special", v: money(dash.expenses.specialUsd) },
+              { k: "Batch costs", v: exact(dash.expenses.batchLocal, dash.expenses.batchUsd) },
+              { k: "Office costs", v: exact(dash.expenses.officeLocal, dash.expenses.officeUsd) },
+              { k: "Special", v: exact(dash.expenses.specialLocal, dash.expenses.specialUsd) },
             ].map((cell) => (
               <div key={cell.k} className="bg-card px-4 py-3">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">

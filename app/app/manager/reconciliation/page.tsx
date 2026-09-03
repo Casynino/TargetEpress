@@ -35,7 +35,7 @@ import { formatDate, formatDateTime, formatMoney, formatRelative, toNumber } fro
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
-import { formatShillings } from "@/lib/money";
+import { formatShillings, formatShillingTotal } from "@/lib/money";
 import { profitByDispatch } from "@/lib/profit";
 import { can } from "@/lib/rbac";
 import { reconciliation, type CheckSide } from "@/lib/reconciliation";
@@ -266,6 +266,10 @@ export default async function ManagerReconciliation({
   ]);
   const rate = rateRow ? toNumber(rateRow.rate) : null;
   const shillings = (usd: number) => formatShillings(usd, rate);
+  /* For a figure already added up as shillings: converting a dollar total back
+     is what turned a TSh 20,000 cost into TSh 20,007. See lib/money-totals.ts. */
+  const exact = (local: number, usd: number) =>
+    formatShillingTotal(local, usd, rate);
 
   /* The selected row, and it is fetched rather than assumed to be on this page:
      a link from the control room lands here with a tx that the current filters
@@ -1335,13 +1339,13 @@ export default async function ManagerReconciliation({
                           <span className="mr-1 text-[11px] uppercase text-muted-foreground sm:hidden">
                             {t(locale, "Billed")}
                           </span>
-                          {shillings(batch.revenue)}
+                          {exact(batch.revenueLocal, batch.revenue)}
                         </span>
                         <span className="font-mono text-xs tabular-nums text-success sm:text-right">
                           <span className="mr-1 text-[11px] uppercase text-muted-foreground sm:hidden">
                             {t(locale, "Collected")}
                           </span>
-                          {shillings(batch.collected)}
+                          {exact(batch.collectedLocal, batch.collected)}
                         </span>
                         <span
                           className={cn(
@@ -1352,7 +1356,7 @@ export default async function ManagerReconciliation({
                           <span className="mr-1 text-[11px] uppercase text-muted-foreground sm:hidden">
                             {t(locale, "Still owed")}
                           </span>
-                          {shillings(batch.outstanding)}
+                          {exact(batch.outstandingLocal, batch.outstanding)}
                         </span>
                       </div>
                     </Link>
@@ -1376,10 +1380,10 @@ export default async function ManagerReconciliation({
                   <p className="text-sm font-semibold">
                     {selectedBatch.batchNumber}
                     <span className="ml-2 text-xs font-normal text-muted-foreground">
-                      {shillings(selectedBatch.revenue)} {t(locale, "billed")} ·{" "}
-                      {shillings(selectedBatch.collected)} {t(locale, "collected")} ·{" "}
-                      {shillings(selectedBatch.outstanding)} {t(locale, "still owed")} ·{" "}
-                    {shillings(selectedBatch.costs)} {t(locale, "cost")}
+                      {exact(selectedBatch.revenueLocal, selectedBatch.revenue)} {t(locale, "billed")} ·{" "}
+                      {exact(selectedBatch.collectedLocal, selectedBatch.collected)} {t(locale, "collected")} ·{" "}
+                      {exact(selectedBatch.outstandingLocal, selectedBatch.outstanding)} {t(locale, "still owed")} ·{" "}
+                    {exact(selectedBatch.costsLocal, selectedBatch.costs)} {t(locale, "cost")}
                     </span>
                   </p>
                   {batchHistory.length > 0 ? (

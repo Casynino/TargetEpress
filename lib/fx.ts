@@ -15,6 +15,7 @@ export {
   LOCAL_CURRENCY,
   formatLocal,
   formatShillings,
+  formatShillingTotal,
   formatUsd,
   toLocal,
 } from "@/lib/money";

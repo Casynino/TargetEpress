@@ -1,10 +1,18 @@
 import "server-only";
 
+import type { Prisma } from "@prisma/client";
+
 import { BILLED_INVOICE_STATUSES } from "@/lib/constants";
 import { creditForPeriod } from "@/lib/credit-queries";
 import { formatMonthYear, toNumber } from "@/lib/format";
 import { BASE_CURRENCY, currentRateValue } from "@/lib/fx";
 import type { Locale } from "@/lib/locale";
+import {
+  LOCAL_CURRENCY,
+  sumShillings,
+  sumUsd,
+  type MoneyRow,
+} from "@/lib/money-totals";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -237,42 +245,54 @@ export async function profitAndLoss(window: ProfitWindow) {
     // Accrual costs: dated when the cost was incurred, which is what puts a
     // flight's customs bill in the month it flew rather than the month it was
     // settled.
-    prisma.expense.aggregate({
+    /*
+      Fetched row by row rather than summed in SQL.
+
+      SUM(amountUsd) is a sum of SNAPSHOTS: a cost of TSh 20,000 is stored as
+      USD 7.41, because the column is Decimal(12,2) and the eighth of a cent is
+      gone. Multiply that total back by 2,700 for a screen that leads in
+      shillings and it reads TSh 20,007 — a figure the owner never typed. The
+      error is per row, so the busiest month drifts furthest.
+    */
+    prisma.expense.findMany({
       where: {
         incurredAt: range,
         status: { not: "VOID" },
         expenseClass: "OPERATING",
       },
-      _sum: { amountUsd: true },
+      select: { amount: true, currency: true, amountUsd: true },
     }),
     // Cash out: money that actually left an account — ALL of it, including the
     // special class. Profit and cash answer different questions: a
     // non-operating payment does not belong in the margin, but it absolutely
     // left the bank, and a cash figure that pretends otherwise will not
     // reconcile against a statement.
-    prisma.expense.aggregate({
+    prisma.expense.findMany({
       where: { paidAt: range, status: "PAID" },
-      _sum: { amountUsd: true },
+      select: { amount: true, currency: true, amountUsd: true },
     }),
-    prisma.expense.groupBy({
-      by: ["category"],
+    /* Grouped in code for the same reason: GROUP BY would sum the snapshots. */
+    prisma.expense.findMany({
       where: {
         incurredAt: range,
         status: { not: "VOID" },
         expenseClass: "OPERATING",
       },
-      _sum: { amountUsd: true },
-      orderBy: { _sum: { amountUsd: "desc" } },
+      select: {
+        category: true,
+        amount: true,
+        currency: true,
+        amountUsd: true,
+      },
     }),
     // Recorded, shown on its own line, and kept out of the margin.
-    prisma.expense.aggregate({
+    prisma.expense.findMany({
       where: {
         incurredAt: range,
         status: { not: "VOID" },
         expenseClass: "NON_OPERATING",
       },
-      _sum: { amountUsd: true },
-      _count: true,
+      select: { amount: true, currency: true, amountUsd: true },
     }),
     // Bank charges on our own transfers.
     //
@@ -329,10 +349,35 @@ export async function profitAndLoss(window: ProfitWindow) {
       }, 0) * 100
     ) / 100;
 
-  const costs = toNumber(incurred._sum.amountUsd) + feeUsd;
-  const cashOut = toNumber(paidOut._sum.amountUsd) + feeUsd;
+  /*
+    Costs in BOTH units, each added up in the money it was written in.
 
-  const specialUsd = toNumber(special._sum.amountUsd);
+    A shilling cost stays shillings; only genuinely foreign money goes through
+    the dollar snapshot. The screen then reads whichever it leads in rather
+    than converting a total it was handed — which is what made a TSh 20,000
+    office cost read as TSh 20,007 on the flight it was paid for.
+  */
+  const asRows = (rows: { amount: unknown; currency: string; amountUsd: unknown }[]) =>
+    rows as unknown as MoneyRow[];
+
+  const feeLocal = rate ? feeUsd * rate : 0;
+  const costs = sumUsd(asRows(incurred), rate) + feeUsd;
+  const costsLocal = sumShillings(asRows(incurred), rate) + feeLocal;
+  const cashOut = sumUsd(asRows(paidOut), rate) + feeUsd;
+  const cashOutLocal = sumShillings(asRows(paidOut), rate) + feeLocal;
+
+  const specialUsd = sumUsd(asRows(special), rate);
+  const specialLocal = sumShillings(asRows(special), rate);
+
+  /* Grouped here rather than by SQL, and totalled per row inside each group. */
+  const categoryTotals = new Map<string, { usd: number; local: number }>();
+  for (const row of byCategory) {
+    const key = row.category as string;
+    const current = categoryTotals.get(key) ?? { usd: 0, local: 0 };
+    current.usd += sumUsd(asRows([row]), rate);
+    current.local += sumShillings(asRows([row]), rate);
+    categoryTotals.set(key, current);
+  }
 
   /*
     Revenue billed in this period that has not been collected against it.
@@ -406,7 +451,7 @@ export async function profitAndLoss(window: ProfitWindow) {
       neither question honestly.
     */
     specialCosts: specialUsd,
-    specialCount: special._count,
+    specialCount: special.length,
     profitAfterSpecial: revenue - costs - specialUsd,
     // Guarded: a month with no revenue has no margin, not an infinite one.
     margin: revenue > 0 ? ((revenue - costs) / revenue) * 100 : null,
@@ -414,13 +459,36 @@ export async function profitAndLoss(window: ProfitWindow) {
     cashOut,
     netCash: cashIn - cashOut,
     bankCharges: feeUsd,
+    /*
+      The same figures in shillings, for the screens that lead in them.
+
+      Revenue is a sum of dollar invoices, so one multiplication is exact and
+      there is nothing per-row to lose. Costs are not: they are typed in
+      shillings, and `costsLocal` above added them up as shillings. Profit is
+      the difference of the two in that unit, never `profit x rate`.
+    */
+    revenueLocal: rate ? revenue * rate : 0,
+    costsLocal,
+    profitLocal: (rate ? revenue * rate : 0) - costsLocal,
+    cashOutLocal,
+    cashInLocal: rate ? cashIn * rate : 0,
+    specialCostsLocal: specialLocal,
     categories: [
-      ...byCategory.map((row) => ({
-        category: row.category,
-        amount: toNumber(row._sum.amountUsd),
-      })),
+      ...[...categoryTotals.entries()]
+        .sort((a, b) => b[1].usd - a[1].usd)
+        .map(([category, total]) => ({
+          category,
+          amount: total.usd,
+          amountLocal: total.local,
+        })),
       ...(feeUsd > 0
-        ? [{ category: "BANK_CHARGES", amount: feeUsd }]
+        ? [
+            {
+              category: "BANK_CHARGES",
+              amount: feeUsd,
+              amountLocal: feeLocal,
+            },
+          ]
         : []),
     ].sort((a, b) => b.amount - a.amount),
   };
@@ -449,7 +517,15 @@ export async function profitByDispatch(take = 10) {
         // would inflate the flight's revenue with money nobody will ever pay.
         where: { deletedAt: null },
         select: {
-          invoice: { select: { total: true, status: true, amountPaid: true } },
+          invoice: {
+            select: {
+              total: true,
+              status: true,
+              amountPaid: true,
+              currency: true,
+              exchangeRate: true,
+            },
+          },
         },
       },
       expenses: {
@@ -457,10 +533,50 @@ export async function profitByDispatch(take = 10) {
         // figures, but charging it to a flight would make that flight look
         // unprofitable for a reason that has nothing to do with the flight.
         where: { status: { not: "VOID" }, expenseClass: "OPERATING" },
-        select: { amountUsd: true },
+        /* `amount` and `currency` as well as the snapshot — see the shilling
+           totals below for why the snapshot alone is not enough. */
+        select: { amount: true, currency: true, amountUsd: true },
       },
     },
   });
+
+  /*
+    TSh 20,000 HAS TO READ TSh 20,000.
+
+    Every figure below was summed from `amountUsd`, the dollar snapshot, and
+    the page then multiplied the total back by the rate. A cost of TSh 20,000
+    is stored as USD 7.41 — Decimal(12,2), so the eighth of a cent is gone —
+    and 7.41 x 2,700 is 20,007. The owner reads a number he never typed on the
+    flight he paid it for.
+
+    The error is per ROW, so a busy flight drifts further than a quiet one,
+    which is precisely backwards. So each cost and each bill is converted on
+    its own and in the unit it was written in: shillings stay shillings and
+    only genuinely foreign money goes through the snapshot. The batch carries
+    BOTH totals, and the screen picks the one it leads in rather than
+    converting a total it was handed.
+  */
+  const rate = await currentRateValue();
+
+  /** One invoice as a money row: exact in its own currency, snapshot beside. */
+  const invoiceRow = (invoice: {
+    currency: string;
+    exchangeRate: Prisma.Decimal | null;
+    }, amount: number): MoneyRow => {
+    const frozen = toNumber(invoice.exchangeRate);
+    return {
+      currency: invoice.currency,
+      amount,
+      /* A shilling bill's dollar figure comes from the rate it was QUOTED at,
+         which is the only rate the customer ever agreed to. */
+      amountUsd:
+        invoice.currency === LOCAL_CURRENCY
+          ? frozen
+            ? amount / frozen
+            : 0
+          : amount,
+    };
+  };
 
   return batches.map((batch) => {
     /*
@@ -470,39 +586,52 @@ export async function profitByDispatch(take = 10) {
       made a flight that closed by writing off its billing look exactly as
       profitable as one that collected all of it.
     */
-    const revenue = batch.shipments.reduce((sum, shipment) => {
+    const revenueRows: MoneyRow[] = [];
+    const writtenOffRows: MoneyRow[] = [];
+    const collectedRows: MoneyRow[] = [];
+    for (const shipment of batch.shipments) {
       const invoice = shipment.invoice;
       if (!invoice || invoice.status === "DRAFT" || invoice.status === "VOID") {
-        return sum;
+        continue;
       }
+      const total = toNumber(invoice.total);
+      const paid = toNumber(invoice.amountPaid);
+      revenueRows.push(
+        invoiceRow(invoice, invoice.status === "WRITTEN_OFF" ? paid : total)
+      );
+      collectedRows.push(invoiceRow(invoice, paid));
       if (invoice.status === "WRITTEN_OFF") {
-        return sum + toNumber(invoice.amountPaid);
+        writtenOffRows.push(invoiceRow(invoice, total - paid));
       }
-      return sum + toNumber(invoice.total);
-    }, 0);
-    const writtenOff = batch.shipments.reduce((sum, shipment) => {
-      const invoice = shipment.invoice;
-      if (!invoice || invoice.status !== "WRITTEN_OFF") return sum;
-      return sum + toNumber(invoice.total) - toNumber(invoice.amountPaid);
-    }, 0);
+    }
+    const revenue = sumUsd(revenueRows, rate);
+    const writtenOff = sumUsd(writtenOffRows, rate);
     const drafts = batch.shipments.filter(
       (s) => s.invoice?.status === "DRAFT"
     ).length;
-    const costs = batch.expenses.reduce(
-      (sum, expense) => sum + toNumber(expense.amountUsd),
-      0
-    );
+    const costRows: MoneyRow[] = batch.expenses.map((expense) => ({
+      currency: expense.currency,
+      amount: expense.amount,
+      amountUsd: expense.amountUsd,
+    }));
+    const costs = sumUsd(costRows, rate);
 
     // A write-off belongs here at whatever was paid before it: that money was
     // received and never handed back. Which is also why `outstanding` below
     // lands on nothing owed for it — revenue and collected agree.
-    const collected = batch.shipments.reduce((sum, shipment) => {
-      const invoice = shipment.invoice;
-      if (!invoice || invoice.status === "DRAFT" || invoice.status === "VOID") {
-        return sum;
-      }
-      return sum + toNumber(invoice.amountPaid);
-    }, 0);
+    const collected = sumUsd(collectedRows, rate);
+
+    /*
+      The same four figures in shillings, added up as shillings.
+
+      Not `usd * rate`: that is the round trip this whole block exists to
+      avoid. A screen that leads in shillings reads these; one that leads in
+      dollars reads the pair above; neither converts a total it was handed.
+    */
+    const revenueLocal = sumShillings(revenueRows, rate);
+    const collectedLocal = sumShillings(collectedRows, rate);
+    const writtenOffLocal = sumShillings(writtenOffRows, rate);
+    const costsLocal = sumShillings(costRows, rate);
 
     return {
       id: batch.id,
@@ -512,6 +641,12 @@ export async function profitByDispatch(take = 10) {
       revenue,
       collected,
       outstanding: Math.max(0, revenue - collected),
+      revenueLocal,
+      collectedLocal,
+      writtenOffLocal,
+      costsLocal,
+      outstandingLocal: Math.max(0, revenueLocal - collectedLocal),
+      profitLocal: revenueLocal - costsLocal,
       // Kept as its own total rather than left inside revenue, so the flight
       // can say it gave up on money instead of quietly looking smaller.
       writtenOff,

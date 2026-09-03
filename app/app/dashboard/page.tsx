@@ -103,6 +103,7 @@ import {
   ownerAttention,
   recentActivity,
 } from "@/lib/queries";
+import { sumShillings, sumUsd } from "@/lib/money-totals";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { CargoMix } from "@/components/app/cargo-mix";
@@ -1561,15 +1562,21 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       _count: true,
       _sum: { creditedAmount: true },
     }),
-    prisma.expense.aggregate({
+    /*
+      Rows, not SUM(amountUsd).
+
+      A cost typed as TSh 20,000 is stored as USD 7.41 — Decimal(12,2), the
+      eighth of a cent gone — so a total of snapshots multiplied back by the
+      rate prints TSh 20,007 for money nobody spent. Per row, so the busiest
+      month is furthest out. Both of these are money typed in shillings.
+    */
+    prisma.expense.findMany({
       where: { status: { in: ["PENDING", "APPROVED"] } },
-      _count: true,
-      _sum: { amountUsd: true },
+      select: { amount: true, currency: true, amountUsd: true },
     }),
-    prisma.ledgerEntry.aggregate({
+    prisma.ledgerEntry.findMany({
       where: { direction: "OUT", occurredAt: { gte: monthStart } },
-      _count: true,
-      _sum: { amountUsd: true },
+      select: { amount: true, currency: true, amountUsd: true },
     }),
     /* The credit book, from the one place that computes it — the same figures
        the settlements page prints, so the desk cannot read one number here and a
@@ -1593,8 +1600,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
 
   const draftValue = toNumber(drafts._sum.total);
   const unattributedUsd = toNumber(unattributed._sum.creditedAmount);
-  const owedOutUsd = toNumber(owedOut._sum.amountUsd);
-  const spentUsd = toNumber(spent._sum.amountUsd);
+  const owedOutUsd = sumUsd(owedOut, rate);
+  const owedOutLocal = sumShillings(owedOut, rate);
+  const spentUsd = sumUsd(spent, rate);
+  const spentLocal = sumShillings(spent, rate);
   const unsettled = stats.unpaid + stats.partiallyPaid;
   const collectedThisMonth = revenue.values[revenue.values.length - 1] ?? 0;
   const collectedThisYear = revenue.values.reduce((a, b) => a + b, 0);
@@ -1702,16 +1711,20 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     },
     {
       group: t(locale, "Costs"),
-      when: owedOut._count > 0,
-      label: `${owedOut._count} ${t(
+      when: owedOut.length > 0,
+      label: `${owedOut.length} ${t(
         locale,
-        owedOut._count === 1 ? "cost to pay out" : "costs to pay out"
+        owedOut.length === 1 ? "cost to pay out" : "costs to pay out"
       )}`,
       detail: t(
         locale,
         "Recorded against the business, not yet disbursed from an account."
       ),
       usd: owedOutUsd,
+      /* Typed in shillings, so it is added up in shillings. `usd * rate` on a
+         total of dollar snapshots is what printed TSh 20,007 for a TSh 20,000
+         cost — see lib/money-totals.ts. */
+      local: owedOutLocal,
       href: "/app/finance/transactions?kind=EXPENSE",
       cta: t(locale, "Settle"),
       urgent: false,
@@ -1748,7 +1761,14 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       label: job.label,
       detail: job.detail,
       href: job.href,
-      value: job.usd !== undefined ? tsh(job.usd) : job.aside,
+      value:
+        job.usd !== undefined
+          ? job.local !== undefined
+            ? rate
+              ? `TSh ${Math.round(job.local).toLocaleString("en-US")}`
+              : formatUsd(job.usd)
+            : tsh(job.usd)
+          : job.aside,
       valueSub: job.usd !== undefined ? formatUsd(job.usd) : undefined,
     })),
     ...alerts.map((alert) => ({
@@ -1942,15 +1962,16 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
         <MoneyTile
           label={t(locale, "Spent this month")}
           usd={spentUsd}
+          local={spentLocal}
           rate={rate}
           icon={TrendingDown}
           tone={spentUsd > 0 ? "bad" : "default"}
           count={
-            spent._count === 0
+            spent.length === 0
               ? t(locale, "no costs recorded yet")
-              : `${spent._count} ${t(
+              : `${spent.length} ${t(
                   locale,
-                  spent._count === 1 ? "payment out" : "payments out"
+                  spent.length === 1 ? "payment out" : "payments out"
                 )}`
           }
           hint={t(

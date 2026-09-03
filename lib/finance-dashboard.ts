@@ -3,7 +3,14 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 
 import { toNumber } from "@/lib/format";
+import { currentRateValue } from "@/lib/fx";
 import { accountBalances } from "@/lib/ledger";
+import {
+  LOCAL_CURRENCY,
+  sumShillings,
+  sumUsd,
+  type MoneyRow,
+} from "@/lib/money-totals";
 import { prisma } from "@/lib/prisma";
 import { profitAndLoss, type ProfitWindow } from "@/lib/profit";
 
@@ -43,6 +50,14 @@ export type BatchPerformance = {
   expensesUsd: number;
   profitUsd: number;
   marginPct: number | null;
+  /* The same figures added up as shillings, not converted from the dollars
+     beside them. A cost of TSh 20,000 is stored as USD 7.41, and 7.41 x 2,700
+     is 20,007 — see lib/money-totals.ts. */
+  expectedLocal: number;
+  collectedLocal: number;
+  outstandingLocal: number;
+  expensesLocal: number;
+  profitLocal: number;
 };
 
 export type FinanceDashboard = {
@@ -77,8 +92,17 @@ export type FinanceDashboard = {
     batchUsd: number;
     officeUsd: number;
     specialUsd: number;
-    byCategory: { category: string; amount: number; share: number }[];
-    byBatch: { batchNumber: string; amount: number }[];
+    totalLocal: number;
+    batchLocal: number;
+    officeLocal: number;
+    specialLocal: number;
+    byCategory: {
+      category: string;
+      amount: number;
+      amountLocal: number;
+      share: number;
+    }[];
+    byBatch: { batchNumber: string; amount: number; amountLocal: number }[];
   };
 
   position: {
@@ -220,6 +244,10 @@ export async function financeDashboard(
     prisma.expense.findMany({
       where: { incurredAt: range, status: { not: "VOID" } },
       select: {
+        /* The native figure and its currency, not just the dollar snapshot —
+           see the accumulation loop for why. */
+        amount: true,
+        currency: true,
         amountUsd: true,
         category: true,
         expenseClass: true,
@@ -268,12 +296,22 @@ export async function financeDashboard(
           where: { deletedAt: null },
           select: {
             weightKg: true,
-            invoice: { select: { total: true, amountPaid: true, status: true } },
+            invoice: {
+              select: {
+                total: true,
+                amountPaid: true,
+                status: true,
+                /* Needed to total in shillings without going through the
+                   dollar snapshot — see the batch figures below. */
+                currency: true,
+                exchangeRate: true,
+              },
+            },
           },
         },
         expenses: {
           where: { status: { not: "VOID" }, expenseClass: { not: "NON_OPERATING" } },
-          select: { amountUsd: true },
+          select: { amount: true, currency: true, amountUsd: true },
         },
       },
     }),
@@ -359,30 +397,61 @@ export async function financeDashboard(
     customerMap.set(key, cell);
   }
 
+  /* One published rate for the whole dashboard, so two tables on the same
+     screen cannot value the same shilling differently. */
+  const rate = await currentRateValue();
+
   // ---------------------------------------------------------------- expenses
+  /*
+    Accumulated in BOTH units as it goes.
+
+    A cost typed as TSh 20,000 is stored as USD 7.41 — Decimal(12,2), the
+    eighth of a cent gone — and a screen that leads in shillings would multiply
+    that back and print TSh 20,007. Per row, so the busiest month is furthest
+    out. The shilling figure never leaves shillings.
+  */
   let batchUsd = 0;
   let officeUsd = 0;
   let specialUsd = 0;
-  const categoryMap = new Map<string, number>();
-  const expenseBatchMap = new Map<string, number>();
+  let batchLocal = 0;
+  let officeLocal = 0;
+  let specialLocal = 0;
+  const categoryMap = new Map<string, { usd: number; local: number }>();
+  const expenseBatchMap = new Map<string, { usd: number; local: number }>();
+  const bump = (
+    map: Map<string, { usd: number; local: number }>,
+    key: string,
+    usd: number,
+    local: number
+  ) => {
+    const at = map.get(key) ?? { usd: 0, local: 0 };
+    map.set(key, { usd: at.usd + usd, local: at.local + local });
+  };
   for (const e of expenses) {
-    const usd = toNumber(e.amountUsd);
+    const row: MoneyRow = {
+      currency: e.currency,
+      amount: e.amount,
+      amountUsd: e.amountUsd,
+    };
+    const usd = sumUsd([row], rate);
+    const local = sumShillings([row], rate);
     if (e.expenseClass === "NON_OPERATING") {
       specialUsd += usd;
+      specialLocal += local;
       continue;
     }
     if (e.batch) {
       batchUsd += usd;
-      expenseBatchMap.set(
-        e.batch.batchNumber,
-        (expenseBatchMap.get(e.batch.batchNumber) ?? 0) + usd
-      );
+      batchLocal += local;
+      bump(expenseBatchMap, e.batch.batchNumber, usd, local);
     } else {
       officeUsd += usd;
+      officeLocal += local;
     }
-    categoryMap.set(e.category, (categoryMap.get(e.category) ?? 0) + usd);
+    bump(categoryMap, e.category, usd, local);
   }
   const operatingTotal = batchUsd + officeUsd;
+  const operatingLocal = batchLocal + officeLocal;
 
   // ---------------------------------------------------------------- position
   const accountById = new Map(accountList.map((a) => [a.id, a]));
@@ -438,6 +507,46 @@ export async function financeDashboard(
     const collected = billed.reduce((n, inv) => n + toNumber(inv.amountPaid), 0);
     const spent = batch.expenses.reduce((n, e) => n + toNumber(e.amountUsd), 0);
     const profit = expected - spent;
+
+    /*
+      And again in shillings, per row.
+
+      Summing the dollar snapshot and multiplying the total back by the rate
+      loses a fraction of a cent on every line and then magnifies it by 2,700.
+      A shilling cost is already shillings and stays that way; only genuinely
+      foreign money goes through the snapshot.
+    */
+    const invoiceRow = (
+      inv: { currency: string; exchangeRate: Prisma.Decimal | null },
+      amount: number
+    ): MoneyRow => {
+      const frozen = toNumber(inv.exchangeRate);
+      return {
+        currency: inv.currency,
+        amount,
+        amountUsd:
+          inv.currency === LOCAL_CURRENCY ? (frozen ? amount / frozen : 0) : amount,
+      };
+    };
+    const expectedRows = billed.map((inv) =>
+      invoiceRow(
+        inv,
+        inv.status === "WRITTEN_OFF"
+          ? toNumber(inv.amountPaid)
+          : toNumber(inv.total)
+      )
+    );
+    const collectedRows = billed.map((inv) =>
+      invoiceRow(inv, toNumber(inv.amountPaid))
+    );
+    const spentRows: MoneyRow[] = batch.expenses.map((e) => ({
+      currency: e.currency,
+      amount: e.amount,
+      amountUsd: e.amountUsd,
+    }));
+    const expectedLocal = sumShillings(expectedRows, rate);
+    const collectedLocal = sumShillings(collectedRows, rate);
+    const expensesLocal = sumShillings(spentRows, rate);
     return {
       id: batch.id,
       batchNumber: batch.batchNumber,
@@ -452,6 +561,11 @@ export async function financeDashboard(
       expensesUsd: spent,
       profitUsd: profit,
       marginPct: pct(profit, expected),
+      expectedLocal,
+      collectedLocal,
+      outstandingLocal: Math.max(0, expectedLocal - collectedLocal),
+      expensesLocal,
+      profitLocal: expectedLocal - expensesLocal,
     };
   });
 
@@ -607,15 +721,24 @@ export async function financeDashboard(
       batchUsd,
       officeUsd,
       specialUsd,
+      totalLocal: operatingLocal + specialLocal,
+      batchLocal,
+      officeLocal,
+      specialLocal,
       byCategory: [...categoryMap.entries()]
-        .map(([category, amount]) => ({
+        .map(([category, total]) => ({
           category,
-          amount,
-          share: operatingTotal > 0 ? (amount / operatingTotal) * 100 : 0,
+          amount: total.usd,
+          amountLocal: total.local,
+          share: operatingTotal > 0 ? (total.usd / operatingTotal) * 100 : 0,
         }))
         .sort((a, b) => b.amount - a.amount),
       byBatch: [...expenseBatchMap.entries()]
-        .map(([batchNumber, amount]) => ({ batchNumber, amount }))
+        .map(([batchNumber, total]) => ({
+          batchNumber,
+          amount: total.usd,
+          amountLocal: total.local,
+        }))
         .sort((a, b) => b.amount - a.amount)
         .slice(0, 8),
     },

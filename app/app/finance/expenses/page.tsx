@@ -17,7 +17,7 @@ import {
 } from "@/lib/expenses";
 import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
-import { currentRate, formatShillings, formatUsd } from "@/lib/fx";
+import { currentRate, formatUsd } from "@/lib/fx";
 import { sumShillings, sumUsd } from "@/lib/money-totals";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -353,7 +353,6 @@ export default async function ExpensesPage({
   ]);
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
-  const money = (usd: number) => formatShillings(usd, rate);
 
   /*
     Costs are added up in the currency they were paid in.
@@ -387,7 +386,6 @@ export default async function ExpensesPage({
   /* Figures already in shillings — never multiplied a second time. */
   const shillings = (value: number, usdFallback: number) =>
     rate ? `TSh ${Math.round(value).toLocaleString("en-US")}` : formatUsd(usdFallback);
-  const biggest = byCategory[0];
 
   const seen = new Set<string>();
   const quick = [

@@ -32,7 +32,7 @@ import { financeDashboard, type BatchPerformance } from "@/lib/finance-dashboard
 import { formatDate, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
-import { formatShillings, formatUsd } from "@/lib/money";
+import { formatShillings, formatShillingTotal, formatUsd } from "@/lib/money";
 import { windowFor, type PeriodKey } from "@/lib/profit";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
@@ -138,6 +138,11 @@ export default async function ManagerFinance({
   const prior = dash.prior;
   const rate = rateRow ? toNumber(rateRow.rate) : null;
   const money = (usd: number) => formatShillings(usd, rate);
+  /* For figures already added up as shillings. Converting a dollar total back
+     is what turned a TSh 20,000 cost into TSh 20,007 — see lib/money-totals.ts.
+     Takes the dollar total too, for when no rate is published. */
+  const exact = (local: number, usd: number) =>
+    formatShillingTotal(local, usd, rate);
   /** The bill's own currency, kept quiet underneath. Null when it adds nothing. */
   const inUsd = (usd: number) => (rate === null ? null : formatUsd(usd));
 
@@ -245,7 +250,7 @@ export default async function ManagerFinance({
     },
     {
       k: "Expenses",
-      v: money(pl.costs),
+      v: exact(pl.costsLocal, pl.costs),
       alt: inUsd(pl.costs),
       sub: against(pl.costs, prior.costs, "first period with costs"),
       tone: "text-destructive",
@@ -253,7 +258,7 @@ export default async function ManagerFinance({
     {
       /* One cell, named by its sign — see rule 2 at the top of this file. */
       k: profitable ? "Net profit" : "Net loss",
-      v: money(Math.abs(pl.profit)),
+      v: exact(Math.abs(pl.profitLocal), Math.abs(pl.profit)),
       alt: inUsd(Math.abs(pl.profit)),
       sub: bottomLine(pl.profit, prior.profit),
       tone: profitable ? "text-success" : "text-destructive",
@@ -440,7 +445,7 @@ export default async function ManagerFinance({
           "Profit and loss are the same line with a sign, so there is one cell for both. Credit sales are already inside Revenue — the sale happened — and are deliberately absent from Collected."
         )}
         {pl.specialCosts > 0
-          ? ` ${money(pl.specialCosts)} ${t(
+          ? ` ${exact(pl.specialCostsLocal, pl.specialCosts)} ${t(
               locale,
               "of special costs left the company in this period and are kept out of the margin."
             )}`
@@ -708,7 +713,7 @@ export default async function ManagerFinance({
                       )}
                     </span>
                     <span className="tabular shrink-0 font-semibold">
-                      {money(row.amount)}
+                      {exact(row.amountLocal, row.amount)}
                     </span>
                   </div>
                   <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -741,14 +746,14 @@ export default async function ManagerFinance({
                 >
                   <span className="min-w-0 truncate font-mono">{row.batchNumber}</span>
                   <span className="tabular shrink-0 font-semibold">
-                    {money(row.amount)}
+                    {exact(row.amountLocal, row.amount)}
                   </span>
                 </li>
               ))}
             </ul>
           )}
           <p className="mt-2 text-[11px] text-muted-foreground">
-            {money(dash.expenses.officeUsd)}{" "}
+            {exact(dash.expenses.officeLocal, dash.expenses.officeUsd)}{" "}
             {t(
               locale,
               "of this period's cost has no flight against it. That is a proxy for overhead, not a field somebody filled in."
@@ -868,19 +873,19 @@ export default async function ManagerFinance({
                       {row.kg.toLocaleString("en-US", { maximumFractionDigits: 0 })}
                     </TableCell>
                     <TableCell className="tabular py-2 text-right text-xs">
-                      {money(row.expectedUsd)}
+                      {exact(row.expectedLocal, row.expectedUsd)}
                     </TableCell>
                     <TableCell className="tabular hidden py-2 text-right text-xs text-success lg:table-cell">
-                      {money(row.collectedUsd)}
+                      {exact(row.collectedLocal, row.collectedUsd)}
                     </TableCell>
                     <TableCell className="tabular hidden py-2 text-right text-xs text-brand xl:table-cell">
                       {money(row.creditUsd)}
                     </TableCell>
                     <TableCell className="tabular hidden py-2 text-right text-xs text-signal lg:table-cell">
-                      {money(row.outstandingUsd)}
+                      {exact(row.outstandingLocal, row.outstandingUsd)}
                     </TableCell>
                     <TableCell className="tabular hidden py-2 text-right text-xs text-destructive xl:table-cell">
-                      {money(row.expensesUsd)}
+                      {exact(row.expensesLocal, row.expensesUsd)}
                     </TableCell>
                     <TableCell
                       className={`tabular py-2 text-right text-xs font-semibold ${
@@ -888,7 +893,7 @@ export default async function ManagerFinance({
                       }`}
                     >
                       {row.profitUsd < 0 ? "− " : ""}
-                      {money(Math.abs(row.profitUsd))}
+                      {exact(Math.abs(row.profitLocal), Math.abs(row.profitUsd))}
                     </TableCell>
                     <TableCell
                       className={`tabular py-2 text-right text-xs ${
@@ -930,7 +935,7 @@ export default async function ManagerFinance({
                       <TrendingUp className="h-3.5 w-3.5" />
                     )}
                     {row.profitUsd < 0 ? "− " : ""}
-                    {money(Math.abs(row.profitUsd))}
+                    {exact(Math.abs(row.profitLocal), Math.abs(row.profitUsd))}
                   </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground">
@@ -947,17 +952,17 @@ export default async function ManagerFinance({
                 </p>
                 <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
                   {[
-                    { k: "Revenue", v: money(row.expectedUsd), tone: "" },
-                    { k: "Collected", v: money(row.collectedUsd), tone: "text-success" },
+                    { k: "Revenue", v: exact(row.expectedLocal, row.expectedUsd), tone: "" },
+                    { k: "Collected", v: exact(row.collectedLocal, row.collectedUsd), tone: "text-success" },
                     { k: "Credit", v: money(row.creditUsd), tone: "text-brand" },
                     {
                       k: "Outstanding",
-                      v: money(row.outstandingUsd),
+                      v: exact(row.outstandingLocal, row.outstandingUsd),
                       tone: "text-signal",
                     },
                     {
                       k: "Expenses",
-                      v: money(row.expensesUsd),
+                      v: exact(row.expensesLocal, row.expensesUsd),
                       tone: "text-destructive",
                     },
                   ].map((cell) => (
