@@ -169,9 +169,15 @@ export async function createCustomer(
  * balance the customer now shows is the sum of the two they showed before,
  * because every balance in this system is derived from the rows that moved.
  *
- * It cannot be undone from a screen, which is why it sits behind its own
- * permission rather than customer.manage, and why the audit line names both
- * codes and counts every row that moved.
+ * Held by the desks that meet the duplicate — Support hears "but I already
+ * paid for the other one", Finance sees one customer owing two amounts under
+ * two codes — because a desk that can only report the problem waits on
+ * somebody else to fix what it found. Not the warehouses, who neither see the
+ * money nor would know which record is the real one.
+ *
+ * It cannot be undone from a screen, so the confirmation is the losing record's
+ * code, typed; and the audit line names both codes and counts every row that
+ * moved.
  */
 export async function mergeCustomers(input: {
   keepId: string;

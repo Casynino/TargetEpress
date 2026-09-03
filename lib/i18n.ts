@@ -3040,6 +3040,8 @@ const ZH: Record<string, string> = {
   "Nobody has more than one unpaid consignment right now. Search for a customer to take a payment or hold a deposit.": "目前没有客户有多于一票的未付货物。可以搜索客户来收款或登记预付款。",
   "A newer version is live.": "已有新版本上线。",
   "Reload": "刷新",
+  "{n} customer(s) waiting to pay": "{n} 位客户待付款",
+  "{n} bills": "{n} 张账单",
   "{name} has {n} other unpaid consignment(s)": "{name} 还有 {n} 票未付货物",
   "Paying for several at once? Take it as one payment.": "一次付清多票？合并为一笔付款。",
   "Possibly the same customer": "可能是同一位客户",

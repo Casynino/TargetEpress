@@ -453,6 +453,10 @@ const CUSTOMER_CARE: Permission[] = [
   "sourcing.manage",
   "customer.view",
   "customer.manage",
+  /* The desk that hears "but I already paid for the other one" and works out
+     that the customer is on the books twice. It is where the duplicate is
+     found, so it is where it is closed. */
+  "customer.merge",
   "exception.view",
   "exception.raise",
   // The desk that phones the customer while their cargo is being looked for.
@@ -542,6 +546,11 @@ const FINANCE: Permission[] = [
   "audit.view",
   "customer.view",
   "customer.manage",
+  /* Folding one customer record into another. Finance is the desk that finds
+     the duplicate — it surfaces as one customer owing two amounts under two
+     codes — so it is the desk that must be able to close it, rather than
+     raising it with somebody else and waiting. */
+  "customer.merge",
   // The Pricing & Configuration centre. Finance owns what the business
   // charges — the whole reason that page exists is that a price change does
   // not need a developer.
@@ -599,11 +608,6 @@ const ALL: Permission[] = Array.from(
        records register or the right to bin another desk's paperwork. */
     "records.viewDeleted",
     "document.removeAny",
-    /* Folding one customer record into another. Deliberately not given to the
-       desks that hold customer.manage: editing a name is a correction, but a
-       merge moves somebody else's invoices, payments and pickup notes onto a
-       different account and cannot be undone from a screen. */
-    "customer.merge",
     // Erasing a record for good. Nobody else has it, at any rank.
     "shipment.purge",
     // What every customer is told: the collection accounts, the office

@@ -66,3 +66,25 @@ export function toLocal(usd: number, rate: number): number {
 export function formatShillings(usd: number, rate: number | null) {
   return rate === null ? formatUsd(usd) : formatLocal(usd * rate);
 }
+
+/**
+ * The same lead, for a figure that was already added up in shillings.
+ *
+ * `formatShillings` takes dollars and multiplies once, which is right when the
+ * dollar figure is the real one. It is wrong for a total that came out of
+ * `sumShillings`: dividing that back into dollars only to multiply it by the
+ * same rate reintroduces, per row, exactly the drift that summing in shillings
+ * was there to avoid.
+ *
+ * So this takes both — the exact shilling total, and the dollar total to fall
+ * back on when no rate is published and there is nothing honest to convert
+ * with. Same decision as `formatShillings`, made in the same place, so the two
+ * can never disagree about which currency leads.
+ */
+export function formatShillingTotal(
+  shillings: number,
+  usd: number,
+  rate: number | null
+) {
+  return rate === null ? formatUsd(usd) : formatLocal(shillings);
+}
