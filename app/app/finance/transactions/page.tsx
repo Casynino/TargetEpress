@@ -546,19 +546,6 @@ export default async function LedgerPage({
                 autoOpen={params.income === "1"}
               />
             ) : null}
-            {canRecord ? (
-            <RecordCostButton
-              compact
-              accounts={accounts.map((a) => ({
-                id: a.id,
-                name: a.name,
-                currency: a.currency,
-                accountNumber: a.accountNumber,
-              }))}
-              quick={COMMON_EXPENSES}
-              rate={rate}
-            />
-            ) : null}
             {canTakeMoney ? (
               <Link
                 href="/app/finance/payments/new"
@@ -571,6 +558,19 @@ export default async function LedgerPage({
             ) : null}
             {canAskForCredit ? (
               <AskForCredit compact rate={rate} canApprove={canDecideCredit} />
+            ) : null}
+            {canRecord ? (
+            <RecordCostButton
+              compact
+              accounts={accounts.map((a) => ({
+                id: a.id,
+                name: a.name,
+                currency: a.currency,
+                accountNumber: a.accountNumber,
+              }))}
+              quick={COMMON_EXPENSES}
+              rate={rate}
+            />
             ) : null}
           </div>
         }

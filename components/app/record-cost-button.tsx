@@ -41,13 +41,20 @@ export function RecordCostButton({
 
   return (
     <>
+      {/* Outline in the compact row, filled everywhere else.
+
+          On the Expenses page recording a cost IS the page's job, so it leads
+          in brand blue. In the ledger header it is one of four equal doors,
+          and the blue one read as "press me" beside three that are not less
+          important — it is the least of the four, if anything. */}
       <Button
-        variant="brand"
-        className="rounded-lg"
+        variant={compact ? "outline" : "brand"}
+        size={compact ? "sm" : undefined}
+        className={compact ? "h-9 rounded-lg" : "rounded-lg"}
         title={t("Record a cost")}
         onClick={() => setOpen(true)}
       >
-        <Plus className="mr-2 h-4 w-4" />
+        <Plus className={compact ? "mr-1.5 h-4 w-4" : "mr-2 h-4 w-4"} />
         {compact ? t("Cost") : t("Record a cost")}
       </Button>
 
