@@ -290,6 +290,23 @@ export default async function CustomerProfilePage({
         />
       ) : null}
 
+      {/*
+        Above the cargo, the bills and the balance, because it questions all
+        three: if this is half of somebody, every figure below is half a figure.
+        Buried at the foot of the sidebar it was found by nobody.
+      */}
+      {/* Guarded here as well as inside the panel: an empty wrapper would still
+          leave its margin behind on every customer who has no twin. */}
+      {mergeCandidates.length > 0 ? (
+        <div className="mb-6">
+          <CustomerMergePanel
+            keepId={customer.id}
+            keepName={customer.name}
+            candidates={mergeCandidates}
+          />
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-6">
           {/* Shipments */}
@@ -678,12 +695,6 @@ export default async function CustomerProfilePage({
               />
             </section>
           ) : null}
-
-          <CustomerMergePanel
-            keepId={customer.id}
-            keepName={customer.name}
-            candidates={mergeCandidates}
-          />
 
           <section className="rounded-xl border bg-card p-5 shadow-soft">
             <h2 className="mb-3 font-semibold">{t(locale, "Notes")}</h2>
