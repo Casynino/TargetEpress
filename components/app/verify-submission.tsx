@@ -21,8 +21,13 @@ import type { ActionResult } from "@/lib/actions/types";
  * recordPayment the counter uses, so a verified claim produces exactly the
  * receipt, ledger entry and pickup note a counter payment would have.
  *
- * Rejecting demands a reason. Support has to ring the customer and tell them
- * something, and "rejected" on its own is not something to say to anybody.
+ * Rejecting demands a reason, and specifically the PROBLEM rather than the next
+ * step. Finance had been typing things like "will update through batch" — an
+ * instruction about what would happen later, which stopped being true the day
+ * Support could fix a refused claim and send it straight back from their own
+ * list. What the desk needs is the fault: no such transaction, wrong figure,
+ * money into an account that is not ours. That is what they ring the customer
+ * about, and it is the sentence the next person reading the row is given.
  */
 export function VerifySubmission({
   submissionId,
@@ -109,15 +114,20 @@ export function VerifySubmission({
       <input type="hidden" name="submissionId" value={submissionId} />
       <div className="space-y-1">
         <Label htmlFor={`reason-${submissionId}`} className="text-xs">
-          Why — Support has to tell the customer something
+          What is wrong with it?
         </Label>
         <Input
           id={`reason-${submissionId}`}
           name="reason"
           placeholder="e.g. no transaction with that code on the statement"
           className="h-9 text-sm"
+          minLength={10}
           required
         />
+        <p className="text-[11px] text-muted-foreground">
+          The fault, not the next step — Support fixes it and sends it straight
+          back from their own list, and this is what they tell the customer.
+        </p>
       </div>
       <FormError state={rejectState} />
       <div className="flex items-center gap-2">

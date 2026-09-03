@@ -279,8 +279,13 @@ export async function rejectPaymentSubmission(
   );
   if (!parsed.success) return fail(firstError(parsed.error));
   const reason = parsed.data.reason;
-  if (!reason || reason.length < 3) {
-    return fail("Say why it is being sent back — Support has to tell the customer something.");
+  /* Ten, not three. "No" and "ok" cleared the old bar, and so did an
+     instruction about what would happen next — which is not a fault anybody
+     can act on. Support rings a customer with this sentence. */
+  if (!reason || reason.length < 10) {
+    return fail(
+      "Say what is actually wrong with it — Support rings the customer with this, and fixes it from their own list."
+    );
   }
   const ip = await callerIp();
 

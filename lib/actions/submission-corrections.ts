@@ -552,6 +552,25 @@ export async function resubmitSubmission(
       );
     }
 
+    /*
+      New evidence, if the desk has any.
+
+      Often the whole reason a claim came back is that nothing was attached, so
+      the fix IS the screenshot. It goes onto the NEW claim rather than onto the
+      refused one — what Finance was looking at when they said no must stay
+      exactly as it was.
+
+      Uploaded before the transaction opens, as every other upload here does: a
+      file crossing the network must not hold a row lock.
+    */
+    const fresh_files = filesFrom(formData, "proof");
+    const uploaded = await Promise.all(
+      fresh_files.map(async (file) => {
+        const stored = await putDocument(file, "proof");
+        return { ...stored, filename: file.name || "proof" };
+      })
+    );
+
     const result = await prisma.$transaction(async (tx) => {
       const account = await tx.companyAccount.findUnique({
         where: { id: parsed.data.accountId },
@@ -605,7 +624,7 @@ export async function resubmitSubmission(
           /* The same files, not re-uploaded. The refused claim keeps its own
              rows, so what Finance was looking at when they said no survives. */
           proofs: {
-            create: old.proofs.map((proof) => ({
+            create: [...old.proofs, ...uploaded].map((proof) => ({
               url: proof.url,
               contentType: proof.contentType,
               bytes: proof.bytes,
@@ -630,6 +649,7 @@ export async function resubmitSubmission(
             currency: parsed.data.currency,
             account: account.name,
             reason: parsed.data.reason,
+            evidenceAdded: uploaded.length,
           },
         },
         tx

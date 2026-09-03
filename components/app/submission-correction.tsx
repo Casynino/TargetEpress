@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Ban, Eye, Pencil, X } from "lucide-react";
@@ -132,6 +132,10 @@ export function SubmissionCorrection({
   const [reference, setReference] = useState(subject.reference ?? "");
   const [note, setNote] = useState(subject.note ?? "");
   const [reason, setReason] = useState("");
+  /* New evidence for a claim being sent up again. Optional on purpose — often
+     the fix is a corrected figure and the screenshot never changed — but often
+     enough the missing screenshot IS why it came back. */
+  const proofRef = useRef<HTMLInputElement>(null);
 
   const editable = subject.status === "PENDING" && canEdit;
   /*
@@ -234,6 +238,8 @@ export function SubmissionCorrection({
         fd.set("reference", reference);
         fd.set("note", note);
         fd.set("reason", reason);
+        const file = proofRef.current?.files?.[0];
+        if (file) fd.set("proof", file);
         return fd;
       },
       (fd) => resubmitSubmission(undefined, fd)
@@ -531,11 +537,28 @@ export function SubmissionCorrection({
                       editable={editable}
                     />
                     {canRaiseAgain ? (
-                      <p className="text-xs text-muted-foreground">
-                        {t(
-                          "The evidence already on this claim goes up with the new one."
-                        )}
-                      </p>
+                      <>
+                        <p className="text-xs text-muted-foreground">
+                          {t(
+                            "The evidence already on this claim goes up with the new one."
+                          )}
+                        </p>
+                        {/* Added to the NEW claim, never to the refused one —
+                            what Finance was looking at when they said no has
+                            to stay exactly as it was. */}
+                        <input
+                          ref={proofRef}
+                          type="file"
+                          name="proof"
+                          accept="image/jpeg,image/png,image/webp,application/pdf"
+                          className="block w-full text-xs file:mr-3 file:rounded-md file:border file:border-input file:bg-card file:px-2.5 file:py-1 file:text-xs file:text-foreground hover:file:bg-accent"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {t(
+                            "Add the customer's proof if you have it now — optional, but it is often why this came back."
+                          )}
+                        </p>
+                      </>
                     ) : null}
                   </div>
                 ) : null}

@@ -1594,6 +1594,7 @@ const ZH: Record<string, string> = {
   "No account has an opening balance yet": "还没有账户设置期初余额",
   "No account named": "未指明账户",
   "no account named": "未指定账户",
+  "Add the customer's proof if you have it now — optional, but it is often why this came back.": "如已拿到客户凭证可在此添加——非必填，但退回原因往往就是缺少凭证。",
   "Ask for credit on": "为此账单申请赊账",
   "Decide the credit": "审批赊账",
   "See the credit terms": "查看赊账条款",
