@@ -1822,17 +1822,20 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
    * The handful of things this desk starts many times a day.
    *
    * Pills rather than cards: a toolbar under the numbers, not a second
-   * sidebar competing with them. The first two are the jobs — signing off
-   * prices and writing down a cost — and the rest are places to look. That
-   * split is why the first two are solid and the other four are tinted: six
-   * filled colours side by side and nothing leads.
+   * sidebar competing with them. Colours are per destination, not per
+   * position, and they match the other desks: pickup notes green wherever it
+   * appears, anything that means "chase this" amber. A pill that changes
+   * colour between screens is not a landmark.
    *
-   * Colours are per destination, not per position, and they match the other
-   * desks: pickup notes green wherever it appears, anything that means "chase
-   * this" amber. A pill that changes colour between screens is not a landmark.
+   * NO STANDING "CONFIRM PRICES" PILL. It used to sit here permanently, even
+   * on a morning when nothing had landed and there was nothing to confirm —
+   * a shortcut to an empty job is not a shortcut, it is a button that lies
+   * eleven days out of twelve. Confirming prices belongs in "Needs your
+   * attention" below, and only there, because that is the one place on this
+   * page that already knows whether Dar has actually checked a flight in and
+   * put something in front of you to sign off.
    */
   const shortcuts: ActionPill[] = [
-    { href: draftBatchHref, label: t(locale, "Confirm prices"), icon: ClipboardCheck, weight: "primary", tone: "brand" },
     /* Money in beside money out. They are the two halves of the same job and
        were a tab apart, so the commoner of the two — customers paying — was
        the one that took more clicks. It opens the ledger with the panel
