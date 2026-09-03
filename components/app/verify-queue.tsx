@@ -6,7 +6,6 @@ import { SubmissionCorrection } from "@/components/app/submission-correction";
 import { VerifySubmission } from "@/components/app/verify-submission";
 import { activeAccounts } from "@/lib/accounts";
 import { submissionQueue } from "@/lib/collections";
-import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer";
@@ -109,11 +108,14 @@ export async function VerifyQueue() {
                         <span className="font-mono">
                           {row.invoice.invoiceNumber}
                         </span>
-                        <span>·</span>
-                        <span>{t(locale, PAYMENT_METHOD_LABELS[row.method])}</span>
                         {/* Where the desk says it landed. Finance is deciding
                             exactly this, so it belongs on the row rather than
-                            behind a click. */}
+                            behind a click.
+
+                            This used to be preceded by the payment method, which
+                            said "Mobile money" immediately before naming the
+                            mobile-money account — the same fact twice, the
+                            second time precisely. */}
                         <span>·</span>
                         <span>
                           {row.account?.name ?? (
@@ -199,7 +201,6 @@ export async function VerifyQueue() {
                         submissionId={row.id}
                         invoiceId={row.invoice.id}
                         amount={claimed}
-                        method={row.method}
                         reference={row.reference}
                         note={row.note}
                         status={row.status}

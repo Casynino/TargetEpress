@@ -15,7 +15,6 @@ import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { activeAccounts } from "@/lib/accounts";
-import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -110,11 +109,10 @@ export default async function PaymentDetailPage({
     ? toNumber(invoice.total) - toNumber(invoice.amountPaid)
     : 0;
 
+  /* No "Method" row. It said "Mobile money" directly above a row naming the
+     mobile-money account it went into — the same fact twice, the second time
+     precisely. */
   const facts: { label: string; value: React.ReactNode }[] = [
-    {
-      label: t(locale, "Method"),
-      value: t(locale, PAYMENT_METHOD_LABELS[payment.method]),
-    },
     {
       label: t(locale, "Reference"),
       value: payment.reference ?? (
@@ -204,7 +202,6 @@ export default async function PaymentDetailPage({
                 paymentId: payment.id,
                 paymentReference: payment.reference,
                 paymentNote: payment.note,
-                paymentMethod: payment.method,
                 paymentAccountId: payment.accountId,
                 amount: toNumber(payment.amount),
                 currency: payment.currency,

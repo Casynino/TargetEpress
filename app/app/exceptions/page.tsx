@@ -16,7 +16,6 @@ import { PageHeader } from "@/components/app/page-header";
 import { StatStrip } from "@/components/app/stat-strip";
 import {
   EXCEPTION_OPEN_STATUSES,
-  PAYMENT_METHOD_LABELS,
   ROLE_LABELS,
 } from "@/lib/constants";
 import { activeAccounts } from "@/lib/accounts";
@@ -233,9 +232,6 @@ function toRecord(
           amount: canSeeMoney
             ? formatMoney(row.compensation.amount, row.compensation.currency)
             : null,
-          methodLabel: row.compensation.method
-            ? t(locale, PAYMENT_METHOD_LABELS[row.compensation.method])
-            : null,
           // Free text can quote a figure, so it travels with the figure.
           note: canSeeMoney ? row.compensation.note : null,
           recordedByName: row.compensation.recordedBy?.name ?? null,
@@ -246,7 +242,6 @@ function toRecord(
             ? {
                 amount: row.compensation.amount.toFixed(2),
                 currency: row.compensation.currency,
-                method: row.compensation.method,
                 accountId: row.compensation.accountId,
               }
             : null,

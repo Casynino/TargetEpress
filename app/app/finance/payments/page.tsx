@@ -14,7 +14,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Banknote, CircleHelp, HandCoins, Wallet } from "lucide-react";
-import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { activeAccounts } from "@/lib/accounts";
@@ -41,7 +40,7 @@ export default async function PaymentsPage() {
     payments,
     monthAgg,
     allTime,
-    byMethod,
+    byAccount,
     unattributed,
     byTendered,
     rateRow,
@@ -75,11 +74,29 @@ export default async function PaymentsPage() {
       _count: true,
     }),
     prisma.payment.aggregate({ _sum: { creditedAmount: true }, _count: true }),
-    prisma.payment.groupBy({
-      by: ["method"],
-      _sum: { creditedAmount: true },
-      _count: true,
-    }),
+    /*
+      Where the money went, by account.
+
+      This grouped by PaymentMethod, which answered "how did it arrive" with a
+      category — and the company runs named accounts, of which two are mobile
+      money. It now names them.
+
+      Raw because of COALESCE: an older USD payment has a null creditedAmount
+      and a Prisma _sum would count it as zero. Every other total in this
+      codebase already follows that rule; this one did not.
+    */
+    prisma.$queryRaw<
+      { accountId: string | null; name: string | null; total: number; count: bigint }[]
+    >`
+      SELECT p."accountId",
+             a."name",
+             SUM(COALESCE(p."creditedAmount", p."amount"))::float8 AS total,
+             COUNT(*) AS count
+        FROM "Payment" p
+        LEFT JOIN "CompanyAccount" a ON a."id" = p."accountId"
+       GROUP BY p."accountId", a."name"
+       ORDER BY total DESC
+    `,
     // Money in hand that nobody has said where it went — a job, not a statistic.
     prisma.payment.aggregate({
       where: { accountId: null },
@@ -99,7 +116,7 @@ export default async function PaymentsPage() {
   ]);
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
-  const methodTotal = byMethod.reduce((n, r) => n + r._count, 0);
+  const attributedCount = byAccount.reduce((n, r) => n + Number(r.count), 0);
   const inShillings = byTendered.find((r) => r.currency === "TZS");
   const tenderedTotal = byTendered.reduce((n, r) => n + r._count, 0);
 
@@ -159,29 +176,35 @@ export default async function PaymentsPage() {
               : undefined
           }
           hint={
-            byMethod[0]
-              ? `${t(locale, "Mostly by")} ${t(locale, PAYMENT_METHOD_LABELS[byMethod[0].method]).toLowerCase()}`
-              : "The rest came in dollars"
+            byAccount[0]?.name
+              ? `${t(locale, "Mostly into")} ${byAccount[0].name}`
+              : t(locale, "The rest came in dollars")
           }
         />
       </div>
 
-      {/* The rest of the split, one line rather than a card each — with three
-          methods in use a card apiece left a ragged half-empty row. */}
-      {byMethod.length > 1 ? (
+      {/* The rest of the split, one line rather than a card each — with several
+          accounts in use a card apiece left a ragged half-empty row. */}
+      {byAccount.length > 1 ? (
         <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
           <span className="text-muted-foreground">
-            {t(locale, "Also paid by")}
+            {t(locale, "Also into")}
           </span>
-          {byMethod.slice(1).map((row) => (
+          {byAccount.slice(1).map((row) => (
             <span
-              key={row.method}
+              key={row.accountId ?? "unattributed"}
               className="rounded-full border bg-card px-2.5 py-1 font-medium"
             >
-              {t(locale, PAYMENT_METHOD_LABELS[row.method])}
+              {/* Money nobody has attributed yet is a real row here, and the
+                  one worth naming — it is a job, not a rounding. */}
+              {row.name ?? (
+                <span className="text-warning">
+                  {t(locale, "no account named")}
+                </span>
+              )}
               <span className="ml-1.5 font-mono text-muted-foreground">
                 {formatMoney(
-                  rate ? toNumber(row._sum.creditedAmount) * rate : toNumber(row._sum.creditedAmount),
+                  rate ? row.total * rate : row.total,
                   rate ? "TZS" : "USD"
                 )}
               </span>
@@ -242,16 +265,12 @@ export default async function PaymentsPage() {
                 <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t pt-3 text-xs">
                   <div>
                     <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                      {t(locale, "Method")}
+                      {t(locale, "Reference")}
                     </dt>
-                    <dd className="mt-0.5">
-                      {t(locale, PAYMENT_METHOD_LABELS[payment.method])}
-                      {payment.reference ? (
-                        <span className="block text-xs text-muted-foreground">
-                          {payment.reference}
-                        </span>
-                      ) : null}
-                    </dd>
+                    {/* An em dash rather than an empty cell — cash across the
+                        counter has no code, and a labelled blank reads as a
+                        page that failed to load. */}
+                    <dd className="mt-0.5">{payment.reference || "—"}</dd>
                   </div>
                   <div>
                     <dt className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -315,9 +334,6 @@ export default async function PaymentsPage() {
                   <TableHead className="text-right">
                     {t(locale, "Amount")}
                   </TableHead>
-                  <TableHead className="hidden sm:table-cell">
-                    {t(locale, "Method")}
-                  </TableHead>
                   <TableHead className="hidden md:table-cell">
                     {t(locale, "Landed in")}
                   </TableHead>
@@ -365,17 +381,15 @@ export default async function PaymentsPage() {
                         </span>
                       ) : null}
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell text-sm">
-                      {t(locale, PAYMENT_METHOD_LABELS[payment.method])}
-                      {payment.reference ? (
-                        <span className="block text-xs text-muted-foreground">
-                          {payment.reference}
-                        </span>
-                      ) : null}
-                    </TableCell>
-                    {/* Which of our accounts took it. Blank is a real answer,
-                        not a missing one — see the Accounts view, where it
-                        adds up under Unattributed rather than disappearing. */}
+                    {/* Which of our accounts took it, and the code the
+                        customer quoted. Blank is a real answer, not a missing
+                        one — see the Accounts view, where it adds up under
+                        Unattributed rather than disappearing.
+
+                        The reference used to live in a Method column beside
+                        this one. The method said "Mobile money" next to a cell
+                        naming the mobile-money account; the column went, and
+                        the reference came here rather than going with it. */}
                     <TableCell className="hidden md:table-cell text-sm">
                       {payment.account ? (
                         payment.account.name
@@ -386,6 +400,11 @@ export default async function PaymentsPage() {
                           accounts={accounts}
                         />
                       )}
+                      {payment.reference ? (
+                        <span className="block text-xs text-muted-foreground">
+                          {payment.reference}
+                        </span>
+                      ) : null}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                       {payment.receivedBy?.name ?? "—"}

@@ -174,7 +174,6 @@ export const customerPaymentSchema = z.object({
   customerId: z.string().min(1, "Choose the customer who paid."),
   amount: numeric("Amount", { min: 0.01 }),
   currency: z.enum(["USD", "TZS"]),
-  method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]),
   reference: z.string().trim().max(120).optional(),
   note: z.string().trim().max(500).optional(),
   /* Required, same rule as paymentSchema above — and this schema is shared by
@@ -241,7 +240,6 @@ export const customerPaymentSchema = z.object({
 export const paymentSchema = z.object({
   invoiceId: z.string().min(1),
   amount: numeric("Amount", { min: 0.01 }),
-  method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]),
   /**
    * What the customer actually handed over. A bill in USD is routinely settled
    * in shillings at the counter, and recording it as USD would put a figure on

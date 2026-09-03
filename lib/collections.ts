@@ -81,7 +81,6 @@ export async function submissionQueue(
       submissionNumber: true,
       amount: true,
       currency: true,
-      method: true,
       reference: true,
       note: true,
       status: true,

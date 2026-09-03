@@ -221,18 +221,6 @@ export function CustomerPaymentForm({
   const over = left < -0.005;
 
   const chosen = accounts.find((a) => a.id === accountId) ?? null;
-  /* Bank, mobile money or cash — the account already knows, and a CHEQUE is
-     banked, so it lands in a bank account like any other transfer. */
-  const derivedMethod = !chosen
-    ? /* Nothing named yet. At this counter that is nearly always mobile money,
-         and Finance's account settles it at verification. */
-      "MOBILE_MONEY"
-    : chosen.kind === "CASH"
-      ? "CASH"
-      : chosen.kind === "MOBILE_MONEY"
-        ? "MOBILE_MONEY"
-        : "BANK_TRANSFER";
-
   const money = (n: number, currency = payCurrency) =>
     `${currency === LOCAL ? "TSh" : currency} ${n.toLocaleString(undefined, {
       maximumFractionDigits: currency === LOCAL ? 0 : 2,
@@ -652,11 +640,6 @@ export function CustomerPaymentForm({
                   </option>
                 ))}
             </NativeSelect>
-            {chosen ? (
-              <p className="text-xs text-muted-foreground">
-                {t("Recorded as")} {t(METHOD_LABELS[derivedMethod])}.
-              </p>
-            ) : null}
           </div>
 
           {/*
@@ -675,7 +658,6 @@ export function CustomerPaymentForm({
             the method is taken from that account, so what is stored is what
             the bank actually shows.
           */}
-          <input type="hidden" name="method" value={derivedMethod} />
 
           {/*
             THE PROOF, IF THERE IS ANY.

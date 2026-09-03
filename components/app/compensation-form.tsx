@@ -14,7 +14,6 @@ import {
   approveCompensation,
   recordCompensation,
 } from "@/lib/actions/investigations";
-import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 
 /**
  * The two halves of a payout, kept apart on purpose.
@@ -80,7 +79,6 @@ export function RecordCompensationForm({
     amount: string;
     currency: string;
     paidAt: string | null;
-    method: string | null;
     note: string | null;
     accountId?: string | null;
   } | null;
@@ -97,16 +95,10 @@ export function RecordCompensationForm({
 }) {
   const t = useT();
   const [state, action] = useActionState(recordCompensation, undefined);
-  /* Which account the payout leaves, and therefore how it was paid. Empty
-     until one is named: until then it genuinely has not been paid. */
+  /* Which account the payout leaves. Empty until one is named: until then it
+     genuinely has not been paid. The stored method is read off this account by
+     the server — see methodForKind — so nothing here derives one. */
   const [accountId, setAccountId] = useState(defaults?.accountId ?? "");
-  const payoutMethod = (() => {
-    const account = accounts.find((a) => a.id === accountId);
-    if (!account) return "";
-    if (account.kind === "CASH") return "CASH";
-    if (account.kind === "MOBILE_MONEY") return "MOBILE_MONEY";
-    return "BANK_TRANSFER";
-  })();
 
   return (
     <form action={action} className="space-y-3">
@@ -146,14 +138,6 @@ export function RecordCompensationForm({
             {t("Leave empty until the money has actually gone out.")}
           </p>
         </div>
-        {/* Never asked. Which account the payout LEFT says how it was paid:
-            the tin is cash, a till is mobile money, a bank is a transfer. Two
-            questions with one answer is two answers that can disagree, and a
-            payout whose method and account contradict each other is a line
-            nobody can reconcile against a statement. Empty until an account is
-            named, because until then it genuinely has not been paid. */}
-        <input type="hidden" name="method" value={payoutMethod} />
-
         <div className="space-y-1 sm:col-span-2">
           <Label htmlFor="compensation-account">{t("Paid from")}</Label>
           <NativeSelect

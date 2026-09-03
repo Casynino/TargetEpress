@@ -2,14 +2,12 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import type { PaymentMethod } from "@prisma/client";
 import { HandCoins, SlidersHorizontal } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useLocale, useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { setCreditLimit } from "@/lib/actions/credit";
-import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import {
   CREDIT_STATE_LABEL,
   CREDIT_TERMS,
@@ -56,7 +54,7 @@ export type LastCreditPayment = {
   usd: number;
   /** The rate that money actually moved at, frozen. Never today's. */
   rate: number | null;
-  method: PaymentMethod;
+  accountName: string | null;
   invoiceId: string;
   invoiceNumber: string;
 };
@@ -173,7 +171,9 @@ export function CustomerCreditPanel({
         : t("Never"),
       tone: lastPayment ? "" : "text-muted-foreground",
       hint: lastPayment
-        ? `${formatDate(lastPayment.paidAt, locale)} · ${t(PAYMENT_METHOD_LABELS[lastPayment.method])}`
+        ? `${formatDate(lastPayment.paidAt, locale)}${
+            lastPayment.accountName ? ` · ${lastPayment.accountName}` : ""
+          }`
         : null,
     },
     {

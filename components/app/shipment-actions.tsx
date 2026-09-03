@@ -32,7 +32,7 @@ import {
 } from "@/lib/actions/finance";
 import { cancelShipment } from "@/lib/actions/shipments";
 import type { ActionResult } from "@/lib/actions/types";
-import { PAYMENT_METHOD_LABELS, enumOptions } from "@/lib/constants";
+import { enumOptions } from "@/lib/constants";
 import { can, canAmendCargo } from "@/lib/rbac";
 
 type Props = {
@@ -433,7 +433,6 @@ function PaymentPanel(props: Props) {
   });
   /* Follows the account. Mobile money until one is named, which is what it is
      at this counter nine times in ten. */
-  const [method, setMethod] = useState("MOBILE_MONEY");
   const [accountId, setAccountId] = useState("");
   const [state, action] = useActionState<
     ActionResult<{ receiptNumber: string; pickupNoteNumber: string | null }>,
@@ -456,15 +455,6 @@ function PaymentPanel(props: Props) {
   const eligibleAccounts = (props.accounts ?? []).filter(
     (account) => account.currency === currency
   );
-
-  /** Derived from where it landed, never asked. */
-  const methodOf = (id: string) => {
-    const account = eligibleAccounts.find((a) => a.id === id);
-    if (!account) return "MOBILE_MONEY";
-    if (account.kind === "CASH") return "CASH";
-    if (account.kind === "MOBILE_MONEY") return "MOBILE_MONEY";
-    return "BANK_TRANSFER";
-  };
 
   // Shown as the clerk types, so the figure that will land against the bill is
   // visible before it is committed. The server recomputes it from the invoice's
@@ -618,32 +608,28 @@ function PaymentPanel(props: Props) {
               ) : null}
             </p>
           ) : null}
-          {/* Never asked — see eligibleAccounts. Where it landed says how it
-              was paid, and nothing named yet is mobile money at this counter. */}
-          <input type="hidden" name="method" value={method} />
-          {/* Where the money landed.
-              Optional, and last among the money fields, because taking the
-              payment is the job and bookkeeping follows it — a clerk who does
-              not know yet leaves it blank and the payment records exactly as it
-              always has. The list is narrowed to accounts that could actually
-              have received this money: a shilling account cannot hold dollars,
-              and cash does not arrive in a bank account. */}
+          {/* Where the money landed. Compulsory — the owner's rule: money is
+              never recorded without saying where it went, and this counter is
+              standing in front of the customer whose proof names it.
+              recordPayment refuses a payment without one, so offering a blank
+              here would only produce a refusal after the work was typed.
+              The list is narrowed to accounts that could actually have received
+              this money: a shilling account cannot hold dollars. */}
           {eligibleAccounts.length > 0 ? (
             <div className="space-y-1.5">
               <Label htmlFor="accountId" className="text-xs">
-                {t("Landed in")}{" "}
-                <span className="text-muted-foreground">({t("optional")})</span>
+                {t("Landed in")}
               </Label>
               <NativeSelect
                 id="accountId"
                 name="accountId"
+                required
                 value={accountId}
-                onChange={(event) => {
-                  setAccountId(event.target.value);
-                  setMethod(methodOf(event.target.value));
-                }}
+                onChange={(event) => setAccountId(event.target.value)}
               >
-                <option value="">{t("Not recorded")}</option>
+                <option value="" disabled>
+                  {t("Choose the account")}
+                </option>
                 {eligibleAccounts.map((account) => (
                   <option key={account.id} value={account.id}>
                     {account.name}

@@ -21,7 +21,6 @@ import { AIRPORT_LABELS, CATEGORY_LABELS, METHOD_LABELS } from "@/lib/cargo";
 import {
   COMPANY,
   PAYMENT_METHODS,
-  PAYMENT_METHOD_LABELS,
 } from "@/lib/constants";
 import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -70,6 +69,9 @@ export default async function InvoicePage({
         include: {
           receipt: true,
           receivedBy: { select: { name: true } },
+          /* Which account took it, printed on the receipt line below in place
+             of the payment method that used to sit there. */
+          account: { select: { name: true } },
           /* Who cancelled it and why, so a struck-through line can say so
              instead of just going quiet. */
           voidedBy: { select: { name: true } },
@@ -480,7 +482,10 @@ export default async function InvoicePage({
           id: payment.id,
           line: [
             payment.receipt?.receiptNumber,
-            t(locale, PAYMENT_METHOD_LABELS[payment.method]),
+            /* The account, not the kind of account. A null simply drops out of
+               the join below, so a payment taken before accounts were recorded
+               degrades to one fewer fact rather than to the word "null". */
+            payment.account?.name,
             payment.reference,
             formatDate(payment.paidAt, locale),
           ]
@@ -508,7 +513,6 @@ export default async function InvoicePage({
                 paymentId: payment.id,
                 paymentReference: payment.reference,
                 paymentNote: payment.note,
-                paymentMethod: payment.method,
                 paymentAccountId: payment.accountId,
                 amount: toNumber(payment.amount),
                 currency: payment.currency,

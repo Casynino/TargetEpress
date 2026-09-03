@@ -21,7 +21,6 @@ import {
 } from "@/lib/actions/payment-corrections";
 import { voidExpense, editExpense, reverseExpense } from "@/lib/actions/expenses";
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
-import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 
 export type LedgerRowSubject = {
   entryId: string;
@@ -29,7 +28,6 @@ export type LedgerRowSubject = {
   paymentId: string | null;
   paymentReference: string | null;
   paymentNote: string | null;
-  paymentMethod: string | null;
   paymentAccountId: string | null;
   /** What the payment says now, so a correction starts from the truth. */
   amount: number;
@@ -124,7 +122,6 @@ export function LedgerRowFix({
   const [reason, setReason] = useState("");
   const [reference, setReference] = useState(subject.paymentReference ?? "");
   const [note, setNote] = useState(subject.paymentNote ?? "");
-  const [method, setMethod] = useState(subject.paymentMethod ?? "");
   const [paymentAccountId, setPaymentAccountId] = useState(
     subject.paymentAccountId ?? ""
   );
@@ -219,7 +216,6 @@ export function LedgerRowFix({
              does not get silently dropped. */
           fd.set("reference", reference);
           fd.set("note", note);
-          if (method) fd.set("method", method);
           fd.set("reason", reason);
           return fd;
         },
@@ -235,7 +231,6 @@ export function LedgerRowFix({
           fd.set("paymentId", subject.paymentId);
           fd.set("reference", reference);
           fd.set("note", note);
-          if (method) fd.set("method", method);
         } else if (subject.expenseId) {
           fd.set("expenseId", subject.expenseId);
           fd.set("category", category);
@@ -477,20 +472,6 @@ export function LedgerRowFix({
                       onChange={(event) => setReference(event.target.value)}
                       placeholder={t("M-Pesa code, slip number")}
                     />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="fix-method">{t("Method")}</Label>
-                    <NativeSelect
-                      id="fix-method"
-                      value={method}
-                      onChange={(event) => setMethod(event.target.value)}
-                    >
-                      {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {t(label)}
-                        </option>
-                      ))}
-                    </NativeSelect>
                   </div>
                 </div>
                 <div className="space-y-1.5">

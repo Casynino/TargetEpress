@@ -14,13 +14,6 @@ import { submitPaymentForVerification } from "@/lib/actions/collections";
 import { recordPayment } from "@/lib/actions/finance";
 import type { ActionResult } from "@/lib/actions/types";
 
-const METHODS = [
-  { value: "MOBILE_MONEY", label: "Mobile money" },
-  { value: "BANK_TRANSFER", label: "Bank transfer" },
-  { value: "CASH", label: "Cash" },
-  { value: "CHEQUE", label: "Cheque" },
-];
-
 /**
  * Handing a customer's payment up to Finance.
  *
@@ -132,15 +125,6 @@ export function RecordCollectionForm({
   const chosen = eligible.some((a) => a.id === accountId)
     ? accountId
     : (eligible[0]?.id ?? "");
-
-  /** The mechanism, read off the place. Never asked separately. */
-  const methodOf = (id: string) => {
-    const account = eligible.find((a) => a.id === id);
-    if (!account) return "BANK_TRANSFER";
-    if (account.kind === "CASH") return "CASH";
-    if (account.kind === "MOBILE_MONEY") return "MOBILE_MONEY";
-    return "BANK_TRANSFER";
-  };
 
   const addFiles = (incoming: FileList | null) => {
     if (!incoming) return;
@@ -274,7 +258,6 @@ export function RecordCollectionForm({
           </NativeSelect>
           {/* Derived, never asked. Cash tin → CASH, a till → mobile money,
               anything else → a transfer into the bank. */}
-          <input type="hidden" name="method" value={methodOf(chosen)} />
         </div>
       </div>
 

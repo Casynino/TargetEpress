@@ -117,6 +117,9 @@ export default async function ShipmentDetailPage({
             orderBy: { submittedAt: "desc" },
             include: {
               submittedBy: { select: { name: true } },
+              /* Which account the desk says it went into — shown on the notice
+                 below in place of the payment method that used to sit there. */
+              account: { select: { name: true } },
               proofs: { select: { id: true } },
             },
           },
@@ -125,6 +128,7 @@ export default async function ShipmentDetailPage({
             include: {
               receipt: true,
               receivedBy: { select: { name: true } },
+              account: { select: { name: true } },
               proofs: {
                 orderBy: { createdAt: "asc" },
                 select: {
@@ -210,7 +214,7 @@ export default async function ShipmentDetailPage({
         submissionNumber: s.submissionNumber,
         amount: toNumber(s.amount),
         currency: s.currency,
-        method: s.method,
+        accountName: s.account?.name ?? null,
         reference: s.reference,
         submittedAt: s.submittedAt,
         submittedByName: s.submittedBy?.name ?? null,
@@ -678,11 +682,14 @@ export default async function ShipmentDetailPage({
                     <div>
                       <p className="text-sm font-medium tabular">
                         {formatMoney(payment.amount, payment.currency)}{" "}
+                        {/* The account it went into. This printed the payment
+                            method lowercased — "mobile money" — which is a
+                            category, and two of the company's accounts are
+                            mobile money. An account name is a proper noun and
+                            is not lowercased. */}
                         <span className="font-normal text-muted-foreground">
-                          {t(
-                            locale,
-                            payment.method.replace("_", " ").toLowerCase()
-                          )}
+                          {payment.account?.name ??
+                            t(locale, "no account named")}
                         </span>
                         {/* What it was worth against the bill, when the
                             customer paid in a different currency. */}

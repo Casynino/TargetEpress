@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
+import { Prisma, type AccountKind } from "@prisma/client";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
@@ -32,6 +32,8 @@ import { prisma } from "@/lib/prisma";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
+import { methodForKind } from "@/lib/accounts";
+import { type Locale } from "@/lib/locale";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import {
@@ -1233,13 +1235,22 @@ export async function recordPayment(
       let account: {
         id: string;
         name: string;
+        kind: AccountKind;
         currency: string;
         active: boolean;
       } | null = null;
       if (input.accountId) {
         account = await tx.companyAccount.findUnique({
           where: { id: input.accountId },
-          select: { id: true, name: true, currency: true, active: true },
+          /* kind, because the stored method is read off the account now —
+             see methodForKind. */
+          select: {
+            id: true,
+            name: true,
+            kind: true,
+            currency: true,
+            active: true,
+          },
         });
         if (!account) throw new Error("That account no longer exists.");
         if (!account.active) {
@@ -1275,7 +1286,11 @@ export async function recordPayment(
           invoiceId: invoice.id,
           amount: new Prisma.Decimal(input.amount),
           currency: tenderedCurrency,
-          method: input.method,
+          /* Keyed on the account rather than the method it used to be keyed
+             on. Strictly narrower: two accounts of the same kind were one key
+             before, so a customer paying the same figure into CRDB and into
+             TCB inside two minutes could be refused as a double submission. */
+          accountId: input.accountId,
           reference: input.reference || null,
           createdAt: { gte: new Date(Date.now() - 120_000) },
         },
@@ -1297,7 +1312,7 @@ export async function recordPayment(
           currency: tenderedCurrency,
           creditedAmount: new Prisma.Decimal(credited),
           exchangeRate: rateUsed === null ? null : new Prisma.Decimal(rateUsed),
-          method: input.method,
+          method: methodForKind(account!.kind),
           reference: input.reference || null,
           note: input.note || null,
           accountId: account?.id ?? null,
@@ -1501,7 +1516,7 @@ export async function recordPayment(
               ? `Received ${invoice.currency} ${input.amount.toLocaleString()} for ${invoice.shipment.trackingNumber} (${receipt.receiptNumber})`
               : `Received ${tenderedCurrency} ${input.amount.toLocaleString()} — ${invoice.currency} ${credited.toLocaleString()} at ${rateUsed?.toLocaleString()} — for ${invoice.shipment.trackingNumber} (${receipt.receiptNumber})`,
           metadata: {
-            method: input.method,
+            account: account?.name ?? null,
             reference: input.reference ?? null,
             tenderedCurrency,
             tendered: input.amount,
@@ -1928,6 +1943,21 @@ export type BillableHit = {
   /** The rate frozen on the bill, so a shilling payment converts at what was quoted. */
   rate: number | null;
   status: string;
+  /** The flight it came in on, for the desk working one arrival at a time. */
+  batchId: string | null;
+  batchNumber: string | null;
+  flightNumber: string | null;
+};
+
+/** One flight with money still owed on it. */
+export type BillableBatch = {
+  id: string;
+  batchNumber: string;
+  flightNumber: string | null;
+  arrivedAt: Date | null;
+  /** How many bills on it are still short, and by how much in dollars. */
+  bills: number;
+  owedUsd: number;
 };
 
 /**
@@ -1992,28 +2022,188 @@ export async function searchBillable(query: string): Promise<BillableHit[]> {
       exchangeRate: true,
       customer: { select: { name: true } },
       shipment: {
-        select: { trackingNumber: true, ...selectText("description") },
+        select: {
+          trackingNumber: true,
+          ...selectText("description"),
+          batch: {
+            select: { id: true, batchNumber: true, flightNumber: true },
+          },
+        },
       },
     },
   });
 
-  return invoices.map((inv) => {
-    const total = toNumber(inv.total);
-    const paid = toNumber(inv.amountPaid);
-    return {
-      invoiceId: inv.id,
-      invoiceNumber: inv.invoiceNumber,
-      trackingNumber: inv.shipment.trackingNumber,
-      customerName: inv.customer.name,
-      goods: cargoText(locale, inv.shipment, "description"),
-      currency: inv.currency,
-      total,
-      paid,
-      outstanding: Math.max(0, total - paid),
-      rate: inv.exchangeRate === null ? null : toNumber(inv.exchangeRate),
-      status: inv.status,
+  return invoices.map((inv) => toBillable(inv, locale));
+}
+
+/** One shape for a searched bill and a queued one, so one row renders both. */
+function toBillable(
+  inv: {
+    id: string;
+    invoiceNumber: string;
+    currency: string;
+    total: Prisma.Decimal;
+    amountPaid: Prisma.Decimal;
+    status: string;
+    exchangeRate: Prisma.Decimal | null;
+    customer: { name: string };
+    shipment: {
+      trackingNumber: string;
+      batch: { id: string; batchNumber: string; flightNumber: string | null } | null;
     };
-  });
+  },
+  locale: Locale
+): BillableHit {
+  const total = toNumber(inv.total);
+  const paid = toNumber(inv.amountPaid);
+  return {
+    invoiceId: inv.id,
+    invoiceNumber: inv.invoiceNumber,
+    trackingNumber: inv.shipment.trackingNumber,
+    customerName: inv.customer.name,
+    goods: cargoText(locale, inv.shipment, "description"),
+    currency: inv.currency,
+    total,
+    paid,
+    outstanding: Math.max(0, total - paid),
+    rate: inv.exchangeRate === null ? null : toNumber(inv.exchangeRate),
+    status: inv.status,
+    batchId: inv.shipment.batch?.id ?? null,
+    batchNumber: inv.shipment.batch?.batchNumber ?? null,
+    flightNumber: inv.shipment.batch?.flightNumber ?? null,
+  };
+}
+
+/**
+ * Who has not paid yet — the list, before anybody types anything.
+ *
+ * Recording a payment used to begin at an empty search box, which asks the
+ * desk to already know the answer. Most of the time they do not: the question
+ * in the room is "who on this flight still owes us", and that is a list, not a
+ * lookup. So the panel now opens holding it, and the search box narrows it
+ * rather than being the only way in.
+ *
+ * Grouped by flight because that is how the money actually arrives — a plane
+ * lands, its customers are rung through in a sitting, and the desk wants that
+ * arrival on top rather than an alphabet of everybody who has ever owed
+ * anything. Flights are ordered by what is outstanding on them, so the one
+ * worth working is first.
+ *
+ * Drafts are excluded throughout. A price Finance has not signed off is not
+ * something to take money against, and it is the same rule the collections
+ * queue already applies.
+ */
+export async function billableQueue(
+  batchId?: string
+): Promise<{ batches: BillableBatch[]; hits: BillableHit[] }> {
+  try {
+    /* Same gate as the search beside it: finding a bill commits nothing, and
+       Support is the desk most often asking who still owes. */
+    await authorize("payment.submit");
+  } catch {
+    return { batches: [], hits: [] };
+  }
+
+  const locale = await viewerLocale();
+
+  const [rows, grouped] = await Promise.all([
+    prisma.invoice.findMany({
+      where: {
+        /* Drafts and written-off bills are not money anybody may take. */
+        status: { in: ["UNPAID", "PARTIALLY_PAID"] },
+        ...(batchId ? { shipment: { batchId } } : {}),
+      },
+      /* Oldest first: the bill that has been owed longest is the one somebody
+         should be ringing about, which is the opposite of the search's order. */
+      orderBy: [{ issuedAt: "asc" }],
+      take: 40,
+      select: {
+        id: true,
+        invoiceNumber: true,
+        currency: true,
+        total: true,
+        amountPaid: true,
+        status: true,
+        exchangeRate: true,
+        customer: { select: { name: true } },
+        shipment: {
+          select: {
+            trackingNumber: true,
+            ...selectText("description"),
+            batch: {
+              select: { id: true, batchNumber: true, flightNumber: true },
+            },
+          },
+        },
+      },
+    }),
+    /* Every flight with something still owed on it — computed across ALL of
+       them, not just the forty rows above, so the chips are a true picture of
+       what is outstanding rather than a summary of the current page. */
+    prisma.invoice.findMany({
+      where: {
+        status: { in: ["UNPAID", "PARTIALLY_PAID"] },
+        shipment: { batchId: { not: null } },
+      },
+      select: {
+        total: true,
+        amountPaid: true,
+        currency: true,
+        exchangeRate: true,
+        shipment: {
+          select: {
+            batch: {
+              select: {
+                id: true,
+                batchNumber: true,
+                flightNumber: true,
+                arrivalDate: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const byBatch = new Map<string, BillableBatch>();
+  for (const inv of grouped) {
+    const batch = inv.shipment.batch;
+    if (!batch) continue;
+    const outstanding = Math.max(
+      0,
+      toNumber(inv.total) - toNumber(inv.amountPaid)
+    );
+    if (outstanding <= 0) continue;
+    /* Totalled in dollars because a flight carries both currencies and a
+       number in no unit is the defect this codebase keeps having to undo. A
+       shilling bill converts at the rate frozen on it, never at today's. */
+    const usd =
+      inv.currency === "USD"
+        ? outstanding
+        : inv.exchangeRate && toNumber(inv.exchangeRate) > 0
+          ? outstanding / toNumber(inv.exchangeRate)
+          : 0;
+    const seen = byBatch.get(batch.id);
+    if (seen) {
+      seen.bills += 1;
+      seen.owedUsd += usd;
+    } else {
+      byBatch.set(batch.id, {
+        id: batch.id,
+        batchNumber: batch.batchNumber,
+        flightNumber: batch.flightNumber,
+        arrivedAt: batch.arrivalDate,
+        bills: 1,
+        owedUsd: usd,
+      });
+    }
+  }
+
+  return {
+    batches: [...byBatch.values()].sort((a, b) => b.owedUsd - a.owedUsd),
+    hits: rows.map((inv) => toBillable(inv, locale)),
+  };
 }
 
 /**
@@ -2458,7 +2648,9 @@ export async function recordCustomerPayment(
           customerId: customer.id,
           amount: new Prisma.Decimal(input.amount),
           currency: input.currency,
-          method: input.method,
+          /* The account, not the kind of account — see the note on the same
+             guard in recordPayment. */
+          accountId: input.accountId,
           reference: input.reference || null,
           createdAt: { gte: new Date(Date.now() - 120_000) },
         },
@@ -2472,11 +2664,24 @@ export async function recordCustomerPayment(
         );
       }
 
-      let account: { id: string; name: string; currency: string } | null = null;
+      let account: {
+        id: string;
+        name: string;
+        kind: AccountKind;
+        currency: string;
+      } | null = null;
       if (input.accountId) {
         account = await tx.companyAccount.findUnique({
           where: { id: input.accountId },
-          select: { id: true, name: true, currency: true, active: true },
+          /* kind, because the stored method is read off the account now —
+             see methodForKind. */
+          select: {
+            id: true,
+            name: true,
+            kind: true,
+            currency: true,
+            active: true,
+          },
         }).then((a) => {
           if (!a) throw new Error("That account no longer exists.");
           if (!a.active) throw new Error(`${a.name} has been archived.`);
@@ -2486,7 +2691,7 @@ export async function recordCustomerPayment(
                 `${input.amount.toLocaleString()} cannot have landed in it.`
             );
           }
-          return { id: a.id, name: a.name, currency: a.currency };
+          return { id: a.id, name: a.name, kind: a.kind, currency: a.currency };
         });
       }
 
@@ -2527,7 +2732,7 @@ export async function recordCustomerPayment(
                 ) / 100
               : input.amount
           ),
-          method: input.method,
+          method: methodForKind(account!.kind),
           reference: input.reference || null,
           note: input.note || null,
           accountId: account?.id ?? null,
@@ -2692,7 +2897,7 @@ export async function recordCustomerPayment(
             : `Received ${input.currency} ${input.amount.toLocaleString()} from ${customer.name} ` +
               `(${receipt.receiptNumber}) as a deposit — no bill raised yet`,
           metadata: {
-            method: input.method,
+            account: account?.name ?? null,
             reference: input.reference ?? null,
             received: input.amount,
             allocated,

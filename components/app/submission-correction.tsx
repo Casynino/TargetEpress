@@ -7,7 +7,6 @@ import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import {
   editSubmission,
   withdrawSubmission,
@@ -41,7 +40,6 @@ export function SubmissionCorrection({
   submissionId,
   invoiceId,
   amount,
-  method,
   reference,
   note,
   status,
@@ -52,7 +50,6 @@ export function SubmissionCorrection({
   submissionId: string;
   invoiceId: string;
   amount: number;
-  method: string;
   reference: string | null;
   note: string | null;
   status: string;
@@ -122,18 +119,6 @@ export function SubmissionCorrection({
               aria-label={t("Amount")}
               className="h-7 w-[110px] text-[11px]"
             />
-            <NativeSelect
-              name="method"
-              defaultValue={method}
-              aria-label={t("Method")}
-              className="h-7 w-auto min-w-[8rem] text-[11px]"
-            >
-              {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {t(label)}
-                </option>
-              ))}
-            </NativeSelect>
             {/* Where it landed. Editable here because a customer naming the
                 wrong bank is the ordinary mistake this form exists to fix, and
                 bouncing the claim back for it costs them a rejection. */}

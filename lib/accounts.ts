@@ -91,19 +91,36 @@ export const ACCOUNT_SEED: {
 ];
 
 /**
- * Which accounts a payment method could plausibly have landed in.
+ * The payment method a payment must have had, read off the account it went into.
  *
- * Used to order and filter the picker, never to decide on the clerk's behalf —
- * a wrong account chosen automatically is worse than none at all, because it
- * looks reconciled.
+ * Nobody is asked for a method any more. The owner's reasoning, and it is
+ * right: the company runs seven real named accounts, two of which are mobile
+ * money, so "Mobile money" answered "which one?" with a category. The account
+ * is the fact; the method is a restatement of it.
+ *
+ * The column stays and is still written, because it is NOT NULL and because
+ * every historical row has a real value in it that must not be rewritten. This
+ * is the one place that value is now decided.
+ *
+ * A switch with no default on purpose. If AccountKind ever gains a member the
+ * build fails here, rather than quietly booking the new kind as a bank
+ * transfer and putting a wrong word on a customer's receipt.
+ *
+ * CHEQUE becomes unreachable for new rows, which is correct — a cheque is
+ * deposited into a bank account, and the account is what the money touched.
+ * Old CHEQUE rows keep their value and still render, so every label in
+ * PAYMENT_METHOD_LABELS has to stay.
  */
-export const METHOD_ACCOUNT_KINDS: Record<PaymentMethod, AccountKind[]> = {
-  CASH: ["CASH"],
-  MOBILE_MONEY: ["MOBILE_MONEY"],
-  // A cheque is deposited into a bank account; it never lands anywhere else.
-  CHEQUE: ["BANK"],
-  BANK_TRANSFER: ["BANK"],
-};
+export function methodForKind(kind: AccountKind): PaymentMethod {
+  switch (kind) {
+    case "CASH":
+      return "CASH";
+    case "MOBILE_MONEY":
+      return "MOBILE_MONEY";
+    case "BANK":
+      return "BANK_TRANSFER";
+  }
+}
 
 export type AccountOption = {
   id: string;

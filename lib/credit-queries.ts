@@ -568,7 +568,9 @@ export async function customerCreditOutcomes(customerId: string, now = new Date(
         amount: true,
         creditedAmount: true,
         exchangeRate: true,
-        method: true,
+        /* Which account it went into — shown on the credit panel in place of
+           the payment method that used to sit there. */
+        account: { select: { name: true } },
         invoice: { select: { id: true, invoiceNumber: true, exchangeRate: true } },
       },
     }),
@@ -596,7 +598,7 @@ export async function customerCreditOutcomes(customerId: string, now = new Date(
               : payment.invoice?.exchangeRate !== null
                 ? toNumber(payment.invoice?.exchangeRate)
                 : null,
-          method: payment.method,
+          accountName: payment.account?.name ?? null,
           /* A credit settlement always has a bill behind it — this branch only
              runs for money put against one. The fallbacks are for the type,
              not for a case that reaches here. */

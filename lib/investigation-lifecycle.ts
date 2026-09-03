@@ -334,7 +334,6 @@ export type InvestigationCompensation = {
   paidAt: Date | null;
   /** Formatted string or null when the viewer may not see money. */
   amount: string | null;
-  methodLabel: string | null;
   note: string | null;
   recordedByName: string | null;
   /** Which company account the money left. Same finance.view gate as `amount`. */
@@ -350,7 +349,6 @@ export type InvestigationCompensation = {
   raw: {
     amount: string;
     currency: string;
-    method: string | null;
     accountId: string | null;
   } | null;
 };

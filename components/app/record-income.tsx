@@ -9,16 +9,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { submitPaymentForVerification } from "@/lib/actions/collections";
-import { recordPayment, searchBillable, type BillableHit } from "@/lib/actions/finance";
+import {
+  billableQueue,
+  recordPayment,
+  searchBillable,
+  type BillableBatch,
+  type BillableHit,
+} from "@/lib/actions/finance";
 import type { ActionResult } from "@/lib/actions/types";
 import type { ExpenseAccount } from "@/components/app/expense-form";
 
-const METHODS = [
-  { value: "MOBILE_MONEY", label: "Mobile money" },
-  { value: "BANK_TRANSFER", label: "Bank transfer" },
-  { value: "CASH", label: "Cash" },
-  { value: "CHEQUE", label: "Cheque" },
-];
+/** A flight filter. Same shape the collections queue uses for its own chips. */
+const chip = (on: boolean) =>
+  `focus-ring rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+    on
+      ? "border-brand bg-brand text-brand-foreground"
+      : "bg-card text-muted-foreground hover:bg-accent"
+  }`;
 
 const money = (n: number, currency: string) =>
   `${currency === "USD" ? "USD" : "TSh"} ${n.toLocaleString("en-US", {
@@ -91,19 +98,24 @@ export function RecordIncome({
 }) {
   const t = useT();
   const [open, setOpen] = useState(autoOpen);
-  /* Where it landed, and therefore how it arrived. Mobile money until an
-     account is named, which is what it is here nine times in ten. */
+  /* Where it landed. The method the ledger stores is read off this account by
+     the server — see methodForKind — so nothing here has to guess at one. */
   const [accountId, setAccountId] = useState("");
-  const method = (() => {
-    const account = accounts.find((a) => a.id === accountId);
-    if (!account?.kind) return "MOBILE_MONEY";
-    if (account.kind === "CASH") return "CASH";
-    if (account.kind === "MOBILE_MONEY") return "MOBILE_MONEY";
-    return "BANK_TRANSFER";
-  })();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<BillableHit[]>([]);
   const [picked, setPicked] = useState<BillableHit | null>(null);
+  /*
+    Who has not paid, before anybody types.
+
+    The panel used to open on an empty box, which asks the desk to already know
+    the answer. The question in the room is "who on this flight still owes us",
+    and that is a list. The search box narrows it now instead of being the only
+    way in.
+  */
+  const [queue, setQueue] = useState<BillableHit[]>([]);
+  const [batches, setBatches] = useState<BillableBatch[]>([]);
+  const [batchId, setBatchId] = useState<string>("");
+  const [loadingQueue, startQueue] = useTransition();
   /*
     The currency the money actually arrived in, which is not always the
     currency of the bill: a USD invoice is routinely settled in shillings at
@@ -142,6 +154,17 @@ export function RecordIncome({
     enough that the list feels like it is keeping up.
   */
   useEffect(() => {
+    if (!open) return;
+    startQueue(async () => {
+      const next = await billableQueue(batchId || undefined);
+      setQueue(next.hits);
+      /* The chips are recomputed across every flight regardless of which one
+         is selected, so narrowing to one does not make the others vanish. */
+      setBatches(next.batches);
+    });
+  }, [open, batchId]);
+
+  useEffect(() => {
     if (picked) return;
     const term = query.trim();
     if (term.length < 2) {
@@ -154,6 +177,16 @@ export function RecordIncome({
     return () => clearTimeout(timer);
   }, [query, picked]);
 
+  /*
+    Searching or browsing — one list either way.
+
+    Two lists rendered by two blocks would be two places for the row to drift,
+    and the row is where somebody decides how much a customer owes.
+  */
+  const searchTerm = query.trim();
+  const shown = searchTerm.length >= 2 ? hits : queue;
+  const busy = searchTerm.length >= 2 ? searching : loadingQueue;
+
   /* Once it saves, the panel resets rather than leaving a filled form that
      would record the same payment twice if somebody pressed again. */
   useEffect(() => {
@@ -161,6 +194,13 @@ export function RecordIncome({
       setPicked(null);
       setQuery("");
       setHits([]);
+      /* Re-read the queue: the bill just settled has to leave the list, or the
+         next person down it is invited to take the same money twice. */
+      startQueue(async () => {
+        const next = await billableQueue(batchId || undefined);
+        setQueue(next.hits);
+        setBatches(next.batches);
+      });
     }
   }, [state]);
 
@@ -285,44 +325,85 @@ export function RecordIncome({
             />
           </label>
 
-          {query.trim().length >= 2 ? (
-            <ul className="mt-3 divide-y overflow-hidden rounded-lg border bg-card">
-              {searching && hits.length === 0 ? (
-                <li className="px-4 py-3 text-sm text-muted-foreground">
-                  {t("Looking…")}
-                </li>
-              ) : hits.length === 0 ? (
-                <li className="px-4 py-3 text-sm text-muted-foreground">
-                  {t("Nothing matches that. Try the tracking number.")}
-                </li>
-              ) : (
-                hits.map((hit) => {
-                  const settled = hit.outstanding <= 0;
-                  return (
-                    <li key={hit.invoiceId}>
-                      <button
-                        type="button"
-                        /* A settled bill is shown and not pickable: the answer
-                           to "has this been paid" is worth more than an empty
-                           list, but it must not invite a second payment. */
-                        disabled={settled}
-                        onClick={() => pick(hit)}
-                        className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 text-left transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
-                      >
-                        <span className="font-mono text-xs font-semibold">
-                          {hit.trackingNumber}
+          {/* The flights money is still owed on, heaviest first. The desk
+              works one arrival at a time — a plane lands and its customers are
+              rung through in a sitting — so the list opens grouped the way the
+              money actually comes in. */}
+          {searchTerm.length < 2 && batches.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setBatchId("")}
+                className={chip(batchId === "")}
+              >
+                {t("Everyone who owes")}
+              </button>
+              {batches.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setBatchId(b.id)}
+                  className={chip(batchId === b.id)}
+                >
+                  {b.flightNumber ?? b.batchNumber}
+                  {/* Separated, not just spaced. "ET999" beside a bare "1"
+                      reads as flight ET9991, which is a real flight number
+                      shaped exactly like a wrong answer. */}
+                  <span className="ml-1.5 opacity-50">·</span>
+                  <span className="ml-1 opacity-70">{b.bills}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          <ul className="mt-3 divide-y overflow-hidden rounded-lg border bg-card">
+            {busy && shown.length === 0 ? (
+              <li className="px-4 py-3 text-sm text-muted-foreground">
+                {t("Looking…")}
+              </li>
+            ) : shown.length === 0 ? (
+              <li className="px-4 py-3 text-sm text-muted-foreground">
+                {searchTerm.length >= 2
+                  ? t("Nothing matches that. Try the tracking number.")
+                  : t("Nobody owes anything on this one.")}
+              </li>
+            ) : (
+              shown.map((hit) => {
+                const settled = hit.outstanding <= 0;
+                return (
+                  <li key={hit.invoiceId}>
+                    <button
+                      type="button"
+                      /* A settled bill is shown and not pickable: the answer
+                         to "has this been paid" is worth more than an empty
+                         list, but it must not invite a second payment. */
+                      disabled={settled}
+                      onClick={() => pick(hit)}
+                      className="group flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 text-left transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
+                    >
+                      <span className="font-mono text-xs font-semibold">
+                        {hit.trackingNumber}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm">
+                        {hit.customerName}
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {hit.goods}
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-sm">
-                          {hit.customerName}
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {hit.goods}
+                        {/* Which flight it came in on. Only while the list is
+                            unfiltered — under a chip it is the same answer on
+                            every row. */}
+                        {!batchId && hit.flightNumber ? (
+                          <span className="ml-2 text-[11px] text-muted-foreground/70">
+                            {hit.flightNumber}
                           </span>
+                        ) : null}
+                      </span>
+                      {settled ? (
+                        <span className="text-xs text-success">
+                          {t("settled")}
                         </span>
-                        {settled ? (
-                          <span className="text-xs text-success">
-                            {t("settled")}
-                          </span>
-                        ) : (
+                      ) : (
+                        <>
                           <span className="text-right">
                             <span className="block text-sm font-semibold tabular-nums text-destructive">
                               {hit.currency === "TZS"
@@ -336,20 +417,19 @@ export function RecordIncome({
                               </span>
                             ) : null}
                           </span>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-          ) : (
-            <p className="mt-2 text-xs text-muted-foreground">
-              {t(
-                "Every income is against one customer's cargo, so start by finding the bill."
-              )}
-            </p>
-          )}
+                          {/* Said out loud rather than left to be guessed from
+                              the fact that a row happens to be clickable. */}
+                          <span className="hidden shrink-0 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground transition-colors group-hover:border-success/40 group-hover:text-success sm:inline">
+                            {canRecord ? t("Record payment") : t("Record it")}
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  </li>
+                );
+              })
+            )}
+          </ul>
         </div>
       ) : (
         <form action={action} className="px-5 py-4">
@@ -426,7 +506,6 @@ export function RecordIncome({
                 Two questions with one answer is two answers that can disagree,
                 and a movement whose method and account contradict each other
                 cannot be reconciled against a statement. */}
-            <input type="hidden" name="method" value={method} />
 
             {/*
               Asked of every desk, and no longer skippable.

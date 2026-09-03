@@ -3,19 +3,19 @@
 import { revalidatePath } from "next/cache";
 import {
   Prisma,
+  type AccountKind,
   type ExceptionStatus,
-  type PaymentMethod,
   type ResolutionType,
   type ShipmentStatus,
 } from "@prisma/client";
 import { z } from "zod";
 
+import { methodForKind } from "@/lib/accounts";
 import { recordAudit } from "@/lib/audit";
 import {
   EXCEPTION_OPEN_STATUSES,
   EXCEPTION_TERMINAL_STATUSES,
   EXCEPTION_TYPE_LABELS,
-  PAYMENT_METHOD_LABELS,
   RESOLUTION_NOTE_REQUIRED,
   RESOLUTION_TYPE_LABELS,
 } from "@/lib/constants";
@@ -581,13 +581,6 @@ export async function approveCompensation(
   }
 }
 
-const PAYMENT_METHODS = [
-  "CASH",
-  "MOBILE_MONEY",
-  "BANK_TRANSFER",
-  "CHEQUE",
-] as const satisfies readonly PaymentMethod[];
-
 /**
  * Money is read off the form as a string and handed to Decimal untouched.
  *
@@ -628,16 +621,6 @@ const compensationSchema = z
         (v) => v === null || v.getTime() <= Date.now() + 86_400_000,
         "A payout cannot be dated in the future."
       ),
-    method: z
-      .string()
-      .trim()
-      .optional()
-      .transform((v) => (v && v.length > 0 ? v : null))
-      .refine(
-        (v): v is PaymentMethod | null =>
-          v === null || (PAYMENT_METHODS as readonly string[]).includes(v),
-        "Choose how the money went out."
-      ),
     accountId: z
       .string()
       .trim()
@@ -648,10 +631,6 @@ const compensationSchema = z
       .trim()
       .optional()
       .transform((v) => (v && v.length > 0 ? v : null)),
-  })
-  .refine((v) => v.paidAt === null || v.method !== null, {
-    message: "A payment date needs a payment method — cash, mobile money, bank transfer or cheque.",
-    path: ["method"],
   })
   .refine((v) => v.paidAt === null || v.accountId !== null, {
     message:
@@ -765,11 +744,23 @@ export async function recordCompensation(
       /* Money that has gone out names the account it left, and the account
          must be able to say so: alive, and in the same currency as the
          figure. Same discipline as an expense. */
-      let account: { id: string; name: string; currency: string } | null = null;
+      let account: {
+        id: string;
+        name: string;
+        kind: AccountKind;
+        currency: string;
+      } | null = null;
       if (input.paidAt && input.accountId) {
         const found = await tx.companyAccount.findUnique({
           where: { id: input.accountId },
-          select: { id: true, name: true, currency: true, active: true },
+          /* kind, because the method column is read off it now. */
+          select: {
+            id: true,
+            name: true,
+            kind: true,
+            currency: true,
+            active: true,
+          },
         });
         if (!found) throw new Error(t(locale, "That account no longer exists."));
         if (!found.active) {
@@ -780,7 +771,12 @@ export async function recordCompensation(
             `${found.name} ${t(locale, "is a")} ${found.currency} ${t(locale, "account, so")} ${input.currency} ${Number(input.amount).toLocaleString()} ${t(locale, "cannot have left it.")}`
           );
         }
-        account = { id: found.id, name: found.name, currency: found.currency };
+        account = {
+          id: found.id,
+          name: found.name,
+          kind: found.kind,
+          currency: found.currency,
+        };
       }
 
       const settlement = await tx.compensation.upsert({
@@ -790,7 +786,7 @@ export async function recordCompensation(
           amount,
           currency: input.currency,
           paidAt: input.paidAt,
-          method: input.method,
+          method: account ? methodForKind(account.kind) : null,
           note: input.note,
           accountId: input.accountId,
           recordedById: user.id,
@@ -799,7 +795,7 @@ export async function recordCompensation(
           amount,
           currency: input.currency,
           paidAt: input.paidAt,
-          method: input.method,
+          method: account ? methodForKind(account.kind) : null,
           note: input.note,
           accountId: input.accountId,
           recordedById: user.id,
@@ -894,7 +890,7 @@ export async function recordCompensation(
         note:
           (existing ? "Compensation record amended by Finance." : "Compensation recorded by Finance.") +
           (input.paidAt
-            ? ` Paid ${formatDate(input.paidAt)}${input.method ? ` by ${PAYMENT_METHOD_LABELS[input.method]}` : ""}.`
+            ? ` Paid ${formatDate(input.paidAt)}${account ? ` into ${account.name}` : ""}.`
             : " Payment still pending."),
         actorId: user.id,
       });
@@ -914,7 +910,6 @@ export async function recordCompensation(
             amount: amount.toFixed(2),
             currency: input.currency,
             paidAt: input.paidAt ? input.paidAt.toISOString() : null,
-            method: input.method,
             account: account?.name ?? null,
             note: input.note,
             previous: existing
@@ -946,7 +941,7 @@ export async function recordCompensation(
           // one string in this system that is rendered without a permission
           // check anywhere near it.
           body: input.paidAt
-            ? `Finance has paid out on this investigation${input.method ? ` by ${PAYMENT_METHOD_LABELS[input.method]}` : ""}.`
+            ? `Finance has paid out on this investigation${account ? ` from ${account.name}` : ""}.`
             : "Finance has recorded a settlement; the payment has not gone out yet.",
           href: `/app/cargo/${exception.shipment.id}`,
         },

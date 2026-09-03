@@ -80,9 +80,13 @@ export function combinedReceiptToPdf(input: CombinedReceiptInput) {
     facts: [
       { label: "Received", value: money(input.tendered.amount, input.tendered.currency) },
       { label: "Paid on", value: input.paidAt.toISOString().slice(0, 10) },
-      { label: "Method", value: input.method.replace(/_/g, " ").toLowerCase() },
       ...(input.reference ? [{ label: "Reference", value: input.reference }] : []),
-      ...(input.account ? [{ label: "Into", value: input.account }] : []),
+      /* Unconditional now that every payment names one. A receipt is the thing
+         a customer waves in an argument, so "Into" saying nothing is worse than
+         "Into" saying the account was never recorded — which only historic
+         payments can do. It replaces a "Method" line that told the customer
+         their mobile money was mobile money. */
+      { label: "Into", value: input.account ?? "not recorded" },
       ...(input.customerPhone
         ? [{ label: "Phone", value: input.customerPhone }]
         : []),

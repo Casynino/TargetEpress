@@ -867,9 +867,9 @@ function CompensationPanel({
             ? `${t("Paid")} ${formatDate(comp.paidAt, locale)}`
             : t("Payment pending")}
         </Badge>
-        {comp.methodLabel ? (
-          <span className="text-muted-foreground">{comp.methodLabel}</span>
-        ) : null}
+        {/* The account beneath used to be preceded by the payment method,
+            which said "Mobile money" immediately before naming the mobile-money
+            account it came out of. */}
         {comp.accountName ? (
           <span className="text-muted-foreground">
             {t("from")} {comp.accountName}
@@ -902,7 +902,6 @@ function CompensationPanel({
                   paidAt: comp.paidAt
                     ? new Date(comp.paidAt).toISOString().slice(0, 10)
                     : null,
-                  method: comp.raw.method,
                   note: comp.note,
                   accountId: comp.raw.accountId,
                 }

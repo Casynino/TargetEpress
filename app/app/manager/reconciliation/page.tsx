@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
-import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { PageHeader } from "@/components/app/page-header";
 import { AccountCheckButton } from "@/components/app/account-check-button";
 import { RecordsQueue } from "@/components/app/records-queue";
@@ -876,12 +875,6 @@ export default async function ManagerReconciliation({
                     [t(locale, "Account"), selected.account.name],
                     [t(locale, "Recorded by"), selected.recordedBy?.name ?? "—"],
                     [t(locale, "Recorded at"), formatDateTime(selected.createdAt, locale)],
-                    [
-                      t(locale, "Method"),
-                      selected.payment?.method
-                        ? t(locale, PAYMENT_METHOD_LABELS[selected.payment.method])
-                        : "",
-                    ],
                     [t(locale, "Reference"), selected.payment?.reference ?? ""],
                     [t(locale, "Receipt"), selected.payment?.receipt?.receiptNumber ?? ""],
                     [t(locale, "Invoice"), selected.payment?.invoice?.invoiceNumber ?? ""],

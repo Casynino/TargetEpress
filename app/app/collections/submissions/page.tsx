@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { SearchBox } from "@/components/app/search-box";
 import { SubmissionCorrection } from "@/components/app/submission-correction";
 import { submissionQueue } from "@/lib/collections";
-import { PAYMENT_METHOD_LABELS, SUBMISSION_STATUS_LABELS } from "@/lib/constants";
+import { SUBMISSION_STATUS_LABELS } from "@/lib/constants";
 import { currentRateValue } from "@/lib/fx";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -346,10 +346,23 @@ export default async function SubmissionsPage({
                       <span className="font-mono">
                         {row.invoice.invoiceNumber}
                       </span>
-                      {/* How it arrived, and the code off the customer's
-                          message — the two things Finance checks it against. */}
+                      {/* WHERE it landed, and the code off the customer's
+                          message — the two things Finance checks it against.
+
+                          This said "Mobile money" for years, which is a kind of
+                          thing rather than a fact: the company runs real named
+                          accounts, and "Airtel Money" and "Mixx by Yas" are both
+                          mobile money. Naming the account answers the question
+                          the desk is actually asking, and where nobody named
+                          one it says so instead of implying one. */}
                       <span>·</span>
-                      <span>{t(locale, PAYMENT_METHOD_LABELS[row.method])}</span>
+                      {row.account ? (
+                        <span>{row.account.name}</span>
+                      ) : (
+                        <span className="text-warning">
+                          {t(locale, "no account named")}
+                        </span>
+                      )}
                       {row.reference ? (
                         <>
                           <span>·</span>
@@ -473,7 +486,6 @@ export default async function SubmissionsPage({
                         submissionId={row.id}
                         invoiceId={row.invoice.id}
                         amount={toNumber(row.amount)}
-                        method={row.method}
                         reference={row.reference}
                         note={row.note}
                         status={row.status}

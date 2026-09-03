@@ -537,7 +537,7 @@ export async function restorePayment(
 /**
  * Fix the details of a payment without touching the money.
  *
- * Reference, note, method and the date it was received — the fields that get
+ * Reference, note and the date it was received — the fields that get
  * mistyped at a counter and that no total depends on. The date does move the
  * ledger's idea of when the money arrived, which is why it is here rather than
  * treated as cosmetic.
@@ -560,7 +560,6 @@ export async function editPayment(
         paymentId: z.string().min(1),
         reference: z.string().trim().optional(),
         note: z.string().trim().optional(),
-        method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]).optional(),
         paidAt: z.string().trim().optional(),
         reason: z.string().trim().min(3, "Say what was wrong with the record."),
       })
@@ -573,7 +572,6 @@ export async function editPayment(
         id: true,
         reference: true,
         note: true,
-        method: true,
         paidAt: true,
         voidedAt: true,
         invoice: {
@@ -617,13 +615,11 @@ export async function editPayment(
     const before = {
       reference: payment.reference,
       note: payment.note,
-      method: payment.method,
       paidAt: payment.paidAt.toISOString(),
     };
     const after = {
       reference: parsed.data.reference || null,
       note: parsed.data.note || null,
-      method: parsed.data.method ?? payment.method,
       paidAt: paidAt.toISOString(),
     };
 
@@ -640,7 +636,6 @@ export async function editPayment(
         data: {
           reference: after.reference,
           note: after.note,
-          method: after.method,
           paidAt,
         },
       });
@@ -734,7 +729,6 @@ export async function changePaymentAmount(
            sitting does not have the reference silently revert. */
         reference: z.string().trim().optional(),
         note: z.string().trim().optional(),
-        method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]).optional(),
         reason: z
           .string()
           .trim()
@@ -749,7 +743,6 @@ export async function changePaymentAmount(
         id: true,
         amount: true,
         currency: true,
-        method: true,
         reference: true,
         note: true,
         paidAt: true,
@@ -819,15 +812,13 @@ export async function changePaymentAmount(
     if (!cancelled.ok) return cancelled as ActionResult<{ receiptNumber?: string }>;
 
     /* And record it the way it actually happened. Whatever else was typed on
-       the same form travels with it — reference, note, method — so correcting
+       the same form travels with it — reference, note — so correcting
        the figure and a typo together does not silently drop the typo fix. */
-    const newMethod = parsed.data.method ?? payment.method;
     const newReference = parsed.data.reference ?? payment.reference ?? "";
     const again = new FormData();
     again.set("invoiceId", payment.invoiceId);
     again.set("amount", String(newAmount));
     again.set("currency", payment.currency);
-    again.set("method", newMethod);
     if (newReference) again.set("reference", newReference);
     again.set(
       "note",

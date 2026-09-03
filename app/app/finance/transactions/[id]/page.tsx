@@ -236,7 +236,6 @@ export default async function LedgerEntryPage({
                 paymentId: null,
                 paymentReference: null,
                 paymentNote: null,
-                paymentMethod: null,
                 paymentAccountId: null,
                 amount: toNumber(entry.amount),
                 currency: entry.currency,

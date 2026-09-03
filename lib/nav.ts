@@ -620,6 +620,20 @@ const FINANCE_SECTIONS: NavSection[] = [
         permission: "collections.view",
       },
       {
+        /*
+          Straight after Collections, because it IS a collection — one customer
+          settling several consignments in one go.
+
+          The support desk has had this row for a while and Finance had only
+          the pill on the dashboard, so the desk that actually banks a combined
+          payment was the one with no door to it in the menu.
+        */
+        href: "/app/finance/payments/new",
+        label: "Merge Payment",
+        icon: "Layers",
+        permission: "payment.record",
+      },
+      {
         /* Gated on profit.view, which the money desk holds too — the owner
            granted it so Finance reads the same P&L he does. */
         href: "/app/finance/reports",

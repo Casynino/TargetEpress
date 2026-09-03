@@ -887,7 +887,6 @@ export default async function ExpensesPage({
                             paymentId: null,
                             paymentReference: null,
                             paymentNote: null,
-                            paymentMethod: null,
                             paymentAccountId: null,
                             amount: toNumber(expense.amount),
                             currency: expense.currency,

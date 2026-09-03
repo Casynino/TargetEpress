@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { nextSubmissionNumber } from "@/lib/ids";
+import { methodForKind } from "@/lib/accounts";
 import { prisma, type TxClient } from "@/lib/prisma";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -53,7 +54,6 @@ const submissionSchema = z.object({
     .transform((v) => Number(v))
     .refine((v) => Number.isFinite(v) && v > 0, "Enter what the customer sent."),
   currency: z.enum(["TZS", "USD"]),
-  method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]),
   /* Where the customer says it went. Required — see the note on
      PaymentSubmission.accountId. Support can answer it because the proof
      they are looking at names the destination, and Finance still decides it
@@ -83,7 +83,9 @@ async function claimedAccount(
 ) {
   const account = await tx.companyAccount.findUnique({
     where: { id: accountId },
-    select: { id: true, name: true, currency: true, active: true },
+    /* kind, because the method column is now read off it rather than asked
+       for — see methodForKind. */
+    select: { id: true, name: true, kind: true, currency: true, active: true },
   });
   if (!account) throw new Error("That account no longer exists.");
   if (!account.active) throw new Error(`${account.name} has been archived.`);
@@ -200,7 +202,7 @@ export async function submitPaymentForVerification(
           invoiceId: invoice.id,
           amount: new Prisma.Decimal(input.amount),
           currency: input.currency,
-          method: input.method,
+          method: methodForKind(account.kind),
           accountId: account.id,
           reference: input.reference || null,
           note: input.note || null,
@@ -420,26 +422,14 @@ export async function verifyPaymentSubmission(
     landed; the claim carries mobile money because that is what it is here nine
     times in ten. Finance then names the account it actually reached, and that
     account is the answer — the tin is cash, a till is mobile money, a bank is
-    a transfer. Keeping the claimed method over the named account is how a
+    a transfer. Reading the method off the named account rather than off what
+    was claimed is how a
     payment ends up saying it arrived by a route its own account cannot
     receive, which is a line nobody can reconcile against a statement.
   */
-  const account = accountId
-    ? await prisma.companyAccount.findUnique({
-        where: { id: accountId },
-        select: { kind: true },
-      })
-    : null;
-  handover.set(
-    "method",
-    account
-      ? account.kind === "CASH"
-        ? "CASH"
-        : account.kind === "MOBILE_MONEY"
-          ? "MOBILE_MONEY"
-          : "BANK_TRANSFER"
-      : submission.method
-  );
+  /* No method travels on this handover any more: recordPayment reads it off
+     the accountId below, which is the same account this block used to look up
+     purely to restate as a method. */
   if (submission.reference) handover.set("reference", submission.reference);
   if (submission.note) handover.set("note", submission.note);
   if (accountId) handover.set("accountId", accountId);
@@ -716,7 +706,7 @@ export async function submitCombinedPayment(
           customerId: customer.id,
           amount: new Prisma.Decimal(input.amount),
           currency: input.currency,
-          method: input.method,
+          method: methodForKind(account.kind),
           accountId: account.id,
           reference: input.reference || null,
           note: input.note || null,

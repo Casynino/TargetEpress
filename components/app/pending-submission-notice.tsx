@@ -2,11 +2,9 @@ import Link from "next/link";
 import { ArrowRight, Hourglass, Paperclip } from "lucide-react";
 
 import { VerifySubmission } from "@/components/app/verify-submission";
-import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatMoney, formatRelative } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer";
-import type { PaymentMethod } from "@prisma/client";
 
 export type PendingSubmission = {
   /** Needed to act on it from here rather than only to name it. */
@@ -14,7 +12,9 @@ export type PendingSubmission = {
   submissionNumber: string;
   amount: number;
   currency: string;
-  method: PaymentMethod;
+  /** Which account the desk says it landed in. Null on claims raised before
+      naming one was compulsory. */
+  accountName: string | null;
   reference: string | null;
   submittedAt: Date;
   submittedByName: string | null;
@@ -83,7 +83,11 @@ export async function PendingSubmissionNotice({
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-muted-foreground">
               <span>{s.submissionNumber}</span>
               <span aria-hidden>·</span>
-              <span>{t(locale, PAYMENT_METHOD_LABELS[s.method])}</span>
+              {/* Lifted out of the mono run: an account is a proper noun and
+                  reads badly in a monospace face beside reference codes. */}
+              <span className="font-sans">
+                {s.accountName ?? t(locale, "no account named")}
+              </span>
               {s.reference ? (
                 <>
                   <span aria-hidden>·</span>
