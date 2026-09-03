@@ -493,11 +493,21 @@ export function CustomerPaymentForm({
               </p>
             ) : null}
           </div>
-          {/* The exception, and it looks like one. */}
+          {/*
+            The exception, and it needs to look clickable rather than merely
+            look like one — plain muted text here read as a caption, not a
+            control, and a desk cannot change what it cannot see is a button.
+            A bordered pill with its own background says "press me" the way
+            unadorned text next to a total never did.
+          */}
           <button
             type="button"
             onClick={() => setSplit((v) => !v)}
-            className="focus-ring inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+            className={`focus-ring inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm transition-colors ${
+              split
+                ? "border-brand/40 bg-brand/10 text-brand"
+                : "bg-card text-foreground hover:border-brand/40 hover:bg-accent"
+            }`}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             {split ? t("Pay them in full") : t("They are paying part of a bill")}

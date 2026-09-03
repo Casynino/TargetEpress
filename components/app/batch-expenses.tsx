@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ChevronDown, Paperclip, Pencil, Plus } from "lucide-react";
+import { Ban, ChevronDown, Paperclip, Pencil, Plus } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
 import { useT } from "@/components/app/locale-provider";
@@ -320,22 +320,42 @@ export function BatchExpenses({
                 Costs are typed in a hurry by somebody who has just come back
                 from the port, so a wrong figure or a wrong description is
                 ordinary. Sending them to the central expenses register to fix
-                it means finding it again among every cost the company has ever
-                paid. The pencil is quiet until the row is hovered or the key
-                lands on it — an edit affordance on every row of a money list
-                invites edits, and most rows do not need one.
+                it means finding it again among every cost the company has
+                ever paid.
+
+                WRITTEN AS TWO BUTTONS, NOT ONE HIDDEN UNTIL HOVERED. A pencil
+                that only appears on hover is invisible on a phone, where
+                nothing is ever "hovered" — and on a desk it reads as
+                decoration until pressed by accident. Both buttons open the
+                same panel below, where editing and reversing/cancelling sit
+                side by side exactly as they do everywhere else this session
+                touched — Cancel is a second door into the same place, not a
+                separate flow, so it stays as small as it can and still be
+                seen.
               */}
               {canRecord && !closed ? (
-                <button
-                  type="button"
-                  onClick={() => setEditing(editing === e.id ? null : e.id)}
-                  aria-label={`${t("Correct")} ${e.description}`}
-                  className="focus-ring shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
+                <span className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setEditing(editing === e.id ? null : e.id)}
+                    title={`${t("Correct")} ${e.description}`}
+                    aria-label={`${t("Correct")} ${e.description}`}
+                    className="focus-ring rounded-full border bg-card p-1 text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditing(editing === e.id ? null : e.id)}
+                    title={`${t("Cancel")} ${e.description}`}
+                    aria-label={`${t("Cancel")} ${e.description}`}
+                    className="focus-ring rounded-full border bg-card p-1 text-muted-foreground shadow-sm transition-colors hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Ban className="h-3.5 w-3.5" />
+                  </button>
+                </span>
               ) : (
-                <span aria-hidden className="w-[26px] shrink-0" />
+                <span aria-hidden className="w-[58px] shrink-0" />
               )}
             </div>
             {editing === e.id ? (

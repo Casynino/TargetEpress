@@ -189,7 +189,15 @@ export function ExpenseForm({
           turns a long account name into a page that scrolls sideways.
         */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="min-w-0 space-y-1.5 sm:col-span-2">
+          {/*
+            Grouped by question, not by how important the field is.
+
+            What it was for and what kind of cost it is are the same
+            question asked twice — a clerk answers them in one breath — so
+            they sit on one row now instead of a whole other row apart with
+            Amount and Paid from wedged between them.
+          */}
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="description" className="text-xs">
               {t("What was it for")}
             </Label>
@@ -201,6 +209,24 @@ export function ExpenseForm({
               placeholder={t("Fuel, customs, a repair…")}
               required
             />
+          </div>
+
+          <div className="min-w-0 space-y-1.5">
+            <Label htmlFor="category" className="text-xs">
+              {t("Category")}
+            </Label>
+            <NativeSelect
+              id="category"
+              name="category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              {categoryOptions.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {t(c.label)}
+                </option>
+              ))}
+            </NativeSelect>
           </div>
 
           <div className="min-w-0 space-y-1.5">
@@ -247,22 +273,27 @@ export function ExpenseForm({
             </p>
           </div>
 
+          {/*
+            WHO RECEIVED IT, IN PLAIN VIEW — NOT BEHIND A DISCLOSURE, AND STILL
+            OPTIONAL.
+
+            It used to take an extra tap to even see this field, on the theory
+            that most costs do not need it. But it is the one field that lets
+            anyone trace a payment back to a real person or company months
+            later — "who did we actually pay" is the first question an
+            investigation asks, and a field nobody can see is a field nobody
+            fills in. Visible does not mean required: a clerk in a hurry can
+            still leave it blank exactly as before.
+          */}
           <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="category" className="text-xs">
-              {t("Category")}
+            <Label htmlFor="vendor" className="text-xs">
+              {t("Paid to")}
             </Label>
-            <NativeSelect
-              id="category"
-              name="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              {categoryOptions.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {t(c.label)}
-                </option>
-              ))}
-            </NativeSelect>
+            <Input
+              id="vendor"
+              name="vendor"
+              placeholder={t("Who received it — a person, a company, a till")}
+            />
           </div>
 
           {/* First class, not behind a disclosure: the moment the receipt is
@@ -291,24 +322,12 @@ export function ExpenseForm({
               <ChevronDown
                 className={`h-3.5 w-3.5 transition-transform ${more ? "rotate-180" : ""}`}
               />
-              {more
-                ? t("Fewer details")
-                : t("Who was paid, which batch, what date")}
+              {more ? t("Fewer details") : t("Which batch, what date")}
             </button>
           </div>
 
           {more ? (
             <>
-              <div className="min-w-0 space-y-1.5">
-                <Label htmlFor="vendor" className="text-xs">
-                  {t("Paid to")}
-                </Label>
-                <Input
-                  id="vendor"
-                  name="vendor"
-                  placeholder={t("Who received it")}
-                />
-              </div>
               {!fixedDispatch && dispatches && dispatches.length > 0 ? (
                 <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="expenseBatch" className="text-xs">

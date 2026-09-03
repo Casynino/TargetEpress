@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { RecordCostButton } from "@/components/app/record-cost-button";
 import { ExpenseRowActions } from "@/components/app/expense-row-actions";
+import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { SearchBox } from "@/components/app/search-box";
 import { Badge } from "@/components/ui/badge";
 import { activeAccounts } from "@/lib/accounts";
@@ -240,7 +241,12 @@ export default async function ExpensesPage({
         recordedBy: { select: { name: true } },
         approvedBy: { select: { name: true } },
         batch: { select: { batchNumber: true, id: true } },
-        receipts: { select: { id: true, url: true, filename: true } },
+        receipts: {
+          select: { id: true, url: true, filename: true, contentType: true, bytes: true },
+        },
+        /* Whether this row already has a ledger line — see LedgerRowFix's
+           subject, where a still-unpaid cost simply has none yet. */
+        ledgerEntry: { select: { id: true } },
       },
     }),
     prisma.expense.count({ where: listWhere }),
@@ -854,12 +860,55 @@ export default async function ExpensesPage({
                       </Badge>
                       {canRecord || canApprove ? (
                         <ExpenseRowActions
-                          canReverse={canAdjustLedger}
+                          /* Cancelling and reversing now live in LedgerRowFix
+                             below, which — unlike this component's old
+                             "Reverse" link — asks for the right one itself
+                             rather than always trying the wrong door on a
+                             cost that has already been paid. Approve and Pay
+                             are the workflow steps that stay here; they move
+                             a cost forward rather than correct it. */
+                          canReverse={false}
                           expenseId={expense.id}
                           status={expense.status}
                           currency={expense.currency}
                           accounts={accountOptions}
                           canApprove={canApprove}
+                        />
+                      ) : null}
+                      {canAdjustLedger && expense.status !== "VOID" ? (
+                        <LedgerRowFix
+                          accounts={accountOptions}
+                          subject={{
+                            /* Never read for an expense subject — see the
+                               type's own note — so the expense's own id
+                               stands in for the rows that have no ledger
+                               line yet (still PENDING or APPROVED). */
+                            entryId: expense.ledgerEntry?.id ?? expense.id,
+                            paymentId: null,
+                            paymentReference: null,
+                            paymentNote: null,
+                            paymentMethod: null,
+                            paymentAccountId: null,
+                            amount: toNumber(expense.amount),
+                            currency: expense.currency,
+                            amountEditable: false,
+                            expenseId: expense.id,
+                            expenseDescription: expense.description,
+                            expenseCategory: expense.category,
+                            expenseClass: expense.expenseClass,
+                            expenseVendor: expense.vendor,
+                            expenseNote: expense.note,
+                            expenseAccountId: expense.accountId,
+                            expenseBatchId: expense.batchId,
+                            expenseIncurredAt: expense.incurredAt
+                              .toISOString()
+                              .slice(0, 10),
+                            expenseStatus: expense.status,
+                            attachments: expense.receipts,
+                            reversed: false,
+                            voidReason: null,
+                            voidedByName: null,
+                          }}
                         />
                       ) : null}
                     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Ban, Pencil, Undo2, X } from "lucide-react";
 
@@ -65,8 +66,16 @@ export type LedgerRowSubject = {
   voidedByName: string | null;
 };
 
+/*
+  A proper bordered button, not text with an icon in front of it.
+
+  Plain muted text next to a total read as a caption, the same problem the
+  payment-split toggle had — a control nobody could see was one. This is the
+  single record's own correct-it-or-cancel-it door, so it gets to look like a
+  button wherever it appears, not just where there happens to be room.
+*/
 const iconButton =
-  "focus-ring inline-flex h-7 items-center gap-1 whitespace-nowrap rounded px-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground";
+  "focus-ring inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border bg-card px-2.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-accent";
 
 /**
  * FIX THE LINE FROM THE LINE.
@@ -274,8 +283,24 @@ export function LedgerRowFix({
           {t("Reinstate")}
         </button>
 
-        {open === "restore" ? (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
+        {open === "restore"
+          ? createPortal(
+              /*
+                Portalled to the document body, not left where the trigger
+                button sits.
+
+                A pencil icon three levels deep in a horizontally-scrolling
+                table row is inside an `overflow-x-auto` ancestor, and that
+                ancestor clips everything painted inside it — including a
+                `position: fixed` dialog, which browsers still confine to the
+                nearest clipping box rather than letting it escape to the
+                viewport the way "fixed" implies. Left where it was, the
+                backdrop went dark only over the table's own rectangle, and
+                the rest of the page — the totals above it, the sidebar,
+                everything outside that box — stayed lit and readable right
+                through the dialog sitting on top of it.
+              */
+              <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
             <div className="max-h-[85vh] w-full max-w-md space-y-3 overflow-y-auto rounded-xl border bg-card p-5 text-left shadow-lg">
               <div className="flex items-start justify-between gap-3">
                 <h2 className="font-display font-semibold">
@@ -331,8 +356,10 @@ export function LedgerRowFix({
                 </Button>
               </div>
             </div>
-          </div>
-        ) : null}
+              </div>,
+              document.body
+            )
+          : null}
       </span>
     );
   }
@@ -352,14 +379,19 @@ export function LedgerRowFix({
       <button
         type="button"
         onClick={() => setOpen(open === "cancel" ? null : "cancel")}
-        className={`${iconButton} hover:bg-destructive/10 hover:text-destructive`}
+        className={`${iconButton} hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive`}
       >
         <Ban className="h-3.5 w-3.5" />
         {t("Cancel")}
       </button>
 
-      {open ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
+      {open
+        ? createPortal(
+            /* Same reasoning as the reinstate dialog above: portalled so an
+               overflow-clipping ancestor — the ledger's horizontally-
+               scrolling table, in particular — can never confine what is
+               supposed to cover the whole screen. */
+            <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
           <div className="max-h-[85vh] w-full max-w-md space-y-3 overflow-y-auto rounded-xl border bg-card p-5 text-left shadow-lg">
             <div className="flex items-start justify-between gap-3">
               <h2 className="font-display font-semibold">
@@ -637,8 +669,10 @@ export function LedgerRowFix({
               </Button>
             </div>
           </div>
-        </div>
-      ) : null}
+            </div>,
+            document.body
+          )
+        : null}
     </span>
   );
 }
