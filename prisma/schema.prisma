@@ -1619,6 +1619,22 @@ model Payment {
   /// is the first question anybody asks about this record later.
   voidReason String?
 
+  /// ONE SUBMISSION, ONE RECORD — ENFORCED BY THE DATABASE.
+  ///
+  /// The guard in the action is a findFirst for an identical row in the last two
+  /// minutes. Under two genuinely concurrent requests both read nothing, both
+  /// insert, and the customer is credited twice: reproduced, two rows from two
+  /// simultaneous calls. The submit button disables while pending, so a
+  /// double-click is already blocked, but two tabs and a retried request are not.
+  ///
+  /// Each form instance carries a key it generates once. The same instance
+  /// submitted twice collides here and the second is refused by Postgres, which
+  /// cannot be raced. A genuine second payment is a new form and a new key.
+  ///
+  /// Nullable because every row written before this existed has no key, and a
+  /// unique index ignores nulls.
+  idempotencyKey String? @unique
+
   createdAt DateTime @default(now())
 
   receipt     Receipt?
@@ -2726,6 +2742,10 @@ model Expense {
   receipts    ExpenseReceipt[]
   ledgerEntry LedgerEntry?
 
+  /// One submission, one record — see Payment.idempotencyKey for why the
+  /// findFirst guard alone is not enough.
+  idempotencyKey String? @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2961,6 +2981,10 @@ model PaymentSubmission {
   replacesId String?            @unique
   replaces   PaymentSubmission? @relation("SubmissionReplacement", fields: [replacesId], references: [id], onDelete: SetNull)
   replacedBy PaymentSubmission? @relation("SubmissionReplacement")
+
+  /// One submission, one record — see Payment.idempotencyKey for why the
+  /// findFirst guard alone is not enough.
+  idempotencyKey String? @unique
 
   createdAt DateTime @default(now())
 

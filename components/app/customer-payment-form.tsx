@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import {
   Banknote,
   Download,
@@ -10,6 +10,10 @@ import {
 } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import {
+  IdempotencyKey,
+  useIdempotencyKey,
+} from "@/components/app/idempotency-key";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,6 +97,15 @@ export function CustomerPaymentForm({
     (canRecord ? recordCustomerPayment : submitCombinedPayment) as never,
     { ok: true }
   );
+  const idem = useIdempotencyKey();
+
+  /* A settled batch is finished; whatever this customer pays next is a
+     different payment and needs its own key. */
+  useEffect(() => {
+    if (state.ok && (state.data?.receiptNumber || state.data?.submissionNumber)) {
+      idem.reset();
+    }
+  }, [state]);
 
   /*
     TWO CURRENCIES, AND THEY ARE DIFFERENT QUESTIONS.
@@ -302,6 +315,7 @@ export function CustomerPaymentForm({
       action={action}
       className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,440px)]"
     >
+      <IdempotencyKey value={idem.key} />
       <input type="hidden" name="customerId" value={customerId} />
       <input type="hidden" name="currency" value={payCurrency} />
       <input type="hidden" name="amount" value={received || ""} />

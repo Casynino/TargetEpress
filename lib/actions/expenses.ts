@@ -11,6 +11,10 @@ import {
   EXPENSE_CLASSES,
 } from "@/lib/expenses";
 import { currentRateValue } from "@/lib/fx";
+import {
+  idempotencyKeyFrom,
+  isRepeatSubmission,
+} from "@/lib/idempotency";
 import { t } from "@/lib/i18n";
 import { nextExpenseNumber } from "@/lib/ids";
 import { postLedgerEntry } from "@/lib/ledger";
@@ -114,6 +118,10 @@ export async function recordExpense(
     return fail(t(locale, toActionError(error)));
   }
 
+  /* How this request identifies itself, not part of what a cost IS. See
+     lib/idempotency.ts. */
+  const idempotencyKey = idempotencyKeyFrom(formData);
+
   const parsed = expenseSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
@@ -199,6 +207,7 @@ export async function recordExpense(
       const expense = await tx.expense.create({
         data: {
           expenseNumber: number,
+          idempotencyKey,
           category: input.category,
           expenseClass: input.expenseClass,
           vendor: input.vendor || null,
@@ -264,6 +273,15 @@ export async function recordExpense(
     revalidatePath("/app/finance/transactions");
     return ok({ expenseNumber });
   } catch (error) {
+    /* The unique index refusing a repeat, not a fault. See lib/idempotency.ts. */
+    if (isRepeatSubmission(error)) {
+      return fail(
+        t(
+          locale,
+          "This cost has already been recorded. Reload the page — recording it again would take the same money out twice."
+        )
+      );
+    }
     return fail(t(locale, toActionError(error)));
   }
 }

@@ -4,6 +4,10 @@ import { useActionState, useEffect, useState } from "react";
 import { Ban, ChevronDown, Paperclip, Pencil, Plus } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import {
+  IdempotencyKey,
+  useIdempotencyKey,
+} from "@/components/app/idempotency-key";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -111,6 +115,13 @@ export function BatchExpenses({
     ActionResult<{ expenseNumber: string }>,
     FormData
   >(recordExpense, { ok: true });
+  const idem = useIdempotencyKey();
+
+  /* This panel stays open across a whole flight's costs, so each one that
+     lands retires its key and the next cost is asked as a new question. */
+  useEffect(() => {
+    if (state.ok && state.data?.expenseNumber) idem.reset();
+  }, [state]);
 
   /** Every figure in shillings, whichever currency it was paid in. */
   const tsh = (row: { amount: number; currency: string; amountUsd: number }) =>
@@ -442,6 +453,7 @@ export function BatchExpenses({
           action={action}
           className="flex flex-wrap items-end gap-2 border-t bg-muted/25 px-5 py-3"
         >
+          <IdempotencyKey value={idem.key} />
           <input type="hidden" name="batchId" value={batchId} />
           <input type="hidden" name="currency" value="TZS" />
           {/* Whatever the picker is on decides the category too. */}

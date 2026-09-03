@@ -2541,6 +2541,12 @@ const ZH: Record<string, string> = {
     "出了点问题。请改用 WhatsApp 联系我们。",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
+  "This payment has already been recorded. Reload the page — recording it again would take the same money twice.":
+    "这笔款项已经入账。请刷新页面——再记一次会把同一笔钱收两遍。",
+  "This payment has already been sent to Finance. Reload the page — sending it again would claim the same money twice.":
+    "这笔款项已经提交给财务。请刷新页面——再提交一次会把同一笔钱报两遍。",
+  "This cost has already been recorded. Reload the page — recording it again would take the same money out twice.":
+    "这笔支出已经入账。请刷新页面——再记一次会把同一笔钱支出两遍。",
   "has already been paid beyond what the bill would then say. Correct it through Finance instead of waiving.":
     "已付金额将超过减免后的账单金额。请通过财务更正处理，而不是减免。",
   "is closed, so nothing more can be charged on it.": "已关闭，无法再计入任何费用。",

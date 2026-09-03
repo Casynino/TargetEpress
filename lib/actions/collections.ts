@@ -8,6 +8,10 @@ import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { nextSubmissionNumber } from "@/lib/ids";
 import { methodForKind } from "@/lib/accounts";
+import {
+  idempotencyKeyFrom,
+  isRepeatSubmission,
+} from "@/lib/idempotency";
 import { prisma, type TxClient } from "@/lib/prisma";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -115,6 +119,11 @@ export async function submitPaymentForVerification(
     return fail(toActionError(error));
   }
 
+  /* This request's own identity, not part of what a claim IS. See
+     lib/idempotency.ts — two tabs submitting the same claim both pass the
+     duplicate check, which reads before it writes; the unique index does not. */
+  const idempotencyKey = idempotencyKeyFrom(formData);
+
   const parsed = submissionSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
@@ -199,6 +208,7 @@ export async function submitPaymentForVerification(
       const submission = await tx.paymentSubmission.create({
         data: {
           submissionNumber: await nextSubmissionNumber(tx),
+          idempotencyKey,
           invoiceId: invoice.id,
           amount: new Prisma.Decimal(input.amount),
           currency: input.currency,
@@ -247,6 +257,12 @@ export async function submitPaymentForVerification(
     revalidatePath("/app/finance/payments");
     return { ok: true, data: { submissionNumber: result.submissionNumber } };
   } catch (error) {
+    /* The unique index refusing a repeat, not a fault. See lib/idempotency.ts. */
+    if (isRepeatSubmission(error)) {
+      return fail(
+        "This payment has already been sent to Finance. Reload the page — sending it again would claim the same money twice."
+      );
+    }
     return fail(toActionError(error));
   }
 }
@@ -600,6 +616,11 @@ export async function submitCombinedPayment(
     return fail(toActionError(error));
   }
 
+  /* This request's own identity, not part of what a claim IS. See
+     lib/idempotency.ts — two tabs submitting the same claim both pass the
+     duplicate check, which reads before it writes; the unique index does not. */
+  const idempotencyKey = idempotencyKeyFrom(formData);
+
   const parsed = customerPaymentSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
@@ -707,6 +728,7 @@ export async function submitCombinedPayment(
       const submission = await tx.paymentSubmission.create({
         data: {
           submissionNumber: await nextSubmissionNumber(tx),
+          idempotencyKey,
           invoiceId: anchor.id,
           customerId: customer.id,
           amount: new Prisma.Decimal(input.amount),
@@ -767,6 +789,12 @@ export async function submitCombinedPayment(
     revalidatePath("/app/finance/payments/new");
     return ok(result);
   } catch (error) {
+    /* The unique index refusing a repeat, not a fault. See lib/idempotency.ts. */
+    if (isRepeatSubmission(error)) {
+      return fail(
+        "This payment has already been sent to Finance. Reload the page — sending it again would claim the same money twice."
+      );
+    }
     return fail(toActionError(error));
   }
 }

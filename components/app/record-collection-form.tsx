@@ -1,9 +1,13 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CloudUpload, FileText, Paperclip, X } from "lucide-react";
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
+import {
+  IdempotencyKey,
+  useIdempotencyKey,
+} from "@/components/app/idempotency-key";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,6 +91,15 @@ export function RecordCollectionForm({
     ) => Promise<ActionResult<Outcome>>,
     { ok: true }
   );
+  const idem = useIdempotencyKey();
+
+  /* A customer may pay the same bill twice in one sitting — half now, half
+     later — and the second one is a real payment, not a repeat of the first. */
+  useEffect(() => {
+    if (state.ok && (state.data?.receiptNumber || state.data?.submissionNumber)) {
+      idem.reset();
+    }
+  }, [state]);
 
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -146,6 +159,7 @@ export function RecordCollectionForm({
       className="space-y-5"
       onSubmit={() => syncInput(files)}
     >
+      <IdempotencyKey value={idem.key} />
       <input type="hidden" name="invoiceId" value={invoiceId} />
 
       {/* Already known. Shown so the desk can check they are on the right

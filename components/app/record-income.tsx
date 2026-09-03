@@ -4,6 +4,10 @@ import { useActionState, useEffect, useState, useTransition } from "react";
 import { Check, Plus, Search, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import {
+  IdempotencyKey,
+  useIdempotencyKey,
+} from "@/components/app/idempotency-key";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -154,6 +158,7 @@ export function RecordIncome({
     ) => Promise<ActionResult<Outcome>>,
     { ok: true }
   );
+  const idem = useIdempotencyKey();
 
   /*
     Searched as it is typed, after a pause.
@@ -201,6 +206,9 @@ export function RecordIncome({
      would record the same payment twice if somebody pressed again. */
   useEffect(() => {
     if (state.ok && state.data?.receiptNumber) {
+      /* The next payment is a different payment and must not be refused as a
+         repeat of the one that just saved. */
+      idem.reset();
       setPicked(null);
       setQuery("");
       setHits([]);
@@ -444,6 +452,7 @@ export function RecordIncome({
         </div>
       ) : (
         <form action={action} className="px-5 py-4">
+          <IdempotencyKey value={idem.key} />
           <input type="hidden" name="invoiceId" value={picked.invoiceId} />
 
           <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-lg border bg-card px-4 py-2.5">

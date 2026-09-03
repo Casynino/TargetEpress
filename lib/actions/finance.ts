@@ -33,6 +33,7 @@ import { filesFrom, putDocument } from "@/lib/storage";
 import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
 import { methodForKind } from "@/lib/accounts";
+import { idempotencyKeyFrom, isRepeatSubmission } from "@/lib/idempotency";
 import { type Locale } from "@/lib/locale";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -1070,6 +1071,10 @@ export async function recordPayment(
     return fail(toActionError(error));
   }
 
+  /* Read before the schema parse: it is not part of what a payment IS, it is
+     how this request identifies itself. See lib/idempotency.ts. */
+  const idempotencyKey = idempotencyKeyFrom(formData);
+
   const parsed = paymentSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
@@ -1312,6 +1317,10 @@ export async function recordPayment(
           currency: tenderedCurrency,
           creditedAmount: new Prisma.Decimal(credited),
           exchangeRate: rateUsed === null ? null : new Prisma.Decimal(rateUsed),
+          /* The database's own answer to a double submission — see
+             lib/idempotency.ts. The findFirst above catches the ordinary case;
+             this catches the one it cannot, two requests at the same instant. */
+          idempotencyKey,
           method: methodForKind(mustHaveAccount(account).kind),
           reference: input.reference || null,
           note: input.note || null,
@@ -1546,6 +1555,14 @@ export async function recordPayment(
       closedBatch: receiptNumber.closedBatch,
     });
   } catch (error) {
+    /* The unique index refusing a repeat, not a fault — see lib/idempotency.ts.
+       Said as plainly as the findFirst guard says it, so the desk cannot tell
+       which of the two caught it and does not need to. */
+    if (isRepeatSubmission(error)) {
+      return fail(
+        "This payment has already been recorded. Reload the page — recording it again would take the same money twice."
+      );
+    }
     return fail(toActionError(error));
   }
 }
@@ -2454,6 +2471,10 @@ export async function recordCustomerPayment(
     return fail(toActionError(error));
   }
 
+  /* Read before the schema parse: it is not part of what a payment IS, it is
+     how this request identifies itself. See lib/idempotency.ts. */
+  const idempotencyKey = idempotencyKeyFrom(formData);
+
   const parsed = customerPaymentSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
@@ -2759,6 +2780,7 @@ export async function recordCustomerPayment(
                 ) / 100
               : input.amount
           ),
+          idempotencyKey,
           method: methodForKind(mustHaveAccount(account).kind),
           reference: input.reference || null,
           note: input.note || null,
@@ -2958,6 +2980,14 @@ export async function recordCustomerPayment(
     revalidatePath("/app/pickup-queue");
     return ok(result);
   } catch (error) {
+    /* The unique index refusing a repeat, not a fault — see lib/idempotency.ts.
+       Said as plainly as the findFirst guard says it, so the desk cannot tell
+       which of the two caught it and does not need to. */
+    if (isRepeatSubmission(error)) {
+      return fail(
+        "This payment has already been recorded. Reload the page — recording it again would take the same money twice."
+      );
+    }
     return fail(toActionError(error));
   }
 }

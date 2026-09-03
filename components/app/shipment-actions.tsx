@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import type { Role, ShipmentStatus } from "@prisma/client";
 import {
 
@@ -17,6 +17,10 @@ import {
 
 import { FormError, FormSuccess, SubmitButton } from "@/components/app/form-feedback";
 import { CreditRequest } from "@/components/app/credit-request";
+import {
+  IdempotencyKey,
+  useIdempotencyKey,
+} from "@/components/app/idempotency-key";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -437,6 +441,13 @@ function PaymentPanel(props: Props) {
     ActionResult<{ receiptNumber: string; pickupNoteNumber: string | null }>,
     FormData
   >(recordPayment, { ok: true });
+  const idem = useIdempotencyKey();
+
+  /* Part payments against one bill are normal at this counter, so the key is
+     retired the moment one lands rather than held for the life of the page. */
+  useEffect(() => {
+    if (state.ok && state.data?.receiptNumber) idem.reset();
+  }, [state]);
 
   const settled = props.outstanding !== null && props.outstanding <= 0;
 
@@ -527,6 +538,7 @@ function PaymentPanel(props: Props) {
 
       {open && !settled ? (
         <form action={action} className="mt-4 space-y-3">
+          <IdempotencyKey value={idem.key} />
           <input type="hidden" name="invoiceId" value={props.invoiceId ?? ""} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
             <div className="space-y-1.5">

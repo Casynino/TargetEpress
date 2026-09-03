@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { ChevronDown, Paperclip, Plus, X, Zap } from "lucide-react";
 
 import {
@@ -8,6 +8,10 @@ import {
   FormSuccess,
   SubmitButton,
 } from "@/components/app/form-feedback";
+import {
+  IdempotencyKey,
+  useIdempotencyKey,
+} from "@/components/app/idempotency-key";
 import { useT } from "@/components/app/locale-provider";
 import { UnsavedGuard, confirmDiscard } from "@/components/app/unsaved-guard";
 import { Button } from "@/components/ui/button";
@@ -82,6 +86,13 @@ export function ExpenseForm({
     ActionResult<{ expenseNumber: string }>,
     FormData
   >(recordExpense, { ok: true });
+  const idem = useIdempotencyKey();
+
+  /* Costs come in runs — three deliveries off one flight — so the key is
+     retired as soon as one lands, or the second would be read as the first. */
+  useEffect(() => {
+    if (state.ok && state.data?.expenseNumber) idem.reset();
+  }, [state]);
 
   const [open, setOpen] = useState(alwaysOpen);
   const [more, setMore] = useState(false);
@@ -164,6 +175,7 @@ export function ExpenseForm({
       ) : null}
 
       <form action={action} className="p-5">
+        <IdempotencyKey value={idem.key} />
         {/* Re-baselined on the expense number the action hands back, so the tap
             straight after recording a cost is not met with "discard changes?"
             about a cost already in the ledger. */}
