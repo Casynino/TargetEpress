@@ -3036,6 +3036,8 @@ const ZH: Record<string, string> = {
   "This cargo has already left China. Only Guangzhou, a manager or the owner can correct it now.": "该货物已离开中国。现在只有广州仓、经理或老板可以更正。",
   "This cargo has already left China. Only Guangzhou, a manager or the owner can remove it now.": "该货物已离开中国。现在只有广州仓、经理或老板可以移除。",
   "Bluetooth printer test": "蓝牙打印机测试",
+  "Customers with more than one unpaid consignment. Pick one and tick what they are paying for.": "有多票未付货物的客户。选择一位，然后勾选客户要支付的货物。",
+  "Nobody has more than one unpaid consignment right now. Search for a customer to take a payment or hold a deposit.": "目前没有客户有多于一票的未付货物。可以搜索客户来收款或登记预付款。",
   "A newer version is live.": "已有新版本上线。",
   "Reload": "刷新",
   "Tick everything this payment covers. Tick nothing and it is held as their credit until their cargo lands.": "勾选这笔付款涵盖的所有货物。如果一项都不勾选，这笔钱会作为客户余额保留，等货物到达后自动抵扣。",

@@ -47,6 +47,37 @@ export default async function RecordCustomerPaymentPage({
      the tracking number the customer quoted. */
   if (!params.customer) {
     const q = (params.q ?? "").trim();
+
+    /*
+      WITHOUT A SEARCH, SHOW THE PEOPLE THIS SCREEN IS FOR.
+
+      An empty box asking for a name is the wrong first thing on a page whose
+      whole purpose is the customer with more than one unpaid consignment.
+      Finance knows that customer exists; what they do not know is which. So the
+      page answers that before it is asked, most bills first, and the search
+      stays for the day somebody is chasing one particular name.
+    */
+    const withSeveral = q
+      ? []
+      : await prisma.customer.findMany({
+          where: {
+            invoices: { some: { status: { in: [...BILLED_INVOICE_STATUSES] } } },
+          },
+          take: 40,
+          orderBy: { name: "asc" },
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            code: true,
+            _count: {
+              select: {
+                invoices: { where: { status: { in: [...BILLED_INVOICE_STATUSES] } } },
+              },
+            },
+          },
+        });
+
     const matches = q
       ? await prisma.customer.findMany({
           where: {
@@ -75,7 +106,12 @@ export default async function RecordCustomerPaymentPage({
             },
           },
         })
-      : [];
+      : /* Only those with more than one — a customer with a single bill is
+           settled from their own cargo page, and listing them here would bury
+           the handful this screen exists for. */
+        withSeveral
+          .filter((c) => c._count.invoices > 1)
+          .sort((a, b) => b._count.invoices - a._count.invoices);
 
     return (
       <div className="mx-auto w-full max-w-3xl">
@@ -83,7 +119,7 @@ export default async function RecordCustomerPaymentPage({
           title={t(locale, "Record a payment")}
           description={t(
             locale,
-            "One payment from one customer, against as many of their bills as it covers."
+            "Customers with more than one unpaid consignment. Pick one and tick what they are paying for."
           )}
         />
         <div className="panel space-y-4 p-5">
@@ -144,10 +180,13 @@ export default async function RecordCustomerPaymentPage({
               );
             })}
           </ul>
-          {!q ? (
+          {!q && matches.length === 0 ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Search className="h-4 w-4" />
-              {t(locale, "Search for the customer whose money this is.")}
+              {t(
+                locale,
+                "Nobody has more than one unpaid consignment right now. Search for a customer to take a payment or hold a deposit."
+              )}
             </p>
           ) : null}
         </div>
