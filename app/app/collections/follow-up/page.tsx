@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Banknote,
+  CalendarClock,
   Download,
   FileText,
   MessageCircle,
@@ -90,6 +91,12 @@ export default async function FollowUpPage({
      whether this records the money or claims it. */
   const payAccounts = await activeAccounts();
   const locale = await viewerLocale();
+  /* Asking for a consignment to be released unpaid. Support and Finance both
+     hold it; the desk on the phone is the one being asked for terms. */
+  const canAskForCredit = can(user.role, "credit.request");
+  /* Granting it — the decision that lets cargo leave without money. Finance's
+     alone, and it is what makes the credit icon a different job for them. */
+  const canDecideCredit = can(user.role, "credit.approve");
   const canRecord = can(user.role, "payment.record");
   const canCollect = !canRecord && can(user.role, "payment.submit");
   const { filter, q, record, sort } = await searchParams;
@@ -764,6 +771,57 @@ export default async function FollowUpPage({
                       </Link>
                       </IconHint>
                     ) : null}
+
+                    {/*
+                      Credit, from whichever end this desk works it.
+
+                      A customer on the phone asking for time is the commonest
+                      thing that happens on this list, and there was nothing on
+                      the row to answer it with — the desk had to leave, find
+                      the cargo and start again. Two different jobs behind one
+                      icon: a bill with no terms on it yet is a request to
+                      raise, and a bill already on terms is an arrangement to
+                      look at.
+
+                      Support sees both and can only ask. Finance sees both and
+                      is the one who decides, which is why its label says so.
+                    */}
+                    {row.credit === null ? (
+                      canAskForCredit &&
+                      row.invoiceId &&
+                      row.invoiceStatus !== "DRAFT" &&
+                      row.outstanding !== null &&
+                      row.outstanding > 0 ? (
+                        <IconHint label={t(locale, "Ask for credit")}>
+                          <Link
+                            href={`/app/finance/invoices/${row.invoiceId}`}
+                            aria-label={`${t(locale, "Ask for credit on")} ${row.invoiceNumber ?? row.trackingNumber}`}
+                            className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-chart-4/40 text-chart-4 transition-colors hover:bg-chart-4/10"
+                          >
+                            <CalendarClock className="h-3.5 w-3.5" />
+                          </Link>
+                        </IconHint>
+                      ) : null
+                    ) : (
+                      <IconHint
+                        label={
+                          canDecideCredit
+                            ? t(locale, "Decide the credit")
+                            : t(locale, "See the credit terms")
+                        }
+                      >
+                        <Link
+                          /* Straight to this customer's line in the credit
+                             book rather than the whole book — the desk is
+                             looking at one row and wants the same one. */
+                          href={`/app/finance/credit?q=${encodeURIComponent(row.customerName)}`}
+                          aria-label={`${t(locale, "Credit for")} ${row.customerName}`}
+                          className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-chart-4/40 text-chart-4 transition-colors hover:bg-chart-4/10"
+                        >
+                          <CalendarClock className="h-3.5 w-3.5" />
+                        </Link>
+                      </IconHint>
+                    )}
 
                     {/* The bill itself: hand it over, or open it to change
                         something before the customer is asked to pay. */}
