@@ -867,7 +867,12 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
   // not here — so Support, who holds finance.view, was admitted by the catch-all
   // below and stopped one layer later. Defence in depth did its job; the table
   // was still saying something untrue about who gets in.
-  { prefix: "/app/finance/payments", permission: "payment.record" },
+  /* Support reaches this too now. They cannot record — the screen submits
+     their claim for Finance to verify instead — but ticking a customer's
+     several bills is the same act, and a second screen for it would be two
+     places where the same mistake can be made in two different ways. Everyone
+     who can record can also submit, so this narrows nothing. */
+  { prefix: "/app/finance/payments", permission: "payment.submit" },
   /* The credit book. Two routes, one permission, because Support reads the same
      page Finance works from — the difference is what the page lets them press,
      and that is decided per action rather than at the door. */
@@ -891,7 +896,12 @@ export const ROUTE_PERMISSIONS: { prefix: string; permission: Permission }[] = [
      accounting.view that guards the rest of this section — Support collects at
      the counter and never opens a ledger. Longer prefix, so it is matched
      first. */
-  { prefix: "/app/finance/payments", permission: "payment.record" },
+  /* Support reaches this too now. They cannot record — the screen submits
+     their claim for Finance to verify instead — but ticking a customer's
+     several bills is the same act, and a second screen for it would be two
+     places where the same mistake can be made in two different ways. Everyone
+     who can record can also submit, so this narrows nothing. */
+  { prefix: "/app/finance/payments", permission: "payment.submit" },
   { prefix: "/app/finance", permission: "accounting.view" },
   { prefix: "/app/admin/deleted", permission: "records.viewDeleted" },
   { prefix: "/app/admin/pricing", permission: "pricing.manage" },

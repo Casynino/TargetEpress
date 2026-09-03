@@ -22,6 +22,7 @@ import {
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
@@ -48,7 +49,17 @@ export default async function RecordCustomerPaymentPage({
 }: {
   searchParams: Promise<{ customer?: string; q?: string }>;
 }) {
-  await requirePermission("payment.record");
+  /*
+    Support opens this screen too.
+
+    They cannot record — the form below submits their claim for Finance to
+    verify — but the act of ticking a customer's several bills is the same act,
+    and a second screen for it would be two places where the same mistake can
+    be made in two different ways. The business rule does not move: nothing
+    reaches an account until Finance agrees it did.
+  */
+  const viewer = await requirePermission("payment.submit");
+  const canRecord = can(viewer.role, "payment.record");
   const locale = await viewerLocale();
   const params = await searchParams;
 
@@ -515,6 +526,7 @@ export default async function RecordCustomerPaymentPage({
         }}
       />
       <CustomerPaymentForm
+        canRecord={canRecord}
         customerId={customer.id}
         customerName={customer.name}
         bills={bills}

@@ -527,6 +527,8 @@ model Customer {
 
   shipments   Shipment[]
   invoices    Invoice[]
+  /// Payments Support has claimed on their behalf, awaiting Finance.
+  submissions PaymentSubmission[]
   pickupNotes PickupNote[]
   tickets     SupportTicket[]
   requests    SourcingRequest[]
@@ -1477,6 +1479,8 @@ model Invoice {
 
   payments           Payment[]
   submissions        PaymentSubmission[]
+  /// Claims from Support that name this bill as part of a combined payment.
+  submissionAllocations SubmissionAllocation[]
   messages           CustomerMessage[]
   paymentAllocations PaymentAllocation[]
 
@@ -2827,8 +2831,29 @@ model PaymentSubmission {
 
   submissionNumber String @unique // SUB-2026-000123
 
+  /// One of the bills this claim covers.
+  ///
+  /// On a COMBINED claim — one transfer against four consignments — which one
+  /// it points at is arbitrary and says nothing; the allocations below are the
+  /// truth. It stays required because it is what every existing reader of a
+  /// submission still uses, and an anchor keeps those screens working rather
+  /// than making each of them handle an absence they have no way to show.
+  /// Exactly the treatment Payment.invoiceId gets, for the same reason.
   invoiceId String
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  /// Whose money is being claimed. Always set on a combined claim, and
+  /// backfilled onto the single-bill ones from the invoice they name, so both
+  /// shapes read the same.
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  /// Which bills this one claim covers, and how much against each.
+  ///
+  /// The same shape PaymentAllocation gives a Payment, for the same reason: one
+  /// transfer answering four bills is one claim, and raising four is how one
+  /// deposit became four receipts and four account movements.
+  allocations SubmissionAllocation[]
 
   /// What the customer says they sent, in the currency they sent it in.
   amount    Decimal       @db.Decimal(12, 2)
@@ -2863,6 +2888,32 @@ model PaymentSubmission {
   createdAt DateTime @default(now())
 
   @@index([status, submittedAt])
+  @@index([invoiceId])
+  @@index([customerId])
+}
+
+/// One claim, one bill, one figure.
+///
+/// Stated in the currency of the CLAIM — what the customer says they sent
+/// against this bill. Finance converts at that bill's own frozen rate when it
+/// verifies, exactly as the counter does, so a shilling claim can answer a
+/// dollar bill without either figure being invented here.
+model SubmissionAllocation {
+  id String @id @default(cuid())
+
+  submissionId String
+  submission   PaymentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  amount Decimal @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+
+  /// One line per bill per claim. Two answers to "how much did this claim put
+  /// against that invoice" is not a question anybody can settle later.
+  @@unique([submissionId, invoiceId])
   @@index([invoiceId])
 }
 

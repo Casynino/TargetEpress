@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import { submitCombinedPayment } from "@/lib/actions/collections";
 import { recordCustomerPayment } from "@/lib/actions/finance";
 import type { ActionResult } from "@/lib/actions/types";
 
@@ -61,11 +62,22 @@ const METHOD_LABELS: Record<string, string> = {
  * being grouped is the act of paying. That distinction is the whole design.
  */
 export function CustomerPaymentForm({
+  canRecord,
   customerId,
   customerName,
   bills,
   accounts,
 }: {
+  /**
+   * Whether this desk may say money ARRIVED, or only that a customer says so.
+   *
+   * Finance records; Support claims. The screen is the same because the act is
+   * the same — tick the customer's bills, say what came in — and the business
+   * rule is untouched: a claim reaches no account until Finance verifies it,
+   * and verification hands the whole thing to the very action Finance would
+   * have run by hand.
+   */
+  canRecord: boolean;
   customerId: string;
   customerName: string;
   bills: OpenBill[];
@@ -73,9 +85,12 @@ export function CustomerPaymentForm({
 }) {
   const t = useT();
   const [state, action] = useActionState<
-    ActionResult<{ receiptNumber: string; settled: number }>,
+    ActionResult<{ receiptNumber?: string; settled?: number; submissionNumber?: string }>,
     FormData
-  >(recordCustomerPayment, { ok: true });
+  >(
+    (canRecord ? recordCustomerPayment : submitCombinedPayment) as never,
+    { ok: true }
+  );
 
   /*
     TWO CURRENCIES, AND THEY ARE DIFFERENT QUESTIONS.
@@ -228,15 +243,23 @@ export function CustomerPaymentForm({
   }
 
   if (state.ok && state.data) {
+    const claimed = state.data.submissionNumber;
     return (
       <div className="panel space-y-4 border-success/40 p-5">
         <div>
           <p className="font-display text-lg font-bold text-success">
-            {t("Payment recorded")} — {state.data.receiptNumber}
+            {claimed
+              ? `${t("Sent to Finance")} — ${claimed}`
+              : `${t("Payment recorded")} — ${state.data.receiptNumber}`}
           </p>
           <p className="text-sm text-muted-foreground">
-            {state.data.settled} {t("bill(s) settled in full.")}{" "}
-            {t("The account moved once, for the money that actually arrived.")}
+            {claimed
+              ? t(
+                  "Finance will check it against the account. Nothing has been settled yet — the cargo stays held until they confirm the money arrived."
+                )
+              : `${state.data.settled} ${t("bill(s) settled in full.")} ${t(
+                  "The account moved once, for the money that actually arrived."
+                )}`}
           </p>
         </div>
 
@@ -250,6 +273,7 @@ export function CustomerPaymentForm({
           customer is still on the phone.
         */}
         <div className="flex flex-wrap gap-2">
+          {claimed ? null : (
           <a
             href={`/app/finance/receipts/${state.data.receiptNumber}/pdf`}
             target="_blank"
@@ -259,6 +283,7 @@ export function CustomerPaymentForm({
             <Download className="h-4 w-4" />
             {t("Download the receipt")}
           </a>
+          )}
           <a
             href="/app/finance/payments/new"
             className="focus-ring inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-accent/40"
@@ -505,7 +530,9 @@ export function CustomerPaymentForm({
       <section className="panel space-y-4 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display font-semibold">
-            {t("What arrived from")} {customerName}
+            {canRecord
+              ? `${t("What arrived from")} ${customerName}`
+              : `${t("What {name} says they sent").replace("{name}", customerName)}`}
           </h2>
 
           {/*
@@ -585,6 +612,7 @@ export function CustomerPaymentForm({
             />
           </div>
 
+          {canRecord ? (
           <div className="min-w-0 space-y-1.5">
             <Label htmlFor="accountId">{t("Where did it land?")}</Label>
             <NativeSelect
@@ -609,10 +637,13 @@ export function CustomerPaymentForm({
               </p>
             ) : null}
           </div>
+          ) : null}
 
           {/* Only when nobody has said where the money landed — the one case
-              the account cannot answer for. */}
-          {chosen ? (
+              the account cannot answer for. Always for Support: they are
+              reporting what a customer told them, and where it landed is
+              precisely what Finance checks. */}
+          {chosen && canRecord ? (
             <input type="hidden" name="method" value={derivedMethod} />
           ) : (
             <div className="min-w-0 space-y-1.5">
@@ -698,7 +729,9 @@ export function CustomerPaymentForm({
           their credit and settles the invoice by itself at check-in. */}
       <SubmitButton
         className="w-full"
-        disabled={over || received <= 0}
+        disabled={
+          over || received <= 0 || (!canRecord && allocations.length === 0)
+        }
         pendingLabel="Recording…"
       >
         {left > 0.005 ? (
@@ -706,9 +739,11 @@ export function CustomerPaymentForm({
         ) : (
           <Banknote className="mr-2 h-4 w-4" />
         )}
-        {allocations.length === 0
-          ? `${t("Record")} ${money(received)} · ${t("held as their credit")}`
-          : `${t("Record")} ${money(received)} · ${allocations.length} ${t("cargo")}`}
+        {!canRecord
+          ? `${t("Send to Finance")} · ${money(received)} · ${allocations.length} ${t("cargo")}`
+          : allocations.length === 0
+            ? `${t("Record")} ${money(received)} · ${t("held as their credit")}`
+            : `${t("Record")} ${money(received)} · ${allocations.length} ${t("cargo")}`}
       </SubmitButton>
       </div>
     </form>

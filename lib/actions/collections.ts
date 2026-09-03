@@ -11,8 +11,8 @@ import { prisma } from "@/lib/prisma";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
 import { toNumber } from "@/lib/format";
-import { fail, toActionError, type ActionResult } from "@/lib/actions/types";
-import { firstError } from "@/lib/validation";
+import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
+import { customerPaymentSchema, firstError } from "@/lib/validation";
 
 /**
  * Collections: what Customer Support does, and what Finance does after them.
@@ -339,6 +339,11 @@ export async function verifyPaymentSubmission(
       note: true,
       proofs: { select: { id: true } },
       invoice: { select: { invoiceNumber: true } },
+      customerId: true,
+      /* Which bills the claim covers. Empty on a single-bill claim, and then
+         invoiceId above is the answer — the shape the backfill gave every
+         existing PENDING row, so both read the same here. */
+      allocations: { select: { invoiceId: true, amount: true } },
     },
   });
   if (!submission) return fail("That submission no longer exists.");
@@ -346,18 +351,49 @@ export async function verifyPaymentSubmission(
     return fail(`${submission.submissionNumber} has already been dealt with.`);
   }
 
-  // Hand it to the counter action exactly as if Finance had typed it.
+  /*
+    Hand it to the counter action exactly as if Finance had typed it.
+
+    A claim covering more than one bill goes to the COMBINED counter action,
+    which is the same code Finance uses by hand: one payment, one receipt, one
+    ledger line, one allocation per bill. Verifying it as several separate
+    payments would recreate the four-receipts problem the combined screen
+    exists to end, on the far side of the verification step.
+  */
+  const combined = submission.allocations.length > 1;
   const handover = new FormData();
-  handover.set("invoiceId", submission.invoiceId);
   handover.set("amount", toNumber(submission.amount).toString());
   handover.set("currency", submission.currency);
   handover.set("method", submission.method);
   if (submission.reference) handover.set("reference", submission.reference);
   if (submission.note) handover.set("note", submission.note);
   if (accountId) handover.set("accountId", accountId);
-  // Carry Finance's own rate override through, when they set one.
-  const rate = String(formData.get("exchangeRate") ?? "");
-  if (rate) handover.set("exchangeRate", rate);
+
+  if (combined) {
+    if (!submission.customerId) {
+      return fail(
+        `${submission.submissionNumber} covers several bills but names no customer. It cannot be verified — reject it and ask for it to be raised again.`
+      );
+    }
+    handover.set("customerId", submission.customerId);
+    handover.set(
+      "allocations",
+      JSON.stringify(
+        submission.allocations.map((allocation) => ({
+          invoiceId: allocation.invoiceId,
+          amount: toNumber(allocation.amount),
+        }))
+      )
+    );
+  } else {
+    handover.set("invoiceId", submission.invoiceId);
+    // Carry Finance's own rate override through, when they set one. Only for a
+    // single bill: a combined payment converts at each bill's own frozen rate,
+    // and one override across several would restate them all at a figure that
+    // matches none of the quotes the customer was given.
+    const rate = String(formData.get("exchangeRate") ?? "");
+    if (rate) handover.set("exchangeRate", rate);
+  }
 
   /*
     The row is claimed before a shilling moves.
@@ -385,8 +421,12 @@ export async function verifyPaymentSubmission(
     return fail(`${submission.submissionNumber} has already been dealt with.`);
   }
 
-  const { recordPayment } = await import("@/lib/actions/finance");
-  const recorded = await recordPayment(undefined, handover);
+  const { recordPayment, recordCustomerPayment } = await import(
+    "@/lib/actions/finance"
+  );
+  const recorded = combined
+    ? await recordCustomerPayment(undefined, handover)
+    : await recordPayment(undefined, handover);
   if (!recorded.ok) {
     /*
       Refused, so the claim goes back.
@@ -457,4 +497,203 @@ export async function verifyPaymentSubmission(
   revalidatePath("/app/finance/payments");
   revalidatePath("/app/support");
   return { ok: true, data: { receiptNumber: recorded.data?.receiptNumber ?? "" } };
+}
+
+/**
+ * ONE TRANSFER, SEVERAL BILLS, CLAIMED BY SUPPORT.
+ *
+ * The desk that hears from the customer is Support, and a customer with four
+ * consignments sends one transfer for all four. Until now a claim could name
+ * one bill, so Support raised four — and Finance then verified four times,
+ * producing four payments, four receipts and four account movements for a
+ * deposit the bank statement shows once. That is exactly what the combined
+ * payment screen was built to stop, and Support was the desk locked out of it.
+ *
+ * THE BUSINESS RULE DOES NOT CHANGE. Support still only ever says a customer
+ * SAYS they paid; nothing reaches an account until Finance verifies it, and
+ * verification hands the whole thing to the same counter action Finance uses
+ * by hand. Billing together changes who can claim it in one go, not who is
+ * allowed to say money arrived.
+ *
+ * Deliberately its own action rather than a mode inside the single-bill one.
+ * That one is called from a cargo page and from the follow-up queue, and money
+ * code that grows a second shape is money code nobody can reason about.
+ */
+export async function submitCombinedPayment(
+  _prev: ActionResult<{ submissionNumber: string }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ submissionNumber: string }>> {
+  let user: SessionUser;
+  try {
+    user = await authorize("payment.submit");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  const parsed = customerPaymentSchema.safeParse(
+    Object.fromEntries(formData) as Record<string, string>
+  );
+  if (!parsed.success) return fail(firstError(parsed.error));
+  const input = parsed.data;
+  const ip = await callerIp();
+
+  if (input.allocations.length === 0) {
+    /* A deposit is money that has ARRIVED against no bill. Support cannot say
+       money arrived — that is the whole point of the verification step — so
+       there is nothing here for them to claim. */
+    return fail(
+      "Tick the cargo this payment covers. A payment held as credit is recorded by Finance, not claimed here."
+    );
+  }
+
+  const allocated = input.allocations.reduce((sum, a) => sum + a.amount, 0);
+  if (allocated > input.amount + 0.005) {
+    return fail(
+      `You have put ${input.currency} ${allocated.toLocaleString()} against bills out of a ` +
+        `${input.currency} ${input.amount.toLocaleString()} payment. Money cannot be claimed twice over.`
+    );
+  }
+
+  /* Stored before the transaction, exactly as the single-bill claim does it: a
+     file crossing the network must not hold a row lock on an invoice. */
+  let proofs: { url: string; contentType: string; bytes: number; filename: string }[];
+  try {
+    const files = filesFrom(formData, "proof");
+    proofs = await Promise.all(
+      files.map(async (file) => {
+        const stored = await putDocument(file, "proof");
+        return { ...stored, filename: file.name || "proof" };
+      })
+    );
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const customer = await tx.customer.findUnique({
+        where: { id: input.customerId },
+        select: { id: true, name: true },
+      });
+      if (!customer) throw new Error("That customer no longer exists.");
+
+      const invoices = await tx.invoice.findMany({
+        where: { id: { in: input.allocations.map((a) => a.invoiceId) } },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          status: true,
+          customerId: true,
+          shipment: { select: { trackingNumber: true } },
+          submissions: {
+            where: { status: "PENDING" },
+            select: { submissionNumber: true },
+          },
+        },
+      });
+      if (invoices.length !== input.allocations.length) {
+        throw new Error("One of those bills no longer exists. Reload and try again.");
+      }
+
+      for (const invoice of invoices) {
+        if (invoice.customerId !== customer.id) {
+          throw new Error(
+            `${invoice.invoiceNumber} does not belong to ${customer.name}. One claim covers one customer's bills.`
+          );
+        }
+        // A draft is the system's price, not a bill. Collecting against one asks
+        // a customer for a figure this business has not agreed to yet.
+        if (invoice.status === "DRAFT") {
+          throw new Error(
+            `${invoice.invoiceNumber} is still a draft. Finance has to confirm the price before anything can be collected against it.`
+          );
+        }
+        if (invoice.status === "VOID" || invoice.status === "WRITTEN_OFF") {
+          throw new Error(`${invoice.invoiceNumber} is not a live bill.`);
+        }
+        if (invoice.status === "PAID") {
+          throw new Error(`${invoice.invoiceNumber} is already settled.`);
+        }
+        /* One claim at a time per bill. Two pending claims against one invoice
+           is two people ringing the same customer and Finance verifying the
+           same money twice — the refusal the single-bill claim already makes,
+           and it must not be escapable by claiming several at once. */
+        if (invoice.submissions.length > 0) {
+          throw new Error(
+            `${invoice.submissions[0].submissionNumber} is already with Finance for ${invoice.invoiceNumber}. Wait for it to be checked.`
+          );
+        }
+      }
+
+      /* Anchored to one of the bills, because that column is what every
+         existing screen reads. Which one is arbitrary — the allocations are
+         the truth. */
+      const anchor = invoices.find(
+        (invoice) => invoice.id === input.allocations[0].invoiceId
+      )!;
+
+      const submission = await tx.paymentSubmission.create({
+        data: {
+          submissionNumber: await nextSubmissionNumber(tx),
+          invoiceId: anchor.id,
+          customerId: customer.id,
+          amount: new Prisma.Decimal(input.amount),
+          currency: input.currency,
+          method: input.method,
+          reference: input.reference || null,
+          note: input.note || null,
+          submittedById: user.id,
+          allocations: {
+            create: input.allocations.map((allocation) => ({
+              invoiceId: allocation.invoiceId,
+              amount: new Prisma.Decimal(allocation.amount),
+            })),
+          },
+          proofs: {
+            create: proofs.map((proof) => ({
+              url: proof.url,
+              contentType: proof.contentType,
+              bytes: proof.bytes,
+              filename: proof.filename,
+              uploadedById: user.id,
+            })),
+          },
+        },
+        select: { id: true, submissionNumber: true },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "payment.submitted",
+          entity: "PaymentSubmission",
+          entityId: submission.id,
+          summary:
+            `${submission.submissionNumber} — ${input.currency} ${input.amount.toLocaleString()} claimed ` +
+            `for ${customer.name} across ${input.allocations.length} bill(s)`,
+          metadata: {
+            ip,
+            department: user.role,
+            customer: customer.name,
+            proofs: proofs.length,
+            reference: input.reference || null,
+            bills: invoices.map((invoice) => ({
+              invoice: invoice.invoiceNumber,
+              tracking: invoice.shipment.trackingNumber,
+            })),
+          },
+        },
+        tx
+      );
+
+      return { submissionNumber: submission.submissionNumber };
+    });
+
+    revalidatePath("/app/collections");
+    revalidatePath("/app/collections/follow-up");
+    revalidatePath("/app/finance/payments/new");
+    return ok(result);
+  } catch (error) {
+    return fail(toActionError(error));
+  }
 }
