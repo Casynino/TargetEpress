@@ -72,8 +72,29 @@ export function CustomerPaymentForm({
     dollar bill. Conflating the two is what made the screen refuse the most
     common payment it will ever be asked to take.
   */
-  const [billCurrency, setBillCurrency] = useState(bills[0]?.currency ?? "TZS");
-  const [payCurrency, setPayCurrency] = useState(bills[0]?.currency ?? "TZS");
+  const [billCurrency, setBillCurrency] = useState(bills[0]?.currency ?? LOCAL);
+  /*
+    SHILLINGS FIRST, ALWAYS.
+
+    Freight is priced in dollars because that is how it is bought, and every
+    bill is written in them. Nobody in Dar es Salaam thinks in dollars: the
+    till holds shillings, the customer sends shillings, and a clerk shown USD
+    2,280 has to convert in their head, at whatever rate they remember, before
+    they can check the transfer in front of them against it.
+
+    So the screen opens in shillings wherever it honestly can — which is
+    wherever the bills agree on one frozen rate — and the dollar figure the
+    bill is denominated in stays beside it. Switching back to dollars is one
+    press, for the customer who really did send dollars.
+  */
+  const [payCurrency, setPayCurrency] = useState(() => {
+    const first = bills[0]?.currency ?? LOCAL;
+    const rates = new Set(
+      bills.filter((b) => b.currency === first).map((b) => b.exchangeRate)
+    );
+    const only = rates.size === 1 ? [...rates][0] : null;
+    return only && only > 0 ? LOCAL : first;
+  });
   const [picked, setPicked] = useState<Set<string>>(new Set());
   /* Only ever consulted in split mode. A share typed, then abandoned by
      unticking the bill, must not travel with the form. */
@@ -190,10 +211,15 @@ export function CustomerPaymentForm({
                 className="h-9 w-28"
                 value={billCurrency}
                 onChange={(e) => {
-                  setBillCurrency(e.target.value);
-                  /* The money follows the bills by default; a customer paying
-                     for their dollar cargo is quoted in dollars first. */
-                  setPayCurrency(e.target.value);
+                  const next = e.target.value;
+                  setBillCurrency(next);
+                  /* Shillings again, if that set of bills can be read in them.
+                     Same reason as the initial state above. */
+                  const rates = new Set(
+                    bills.filter((b) => b.currency === next).map((b) => b.exchangeRate)
+                  );
+                  const only = rates.size === 1 ? [...rates][0] : null;
+                  setPayCurrency(only && only > 0 ? LOCAL : next);
                   /* Bills in the old currency have left the page; their
                      selections must not be submitted from behind it. */
                   setPicked(new Set());
@@ -303,6 +329,26 @@ export function CustomerPaymentForm({
             <p className="font-display text-lg font-bold tabular-nums">
               {money(allocated)}
             </p>
+            {/* What the bills themselves say, beside the figure being handed
+                over. The clerk checks a shilling transfer; the bill, the
+                receipt and the pickup note are all in dollars. */}
+            {cross ? (
+              <p className="font-mono text-xs text-muted-foreground">
+                {money(
+                  allocations.reduce(
+                    (sum, a) =>
+                      sum +
+                      (rate
+                        ? payCurrency === LOCAL
+                          ? a.amount / rate
+                          : a.amount * rate
+                        : a.amount),
+                    0
+                  ),
+                  billCurrency
+                )}
+              </p>
+            ) : null}
           </div>
           {/* The exception, and it looks like one. */}
           <button
@@ -331,7 +377,9 @@ export function CustomerPaymentForm({
           */}
           {canCross ? (
             <div className="inline-flex rounded-full border p-0.5">
-              {[billCurrency, billCurrency === LOCAL ? "USD" : LOCAL].map(
+              {/* Shillings on the left, because that is the one that is
+                  nearly always right and the eye lands there first. */}
+              {[LOCAL, "USD"].map(
                 (option) => (
                   <button
                     key={option}
