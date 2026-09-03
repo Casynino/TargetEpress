@@ -1008,3 +1008,131 @@ export async function reverseExpense(
     return fail(t(locale, toActionError(error)));
   }
 }
+
+/* --------------------------------------------------------------- evidence */
+
+/**
+ * Attach a receipt to a cost that was recorded without one, or with the
+ * wrong one. See addPaymentProof — same reasoning, the other side of the
+ * ledger: the figure is a claim, the till slip is what settles an argument
+ * about it later.
+ */
+export async function addExpenseReceipt(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  const locale = await viewerLocale();
+  let user: SessionUser;
+  try {
+    user = await authorize("expense.record");
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  const expenseId = String(formData.get("expenseId") ?? "");
+  if (!expenseId) return fail(t(locale, "Missing cost."));
+
+  const files = filesFrom(formData, "file");
+  if (files.length === 0) return fail(t(locale, "Choose a file first."));
+
+  try {
+    const expense = await prisma.expense.findUnique({
+      where: { id: expenseId },
+      select: { id: true, expenseNumber: true, status: true },
+    });
+    if (!expense) return fail(t(locale, "That cost no longer exists."));
+    if (expense.status === "VOID") {
+      return fail(
+        `${expense.expenseNumber} ${t(locale, "was cancelled, so there is nothing to attach it to.")}`
+      );
+    }
+
+    const stored = await putDocument(files[0], "expense");
+    await prisma.$transaction(async (tx) => {
+      await tx.expenseReceipt.create({
+        data: {
+          expenseId,
+          url: stored.url,
+          contentType: stored.contentType,
+          bytes: stored.bytes,
+          filename: files[0].name || null,
+          uploadedById: user.id,
+        },
+      });
+      await recordAudit(
+        {
+          actor: user,
+          action: "expense.receipt.add",
+          entity: "Expense",
+          entityId: expenseId,
+          summary: `${t(locale, "Attachment added to")} ${expense.expenseNumber}: ${files[0].name || t(locale, "file")}`,
+        },
+        tx
+      );
+    });
+
+    revalidatePath("/app/finance/expenses");
+    revalidatePath("/app/finance/transactions");
+    return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+/**
+ * Take a wrongly attached receipt off a cost. Evidence only — nothing about
+ * the figure, the category or the account it left moves with it.
+ */
+export async function removeExpenseReceipt(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  const locale = await viewerLocale();
+  let user: SessionUser;
+  try {
+    user = await authorize("expense.record");
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+
+  const receiptId = String(formData.get("receiptId") ?? "");
+  if (!receiptId) return fail(t(locale, "Missing attachment."));
+
+  try {
+    const receipt = await prisma.expenseReceipt.findUnique({
+      where: { id: receiptId },
+      select: {
+        id: true,
+        filename: true,
+        expenseId: true,
+        expense: { select: { expenseNumber: true, status: true } },
+      },
+    });
+    if (!receipt) return fail(t(locale, "That attachment no longer exists."));
+    if (receipt.expense.status === "VOID") {
+      return fail(
+        `${receipt.expense.expenseNumber} ${t(locale, "was cancelled, so there is nothing to remove it from.")}`
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.expenseReceipt.delete({ where: { id: receiptId } });
+      await recordAudit(
+        {
+          actor: user,
+          action: "expense.receipt.remove",
+          entity: "Expense",
+          entityId: receipt.expenseId,
+          summary: `${t(locale, "Attachment removed from")} ${receipt.expense.expenseNumber}: ${receipt.filename ?? t(locale, "file")}`,
+        },
+        tx
+      );
+    });
+
+    revalidatePath("/app/finance/expenses");
+    revalidatePath("/app/finance/transactions");
+    return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}

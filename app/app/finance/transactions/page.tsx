@@ -195,13 +195,19 @@ export default async function LedgerPage({
               id: true,
               note: true,
               reference: true,
+              method: true,
+              accountId: true,
               /* What the payment says now, and whether its figure can be
                  corrected here — see LedgerRowSubject. */
               amount: true,
               currency: true,
               invoiceId: true,
+              voidReason: true,
+              voidedBy: { select: { name: true } },
               receipt: { select: { receiptNumber: true } },
-              proofs: { select: { url: true }, take: 1 },
+              proofs: {
+                select: { id: true, url: true, filename: true, contentType: true, bytes: true },
+              },
               invoice: {
                 select: {
                   /* So an income line can be corrected from here too. The edit
@@ -232,7 +238,15 @@ export default async function LedgerPage({
               description: true,
               vendor: true,
               category: true,
-              receipts: { select: { url: true }, take: 1 },
+              expenseClass: true,
+              note: true,
+              accountId: true,
+              batchId: true,
+              incurredAt: true,
+              status: true,
+              receipts: {
+                select: { id: true, url: true, filename: true, contentType: true, bytes: true },
+              },
             },
           },
           /* Whether this line has already been answered. */
@@ -285,6 +299,50 @@ export default async function LedgerPage({
         ? creditNotInTheLedger()
         : Promise.resolve(null),
     ]);
+
+  /*
+    A SECOND CORRECTION LOSES ITS DIRECT LINE TO THE EXPENSE.
+
+    LedgerEntry.expenseId is unique — one line per cost, which is what makes
+    "money cannot move without a ledger line" a database rule rather than a
+    habit (see editExpense). The line a correction posts is a second line
+    about the same cost, so it links only through sourceEntity/sourceId, and
+    entry.expense — a relation keyed on expenseId — comes back null for it.
+    Reading that as "not an expense" would make fixing a fix silently forget
+    which cost it belongs to, so it is resolved by hand for exactly the rows
+    where the direct relation missed.
+  */
+  const orphanedExpenseIds = entries
+    .filter((e) => !e.expense && e.sourceEntity === "Expense" && e.sourceId)
+    .map((e) => e.sourceId!);
+  const fallbackExpenses = orphanedExpenseIds.length
+    ? await prisma.expense.findMany({
+        where: { id: { in: orphanedExpenseIds } },
+        select: {
+          id: true,
+          expenseNumber: true,
+          description: true,
+          vendor: true,
+          category: true,
+          expenseClass: true,
+          note: true,
+          accountId: true,
+          batchId: true,
+          incurredAt: true,
+          status: true,
+          receipts: {
+            select: { id: true, url: true, filename: true, contentType: true, bytes: true },
+          },
+        },
+      })
+    : [];
+  const fallbackExpenseById = new Map(fallbackExpenses.map((e) => [e.id, e]));
+  /** The expense behind a line, however it is linked to it. */
+  const expenseFor = (entry: (typeof entries)[number]) =>
+    entry.expense ??
+    (entry.sourceEntity === "Expense" && entry.sourceId
+      ? (fallbackExpenseById.get(entry.sourceId) ?? null)
+      : null);
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
   /*
@@ -688,6 +746,10 @@ export default async function LedgerPage({
           {entries.map((entry) => {
             const inbound = entry.direction === "IN";
             const amount = formatMoney(toNumber(entry.amount), entry.currency);
+            /* Reversed rows used to look exactly like any other line — the
+               only trace was a separate "Correction" row elsewhere in the
+               list, which a reader had to notice and match up by hand. */
+            const cancelled = Boolean(entry.reversedBy);
 
             let title = entry.description;
             let purpose: string | null = null;
@@ -732,8 +794,17 @@ export default async function LedgerPage({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {entry.expense?.category === "EXECUTIVE_DRAW" ? (
+                      <p
+                        className={cn(
+                          "truncate text-sm font-medium",
+                          cancelled && "text-muted-foreground line-through"
+                        )}
+                      >
+                        {cancelled ? (
+                          <span className="mr-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-bold text-muted-foreground no-underline">
+                            {t(locale, "Cancelled")}
+                          </span>
+                        ) : entry.expense?.category === "EXECUTIVE_DRAW" ? (
                           <span className="mr-1.5 rounded bg-warning px-1.5 py-0.5 text-[11px] font-bold text-warning-foreground">
                             {t(locale, "Executive draw")}
                           </span>
@@ -748,11 +819,14 @@ export default async function LedgerPage({
                     </div>
                     <div className="shrink-0 text-right">
                       <p
-                        className={
-                          inbound
-                            ? "font-mono text-sm font-semibold tabular text-success"
-                            : "font-mono text-sm font-semibold tabular text-destructive"
-                        }
+                        className={cn(
+                          "font-mono text-sm font-semibold tabular",
+                          cancelled
+                            ? "text-muted-foreground line-through"
+                            : inbound
+                              ? "text-success"
+                              : "text-destructive"
+                        )}
                       >
                         {inbound ? "+" : "−"}
                         {amount}
@@ -820,7 +894,7 @@ export default async function LedgerPage({
                   {t(locale, "Proof")}
                 </TableHead>
                 {canFix ? (
-                  <TableHead className="w-20 text-right">
+                  <TableHead className="w-36 text-right">
                     {t(locale, "Fix")}
                   </TableHead>
                 ) : null}
@@ -833,7 +907,7 @@ export default async function LedgerPage({
                 const amount = formatMoney(toNumber(entry.amount), entry.currency);
                 const proof =
                   entry.payment?.proofs[0]?.url ??
-                  entry.expense?.receipts[0]?.url ??
+                  expenseFor(entry)?.receipts[0]?.url ??
                   null;
 
                 /**
@@ -914,6 +988,11 @@ export default async function LedgerPage({
                   the row you can find without reading.
                 */
                 const bossDraw = entry.expense?.category === "EXECUTIVE_DRAW";
+                /* See the note on the phone list above — a reversed line used
+                   to read identically to a live one, and the only way to tell
+                   was to notice a separate "Correction" row further down and
+                   match the figures by hand. */
+                const cancelled = Boolean(entry.reversedBy);
 
                 return (
                   <TableRow
@@ -939,8 +1018,16 @@ export default async function LedgerPage({
                           opened in a new tab. */}
                       <Link
                         href={`/app/finance/transactions/${entry.id}`}
-                        className="block truncate text-sm font-medium after:absolute after:inset-0 after:content-[''] group-hover:text-brand"
+                        className={cn(
+                          "block truncate text-sm font-medium after:absolute after:inset-0 after:content-[''] group-hover:text-brand",
+                          cancelled && "text-muted-foreground line-through group-hover:text-muted-foreground"
+                        )}
                       >
+                        {cancelled ? (
+                          <span className="mr-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-bold text-muted-foreground no-underline">
+                            {t(locale, "Cancelled")}
+                          </span>
+                        ) : null}
                         {title}
                       </Link>
                       {/* Wraps rather than truncates. Squeezed onto one line a
@@ -995,12 +1082,16 @@ export default async function LedgerPage({
                       {inbound ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (
-                        <span className="text-destructive">{amount}</span>
+                        <span className={cancelled ? "text-muted-foreground line-through" : "text-destructive"}>
+                          {amount}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap py-2.5 text-right font-mono text-sm tabular">
                       {inbound ? (
-                        <span className="text-success">{amount}</span>
+                        <span className={cancelled ? "text-muted-foreground line-through" : "text-success"}>
+                          {amount}
+                        </span>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
@@ -1037,7 +1128,7 @@ export default async function LedgerPage({
                       z-10 because the whole row is already a stretched link.
                     */}
                     {canFix ? (
-                      <TableCell className="w-20 py-2.5 pr-1 text-right">
+                      <TableCell className="w-36 py-2.5 pr-1 text-right">
                         {/*
                           Both of these used to be links: the pencil opened the
                           invoice, the cancel opened the entry's own page. A desk
@@ -1052,25 +1143,47 @@ export default async function LedgerPage({
                           full; it is recorded rather than hidden.
                         */}
                         <LedgerRowFix
+                          accounts={accounts}
                           subject={{
                             entryId: entry.id,
                             paymentId: entry.payment?.id ?? null,
                             paymentReference: entry.payment?.reference ?? null,
                             paymentNote: entry.payment?.note ?? null,
+                            paymentMethod: entry.payment?.method ?? null,
+                            paymentAccountId: entry.payment?.accountId ?? null,
                             amount: toNumber(entry.amount),
                             currency: entry.currency,
                             /* A combined payment answers several bills; moving
                                its figure is the allocation screen's question. */
                             amountEditable: Boolean(entry.payment?.invoiceId),
-                            expenseId: entry.expense?.id ?? null,
+                            /* expenseFor, not entry.expense: a corrected
+                               line's own expenseId is empty by design (see the
+                               note above orphanedExpenseIds), and reading that
+                               as "not an expense" would make fixing a fix
+                               forget which cost it belongs to. */
+                            expenseId: expenseFor(entry)?.id ?? null,
                             expenseDescription:
-                              entry.expense?.description ?? null,
+                              expenseFor(entry)?.description ?? null,
+                            expenseCategory: expenseFor(entry)?.category ?? null,
+                            expenseClass: expenseFor(entry)?.expenseClass ?? null,
+                            expenseVendor: expenseFor(entry)?.vendor ?? null,
+                            expenseNote: expenseFor(entry)?.note ?? null,
+                            expenseAccountId: expenseFor(entry)?.accountId ?? null,
+                            expenseBatchId: expenseFor(entry)?.batchId ?? null,
+                            expenseIncurredAt: expenseFor(entry)
+                              ? expenseFor(entry)!.incurredAt.toISOString().slice(0, 10)
+                              : null,
+                            expenseStatus: expenseFor(entry)?.status ?? null,
+                            attachments:
+                              entry.payment?.proofs ?? expenseFor(entry)?.receipts ?? [],
                             /* A line already answered by a reversing line has
                                nothing left to do — and a correction is itself a
                                line, which must not be cancellable in turn. */
                             reversed: Boolean(
                               entry.reversedBy || entry.reversesId
                             ),
+                            voidReason: entry.payment?.voidReason ?? null,
+                            voidedByName: entry.payment?.voidedBy?.name ?? null,
                           }}
                         />
                       </TableCell>

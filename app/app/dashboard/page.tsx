@@ -1844,7 +1844,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     /* The customer with three consignments and one M-Pesa message. It existed
        and was reachable only by typing the URL, which is the same as not
        existing — the desk starts on this screen, so the way in belongs on it. */
-    { href: "/app/finance/payments/new", label: t(locale, "One Bill"), icon: Layers, weight: "secondary", tone: "success" },
+    { href: "/app/finance/payments/new", label: t(locale, "Merge Payment"), icon: Layers, weight: "secondary", tone: "success" },
     { href: "/app/finance/transactions", label: t(locale, "Record a cost"), icon: Banknote, weight: "secondary", tone: "signal" },
     // Verify payments, not Payments. What Finance starts here is the queue
     // Customer Support hands up — proofs collected at the counter that are

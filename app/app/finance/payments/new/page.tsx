@@ -27,7 +27,7 @@ import { requirePermission } from "@/lib/session";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: t(await viewerLocale(), "Record a payment") };
+  return { title: t(await viewerLocale(), "Merge Payment") };
 }
 
 /**
@@ -227,10 +227,10 @@ export default async function RecordCustomerPaymentPage({
     return (
       <div className="space-y-6">
         <PageHeader
-          title={t(locale, "Record a payment")}
+          title={t(locale, "Merge Payment")}
           description={t(
             locale,
-            "A customer with several boxes pays once. Pick them, tick the cargo their money covers, and it is taken as one bill — one payment, one receipt, one movement in the account, however many consignments it settles. Each box keeps its own invoice, its own flight and its own pickup note."
+            "Merge Payment lets a customer with multiple cargo or invoices pay them together as one bill. Select the cargo/invoices the payment covers, and the system combines their outstanding amounts into one payment, one receipt, and one account transaction, while each cargo keeps its own invoice, batch/flight, and pickup note."
           )}
         />
 
@@ -420,10 +420,10 @@ export default async function RecordCustomerPaymentPage({
                               </IconHint>
                             ) : null}
 
-                            <IconHint label={t(locale, "Record a payment")}>
+                            <IconHint label={t(locale, "Merge Payment")}>
                               <Link
                                 href={href}
-                                aria-label={`${t(locale, "Record a payment")} — ${customer.name}`}
+                                aria-label={`${t(locale, "Merge Payment")} — ${customer.name}`}
                                 className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-md border border-brand/40 text-brand transition-colors hover:bg-brand/10"
                               >
                                 <Banknote className="h-4 w-4" />
@@ -495,7 +495,7 @@ export default async function RecordCustomerPaymentPage({
   if (!customer) {
     return (
       <div className="w-full">
-        <PageHeader title={t(locale, "Record a payment")} />
+        <PageHeader title={t(locale, "Merge Payment")} />
         <p className="panel p-5 text-sm">{t(locale, "That customer no longer exists.")}</p>
       </div>
     );

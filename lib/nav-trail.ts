@@ -142,7 +142,7 @@ const NAMES: { prefix: string; label: string }[] = [
   { prefix: "/app/collections/submissions", label: "Payment history" },
   { prefix: "/app/collections/verify", label: "Verify payments" },
   { prefix: "/app/collections", label: "Collections" },
-  { prefix: "/app/finance/payments/new", label: "One Bill" },
+  { prefix: "/app/finance/payments/new", label: "Merge Payment" },
   { prefix: "/app/finance/payments", label: "Payments" },
   { prefix: "/app/finance/transactions", label: "The Ledger" },
   { prefix: "/app/finance/invoices", label: "Bills" },

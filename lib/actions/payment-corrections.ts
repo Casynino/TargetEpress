@@ -13,6 +13,7 @@ import { t } from "@/lib/i18n";
 import { postLedgerEntry } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
 import { authorize } from "@/lib/session";
+import { filesFrom, putDocument } from "@/lib/storage";
 import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { firstError } from "@/lib/validation";
@@ -559,6 +560,7 @@ export async function editPayment(
         paymentId: z.string().min(1),
         reference: z.string().trim().optional(),
         note: z.string().trim().optional(),
+        method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]).optional(),
         paidAt: z.string().trim().optional(),
         reason: z.string().trim().min(3, "Say what was wrong with the record."),
       })
@@ -571,6 +573,7 @@ export async function editPayment(
         id: true,
         reference: true,
         note: true,
+        method: true,
         paidAt: true,
         voidedAt: true,
         invoice: {
@@ -614,11 +617,13 @@ export async function editPayment(
     const before = {
       reference: payment.reference,
       note: payment.note,
+      method: payment.method,
       paidAt: payment.paidAt.toISOString(),
     };
     const after = {
       reference: parsed.data.reference || null,
       note: parsed.data.note || null,
+      method: parsed.data.method ?? payment.method,
       paidAt: paidAt.toISOString(),
     };
 
@@ -635,6 +640,7 @@ export async function editPayment(
         data: {
           reference: after.reference,
           note: after.note,
+          method: after.method,
           paidAt,
         },
       });
@@ -676,12 +682,14 @@ export async function editPayment(
 }
 
 /**
- * PUT A DIFFERENT FIGURE ON A PAYMENT THAT HAS ALREADY BEEN RECORDED.
+ * PUT A DIFFERENT FIGURE, OR A DIFFERENT ACCOUNT, ON A PAYMENT ALREADY RECORDED.
  *
- * A clerk types 45,000 for a payment of 54,000 and finds out a week later. Until
- * now the answer was "cancel it and record it again" — two screens, two acts of
+ * A clerk types 45,000 for a payment of 54,000 and finds out a week later, or
+ * ticks CRDB Bank when the cash actually landed in Office cash. Until now the
+ * answer was "cancel it and record it again" — two screens, two acts of
  * remembering what the first one said, and a desk that gives up and leaves the
- * wrong figure standing. The desk means one thing by it, so it is one press.
+ * wrong figure standing. The desk means one thing by it, so it is one press,
+ * whichever of the two moved.
  *
  * IT IS STILL A CANCEL AND A RE-RECORD, because it has to be. The ledger is
  * append-only: the old line is answered by a reversing line and the new figure
@@ -694,7 +702,8 @@ export async function editPayment(
  * implementation of the same money rules.
  *
  * The receipt number changes, and that is the truthful outcome: the customer's
- * old receipt says a figure this business no longer agrees with.
+ * old receipt says a figure — or an account — this business no longer agrees
+ * with.
  */
 export async function changePaymentAmount(
   _prev: ActionResult<{ receiptNumber?: string }> | undefined,
@@ -708,18 +717,28 @@ export async function changePaymentAmount(
     const parsed = z
       .object({
         paymentId: z.string().min(1),
+        /* Optional: a desk correcting only which account the money landed in
+           has not mistyped the figure, and should not have to retype it. */
         amount: z
           .string()
           .trim()
-          .transform((v) => Number(v))
+          .optional()
+          .transform((v) => (v && v.length > 0 ? Number(v) : null))
           .refine(
-            (v) => Number.isFinite(v) && v > 0,
+            (v) => v === null || (Number.isFinite(v) && v > 0),
             "Enter the amount that actually arrived."
           ),
+        accountId: z.string().trim().optional(),
+        /* Carried through from the same form rather than re-read from the
+           database, so a desk correcting the figure and the reference in one
+           sitting does not have the reference silently revert. */
+        reference: z.string().trim().optional(),
+        note: z.string().trim().optional(),
+        method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]).optional(),
         reason: z
           .string()
           .trim()
-          .min(3, "Say what was wrong with the figure."),
+          .min(3, "Say what was wrong with the record."),
       })
       .safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
@@ -735,6 +754,7 @@ export async function changePaymentAmount(
         note: true,
         paidAt: true,
         accountId: true,
+        account: { select: { name: true } },
         voidedAt: true,
         invoiceId: true,
         invoice: { select: { invoiceNumber: true, exchangeRate: true } },
@@ -746,9 +766,9 @@ export async function changePaymentAmount(
       return fail(t(locale, "That payment has already been cancelled."));
     }
     if (!payment.invoiceId || !payment.invoice) {
-      /* A combined payment answers several bills at once, and moving its figure
-         means deciding which bill loses what. That is the allocation screen's
-         question, not this dialog's. */
+      /* A combined payment answers several bills at once, and moving either
+         its figure or its account means deciding which bill loses what. That
+         is the allocation screen's question, not this dialog's. */
       return fail(
         t(
           locale,
@@ -756,38 +776,74 @@ export async function changePaymentAmount(
         )
       );
     }
-    if (Math.abs(toNumber(payment.amount) - parsed.data.amount) < 0.005) {
-      return fail(t(locale, "That is the figure it already has."));
+
+    const newAmount = parsed.data.amount ?? toNumber(payment.amount);
+    const newAccountId = parsed.data.accountId || payment.accountId;
+    const amountChanged = Math.abs(toNumber(payment.amount) - newAmount) >= 0.005;
+    const accountChanged = newAccountId !== payment.accountId;
+    if (!amountChanged && !accountChanged) {
+      return fail(t(locale, "Nothing was changed."));
+    }
+
+    let newAccount: { id: string; name: string; currency: string } | null = null;
+    if (accountChanged && newAccountId) {
+      newAccount = await prisma.companyAccount.findUnique({
+        where: { id: newAccountId },
+        select: { id: true, name: true, currency: true },
+      });
+      if (!newAccount) return fail(t(locale, "That account no longer exists."));
+      if (newAccount.currency !== payment.currency) {
+        return fail(
+          `${newAccount.name} ${t(locale, "is a")} ${newAccount.currency} ${t(locale, "account, so a")} ${payment.currency} ${t(locale, "payment cannot have landed in it.")}`
+        );
+      }
     }
 
     /* Cancel first. Everything it did is undone — the money comes off the bill,
        the cargo goes back to unpaid, the pickup note is withdrawn — so the
        re-record below starts from the state the counter would have been in. */
+    const changeDescription = [
+      amountChanged
+        ? `${t(locale, "corrected to")} ${payment.currency} ${newAmount.toLocaleString()}`
+        : null,
+      accountChanged
+        ? `${t(locale, "moved to")} ${newAccount?.name ?? t(locale, "no account")}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
     const undo = new FormData();
     undo.set("paymentId", payment.id);
-    undo.set(
-      "reason",
-      `${parsed.data.reason} — corrected to ${payment.currency} ${parsed.data.amount.toLocaleString()}`
-    );
+    undo.set("reason", `${parsed.data.reason} — ${changeDescription}`);
     const cancelled = await voidPayment(undefined, undo);
     if (!cancelled.ok) return cancelled as ActionResult<{ receiptNumber?: string }>;
 
-    /* And record the figure that actually arrived, with everything else the
-       first one said: the same account, the same method, the same reference,
-       the same date. Only the figure was wrong. */
+    /* And record it the way it actually happened. Whatever else was typed on
+       the same form travels with it — reference, note, method — so correcting
+       the figure and a typo together does not silently drop the typo fix. */
+    const newMethod = parsed.data.method ?? payment.method;
+    const newReference = parsed.data.reference ?? payment.reference ?? "";
     const again = new FormData();
     again.set("invoiceId", payment.invoiceId);
-    again.set("amount", String(parsed.data.amount));
+    again.set("amount", String(newAmount));
     again.set("currency", payment.currency);
-    again.set("method", payment.method);
-    if (payment.reference) again.set("reference", payment.reference);
+    again.set("method", newMethod);
+    if (newReference) again.set("reference", newReference);
     again.set(
       "note",
-      [payment.note, `Corrected from ${payment.currency} ${toNumber(payment.amount).toLocaleString()}`]
+      [
+        parsed.data.note ?? payment.note,
+        amountChanged
+          ? `Corrected from ${payment.currency} ${toNumber(payment.amount).toLocaleString()}`
+          : null,
+        accountChanged
+          ? `Moved from ${payment.account?.name ?? "no account"}`
+          : null,
+      ]
         .filter(Boolean)
         .join(" · ")
     );
-    if (payment.accountId) again.set("accountId", payment.accountId);
+    if (newAccountId) again.set("accountId", newAccountId);
     again.set("paidAt", payment.paidAt.toISOString().slice(0, 10));
     if (payment.invoice.exchangeRate) {
       again.set("exchangeRate", toNumber(payment.invoice.exchangeRate).toString());
@@ -806,7 +862,7 @@ export async function changePaymentAmount(
         it can record the right figure at the counter.
       */
       return fail(
-        `${t(locale, "The old figure was cancelled, but the new one was refused:")} ${redone.error} ${t(locale, "Record the payment again from the bill.")}`
+        `${t(locale, "The old record was cancelled, but the new one was refused:")} ${redone.error} ${t(locale, "Record the payment again from the bill.")}`
       );
     }
 
@@ -816,5 +872,127 @@ export async function changePaymentAmount(
     return ok({ receiptNumber: redone.data?.receiptNumber });
   } catch (error) {
     return fail(toActionError(error));
+  }
+}
+
+/* --------------------------------------------------------------- evidence */
+
+/**
+ * Attach a document to a payment that was recorded without one, or with the
+ * wrong one.
+ *
+ * A typed amount is a claim; the M-Pesa screenshot or bank slip is what
+ * settles an argument about it months later. The counter form asks for this
+ * once, at the moment of recording — this door exists for the receipt that
+ * arrived by WhatsApp an hour afterwards, or the wrong screenshot that needs
+ * replacing with the right one.
+ */
+export async function addPaymentProof(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("ledger.adjust");
+    const paymentId = String(formData.get("paymentId") ?? "");
+    if (!paymentId) return fail(t(locale, "Missing payment."));
+
+    const files = filesFrom(formData, "file");
+    if (files.length === 0) return fail(t(locale, "Choose a file first."));
+
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      select: { id: true, voidedAt: true, receipt: { select: { receiptNumber: true } } },
+    });
+    if (!payment) return fail(t(locale, "That payment no longer exists."));
+    if (payment.voidedAt) {
+      return fail(t(locale, "That payment is cancelled. Reinstate it before attaching anything."));
+    }
+
+    const stored = await putDocument(files[0], "proof");
+    await prisma.$transaction(async (tx) => {
+      await tx.paymentProof.create({
+        data: {
+          paymentId,
+          url: stored.url,
+          contentType: stored.contentType,
+          bytes: stored.bytes,
+          filename: files[0].name || null,
+          uploadedById: user.id,
+        },
+      });
+      await recordAudit(
+        {
+          actor: user,
+          action: "payment.proof.add",
+          entity: "Payment",
+          entityId: paymentId,
+          summary: `${t(locale, "Attachment added to")} ${payment.receipt?.receiptNumber ?? paymentId}: ${files[0].name || t(locale, "file")}`,
+        },
+        tx
+      );
+    });
+
+    revalidatePath("/app/finance/transactions");
+    return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+/**
+ * Take a wrongly attached document off a payment.
+ *
+ * The proof is evidence about the payment, not the payment itself — removing
+ * one that was attached by mistake (the wrong customer's screenshot, a photo
+ * that never opened) does not touch the ledger, the bill or the money it
+ * settled. Nothing about the figure changes; only what backs it up.
+ */
+export async function removePaymentProof(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("ledger.adjust");
+    const proofId = String(formData.get("proofId") ?? "");
+    if (!proofId) return fail(t(locale, "Missing attachment."));
+
+    const proof = await prisma.paymentProof.findUnique({
+      where: { id: proofId },
+      select: {
+        id: true,
+        filename: true,
+        paymentId: true,
+        payment: {
+          select: { voidedAt: true, receipt: { select: { receiptNumber: true } } },
+        },
+      },
+    });
+    if (!proof || !proof.paymentId) {
+      return fail(t(locale, "That attachment no longer exists."));
+    }
+    if (proof.payment?.voidedAt) {
+      return fail(t(locale, "That payment is cancelled. Reinstate it before removing anything."));
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.paymentProof.delete({ where: { id: proofId } });
+      await recordAudit(
+        {
+          actor: user,
+          action: "payment.proof.remove",
+          entity: "Payment",
+          entityId: proof.paymentId!,
+          summary: `${t(locale, "Attachment removed from")} ${proof.payment?.receipt?.receiptNumber ?? proof.paymentId}: ${proof.filename ?? t(locale, "file")}`,
+        },
+        tx
+      );
+    });
+
+    revalidatePath("/app/finance/transactions");
+    return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
   }
 }

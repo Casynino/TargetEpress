@@ -9,10 +9,11 @@ import { InvoiceEditor } from "@/components/app/invoice-editor";
 import { MessageComposer } from "@/components/app/message-composer";
 import { BackLink } from "@/components/app/page-header";
 import { InvoiceVoid } from "@/components/app/invoice-void";
-import { PaymentCorrection } from "@/components/app/payment-correction";
+import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { PrintButton } from "@/components/app/print-button";
 import { Button } from "@/components/ui/button";
 import { formatPackages } from "@/lib/constants";
+import { activeAccounts } from "@/lib/accounts";
 import { accountsForInvoice } from "@/lib/company-settings";
 import { LOCAL_CURRENCY, formatLocal, toLocal } from "@/lib/fx";
 import { MESSAGE_KIND_LABELS, composeMessage, whatsappLink } from "@/lib/messages";
@@ -72,6 +73,9 @@ export default async function InvoicePage({
           /* Who cancelled it and why, so a struck-through line can say so
              instead of just going quiet. */
           voidedBy: { select: { name: true } },
+          proofs: {
+            select: { id: true, url: true, filename: true, contentType: true, bytes: true },
+          },
         },
       },
       shipment: {
@@ -234,6 +238,10 @@ export default async function InvoicePage({
 
   // What this invoice was issued with, not what Settings says today.
   const accounts = accountsForInvoice(invoice.paymentSnapshot);
+  /* The real company accounts a mis-recorded payment can be moved into — a
+     different list from the customer-facing one above, which is a snapshot
+     of payment instructions rather than live CompanyAccount rows. */
+  const ledgerAccounts = await activeAccounts();
 
   // How the freight figure was reached, in one line. Assembled here because it
   // is the only part of the document that has to reach into the rate book.
@@ -493,14 +501,35 @@ export default async function InvoicePage({
             different authority from taking the money in the first place.
           */
           action: canCorrectPayments ? (
-            <PaymentCorrection
-              paymentId={payment.id}
-              reference={payment.reference}
-              note={payment.note}
-              paidAt={payment.paidAt.toISOString().slice(0, 10)}
-              voided={payment.voidedAt !== null}
-              voidReason={payment.voidReason}
-              voidedBy={payment.voidedBy?.name ?? null}
+            <LedgerRowFix
+              accounts={ledgerAccounts}
+              subject={{
+                entryId: payment.id,
+                paymentId: payment.id,
+                paymentReference: payment.reference,
+                paymentNote: payment.note,
+                paymentMethod: payment.method,
+                paymentAccountId: payment.accountId,
+                amount: toNumber(payment.amount),
+                currency: payment.currency,
+                /* A combined payment answers several bills; moving its figure
+                   is the allocation screen's question, not this dialog's. */
+                amountEditable: Boolean(payment.invoiceId),
+                expenseId: null,
+                expenseDescription: null,
+                expenseCategory: null,
+                expenseClass: null,
+                expenseVendor: null,
+                expenseNote: null,
+                expenseAccountId: null,
+                expenseBatchId: null,
+                expenseIncurredAt: null,
+                expenseStatus: null,
+                attachments: payment.proofs,
+                reversed: payment.voidedAt !== null,
+                voidReason: payment.voidReason,
+                voidedByName: payment.voidedBy?.name ?? null,
+              }}
             />
           ) : null,
         }))}

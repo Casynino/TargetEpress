@@ -14,6 +14,7 @@ import {
 import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
+import { activeAccounts } from "@/lib/accounts";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
@@ -54,6 +55,7 @@ export default async function PaymentDetailPage({
   const user = await requirePermission("payment.record");
   const locale = await viewerLocale();
   const { id } = await params;
+  const accounts = await activeAccounts();
 
   const payment = await prisma.payment.findUnique({
     where: { id },
@@ -61,6 +63,7 @@ export default async function PaymentDetailPage({
       receipt: true,
       account: { select: { id: true, name: true, currency: true } },
       receivedBy: { select: { name: true } },
+      voidedBy: { select: { name: true } },
       proofs: {
         orderBy: { createdAt: "asc" },
         include: { uploadedBy: { select: { name: true } } },
@@ -173,14 +176,17 @@ export default async function PaymentDetailPage({
           controls, same gate: ledger.adjust, which is Finance, Manager and the
           owner — recording money and un-recording it are different authorities.
         */}
-        {can(user.role, "ledger.adjust") && !payment.voidedAt ? (
+        {can(user.role, "ledger.adjust") ? (
           <div className="pt-1">
             <LedgerRowFix
+              accounts={accounts}
               subject={{
                 entryId: payment.id,
                 paymentId: payment.id,
                 paymentReference: payment.reference,
                 paymentNote: payment.note,
+                paymentMethod: payment.method,
+                paymentAccountId: payment.accountId,
                 amount: toNumber(payment.amount),
                 currency: payment.currency,
                 /* A combined payment answers several bills; moving its figure
@@ -188,7 +194,18 @@ export default async function PaymentDetailPage({
                 amountEditable: Boolean(payment.invoiceId),
                 expenseId: null,
                 expenseDescription: null,
-                reversed: Boolean(payment.ledgerEntry?.reversedBy),
+                expenseCategory: null,
+                expenseClass: null,
+                expenseVendor: null,
+                expenseNote: null,
+                expenseAccountId: null,
+                expenseBatchId: null,
+                expenseIncurredAt: null,
+                expenseStatus: null,
+                attachments: payment.proofs,
+                reversed: payment.voidedAt !== null,
+                voidReason: payment.voidReason,
+                voidedByName: payment.voidedBy?.name ?? null,
               }}
             />
           </div>

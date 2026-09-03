@@ -3,10 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { FileText, Paperclip } from "lucide-react";
 
-import { LedgerEntryActions } from "@/components/app/ledger-entry-actions";
 import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
+import { activeAccounts } from "@/lib/accounts";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
@@ -54,6 +54,7 @@ export default async function LedgerEntryPage({
   const user = await requirePermission("ledger.view");
   const locale = await viewerLocale();
   const { id } = await params;
+  const accounts = await activeAccounts();
 
   const entry = await prisma.ledgerEntry.findUnique({
     where: { id },
@@ -91,7 +92,32 @@ export default async function LedgerEntryPage({
   const canFix = can(user.role, "ledger.adjust");
 
   const inbound = entry.direction === "IN";
-  const receipts = entry.expense?.receipts ?? [];
+
+  /*
+    A SECOND CORRECTION LOSES ITS DIRECT LINE TO THE EXPENSE.
+
+    LedgerEntry.expenseId is unique — one line per cost — so the line a
+    correction posts links back to it only through sourceEntity/sourceId, and
+    entry.expense, keyed on expenseId, comes back null for that line. Opening
+    a correction line directly must not read as "no cost behind this" —
+    resolved by hand for exactly the case the direct relation misses.
+  */
+  const expense =
+    entry.expense ??
+    (entry.sourceEntity === "Expense" && entry.sourceId
+      ? await prisma.expense.findUnique({
+          where: { id: entry.sourceId },
+          include: {
+            receipts: {
+              orderBy: { createdAt: "asc" },
+              include: { uploadedBy: { select: { name: true } } },
+            },
+            approvedBy: { select: { name: true } },
+            batch: { select: { id: true, batchNumber: true } },
+          },
+        })
+      : null);
+  const receipts = expense?.receipts ?? [];
 
   const facts: { label: string; value: React.ReactNode }[] = [
     { label: "Entry", value: <span className="font-mono text-xs">{entry.entryNumber}</span> },
@@ -115,37 +141,37 @@ export default async function LedgerEntryPage({
     },
   ];
 
-  if (entry.expense) {
+  if (expense) {
     facts.push(
       {
         label: "Category",
         value: t(
           locale,
-          EXPENSE_CATEGORY_LABELS[entry.expense.category] ??
-            entry.expense.category
+          EXPENSE_CATEGORY_LABELS[expense.category] ??
+            expense.category
         ),
       },
-      { label: "Paid to", value: entry.expense.vendor ?? "—" },
+      { label: "Paid to", value: expense.vendor ?? "—" },
       {
         label: "Cost incurred",
-        value: formatDateTime(entry.expense.incurredAt, locale),
+        value: formatDateTime(expense.incurredAt, locale),
       }
     );
-    if (entry.expense.batch) {
+    if (expense.batch) {
       facts.push({
         label: "Against dispatch",
         value: (
           <Link
-            href={`/app/batches/${entry.expense.batch.id}`}
+            href={`/app/batches/${expense.batch.id}`}
             className="font-mono text-xs hover:text-brand"
           >
-            {entry.expense.batch.batchNumber}
+            {expense.batch.batchNumber}
           </Link>
         ),
       });
     }
-    if (entry.expense.approvedBy) {
-      facts.push({ label: "Approved by", value: entry.expense.approvedBy.name });
+    if (expense.approvedBy) {
+      facts.push({ label: "Approved by", value: expense.approvedBy.name });
     }
   }
 
@@ -188,7 +214,7 @@ export default async function LedgerEntryPage({
       <div className="flex flex-wrap items-start justify-between gap-3">
         {/* backTo's label is a raw key — SmartBack translates it once itself. */}
         <PageHeader
-          title={entry.expense?.description ?? entry.description}
+          title={expense?.description ?? entry.description}
           description={`${t(locale, KIND_LABEL[entry.kind] ?? entry.kind)} · ${entry.account.name}`}
           backTo={{ href: "/app/finance/transactions", label: "The Ledger" }}
         />
@@ -202,6 +228,7 @@ export default async function LedgerEntryPage({
         {canFix ? (
           <div className="pt-1">
             <LedgerRowFix
+              accounts={accounts}
               subject={{
                 entryId: entry.id,
                 /* A payment movement is redirected to the payment's own page
@@ -209,12 +236,27 @@ export default async function LedgerEntryPage({
                 paymentId: null,
                 paymentReference: null,
                 paymentNote: null,
+                paymentMethod: null,
+                paymentAccountId: null,
                 amount: toNumber(entry.amount),
                 currency: entry.currency,
                 amountEditable: false,
-                expenseId: entry.expense?.id ?? null,
-                expenseDescription: entry.expense?.description ?? null,
+                expenseId: expense?.id ?? null,
+                expenseDescription: expense?.description ?? null,
+                expenseCategory: expense?.category ?? null,
+                expenseClass: expense?.expenseClass ?? null,
+                expenseVendor: expense?.vendor ?? null,
+                expenseNote: expense?.note ?? null,
+                expenseAccountId: expense?.accountId ?? null,
+                expenseBatchId: expense?.batchId ?? null,
+                expenseIncurredAt: expense
+                  ? expense.incurredAt.toISOString().slice(0, 10)
+                  : null,
+                expenseStatus: expense?.status ?? null,
+                attachments: expense?.receipts ?? [],
                 reversed: Boolean(entry.reversedBy || entry.reverses),
+                voidReason: null,
+                voidedByName: null,
               }}
             />
           </div>
@@ -279,7 +321,7 @@ export default async function LedgerEntryPage({
 
             {receipts.length === 0 ? (
               <p className="px-5 py-6 text-sm text-muted-foreground">
-                {entry.expense
+                {expense
                   ? t(
                       locale,
                       "No receipt was attached to this cost. The typed amount is the only record that it happened."
@@ -375,27 +417,9 @@ export default async function LedgerEntryPage({
               .{" "}
               {t(
                 locale,
-                "A wrong line is put right rather than removed: correct the figure on the document behind it, or cancel the movement. Both leave the register able to explain the balance."
+                "A wrong line is put right rather than removed: Edit or Cancel above corrects it here, on this line, rather than sending you to find the document behind it. Both leave the register able to explain the balance."
               )}
             </p>
-
-            {/* The two ways to put a line right, on the page where somebody
-                has just finished reading it and decided it is wrong. */}
-            {canFix ? (
-              <div className="mt-4">
-                <LedgerEntryActions
-                  entryId={entry.id}
-                  editHref={
-                    entry.expense
-                      ? `/app/finance/expenses?q=${entry.expense.expenseNumber}`
-                      : null
-                  }
-                  editLabel={t(locale, "Edit the cost")}
-                  cancelled={Boolean(entry.reversedBy)}
-                  isReversal={Boolean(entry.reverses)}
-                />
-              </div>
-            ) : null}
           </section>
         </div>
       </div>
