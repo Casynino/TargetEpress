@@ -48,6 +48,7 @@ async function pendingOnly(id: string) {
       status: true,
       amount: true,
       currency: true,
+      method: true,
       reference: true,
       note: true,
       submittedById: true,
@@ -90,6 +91,7 @@ export async function editSubmission(
           .number()
           .positive("That amount is not valid.")
           .optional(),
+        method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]).optional(),
         reference: z.string().trim().optional(),
         note: z.string().trim().optional(),
         reason: z.string().trim().min(3, "Say what was wrong with it."),
@@ -112,11 +114,13 @@ export async function editSubmission(
 
     const before = {
       amount: toNumber(sub.amount),
+      method: sub.method,
       reference: sub.reference,
       note: sub.note,
     };
     const after = {
       amount: parsed.data.amount ?? before.amount,
+      method: parsed.data.method ?? before.method,
       reference: parsed.data.reference || null,
       note: parsed.data.note || null,
     };
@@ -133,6 +137,7 @@ export async function editSubmission(
         where: { id: sub.id, status: "PENDING" },
         data: {
           amount: new Prisma.Decimal(after.amount),
+          method: after.method,
           reference: after.reference,
           note: after.note,
         },

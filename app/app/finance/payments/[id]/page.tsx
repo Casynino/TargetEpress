@@ -64,6 +64,11 @@ export default async function PaymentDetailPage({
       account: { select: { id: true, name: true, currency: true } },
       receivedBy: { select: { name: true } },
       voidedBy: { select: { name: true } },
+      /* Who actually raised this, when it arrived as a claim rather than
+         being taken at the counter. Support's own credit for the work of
+         collecting it must not vanish the moment Finance's name is the one
+         that lands on the record. */
+      submission: { select: { submittedBy: { select: { name: true } } } },
       proofs: {
         orderBy: { createdAt: "asc" },
         include: { uploadedBy: { select: { name: true } } },
@@ -129,7 +134,21 @@ export default async function PaymentDetailPage({
         <span className="text-warning">{t(locale, "no account named")}</span>
       ),
     },
-    { label: t(locale, "Taken by"), value: payment.receivedBy?.name ?? "—" },
+    /* Both names when there are two — the desk that collected it and the
+       one that agreed it was real are different facts about this payment,
+       and showing only the second makes the first desk's work invisible. */
+    ...(payment.submission?.submittedBy
+      ? [
+          {
+            label: t(locale, "Submitted by"),
+            value: payment.submission.submittedBy.name,
+          },
+        ]
+      : []),
+    {
+      label: t(locale, payment.submission ? "Confirmed by" : "Taken by"),
+      value: payment.receivedBy?.name ?? "—",
+    },
     { label: t(locale, "When"), value: formatDateTime(payment.paidAt, locale) },
     {
       label: t(locale, "Ledger line"),

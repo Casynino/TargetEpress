@@ -6,6 +6,7 @@ import {
   Boxes,
   CalendarClock,
   Headset,
+  Layers,
   MessageSquare,
   PlaneTakeoff,
   QrCode,
@@ -422,6 +423,21 @@ export default async function SupportHome() {
             // waiting on there — and "has mine flown yet" is the whole
             // difference between them, asked on this desk all day.
             { href: "/app/collections", label: t(locale, "Collections"), icon: Banknote, weight: "primary", tone: "signal" },
+            /* The one gap in Record Payment: it takes a single bill. A
+               customer with several open bills pays once, same as Finance's
+               own counter — this desk was already allowed to claim it,
+               submitCombinedPayment already exists for exactly this, but
+               nothing on the desk's own page pointed at it. */
+            ...(canTakePayments
+              ? [
+                  {
+                    href: "/app/finance/payments/new",
+                    label: t(locale, "Merge Payment"),
+                    icon: Layers,
+                    tone: "success" as const,
+                  },
+                ]
+              : []),
             /* Credit sits on the far side of Record Payment, so the three
                money things read as one group: who owes us, take a payment, who
                owes us on terms. The action is anchored after Collections, which

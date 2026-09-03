@@ -338,24 +338,24 @@ export function BatchExpenses({
                   <button
                     type="button"
                     onClick={() => setEditing(editing === e.id ? null : e.id)}
-                    title={`${t("Correct")} ${e.description}`}
-                    aria-label={`${t("Correct")} ${e.description}`}
-                    className="focus-ring rounded-full border bg-card p-1 text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+                    aria-label={`${t("Edit")} ${e.description}`}
+                    className="focus-ring inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border bg-card px-2 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-accent"
                   >
                     <Pencil className="h-3.5 w-3.5" />
+                    {t("Edit")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditing(editing === e.id ? null : e.id)}
-                    title={`${t("Cancel")} ${e.description}`}
                     aria-label={`${t("Cancel")} ${e.description}`}
-                    className="focus-ring rounded-full border bg-card p-1 text-muted-foreground shadow-sm transition-colors hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                    className="focus-ring inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border bg-card px-2 text-xs font-medium text-foreground shadow-sm transition-colors hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
                   >
                     <Ban className="h-3.5 w-3.5" />
+                    {t("Cancel")}
                   </button>
                 </span>
               ) : (
-                <span aria-hidden className="w-[58px] shrink-0" />
+                <span aria-hidden className="w-[110px] shrink-0" />
               )}
             </div>
             {editing === e.id ? (

@@ -16,11 +16,7 @@ import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { recordExpense } from "@/lib/actions/expenses";
-import {
-  EXPENSE_CLASSES,
-  EXPENSE_CLASS_LABELS,
-  EXPENSE_CLASS_HINTS,
-} from "@/lib/expenses";
+import { EXPENSE_CLASSES, EXPENSE_CLASS_LABELS } from "@/lib/expenses";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import type { ActionResult } from "@/lib/actions/types";
 
@@ -348,17 +344,34 @@ export function ExpenseForm({
                   {t("Date")}
                 </Label>
                 <Input id="incurredAt" name="incurredAt" type="date" max={TODAY} />
+                {/*
+                  Nothing to type, most of the time.
+
+                  Left blank, the cost is dated to this exact moment — the day
+                  AND the time, not just today's date, which is what a plain
+                  "today" default would have lost. This field exists for the
+                  one case that actually needs it: a receipt found in
+                  somebody's bag two days after the port run.
+                */}
+                <p className="text-[11px] text-muted-foreground">
+                  {t(
+                    "Leave this blank — it is recorded as happening right now. Only set it when backdating a cost found later."
+                  )}
+                </p>
               </div>
               {/*
                 Operating or special.
 
                 Defaulted to operating because almost everything is, and put
                 behind "more" for the same reason — the one desk that needs the
-                other option knows it needs it.
+                other option knows it needs it. The hint used to explain the
+                accounting term rather than the actual, rare situation it is
+                for, which read as a question nobody recording a fuel receipt
+                should have to stop and answer.
               */}
               <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="expenseClass" className="text-xs">
-                  {t("Counts towards profit")}
+                  {t("Type of cost")}
                 </Label>
                 <NativeSelect
                   id="expenseClass"
@@ -372,7 +385,9 @@ export function ExpenseForm({
                   ))}
                 </NativeSelect>
                 <p className="text-[11px] text-muted-foreground">
-                  {t(EXPENSE_CLASS_HINTS.NON_OPERATING)}
+                  {t(
+                    "Almost everything is Operating — leave it as it is. Special is only for something like an owner's personal draw, which should not count as a running cost of the business."
+                  )}
                 </p>
               </div>
             </>

@@ -785,7 +785,23 @@ export default async function LedgerPage({
             return (
               <li key={entry.id} className="relative">
                 <Link
-                  href={`/app/finance/transactions/${entry.id}`}
+                  /*
+                    Straight to the real page, not through the redirect.
+
+                    /app/finance/transactions/[id] forwards a payment-kind
+                    entry straight on to /app/finance/payments/[id] — it
+                    never actually renders one. Linking through it anyway
+                    left that forwarding URL sitting in the back-navigation
+                    trail as if it were a real page, and going "back" to it
+                    just bounced straight forward again to the payment the
+                    reader was trying to leave. Routing here directly means
+                    the trail only ever records places that actually exist.
+                  */
+                  href={
+                    entry.payment
+                      ? `/app/finance/payments/${entry.payment.id}`
+                      : `/app/finance/transactions/${entry.id}`
+                  }
                   className={cn(
                     "block p-4 transition-colors hover:bg-accent/40",
                     entry.expense?.category === "EXECUTIVE_DRAW" &&
@@ -1017,7 +1033,23 @@ export default async function LedgerPage({
                           real link, so it is keyboard-reachable and can be
                           opened in a new tab. */}
                       <Link
-                        href={`/app/finance/transactions/${entry.id}`}
+                        /*
+                    Straight to the real page, not through the redirect.
+
+                    /app/finance/transactions/[id] forwards a payment-kind
+                    entry straight on to /app/finance/payments/[id] — it
+                    never actually renders one. Linking through it anyway
+                    left that forwarding URL sitting in the back-navigation
+                    trail as if it were a real page, and going "back" to it
+                    just bounced straight forward again to the payment the
+                    reader was trying to leave. Routing here directly means
+                    the trail only ever records places that actually exist.
+                  */
+                  href={
+                    entry.payment
+                      ? `/app/finance/payments/${entry.payment.id}`
+                      : `/app/finance/transactions/${entry.id}`
+                  }
                         className={cn(
                           "block truncate text-sm font-medium after:absolute after:inset-0 after:content-[''] group-hover:text-brand",
                           cancelled && "text-muted-foreground line-through group-hover:text-muted-foreground"

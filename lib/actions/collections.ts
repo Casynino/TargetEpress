@@ -264,8 +264,13 @@ export async function rejectPaymentSubmission(
         );
       }
 
-      await tx.paymentSubmission.update({
-        where: { id: submission.id },
+      /* Re-stated as a conditional claim: a plain update by id would still
+         fire if Support withdrew this same claim, or another verifier
+         actioned it, in the moment between the read above and this write —
+         the same race verifyPaymentSubmission already guards against on the
+         other side of this same decision. */
+      const claimed = await tx.paymentSubmission.updateMany({
+        where: { id: submission.id, status: "PENDING" },
         data: {
           status: "REJECTED",
           reviewedById: user.id,
@@ -273,6 +278,11 @@ export async function rejectPaymentSubmission(
           rejectionReason: reason,
         },
       });
+      if (claimed.count === 0) {
+        throw new Error(
+          `${submission.submissionNumber} was decided a moment ago. Reload before sending it back.`
+        );
+      }
 
       await recordAudit(
         {
