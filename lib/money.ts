@@ -40,6 +40,34 @@ export function formatUsd(amount: number) {
 }
 
 /**
+ * WHAT A BILL IS ALLOWED TO SAY.
+ *
+ * Whole units of its own currency, rounded at the half: 20.1 is 20, 20.5 is
+ * 21. The owner's rule, and it is the counter's rule too — nobody in Dar es
+ * Salaam hands over a cent, and a bill quoting USD 106.65 is quoting a figure
+ * that cannot be paid in the money it will actually be paid in.
+ *
+ * It also makes the shilling figure exact by construction: a whole number of
+ * dollars times the rate is a whole number of shillings, so the customer, the
+ * receipt, the pickup note and the ledger all read the same thing with nothing
+ * left over to round.
+ *
+ * Applied to the TOTAL, once, and never to the lines inside it. Rounding each
+ * line and adding them up gives a different answer from rounding the sum, and
+ * the total is the number the customer is asked for.
+ *
+ * FORWARD ONLY. Bills already confirmed and sent keep the figure the customer
+ * was given, to the cent — a quote is a thing somebody was told, and going back
+ * over the books to make old paperwork agree with a new rule is how a customer
+ * ends up holding an invoice the system disagrees with. A draft is priced when
+ * Dar confirms it, which is the first moment the customer hears a number, so
+ * drafts confirmed from now on are new bills and get the rule.
+ */
+export function billedTotal(amount: number): number {
+  return Math.round(amount);
+}
+
+/**
  * A dollar figure in shillings, at a rate the caller has already chosen.
  *
  * Rounded, because the result is money somebody will hand over, and because a
