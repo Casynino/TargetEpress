@@ -28,9 +28,14 @@ export type MergeCandidate = {
  * surname, and two shops share a landline — so every row states what it has
  * counted and the clerk decides.
  *
- * Confirmation is a typed code rather than a second button. Merging cannot be
- * undone from a screen, and the code is on the row being removed: reading it
- * across is the check that the right one is going.
+ * Confirming is two deliberate presses, not a typed code.
+ *
+ * It asked the clerk to copy the losing record's code across, on the argument
+ * that reading it is the check. But the code is already on the row above the
+ * box, and the desk does this with a customer on the phone — so the typing was
+ * a delay rather than a check, and a gate people learn to hurry through is not
+ * a gate. The code is filled in and shown, the sentence names both records,
+ * and the second press is the decision.
  */
 export function CustomerMergePanel({
   keepId,
@@ -107,7 +112,9 @@ export function CustomerMergePanel({
                   size="sm"
                   onClick={() => {
                     setOpen(candidate.id);
-                    setTyped("");
+                    /* Filled in, so the press that follows is the decision
+                       rather than a typing exercise. */
+                    setTyped(candidate.code);
                     setError(null);
                   }}
                 >
