@@ -469,6 +469,11 @@ const SUPPORT_SECTIONS: NavSection[] = [
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode" },
+      /* The dashboard pill is the fast way in; this is the way in for
+         somebody who came down the sidebar instead, browsing rather than
+         starting a job — the same reason every other billing job has a row
+         here too. */
+      { href: "/app/finance/payments/new", label: "Merge Payment", icon: "Layers" },
       /* Taking a payment is the single most common thing this desk does with
          money, and it had no row at all — it lived as a button on Home and on
          the call list, so anybody who came down the sidebar had to first work
@@ -478,11 +483,6 @@ const SUPPORT_SECTIONS: NavSection[] = [
         label: "Record Payment",
         icon: "Banknote",
       },
-      /* The dashboard pill is the fast way in; this is the way in for
-         somebody who came down the sidebar instead, browsing rather than
-         starting a job — the same reason every other billing job has a row
-         here too. */
-      { href: "/app/finance/payments/new", label: "Merge Payment", icon: "Layers" },
       // Read-only for this desk: they quote from the rate book and answer
       // "what will this cost", they do not set it. pricing.manage is Finance's.
       { href: "/app/finance/pricing", label: "Price Configuration", icon: "Tags" },

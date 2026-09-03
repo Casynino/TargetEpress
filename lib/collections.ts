@@ -1,6 +1,8 @@
 import "server-only";
 
 import { PENDING_SUBMISSION } from "@/lib/constants";
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/format";
 
@@ -67,13 +69,44 @@ export async function collectionsOverview() {
   };
 }
 
+/**
+ * A claim Finance sent back that still needs somebody to do something.
+ *
+ * "Sent back" is not the same as "outstanding". Finance refuses a claim, the
+ * desk is meant to ring the customer and raise a fresh one — but the bill very
+ * often gets settled another way in the meantime: paid at the counter, taken
+ * against a batch, cleared by Finance directly. The claim stays REJECTED
+ * forever because the ledger is append-only and a decision is not unmade, and
+ * the desk was left staring at twenty-six rows of work that no longer existed.
+ *
+ * So the test is not the claim's status, it is the BILL's: if the invoice still
+ * owes something, somebody has to ring. If it does not, the job is done, however
+ * it got done. Drafts and written-off bills are excluded by the same clause —
+ * neither is money anybody should be chasing.
+ *
+ * Exported because three places count this and they must not drift: the support
+ * desk's attention list, the executive dashboard's, and the Sent back tab.
+ */
+export const REJECTED_NEEDING_A_CALL: Prisma.PaymentSubmissionWhereInput = {
+  status: "REJECTED",
+  invoice: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
+};
+
 /** One queue, filtered by where a claim has got to. */
 export async function submissionQueue(
   status: "PENDING" | "VERIFIED" | "REJECTED" | "WITHDRAWN" | null,
   take = 60
 ) {
   return prisma.paymentSubmission.findMany({
-    where: status ? { status } : {},
+    /* The Sent back tab shows work, not history. A claim whose bill has since
+       been settled has nothing left to do about it, so it drops out here and
+       is still there under Everything, where the record lives. */
+    where:
+      status === "REJECTED"
+        ? REJECTED_NEEDING_A_CALL
+        : status
+          ? { status }
+          : {},
     orderBy: [{ submittedAt: "desc" }],
     take,
     select: {

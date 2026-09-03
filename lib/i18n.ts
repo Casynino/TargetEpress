@@ -1594,6 +1594,7 @@ const ZH: Record<string, string> = {
   "No account has an opening balance yet": "还没有账户设置期初余额",
   "No account named": "未指明账户",
   "no account named": "未指定账户",
+  "settled since": "此后已结清",
   "into": "进入",
   "That could not be saved.": "未能保存。",
   "Delete this submission": "删除此提交",

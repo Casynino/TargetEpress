@@ -31,6 +31,7 @@ import { currentRate, formatLocal, formatShillings, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { activeAccounts } from "@/lib/accounts";
+import { REJECTED_NEEDING_A_CALL } from "@/lib/collections";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import {
@@ -98,6 +99,7 @@ export default async function SupportHome() {
     rateRow,
     callBacks,
     submissions,
+    rejectedNeedingACall,
     ticketFlow,
     alerts,
   ] = await Promise.all([
@@ -143,6 +145,10 @@ export default async function SupportHome() {
     // no presence on the page they open first, so a claim Finance sent back
     // sat unseen until somebody thought to go looking for it.
     prisma.paymentSubmission.groupBy({ by: ["status"], _count: true }),
+    /* Counted separately from the groupBy above, because "sent back" is not
+       the same as "somebody has to do something about it": the test is whether
+       the BILL still owes, and a groupBy on status cannot ask that. */
+    prisma.paymentSubmission.count({ where: REJECTED_NEEDING_A_CALL }),
     // Whether this desk is keeping up, which the open count cannot say.
     ticketFlowByDay(14),
     // §19. Asked for even where nothing can be done about it: a limit filling up
@@ -283,8 +289,8 @@ export default async function SupportHome() {
       group: "Collections",
       // Ahead of the softer queues: a rejected claim means a customer was told
       // their payment went through and it did not.
-      when: submissionCount("REJECTED") > 0,
-      label: `${submissionCount("REJECTED")} payment${submissionCount("REJECTED") === 1 ? "" : "s"} sent back by Finance`,
+      when: rejectedNeedingACall > 0,
+      label: `${rejectedNeedingACall} payment${rejectedNeedingACall === 1 ? "" : "s"} sent back by Finance`,
       detail: t(
         locale,
         "Finance could not verify these. The customer needs ringing before the claim can go up again."

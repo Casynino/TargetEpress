@@ -215,6 +215,7 @@ export async function VerifyQueue() {
                           customerPhone: row.invoice.customer.phone,
                           amount: claimed,
                           currency: row.currency,
+                          invoiceCurrency: row.invoice.currency,
                           outstanding,
                           accountId: row.accountId,
                           settledAccountName:

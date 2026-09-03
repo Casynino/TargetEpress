@@ -16,6 +16,7 @@ import { toNumber } from "@/lib/format";
 import { chinaProblems, floorSnapshot } from "@/lib/floor";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
+import { REJECTED_NEEDING_A_CALL } from "@/lib/collections";
 import { prisma } from "@/lib/prisma";
 
 const MONTHS = [
@@ -600,7 +601,11 @@ export async function ownerAttention(
           where: { priority: "URGENT", status: { in: ["OPEN", "IN_PROGRESS", "WAITING_CUSTOMER"] } },
         }),
         prisma.sourcingRequest.count({ where: { status: { notIn: ["COMPLETED", "CANCELLED"] } } }),
-        prisma.paymentSubmission.count({ where: { status: "REJECTED" } }),
+        /* Only the ones somebody still has to ring about. A claim Finance
+           refused whose bill has since been settled — at the counter, against
+           a batch, by Finance directly — is finished work, and counting it
+           kept twenty-six dead rows at the top of this desk's day. */
+        prisma.paymentSubmission.count({ where: REJECTED_NEEDING_A_CALL }),
         prisma.paymentSubmission.count({ where: { status: "PENDING" } }),
       ]);
       return { urgentTickets, openRequests, rejected, pending };

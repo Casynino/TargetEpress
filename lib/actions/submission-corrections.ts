@@ -99,6 +99,11 @@ export async function editSubmission(
            a claim before deciding it — a customer naming the wrong bank is
            the commonest thing wrong with one. */
         accountId: z.string().trim().optional(),
+        /* What the customer actually handed over. Correctable because getting
+           it wrong is an ordinary mistake — a dollar bill settled in shillings
+           and typed as dollars — and because the account it may have landed in
+           depends on the answer. */
+        currency: z.enum(["TZS", "USD"]).optional(),
         reason: z.string().trim().min(3, "Say what was wrong with it."),
       })
       .safeParse(Object.fromEntries(formData));
@@ -127,18 +132,24 @@ export async function editSubmission(
       reference: sub.reference,
       note: sub.note,
       accountId: sub.accountId,
+      currency: sub.currency,
     };
     const after = {
       amount: parsed.data.amount ?? before.amount,
       reference: parsed.data.reference || null,
       note: parsed.data.note || null,
       accountId: parsed.data.accountId || before.accountId,
+      currency: parsed.data.currency ?? before.currency,
     };
 
     /* Same three questions the submit action asks of an account, asked again
        here — a correction that could name an archived or wrong-currency
        account would walk straight past the rule the submit form enforces. */
-    if (after.accountId && after.accountId !== before.accountId) {
+    if (
+      after.accountId &&
+      (after.accountId !== before.accountId ||
+        after.currency !== before.currency)
+    ) {
       const account = await prisma.companyAccount.findUnique({
         where: { id: after.accountId },
         select: { name: true, currency: true, active: true },
@@ -147,9 +158,9 @@ export async function editSubmission(
       if (!account.active) {
         return fail(`${account.name} has been archived.`);
       }
-      if (account.currency !== sub.currency) {
+      if (account.currency !== after.currency) {
         return fail(
-          `${account.name} is a ${account.currency} account, so ${sub.currency} could not have landed in it.`
+          `${account.name} is a ${account.currency} account, so ${after.currency} could not have landed in it.`
         );
       }
     }
@@ -169,6 +180,7 @@ export async function editSubmission(
           reference: after.reference,
           note: after.note,
           accountId: after.accountId,
+          currency: after.currency,
         },
       });
       if (claimed.count === 0) {

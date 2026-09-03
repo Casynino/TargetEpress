@@ -35,8 +35,16 @@ export type SubmissionSubject = {
   customerName: string;
   customerPhone: string | null;
   amount: number;
+  /** What the customer handed over — not necessarily the bill's currency. */
   currency: string;
   outstanding: number;
+  /**
+   * The currency the BILL is in, which is the unit `outstanding` is expressed
+   * in. Distinct from `currency` above and it has to be: a dollar invoice is
+   * routinely settled in shillings, and printing what is owed with the
+   * tendered currency's symbol turned USD 13.50 into "owed TSh 14".
+   */
+  invoiceCurrency: string;
   accountId: string | null;
   /** Where the money really went, once Finance decided. Null while pending. */
   settledAccountName: string | null;
@@ -108,12 +116,25 @@ export function SubmissionCorrection({
   const [error, setError] = useState<string | null>(null);
 
   const [amount, setAmount] = useState(String(subject.amount));
+  /* What the customer handed over. Held in state because the account list
+     depends on it — an account holds one currency, and the action refuses a
+     mismatch, so offering a shilling account for a claim marked USD is
+     offering a choice that can only end in an error message. */
+  const [currency, setCurrency] = useState(subject.currency);
   const [accountId, setAccountId] = useState(subject.accountId ?? "");
   const [reference, setReference] = useState(subject.reference ?? "");
   const [note, setNote] = useState(subject.note ?? "");
   const [reason, setReason] = useState("");
 
   const editable = subject.status === "PENDING" && canEdit;
+
+  function pickCurrency(next: string) {
+    setCurrency(next);
+    const still = accounts.find(
+      (a) => a.id === accountId && a.currency === next
+    );
+    if (!still) setAccountId("");
+  }
 
   function close() {
     setOpen(null);
@@ -147,6 +168,7 @@ export function SubmissionCorrection({
         const fd = new FormData();
         fd.set("submissionId", subject.submissionId);
         fd.set("amount", amount);
+        fd.set("currency", currency);
         if (accountId) fd.set("accountId", accountId);
         fd.set("reference", reference);
         fd.set("note", note);
@@ -172,6 +194,7 @@ export function SubmissionCorrection({
      should be told so before it saves rather than after. */
   const moved =
     Number(amount) !== subject.amount ||
+    currency !== subject.currency ||
     (accountId || null) !== subject.accountId;
 
   const context = (
@@ -201,7 +224,7 @@ export function SubmissionCorrection({
         </a>
         <span aria-hidden>·</span>
         <span>
-          {t("owed")} {money(subject.outstanding, subject.currency)}
+          {t("owed")} {money(subject.outstanding, subject.invoiceCurrency)}
         </span>
       </p>
       <p className="text-xs text-muted-foreground">
@@ -308,11 +331,7 @@ export function SubmissionCorrection({
                   <>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1.5">
-                        <Label htmlFor="sub-amount">
-                          {t("Amount")} (
-                          {subject.currency === "TZS" ? "TSh" : subject.currency}
-                          )
-                        </Label>
+                        <Label htmlFor="sub-amount">{t("How much came in")}</Label>
                         <Input
                           id="sub-amount"
                           inputMode="decimal"
@@ -320,6 +339,24 @@ export function SubmissionCorrection({
                           onChange={(event) => setAmount(event.target.value)}
                         />
                       </div>
+                      <div className="space-y-1.5">
+                        {/* Correctable, because a dollar bill settled in
+                            shillings and typed as dollars is an ordinary
+                            mistake — and because it decides which accounts
+                            below could have taken the money. */}
+                        <Label htmlFor="sub-currency">{t("Paid in")}</Label>
+                        <NativeSelect
+                          id="sub-currency"
+                          value={currency}
+                          onChange={(event) => pickCurrency(event.target.value)}
+                        >
+                          <option value="TZS">TZS</option>
+                          <option value="USD">USD</option>
+                        </NativeSelect>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
                       <div className="space-y-1.5">
                         <Label htmlFor="sub-account">
                           {t("Where did it land")}
@@ -340,7 +377,7 @@ export function SubmissionCorrection({
                               others offers a choice that can only end in an
                               error message. */}
                           {accounts
-                            .filter((a) => a.currency === subject.currency)
+                            .filter((a) => a.currency === currency)
                             .map((account) => (
                               <option key={account.id} value={account.id}>
                                 {account.name}

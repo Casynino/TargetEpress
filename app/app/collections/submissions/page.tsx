@@ -454,6 +454,20 @@ export default async function SubmissionsPage({
                             {row.reviewedBy?.name ?? t(locale, "Finance")}
                             {row.rejectionReason ? `: ${row.rejectionReason}` : ""}
                           </span>
+                          {/* Under Everything, a refused claim whose bill has
+                              since been settled would otherwise read as work
+                              still owed. It is the record, not a job — the
+                              Sent back tab already leaves it out. */}
+                          {toNumber(row.invoice.total) -
+                            toNumber(row.invoice.amountPaid) <=
+                          0 ? (
+                            <>
+                              <span>·</span>
+                              <span className="text-success">
+                                {t(locale, "settled since")}
+                              </span>
+                            </>
+                          ) : null}
                         </>
                       ) : null}
                       {row.status === "WITHDRAWN" ? (
@@ -508,6 +522,7 @@ export default async function SubmissionsPage({
                         customerPhone: row.invoice.customer.phone,
                         amount: toNumber(row.amount),
                         currency: row.currency,
+                        invoiceCurrency: row.invoice.currency,
                         outstanding:
                           toNumber(row.invoice.total) -
                           toNumber(row.invoice.amountPaid),
