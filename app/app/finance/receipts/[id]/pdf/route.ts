@@ -51,7 +51,11 @@ export async function GET(
               amountPaid: true,
               exchangeRate: true,
               shipment: {
-                select: { trackingNumber: true, ...selectText("description") },
+                select: {
+                  trackingNumber: true,
+                  batch: { select: { batchNumber: true } },
+                  ...selectText("description"),
+                },
               },
             },
           },
@@ -67,7 +71,11 @@ export async function GET(
                   amountPaid: true,
                   exchangeRate: true,
                   shipment: {
-                    select: { trackingNumber: true, ...selectText("description") },
+                    select: {
+                      trackingNumber: true,
+                      batch: { select: { batchNumber: true } },
+                      ...selectText("description"),
+                    },
                   },
                 },
               },
@@ -113,6 +121,7 @@ export async function GET(
       trackingNumber: invoice.shipment.trackingNumber,
       description: cargoText(locale, invoice.shipment, "description"),
       invoiceNumber: invoice.invoiceNumber,
+      batchNumber: invoice.shipment.batch?.batchNumber ?? null,
       settled,
       currency: invoice.currency,
       /* What this line consumed of what was handed over, at the bill's own

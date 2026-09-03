@@ -20,6 +20,8 @@ export type CombinedReceiptInput = {
     trackingNumber: string;
     description: string;
     invoiceNumber: string;
+    /** The flight it came on. */
+    batchNumber: string | null;
     /** Settled against the bill, in the bill's own currency. */
     settled: number;
     currency: string;
@@ -94,6 +96,7 @@ export function combinedReceiptToPdf(input: CombinedReceiptInput) {
       { key: "cargo", label: "Cargo", min: 70 },
       { key: "goods", label: "Goods", min: 90 },
       { key: "invoice", label: "Bill", min: 78 },
+      { key: "flight", label: "Flight", min: 56 },
       ...(cross
         ? [
             { key: "rate", label: "Rate", numeric: true },
@@ -107,6 +110,7 @@ export function combinedReceiptToPdf(input: CombinedReceiptInput) {
       line.trackingNumber,
       latinLabel(line.description, "Goods"),
       line.invoiceNumber,
+      line.batchNumber ?? "—",
       ...(cross
         ? [
             line.exchangeRate ? line.exchangeRate.toLocaleString("en-US") : "—",
@@ -119,6 +123,7 @@ export function combinedReceiptToPdf(input: CombinedReceiptInput) {
       line.cleared ? "Paid in full" : "Part paid",
     ]),
     totals: [
+      "",
       "",
       "",
       "",
@@ -164,6 +169,8 @@ export type CombinedBillInput = {
     issuedAt: Date;
     packages: number;
     weightKg: number;
+    /** The flight it came on, so the customer can tie a line to a shipment. */
+    batchNumber: string | null;
     currency: string;
     total: number;
     paid: number;
@@ -230,6 +237,7 @@ export function combinedBillToPdf(input: CombinedBillInput) {
       { key: "cargo", label: "Cargo", min: 68 },
       { key: "goods", label: "Goods", min: 80 },
       { key: "invoice", label: "Bill", min: 76 },
+      { key: "flight", label: "Flight", min: 56 },
       { key: "weight", label: "Weight", numeric: true },
       { key: "usd", label: "Owed", numeric: true },
       ...(quotable
@@ -243,6 +251,7 @@ export function combinedBillToPdf(input: CombinedBillInput) {
       line.trackingNumber,
       latinLabel(line.description, "Goods"),
       line.invoiceNumber,
+      line.batchNumber ?? "—",
       `${line.weightKg} kg`,
       usd(line.outstanding),
       ...(quotable
@@ -253,6 +262,7 @@ export function combinedBillToPdf(input: CombinedBillInput) {
         : []),
     ]),
     totals: [
+      "",
       "",
       "",
       "",

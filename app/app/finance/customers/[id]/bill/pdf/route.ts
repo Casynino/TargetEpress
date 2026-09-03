@@ -51,6 +51,9 @@ export async function GET(
               trackingNumber: true,
               packages: true,
               weightKg: true,
+              /* The flight it came on, so a customer can tie a line on this
+                 statement to a shipment they were told about. */
+              batch: { select: { batchNumber: true } },
               ...selectText("description"),
             },
           },
@@ -88,6 +91,7 @@ export async function GET(
         trackingNumber: invoice.shipment.trackingNumber,
         description: cargoText(locale, invoice.shipment, "description"),
         invoiceNumber: invoice.invoiceNumber,
+        batchNumber: invoice.shipment.batch?.batchNumber ?? null,
         issuedAt: invoice.issuedAt,
         packages: invoice.shipment.packages,
         weightKg: toNumber(invoice.shipment.weightKg),

@@ -481,6 +481,10 @@ export default async function RecordCustomerPaymentPage({
               description: true,
               descriptionEn: true,
               descriptionZh: true,
+              /* Which flight it came on. A customer's consignments arrive on
+                 different aircraft weeks apart, and the clerk taking one
+                 payment for all of them is asked which is which. */
+              batch: { select: { batchNumber: true } },
             },
           },
         },
@@ -506,6 +510,7 @@ export default async function RecordCustomerPaymentPage({
       invoiceNumber: invoice.invoiceNumber,
       trackingNumber: invoice.shipment.trackingNumber,
       description: cargoText(locale, invoice.shipment, "description"),
+      batchNumber: invoice.shipment.batch?.batchNumber ?? null,
       currency: invoice.currency,
       exchangeRate:
         invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate),

@@ -25,6 +25,8 @@ export type OpenBill = {
   invoiceNumber: string;
   trackingNumber: string;
   description: string;
+  /** The flight it came on. Null while it is still waiting for one. */
+  batchNumber: string | null;
   currency: string;
   outstanding: number;
   /** The rate frozen onto this bill — what a payment in another currency
@@ -408,6 +410,10 @@ export function CustomerPaymentForm({
                       </span>
                       <span className="block font-mono text-xs text-muted-foreground">
                         {bill.invoiceNumber}
+                        {/* The flight it came on. Consignments a customer pays
+                            for together arrive on different aircraft weeks
+                            apart, and the desk is asked which is which. */}
+                        {bill.batchNumber ? ` · ${bill.batchNumber}` : ""}
                       </span>
                     </span>
                     <span className="shrink-0 text-right">
@@ -605,19 +611,14 @@ export function CustomerPaymentForm({
           </div>
 
 
-          <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="reference">{t("Reference")}</Label>
-            <Input
-              id="reference"
-              name="reference"
-              className="h-11"
-              placeholder={t("M-Pesa code, slip number")}
-            />
-          </div>
-
           {canRecord ? (
           <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="accountId">{t("Where did it land?")}</Label>
+            <Label htmlFor="accountId">
+              {t("Where did it land?")}{" "}
+              <span className="font-normal text-muted-foreground">
+                {t("(optional)")}
+              </span>
+            </Label>
             <NativeSelect
               id="accountId"
               name="accountId"
@@ -669,7 +670,31 @@ export function CustomerPaymentForm({
             the difference between a verified figure and somebody's word in six
             weeks, so it is asked for where the money is.
           */}
-          <div className="min-w-0 space-y-1.5 sm:col-span-2">
+          {/*
+            THE EVIDENCE, UNDERNEATH THE MONEY.
+
+            Both optional, and both about the same thing: how this payment will
+            be recognised again in six weeks. The reference is what the customer
+            quotes; the file is what they sent. Neither blocks a payment — cash
+            across a counter has no screenshot and no code, and refusing the
+            payment does not produce one, it produces a payment nobody records.
+          */}
+          <div className="min-w-0 space-y-1.5">
+            <Label htmlFor="reference">
+              {t("Reference")}{" "}
+              <span className="font-normal text-muted-foreground">
+                {t("(optional)")}
+              </span>
+            </Label>
+            <Input
+              id="reference"
+              name="reference"
+              className="h-11"
+              placeholder={t("M-Pesa code, slip number")}
+            />
+          </div>
+
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="proof">
               {t("Proof of payment")}{" "}
               <span className="font-normal text-muted-foreground">
