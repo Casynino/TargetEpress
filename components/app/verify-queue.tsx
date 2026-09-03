@@ -198,19 +198,38 @@ export async function VerifyQueue() {
                           a colleague's claim is Send back, which records who
                           refused it and why. */}
                       <SubmissionCorrection
-                        submissionId={row.id}
-                        invoiceId={row.invoice.id}
-                        amount={claimed}
-                        reference={row.reference}
-                        note={row.note}
-                        status={row.status}
-                        accountId={row.accountId}
+                        canEdit
+                        canDelete={false}
                         accounts={accounts.map((a) => ({
                           id: a.id,
                           name: a.name,
                           currency: a.currency,
                         }))}
-                        canDelete={false}
+                        subject={{
+                          submissionId: row.id,
+                          submissionNumber: row.submissionNumber,
+                          invoiceId: row.invoice.id,
+                          invoiceNumber: row.invoice.invoiceNumber,
+                          trackingNumber: row.invoice.shipment.trackingNumber,
+                          customerName: row.invoice.customer.name,
+                          customerPhone: row.invoice.customer.phone,
+                          amount: claimed,
+                          currency: row.currency,
+                          outstanding,
+                          accountId: row.accountId,
+                          settledAccountName:
+                            row.payment?.account?.name ?? null,
+                          reference: row.reference,
+                          note: row.note,
+                          status: row.status,
+                          submittedByName: row.submittedBy?.name ?? null,
+                          submittedAtLabel: formatDateTime(row.submittedAt, locale),
+                          reviewedByName: row.reviewedBy?.name ?? null,
+                          rejectionReason: row.rejectionReason,
+                          receiptNumber:
+                            row.payment?.receipt?.receiptNumber ?? null,
+                          proofs: row.proofs,
+                        }}
                       />
                       <VerifySubmission
                         submissionId={row.id}

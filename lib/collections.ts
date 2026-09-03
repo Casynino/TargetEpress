@@ -95,8 +95,33 @@ export async function submissionQueue(
       account: { select: { id: true, name: true, currency: true } },
       submittedBy: { select: { id: true, name: true } },
       reviewedBy: { select: { name: true } },
-      proofs: { select: { id: true, url: true, filename: true, contentType: true } },
-      payment: { select: { receipt: { select: { receiptNumber: true } } } },
+      /* bytes, because the correction dialog manages these files now and the
+         shared AttachmentManager prints a size beside each one. */
+      proofs: {
+        select: {
+          id: true,
+          url: true,
+          filename: true,
+          contentType: true,
+          bytes: true,
+        },
+      },
+      /*
+        Where the money actually ended up.
+
+        A claim carries the account the DESK said it went into, and claims
+        raised before naming one was compulsory carry none at all — so a
+        verified row read "no account named" while the receipt it produced
+        plainly said CRDB Bank. Once Finance has decided, the payment's own
+        account is the answer: it is the one a statement can be reconciled
+        against, and it is what the ledger shows.
+      */
+      payment: {
+        select: {
+          receipt: { select: { receiptNumber: true } },
+          account: { select: { id: true, name: true } },
+        },
+      },
       invoice: {
         select: {
           id: true,

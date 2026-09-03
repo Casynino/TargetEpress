@@ -1,199 +1,491 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Ban, Pencil } from "lucide-react";
+import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
+import { Ban, Eye, Pencil, X } from "lucide-react";
 
-import { FormError, SubmitButton } from "@/components/app/form-feedback";
+import {
+  AttachmentManager,
+  type Attachment,
+} from "@/components/app/attachment-manager";
 import { useT } from "@/components/app/locale-provider";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   editSubmission,
   withdrawSubmission,
 } from "@/lib/actions/submission-corrections";
 import type { ActionResult } from "@/lib/actions/types";
 
+/* Byte-identical to the ledger's own trigger class. The two dialogs are the
+   same door and have to look like it from the outside as well as the inside. */
 const pillButton =
   "focus-ring inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border bg-card px-2.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-accent";
 
-/**
- * Fixing or taking back a claim before Finance rules on it.
- *
- * Written out as Edit Payment / Delete Payment, not left as bare icons — the
- * same fix the ledger's own correction buttons needed: a control nobody can
- * see is a button nobody presses. "Delete" is what the desk calls this, and
- * it IS the complete undo from where they stand — but nothing has moved yet
- * to be deleted from, so what actually happens is a clean withdrawal, said
- * once in the confirmation below rather than argued over in the label.
- *
- * Both only on a pending row. Nothing has moved yet — no ledger line, no
- * receipt, no change to the bill — which is exactly why a claim can be
- * edited in place while a payment cannot: there is no receipt in anybody's
- * hand for this to disagree with.
- *
- * Once Finance verifies it, both go. At that point real money exists and the
- * way back is cancelling the payment on the invoice, not editing the claim
- * that produced it — offered here as a plain link rather than a silent dead
- * end, so somebody looking for the undo is told where it lives.
- */
-export function SubmissionCorrection({
-  submissionId,
-  invoiceId,
-  amount,
-  reference,
-  note,
-  status,
-  accountId,
-  accounts,
-  canDelete = true,
-}: {
+export type SubmissionSubject = {
   submissionId: string;
+  submissionNumber: string;
   invoiceId: string;
+  invoiceNumber: string;
+  trackingNumber: string;
+  customerName: string;
+  customerPhone: string | null;
   amount: number;
+  currency: string;
+  outstanding: number;
+  accountId: string | null;
+  /** Where the money really went, once Finance decided. Null while pending. */
+  settledAccountName: string | null;
   reference: string | null;
   note: string | null;
   status: string;
-  accountId: string | null;
+  submittedByName: string | null;
+  submittedAtLabel: string;
+  reviewedByName: string | null;
+  rejectionReason: string | null;
+  receiptNumber: string | null;
+  proofs: Attachment[];
+};
+
+const money = (n: number, currency: string) =>
+  `${currency === "USD" ? "USD" : "TSh"} ${n.toLocaleString("en-US", {
+    maximumFractionDigits: currency === "USD" ? 2 : 0,
+  })}`;
+
+/**
+ * Fixing, deleting or simply reading a claim, in the dialog Finance uses.
+ *
+ * This was a strip of unlabelled inputs squeezed into the right-hand end of a
+ * table row: an amount box 110 pixels wide, a reason typed into a placeholder,
+ * no heading, no attachments, and no way to see what the claim actually said.
+ * The owner's instruction was plain — the same thing Finance gets when it
+ * corrects a record on the ledger. So it is the same shape: portalled to the
+ * body, one panel, a real label on every field, evidence managed in place, and
+ * the delete door reachable from inside the edit rather than only from a
+ * second button on the row.
+ *
+ * Three modes off one panel:
+ *
+ *   EDIT, while the claim is pending. Nothing has moved — no ledger line, no
+ *   receipt, no change to the bill — which is exactly why a claim can be
+ *   edited in place while a payment cannot: there is no receipt in anybody's
+ *   hand for this to disagree with.
+ *
+ *   DELETE, also while pending. Recorded as withdrawn by us rather than
+ *   refused by Finance, because "we sent this by mistake" and "Finance said
+ *   no" are different facts about a customer.
+ *
+ *   OPEN, once Finance has decided. The register used to drop its controls at
+ *   exactly the moment somebody most wants to know what happened — who agreed
+ *   it and on what receipt, or why it came back. Every row keeps a door now,
+ *   and after a decision that door is read-only.
+ */
+export function SubmissionCorrection({
+  subject,
+  accounts,
+  canEdit,
+  canDelete = true,
+}: {
+  subject: SubmissionSubject;
   accounts: { id: string; name: string; currency: string }[];
-  /** Finance corrects a claim it is about to decide, but does not take it
-      back — refusing somebody else's claim is Send back, which says who
-      refused it and why. Deleting is the raiser's own undo. */
+  /** Whether this reader may change the claim, as opposed to only read it. */
+  canEdit: boolean;
+  /**
+   * Finance corrects a claim it is about to decide, but does not take it back
+   * — refusing somebody else's claim is Send back, which records who refused
+   * it and why. Deleting is the raiser's own undo.
+   */
   canDelete?: boolean;
 }) {
   const t = useT();
-  const [open, setOpen] = useState<"edit" | "withdraw" | null>(null);
-  const [editState, doEdit] = useActionState<ActionResult | undefined, FormData>(
-    editSubmission,
-    undefined
-  );
-  const [withdrawState, doWithdraw] = useActionState<
-    ActionResult | undefined,
-    FormData
-  >(withdrawSubmission, undefined);
+  const router = useRouter();
+  const [open, setOpen] = useState<"edit" | "withdraw" | "view" | null>(null);
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
-  if (status === "VERIFIED") {
-    return (
-      <a
-        href={`/app/finance/invoices/${invoiceId}`}
-        className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-      >
-        {t("Verified — cancel the payment on the invoice")}
-      </a>
-    );
+  const [amount, setAmount] = useState(String(subject.amount));
+  const [accountId, setAccountId] = useState(subject.accountId ?? "");
+  const [reference, setReference] = useState(subject.reference ?? "");
+  const [note, setNote] = useState(subject.note ?? "");
+  const [reason, setReason] = useState("");
+
+  const editable = subject.status === "PENDING" && canEdit;
+
+  function close() {
+    setOpen(null);
+    setError(null);
+    setReason("");
   }
-  if (status !== "PENDING") return null;
+
+  /* The ledger's own submit shape: run the action, close on success, refresh
+     so the row underneath shows what changed. The old form left the panel open
+     on success, so a desk could not tell a saved correction from a silent
+     failure. */
+  function run(
+    build: () => FormData,
+    act: (fd: FormData) => Promise<ActionResult>
+  ) {
+    setError(null);
+    start(async () => {
+      const result = await act(build());
+      if (!result.ok) {
+        setError(result.error ?? t("That could not be saved."));
+        return;
+      }
+      close();
+      router.refresh();
+    });
+  }
+
+  const saveEdit = () =>
+    run(
+      () => {
+        const fd = new FormData();
+        fd.set("submissionId", subject.submissionId);
+        fd.set("amount", amount);
+        if (accountId) fd.set("accountId", accountId);
+        fd.set("reference", reference);
+        fd.set("note", note);
+        fd.set("reason", reason);
+        return fd;
+      },
+      (fd) => editSubmission(undefined, fd)
+    );
+
+  const deleteIt = () =>
+    run(
+      () => {
+        const fd = new FormData();
+        fd.set("submissionId", subject.submissionId);
+        fd.set("reason", reason);
+        return fd;
+      },
+      (fd) => withdrawSubmission(undefined, fd)
+    );
+
+  /* Said only when it is true. A claim whose figure or account has been moved
+     is a different claim from the one Finance is looking at, and the desk
+     should be told so before it saves rather than after. */
+  const moved =
+    Number(amount) !== subject.amount ||
+    (accountId || null) !== subject.accountId;
+
+  const context = (
+    <div className="space-y-1.5 rounded-lg border bg-muted/30 p-3 text-sm">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <span className="font-medium">{subject.customerName}</span>
+        <span className="font-mono text-xs text-muted-foreground">
+          {subject.submissionNumber}
+        </span>
+      </div>
+      {subject.customerPhone ? (
+        <p className="text-xs text-muted-foreground">{subject.customerPhone}</p>
+      ) : null}
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+        <a
+          href={`/app/cargo/${subject.trackingNumber}`}
+          className="font-mono hover:text-brand"
+        >
+          {subject.trackingNumber}
+        </a>
+        <span aria-hidden>·</span>
+        <a
+          href={`/app/finance/invoices/${subject.invoiceId}`}
+          className="font-mono hover:text-brand"
+        >
+          {subject.invoiceNumber}
+        </a>
+        <span aria-hidden>·</span>
+        <span>
+          {t("owed")} {money(subject.outstanding, subject.currency)}
+        </span>
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {t("Submitted by")}{" "}
+        <span className="text-brand">{subject.submittedByName ?? "—"}</span> ·{" "}
+        {subject.submittedAtLabel}
+      </p>
+      {/* What became of it — the whole reason a decided claim keeps a door.
+          The account named here is the payment's, not the claim's: it is where
+          the money actually landed, and on an older claim it is the only one
+          there is. */}
+      {subject.status === "VERIFIED" ? (
+        <p className="text-xs text-success">
+          {t("Verified by")} {subject.reviewedByName ?? t("Finance")}
+          {subject.settledAccountName
+            ? ` · ${t("into")} ${subject.settledAccountName}`
+            : ""}
+          {subject.receiptNumber ? ` · ${subject.receiptNumber}` : ""}
+        </p>
+      ) : null}
+      {subject.status === "REJECTED" ? (
+        <p className="text-xs text-destructive">
+          {t("Sent back by")} {subject.reviewedByName ?? t("Finance")}
+          {subject.rejectionReason ? `: ${subject.rejectionReason}` : ""}
+        </p>
+      ) : null}
+      {subject.status === "WITHDRAWN" ? (
+        <p className="text-xs text-muted-foreground">
+          {t("Withdrawn")}
+          {subject.rejectionReason ? `: ${subject.rejectionReason}` : ""}
+        </p>
+      ) : null}
+    </div>
+  );
+
+  const heading =
+    open === "withdraw"
+      ? t("Delete this submission")
+      : open === "view"
+        ? t("What was submitted")
+        : t("Correct this submission");
 
   return (
-    <span className="inline-flex max-w-[22rem] flex-wrap items-center justify-end gap-1">
-      <button
-        type="button"
-        onClick={() => setOpen(open === "edit" ? null : "edit")}
-        className={pillButton}
-      >
-        <Pencil className="h-3.5 w-3.5" />
-        {t("Edit Payment")}
-      </button>
-      {canDelete ? (
+    <span className="relative z-10 inline-flex items-center gap-1">
+      {editable ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen("edit")}
+            className={pillButton}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {t("Edit Payment")}
+          </button>
+          {canDelete ? (
+            <button
+              type="button"
+              onClick={() => setOpen("withdraw")}
+              className={`${pillButton} hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive`}
+            >
+              <Ban className="h-3.5 w-3.5" />
+              {t("Delete Payment")}
+            </button>
+          ) : null}
+        </>
+      ) : (
+        /* Decided, or this reader may not change it. Either way the claim is
+           still worth opening — the register used to simply drop its controls
+           and leave nothing at all to press. */
         <button
           type="button"
-          onClick={() => setOpen(open === "withdraw" ? null : "withdraw")}
-          className={`${pillButton} hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive`}
+          onClick={() => setOpen("view")}
+          className={pillButton}
         >
-          <Ban className="h-3.5 w-3.5" />
-          {t("Delete Payment")}
+          <Eye className="h-3.5 w-3.5" />
+          {t("Open")}
         </button>
-      ) : null}
+      )}
 
-      {open === "edit" ? (
-        <form
-          action={doEdit}
-          className="mt-1 w-full min-w-[17rem] space-y-1.5 rounded-lg border bg-card p-2"
-        >
-          <input type="hidden" name="submissionId" value={submissionId} />
-          <div className="flex flex-wrap gap-1.5">
-            <Input
-              name="amount"
-              type="number"
-              step="0.01"
-              defaultValue={amount}
-              aria-label={t("Amount")}
-              className="h-7 w-[110px] text-[11px]"
-            />
-            {/* Where it landed. Editable here because a customer naming the
-                wrong bank is the ordinary mistake this form exists to fix, and
-                bouncing the claim back for it costs them a rejection. */}
-            <NativeSelect
-              name="accountId"
-              required
-              defaultValue={accountId ?? ""}
-              aria-label={t("Where did it land")}
-              className="h-7 w-auto min-w-[11rem] text-[11px]"
-            >
-              <option value="" disabled>
-                {t("Choose the account")}
-              </option>
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name} · {account.currency}
-                </option>
-              ))}
-            </NativeSelect>
-            <Input
-              name="reference"
-              defaultValue={reference ?? ""}
-              placeholder={t("Reference")}
-              className="h-7 min-w-[110px] flex-1 text-[11px]"
-            />
-          </div>
-          <Input
-            name="note"
-            defaultValue={note ?? ""}
-            placeholder={t("Note")}
-            className="h-7 text-[11px]"
-          />
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Input
-              name="reason"
-              required
-              placeholder={t("What was wrong with it?")}
-              className="h-7 min-w-[150px] flex-1 text-[11px]"
-            />
-            <SubmitButton size="sm" className="h-11 md:h-7 px-2.5 text-[11px]">
-              {t("Save")}
-            </SubmitButton>
-          </div>
-          <FormError state={editState} />
-        </form>
-      ) : null}
+      {open
+        ? createPortal(
+            /* Portalled to the body for the same reason the ledger's dialog is:
+               the register sits inside an overflow-x-auto ancestor, and that
+               ancestor clips even a position:fixed child — so the backdrop
+               darkened the list's own rectangle and left the rest of the page
+               lit up through the dialog sitting on top of it. */
+            <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
+              <div className="max-h-[85vh] w-full max-w-lg space-y-3 overflow-y-auto rounded-xl border bg-card p-5 text-left shadow-lg">
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="font-display font-semibold">{heading}</h2>
+                  <button
+                    type="button"
+                    onClick={close}
+                    aria-label={t("Close")}
+                    className="focus-ring rounded p-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
 
-      {open === "withdraw" ? (
-        <form
-          action={doWithdraw}
-          className="mt-1 w-full min-w-[17rem] space-y-1.5 rounded-lg border border-destructive/40 bg-destructive/[0.04] p-2"
-        >
-          <input type="hidden" name="submissionId" value={submissionId} />
-          <p className="text-[11px] text-muted-foreground">
-            {t(
-              "Nothing has moved yet, so deleting it costs the customer nothing. It is recorded as withdrawn by us, not refused by Finance."
-            )}
-          </p>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Input
-              name="reason"
-              required
-              placeholder={t("Why is it being deleted?")}
-              className="h-7 min-w-[150px] flex-1 text-[11px]"
-            />
-            <SubmitButton
-              size="sm"
-              className="h-7 bg-destructive px-2.5 text-[11px] text-white"
-            >
-              {t("Delete it")}
-            </SubmitButton>
-          </div>
-          <FormError state={withdrawState} />
-        </form>
-      ) : null}
+                {context}
+
+                {open === "edit" ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="sub-amount">
+                          {t("Amount")} (
+                          {subject.currency === "TZS" ? "TSh" : subject.currency}
+                          )
+                        </Label>
+                        <Input
+                          id="sub-amount"
+                          inputMode="decimal"
+                          value={amount}
+                          onChange={(event) => setAmount(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="sub-account">
+                          {t("Where did it land")}
+                        </Label>
+                        <NativeSelect
+                          id="sub-account"
+                          value={accountId}
+                          onChange={(event) => setAccountId(event.target.value)}
+                        >
+                          {/* Selectable, not disabled: a claim raised before
+                              naming an account was compulsory has none, and a
+                              disabled selected option makes the control look
+                              stuck. Leaving it as it stands is a no-op. */}
+                          <option value="">{t("no account named")}</option>
+                          {/* Only accounts that could really have taken this
+                              money. An account holds one currency, and
+                              editSubmission refuses a mismatch — so listing the
+                              others offers a choice that can only end in an
+                              error message. */}
+                          {accounts
+                            .filter((a) => a.currency === subject.currency)
+                            .map((account) => (
+                              <option key={account.id} value={account.id}>
+                                {account.name}
+                              </option>
+                            ))}
+                        </NativeSelect>
+                      </div>
+                    </div>
+
+                    <p
+                      className={`text-xs ${
+                        moved ? "text-warning" : "text-muted-foreground"
+                      }`}
+                    >
+                      {moved
+                        ? t(
+                            "Nothing has moved yet, so this only corrects the claim before Finance decides it. The change is recorded against your name."
+                          )
+                        : t(
+                            "What the claim says now. Type or pick over it to correct it."
+                          )}
+                    </p>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="sub-reference">{t("Reference")}</Label>
+                      <Input
+                        id="sub-reference"
+                        value={reference}
+                        onChange={(event) => setReference(event.target.value)}
+                        placeholder={t("M-Pesa code, slip number")}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="sub-note">{t("Note")}</Label>
+                      <Input
+                        id="sub-note"
+                        value={note}
+                        onChange={(event) => setNote(event.target.value)}
+                      />
+                    </div>
+                  </>
+                ) : null}
+
+                {open === "withdraw" ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t(
+                      "Nothing has moved yet, so deleting it costs the customer nothing. It is recorded as withdrawn by us, not refused by Finance."
+                    )}
+                  </p>
+                ) : null}
+
+                {/* The evidence, on every mode but the delete — read-only once
+                    decided. This is where "nothing attached" can finally be
+                    answered rather than only complained about on the row. */}
+                {open !== "withdraw" ? (
+                  <div className="space-y-1.5">
+                    <Label>{t("The customer's evidence")}</Label>
+                    <AttachmentManager
+                      kind="submission"
+                      parentId={subject.submissionId}
+                      attachments={subject.proofs}
+                      editable={editable}
+                    />
+                  </div>
+                ) : null}
+
+                {open !== "view" ? (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sub-reason">
+                      {open === "withdraw"
+                        ? t("Why is it being deleted?")
+                        : t("What was wrong with it?")}
+                    </Label>
+                    <Textarea
+                      id="sub-reason"
+                      rows={2}
+                      value={reason}
+                      onChange={(event) => setReason(event.target.value)}
+                      placeholder={t("Reference typed wrong")}
+                    />
+                  </div>
+                ) : null}
+
+                {/* Deleting is reachable from inside the edit, so somebody who
+                    opened the wrong door does not have to close it and go
+                    looking for the other one. */}
+                {open === "edit" && canDelete ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen("withdraw");
+                      setError(null);
+                    }}
+                    className="text-xs text-muted-foreground underline-offset-2 hover:text-destructive hover:underline"
+                  >
+                    {t("Delete this submission instead")}
+                  </button>
+                ) : null}
+
+                {open === "view" && subject.status === "VERIFIED" ? (
+                  <a
+                    href={`/app/finance/invoices/${subject.invoiceId}`}
+                    className="block text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                  >
+                    {t("Verified — cancel the payment on the invoice")}
+                  </a>
+                ) : null}
+
+                {error ? (
+                  <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    {error}
+                  </p>
+                ) : null}
+
+                <div className="flex flex-wrap gap-2">
+                  {open !== "view" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={open === "withdraw" ? "destructive" : "default"}
+                      disabled={pending || reason.trim().length < 3}
+                      onClick={open === "withdraw" ? deleteIt : saveEdit}
+                    >
+                      {pending
+                        ? t("Working…")
+                        : open === "withdraw"
+                          ? t("Delete it")
+                          : t("Save the correction")}
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={close}
+                  >
+                    {t("Leave it")}
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </span>
   );
 }

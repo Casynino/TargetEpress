@@ -469,6 +469,15 @@ const SUPPORT_SECTIONS: NavSection[] = [
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode" },
+      /* Taking a payment is the single most common thing this desk does with
+         money, and it had no row at all — it lived as a button on Home and on
+         the call list, so anybody who came down the sidebar had to first work
+         out which page carried it. Lands with the panel already open. */
+      {
+        href: "/app/collections/follow-up?record=1",
+        label: "Record Payment",
+        icon: "Banknote",
+      },
       /* The dashboard pill is the fast way in; this is the way in for
          somebody who came down the sidebar instead, browsing rather than
          starting a job — the same reason every other billing job has a row
@@ -620,20 +629,6 @@ const FINANCE_SECTIONS: NavSection[] = [
         permission: "collections.view",
       },
       {
-        /*
-          Straight after Collections, because it IS a collection — one customer
-          settling several consignments in one go.
-
-          The support desk has had this row for a while and Finance had only
-          the pill on the dashboard, so the desk that actually banks a combined
-          payment was the one with no door to it in the menu.
-        */
-        href: "/app/finance/payments/new",
-        label: "Merge Payment",
-        icon: "Layers",
-        permission: "payment.record",
-      },
-      {
         /* Gated on profit.view, which the money desk holds too — the owner
            granted it so Finance reads the same P&L he does. */
         href: "/app/finance/reports",
@@ -652,6 +647,21 @@ const FINANCE_SECTIONS: NavSection[] = [
         label: "General ledger",
         icon: "ArrowLeftRight",
         permission: "ledger.view",
+      },
+      {
+        /*
+          Under the General ledger, where the owner put it.
+
+          It IS a collection — one customer settling several consignments in
+          one go — and it reads as the last of the money-in jobs rather than as
+          a report. Finance had only the pill on the dashboard before this, so
+          the desk that actually banks a combined payment was the one with no
+          door to it in the menu.
+        */
+        href: "/app/finance/payments/new",
+        label: "Merge Payment",
+        icon: "Layers",
+        permission: "payment.record",
       },
       {
         /*

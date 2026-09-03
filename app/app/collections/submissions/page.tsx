@@ -356,8 +356,17 @@ export default async function SubmissionsPage({
                           the desk is actually asking, and where nobody named
                           one it says so instead of implying one. */}
                       <span>·</span>
-                      {row.account ? (
-                        <span>{row.account.name}</span>
+                      {/* Once Finance has decided, the account the PAYMENT
+                          landed in is the answer — a claim raised before
+                          naming one was compulsory has none of its own, and
+                          reading "no account named" beside a receipt that
+                          plainly says CRDB Bank is the register contradicting
+                          the ledger. Still pending, the desk's own answer is
+                          all there is. */}
+                      {(row.payment?.account ?? row.account) ? (
+                        <span>
+                          {(row.payment?.account ?? row.account)!.name}
+                        </span>
                       ) : (
                         <span className="text-warning">
                           {t(locale, "no account named")}
@@ -481,18 +490,43 @@ export default async function SubmissionsPage({
                         )}
                       </p>
                     </div>
-                    {canCorrect ? (
-                      <SubmissionCorrection
-                        submissionId={row.id}
-                        invoiceId={row.invoice.id}
-                        amount={toNumber(row.amount)}
-                        reference={row.reference}
-                        note={row.note}
-                        status={row.status}
-                        accountId={row.accountId}
-                        accounts={payAccounts}
-                      />
-                    ) : null}
+                    {/* Rendered on every row, whatever its status and whoever
+                        is reading. A decided claim opens read-only; a reader
+                        without payment.submit gets the same door. The register
+                        used to go blank at exactly the moment somebody wants
+                        to know what happened to it. */}
+                    <SubmissionCorrection
+                      canEdit={canCorrect}
+                      accounts={payAccounts}
+                      subject={{
+                        submissionId: row.id,
+                        submissionNumber: row.submissionNumber,
+                        invoiceId: row.invoice.id,
+                        invoiceNumber: row.invoice.invoiceNumber,
+                        trackingNumber: row.invoice.shipment.trackingNumber,
+                        customerName: row.invoice.customer.name,
+                        customerPhone: row.invoice.customer.phone,
+                        amount: toNumber(row.amount),
+                        currency: row.currency,
+                        outstanding:
+                          toNumber(row.invoice.total) -
+                          toNumber(row.invoice.amountPaid),
+                        accountId: row.accountId,
+                        settledAccountName: row.payment?.account?.name ?? null,
+                        reference: row.reference,
+                        note: row.note,
+                        status: row.status,
+                        submittedByName: row.submittedBy?.name ?? null,
+                        /* Formatted here: the dialog is a client component
+                           using useT(), and formatDateTime needs the locale
+                           this server page already holds. */
+                        submittedAtLabel: formatDateTime(row.submittedAt, locale),
+                        reviewedByName: row.reviewedBy?.name ?? null,
+                        rejectionReason: row.rejectionReason,
+                        receiptNumber: row.payment?.receipt?.receiptNumber ?? null,
+                        proofs: row.proofs,
+                      }}
+                    />
                   </div>
                 </div>
               </li>

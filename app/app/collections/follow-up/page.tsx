@@ -69,7 +69,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function FollowUpPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string; q?: string }>;
+  searchParams: Promise<{ filter?: string; q?: string; record?: string }>;
 }) {
   const user = await requirePermission("collections.view");
   /* Support files a claim, Finance banks it — the record screen behind this knows
@@ -84,7 +84,7 @@ export default async function FollowUpPage({
   const locale = await viewerLocale();
   const canRecord = can(user.role, "payment.record");
   const canCollect = !canRecord && can(user.role, "payment.submit");
-  const { filter, q } = await searchParams;
+  const { filter, q, record } = await searchParams;
   const query = q?.trim() ?? "";
 
   // Credit only for a reader entitled to it. Every desk that can open this page
@@ -228,10 +228,14 @@ export default async function FollowUpPage({
                   {t(locale, "Merge Payment")}
                 </Link>
               </Button>
+              {/* ?record=1 opens the panel on arrival, so the sidebar's
+                  Record Payment row lands on the form rather than on a page
+                  with a button to press a second time. */}
               <RecordIncome
                 accounts={payAccounts}
                 rate={liveRate}
                 canRecord={canBankIt}
+                autoOpen={record === "1"}
               />
             </>
           ) : null

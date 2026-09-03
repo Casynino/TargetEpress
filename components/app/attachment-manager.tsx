@@ -14,6 +14,10 @@ import {
   addPaymentProof,
   removePaymentProof,
 } from "@/lib/actions/payment-corrections";
+import {
+  addSubmissionProof,
+  removeSubmissionProof,
+} from "@/lib/actions/submission-corrections";
 
 export type Attachment = {
   id: string;
@@ -49,7 +53,10 @@ export function AttachmentManager({
   attachments,
   editable,
 }: {
-  kind: "payment" | "expense";
+  /* A submission is the third object with evidence behind it, and it needs
+     its own pair of actions rather than the payment's: a pending claim has no
+     Payment yet, and this desk does not hold ledger.adjust. */
+  kind: "payment" | "expense" | "submission";
   parentId: string;
   attachments: Attachment[];
   editable: boolean;
@@ -60,7 +67,12 @@ export function AttachmentManager({
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const idField = kind === "payment" ? "paymentId" : "expenseId";
+  const idField =
+    kind === "payment"
+      ? "paymentId"
+      : kind === "submission"
+        ? "submissionId"
+        : "expenseId";
 
   function addFile() {
     const file = fileRef.current?.files?.[0];
@@ -72,7 +84,9 @@ export function AttachmentManager({
       fd.set("file", file);
       const result = await (kind === "payment"
         ? addPaymentProof(undefined, fd)
-        : addExpenseReceipt(undefined, fd));
+        : kind === "submission"
+          ? addSubmissionProof(undefined, fd)
+          : addExpenseReceipt(undefined, fd));
       if (!result.ok) {
         setError(result.error ?? null);
         return;
@@ -86,10 +100,12 @@ export function AttachmentManager({
     setError(null);
     start(async () => {
       const fd = new FormData();
-      fd.set(kind === "payment" ? "proofId" : "receiptId", id);
+      fd.set(kind === "expense" ? "receiptId" : "proofId", id);
       const result = await (kind === "payment"
         ? removePaymentProof(undefined, fd)
-        : removeExpenseReceipt(undefined, fd));
+        : kind === "submission"
+          ? removeSubmissionProof(undefined, fd)
+          : removeExpenseReceipt(undefined, fd));
       if (!result.ok) {
         setError(result.error ?? null);
         return;

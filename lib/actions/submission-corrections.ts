@@ -8,6 +8,7 @@ import { recordAudit } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { filesFrom, putDocument } from "@/lib/storage";
 import { can } from "@/lib/rbac";
 import { authorize } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
@@ -271,6 +272,157 @@ export async function withdrawSubmission(
     revalidatePath("/app/collections/submissions");
     revalidatePath("/app/collections/follow-up");
     revalidatePath(`/app/finance/invoices/${sub.invoice.id}`);
+    return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+/**
+ * The customer's evidence, added to a claim that is still only a claim.
+ *
+ * Support could attach a screenshot at the moment of raising a submission and
+ * never again. A customer who sends their proof an hour later — which is most
+ * of them — left the desk with a claim marked "nothing attached" and no way to
+ * answer it, so Finance was asked to agree to money on somebody's word.
+ *
+ * Deliberately NOT addPaymentProof. That action takes a paymentId, and a
+ * pending submission has no Payment until Finance verifies it; it also demands
+ * ledger.adjust, which is Finance's permission and not this desk's. Same job,
+ * different object, different authority.
+ */
+export async function addSubmissionProof(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("payment.submit");
+    const submissionId = String(formData.get("submissionId") ?? "");
+    if (!submissionId) return fail(t(locale, "That submission no longer exists."));
+
+    const files = filesFrom(formData, "file");
+    if (files.length === 0) return fail(t(locale, "Choose a file first."));
+
+    const sub = await pendingOnly(submissionId);
+    if (!sub) return fail(t(locale, "That submission no longer exists."));
+    /* Once Finance verifies, verifyPaymentSubmission re-points these rows at
+       the Payment it created. From that moment the evidence belongs to the
+       money, and this desk must not be able to add to it or pull it off. */
+    if (sub.status !== "PENDING") {
+      return fail(t(locale, closedMessage(sub.status, sub.submissionNumber)));
+    }
+    if (sub.submittedById !== user.id && !can(user.role, "payment.verify")) {
+      return fail(
+        t(locale, "Only the person who submitted this can correct it. Ask them to, or let Finance decide it as it stands.")
+      );
+    }
+
+    /* Stored before the transaction opens, as every other upload here does: a
+       file crossing the network must not hold a row lock. */
+    const stored = await putDocument(files[0], "proof");
+    await prisma.$transaction(async (tx) => {
+      await tx.paymentProof.create({
+        data: {
+          submissionId: sub.id,
+          url: stored.url,
+          contentType: stored.contentType,
+          bytes: stored.bytes,
+          filename: files[0].name || null,
+          uploadedById: user.id,
+        },
+      });
+      await recordAudit(
+        {
+          actor: user,
+          action: "submission.proof.add",
+          entity: "PaymentSubmission",
+          entityId: sub.id,
+          summary: `${sub.submissionNumber} (${sub.invoice.invoiceNumber}): evidence attached — ${files[0].name || t(locale, "file")}`,
+        },
+        tx
+      );
+    });
+
+    revalidatePath("/app/collections/submissions");
+    revalidatePath("/app/collections/verify");
+    return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+/** Take a wrongly attached file off a claim, while it is still only a claim. */
+export async function removeSubmissionProof(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("payment.submit");
+    const proofId = String(formData.get("proofId") ?? "");
+    if (!proofId) return fail(t(locale, "That attachment no longer exists."));
+
+    const proof = await prisma.paymentProof.findUnique({
+      where: { id: proofId },
+      select: {
+        id: true,
+        filename: true,
+        submissionId: true,
+        submission: {
+          select: {
+            id: true,
+            submissionNumber: true,
+            status: true,
+            submittedById: true,
+            invoice: { select: { invoiceNumber: true } },
+          },
+        },
+      },
+    });
+    /* A proof whose submissionId is null belongs to a Payment — Finance's to
+       remove, through their own action, under their own permission. */
+    if (!proof?.submissionId || !proof.submission) {
+      return fail(t(locale, "That attachment no longer exists."));
+    }
+    if (proof.submission.status !== "PENDING") {
+      return fail(
+        t(locale, closedMessage(proof.submission.status, proof.submission.submissionNumber))
+      );
+    }
+    if (
+      proof.submission.submittedById !== user.id &&
+      !can(user.role, "payment.verify")
+    ) {
+      return fail(
+        t(locale, "Only the person who submitted this can correct it. Ask them to, or let Finance decide it as it stands.")
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      /* Claimed rather than deleted outright: two people with the dialog open
+         would otherwise have the second one delete a row that is already gone
+         and be told nothing. */
+      const claimed = await tx.paymentProof.deleteMany({
+        where: { id: proof.id, submissionId: proof.submissionId },
+      });
+      if (claimed.count === 0) {
+        throw new Error("That attachment has already been removed.");
+      }
+      await recordAudit(
+        {
+          actor: user,
+          action: "submission.proof.remove",
+          entity: "PaymentSubmission",
+          entityId: proof.submission!.id,
+          summary: `${proof.submission!.submissionNumber} (${proof.submission!.invoice.invoiceNumber}): evidence removed — ${proof.filename ?? t(locale, "file")}`,
+        },
+        tx
+      );
+    });
+
+    revalidatePath("/app/collections/submissions");
+    revalidatePath("/app/collections/verify");
     return ok();
   } catch (error) {
     return fail(t(locale, toActionError(error)));
