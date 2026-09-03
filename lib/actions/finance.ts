@@ -632,6 +632,14 @@ export async function adjustInvoice(
         "That rate looks wrong for USD→TZS. Check the number of digits."
       ),
     notes: z.string().trim().optional(),
+    /// "The cargo weighs something else now." Runs the rate book again against
+    /// the shipment's current weight instead of keeping the figure the bill
+    /// was raised with. A checkbox, so it is a thing somebody asked for.
+    repriceFromWeight: z
+      .string()
+      .trim()
+      .optional()
+      .transform((v) => v === "on" || v === "true"),
     /// Required only when money has already landed against the bill. A
     /// correction to a settled figure has to say what was wrong with it.
     correctionReason: z.string().trim().optional(),
@@ -690,11 +698,24 @@ export async function adjustInvoice(
           otherCharges: true,
           discount: true,
           amountPaid: true,
+          /* Whose money may settle this, and in what — the deposit below needs
+             both, the same three columns confirmInvoicePrice reads. */
+          customerId: true,
+          currency: true,
           total: true,
           exchangeRate: true,
           localCurrency: true,
           notes: true,
-          shipment: { select: { trackingNumber: true } },
+          shipment: {
+            select: {
+              id: true,
+              trackingNumber: true,
+              cargoCategory: true,
+              cargoTypeId: true,
+              weightKg: true,
+              packages: true,
+            },
+          },
         },
       });
       if (!invoice) throw new Error("That invoice no longer exists.");
@@ -756,7 +777,37 @@ export async function adjustInvoice(
         }
       }
 
-      const freight = input.freightOverride ?? rateBookFreight;
+      /*
+        RE-PRICE FROM WHAT THE CARGO ACTUALLY WEIGHS.
+
+        The bill is raised at Dar check-in from the weight on the scale, but a
+        consignment gets re-weighed — a box missed off the count, a figure typed
+        wrong — and until now the bill kept the freight it was first given.
+        Somebody then worked out the new figure by hand and typed it in as an
+        override, which records a deliberate departure from the rate book for
+        something that is not one.
+
+        Asked for, never automatic: re-running the rate book also picks up any
+        price the owner has published since, and a bill must not move because
+        somebody edited its notes.
+      */
+      let rateBookFreightNow = rateBookFreight;
+      if (input.repriceFromWeight) {
+        const repriced = await quote({
+          category: invoice.shipment.cargoCategory,
+          cargoTypeId: invoice.shipment.cargoTypeId,
+          weightKg: toNumber(invoice.shipment.weightKg),
+          quantity: invoice.shipment.packages,
+        });
+        if (!repriced.ok) {
+          throw new Error(
+            `${invoice.shipment.trackingNumber} cannot be re-priced from the rate book.`
+          );
+        }
+        rateBookFreightNow = repriced.total;
+      }
+
+      const freight = input.freightOverride ?? rateBookFreightNow;
       /*
         Storage: the clock proposes, Finance decides.
 
@@ -885,6 +936,40 @@ export async function adjustInvoice(
         throw new Error(
           "A payment landed on this bill a moment ago. Reload and adjust it against the fresh balance."
         );
+      }
+
+      /*
+        AND THE DEPOSIT FOLLOWS THE CORRECTION.
+
+        The cargo was heavier than the packing list said, so the bill went up —
+        and the customer had already paid a deposit that covered the old figure
+        and more. Without this, the difference sits as credit on their account
+        while the bill reads unpaid and the cargo stays in the warehouse, and
+        somebody has to notice and apply it by hand.
+
+        Whatever the correction did, this puts the customer's own money against
+        it. Nothing is applied if there is none spare, and nothing is taken
+        back if the bill went down — money already against a bill is a
+        settlement, not a running balance.
+      */
+      const settledFromCredit = await applyCreditToInvoice(tx, {
+        invoiceId: invoice.id,
+        customerId: invoice.customerId,
+        currency: invoice.currency,
+        invoiceRate: rate,
+        outstanding: total - alreadyPaid,
+        user,
+      });
+
+      const paidAfter = alreadyPaid + settledFromCredit;
+      if (settledFromCredit > 0.005) {
+        await tx.invoice.update({
+          where: { id: invoice.id },
+          data: {
+            amountPaid: new Prisma.Decimal(paidAfter),
+            status: paidAfter + 0.001 >= total ? "PAID" : "PARTIALLY_PAID",
+          },
+        });
       }
 
       await recordAudit(

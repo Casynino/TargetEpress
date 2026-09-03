@@ -3040,6 +3040,8 @@ const ZH: Record<string, string> = {
   "Nobody has more than one unpaid consignment right now. Search for a customer to take a payment or hold a deposit.": "目前没有客户有多于一票的未付货物。可以搜索客户来收款或登记预付款。",
   "A newer version is live.": "已有新版本上线。",
   "Reload": "刷新",
+  "Re-price from the cargo's current weight": "按货物当前重量重新计价",
+  "Use when the cargo was re-weighed after this bill was raised. Any deposit the customer has already paid is put against the new figure automatically.": "开单后货物重新称重时使用。客户已付的预付款会自动抵扣新的金额。",
   "This customer has no number. Add it to continue": "该客户没有电话号码，请补充后继续",
   "It is saved onto their account, so it only has to be asked for once.": "号码会保存到客户档案，只需填写一次。",
   "Remind them on WhatsApp": "用 WhatsApp 提醒",

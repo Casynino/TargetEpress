@@ -226,6 +226,41 @@ export function InvoiceEditor({
               </div>
             ) : null}
 
+            {/*
+              THE CARGO WEIGHS SOMETHING ELSE NOW.
+
+              A consignment gets re-weighed — a box missed off the count, a
+              figure typed wrong — and the bill was keeping the freight it was
+              first raised with. Working the new figure out by hand and typing
+              it into the box below records it as a deliberate departure from
+              the price list, which it is not. This runs the rate book again
+              against what the cargo actually weighs.
+
+              A checkbox rather than automatic: re-running it also picks up any
+              price published since, and a bill must not move because somebody
+              edited its notes.
+            */}
+            {canDiscount ? (
+              <label className="flex cursor-pointer items-start gap-2.5 border-t pt-3 text-sm">
+                <input
+                  type="checkbox"
+                  name="repriceFromWeight"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--brand)]"
+                  disabled={locked && !canCorrect}
+                />
+                <span>
+                  <span className="font-medium">
+                    {t("Re-price from the cargo's current weight")}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {t(
+                      "Use when the cargo was re-weighed after this bill was raised. Any deposit the customer has already paid is put against the new figure automatically."
+                    )}
+                  </span>
+                </span>
+              </label>
+            ) : null}
+
             <div className="space-y-1.5 border-t pt-3">
               <Label htmlFor="freightOverride">
                 {t("Air freight")} ({currency})
