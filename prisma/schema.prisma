@@ -506,11 +506,11 @@ model Customer {
   /// one number made a second account for the same person — two balances, and
   /// a customer told they owe a third of what they owe. A number belongs to
   /// exactly one customer, which is what makes it usable as a key.
-  phones CustomerPhone[]
-  email    String?
-  city     String?
-  address  String?
-  notes    String?
+  phones  CustomerPhone[]
+  email   String?
+  city    String?
+  address String?
+  notes   String?
 
   createdById String?
   createdBy   User?   @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -1520,12 +1520,12 @@ model Invoice {
 
   updatedAt DateTime @updatedAt
 
-  payments           Payment[]
-  submissions        PaymentSubmission[]
+  payments              Payment[]
+  submissions           PaymentSubmission[]
   /// Claims from Support that name this bill as part of a combined payment.
   submissionAllocations SubmissionAllocation[]
-  messages           CustomerMessage[]
-  paymentAllocations PaymentAllocation[]
+  messages              CustomerMessage[]
+  paymentAllocations    PaymentAllocation[]
 
   @@index([status])
   @@index([customerId])
@@ -2945,6 +2945,22 @@ model PaymentSubmission {
 
   /// The screenshot or slip the customer sent. The whole point of the record.
   proofs PaymentProof[]
+
+  /// The claim this one was raised to replace.
+  ///
+  /// Finance sends a claim back; the desk rings the customer, fixes what was
+  /// wrong and sends it up again. That second claim is a NEW record — a
+  /// decision Finance made is not unmade, and editing a refused claim back
+  /// into the queue would leave no trace that it was ever refused. So the old
+  /// row stays REJECTED and the new one points at it.
+  ///
+  /// It is also what stops the Sent back list being a dead end: a refused
+  /// claim that has been answered drops off the desk's work, because it HAS
+  /// been dealt with, while one nobody has re-raised stays there being asked
+  /// about.
+  replacesId String?            @unique
+  replaces   PaymentSubmission? @relation("SubmissionReplacement", fields: [replacesId], references: [id], onDelete: SetNull)
+  replacedBy PaymentSubmission? @relation("SubmissionReplacement")
 
   createdAt DateTime @default(now())
 

@@ -17,6 +17,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   editSubmission,
+  resubmitSubmission,
   withdrawSubmission,
 } from "@/lib/actions/submission-corrections";
 import type { ActionResult } from "@/lib/actions/types";
@@ -45,6 +46,8 @@ export type SubmissionSubject = {
    * tendered currency's symbol turned USD 13.50 into "owed TSh 14".
    */
   invoiceCurrency: string;
+  /** The rate frozen on the bill, so switching currency restates the same money. */
+  invoiceRate: number | null;
   accountId: string | null;
   /** Where the money really went, once Finance decided. Null while pending. */
   settledAccountName: string | null;
@@ -57,6 +60,10 @@ export type SubmissionSubject = {
   rejectionReason: string | null;
   receiptNumber: string | null;
   proofs: Attachment[];
+  /** The claim raised to answer this one, once somebody has. */
+  replacedByNumber: string | null;
+  /** The refused claim this one was raised to replace. */
+  replacesNumber: string | null;
 };
 
 const money = (n: number, currency: string) =>
@@ -127,8 +134,46 @@ export function SubmissionCorrection({
   const [reason, setReason] = useState("");
 
   const editable = subject.status === "PENDING" && canEdit;
+  /*
+    A refused claim is not finished business — it is the desk's next job.
 
+    The Sent back list was a dead end: it said "Finance could not verify this"
+    and offered nothing but a read-only view, so raising the corrected claim
+    meant leaving the list, finding the cargo and retyping everything the
+    refused one already said. Twenty-one rows of that is a list nobody works.
+
+    Withdrawn counts too: taken back by mistake is the easiest thing of all to
+    put right. Once somebody HAS answered it, there is nothing left to do here
+    but read it.
+  */
+  const canRaiseAgain =
+    canEdit &&
+    !subject.replacedByNumber &&
+    (subject.status === "REJECTED" || subject.status === "WITHDRAWN");
+
+  /*
+    Switching the currency restates the figure; it does not relabel it.
+
+    Typing 1,218,375 and flipping to USD used to leave 1,218,375 sitting there
+    as dollars — a shilling figure wearing the wrong symbol, and a claim nobody
+    could verify. The same money at the rate frozen onto the bill is 451.25,
+    which is exactly what the bill says is owed.
+
+    At the invoice's own rate, never today's: the customer was quoted that one,
+    and converting at a newer rate lands the claim a few hundred shillings off
+    the balance it is meant to settle.
+  */
   function pickCurrency(next: string) {
+    if (next !== currency) {
+      const rate = subject.invoiceRate;
+      const value = Number(amount);
+      if (rate && rate > 0 && Number.isFinite(value) && value > 0) {
+        const restated = next === "USD" ? value / rate : value * rate;
+        setAmount(
+          next === "USD" ? restated.toFixed(2) : String(Math.round(restated))
+        );
+      }
+    }
     setCurrency(next);
     const still = accounts.find(
       (a) => a.id === accountId && a.currency === next
@@ -148,7 +193,7 @@ export function SubmissionCorrection({
      failure. */
   function run(
     build: () => FormData,
-    act: (fd: FormData) => Promise<ActionResult>
+    act: (fd: FormData) => Promise<ActionResult<unknown>>
   ) {
     setError(null);
     start(async () => {
@@ -176,6 +221,22 @@ export function SubmissionCorrection({
         return fd;
       },
       (fd) => editSubmission(undefined, fd)
+    );
+
+  const raiseAgain = () =>
+    run(
+      () => {
+        const fd = new FormData();
+        fd.set("submissionId", subject.submissionId);
+        fd.set("amount", amount);
+        fd.set("currency", currency);
+        fd.set("accountId", accountId);
+        fd.set("reference", reference);
+        fd.set("note", note);
+        fd.set("reason", reason);
+        return fd;
+      },
+      (fd) => resubmitSubmission(undefined, fd)
     );
 
   const deleteIt = () =>
@@ -251,6 +312,16 @@ export function SubmissionCorrection({
           {subject.rejectionReason ? `: ${subject.rejectionReason}` : ""}
         </p>
       ) : null}
+      {subject.replacedByNumber ? (
+        <p className="text-xs text-success">
+          {t("Raised again as")} {subject.replacedByNumber}
+        </p>
+      ) : null}
+      {subject.replacesNumber ? (
+        <p className="text-xs text-muted-foreground">
+          {t("Replaces")} {subject.replacesNumber}
+        </p>
+      ) : null}
       {subject.status === "WITHDRAWN" ? (
         <p className="text-xs text-muted-foreground">
           {t("Withdrawn")}
@@ -265,11 +336,13 @@ export function SubmissionCorrection({
       ? t("Delete this submission")
       : open === "view"
         ? t("What was submitted")
-        : t("Correct this submission");
+        : canRaiseAgain
+          ? t("Fix it and send it up again")
+          : t("Correct this submission");
 
   return (
     <span className="relative z-10 inline-flex items-center gap-1">
-      {editable ? (
+      {editable || canRaiseAgain ? (
         <>
           <button
             type="button"
@@ -277,9 +350,9 @@ export function SubmissionCorrection({
             className={pillButton}
           >
             <Pencil className="h-3.5 w-3.5" />
-            {t("Edit Payment")}
+            {canRaiseAgain ? t("Fix and send again") : t("Edit Payment")}
           </button>
-          {canDelete ? (
+          {canDelete && editable ? (
             <button
               type="button"
               onClick={() => setOpen("withdraw")}
@@ -329,6 +402,15 @@ export function SubmissionCorrection({
 
                 {open === "edit" ? (
                   <>
+                    {/* What Finance said, kept in front of whoever is fixing
+                        it — the correction is an answer to this sentence. */}
+                    {canRaiseAgain && subject.rejectionReason ? (
+                      <p className="rounded-lg border border-destructive/40 bg-destructive/[0.06] px-3 py-2 text-xs text-destructive">
+                        {t("Sent back by")}{" "}
+                        {subject.reviewedByName ?? t("Finance")}:{" "}
+                        {subject.rejectionReason}
+                      </p>
+                    ) : null}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1.5">
                         <Label htmlFor="sub-amount">{t("How much came in")}</Label>
@@ -442,6 +524,13 @@ export function SubmissionCorrection({
                       attachments={subject.proofs}
                       editable={editable}
                     />
+                    {canRaiseAgain ? (
+                      <p className="text-xs text-muted-foreground">
+                        {t(
+                          "The evidence already on this claim goes up with the new one."
+                        )}
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -450,7 +539,9 @@ export function SubmissionCorrection({
                     <Label htmlFor="sub-reason">
                       {open === "withdraw"
                         ? t("Why is it being deleted?")
-                        : t("What was wrong with it?")}
+                        : canRaiseAgain
+                          ? t("What did you fix?")
+                          : t("What was wrong with it?")}
                     </Label>
                     <Textarea
                       id="sub-reason"
@@ -465,7 +556,7 @@ export function SubmissionCorrection({
                 {/* Deleting is reachable from inside the edit, so somebody who
                     opened the wrong door does not have to close it and go
                     looking for the other one. */}
-                {open === "edit" && canDelete ? (
+                {open === "edit" && canDelete && editable ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -500,13 +591,21 @@ export function SubmissionCorrection({
                       size="sm"
                       variant={open === "withdraw" ? "destructive" : "default"}
                       disabled={pending || reason.trim().length < 3}
-                      onClick={open === "withdraw" ? deleteIt : saveEdit}
+                      onClick={
+                        open === "withdraw"
+                          ? deleteIt
+                          : canRaiseAgain
+                            ? raiseAgain
+                            : saveEdit
+                      }
                     >
                       {pending
                         ? t("Working…")
                         : open === "withdraw"
                           ? t("Delete it")
-                          : t("Save the correction")}
+                          : canRaiseAgain
+                            ? t("Send it up again")
+                            : t("Save the correction")}
                     </Button>
                   ) : null}
                   <Button

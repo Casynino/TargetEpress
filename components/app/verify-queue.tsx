@@ -216,6 +216,10 @@ export async function VerifyQueue() {
                           amount: claimed,
                           currency: row.currency,
                           invoiceCurrency: row.invoice.currency,
+                          invoiceRate:
+                            row.invoice.exchangeRate === null
+                              ? null
+                              : toNumber(row.invoice.exchangeRate),
                           outstanding,
                           accountId: row.accountId,
                           settledAccountName:
@@ -230,6 +234,8 @@ export async function VerifyQueue() {
                           receiptNumber:
                             row.payment?.receipt?.receiptNumber ?? null,
                           proofs: row.proofs,
+                          replacedByNumber: row.replacedBy?.submissionNumber ?? null,
+                          replacesNumber: row.replaces?.submissionNumber ?? null,
                         }}
                       />
                       <VerifySubmission

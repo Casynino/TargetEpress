@@ -90,6 +90,11 @@ export async function collectionsOverview() {
 export const REJECTED_NEEDING_A_CALL: Prisma.PaymentSubmissionWhereInput = {
   status: "REJECTED",
   invoice: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
+  /* And nobody has already answered it. Sending a corrected claim back up
+     raises a NEW record pointing at this one — see resubmitSubmission — and
+     from that moment this row has been dealt with. Leaving it on the list
+     would have the desk ring a customer whose claim is already with Finance. */
+  replacedBy: { is: null },
 };
 
 /** One queue, filtered by where a claim has got to. */
@@ -126,6 +131,11 @@ export async function submissionQueue(
          checking their own work. */
       accountId: true,
       account: { select: { id: true, name: true, currency: true } },
+      /* What answered this one, and what it answered. Both directions, so a
+         refused claim can say it has been re-raised and the fresh one can say
+         what it replaces. */
+      replacedBy: { select: { submissionNumber: true, status: true } },
+      replaces: { select: { submissionNumber: true } },
       submittedBy: { select: { id: true, name: true } },
       reviewedBy: { select: { name: true } },
       /* bytes, because the correction dialog manages these files now and the
@@ -162,6 +172,11 @@ export async function submissionQueue(
           total: true,
           amountPaid: true,
           currency: true,
+          /* The rate frozen onto the bill when it was raised. Switching a
+             claim between shillings and dollars restates the same money at
+             this rate — never at today's, which would land the claim a few
+             hundred shillings off the balance it is meant to settle. */
+          exchangeRate: true,
           customer: { select: { id: true, name: true, phone: true } },
           shipment: { select: { trackingNumber: true, description: true } },
         },

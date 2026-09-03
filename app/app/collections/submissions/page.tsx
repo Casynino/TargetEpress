@@ -523,6 +523,10 @@ export default async function SubmissionsPage({
                         amount: toNumber(row.amount),
                         currency: row.currency,
                         invoiceCurrency: row.invoice.currency,
+                        invoiceRate:
+                          row.invoice.exchangeRate === null
+                            ? null
+                            : toNumber(row.invoice.exchangeRate),
                         outstanding:
                           toNumber(row.invoice.total) -
                           toNumber(row.invoice.amountPaid),
@@ -540,6 +544,8 @@ export default async function SubmissionsPage({
                         rejectionReason: row.rejectionReason,
                         receiptNumber: row.payment?.receipt?.receiptNumber ?? null,
                         proofs: row.proofs,
+                        replacedByNumber: row.replacedBy?.submissionNumber ?? null,
+                        replacesNumber: row.replaces?.submissionNumber ?? null,
                       }}
                     />
                   </div>

@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
+import { methodForKind } from "@/lib/accounts";
 import { recordAudit } from "@/lib/audit";
+import { nextSubmissionNumber } from "@/lib/ids";
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -436,6 +438,195 @@ export async function removeSubmissionProof(
     revalidatePath("/app/collections/submissions");
     revalidatePath("/app/collections/verify");
     return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+/**
+ * Fixing a refused claim and sending it back up.
+ *
+ * The Sent back list used to be a dead end. Finance refuses a claim, the desk
+ * is told to "raise a new one" — and the only way to do that was to leave the
+ * list, find the cargo, and retype everything the refused claim already said,
+ * including re-uploading the customer's screenshot. Twenty-one rows of that is
+ * a list nobody works, which is exactly what it had become.
+ *
+ * So it is one action from the row: correct what was wrong and send it.
+ *
+ * A NEW record, not the old one flipped back to PENDING. Finance made a
+ * decision and a decision is not unmade — editing a refused claim back into
+ * the queue would leave no trace it was ever refused, and no way to see that
+ * Finance has now been asked the same question twice. The old row stays
+ * REJECTED and the new one points at it, which is also what takes the old one
+ * off the desk's work: it HAS been dealt with.
+ *
+ * The evidence comes across. New rows against the same stored files — nothing
+ * is re-uploaded and the refused claim keeps its own copy, so the record of
+ * what Finance was actually looking at when they said no survives intact.
+ */
+export async function resubmitSubmission(
+  _prev: ActionResult | undefined,
+  formData: FormData
+): Promise<ActionResult<{ submissionNumber: string }>> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("payment.submit");
+    const parsed = z
+      .object({
+        submissionId: z.string().min(1),
+        amount: z.coerce.number().positive("That amount is not valid."),
+        currency: z.enum(["TZS", "USD"]),
+        accountId: z.string().trim().min(1, "Say which account the money landed in."),
+        reference: z.string().trim().optional(),
+        note: z.string().trim().optional(),
+        reason: z.string().trim().min(3, "Say what was fixed before sending it up again."),
+      })
+      .safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+
+    const old = await prisma.paymentSubmission.findUnique({
+      where: { id: parsed.data.submissionId },
+      select: {
+        id: true,
+        submissionNumber: true,
+        status: true,
+        invoiceId: true,
+        customerId: true,
+        submittedById: true,
+        replacedBy: { select: { submissionNumber: true } },
+        invoice: { select: { invoiceNumber: true, status: true } },
+        proofs: {
+          select: { url: true, contentType: true, bytes: true, filename: true },
+        },
+      },
+    });
+    if (!old) return fail(t(locale, "That submission no longer exists."));
+    /* Only a closed claim is re-raised. A pending one is corrected in place —
+       that is what editSubmission is for — and a verified one has produced a
+       real payment. */
+    if (old.status !== "REJECTED" && old.status !== "WITHDRAWN") {
+      return fail(
+        t(locale, `${old.submissionNumber} has not been sent back, so there is nothing to raise again.`)
+      );
+    }
+    if (old.replacedBy) {
+      return fail(
+        t(locale, `${old.submissionNumber} has already been raised again as ${old.replacedBy.submissionNumber}.`)
+      );
+    }
+    if (old.submittedById !== user.id && !can(user.role, "payment.verify")) {
+      return fail(
+        t(locale, "Only the person who submitted this can correct it. Ask them to, or let Finance decide it as it stands.")
+      );
+    }
+    if (old.invoice.status === "PAID") {
+      return fail(
+        t(locale, `${old.invoice.invoiceNumber} is already settled, so there is nothing left to claim against it.`)
+      );
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const account = await tx.companyAccount.findUnique({
+        where: { id: parsed.data.accountId },
+        select: { id: true, name: true, kind: true, currency: true, active: true },
+      });
+      if (!account) throw new Error("That account no longer exists.");
+      if (!account.active) throw new Error(`${account.name} has been archived.`);
+      if (account.currency !== parsed.data.currency) {
+        throw new Error(
+          `${account.name} is a ${account.currency} account, so ${parsed.data.currency} could not have landed in it.`
+        );
+      }
+
+      /* Same rule the first submission obeys: one claim at a time per bill.
+         Two pending claims is two people ringing the same customer and Finance
+         agreeing to the same money twice. */
+      const pending = await tx.paymentSubmission.findFirst({
+        where: { invoiceId: old.invoiceId, status: "PENDING" },
+        select: { submissionNumber: true },
+      });
+      if (pending) {
+        throw new Error(
+          `${pending.submissionNumber} is already with Finance for this bill. Wait for it to be checked.`
+        );
+      }
+
+      /*
+        Two people working the same sent-back row is guarded by the database,
+        not by a re-read.
+
+        There is nothing to claim on the old row — the link lives on the NEW
+        one, as replacesId, and that column is @unique. So a second concurrent
+        resubmit collides on the constraint and loses, which is a stronger
+        guarantee than re-stating a condition: it holds even if two requests
+        pass every check at the same instant. The catch below turns it into a
+        sentence somebody at a desk can act on.
+      */
+      const fresh = await tx.paymentSubmission.create({
+        data: {
+          submissionNumber: await nextSubmissionNumber(tx),
+          invoiceId: old.invoiceId,
+          customerId: old.customerId,
+          amount: new Prisma.Decimal(parsed.data.amount),
+          currency: parsed.data.currency,
+          method: methodForKind(account.kind),
+          accountId: account.id,
+          reference: parsed.data.reference || null,
+          note: parsed.data.note || null,
+          submittedById: user.id,
+          replacesId: old.id,
+          /* The same files, not re-uploaded. The refused claim keeps its own
+             rows, so what Finance was looking at when they said no survives. */
+          proofs: {
+            create: old.proofs.map((proof) => ({
+              url: proof.url,
+              contentType: proof.contentType,
+              bytes: proof.bytes,
+              filename: proof.filename,
+              uploadedById: user.id,
+            })),
+          },
+        },
+        select: { id: true, submissionNumber: true },
+      });
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "submission.resubmit",
+          entity: "PaymentSubmission",
+          entityId: fresh.id,
+          summary: `${fresh.submissionNumber} raised again in place of ${old.submissionNumber} (${old.invoice.invoiceNumber}) — ${parsed.data.reason}`,
+          metadata: {
+            replaces: old.submissionNumber,
+            amount: parsed.data.amount,
+            currency: parsed.data.currency,
+            account: account.name,
+            reason: parsed.data.reason,
+          },
+        },
+        tx
+      );
+
+      return fresh;
+    }).catch((error: unknown) => {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new Error(
+          `${old.submissionNumber} was raised again by somebody else a moment ago. Reload to see the new claim.`
+        );
+      }
+      throw error;
+    });
+
+    revalidatePath("/app/collections/submissions");
+    revalidatePath("/app/collections/verify");
+    revalidatePath("/app/collections/follow-up");
+    revalidatePath("/app/support");
+    return { ok: true, data: { submissionNumber: result.submissionNumber } };
   } catch (error) {
     return fail(t(locale, toActionError(error)));
   }
