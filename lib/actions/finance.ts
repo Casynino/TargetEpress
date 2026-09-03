@@ -2322,30 +2322,42 @@ export async function recordCustomerPayment(
       const billCurrency = [...billCurrencies][0] ?? input.currency;
       const crossCurrency = billCurrency !== input.currency;
 
-      let rateUsed: number | null = null;
+      /*
+        EVERY BILL AT ITS OWN RATE.
+
+        This once demanded that all the bills share one rate and refused when
+        they did not. Two consignments quoted a fortnight apart carry the two
+        rates published on those days — not a problem, the system working — and
+        refusing turned one transfer into two payments, which is the thing this
+        action exists to stop. Each allocation converts at the rate frozen onto
+        the bill it answers, which is the figure that customer was quoted for
+        that consignment.
+
+        A bill carrying no rate at all still stops it: there is no honest
+        shilling figure for it, and inventing one is how a bill gets argued
+        about.
+      */
       if (crossCurrency) {
-        const rates = new Set(
-          allocatedInvoices.map((i) =>
-            i.exchangeRate === null ? null : toNumber(i.exchangeRate)
-          )
-        );
-        if (rates.has(null)) {
-          const bare = allocatedInvoices.find((i) => i.exchangeRate === null)!;
+        const bare = allocatedInvoices.find((i) => i.exchangeRate === null);
+        if (bare) {
           throw new Error(
             `${bare.invoiceNumber} carries no exchange rate, so a payment in ` +
               `${input.currency} cannot be converted against it. Publish a rate and ` +
               `regenerate that bill, or settle it on its own cargo page.`
           );
         }
-        if (rates.size > 1) {
-          throw new Error(
-            `Those bills were quoted at different exchange rates, so one ` +
-              `${input.currency} figure cannot settle them together. Take them separately ` +
-              `— each cargo page settles its own bill at the rate it was quoted.`
-          );
-        }
-        rateUsed = [...rates][0] as number;
       }
+      /* Quoted on the receipt and in the audit line when there is one figure to
+         quote; null when the bills genuinely disagree, and then the allocation
+         notes carry the rate each one used. */
+      const rateUsed = crossCurrency
+        ? (() => {
+            const rates = new Set(
+              allocatedInvoices.map((i) => toNumber(i.exchangeRate))
+            );
+            return rates.size === 1 ? ([...rates][0] as number) : null;
+          })()
+        : null;
 
       /*
         What one tendered figure is worth against the bill.
@@ -2357,12 +2369,16 @@ export async function recordCustomerPayment(
         pickup note is never issued and the cargo sits in the warehouse over a
         rounding error.
       */
-      function credit(tendered: number, outstanding: number): number {
-        if (rateUsed === null) return tendered;
+      function credit(
+        tendered: number,
+        outstanding: number,
+        billRate: number | null
+      ): number {
+        if (!crossCurrency || !billRate) return tendered;
         const converted =
           input.currency === LOCAL_CURRENCY
-            ? tendered / rateUsed
-            : tendered * rateUsed;
+            ? tendered / billRate
+            : tendered * billRate;
         const rounded = Math.round(converted * 100) / 100;
         return Math.abs(rounded - outstanding) <= 0.01 ? outstanding : rounded;
       }
@@ -2374,12 +2390,16 @@ export async function recordCustomerPayment(
       for (const alloc of input.allocations) {
         const invoice = byId.get(alloc.invoiceId)!;
         const outstanding = toNumber(invoice.total) - toNumber(invoice.amountPaid);
-        const against = credit(alloc.amount, outstanding);
+        const against = credit(
+          alloc.amount,
+          outstanding,
+          toNumber(invoice.exchangeRate)
+        );
         if (against > outstanding + 0.005) {
           throw new Error(
             crossCurrency
               ? `${input.currency} ${alloc.amount.toLocaleString()} is ${billCurrency} ` +
-                `${against.toLocaleString()} at this bill's rate — more than the ` +
+                `${against.toLocaleString()} at this bill's own rate — more than the ` +
                 `${billCurrency} ${outstanding.toLocaleString()} ${invoice.invoiceNumber} ` +
                 `still owes. Allocate the rest to another bill, or leave it as the ` +
                 `customer's credit.`
@@ -2451,13 +2471,21 @@ export async function recordCustomerPayment(
              customer's credit, and `availableCredit` reads it from here against
              the allocation rows below, both in the bills' currency. */
           creditedAmount: new Prisma.Decimal(
-            rateUsed === null
-              ? input.amount
-              : Math.round(
-                  (input.currency === LOCAL_CURRENCY
-                    ? input.amount / rateUsed
-                    : input.amount * rateUsed) * 100
+            crossCurrency
+              ? /* What the allocations actually settled, plus whatever is left
+                   over valued at the rate of the last bill it would answer.
+                   Only the allocated part is ever compared against a bill; the
+                   remainder is credit, and `spareOf` in lib/customer-credit.ts
+                   works from the native `amount` rather than from this. */
+                Math.round(
+                  ([...credited.values()].reduce((sum, n) => sum + n, 0) +
+                    (rateUsed
+                      ? (input.amount - allocated) /
+                        (input.currency === LOCAL_CURRENCY ? rateUsed : 1)
+                      : 0)) *
+                    100
                 ) / 100
+              : input.amount
           ),
           method: input.method,
           reference: input.reference || null,
@@ -2477,11 +2505,14 @@ export async function recordCustomerPayment(
                answered, and a bill is only ever answered in its own money. */
             amount: new Prisma.Decimal(credited.get(alloc.invoiceId)!),
             createdById: user.id,
+            /* Each line says the rate it used, because they need not agree. */
             ...(crossCurrency
               ? {
                   note:
                     `${input.currency} ${alloc.amount.toLocaleString()} at ` +
-                    `${rateUsed!.toLocaleString()}`,
+                    `${toNumber(
+                      byId.get(alloc.invoiceId)!.exchangeRate
+                    ).toLocaleString()}`,
                 }
               : {}),
           },

@@ -109,23 +109,42 @@ export function CustomerPaymentForm({
   );
 
   /*
-    One rate for the whole payment, off the bills themselves — the same rule the
-    action enforces, checked here so the screen never offers a payment the
-    server will refuse. Bills quoted at two different rates, or one carrying no
-    rate at all, can only be settled one at a time.
+    EVERY BILL AT ITS OWN RATE.
+
+    This once demanded that all the bills in one payment share a single frozen
+    rate, and refused when they did not. But two consignments quoted a fortnight
+    apart carry the two rates that were published on those days — which is not a
+    problem, it is the system working — and refusing meant the customer standing
+    at the counter with one transfer for both had to be turned into two
+    payments. The thing this screen exists to stop.
+
+    So each bill converts at the rate frozen onto IT, the figure that customer
+    was quoted for that consignment, and the total is the sum. Shillings are
+    offered as soon as every bill on the page carries a rate; one that carries
+    none has no honest shilling figure and keeps the whole page in dollars,
+    because a total mixing converted and unconverted lines is a total of
+    nothing.
   */
-  const rate = useMemo(() => {
+  const canCross = useMemo(
+    () =>
+      payable.length > 0 &&
+      payable.every((b) => b.exchangeRate !== null && b.exchangeRate > 0),
+    [payable]
+  );
+  const cross = payCurrency !== billCurrency;
+
+  /** The one rate, when there is one — for the line that quotes it. */
+  const oneRate = useMemo(() => {
     const rates = new Set(payable.map((b) => b.exchangeRate));
     return rates.size === 1 ? [...rates][0] : null;
   }, [payable]);
-  const canCross = rate !== null && rate > 0;
-  const cross = payCurrency !== billCurrency;
 
   /** A bill's figure, restated in what the customer is handing over. */
-  const inPay = (billAmount: number) => {
-    if (!cross || !rate) return billAmount;
+  const inPay = (bill: OpenBill) => {
+    const rate = bill.exchangeRate;
+    if (!cross || !rate) return bill.outstanding;
     const converted =
-      payCurrency === LOCAL ? billAmount * rate : billAmount / rate;
+      payCurrency === LOCAL ? bill.outstanding * rate : bill.outstanding / rate;
     /* Shillings are whole numbers at a counter; cents are not handed over. */
     return payCurrency === LOCAL
       ? Math.round(converted)
@@ -139,8 +158,8 @@ export function CustomerPaymentForm({
       /* Sent in the currency that ARRIVED. The server converts each one back at
          the bill's own frozen rate and settles the bill in its own money. */
       amount: split
-        ? Number(shares[b.invoiceId] ?? inPay(b.outstanding)) || 0
-        : inPay(b.outstanding),
+        ? Number(shares[b.invoiceId] ?? inPay(b)) || 0
+        : inPay(b),
     }))
     .filter((a) => a.amount > 0);
 
@@ -281,7 +300,7 @@ export function CustomerPaymentForm({
                     </span>
                     <span className="shrink-0 text-right">
                       <span className="block font-display text-sm font-bold tabular-nums">
-                        {money(inPay(bill.outstanding))}
+                        {money(inPay(bill))}
                       </span>
                       {/* What the bill itself says, kept in view: the customer
                           is handing over shillings, but the document they were
@@ -304,7 +323,7 @@ export function CustomerPaymentForm({
                         <MoneyInput
                           name={`share_${bill.invoiceId}`}
                           aria-label={`${t("Put against this bill")} ${bill.invoiceNumber}`}
-                          value={shares[bill.invoiceId] ?? String(bill.outstanding)}
+                          value={shares[bill.invoiceId] ?? String(inPay(bill))}
                           onValueChange={(raw) =>
                             setShares((prev) => ({
                               ...prev,
@@ -335,16 +354,22 @@ export function CustomerPaymentForm({
             {cross ? (
               <p className="font-mono text-xs text-muted-foreground">
                 {money(
-                  allocations.reduce(
-                    (sum, a) =>
+                  /* Back through each bill's OWN rate, so this total is what
+                     the bills say rather than what one average rate would make
+                     them say. */
+                  allocations.reduce((sum, allocation) => {
+                    const bill = payable.find(
+                      (b) => b.invoiceId === allocation.invoiceId
+                    );
+                    const billRate = bill?.exchangeRate ?? null;
+                    if (!billRate) return sum + allocation.amount;
+                    return (
                       sum +
-                      (rate
-                        ? payCurrency === LOCAL
-                          ? a.amount / rate
-                          : a.amount * rate
-                        : a.amount),
-                    0
-                  ),
+                      (payCurrency === LOCAL
+                        ? allocation.amount / billRate
+                        : allocation.amount * billRate)
+                    );
+                  }, 0),
                   billCurrency
                 )}
               </p>
@@ -407,9 +432,13 @@ export function CustomerPaymentForm({
 
         {cross ? (
           <p className="rounded-lg border border-brand/30 bg-brand/5 px-3 py-2 text-xs text-muted-foreground">
-            {t(
-              "Converted at {rate}, the rate frozen onto these bills when they were raised — not today's."
-            ).replace("{rate}", rate!.toLocaleString())}
+            {oneRate
+              ? t(
+                  "Converted at {rate}, the rate frozen onto these bills when they were raised — not today's."
+                ).replace("{rate}", oneRate.toLocaleString())
+              : t(
+                  "Each bill converted at the rate frozen onto it when it was raised — not today's."
+                )}
           </p>
         ) : null}
 
