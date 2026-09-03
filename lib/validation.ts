@@ -177,7 +177,10 @@ export const customerPaymentSchema = z.object({
   method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]),
   reference: z.string().trim().max(120).optional(),
   note: z.string().trim().max(500).optional(),
-  accountId: z.string().trim().optional(),
+  /* Required, same rule as paymentSchema above — and this schema is shared by
+     Finance recording a combined payment and Support claiming one, so both
+     sides of that handover are held to it in one place. */
+  accountId: z.string().trim().min(1, "Say which account the money landed in."),
   paidAt: z
     .string()
     .trim()
@@ -277,13 +280,16 @@ export const paymentSchema = z.object({
    * Which company account the money landed in — the CRDB account, the M-Pesa
    * till, the cash tin in the office.
    *
-   * Optional, deliberately. Taking the money is the job; saying where it went
-   * is bookkeeping that follows it, and blocking the counter on a field the
-   * clerk may not know yet would change a workflow that already works. What
-   * nobody attributes shows up as exactly that on the Accounts view, which is
-   * how a skipped field stays visible instead of being quietly invented.
+   * REQUIRED, on the owner's instruction, and it reverses how this worked.
+   * It used to be optional on the argument that taking the money is the job
+   * and the bookkeeping follows it — with unattributed payments left visible
+   * on the Accounts view rather than invented. In practice that left money
+   * the business could not point at, and the owner's rule is now the simpler
+   * one: nothing is recorded anywhere without saying where it is. Every desk,
+   * every screen. The proof a customer sends names the destination, so there
+   * is an answer to give.
    */
-  accountId: z.string().trim().optional(),
+  accountId: z.string().trim().min(1, "Say which account the money landed in."),
   /**
    * When the money actually moved, which is not always when it was typed in.
    * A Friday transfer entered on Monday belongs to Friday — the payments page

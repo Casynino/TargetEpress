@@ -45,6 +45,9 @@ export function SubmissionCorrection({
   reference,
   note,
   status,
+  accountId,
+  accounts,
+  canDelete = true,
 }: {
   submissionId: string;
   invoiceId: string;
@@ -53,6 +56,12 @@ export function SubmissionCorrection({
   reference: string | null;
   note: string | null;
   status: string;
+  accountId: string | null;
+  accounts: { id: string; name: string; currency: string }[];
+  /** Finance corrects a claim it is about to decide, but does not take it
+      back — refusing somebody else's claim is Send back, which says who
+      refused it and why. Deleting is the raiser's own undo. */
+  canDelete?: boolean;
 }) {
   const t = useT();
   const [open, setOpen] = useState<"edit" | "withdraw" | null>(null);
@@ -78,7 +87,7 @@ export function SubmissionCorrection({
   if (status !== "PENDING") return null;
 
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className="inline-flex max-w-[22rem] flex-wrap items-center justify-end gap-1">
       <button
         type="button"
         onClick={() => setOpen(open === "edit" ? null : "edit")}
@@ -87,19 +96,21 @@ export function SubmissionCorrection({
         <Pencil className="h-3.5 w-3.5" />
         {t("Edit Payment")}
       </button>
-      <button
-        type="button"
-        onClick={() => setOpen(open === "withdraw" ? null : "withdraw")}
-        className={`${pillButton} hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive`}
-      >
-        <Ban className="h-3.5 w-3.5" />
-        {t("Delete Payment")}
-      </button>
+      {canDelete ? (
+        <button
+          type="button"
+          onClick={() => setOpen(open === "withdraw" ? null : "withdraw")}
+          className={`${pillButton} hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive`}
+        >
+          <Ban className="h-3.5 w-3.5" />
+          {t("Delete Payment")}
+        </button>
+      ) : null}
 
       {open === "edit" ? (
         <form
           action={doEdit}
-          className="mt-1 basis-full space-y-1.5 rounded-lg border bg-card p-2"
+          className="mt-1 w-full min-w-[17rem] space-y-1.5 rounded-lg border bg-card p-2"
         >
           <input type="hidden" name="submissionId" value={submissionId} />
           <div className="flex flex-wrap gap-1.5">
@@ -120,6 +131,24 @@ export function SubmissionCorrection({
               {Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
                   {t(label)}
+                </option>
+              ))}
+            </NativeSelect>
+            {/* Where it landed. Editable here because a customer naming the
+                wrong bank is the ordinary mistake this form exists to fix, and
+                bouncing the claim back for it costs them a rejection. */}
+            <NativeSelect
+              name="accountId"
+              defaultValue={accountId ?? ""}
+              aria-label={t("Where did it land")}
+              className="h-7 w-auto min-w-[9rem] text-[11px]"
+            >
+              <option value="" disabled>
+                {t("Choose the account")}
+              </option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name} · {account.currency}
                 </option>
               ))}
             </NativeSelect>
@@ -154,7 +183,7 @@ export function SubmissionCorrection({
       {open === "withdraw" ? (
         <form
           action={doWithdraw}
-          className="mt-1 basis-full space-y-1.5 rounded-lg border border-destructive/40 bg-destructive/[0.04] p-2"
+          className="mt-1 w-full min-w-[17rem] space-y-1.5 rounded-lg border border-destructive/40 bg-destructive/[0.04] p-2"
         >
           <input type="hidden" name="submissionId" value={submissionId} />
           <p className="text-[11px] text-muted-foreground">

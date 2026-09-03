@@ -105,7 +105,10 @@ export default async function RecordCollectionPage({
     the money outright — same fields, same screen, one step.
   */
   const canRecordDirectly = can(user.role, "payment.record");
-  const banks = canRecordDirectly ? await activeAccounts() : null;
+  /* Every desk names an account now — see the note in RecordCollectionForm —
+     so the list is fetched for both, and the authority to RECORD is its own
+     flag rather than being inferred from whether accounts were passed. */
+  const banks = await activeAccounts();
 
   const canAskCredit =
     can(user.role, "credit.request") && invoice.creditStatus !== "APPROVED";
@@ -193,6 +196,7 @@ export default async function RecordCollectionPage({
                 currency={invoice.currency}
                 rate={rate}
                 banks={banks}
+                canRecord={canRecordDirectly}
               />
             </>
           ) : invoice.creditStatus === "REQUESTED" ? (
@@ -234,6 +238,7 @@ export default async function RecordCollectionPage({
                   currency={invoice.currency}
                   rate={rate}
                   banks={banks}
+                  canRecord={canRecordDirectly}
                 />
               }
               credit={

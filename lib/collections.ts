@@ -88,6 +88,12 @@ export async function submissionQueue(
       submittedAt: true,
       reviewedAt: true,
       rejectionReason: true,
+      /* The account the desk says it landed in. Carried on the row because
+         both queues that read this have to show it — Finance is deciding
+         whether that is where it really went, and the desk that raised it is
+         checking their own work. */
+      accountId: true,
+      account: { select: { id: true, name: true, currency: true } },
       submittedBy: { select: { name: true } },
       reviewedBy: { select: { name: true } },
       proofs: { select: { id: true, url: true, filename: true, contentType: true } },

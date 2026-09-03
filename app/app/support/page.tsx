@@ -30,6 +30,7 @@ import { formatDateTime, formatWeekdayDate, toNumber } from "@/lib/format";
 import { currentRate, formatLocal, formatShillings, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { activeAccounts } from "@/lib/accounts";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import {
@@ -155,6 +156,10 @@ export default async function SupportHome() {
 
   const topOfQueue = queue.slice(0, 6);
   const rate = rateRow ? toNumber(rateRow.rate) : null;
+  /* This desk names the account a payment landed in now — see
+     paymentSchema.accountId — so it needs the list to pick from. Picking one
+     is a claim, not a decision: Finance still names it for real on verify. */
+  const payAccounts = await activeAccounts();
 
   /**
    * Every figure on this desk, in the money the customer actually sends.
@@ -409,7 +414,7 @@ export default async function SupportHome() {
           afterHref="/app/collections"
           after={
             canTakePayments ? (
-              <RecordIncome accounts={[]} rate={rate} canRecord={false} />
+              <RecordIncome accounts={payAccounts} rate={rate} canRecord={false} />
             ) : null
           }
           items={[

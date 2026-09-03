@@ -75,10 +75,12 @@ export default async function FollowUpPage({
   /* Support files a claim, Finance banks it — the record screen behind this knows
      which of the two is standing there, so one button serves both. */
   const canTakePayments = can(user.role, "payment.submit");
-  /* Finance banks it and needs the account list; Support files a claim and does
-     not — so the accounts are only fetched for the desk that can use them. */
+  /* Finance banks it; Support files a claim against it. */
   const canBankIt = can(user.role, "payment.record");
-  const payAccounts = canBankIt ? await activeAccounts() : [];
+  /* Both desks name an account now — see paymentSchema.accountId — so the
+     list is fetched whichever desk is reading, and canBankIt still decides
+     whether this records the money or claims it. */
+  const payAccounts = await activeAccounts();
   const locale = await viewerLocale();
   const canRecord = can(user.role, "payment.record");
   const canCollect = !canRecord && can(user.role, "payment.submit");

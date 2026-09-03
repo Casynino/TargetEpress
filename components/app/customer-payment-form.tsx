@@ -621,22 +621,29 @@ export function CustomerPaymentForm({
           </div>
 
 
-          {canRecord ? (
+          {/*
+            Asked of both desks, and no longer optional.
+
+            It used to be Finance's field alone and skippable at that. The
+            owner's rule replaces both halves: nothing is recorded anywhere
+            without saying where the money is, and Support can answer it
+            because the customer's proof names the destination. What Support
+            picks is a claim — Finance still names the account for real when
+            they verify, and can correct this one on the way through.
+          */}
           <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="accountId">
-              {t("Where did it land?")}{" "}
-              <span className="font-normal text-muted-foreground">
-                {t("(optional)")}
-              </span>
-            </Label>
+            <Label htmlFor="accountId">{t("Where did it land?")}</Label>
             <NativeSelect
               id="accountId"
               name="accountId"
+              required
               className="h-11"
               value={accountId}
               onChange={(event) => setAccountId(event.target.value)}
             >
-              <option value="">{t("Not said yet")}</option>
+              <option value="" disabled>
+                {t("Choose the account")}
+              </option>
               {accounts
                 .filter((a) => a.currency === payCurrency)
                 .map((a) => (
@@ -651,7 +658,6 @@ export function CustomerPaymentForm({
               </p>
             ) : null}
           </div>
-          ) : null}
 
           {/*
             NEVER ASKED, ALWAYS DERIVED.

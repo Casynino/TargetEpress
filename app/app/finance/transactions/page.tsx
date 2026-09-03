@@ -202,6 +202,14 @@ export default async function LedgerPage({
               amount: true,
               currency: true,
               invoiceId: true,
+              /* Who first took this money in, when it did not start at the
+                 counter. A payment that came up from Customer Support was
+                 recorded by Finance but collected by somebody else, and the
+                 register credited only the second of the two — so the desk
+                 that chased the customer disappeared from the record of it. */
+              submission: {
+                select: { submittedBy: { select: { name: true } } },
+              },
               voidReason: true,
               voidedBy: { select: { name: true } },
               receipt: { select: { receiptNumber: true } },
@@ -750,6 +758,8 @@ export default async function LedgerPage({
                only trace was a separate "Correction" row elsewhere in the
                list, which a reader had to notice and match up by hand. */
             const cancelled = Boolean(entry.reversedBy);
+            const collectedBy =
+              entry.payment?.submission?.submittedBy?.name ?? null;
 
             let title = entry.description;
             let purpose: string | null = null;
@@ -873,6 +883,21 @@ export default async function LedgerPage({
                         {ref}
                       </span>
                     ))}
+                    {/* Who is answerable for the line. Absent from the phone
+                        entirely — the table's column is hidden below lg, so
+                        whoever was holding the phone could not see who had
+                        recorded a movement or who collected it. */}
+                    {entry.recordedBy ? (
+                      <>
+                        <span aria-hidden>·</span>
+                        <span className="whitespace-nowrap">
+                          {entry.recordedBy.name}
+                          {collectedBy && collectedBy !== entry.recordedBy.name
+                            ? ` · ${t(locale, "collected by")} ${collectedBy}`
+                            : ""}
+                        </span>
+                      </>
+                    ) : null}
                   </p>
                 </Link>
               </li>
@@ -1009,6 +1034,11 @@ export default async function LedgerPage({
                    was to notice a separate "Correction" row further down and
                    match the figures by hand. */
                 const cancelled = Boolean(entry.reversedBy);
+                /* Null for money taken at the counter: one person did the whole
+                   thing, and "collected by" repeating the name above it is
+                   noise rather than a second fact. */
+                const collectedBy =
+                  entry.payment?.submission?.submittedBy?.name ?? null;
 
                 return (
                   <TableRow
@@ -1106,7 +1136,17 @@ export default async function LedgerPage({
                       </Link>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell py-2.5 text-xs text-muted-foreground">
+                      {/* Two people, when two people were involved: the one who
+                          collected it and the one who signed it off. Stacked
+                          rather than joined with an arrow — the column is
+                          narrow, and the second line is the quieter of the
+                          two facts. */}
                       {entry.recordedBy?.name ?? "—"}
+                      {collectedBy && collectedBy !== entry.recordedBy?.name ? (
+                        <span className="block text-[11px] text-muted-foreground/70">
+                          {t(locale, "collected by")} {collectedBy}
+                        </span>
+                      ) : null}
                     </TableCell>
 
                     {/* Two columns, because that is how a ledger is read. */}

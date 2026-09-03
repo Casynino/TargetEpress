@@ -1595,6 +1595,8 @@ const ZH: Record<string, string> = {
   "No account has an opening balance yet": "还没有账户设置期初余额",
   "No account named": "未指明账户",
   "no account named": "未指定账户",
+  "no proof": "无凭证",
+  "Where did it land": "款项进入哪个账户",
   "No activity yet.": "暂无操作记录。",
   "No arrival recorded": "未记录到货时间",
   "No batch is awaiting check-in right now.": "目前没有待入库核对的批次。",

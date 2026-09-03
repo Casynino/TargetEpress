@@ -7,7 +7,7 @@ import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { nextSubmissionNumber } from "@/lib/ids";
-import { prisma } from "@/lib/prisma";
+import { prisma, type TxClient } from "@/lib/prisma";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
 import { toNumber } from "@/lib/format";
@@ -54,6 +54,11 @@ const submissionSchema = z.object({
     .refine((v) => Number.isFinite(v) && v > 0, "Enter what the customer sent."),
   currency: z.enum(["TZS", "USD"]),
   method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]),
+  /* Where the customer says it went. Required — see the note on
+     PaymentSubmission.accountId. Support can answer it because the proof
+     they are looking at names the destination, and Finance still decides it
+     for real on the way through. */
+  accountId: z.string().trim().min(1, "Say which account the money landed in."),
   // The one thing this desk genuinely has to type: the code off the customer's
   // message. Everything else is already on the invoice.
   /* Expected on screen, optional here: cash across the counter has no code,
@@ -61,6 +66,34 @@ const submissionSchema = z.object({
   reference: z.string().trim().optional(),
   note: z.string().trim().optional(),
 });
+
+/**
+ * The account a claim names has to be one that could really have received it.
+ *
+ * Same three checks recordPayment makes before it will touch an account: it
+ * exists, it is open, and it holds the currency the money is in. A claim that
+ * names a dollar account for a shilling transfer is one Finance would have to
+ * refuse anyway, and refusing it here means Support finds out while the
+ * customer is still on the phone.
+ */
+async function claimedAccount(
+  tx: TxClient,
+  accountId: string,
+  currency: string
+) {
+  const account = await tx.companyAccount.findUnique({
+    where: { id: accountId },
+    select: { id: true, name: true, currency: true, active: true },
+  });
+  if (!account) throw new Error("That account no longer exists.");
+  if (!account.active) throw new Error(`${account.name} has been archived.`);
+  if (account.currency !== currency) {
+    throw new Error(
+      `${account.name} is a ${account.currency} account, so ${currency} could not have landed in it.`
+    );
+  }
+  return account;
+}
 
 /**
  * Support hands a customer's payment up to Finance.
@@ -159,6 +192,8 @@ export async function submitPaymentForVerification(
         );
       }
 
+      const account = await claimedAccount(tx, input.accountId, input.currency);
+
       const submission = await tx.paymentSubmission.create({
         data: {
           submissionNumber: await nextSubmissionNumber(tx),
@@ -166,6 +201,7 @@ export async function submitPaymentForVerification(
           amount: new Prisma.Decimal(input.amount),
           currency: input.currency,
           method: input.method,
+          accountId: account.id,
           reference: input.reference || null,
           note: input.note || null,
           submittedById: user.id,
@@ -345,6 +381,9 @@ export async function verifyPaymentSubmission(
       amount: true,
       currency: true,
       method: true,
+      /* What Support said the customer's proof named. Finance's own choice
+         still wins — this is only the answer they start from. */
+      accountId: true,
       reference: true,
       note: true,
       proofs: { select: { id: true } },
@@ -668,6 +707,8 @@ export async function submitCombinedPayment(
         (invoice) => invoice.id === input.allocations[0].invoiceId
       )!;
 
+      const account = await claimedAccount(tx, input.accountId, input.currency);
+
       const submission = await tx.paymentSubmission.create({
         data: {
           submissionNumber: await nextSubmissionNumber(tx),
@@ -676,6 +717,7 @@ export async function submitCombinedPayment(
           amount: new Prisma.Decimal(input.amount),
           currency: input.currency,
           method: input.method,
+          accountId: account.id,
           reference: input.reference || null,
           note: input.note || null,
           submittedById: user.id,

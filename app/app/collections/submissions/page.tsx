@@ -17,6 +17,7 @@ import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { formatLocal, formatUsd } from "@/lib/money";
 import { sumShillings, sumUsd, type MoneyRow } from "@/lib/money-totals";
+import { activeAccounts } from "@/lib/accounts";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
@@ -62,13 +63,17 @@ export default async function SubmissionsPage({
   // Same rows, same order — this page is the read-only copy, and offering it to
   // the desk that can act is a dead end dressed as a queue.
   if (canVerify && active === "PENDING") redirect("/app/collections/verify");
-  const [rows, rate] = await Promise.all([
+  const [rows, rate, payAccounts] = await Promise.all([
     submissionQueue(
       active === "ALL"
         ? null
         : (active as "PENDING" | "VERIFIED" | "REJECTED" | "WITHDRAWN")
     ),
     currentRateValue(),
+    /* To correct the account on a pending claim. Fetched even when nobody on
+       this page may correct anything — one list, and the buttons above decide
+       whether it is ever shown. */
+    activeAccounts(),
   ]);
 
   /*
@@ -351,11 +356,18 @@ export default async function SubmissionsPage({
                           <span className="font-mono">{row.reference}</span>
                         </>
                       ) : null}
-                      {/* Who sent it up and exactly when, to the minute. */}
+                      {/* Who sent it up and exactly when, to the minute. Named
+                          as "Submitted by", because a bare name beside a name
+                          further along the line reads as one person doing both
+                          — and the desk that raised a claim loses the credit
+                          for it the moment Finance signs it off. */}
                       <span>·</span>
                       <span>
-                        {row.submittedBy?.name ?? "—"} ·{" "}
-                        {formatDateTime(row.submittedAt, locale)}
+                        {t(locale, "Submitted by")}{" "}
+                        <span className="text-foreground">
+                          {row.submittedBy?.name ?? "—"}
+                        </span>{" "}
+                        · {formatDateTime(row.submittedAt, locale)}
                       </span>
                       {row.proofs.length > 0 ? (
                         <>
@@ -445,6 +457,8 @@ export default async function SubmissionsPage({
                         reference={row.reference}
                         note={row.note}
                         status={row.status}
+                        accountId={row.accountId}
+                        accounts={payAccounts}
                       />
                     ) : null}
                   </div>

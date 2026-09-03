@@ -45,6 +45,7 @@ export function RecordCollectionForm({
   currency,
   rate,
   banks,
+  canRecord,
 }: {
   invoiceId: string;
   invoiceNumber: string;
@@ -56,8 +57,16 @@ export function RecordCollectionForm({
   currency: string;
   rate: number | null;
   /**
-   * The accounts this desk may bank the money into — present only when the
-   * reader can record a payment outright rather than claim one.
+   * Every account the money could have landed in.
+   *
+   * Passed to both desks now. It used to arrive only for Finance, and its
+   * presence doubled as the signal for which action this form is — which
+   * stopped working the moment Support also had to name an account. The
+   * mode is its own flag below.
+   */
+  banks?: { id: string; name: string; currency: string; kind: string }[] | null;
+  /**
+   * Whether this reader may say the money ARRIVED.
    *
    * Finance was submitting claims to Finance: it filled this form, pressed
    * "Submit to Finance", then walked to the verify queue to approve its own
@@ -65,14 +74,14 @@ export function RecordCollectionForm({
    * desk that says "the money arrived" — and it stops making sense the moment
    * the person is the one who says that.
    */
-  banks?: { id: string; name: string; currency: string; kind: string }[] | null;
+  canRecord?: boolean;
 }) {
   const t = useT();
   /* The authority decides which action this form is. Support files a claim;
      Finance records the money. Same fields either way — paymentSchema and the
      submission schema ask for the same things — so nothing about the form moves
      around under somebody who learned it. */
-  const direct = Boolean(banks);
+  const direct = Boolean(canRecord);
   /* The two actions return differently shaped payloads — a submission number or
      a receipt number — so the state is the union of both and the success line
      reads whichever arrived. Cast at the boundary rather than widening either
@@ -231,38 +240,41 @@ export function RecordCollectionForm({
           that has just watched money land knows the place; it should not have to
           classify the mechanism as well.
         */}
+        {/*
+          Asked of both desks now, and required of both.
+
+          This used to be Finance's question alone; Support got a hidden
+          "mobile money" and no say in where it landed, on the reasoning that
+          they could not know. The owner's rule replaces that: nothing is
+          recorded without saying where the money is, and the proof the
+          customer sent names the destination. Support's answer is a claim
+          Finance checks and can correct on the way through — the same status
+          as the figure beside it.
+        */}
         <div className="space-y-1.5">
           <Label htmlFor="collectionAccount" className="text-xs">
-            {direct ? t("Where it went") : t("How they sent it")}
+            {direct ? t("Where it went") : t("Where did it land")}
           </Label>
-          {direct && eligible.length > 0 ? (
-            <>
-              <NativeSelect
-                id="collectionAccount"
-                name="accountId"
-                value={chosen}
-                onChange={(event) => setAccountId(event.target.value)}
-                className="h-11"
-              >
-                {eligible.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name}
-                  </option>
-                ))}
-                <option value="">{t("Not sure yet")}</option>
-              </NativeSelect>
-              {/* Derived, never asked. Cash tin → CASH, a till → mobile money,
-                  anything else → a transfer into the bank. */}
-              <input type="hidden" name="method" value={methodOf(chosen)} />
-            </>
-          ) : (
-            /* No account to derive from — mobile money, which is what it is
-               here nine times in ten, and Finance's account settles it for
-               good when the claim is verified. Never asked: the account IS the
-               method, and two questions with one answer is two answers that
-               can disagree. */
-            <input type="hidden" name="method" value="MOBILE_MONEY" />
-          )}
+          <NativeSelect
+            id="collectionAccount"
+            name="accountId"
+            required
+            value={chosen}
+            onChange={(event) => setAccountId(event.target.value)}
+            className="h-11"
+          >
+            <option value="" disabled>
+              {t("Choose the account")}
+            </option>
+            {eligible.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </NativeSelect>
+          {/* Derived, never asked. Cash tin → CASH, a till → mobile money,
+              anything else → a transfer into the bank. */}
+          <input type="hidden" name="method" value={methodOf(chosen)} />
         </div>
       </div>
 

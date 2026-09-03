@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FileText, Paperclip } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { SubmissionCorrection } from "@/components/app/submission-correction";
 import { VerifySubmission } from "@/components/app/verify-submission";
 import { activeAccounts } from "@/lib/accounts";
 import { submissionQueue } from "@/lib/collections";
@@ -110,6 +111,17 @@ export async function VerifyQueue() {
                         </span>
                         <span>·</span>
                         <span>{t(locale, PAYMENT_METHOD_LABELS[row.method])}</span>
+                        {/* Where the desk says it landed. Finance is deciding
+                            exactly this, so it belongs on the row rather than
+                            behind a click. */}
+                        <span>·</span>
+                        <span>
+                          {row.account?.name ?? (
+                            <span className="text-warning">
+                              {t(locale, "no account named")}
+                            </span>
+                          )}
+                        </span>
                         {row.reference ? (
                           <>
                             <span>·</span>
@@ -118,8 +130,11 @@ export async function VerifyQueue() {
                         ) : null}
                         <span>·</span>
                         <span>
-                          {row.submittedBy?.name ?? "—"} ·{" "}
-                          {formatDateTime(row.submittedAt, locale)}
+                          {t(locale, "Submitted by")}{" "}
+                          <span className="text-foreground">
+                            {row.submittedBy?.name ?? "—"}
+                          </span>{" "}
+                          · {formatDateTime(row.submittedAt, locale)}
                         </span>
                         {/* The evidence, or the fact that there is none. The
                             warning keeps its colour: agreeing to money on
@@ -129,7 +144,7 @@ export async function VerifyQueue() {
                           <>
                             <span>·</span>
                             <span className="text-destructive">
-                              {t(locale, "nothing attached — do not verify without evidence")}
+                              {t(locale, "no proof")}
                             </span>
                           </>
                         ) : (
@@ -174,6 +189,28 @@ export async function VerifyQueue() {
                           {formatMoney(outstanding, row.invoice.currency)}
                         </p>
                       </div>
+                      {/* Correct it, then decide it. A wrong figure or the
+                          wrong account found at this moment used to mean
+                          sending the whole claim back for somebody else to
+                          retype. Taking it back is not offered here: refusing
+                          a colleague's claim is Send back, which records who
+                          refused it and why. */}
+                      <SubmissionCorrection
+                        submissionId={row.id}
+                        invoiceId={row.invoice.id}
+                        amount={claimed}
+                        method={row.method}
+                        reference={row.reference}
+                        note={row.note}
+                        status={row.status}
+                        accountId={row.accountId}
+                        accounts={accounts.map((a) => ({
+                          id: a.id,
+                          name: a.name,
+                          currency: a.currency,
+                        }))}
+                        canDelete={false}
+                      />
                       <VerifySubmission
                         submissionId={row.id}
                         accounts={accounts.map((a) => ({

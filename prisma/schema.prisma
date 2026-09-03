@@ -2479,8 +2479,9 @@ model CompanyAccount {
   updatedAt DateTime @updatedAt
 
   payments        Payment[]
-  /// Every settlement written against this bill, by whichever payment made it.
-  allocations     PaymentAllocation[]
+  /// Claims naming this account as where the customer says the money went.
+  /// Not money yet — see PaymentSubmission.accountId.
+  submissions     PaymentSubmission[]
   expenses        Expense[]
   ledgerEntries   LedgerEntry[]
   transfersOut    AccountTransfer[]       @relation("TransferFrom")
@@ -2907,6 +2908,23 @@ model PaymentSubmission {
   reference String?
   note      String?
 
+  /// WHICH ACCOUNT THE CUSTOMER SAYS IT WENT INTO.
+  ///
+  /// The owner's rule, and it overrides how this used to work: nobody records
+  /// money anywhere in this system without saying where it landed. Support
+  /// can answer it because the customer's own proof names the destination —
+  /// the Lipa number on the M-Pesa message, the account on the bank slip.
+  ///
+  /// It is a CLAIM, exactly like the amount beside it: Finance still names
+  /// the account for real when they verify, and their answer is the one that
+  /// reaches the ledger. This is the starting point they check, not the
+  /// decision — which is why it can be corrected on the way through.
+  ///
+  /// Nullable in the database only because claims raised before this existed
+  /// have no answer to give. Every new one is refused without it.
+  accountId String?
+  account   CompanyAccount? @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
   status SubmissionStatus @default(PENDING)
 
   submittedById String?
@@ -3013,11 +3031,9 @@ model PaymentAllocation {
   /// Why this share went to this bill, when somebody had to choose.
   note String?
 
-  createdById      String?
-  createdBy        User?           @relation("PaymentAllocationsMade", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt        DateTime        @default(now())
-  companyAccount   CompanyAccount? @relation(fields: [companyAccountId], references: [id])
-  companyAccountId String?
+  createdById String?
+  createdBy   User?    @relation("PaymentAllocationsMade", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
 
   /// One line per bill per payment. A second settlement of the same bill by the
   /// same payment is an edit of the first, not another row — which keeps "how

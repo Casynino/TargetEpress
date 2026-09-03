@@ -428,20 +428,32 @@ export function RecordIncome({
                 cannot be reconciled against a statement. */}
             <input type="hidden" name="method" value={method} />
 
-            {/* Only for the desk that banks it. Support has no idea which of our
-                accounts the money reached, and a guess is worse than silence. */}
-            {canRecord ? (
+            {/*
+              Asked of every desk, and no longer skippable.
+
+              This used to be Finance's field alone, on the reasoning that
+              Support cannot know which of our accounts the money reached and
+              a guess is worse than silence. The owner's rule replaces it:
+              nothing is recorded anywhere without saying where it landed, and
+              the customer's own proof names the destination — the Lipa number
+              on the M-Pesa message, the account on the bank slip. What Support
+              picks is a claim like the figure beside it; Finance still names
+              the account for real when they verify, and can correct this one.
+            */}
             <label className="flex flex-col gap-1">
               <span className="whitespace-nowrap text-[11px] text-muted-foreground">
-                {t("Into which account")}
+                {canRecord ? t("Into which account") : t("Where did it land")}
               </span>
               <NativeSelect
                 name="accountId"
+                required
                 value={accountId}
                 onChange={(event) => setAccountId(event.target.value)}
                 className="w-52 bg-card"
               >
-                <option value="">{t("Say later")}</option>
+                <option value="" disabled>
+                  {t("Choose the account")}
+                </option>
                 {accounts
                   .filter((a) => a.currency === tendered)
                   .map((a) => (
@@ -451,7 +463,6 @@ export function RecordIncome({
                   ))}
               </NativeSelect>
             </label>
-            ) : null}
 
             {/*
               Proof, and nothing else to type.

@@ -8,6 +8,7 @@ import { recordAudit } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { authorize } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
@@ -51,6 +52,7 @@ async function pendingOnly(id: string) {
       method: true,
       reference: true,
       note: true,
+      accountId: true,
       submittedById: true,
       invoice: {
         select: {
@@ -94,6 +96,10 @@ export async function editSubmission(
         method: z.enum(["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE"]).optional(),
         reference: z.string().trim().optional(),
         note: z.string().trim().optional(),
+        /* Correcting the account is the whole point of letting Finance touch
+           a claim before deciding it — a customer naming the wrong bank is
+           the commonest thing wrong with one. */
+        accountId: z.string().trim().optional(),
         reason: z.string().trim().min(3, "Say what was wrong with it."),
       })
       .safeParse(Object.fromEntries(formData));
@@ -104,9 +110,14 @@ export async function editSubmission(
     if (sub.status !== "PENDING") {
       return fail(t(locale, closedMessage(sub.status, sub.submissionNumber)));
     }
-    /* "Your own typo" is the whole licence. The permission is department-wide,
-       the correction is not — a colleague's claim is theirs to fix. */
-    if (sub.submittedById !== user.id) {
+    /* "Your own typo" is the whole licence — for the desk that raised it. A
+       colleague's claim is theirs to fix, not yours.
+       Finance is the exception, and has to be: they are the desk about to
+       decide this claim, and finding a wrong figure or the wrong account at
+       that moment should not mean bouncing it back and waiting for somebody
+       else to retype it. Whatever they change is recorded against their name
+       like any other correction. */
+    if (sub.submittedById !== user.id && !can(user.role, "payment.verify")) {
       return fail(
         t(locale, "Only the person who submitted this can correct it. Ask them to, or let Finance decide it as it stands.")
       );
@@ -117,13 +128,34 @@ export async function editSubmission(
       method: sub.method,
       reference: sub.reference,
       note: sub.note,
+      accountId: sub.accountId,
     };
     const after = {
       amount: parsed.data.amount ?? before.amount,
       method: parsed.data.method ?? before.method,
       reference: parsed.data.reference || null,
       note: parsed.data.note || null,
+      accountId: parsed.data.accountId || before.accountId,
     };
+
+    /* Same three questions the submit action asks of an account, asked again
+       here — a correction that could name an archived or wrong-currency
+       account would walk straight past the rule the submit form enforces. */
+    if (after.accountId && after.accountId !== before.accountId) {
+      const account = await prisma.companyAccount.findUnique({
+        where: { id: after.accountId },
+        select: { name: true, currency: true, active: true },
+      });
+      if (!account) return fail(t(locale, "That account no longer exists."));
+      if (!account.active) {
+        return fail(`${account.name} has been archived.`);
+      }
+      if (account.currency !== sub.currency) {
+        return fail(
+          `${account.name} is a ${account.currency} account, so ${sub.currency} could not have landed in it.`
+        );
+      }
+    }
     const changed = (Object.keys(after) as (keyof typeof after)[]).filter(
       (k) => before[k] !== after[k]
     );
@@ -140,6 +172,7 @@ export async function editSubmission(
           method: after.method,
           reference: after.reference,
           note: after.note,
+          accountId: after.accountId,
         },
       });
       if (claimed.count === 0) {
