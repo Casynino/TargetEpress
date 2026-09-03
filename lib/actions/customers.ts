@@ -151,3 +151,135 @@ export async function createCustomer(
     return fail(toActionError(error));
   }
 }
+
+/**
+ * Fold one customer record into another.
+ *
+ * The system matches customers on phone number, and cargo can legitimately be
+ * registered without one — a Guangzhou packing list arrives with a shipping
+ * mark and nothing else. So the same person acquires a second record, and from
+ * then on their money is split across two accounts: two balances, two credit
+ * histories, and a payment screen that shows one open bill where there are
+ * three. Nothing is wrong with either record; they are simply both half of
+ * somebody.
+ *
+ * Merging repoints everything the losing record holds — cargo, invoices,
+ * payments, pickup notes, tickets, sourcing requests, message history — onto
+ * the surviving one and then removes the empty shell. No figure changes: the
+ * balance the customer now shows is the sum of the two they showed before,
+ * because every balance in this system is derived from the rows that moved.
+ *
+ * It cannot be undone from a screen, which is why it sits behind its own
+ * permission rather than customer.manage, and why the audit line names both
+ * codes and counts every row that moved.
+ */
+export async function mergeCustomers(input: {
+  keepId: string;
+  mergeId: string;
+}): Promise<ActionResult<{ moved: number }>> {
+  const locale = await viewerLocale();
+  let user: SessionUser;
+  try {
+    user = await authorize("customer.merge");
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+
+  if (input.keepId === input.mergeId) {
+    return fail(t(locale, "Pick two different customers."));
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const [keep, merge] = await Promise.all([
+        tx.customer.findUnique({ where: { id: input.keepId } }),
+        tx.customer.findUnique({ where: { id: input.mergeId } }),
+      ]);
+      if (!keep || !merge) {
+        throw new Error(t(locale, "That customer no longer exists."));
+      }
+
+      /*
+        A credit facility is a decision somebody signed their name to, for a
+        named account. Carrying it across silently would grant the survivor a
+        limit nobody approved for them, so the merge stops and asks for the
+        facility to be closed deliberately first.
+      */
+      if (merge.creditLimitUsd !== null) {
+        throw new Error(
+          t(
+            locale,
+            "That record has a credit limit. Remove the credit facility first, then merge."
+          )
+        );
+      }
+
+      const moved: Record<string, number> = {};
+      const where = { customerId: merge.id };
+      const data = { customerId: keep.id };
+
+      moved.shipments = (await tx.shipment.updateMany({ where, data })).count;
+      moved.invoices = (await tx.invoice.updateMany({ where, data })).count;
+      moved.payments = (await tx.payment.updateMany({ where, data })).count;
+      moved.pickupNotes = (await tx.pickupNote.updateMany({ where, data }))
+        .count;
+      moved.tickets = (await tx.supportTicket.updateMany({ where, data }))
+        .count;
+      moved.requests = (await tx.sourcingRequest.updateMany({ where, data }))
+        .count;
+      moved.messages = (await tx.customerMessage.updateMany({ where, data }))
+        .count;
+
+      /*
+        The phone is the matching key, and the record being removed is often the
+        one that has it — the duplicate was created precisely because somebody
+        typed the number the first record never had. Adopt it, but never
+        overwrite a number the survivor already carries: that one is the number
+        staff have been ringing.
+      */
+      const adoptPhone = !keep.phone && merge.phone ? merge.phone : null;
+      if (adoptPhone) {
+        /* Freed first — the column is unique, and both rows still exist. */
+        await tx.customer.update({
+          where: { id: merge.id },
+          data: { phone: null },
+        });
+        await tx.customer.update({
+          where: { id: keep.id },
+          data: { phone: adoptPhone },
+        });
+      }
+
+      await tx.customer.delete({ where: { id: merge.id } });
+
+      const total = Object.values(moved).reduce((sum, n) => sum + n, 0);
+      await recordAudit(
+        {
+          actor: user,
+          action: "customer.merge",
+          entity: "Customer",
+          entityId: keep.id,
+          summary: `Merged ${merge.code} (${merge.name}) into ${keep.code} (${keep.name}) — ${total} record(s) moved`,
+          metadata: {
+            keptCode: keep.code,
+            removedCode: merge.code,
+            removedName: merge.name,
+            removedPhone: merge.phone,
+            adoptedPhone: Boolean(adoptPhone),
+            moved,
+          },
+        },
+        tx
+      );
+
+      return { moved: total };
+    });
+
+    revalidatePath("/app/customers");
+    revalidatePath(`/app/customers/${input.keepId}`);
+    revalidatePath("/app/finance/payments/new");
+    return ok(result);
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}

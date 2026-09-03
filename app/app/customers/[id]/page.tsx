@@ -4,13 +4,23 @@ import { notFound } from "next/navigation";
 import { MessageCircle, Phone } from "lucide-react";
 
 import { CustomerCreditPanel } from "@/components/app/customer-credit";
+import {
+  CustomerMergePanel,
+  type MergeCandidate,
+} from "@/components/app/customer-merge";
 import { CustomerNotesForm } from "@/components/app/customer-notes";
 import { MessageComposer } from "@/components/app/message-composer";
 import { PageHeader } from "@/components/app/page-header";
 import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { customerCreditOutcomes, customerCreditProfile } from "@/lib/credit-queries";
-import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
+import {
+  formatDate,
+  formatDateTime,
+  formatWeight,
+  normalisePhone,
+  toNumber,
+} from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import {
@@ -19,6 +29,7 @@ import {
   composeMessage,
   whatsappLink,
 } from "@/lib/messages";
+import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { customerProfile } from "@/lib/support";
@@ -47,6 +58,57 @@ export default async function CustomerProfilePage({
 
   const { customer, stats } = profile;
   const showMoney = can(user.role, "finance.view");
+
+  /*
+    Other records that may be this same person.
+
+    Two things create a duplicate here: a name typed twice with different
+    capitalisation, and cargo registered from a packing list with no phone
+    number at all, which is the only key we match on. Both are found by the
+    same query, and both are only ever a suggestion — a shop and its owner
+    share a landline, and two brothers share a name, so the page states what it
+    counted and leaves the decision to somebody who knows the customer.
+
+    Fetched only for the desks that may act on it; a warehouse reading a
+    tracking number off this page has no business being shown a merge.
+  */
+  const canMerge = can(user.role, "customer.merge");
+  /* Empty in, empty out: normalisePhone("") answers "+", which would match
+     every record that has no number at all. */
+  const digits = customer.phone ? normalisePhone(customer.phone) : "";
+  const twins = canMerge
+    ? await prisma.customer.findMany({
+        where: {
+          id: { not: customer.id },
+          OR: [
+            { name: { equals: customer.name, mode: "insensitive" } },
+            ...(digits ? [{ phone: digits }] : []),
+          ],
+        },
+        take: 8,
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          phone: true,
+          _count: { select: { shipments: true, invoices: true } },
+        },
+      })
+    : [];
+
+  const mergeCandidates: MergeCandidate[] = twins.map((twin) => ({
+    id: twin.id,
+    code: twin.code,
+    name: twin.name,
+    phone: twin.phone,
+    shipments: twin._count.shipments,
+    invoices: twin._count.invoices,
+    reason:
+      digits && twin.phone === digits
+        ? t(locale, "Same phone number")
+        : t(locale, "Same name"),
+  }));
   /**
    * The credit position, for the desks that are allowed to know it.
    *
@@ -616,6 +678,12 @@ export default async function CustomerProfilePage({
               />
             </section>
           ) : null}
+
+          <CustomerMergePanel
+            keepId={customer.id}
+            keepName={customer.name}
+            candidates={mergeCandidates}
+          />
 
           <section className="rounded-xl border bg-card p-5 shadow-soft">
             <h2 className="mb-3 font-semibold">{t(locale, "Notes")}</h2>

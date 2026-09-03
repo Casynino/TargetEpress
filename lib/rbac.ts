@@ -220,6 +220,7 @@ export type Permission =
   // Customers
   | "customer.view"
   | "customer.manage"
+  | "customer.merge"
   // Support desk
   | "ticket.manage"
   | "sourcing.manage"
@@ -598,6 +599,11 @@ const ALL: Permission[] = Array.from(
        records register or the right to bin another desk's paperwork. */
     "records.viewDeleted",
     "document.removeAny",
+    /* Folding one customer record into another. Deliberately not given to the
+       desks that hold customer.manage: editing a name is a correction, but a
+       merge moves somebody else's invoices, payments and pickup notes onto a
+       different account and cannot be undone from a screen. */
+    "customer.merge",
     // Erasing a record for good. Nobody else has it, at any rank.
     "shipment.purge",
     // What every customer is told: the collection accounts, the office

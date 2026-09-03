@@ -23,6 +23,7 @@ import { PackageList } from "@/components/app/package-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  BILLED_INVOICE_STATUSES,
   DAMAGE_SEVERITY_LABELS,
   EXCEPTION_STATUS_LABELS,
   EXCEPTION_TYPE_LABELS,
@@ -155,6 +156,25 @@ export default async function ShipmentDetailPage({
     collected. STORAGE_POLICY holds the 7 free days and the USD 2, so the card,
     the invoice, the tracking page and the reminder all quote one rule.
   */
+  /*
+    The rest of what this customer owes.
+
+    A clerk settling one consignment often has the customer on the phone saying
+    "I am paying for all of them". Until now they had to remember that the
+    combined screen existed and go and find it; the join belongs here, where
+    the question is actually asked. Counted only for desks that may see money.
+  */
+  const otherUnpaid = can(user.role, "finance.view")
+    ? await prisma.invoice.count({
+        where: {
+          customerId: shipment.customerId,
+          status: { in: [...BILLED_INVOICE_STATUSES] },
+          shipmentId: { not: shipment.id },
+          shipment: { deletedAt: null },
+        },
+      })
+    : 0;
+
   const storage = storageStatus(shipment.arrivedAt, shipment.deliveredAt);
   const storageRate = await currentRateValue();
   /* Seeing the status is everybody's business; deciding it is Finance's. */
@@ -848,6 +868,22 @@ export default async function ShipmentDetailPage({
           {/* Actions first. This column is what somebody does with the cargo;
               who the customer is and which flight it came on are reference,
               and reference does not go above the work. */}
+          {otherUnpaid > 0 ? (
+            <Link
+              href={`/app/finance/payments/new?customer=${shipment.customerId}`}
+              className="focus-ring block rounded-xl border border-brand/40 bg-brand/5 p-4 text-sm hover:bg-brand/10"
+            >
+              <span className="font-medium">
+                {t(locale, "{name} has {n} other unpaid consignment(s)")
+                  .replace("{name}", shipment.customer.name)
+                  .replace("{n}", String(otherUnpaid))}
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                {t(locale, "Paying for several at once? Take it as one payment.")}
+              </span>
+            </Link>
+          ) : null}
+
           <ShipmentActions
             shipmentId={shipment.id}
             status={shipment.status}
