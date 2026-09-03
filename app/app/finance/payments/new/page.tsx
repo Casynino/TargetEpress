@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, ReceiptText, Search, Users, Wallet } from "lucide-react";
+import { Banknote, MessageCircle, ReceiptText, Search, Users, Wallet } from "lucide-react";
 
 import { CustomerPaymentForm, type OpenBill } from "@/components/app/customer-payment-form";
 import { PageHeader } from "@/components/app/page-header";
@@ -9,9 +9,16 @@ import { activeAccounts } from "@/lib/accounts";
 import { BILLED_INVOICE_STATUSES } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
+import { IconHint } from "@/components/app/icon-hint";
 import { t } from "@/lib/i18n";
+import { severalBillsReminderSwahili, whatsappLink } from "@/lib/messages";
 import { formatShillingTotal, formatUsd } from "@/lib/money";
-import { sumShillings, sumUsd, type MoneyRow } from "@/lib/money-totals";
+import {
+  rowInShillings,
+  sumShillings,
+  sumUsd,
+  type MoneyRow,
+} from "@/lib/money-totals";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
@@ -76,6 +83,17 @@ export default async function RecordCustomerPaymentPage({
           total: true,
           amountPaid: true,
           exchangeRate: true,
+          /* Named in the reminder, so the customer can tell which boxes the
+             figure is for — a total with no tracking numbers beside it is a
+             demand they cannot check. */
+          shipment: {
+            select: {
+              trackingNumber: true,
+              description: true,
+              descriptionEn: true,
+              descriptionZh: true,
+            },
+          },
         },
       },
     });
@@ -160,6 +178,18 @@ export default async function RecordCustomerPaymentPage({
           bills: open.length,
           shillings: sumShillings(rows, rate),
           usd: sumUsd(rows, rate),
+          /* Each consignment as the customer will read it on WhatsApp, in the
+             money they will hand over — the same per-row conversion as the
+             total above, so the lines add up to the figure under them. */
+          lines: open.map((invoice, index) => ({
+            trackingNumber: invoice.shipment.trackingNumber,
+            description: cargoText(locale, invoice.shipment, "description"),
+            amount: formatShillingTotal(
+              rowInShillings(rows[index], rate),
+              toNumber(rows[index].amountUsd),
+              rate
+            ),
+          })),
         };
       })
       /* Only those with more than one still owing. A customer with a single
@@ -239,7 +269,7 @@ export default async function RecordCustomerPaymentPage({
           </div>
         </div>
 
-        <div className="panel overflow-hidden">
+        <div className="rounded-xl border bg-card shadow-soft">
           <div className="border-b p-5">
             <SearchBox
               placeholder={t(locale, "Customer name, phone or tracking number")}
@@ -248,96 +278,154 @@ export default async function RecordCustomerPaymentPage({
             />
           </div>
 
-          {/*
-            POSSIBLY THE SAME PERSON.
+          {matches.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="p-3 font-medium">{t(locale, "Customer")}</th>
+                    <th className="hidden p-3 font-medium sm:table-cell">
+                      {t(locale, "Open bills")}
+                    </th>
+                    <th className="p-3 text-right font-medium">
+                      {t(locale, "Owed")}
+                    </th>
+                    <th className="p-3 text-right font-medium">
+                      {t(locale, "Reach them")}
+                    </th>
+                  </tr>
+                </thead>
+                {/*
+                  POSSIBLY THE SAME PERSON.
 
-            Cargo registration already matches on a normalised phone number, so
-            two records only survive when one of them has no phone — which is
-            exactly how "Dickson Ndomba" and "dickson ndomba" became two
-            customers with a bill each. Flagged, never merged from here: the
-            desk knows things the database does not. Merging lives on the
-            customer's own page, behind its own permission.
+                  Cargo registration matches on a normalised phone number, so
+                  two records only survive when one of them has no phone —
+                  which is how "Dickson Ndomba" and "dickson ndomba" became two
+                  customers with a bill each. Flagged, never merged from here:
+                  the desk knows things the database does not. Merging lives on
+                  the customer's own page, behind its own permission.
+                */}
+                <tbody>
+                  {matches.map((customer) => {
+                    const twin = matches.some(
+                      (other) =>
+                        other.id !== customer.id &&
+                        (other.name.trim().toLowerCase() ===
+                          customer.name.trim().toLowerCase() ||
+                          (other.phone !== null &&
+                            other.phone === customer.phone))
+                    );
+                    const initials = customer.name
+                      .split(/\s+/)
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((part) => part[0]?.toUpperCase() ?? "")
+                      .join("");
+                    const href = `/app/finance/payments/new?customer=${customer.id}`;
+                    return (
+                      <tr key={customer.id} className="border-t">
+                        <td className="p-3">
+                          <Link
+                            href={href}
+                            className="focus-ring flex items-center gap-3"
+                          >
+                            <span
+                              aria-hidden
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/10 text-xs font-semibold text-brand"
+                            >
+                              {initials}
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block truncate font-medium">
+                                {customer.name}
+                              </span>
+                              <span className="block truncate font-mono text-xs text-muted-foreground">
+                                {customer.code}
+                                {customer.phone ? ` · ${customer.phone}` : ""}
+                              </span>
+                              {twin ? (
+                                <span className="mt-1 inline-block rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
+                                  {t(
+                                    locale,
+                                    "Possibly the same customer as another below — check the phone before recording"
+                                  )}
+                                </span>
+                              ) : null}
+                            </span>
+                          </Link>
+                        </td>
 
-            Two columns from xl up. A finance desk runs this on a laptop and a
-            single column of short rows down the middle of a wide screen wastes
-            the half of it that would have shown the rest of the queue.
-          */}
-          <ul className="grid grid-cols-1 gap-px bg-border xl:grid-cols-2">
-            {matches.map((customer) => {
-              const twin = matches.some(
-                (other) =>
-                  other.id !== customer.id &&
-                  (other.name.trim().toLowerCase() ===
-                    customer.name.trim().toLowerCase() ||
-                    (other.phone !== null && other.phone === customer.phone))
-              );
-              /* Two letters of the name, so a list of a dozen can be found by
-                 shape before it is read. */
-              const initials = customer.name
-                .split(/\s+/)
-                .filter(Boolean)
-                .slice(0, 2)
-                .map((part) => part[0]?.toUpperCase() ?? "")
-                .join("");
-              return (
-                <li key={customer.id} className="bg-card">
-                  <Link
-                    href={`/app/finance/payments/new?customer=${customer.id}`}
-                    className="focus-ring group flex h-full items-center gap-4 p-5 transition-colors hover:bg-accent/40"
-                  >
-                    <span
-                      aria-hidden
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand/10 text-sm font-semibold text-brand"
-                    >
-                      {initials}
-                    </span>
+                        <td className="hidden p-3 sm:table-cell">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                            <ReceiptText className="h-3.5 w-3.5" />
+                            {customer.bills}
+                          </span>
+                        </td>
 
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">
-                        {customer.name}
-                      </span>
-                      <span className="mt-0.5 block truncate font-mono text-xs text-muted-foreground">
-                        {customer.code}
-                        {customer.phone ? ` · ${customer.phone}` : ""}
-                      </span>
-                      <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                        <ReceiptText className="h-3 w-3" />
-                        {t(locale, "{n} bills").replace(
-                          "{n}",
-                          String(customer.bills)
-                        )}
-                      </span>
-                      {twin ? (
-                        <span className="mt-1.5 block">
-                          <span className="inline-block rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning">
-                            {t(
-                              locale,
-                              "Possibly the same customer as another below — check the phone before recording"
+                        <td className="p-3 text-right">
+                          <span className="block font-display font-bold tabular-nums">
+                            {formatShillingTotal(
+                              customer.shillings,
+                              customer.usd,
+                              rate
                             )}
                           </span>
-                        </span>
-                      ) : null}
-                    </span>
+                          <span className="block font-mono text-[11px] text-muted-foreground">
+                            {formatUsd(customer.usd)}
+                          </span>
+                        </td>
 
-                    <span className="shrink-0 text-right">
-                      <span className="block font-display text-lg font-bold tabular-nums">
-                        {formatShillingTotal(
-                          customer.shillings,
-                          customer.usd,
-                          rate
-                        )}
-                      </span>
-                      <span className="block font-mono text-[11px] text-muted-foreground">
-                        {formatUsd(customer.usd)}
-                      </span>
-                    </span>
+                        <td className="p-3">
+                          {/* Same three colours the call list uses, so a hand
+                              that has learned one screen has learned both:
+                              green message, blue money. */}
+                          <div className="flex items-center justify-end gap-1.5">
+                            {customer.phone ? (
+                              <IconHint
+                                label={t(locale, "Remind them on WhatsApp")}
+                              >
+                                <a
+                                  href={whatsappLink(
+                                    customer.phone,
+                                    severalBillsReminderSwahili({
+                                      customerName: customer.name,
+                                      lines: customer.lines,
+                                      total: formatShillingTotal(
+                                        customer.shillings,
+                                        customer.usd,
+                                        rate
+                                      ),
+                                      totalUsd: formatUsd(customer.usd),
+                                    })
+                                  )}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  aria-label={`WhatsApp ${customer.name}`}
+                                  className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-md border border-success/40 text-success transition-colors hover:bg-success/10"
+                                >
+                                  <MessageCircle className="h-4 w-4" />
+                                </a>
+                              </IconHint>
+                            ) : null}
 
-                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+                            <IconHint label={t(locale, "Record a payment")}>
+                              <Link
+                                href={href}
+                                aria-label={`${t(locale, "Record a payment")} — ${customer.name}`}
+                                className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-md border border-brand/40 text-brand transition-colors hover:bg-brand/10"
+                              >
+                                <Banknote className="h-4 w-4" />
+                              </Link>
+                            </IconHint>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
 
           {q && matches.length === 0 ? (
             <p className="p-5 text-sm text-muted-foreground">

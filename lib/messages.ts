@@ -399,6 +399,58 @@ export function paymentReminderSwahili(input: {
   );
 }
 
+/**
+ * The reminder for a customer holding SEVERAL unpaid consignments.
+ *
+ * The per-consignment reminder above names one tracking number and one figure.
+ * Sent three times to the same person it reads as three separate demands, and
+ * the customer answers by paying one of them and asking which of the other two
+ * the next message was about. This states the whole position once — every
+ * consignment, one total, one payment — which is also exactly what the screen
+ * that sends it is for.
+ *
+ * Same opening as every other money message: the cargo is here and safe. What
+ * the customer cares about is their boxes, not our accounts.
+ */
+export function severalBillsReminderSwahili(input: {
+  customerName: string;
+  lines: { trackingNumber: string; description: string; amount: string }[];
+  total: string;
+  totalUsd?: string | null;
+}) {
+  const bold = (text: string) => `*${text}*`;
+  return [
+    `📦 ${bold(COMPANY.name.toUpperCase())}`,
+    ``,
+    `${bold(`Habari ${firstName(input.customerName)},`)}`,
+    ``,
+    ARRIVED_AND_HELD,
+    ``,
+    `📋 ${bold(`Mizigo yako ${input.lines.length} inasubiri malipo`)}`,
+    ...input.lines.map(
+      (line) =>
+        `• ${bold(line.trackingNumber)}${line.description ? ` — ${line.description}` : ""}: ${line.amount}`
+    ),
+    ``,
+    `💰 ${bold("JUMLA:")} ${input.total}${input.totalUsd ? ` (${input.totalUsd})` : ""}`,
+    ``,
+    /* One transfer, because the desk can now receive it as one. Asking for
+       three separate payments is what the combined screen was built to end. */
+    "Unaweza kulipia yote kwa malipo moja.",
+    ``,
+    `💳 ${bold("Njia za Malipo")}`,
+    ``,
+    ...paymentBlock(bold),
+    `Baada ya kufanya malipo, tafadhali tuma ${bold("uthibitisho wa malipo")} ili timu yetu iweze kuuhakiki.`,
+    ``,
+    `Asante kwa kutumia ${bold(COMPANY.name)}.`,
+    ``,
+    `📞 ${bold(COMPANY.phone)}`,
+  ]
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 export function whatsappLink(phone: string | null, body: string) {
   const digits = (phone ?? "").replace(/[^\d]/g, "");
   const target = digits.startsWith("0")
