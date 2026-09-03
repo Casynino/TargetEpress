@@ -195,6 +195,11 @@ export default async function LedgerPage({
               id: true,
               note: true,
               reference: true,
+              /* What the payment says now, and whether its figure can be
+                 corrected here — see LedgerRowSubject. */
+              amount: true,
+              currency: true,
+              invoiceId: true,
               receipt: { select: { receiptNumber: true } },
               proofs: { select: { url: true }, take: 1 },
               invoice: {
@@ -1052,6 +1057,11 @@ export default async function LedgerPage({
                             paymentId: entry.payment?.id ?? null,
                             paymentReference: entry.payment?.reference ?? null,
                             paymentNote: entry.payment?.note ?? null,
+                            amount: toNumber(entry.amount),
+                            currency: entry.currency,
+                            /* A combined payment answers several bills; moving
+                               its figure is the allocation screen's question. */
+                            amountEditable: Boolean(entry.payment?.invoiceId),
                             expenseId: entry.expense?.id ?? null,
                             expenseDescription:
                               entry.expense?.description ?? null,

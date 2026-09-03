@@ -10,7 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cancelLedgerEntry } from "@/lib/actions/ledger";
-import { voidPayment, editPayment } from "@/lib/actions/payment-corrections";
+import {
+  changePaymentAmount,
+  editPayment,
+  voidPayment,
+} from "@/lib/actions/payment-corrections";
 import { voidExpense, editExpense } from "@/lib/actions/expenses";
 
 export type LedgerRowSubject = {
@@ -19,6 +23,12 @@ export type LedgerRowSubject = {
   paymentId: string | null;
   paymentReference: string | null;
   paymentNote: string | null;
+  /** What the payment says now, so a correction starts from the truth. */
+  amount: number;
+  currency: string;
+  /** False for a combined payment: moving its figure means deciding which of
+      several bills loses what, which is the allocation screen's question. */
+  amountEditable: boolean;
   /** The recorded cost behind this line, when there is one. */
   expenseId: string | null;
   expenseDescription: string | null;
@@ -53,6 +63,9 @@ export function LedgerRowFix({ subject }: { subject: LedgerRowSubject }) {
   const [description, setDescription] = useState(
     subject.expenseDescription ?? ""
   );
+  /* Starts at what it says now, so the reader corrects a figure rather than
+     recalling one. */
+  const [amount, setAmount] = useState(String(subject.amount));
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -94,7 +107,27 @@ export function LedgerRowFix({ subject }: { subject: LedgerRowSubject }) {
     );
   }
 
+  const amountChanged =
+    Math.abs((Number(amount) || 0) - subject.amount) > 0.005;
+
   function saveEdit() {
+    /* The figure is the one field that cannot simply be written over: the
+       ledger line, the bill and the pickup note were all derived from it, so
+       changing it cancels and re-records the whole chain. Everything else is a
+       correction to the record of a payment that stands. */
+    if (subject.paymentId && amountChanged) {
+      run(
+        () => {
+          const fd = new FormData();
+          fd.set("paymentId", subject.paymentId!);
+          fd.set("amount", amount);
+          fd.set("reason", reason);
+          return fd;
+        },
+        (fd) => changePaymentAmount(undefined, fd)
+      );
+      return;
+    }
     run(
       () => {
         const fd = new FormData();
@@ -172,6 +205,30 @@ export function LedgerRowFix({ subject }: { subject: LedgerRowSubject }) {
               </p>
             ) : subject.paymentId ? (
               <>
+                {subject.amountEditable ? (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="fix-amount">
+                      {t("Amount")} ({subject.currency === "TZS" ? "TSh" : subject.currency})
+                    </Label>
+                    <Input
+                      id="fix-amount"
+                      value={amount}
+                      inputMode="decimal"
+                      onChange={(event) => setAmount(event.target.value)}
+                    />
+                    {amountChanged ? (
+                      <p className="text-xs text-warning">
+                        {t(
+                          "Changing the figure cancels this payment and records the new one: a fresh receipt number, the bill and the pickup note redone from it. The old line stays on the ledger with its reversal beside it."
+                        )}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        {t("What it says now. Type over it to correct it.")}
+                      </p>
+                    )}
+                  </div>
+                ) : null}
                 <div className="space-y-1.5">
                   <Label htmlFor="fix-reference">{t("Reference")}</Label>
                   <Input
@@ -189,14 +246,13 @@ export function LedgerRowFix({ subject }: { subject: LedgerRowSubject }) {
                     onChange={(event) => setNote(event.target.value)}
                   />
                 </div>
-                {/* Said plainly rather than discovered: the figure is the one
-                    thing an edit cannot move, because the ledger, the bill and
-                    the pickup note were all written from it. */}
-                <p className="text-xs text-muted-foreground">
-                  {t(
-                    "To change the amount, cancel this and record it again — the ledger line, the bill and the pickup note were all written from the figure, and they have to be rewritten together."
-                  )}
-                </p>
+                {subject.amountEditable ? null : (
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      "This payment settles more than one bill, so its figure is changed by cancelling it and recording it again against the bills it should cover."
+                    )}
+                  </p>
+                )}
               </>
             ) : (
               <div className="space-y-1.5">

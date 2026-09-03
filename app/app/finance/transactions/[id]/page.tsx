@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { ArrowLeft, FileText, Paperclip } from "lucide-react";
 
 import { LedgerEntryActions } from "@/components/app/ledger-entry-actions";
+import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
@@ -192,10 +193,39 @@ export default async function LedgerEntryPage({
         {t(locale, "The Ledger")}
       </Link>
 
-      <PageHeader
-        title={entry.expense?.description ?? entry.description}
-        description={`${t(locale, KIND_LABEL[entry.kind] ?? entry.kind)} · ${entry.account.name}`}
-      />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PageHeader
+          title={entry.expense?.description ?? entry.description}
+          description={`${t(locale, KIND_LABEL[entry.kind] ?? entry.kind)} · ${entry.account.name}`}
+        />
+        {/*
+          The same two controls the register carries, on the record itself.
+
+          Somebody who has opened a movement to look at it is exactly the person
+          about to correct it, and sending them back to the list to find the row
+          they just left is the long way round to the same act.
+        */}
+        {canFix ? (
+          <div className="pt-1">
+            <LedgerRowFix
+              subject={{
+                entryId: entry.id,
+                /* A payment movement is redirected to the payment's own page
+                   above, so what reaches here is a cost or a plain transfer. */
+                paymentId: null,
+                paymentReference: null,
+                paymentNote: null,
+                amount: toNumber(entry.amount),
+                currency: entry.currency,
+                amountEditable: false,
+                expenseId: entry.expense?.id ?? null,
+                expenseDescription: entry.expense?.description ?? null,
+                reversed: Boolean(entry.reversedBy || entry.reverses),
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_1fr]">
         <section className="rounded-2xl border bg-card p-6">

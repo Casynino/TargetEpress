@@ -674,3 +674,147 @@ export async function editPayment(
     return fail(t(locale, toActionError(error)));
   }
 }
+
+/**
+ * PUT A DIFFERENT FIGURE ON A PAYMENT THAT HAS ALREADY BEEN RECORDED.
+ *
+ * A clerk types 45,000 for a payment of 54,000 and finds out a week later. Until
+ * now the answer was "cancel it and record it again" — two screens, two acts of
+ * remembering what the first one said, and a desk that gives up and leaves the
+ * wrong figure standing. The desk means one thing by it, so it is one press.
+ *
+ * IT IS STILL A CANCEL AND A RE-RECORD, because it has to be. The ledger is
+ * append-only: the old line is answered by a reversing line and the new figure
+ * is a new line, so the balance still explains itself and the history still
+ * shows what was first written and what replaced it. The bill, the cargo status
+ * and the pickup note all follow both halves — the cargo goes back to unpaid on
+ * the way through and is released again if the new figure clears it — which is
+ * exactly the chain either step performs on its own. Composed rather than
+ * reimplemented: two correct operations in one transaction beat a third
+ * implementation of the same money rules.
+ *
+ * The receipt number changes, and that is the truthful outcome: the customer's
+ * old receipt says a figure this business no longer agrees with.
+ */
+export async function changePaymentAmount(
+  _prev: ActionResult<{ receiptNumber?: string }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ receiptNumber?: string }>> {
+  const locale = await viewerLocale();
+  try {
+    /* The same authority cancelling needs. Restating a figure the ledger has
+       already reported is not the counter's everyday job. */
+    await authorize("ledger.adjust");
+    const parsed = z
+      .object({
+        paymentId: z.string().min(1),
+        amount: z
+          .string()
+          .trim()
+          .transform((v) => Number(v))
+          .refine(
+            (v) => Number.isFinite(v) && v > 0,
+            "Enter the amount that actually arrived."
+          ),
+        reason: z
+          .string()
+          .trim()
+          .min(3, "Say what was wrong with the figure."),
+      })
+      .safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+
+    const payment = await prisma.payment.findUnique({
+      where: { id: parsed.data.paymentId },
+      select: {
+        id: true,
+        amount: true,
+        currency: true,
+        method: true,
+        reference: true,
+        note: true,
+        paidAt: true,
+        accountId: true,
+        voidedAt: true,
+        invoiceId: true,
+        invoice: { select: { invoiceNumber: true, exchangeRate: true } },
+        receipt: { select: { receiptNumber: true } },
+      },
+    });
+    if (!payment) return fail(t(locale, "That payment no longer exists."));
+    if (payment.voidedAt) {
+      return fail(t(locale, "That payment has already been cancelled."));
+    }
+    if (!payment.invoiceId || !payment.invoice) {
+      /* A combined payment answers several bills at once, and moving its figure
+         means deciding which bill loses what. That is the allocation screen's
+         question, not this dialog's. */
+      return fail(
+        t(
+          locale,
+          "This payment settles more than one bill. Cancel it and record it again against the bills it should cover."
+        )
+      );
+    }
+    if (Math.abs(toNumber(payment.amount) - parsed.data.amount) < 0.005) {
+      return fail(t(locale, "That is the figure it already has."));
+    }
+
+    /* Cancel first. Everything it did is undone — the money comes off the bill,
+       the cargo goes back to unpaid, the pickup note is withdrawn — so the
+       re-record below starts from the state the counter would have been in. */
+    const undo = new FormData();
+    undo.set("paymentId", payment.id);
+    undo.set(
+      "reason",
+      `${parsed.data.reason} — corrected to ${payment.currency} ${parsed.data.amount.toLocaleString()}`
+    );
+    const cancelled = await voidPayment(undefined, undo);
+    if (!cancelled.ok) return cancelled as ActionResult<{ receiptNumber?: string }>;
+
+    /* And record the figure that actually arrived, with everything else the
+       first one said: the same account, the same method, the same reference,
+       the same date. Only the figure was wrong. */
+    const again = new FormData();
+    again.set("invoiceId", payment.invoiceId);
+    again.set("amount", String(parsed.data.amount));
+    again.set("currency", payment.currency);
+    again.set("method", payment.method);
+    if (payment.reference) again.set("reference", payment.reference);
+    again.set(
+      "note",
+      [payment.note, `Corrected from ${payment.currency} ${toNumber(payment.amount).toLocaleString()}`]
+        .filter(Boolean)
+        .join(" · ")
+    );
+    if (payment.accountId) again.set("accountId", payment.accountId);
+    again.set("paidAt", payment.paidAt.toISOString().slice(0, 10));
+    if (payment.invoice.exchangeRate) {
+      again.set("exchangeRate", toNumber(payment.invoice.exchangeRate).toString());
+    }
+
+    const { recordPayment } = await import("@/lib/actions/finance");
+    const redone = await recordPayment(undefined, again);
+    if (!redone.ok) {
+      /*
+        The cancel stands and the re-record did not.
+
+        Deliberately not rolled back: the reversal is a real ledger line that has
+        already been written, and un-writing it would be the very edit this
+        system refuses. The bill is back to what it was before the wrong figure,
+        which is a correct state — and the desk is told exactly what happened so
+        it can record the right figure at the counter.
+      */
+      return fail(
+        `${t(locale, "The old figure was cancelled, but the new one was refused:")} ${redone.error} ${t(locale, "Record the payment again from the bill.")}`
+      );
+    }
+
+    revalidatePath("/app/finance/transactions");
+    revalidatePath("/app/finance");
+    revalidatePath(`/app/finance/invoices/${payment.invoice.invoiceNumber}`);
+    return ok({ receiptNumber: redone.data?.receiptNumber });
+  } catch (error) {
+    return fail(toActionError(error));
+  }
+}

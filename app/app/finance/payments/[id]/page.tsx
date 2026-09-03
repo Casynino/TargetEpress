@@ -12,6 +12,7 @@ import {
   User,
 } from "lucide-react";
 
+import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
@@ -19,6 +20,7 @@ import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
@@ -64,7 +66,15 @@ export default async function PaymentDetailPage({
         orderBy: { createdAt: "asc" },
         include: { uploadedBy: { select: { name: true } } },
       },
-      ledgerEntry: { select: { entryNumber: true, accountId: true } },
+      ledgerEntry: {
+        select: {
+          entryNumber: true,
+          accountId: true,
+          /* Whether this movement has already been answered — a reversed line
+             has nothing left to correct. */
+          reversedBy: { select: { id: true } },
+        },
+      },
       invoice: {
         select: {
           id: true,
@@ -148,14 +158,45 @@ export default async function PaymentDetailPage({
         {t(locale, "The Ledger")}
       </Link>
 
-      <PageHeader
-        title={payment.receipt?.receiptNumber ?? t(locale, "Payment")}
-        description={
-          invoice
-            ? `${invoice.customer.name} · ${invoice.shipment.trackingNumber}`
-            : t(locale, "Customer deposit")
-        }
-      />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PageHeader
+          title={payment.receipt?.receiptNumber ?? t(locale, "Payment")}
+          description={
+            invoice
+              ? `${invoice.customer.name} · ${invoice.shipment.trackingNumber}`
+              : t(locale, "Customer deposit")
+          }
+        />
+        {/*
+          Correct it and cancel it, on the record itself.
+
+          Somebody who has opened a payment to look at it is exactly the person
+          about to fix it, and sending them back to the register to find the row
+          they just left is the long way round to the same act. Same two
+          controls, same gate: ledger.adjust, which is Finance, Manager and the
+          owner — recording money and un-recording it are different authorities.
+        */}
+        {can(user.role, "ledger.adjust") && !payment.voidedAt ? (
+          <div className="pt-1">
+            <LedgerRowFix
+              subject={{
+                entryId: payment.id,
+                paymentId: payment.id,
+                paymentReference: payment.reference,
+                paymentNote: payment.note,
+                amount: toNumber(payment.amount),
+                currency: payment.currency,
+                /* A combined payment answers several bills; moving its figure
+                   is the allocation screen's question, not this dialog's. */
+                amountEditable: Boolean(payment.invoiceId),
+                expenseId: null,
+                expenseDescription: null,
+                reversed: Boolean(payment.ledgerEntry?.reversedBy),
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.4fr)_1fr]">
         <div className="space-y-6">
