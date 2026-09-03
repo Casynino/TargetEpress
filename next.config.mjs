@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // A verification build must not fight the running dev server for `.next`.
+  // Unset in normal use, so Vercel and `npm run build` are untouched.
+  ...(process.env.NEXT_BUILD_DIST_DIR
+    ? { distDir: process.env.NEXT_BUILD_DIST_DIR }
+    : {}),
   experimental: {
     // Cargo photo uploads and bulk batch actions travel through server actions.
     serverActions: {

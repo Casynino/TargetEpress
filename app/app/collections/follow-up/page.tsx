@@ -79,6 +79,7 @@ export default async function FollowUpPage({
     q?: string;
     record?: string;
     sort?: string;
+    page?: string;
   }>;
 }) {
   const user = await requirePermission("collections.view");
@@ -100,7 +101,7 @@ export default async function FollowUpPage({
   const canDecideCredit = can(user.role, "credit.approve");
   const canRecord = can(user.role, "payment.record");
   const canCollect = !canRecord && can(user.role, "payment.submit");
-  const { filter, q, record, sort } = await searchParams;
+  const { filter, q, record, sort, page } = await searchParams;
   const query = q?.trim() ?? "";
 
   // Credit only for a reader entitled to it. Every desk that can open this page
@@ -221,6 +222,29 @@ export default async function FollowUpPage({
             .includes(needle)
     );
   const ordered = sortFollowUp(visible, order);
+
+  /*
+    Rendered a page at a time.
+
+    Every figure above and every count on every pill still comes from the WHOLE
+    queue — `visible`, not this slice — because a desk working a queue has to be
+    able to trust the number on the pill. What is paged is only the markup.
+
+    It was rendering all 134 rows, which is 3.4MB of HTML for one screen and
+    close to three seconds before anything appears. The rows are about eleven
+    kilobytes each and the count grows with the business, so this got worse
+    every week rather than staying still.
+  */
+  const PAGE_SIZE = 40;
+  const pageCount = Math.max(1, Math.ceil(ordered.length / PAGE_SIZE));
+  const current = Math.min(Math.max(1, Number(page) || 1), pageCount);
+  const shown = ordered.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+  /* Carries the reader's filter, order and search from page to page — losing
+     any of them mid-queue is how somebody works the same rows twice. */
+  const pageHref = (n: number) =>
+    `/app/collections/follow-up?filter=${active}&sort=${order}${
+      query ? `&q=${encodeURIComponent(query)}` : ""
+    }${n > 1 ? `&page=${n}` : ""}`;
 
   /* Added up in one place for both this strip and the support desk's copy of the
      queue, and deliberately never added to each other: an unpaid bill and a
@@ -511,7 +535,7 @@ export default async function FollowUpPage({
             </tr>
           </thead>
           <tbody>
-            {ordered.map((row) => (
+            {shown.map((row) => (
               <tr
                 key={row.id}
                 id={row.trackingNumber ?? undefined}
@@ -871,6 +895,43 @@ export default async function FollowUpPage({
           </tbody>
         </table>
       </div>
+
+      {/* Only when there is more than one. A pager on a single page of results
+          is a control that answers a question nobody asked. */}
+      {pageCount > 1 ? (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <p className="text-muted-foreground">
+            {t(locale, "Showing")}{" "}
+            <span className="font-mono tabular-nums">
+              {(current - 1) * PAGE_SIZE + 1}–
+              {Math.min(current * PAGE_SIZE, ordered.length)}
+            </span>{" "}
+            {t(locale, "of")}{" "}
+            <span className="font-mono tabular-nums">{ordered.length}</span>
+          </p>
+          <div className="inline-flex overflow-hidden rounded-lg border">
+            {current > 1 ? (
+              <Link
+                href={pageHref(current - 1)}
+                className="focus-ring border-r px-3 py-1.5 font-medium transition-colors hover:bg-accent"
+              >
+                {t(locale, "Previous")}
+              </Link>
+            ) : null}
+            <span className="border-r px-3 py-1.5 font-mono tabular-nums text-muted-foreground">
+              {current} / {pageCount}
+            </span>
+            {current < pageCount ? (
+              <Link
+                href={pageHref(current + 1)}
+                className="focus-ring px-3 py-1.5 font-medium transition-colors hover:bg-accent"
+              >
+                {t(locale, "Next")}
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
