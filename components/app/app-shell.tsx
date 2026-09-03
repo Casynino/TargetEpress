@@ -6,6 +6,8 @@ import { LanguageSwitch } from "@/components/app/language-switch";
 import { LocaleProvider, useLocale } from "@/components/app/locale-provider";
 import { MobileBack } from "@/components/app/mobile-back";
 import { MobileTabbar } from "@/components/app/mobile-tabbar";
+import { NewVersionNotice } from "@/components/app/new-version-notice";
+import { BUILD_ID } from "@/lib/build-id";
 import { NotificationBell } from "@/components/app/notification-bell";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -145,6 +147,9 @@ export function AppShell({
     // components resolve it themselves; a client component has no session to
     // read it from, so the shell hands it down once per request.
     <LocaleProvider locale={user.locale}>
+    {/* Offered, never forced: a clerk half-way through a consignment must not
+        have the form pulled out from under them. See the component. */}
+    <NewVersionNotice build={BUILD_ID} />
     {/*
       `print:min-h-0` is a label saved, not a detail.
 

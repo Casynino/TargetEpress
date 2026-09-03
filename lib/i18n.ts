@@ -3036,6 +3036,8 @@ const ZH: Record<string, string> = {
   "This cargo has already left China. Only Guangzhou, a manager or the owner can correct it now.": "该货物已离开中国。现在只有广州仓、经理或老板可以更正。",
   "This cargo has already left China. Only Guangzhou, a manager or the owner can remove it now.": "该货物已离开中国。现在只有广州仓、经理或老板可以移除。",
   "Bluetooth printer test": "蓝牙打印机测试",
+  "A newer version is live.": "已有新版本上线。",
+  "Reload": "刷新",
   "Tick everything this payment covers. Tick nothing and it is held as their credit until their cargo lands.": "勾选这笔付款涵盖的所有货物。如果一项都不勾选，这笔钱会作为客户余额保留，等货物到达后自动抵扣。",
   "held as their credit": "作为客户余额保留",
   "Customer deposit": "客户预付款",
