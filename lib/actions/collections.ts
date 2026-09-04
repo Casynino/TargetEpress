@@ -430,6 +430,47 @@ export async function verifyPaymentSubmission(
   }
 
   /*
+    TWO CLAIMS ON ONE BILL IS A DEAD END UNLESS SOMEBODY IS TOLD.
+
+    Verifying marks this claim VERIFIED and then records the payment — and
+    recordPayment refuses while ANY claim is still pending on the bill, which
+    after that mark is the other one. So both claims sat unverifiable and the
+    counter could not take the money either, with nothing on any screen saying
+    why. It happens when two desks raise the same customer's payment in the
+    same moment; rare, and permanent when it does.
+
+    Said out loud here, with the one thing that clears it: reject the duplicate.
+  */
+  const covered = [
+    submission.invoiceId,
+    ...submission.allocations.map((a) => a.invoiceId),
+  ].filter((id): id is string => Boolean(id));
+  const alsoPending = await prisma.paymentSubmission.findFirst({
+    where: {
+      id: { not: submission.id },
+      status: "PENDING",
+      OR: [
+        { invoiceId: { in: covered } },
+        { allocations: { some: { invoiceId: { in: covered } } } },
+      ],
+    },
+    select: {
+      submissionNumber: true,
+      amount: true,
+      currency: true,
+      submittedBy: { select: { name: true } },
+    },
+  });
+  if (alsoPending) {
+    return fail(
+      `${alsoPending.submissionNumber} is also waiting on this bill (${alsoPending.currency} ${toNumber(
+        alsoPending.amount
+      ).toLocaleString()}, from ${alsoPending.submittedBy?.name ?? "Customer Support"}). ` +
+        `Two claims for the same money cannot both be verified — send one back first, then verify the one that is right.`
+    );
+  }
+
+  /*
     Hand it to the counter action exactly as if Finance had typed it.
 
     A claim covering more than one bill goes to the COMBINED counter action,
