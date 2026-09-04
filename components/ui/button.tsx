@@ -37,9 +37,15 @@ const buttonVariants = cva(
       */
       size: {
         default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
+        /* The shape the owner picked out of the panel and asked for
+           everywhere: 32px, small type, tight padding. Every secondary action
+           in the app already asks for `sm`, so this reaches Support, Finance,
+           the manager and the owner's own screens without a call site
+           changing. No gap here on purpose: the icons at those call sites
+           carry their own mr-2, and adding one would space them twice. */
+        sm: "h-8 rounded-md px-3 text-xs",
         lg: "h-11 rounded-md px-6",
-        icon: "h-10 w-10",
+        icon: "h-9 w-9",
       },
     },
     defaultVariants: {

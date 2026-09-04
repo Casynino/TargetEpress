@@ -717,12 +717,17 @@ function PaymentPanel(props: Props) {
                 : null
             }
           />
-          <p className="text-xs text-muted-foreground">
-            {t(
-              "Paying in full releases the cargo."
-            )}
-          </p>
-          <SubmitButton variant="brand" size="sm" pendingLabel="Confirming…">
+          {/* The same shape as Release on credit sitting under it — h-8, small
+              type, an icon — because the two are the alternatives to each
+              other and a reader compares them. Filled rather than outlined, so
+              which one is the money is still obvious. */}
+          <SubmitButton
+            variant="brand"
+            size="sm"
+            className="h-8 gap-1.5 px-3 text-xs"
+            pendingLabel="Confirming…"
+          >
+            <Wallet className="h-3.5 w-3.5" />
             {t("Confirm payment")}
           </SubmitButton>
         </form>

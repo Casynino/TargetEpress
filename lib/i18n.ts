@@ -2740,11 +2740,11 @@ const ZH: Record<string, string> = {
     "按今天的汇率和仓储费重新计价，之后即可发送并收款。",
   "Priced automatically once Dar checks it off the manifest.":
     "达累斯萨拉姆仓库核对清单后自动计价。",
-  "Paying in full releases the cargo.": "付清后货物即可放行。",
   "Appears once the bill is settled.": "账单付清后显示。",
   "Needs the cargo at Dar and the bill settled.": "需货物已到达并且账单已付清。",
   "No rate on this bill — use the one you agreed.": "此账单没有汇率 — 请使用你们约定的汇率。",
   "Notify on WhatsApp": "用 WhatsApp 通知",
+  "No file chosen": "未选择文件",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
   "No exchange rate was published on the day this money arrived, so it cannot be valued in the register. Publish one for that date and record it again.":
