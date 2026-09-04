@@ -691,7 +691,7 @@ export function CustomerPaymentForm({
             across a counter has no screenshot and no code, and refusing the
             payment does not produce one, it produces a payment nobody records.
           */}
-          /*
+          {/*
               No Reference field.
 
               The owner took it out: the desk was typing an M-Pesa code beside
@@ -703,7 +703,7 @@ export function CustomerPaymentForm({
               The COLUMN stays and is still shown wherever an older payment has
               one — it is on receipts, it is searchable, and rewriting history
               is not on the table. Nothing new is asked for.
-            */
+          */}
 
           <div className="min-w-0 space-y-1.5">
             <Label htmlFor="proof">{t("Payment proof — the slip or the screenshot")}</Label>

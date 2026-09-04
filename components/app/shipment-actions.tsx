@@ -173,52 +173,19 @@ export function ShipmentActions(props: Props) {
         {t("Actions")}
       </h2>
       <div className="divide-y">
-        {/* Money first. Everything else on this panel is preparation for it,
-            and a clerk with a customer at the counter should not have to read
-            past two other panels to find the one button they came for. */}
-        {canPay ? <PaymentPanel {...props} /> : null}
-        {props.credit ? (
-          <div className="border-l-2 border-warning bg-warning/5 p-5">
-            <p className="flex items-center gap-2 font-medium">
-              <CalendarClock className="h-5 w-5 text-warning" />
-              {t("Taking it on credit?")}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t(
-                "The cargo goes now and the bill stays owed, with a due date. No money is recorded until they actually pay."
-              )}
-            </p>
-            <div className="mt-3">
-              <CreditRequest
-                invoiceId={props.credit.invoiceId}
-                outstanding={props.credit.outstanding}
-                defaultTerm={props.credit.defaultTerm}
-                limitLabel={props.credit.limitLabel}
-                outstandingLabel={null}
-                canApprove={props.credit.canApprove}
-              />
-            </div>
-          </div>
-        ) : null}
-        {canCollect ? (
-          <div className="border-l-2 border-brand bg-brand/5 p-5">
-            <p className="flex items-center gap-2 font-medium">
-              <Wallet className="h-5 w-5 text-brand" />
-              {t("Customer paid?")}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t(
-                "Everything on this bill is already known. Add the reference they sent and their receipt, and it goes to Finance to verify."
-              )}
-            </p>
-            <Link
-              href={`/app/collections/record/${props.invoiceId}`}
-              className="focus-ring mt-3 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground transition-colors hover:bg-brand/90"
-            >
-              {t("Record their payment")}
-            </Link>
-          </div>
-        ) : null}
+        {/*
+          THE ORDER THE OWNER PUT THEM IN, FOR EVERY DESK.
+
+          Telling the customer is first: on a bill nobody has paid it is
+          the only action anyone takes, and it was sitting third. Then
+          taking the money, then the credit arrangement that is the
+          alternative to taking it, then the bill, then the note that only
+          exists once all of that is done.
+
+          One panel serves all six roles — each block appears or does not
+          by permission — so this order is what Finance, Support, both
+          warehouses, the manager and the owner all see.
+        */}
         {/*
           THE MESSAGE, WITHOUT OPENING THE INVOICE.
 
@@ -249,6 +216,49 @@ export function ShipmentActions(props: Props) {
               <MessageCircle className="h-4 w-4" />
               {t("Message on WhatsApp")}
             </a>
+          </div>
+        ) : null}
+        {canPay ? <PaymentPanel {...props} /> : null}
+        {canCollect ? (
+          <div className="border-l-2 border-brand bg-brand/5 p-5">
+            <p className="flex items-center gap-2 font-medium">
+              <Wallet className="h-5 w-5 text-brand" />
+              {t("Customer paid?")}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "Everything on this bill is already known. Add the reference they sent and their receipt, and it goes to Finance to verify."
+              )}
+            </p>
+            <Link
+              href={`/app/collections/record/${props.invoiceId}`}
+              className="focus-ring mt-3 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground transition-colors hover:bg-brand/90"
+            >
+              {t("Record their payment")}
+            </Link>
+          </div>
+        ) : null}
+        {props.credit ? (
+          <div className="border-l-2 border-warning bg-warning/5 p-5">
+            <p className="flex items-center gap-2 font-medium">
+              <CalendarClock className="h-5 w-5 text-warning" />
+              {t("Taking it on credit?")}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "The cargo goes now and the bill stays owed, with a due date. No money is recorded until they actually pay."
+              )}
+            </p>
+            <div className="mt-3">
+              <CreditRequest
+                invoiceId={props.credit.invoiceId}
+                outstanding={props.credit.outstanding}
+                defaultTerm={props.credit.defaultTerm}
+                limitLabel={props.credit.limitLabel}
+                outstandingLabel={null}
+                canApprove={props.credit.canApprove}
+              />
+            </div>
           </div>
         ) : null}
         {canInvoice && props.invoiceStatus === "DRAFT" ? (
@@ -708,7 +718,7 @@ function PaymentPanel(props: Props) {
               )}
             </p>
           </div>
-          /*
+          {/*
               No Reference field.
 
               The owner took it out: the desk was typing an M-Pesa code beside
@@ -720,7 +730,7 @@ function PaymentPanel(props: Props) {
               The COLUMN stays and is still shown wherever an older payment has
               one — it is on receipts, it is searchable, and rewriting history
               is not on the table. Nothing new is asked for.
-            */
+          */}
           <div className="space-y-1.5">
             <Label htmlFor="paidAt" className="text-xs">
               {t("Payment date")}

@@ -275,7 +275,7 @@ export function RecordCollectionForm({
         </div>
       </div>
 
-      /*
+      {/*
         No Reference field.
 
         This asked, firmly and with a badge, for the M-Pesa code — beside a
@@ -286,15 +286,20 @@ export function RecordCollectionForm({
 
         The column stays and older references still display; nothing new is
         asked for.
-      */
+      */}
 
       {/* The evidence. A submission without it is refused by the action, so it
           is given the room that importance deserves rather than being a row of
           small print at the bottom. */}
       <div className="space-y-1.5">
-        <Label className="flex items-center gap-1.5 text-xs">
-          <Paperclip className="h-3.5 w-3.5" />
-          {t("What the customer sent you")}
+        {/* The same words every other screen asks for evidence in. This said
+            "What the customer sent you", which is softer and does not name the
+            thing — a desk skimming does not know a screenshot is wanted until
+            they read the drop zone. Optional, and said plainly to be the one
+            thing that settles an argument later. */}
+        <Label className="flex items-center gap-1.5 text-sm font-medium">
+          <Paperclip className="h-4 w-4 text-brand" />
+          {t("Payment proof — the slip or the screenshot")}
         </Label>
         <div
           onDragOver={(event) => {

@@ -175,13 +175,29 @@ function moneyMessage(context: MessageContext, opening: string) {
     used, what it comes to in both currencies, and where the full invoice and
     the payment accounts live. Nothing a desk types, nothing that can drift.
   */
+  /*
+    NO FOUR-BYTE EMOJI. THEY ARRIVE AS A BLACK DIAMOND.
+
+    📦 📋 📄 🔗 all sit outside the Basic Multilingual Plane, and WhatsApp's
+    DESKTOP client corrupts those when they come through a wa.me ?text=
+    prefill — the customer receives "� TARGET EXPRESS AIR CARGO". Our link is
+    correct: the URL carries %F0%9F%93%A6, which is valid UTF-8, and it
+    round-trips cleanly. The client is what breaks, and a desk sending from a
+    laptop cannot know it happened because the sender sees their own copy.
+
+    So the structure is carried by WhatsApp's own bold instead, which is plain
+    ASCII asterisks and survives every client there is. It reads as deliberate
+    rather than decorated, and nothing can turn it into a question mark.
+  */
+  const bold = (text: string) => `*${text}*`;
+
   return [
-    `📦 ${COMPANY.name.toUpperCase()}`,
+    bold(COMPANY.name.toUpperCase()),
     ``,
     `Habari ${name},`,
     opening,
     ``,
-    `📋 MAELEZO YA MZIGO`,
+    bold("MAELEZO YA MZIGO"),
     ...(tracking ? [`• Tracking: ${tracking}`] : []),
     ...(context.description ? [`• Bidhaa: ${context.description}`] : []),
     ...(context.weightKg !== null && context.weightKg !== undefined
@@ -203,10 +219,10 @@ function moneyMessage(context: MessageContext, opening: string) {
       daily fee come from STORAGE_POLICY so the sentence cannot drift from
       what the system will actually charge.
     */
-    `📦 STORAGE: Siku ${STORAGE_POLICY.freeDays} bure, baada ya hapo USD ${STORAGE_POLICY.perDayUsd}/siku hadi mzigo uchukuliwe.`,
+    `${bold("STORAGE:")} Siku ${STORAGE_POLICY.freeDays} bure, baada ya hapo USD ${STORAGE_POLICY.perDayUsd}/siku hadi mzigo uchukuliwe.`,
     ``,
-    `📄 Angalia invoice yako kamili na njia za malipo:`,
-    `🔗 ${TRACK_URL}${tracking ? `?q=${encodeURIComponent(tracking)}` : ""}`,
+    bold("Angalia invoice yako kamili na njia za malipo:"),
+    `${TRACK_URL}${tracking ? `?q=${encodeURIComponent(tracking)}` : ""}`,
   ]
     .join("\n")
     .replace(/\n{3,}/g, "\n\n");
@@ -245,7 +261,7 @@ export function composeMessage(
       return (
         `Habari ${name}, mzigo wako ${tracking} umefika Dar es Salaam. ` +
         `Tunaukagua na tutakutumia invoice hivi punde.\n` +
-        `📦 Unapata siku ${STORAGE_POLICY.freeDays} za kuhifadhi bure kuanzia leo. ` +
+        `Unapata siku ${STORAGE_POLICY.freeDays} za kuhifadhi bure kuanzia leo. ` +
         `Baada ya hapo ni USD ${STORAGE_POLICY.perDayUsd} kwa siku.\n\n` +
         `Hello ${name}, your cargo ${tracking} has arrived in Dar es Salaam. ` +
         `We are checking it in and will send your invoice shortly. ` +
@@ -287,7 +303,7 @@ export function composeMessage(
         `Habari ${name}, mzigo wako ${tracking} umekaa ghalani siku ${held}. ` +
         `Siku ${STORAGE_POLICY.freeDays} za kwanza zilikuwa bure, na sasa umevuka kwa ` +
         `siku ${over}.\n` +
-        `💰 Storage fee hadi leo: *USD ${fee.toFixed(2)}* ` +
+        `Storage fee hadi leo: *USD ${fee.toFixed(2)}* ` +
         `(USD ${STORAGE_POLICY.perDayUsd} kwa siku, inaendelea kuongezeka).\n` +
         `Tafadhali chukua mzigo wako mapema ili kusitisha gharama hii.\n\n` +
         `Hello ${name}, cargo ${tracking} has now been in our warehouse ${held} days — ` +
@@ -364,7 +380,7 @@ function officeBlock(bold: (text: string) => string) {
   const dar = COMPANY.offices[0];
   const china = COMPANY.chinaOffice;
   return [
-    `📍 ${bold("OFISI ZETU")}`,
+    `${bold("OFISI ZETU")}`,
     ``,
     `${dar.flag} ${bold(`${dar.city.toUpperCase()} — ${dar.country}`)}`,
     ...dar.lines,
@@ -433,32 +449,32 @@ export function severalBillsReminderSwahili(input: {
 }) {
   const bold = (text: string) => `*${text}*`;
   return [
-    `📦 ${bold(COMPANY.name.toUpperCase())}`,
+    `${bold(COMPANY.name.toUpperCase())}`,
     ``,
     `${bold(`Habari ${firstName(input.customerName)},`)}`,
     ``,
     ARRIVED_AND_HELD,
     ``,
-    `📋 ${bold(`Mizigo yako ${input.lines.length} inasubiri malipo`)}`,
+    `${bold(`Mizigo yako ${input.lines.length} inasubiri malipo`)}`,
     ...input.lines.map(
       (line) =>
         `• ${bold(line.trackingNumber)}${line.description ? ` — ${line.description}` : ""}: ${line.amount}`
     ),
     ``,
-    `💰 ${bold("JUMLA:")} ${input.total}${input.totalUsd ? ` (${input.totalUsd})` : ""}`,
+    `${bold("JUMLA:")} ${input.total}${input.totalUsd ? ` (${input.totalUsd})` : ""}`,
     ``,
     /* One transfer, because the desk can now receive it as one. Asking for
        three separate payments is what the combined screen was built to end. */
     "Unaweza kulipia yote kwa malipo moja.",
     ``,
-    `💳 ${bold("Njia za Malipo")}`,
+    `${bold("Njia za Malipo")}`,
     ``,
     ...paymentBlock(bold),
     `Baada ya kufanya malipo, tafadhali tuma ${bold("uthibitisho wa malipo")} ili timu yetu iweze kuuhakiki.`,
     ``,
     `Asante kwa kutumia ${bold(COMPANY.name)}.`,
     ``,
-    `📞 ${bold(COMPANY.phone)}`,
+    `${bold(COMPANY.phone)}`,
   ]
     .join("\n")
     .replace(/\n{3,}/g, "\n\n");
