@@ -5,7 +5,7 @@ import { useActionState, useEffect, useState } from "react";
 import type { Role, ShipmentStatus } from "@prisma/client";
 import {
 
-  CalendarClock,  Ban,
+  Ban,
   Download,
   FileText,
   MessageCircle,
@@ -171,9 +171,29 @@ export function ShipmentActions(props: Props) {
 
   return (
     <section className="rounded-xl border bg-card shadow-soft">
-      <h2 className="border-b px-5 py-3.5 text-sm font-semibold">
-        {t("Actions")}
-      </h2>
+      {/*
+        THE ONE-TAP JOB SITS IN THE HEADING, NOT IN A BLOCK OF ITS OWN.
+
+        Telling the customer their cargo is here is a single button with
+        nothing to fill in, and it had a tinted panel, an icon, a heading and
+        its own padding — a whole section's worth of space for one tap. Beside
+        the word Actions it costs no height at all, and it is still the first
+        thing on the panel, which is where it belongs.
+      */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+        <h2 className="text-sm font-semibold">{t("Actions")}</h2>
+        {props.customerWhatsapp ? (
+          <a
+            href={props.customerWhatsapp}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-success px-2.5 py-1 text-xs font-semibold text-success-foreground transition-colors hover:bg-success/90"
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            {t("Notify on WhatsApp")}
+          </a>
+        ) : null}
+      </div>
       <div className="divide-y">
         {/*
           THE ORDER THE OWNER PUT THEM IN, FOR EVERY DESK.
@@ -188,35 +208,6 @@ export function ShipmentActions(props: Props) {
           by permission — so this order is what Finance, Support, both
           warehouses, the manager and the owner all see.
         */}
-        {/*
-          THE MESSAGE, WITHOUT OPENING THE INVOICE.
-
-          This was a button called "Share" sitting third in the invoice card's
-          row, which said nothing about what it does and put the commonest job
-          on this page — telling the customer their cargo is here and what it
-          costs — behind the one thing a desk does not need to open to do it.
-          It is the same message the follow-up queue sends, from the same
-          template, so a customer chased from two screens reads one thing.
-        */}
-        {props.customerWhatsapp ? (
-          <div className="border-l-2 border-success bg-success/5 px-4 py-3.5">
-            <p className="flex items-center gap-2 font-medium">
-              <MessageCircle className="h-5 w-5 text-success" />
-              {t("Tell the customer")}
-            </p>
-            {/* No sentence: the heading says what it is for and the button
-                says what it does. */}
-            <a
-              href={props.customerWhatsapp}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md bg-success px-3 py-1.5 text-xs font-semibold text-success-foreground transition-colors hover:bg-success/90"
-            >
-              <MessageCircle className="h-3.5 w-3.5" />
-              {t("Notify on WhatsApp")}
-            </a>
-          </div>
-        ) : null}
         {canPay ? <PaymentPanel {...props} /> : null}
         {canCollect ? (
           <div className="border-l-2 border-brand bg-brand/5 px-4 py-3.5">
@@ -238,26 +229,19 @@ export function ShipmentActions(props: Props) {
           </div>
         ) : null}
         {props.credit ? (
-          <div className="border-l-2 border-warning bg-warning/5 px-4 py-3.5">
-            <p className="flex items-center gap-2 font-medium">
-              <CalendarClock className="h-5 w-5 text-warning" />
-              {t("Taking it on credit?")}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(
-                "Cargo goes now, the bill falls due on a date."
-              )}
-            </p>
-            <div className="mt-2.5">
-              <CreditRequest
-                invoiceId={props.credit.invoiceId}
-                outstanding={props.credit.outstanding}
-                defaultTerm={props.credit.defaultTerm}
-                limitLabel={props.credit.limitLabel}
-                outstandingLabel={null}
-                canApprove={props.credit.canApprove}
-              />
-            </div>
+          /* Just the button. "Release on credit" says what it does, and the
+             form behind it asks the terms — a heading and a sentence above it
+             were describing a decision the reader has already made by the time
+             they are looking for the button. */
+          <div className="border-l-2 border-warning bg-warning/5 px-4 py-2.5">
+            <CreditRequest
+              invoiceId={props.credit.invoiceId}
+              outstanding={props.credit.outstanding}
+              defaultTerm={props.credit.defaultTerm}
+              limitLabel={props.credit.limitLabel}
+              outstandingLabel={null}
+              canApprove={props.credit.canApprove}
+            />
           </div>
         ) : null}
         {canInvoice && props.invoiceStatus === "DRAFT" ? (

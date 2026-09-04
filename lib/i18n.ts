@@ -2734,10 +2734,8 @@ const ZH: Record<string, string> = {
   "A Friday transfer entered on Monday belongs to Friday, and the payments report follows this date.":
     "周五的转账在周一录入，仍属于周五，付款报表以此日期为准。",
   "Optional, but it is what settles an argument later.": "非必填，但日后有争议时以此为准。",
-  "The message is written. Read it before you send it.": "消息已写好，发送前请先核对。",
   "Add their receipt. Finance verifies it before anything is settled.":
     "上传客户的付款凭证，财务核实后才会入账。",
-  "Cargo goes now, the bill falls due on a date.": "货物先放行，账款按约定日期到期。",
   "Re-prices at today's rate and storage, then it can be sent and paid.":
     "按今天的汇率和仓储费重新计价，之后即可发送并收款。",
   "Priced automatically once Dar checks it off the manifest.":

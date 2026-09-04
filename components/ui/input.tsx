@@ -11,6 +11,14 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         type={type}
         /*
+          items-center, because this is a flex box.
+
+          A file input's "Choose files" button is a child of that box, and
+          without an alignment it sat on the BASELINE — a 24px button parked at
+          the top of a 44px control, which is what made every attach field in
+          the app look knocked out of true. Text inputs are unaffected: a
+          single line centred in its box is where the browser already puts it.
+
           No vertical padding, on purpose.
 
           A single-line input centres its own text inside its content box, so
@@ -22,7 +30,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           panel — so the padding had to go rather than each of them.
         */
         className={cn(
-          "flex h-11 w-full rounded-md border border-input bg-background text-foreground px-3 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-11 w-full items-center rounded-md border border-input bg-background text-foreground px-3 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
         ref={ref}
