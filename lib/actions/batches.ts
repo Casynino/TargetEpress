@@ -527,7 +527,9 @@ export async function dispatchLoadingTable(
           action: "batch.dispatch",
           entity: "Batch",
           entityId: dispatch.id,
-          summary: `Dispatched ${dispatch.batchNumber} — ${moved.count} pieces on ${input.airline}`,
+          summary:
+            `Dispatched ${dispatch.batchNumber} — ${moved.count} pieces` +
+            (input.airline ? ` on ${input.airline}` : ""),
           metadata: {
             waybill: input.waybillNumber,
             airline: input.airline,
@@ -545,10 +547,17 @@ export async function dispatchLoadingTable(
           userIds: await contributorsTo(dispatch.id, tx),
           kind: "batch.dispatched",
           title: `${dispatch.batchNumber} has left China`,
+          /* Says only what is known, the same way the history note above does.
+             The airline and the waybill are optional on the form — a flight
+             can leave before its waybill is issued — and this read
+             "87 pieces on undefined, waybill undefined." to everybody whose
+             cargo was on it. */
           body:
-            `${moved.count} pieces on ${input.airline}` +
+            `${moved.count} pieces` +
+            (input.airline ? ` on ${input.airline}` : "") +
             (input.flightNumber ? ` ${input.flightNumber.toUpperCase()}` : "") +
-            `, waybill ${input.waybillNumber}.`,
+            (input.waybillNumber ? `, waybill ${input.waybillNumber}` : "") +
+            ".",
           href: `/app/shipments/${dispatch.id}`,
         },
         tx

@@ -2541,6 +2541,8 @@ const ZH: Record<string, string> = {
     "出了点问题。请改用 WhatsApp 联系我们。",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
+  "No exchange rate was published on the day this money arrived, so it cannot be valued in the register. Publish one for that date and record it again.":
+    "这笔款项到账当天没有发布汇率，无法在总账中计价。请为该日期发布汇率后重新记录。",
   "This payment is not against a bill. Cancel it and record it again.":
     "这笔款项没有对应的账单。请取消后重新记录。",
   "This claim covers more than one bill, so its total cannot be changed here. Withdraw it and raise the payment again against the bills it should cover.":

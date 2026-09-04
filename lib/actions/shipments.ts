@@ -388,6 +388,17 @@ export async function updateShipment(
         select: { id: true, status: true, trackingNumber: true },
       });
       if (!shipment) throw new Error("Cargo not found.");
+      /* Custody, the same test updateCargo and deleteCargo make. Every
+         "use server" export is a public endpoint whether a screen drives it or
+         not, and this one let any desk holding shipment.edit rewrite a weight
+         on the other warehouse's floor. */
+      if (!canAmendCargo(user.role, shipment.status)) {
+        throw new Error(
+          cargoCustody(shipment.status) === "LANDED"
+            ? "This cargo has landed in Dar. Only the Dar warehouse, a manager or the owner can change it now."
+            : "This cargo has not landed in Dar yet. Only Guangzhou, a manager or the owner can change it now."
+        );
+      }
       // Once cargo has left China its recorded weight is what was billed and
       // flown. Correcting it afterwards would rewrite history.
       if (shipment.status !== "READY_TO_DEPART") {

@@ -2879,9 +2879,30 @@ export async function recordCustomerPayment(
          is the whole point: the statement shows one deposit and so does the
          account. */
       if (account) {
-        const rate = await currentRateValue();
+        /*
+          VALUED ON THE DAY IT ARRIVED, NOT TODAY.
+
+          This asked for the current rate and used it on a line dated whenever
+          the money actually came in, so a payment entered a week late was
+          booked into the register at a rate that had moved since. The
+          single-bill door values the identical money at the bill's own frozen
+          rate; this one now does the same when the bills agree on one, and
+          otherwise falls back to what was published on the day of the payment.
+        */
+        const occurredAt = input.paidAt ?? payment.paidAt;
+        const rate =
+          rateUsed ??
+          (allocatedInvoices.length === 1
+            ? toNumber(allocatedInvoices[0]!.exchangeRate) || null
+            : null) ??
+          (await currentRateValue(occurredAt));
+        if (input.currency !== "USD" && !rate) {
+          throw new Error(
+            "No exchange rate was published on the day this money arrived, so it cannot be valued in the register. Publish one for that date and record it again."
+          );
+        }
         const usdValue =
-          input.currency === "USD" ? input.amount : rate ? input.amount / rate : input.amount;
+          input.currency === "USD" ? input.amount : input.amount / rate!;
         await postLedgerEntry(tx, {
           accountId: account.id,
           currency: account.currency,
@@ -2890,7 +2911,7 @@ export async function recordCustomerPayment(
           amount: input.amount,
           amountUsd: usdValue,
           exchangeRate: input.currency === "USD" ? null : rate,
-          occurredAt: input.paidAt ?? payment.paidAt,
+          occurredAt,
           description:
             `${receipt.receiptNumber} — ${customer.name}, ` +
             (input.allocations.length

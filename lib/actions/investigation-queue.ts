@@ -219,6 +219,18 @@ export async function advanceInvestigation(
       // payout it authorised is still sitting unpaid, and a compensation case
       // cannot be closed before Finance has recorded anything at all.
       if (target === "CLOSED") {
+        /* Whose call it is to finish a case the company paid out on. The
+           resolve door has always asked this; this one did not, so the same
+           case could be closed from the queue by a desk the other screen
+           refuses. */
+        if (exception.compensation && !can(user.role, "exception.compensate")) {
+          throw new Error(
+            t(
+              locale,
+              "This case has a compensation attached. Only Finance or the CEO can close it."
+            )
+          );
+        }
         if (exception.compensation && !exception.compensation.paidAt) {
           throw new Error(
             t(
