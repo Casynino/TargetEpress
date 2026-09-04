@@ -186,9 +186,41 @@ async function checkLedger() {
     They are reported separately below, because money sitting in no account is
     still money nothing in the ledger can see.
   */
-  const payments = await prisma.payment.count({ where: { accountId: { not: null } } });
-  const paymentLines = await prisma.ledgerEntry.count({ where: { kind: "CUSTOMER_PAYMENT" } });
-  compare("ledger", "payments with a ledger line", paymentLines, payments);
+  /*
+    Counted as LIVE lines, not as rows.
+
+    Cancelling a payment leaves the original line where it is and answers it
+    with a reversing one, and reinstating it posts a third — all three of those
+    things happened, and the register says so. So the count of rows is not the
+    count of payments and never was; what has to match is the number of
+    payments against the number of lines that have not been reversed and are
+    not themselves reversals.
+  */
+  const payments = await prisma.payment.count({
+    where: { accountId: { not: null }, voidedAt: null },
+  });
+  const paymentLines = await prisma.ledgerEntry.count({
+    where: {
+      kind: "CUSTOMER_PAYMENT",
+      reversesId: null,
+      reversedBy: { is: null },
+      /* Belonging to a payment that still exists and still counts. A line
+         answering nothing is its own fault, reported separately below. */
+      payment: { is: { voidedAt: null } },
+    },
+  });
+  compare("ledger", "live payments with a live ledger line", paymentLines, payments);
+
+  /* A money line that names no record is money nobody can explain. */
+  const strandedLines = await prisma.ledgerEntry.count({
+    where: {
+      kind: "CUSTOMER_PAYMENT",
+      reversesId: null,
+      reversedBy: { is: null },
+      paymentId: null,
+    },
+  });
+  compare("ledger", "payment lines naming no payment", strandedLines, 0);
 
   const unattributed = await prisma.payment.count({ where: { accountId: null } });
   if (unattributed > 0) {
@@ -207,16 +239,56 @@ async function checkLedger() {
     a discrepancy the first time a reversal happened, which is the check being
     wrong rather than the books.
   */
-  const everPaid = await prisma.expense.count({ where: { paidAt: { not: null } } });
-  const expenseLines = await prisma.ledgerEntry.count({ where: { kind: "EXPENSE" } });
-  compare("ledger", "costs ever paid, with a ledger line", expenseLines, everPaid);
-
-  // And every reversal answers exactly one entry.
-  const reversals = await prisma.ledgerEntry.count({ where: { reversesId: { not: null } } });
-  const reversedExpenses = await prisma.expense.count({
-    where: { status: "VOID", paidAt: { not: null } },
+  const everPaid = await prisma.expense.count({
+    where: { paidAt: { not: null }, status: { not: "VOID" } },
   });
-  compare("ledger", "reversals matching reversed costs", reversals, reversedExpenses);
+  const expenseLines = await prisma.ledgerEntry.count({
+    where: { kind: "EXPENSE", reversesId: null, reversedBy: { is: null } },
+  });
+  compare("ledger", "live costs paid, with a live ledger line", expenseLines, everPaid);
+
+  /*
+    Every reversal answers exactly one entry — and this counted ALL reversals
+    against cancelled COSTS alone, so a cancelled payment made it fail. Each
+    kind is now checked against its own.
+  */
+  /*
+    A CANCELLED COST LEAVES NOTHING IN AN ACCOUNT.
+
+    Counting reversals against cancelled costs was never the invariant, and it
+    could not be: correcting a cost's figure also reverses its line and posts a
+    replacement, so a live cost can legitimately have a reversal behind it. And
+    a cost's reversal is posted as an ADJUSTMENT going the other way — the
+    register reads "correction of EXP-2026-000004", which is what it is — so
+    counting by kind found none of them either.
+
+    What actually has to hold is this: a cost that was paid and then cancelled
+    has no live line left anywhere. If it has, the money is still out of an
+    account that got it back.
+  */
+  const strandedCosts = await prisma.expense.count({
+    where: {
+      status: "VOID",
+      paidAt: { not: null },
+      ledgerEntry: { is: { reversesId: null, reversedBy: { is: null } } },
+    },
+  });
+  compare("ledger", "cancelled costs still in an account", strandedCosts, 0);
+
+  /*
+    Payments are not one-for-one: cancel, reinstate, cancel leaves two
+    reversals against one payment, all of them true. What must hold is that
+    every payment ever cancelled has at least one reversal behind it, and that
+    no reversal answers a payment that is still live.
+  */
+  const orphanReversals = await prisma.ledgerEntry.count({
+    where: {
+      kind: "CUSTOMER_PAYMENT",
+      reversesId: { not: null },
+      payment: { is: { voidedAt: null } },
+    },
+  });
+  compare("ledger", "reversals against a live payment", orphanReversals, 0);
 }
 
 /* --------------------------------------------------------------------- main */

@@ -1606,7 +1606,12 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
         direction: "OUT",
         occurredAt: { gte: monthStart },
         kind: { in: ["EXPENSE", "COMPENSATION"] },
+        /* Not a reversal, and not a line that has been reversed. Cancelling a
+           cost answers its line with an ADJUSTMENT going the other way, so
+           without the second test the cancelled cost stays in the month's
+           spending and the money that came back is not shown at all. */
         reversesId: null,
+        reversedBy: { is: null },
       },
       select: { amount: true, currency: true, amountUsd: true },
     }),
