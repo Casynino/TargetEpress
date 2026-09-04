@@ -13,6 +13,7 @@ import {
   isRepeatSubmission,
 } from "@/lib/idempotency";
 import { prisma, type TxClient } from "@/lib/prisma";
+import { pendingClaimWhere } from "@/lib/claimed";
 import { isCollectable, notPayableMessage } from "@/lib/payable";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -201,7 +202,8 @@ export async function submitPaymentForVerification(
       // invoice is two people ringing the same customer and Finance verifying
       // the same money twice.
       const pending = await tx.paymentSubmission.findFirst({
-        where: { invoiceId: invoice.id, status: "PENDING" },
+        /* A merged claim covering this bill counts too — see pendingClaimWhere. */
+        where: pendingClaimWhere(invoice.id),
         select: { submissionNumber: true },
       });
       if (pending) {
@@ -743,6 +745,12 @@ export async function submitCombinedPayment(
             where: { status: "PENDING" },
             select: { submissionNumber: true },
           },
+          /* And a merged claim that covers this bill among others — the same
+             blindness recordCustomerPayment had. */
+          submissionAllocations: {
+            where: { submission: { status: "PENDING" } },
+            select: { submission: { select: { submissionNumber: true } } },
+          },
         },
       });
       if (invoices.length !== input.allocations.length) {
@@ -777,9 +785,12 @@ export async function submitCombinedPayment(
            is two people ringing the same customer and Finance verifying the
            same money twice — the refusal the single-bill claim already makes,
            and it must not be escapable by claiming several at once. */
-        if (invoice.submissions.length > 0) {
+        const claimed =
+          invoice.submissions[0]?.submissionNumber ??
+          invoice.submissionAllocations[0]?.submission.submissionNumber;
+        if (claimed) {
           throw new Error(
-            `${invoice.submissions[0].submissionNumber} is already with Finance for ${invoice.invoiceNumber}. Wait for it to be checked.`
+            `${claimed} is already with Finance for ${invoice.invoiceNumber}. Wait for it to be checked.`
           );
         }
       }

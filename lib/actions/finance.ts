@@ -36,6 +36,7 @@ import {
   isDarConfirmed,
   notPayableMessage,
 } from "@/lib/payable";
+import { pendingClaimWhere } from "@/lib/claimed";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -1593,7 +1594,10 @@ export async function recordPayment(
         next step just moves the problem to WhatsApp.
       */
       const pending = await tx.paymentSubmission.findFirst({
-        where: { invoiceId: invoice.id, status: "PENDING" },
+        /* Including a MERGED claim that covers this bill among others — see
+           pendingClaimWhere. Asking only about claims raised against this
+           invoice let the other consignments in a merge be paid twice. */
+        where: pendingClaimWhere(invoice.id),
         orderBy: { submittedAt: "asc" },
         select: {
           submissionNumber: true,
@@ -3061,6 +3065,15 @@ export async function recordCustomerPayment(
             where: { status: "PENDING" },
             select: { submissionNumber: true },
           },
+          /* AND A MERGED CLAIM THAT COVERS THIS BILL AMONG OTHERS.
+             `submissions` only finds claims raised against this invoice. One
+             transfer claimed across four consignments is anchored to one of
+             them and allocated to all four, so the other three saw nothing
+             here and could be paid a second time. */
+          submissionAllocations: {
+            where: { submission: { status: "PENDING" } },
+            select: { submission: { select: { submissionNumber: true } } },
+          },
         },
       });
       if (invoices.length !== input.allocations.length) {
@@ -3098,9 +3111,12 @@ export async function recordCustomerPayment(
         }
         /* The same refusal the single-invoice form makes, for the same reason:
            money already claimed and awaiting Finance must not be taken twice. */
-        if (invoice.submissions.length > 0) {
+        const claimed =
+          invoice.submissions[0]?.submissionNumber ??
+          invoice.submissionAllocations[0]?.submission.submissionNumber;
+        if (claimed) {
           throw new Error(
-            `${invoice.submissions[0].submissionNumber} is already waiting to be verified against ` +
+            `${claimed} is already waiting to be verified against ` +
               `${invoice.invoiceNumber}. Verify that one instead of recording this money again.`
           );
         }

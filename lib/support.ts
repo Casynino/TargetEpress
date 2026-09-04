@@ -1022,7 +1022,15 @@ export async function searchShipments(query: string, take = 40) {
       customer: { select: { id: true, name: true, phone: true } },
       batch: { select: { batchNumber: true } },
       invoice: {
-        select: { invoiceNumber: true, total: true, amountPaid: true, sentAt: true },
+        /* id so the caller can ask whether a payment is already waiting on
+           this bill — see lib/claimed.ts. */
+        select: {
+          id: true,
+          invoiceNumber: true,
+          total: true,
+          amountPaid: true,
+          sentAt: true,
+        },
       },
       // Unfinished cases only. A shipment can sit at RECEIVED_AT_DAR and still
       // be damaged — the shipment status says where the cargo is, never what

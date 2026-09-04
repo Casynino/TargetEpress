@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ChevronRight, QrCode } from "lucide-react";
+import { AlertTriangle, ChevronRight, QrCode, Hourglass } from "lucide-react";
 
 import { DataTable, type Column, type TableFilter } from "@/components/app/data-table";
 import { useLocale, useT } from "@/components/app/locale-provider";
@@ -45,6 +45,15 @@ export type CargoSearchRow = {
   problems: string[];
   /** Omitted for viewers without finance.view. */
   owed?: { label: string; state: "unbilled" | "due" | "settled" };
+  /**
+   * A payment already sent up for this bill and waiting on Finance.
+   *
+   * Kept separate from `owed` on purpose: a claim is not a payment. The bill
+   * still owes every shilling of it until Finance agrees, so the figure beside
+   * this stays exactly what it was — but a desk that cannot see the claim
+   * rings a customer who paid on Tuesday, or takes the money a second time.
+   */
+  claimed?: { label: string; detail: string };
 };
 
 export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
@@ -164,16 +173,28 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
               !row.owed ? (
                 <span className="text-xs text-muted-foreground">—</span>
               ) : (
-                <span
-                  className={
-                    row.owed.state === "due"
-                      ? "font-mono text-sm font-medium tabular text-warning"
-                      : row.owed.state === "settled"
-                        ? "text-xs font-medium text-success"
-                        : "text-xs text-muted-foreground"
-                  }
-                >
-                  {row.owed.label}
+                <span className="inline-flex flex-col items-end gap-0.5">
+                  <span
+                    className={
+                      row.owed.state === "due"
+                        ? "font-mono text-sm font-medium tabular text-warning"
+                        : row.owed.state === "settled"
+                          ? "text-xs font-medium text-success"
+                          : "text-xs text-muted-foreground"
+                    }
+                  >
+                    {row.owed.label}
+                  </span>
+                  {/* Under the figure, not instead of it. */}
+                  {row.claimed ? (
+                    <span
+                      title={row.claimed.detail}
+                      className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-1.5 py-px text-[10px] font-semibold text-warning"
+                    >
+                      <Hourglass className="h-2.5 w-2.5" />
+                      {row.claimed.label}
+                    </span>
+                  ) : null}
                 </span>
               ),
           },

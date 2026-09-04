@@ -3343,6 +3343,9 @@ const ZH: Record<string, string> = {
   "Settings": "设置",
   "Merge Payment": "合并付款",
   "Add cargo": "添加货物",
+  "Payment submitted": "已提交付款",
+  "Waiting for Finance to verify": "等待财务核实",
+  "waiting for Finance to verify": "等待财务核实",
   "Adding cargo to a flight is done by the desk that receives cargo at Dar.":
     "向航班添加货物由达市收货岗位操作。",
   "For a box on the floor that was never registered. It joins this flight, is recorded as already here, and goes straight to Finance for the price to be confirmed.":

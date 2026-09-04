@@ -17,6 +17,7 @@ import { formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { resolveScannedCode } from "@/lib/packages";
 import { prisma } from "@/lib/prisma";
+import { claimsForInvoices, type Claim } from "@/lib/claimed";
 import { parseQrPayload } from "@/lib/qr";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
@@ -128,6 +129,18 @@ export default async function SearchCargoPage({
     ];
   }
 
+  /*
+    Which of these bills already has money waiting on Finance.
+
+    One query for the whole page rather than one per row — this list is
+    fifty long — and only asked for when the reader may see money at all.
+  */
+  const claims: Map<string, Claim> = showMoney
+    ? await claimsForInvoices(
+        found.map((s) => s.invoice?.id).filter((v): v is string => Boolean(v))
+      )
+    : new Map();
+
   const rows: CargoSearchRow[] = found.map((shipment) => {
     const invoice = shipment.invoice;
     const outstanding = invoice
@@ -157,6 +170,28 @@ export default async function SearchCargoPage({
           )
         ),
       ],
+      ...(showMoney && shipment.invoice && claims.get(shipment.invoice.id)
+        ? (() => {
+            const claim = claims.get(shipment.invoice!.id)!;
+            return {
+              claimed: {
+                label:
+                  claim.covers.length > 1
+                    ? `${t(locale, "Payment submitted")} · ${claim.covers.length}`
+                    : t(locale, "Payment submitted"),
+                detail: [
+                  `${claim.currency} ${claim.amount}`,
+                  claim.submissionNumber,
+                  claim.reference,
+                  claim.submittedByName,
+                  claim.covers.map((c) => c.trackingNumber).filter(Boolean).join(", "),
+                ]
+                  .filter(Boolean)
+                  .join(" · "),
+              },
+            };
+          })()
+        : {}),
       ...(showMoney
         ? {
             owed: {

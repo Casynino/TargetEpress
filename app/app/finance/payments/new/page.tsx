@@ -28,6 +28,7 @@ import {
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { claimsForInvoices } from "@/lib/claimed";
 import {
   COLLECTABLE_SHIPMENT_WHERE,
   isCollectable,
@@ -538,6 +539,10 @@ export default async function RecordCustomerPaymentPage({
     );
   }
 
+  /* Which of these bills already has money waiting on Finance — one query for
+     the customer's whole list. */
+  const billClaims = await claimsForInvoices(customer.invoices.map((i) => i.id));
+
   /* Settled bills are dropped here rather than shown greyed out: this screen is
      a decision about money that is in somebody's hand right now, and a list of
      bills that need nothing is noise in front of it. */
@@ -570,11 +575,28 @@ export default async function RecordCustomerPaymentPage({
          list is not what makes the endpoint safe. */
       payable: isCollectable(invoice.shipment.status),
       creditStatus: invoice.creditStatus,
+      /* A payment already sent up for this bill and waiting on Finance. The
+         server refuses a second one; this is so nobody gets that far. */
+      claim: (() => {
+        const c = billClaims.get(invoice.id);
+        if (!c) return null;
+        return {
+          submissionNumber: c.submissionNumber,
+          amount: c.amount,
+          currency: c.currency,
+          reference: c.reference,
+          submittedByName: c.submittedByName,
+          covers: c.covers.length,
+        };
+      })(),
     }))
     .filter((bill) => bill.outstanding > 0.005);
 
-  /* Only what they can actually settle goes in the reminder. */
-  const payableBills = bills.filter((bill) => bill.payable);
+  /* Only what they can actually settle goes in the reminder — and never a
+     bill somebody has already paid for. Asking a customer for money that is
+     sitting in the verification queue, itemised by tracking number, is the
+     one message that loses a customer. */
+  const payableBills = bills.filter((bill) => bill.payable && !bill.claim);
   /* Today's published rate, for any bill that was raised without one. */
   const rate = await currentRateValue();
 

@@ -52,6 +52,23 @@ export type OpenBill = {
   /** NONE, REQUESTED or APPROVED — whether credit can still be asked for. */
   creditStatus: string;
   /**
+   * A payment already sent up for this bill and waiting on Finance.
+   *
+   * Not tickable while it stands. The server refuses a second payment against
+   * a claimed bill, so offering it here only produces a refusal after the
+   * clerk has filled the form in — and, worse, a clerk who does not know may
+   * ask the customer to pay again first.
+   */
+  claim: {
+    submissionNumber: string;
+    amount: number;
+    currency: string;
+    reference: string | null;
+    submittedByName: string | null;
+    /** How many consignments the one claim covers. */
+    covers: number;
+  } | null;
+  /**
    * Whether the Dar floor has confirmed the cargo.
    *
    * False means it is still in China or in the air, and it cannot be paid for
@@ -204,13 +221,14 @@ export function CustomerPaymentForm({
   const [typedTotal, setTypedTotal] = useState<string | null>(null);
 
   const payable = useMemo(
-    () => bills.filter((b) => b.currency === billCurrency && b.payable),
+    () => bills.filter((b) => b.currency === billCurrency && b.payable && !b.claim),
     [bills, billCurrency]
   );
 
-  /* Listed under them, not hidden: see OpenBill.payable. */
+  /* Listed under them, not hidden: see OpenBill.payable and OpenBill.claim.
+     Two different reasons a bill cannot be ticked, and the row says which. */
   const waiting = useMemo(
-    () => bills.filter((b) => b.currency === billCurrency && !b.payable),
+    () => bills.filter((b) => b.currency === billCurrency && (!b.payable || b.claim)),
     [bills, billCurrency]
   );
 
@@ -576,9 +594,26 @@ export function CustomerPaymentForm({
                       {bill.description}
                     </span>
                   </span>
-                  <span className="block text-[11px] text-muted-foreground">
-                    {t("Not in Dar yet — it can be paid for once the warehouse checks it in.")}
-                  </span>
+                  {bill.claim ? (
+                    <span className="block text-[11px] font-medium text-warning">
+                      {/* In the money it was SENT in, not converted. The
+                          claim carries its own currency — the customer paid
+                          shillings into a shilling account — and running it
+                          through the bill's rate turned TSh 100,000 into
+                          TSh 270,000,000 on this screen. */}
+                      {t("Payment submitted")} ·{" "}
+                      {money(bill.claim.amount, bill.claim.currency)} ·{" "}
+                      {bill.claim.submissionNumber}
+                      {bill.claim.covers > 1
+                        ? ` · ${bill.claim.covers} ${t("cargo")}`
+                        : ""}{" "}
+                      — {t("waiting for Finance to verify")}
+                    </span>
+                  ) : (
+                    <span className="block text-[11px] text-muted-foreground">
+                      {t("Not in Dar yet — it can be paid for once the warehouse checks it in.")}
+                    </span>
+                  )}
                 </span>
               </li>
             ))}
