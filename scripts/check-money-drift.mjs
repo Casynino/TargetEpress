@@ -45,7 +45,6 @@ const CHECKED = new Set([
      figures from profitByDispatch, which totals per row. */
   "app/app/finance/credit/page.tsx",
   "app/app/manager/reconciliation/page.tsx",
-  "lib/messages.ts",
   "lib/support.ts",
 ]);
 

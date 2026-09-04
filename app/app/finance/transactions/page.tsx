@@ -115,7 +115,22 @@ export default async function LedgerPage({
   const canAskForCredit = can(user.role, "credit.request");
   const canDecideCredit = can(user.role, "credit.approve");
 
-  const where: Prisma.LedgerEntryWhereInput = {};
+  /*
+    THE REVERSING LINE IS THE MECHANISM, NOT A MOVEMENT.
+
+    Cancelling a payment leaves the original line and posts one going the other
+    way — that is how an append-only register undoes something, and the row
+    stays in the database for ever. But the register on screen already tells
+    the story on the ORIGINAL row: struck through, marked Cancelled, with who
+    did it and why. Listing the answering line as well says the same thing
+    twice and reads like a second transaction that never happened, which is
+    exactly how somebody comes to believe money moved.
+
+    So the list shows the cancelled line and not its answer. Nothing is lost:
+    both rows are still in the database, the entry's own page shows the pair,
+    and the audit log carries the cancellation with its reason.
+  */
+  const where: Prisma.LedgerEntryWhereInput = { reversesId: null };
   if (params.account) where.accountId = params.account;
   if (params.direction === "IN" || params.direction === "OUT") {
     where.direction = params.direction;
@@ -302,13 +317,10 @@ export default async function LedgerPage({
         where: { ...where, reversesId: null, reversedBy: { is: null } },
         _sum: { amount: true, amountUsd: true },
       }),
-      /* How many of the rows below are a cancellation or its answer, so the
-         card can say why its count differs from the list. */
+      /* How many of the rows below are cancelled, so the card can say why its
+         count differs from the list it sits above. */
       prisma.ledgerEntry.count({
-        where: {
-          ...where,
-          OR: [{ reversesId: { not: null } }, { reversedBy: { isNot: null } }],
-        },
+        where: { ...where, reversedBy: { isNot: null } },
       }),
       currentRate(),
       // Costs recorded but not yet disbursed have no ledger line, because no
@@ -464,13 +476,19 @@ export default async function LedgerPage({
     const before = await prisma.$queryRaw<
       { direction: string; amount: number; amountUsd: number }[]
     >(Prisma.sql`
-      SELECT "direction",
-             COALESCE(SUM("amount"), 0)::float8    AS "amount",
-             COALESCE(SUM("amountUsd"), 0)::float8 AS "amountUsd"
-        FROM "LedgerEntry"
+      SELECT e."direction",
+             COALESCE(SUM(e."amount"), 0)::float8    AS "amount",
+             COALESCE(SUM(e."amountUsd"), 0)::float8 AS "amountUsd"
+        FROM "LedgerEntry" e
        WHERE ("occurredAt", "createdAt") < (${oldest.occurredAt}, ${oldest.createdAt})
-         ${account ? Prisma.sql`AND "accountId" = ${account}` : Prisma.empty}
-       GROUP BY "direction"
+         /* Same rule the rows below follow: a cancelled pair moved nothing, so
+            neither half belongs in the balance this page opens on. */
+         AND e."reversesId" IS NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM "LedgerEntry" r WHERE r."reversesId" = e."id"
+         )
+         ${account ? Prisma.sql`AND e."accountId" = ${account}` : Prisma.empty}
+       GROUP BY e."direction"
     `);
     const pick = (dir: "IN" | "OUT") => {
       const row = before.find((r) => r.direction === dir);
@@ -483,6 +501,14 @@ export default async function LedgerPage({
   let running = opening;
   for (let i = entries.length - 1; i >= 0; i -= 1) {
     const entry = entries[i];
+    /* A cancelled line moved no money, so it moves no balance: it carries the
+       balance of the row beneath it and the column reads straight through.
+       Its answering line is not in this list to bring the figure back down —
+       skipping the pair is what keeps the running total honest without it. */
+    if (entry.reversedBy) {
+      runningById.set(entry.id, running);
+      continue;
+    }
     const value = single ? toNumber(entry.amount) : toNumber(entry.amountUsd);
     running += (entry.direction === "IN" ? 1 : -1) * value;
     runningById.set(entry.id, running);

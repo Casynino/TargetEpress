@@ -23,6 +23,7 @@ import {
 } from "@/components/app/idempotency-key";
 import { AccountCurrencyNote } from "@/components/app/account-currency-note";
 import { PaymentProofField } from "@/components/app/payment-proof-field";
+import { PaymentDateField } from "@/components/app/payment-date-field";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -697,7 +698,9 @@ function PaymentPanel(props: Props) {
               </p>
               <AccountCurrencyNote
                 currency={currency}
-                hidden={(props.accounts ?? []).length - eligibleAccounts.length}
+                hidden={(props.accounts ?? []).filter(
+                  (a) => a.currency !== currency
+                )}
               />
             </div>
           ) : null}
@@ -715,32 +718,7 @@ function PaymentPanel(props: Props) {
               one — it is on receipts, it is searchable, and rewriting history
               is not on the table. Nothing new is asked for.
           */}
-          <div className="space-y-1.5">
-            <Label htmlFor="paidAt" className="text-xs">
-              {t("Payment date")}
-            </Label>
-            {/*
-              Today, already filled in.
-
-              It was blank with "leave blank for today" beside it, so the common
-              case — a customer paid, Finance confirms it the same day — asked
-              somebody to either trust an empty box or type a whole date from
-              scratch on a phone. It is filled with today and still editable,
-              which is what "unless I want to change it" means.
-            */}
-            <Input
-              id="paidAt"
-              name="paidAt"
-              type="date"
-              max={TODAY}
-              defaultValue={TODAY}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t(
-                "Today unless you change it. A Friday transfer entered on Monday belongs to Friday, and the payments report follows this date."
-              )}
-            </p>
-          </div>
+          <PaymentDateField today={TODAY} />
           {/*
               No Reference and no Note.
 

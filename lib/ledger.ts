@@ -90,6 +90,32 @@ export async function postLedgerEntry(tx: TxClient, entry: PostEntry) {
  * balance is a second source of truth that is correct only until the first
  * process crashes between the movement and the update.
  */
+/**
+ * A LINE THAT STILL MEANS SOMETHING.
+ *
+ * The register is append-only, so cancelling a movement leaves the original
+ * line and adds one going the other way. The pair nets to zero, which is why
+ * `balance` has always been right — but `inflow` and `outflow` are reported on
+ * their own, and keeping either half turns a cancellation into fresh money on
+ * one side and fresh spending on the other. Every account screen reads these,
+ * so one account showing "Received TSh 145,450" when nothing has ever come
+ * into that tin came from here.
+ *
+ * Both halves go: the reversal, and the line it answers. The balance is
+ * untouched by the change — the pair is the same amount in both directions on
+ * the same account, so removing it moves nothing.
+ *
+ * `entries` deliberately still counts everything: the register on screen lists
+ * every line including the cancelled ones, and a count that disagreed with the
+ * list beneath it would be a second small wrongness in place of the first.
+ */
+const LIVE = Prisma.sql`
+  e."reversesId" IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM "LedgerEntry" r WHERE r."reversesId" = e."id"
+  )
+`;
+
 export async function accountBalances(
   client: { $queryRaw: typeof import("@/lib/prisma").prisma.$queryRaw }
 ) {
@@ -111,12 +137,12 @@ export async function accountBalances(
     SELECT
       e."accountId",
       a."currency",
-      COALESCE(SUM(e."amount")    FILTER (WHERE e."direction" = 'IN'),  0) AS "inflow",
-      COALESCE(SUM(e."amount")    FILTER (WHERE e."direction" = 'OUT'), 0) AS "outflow",
-      COALESCE(SUM(e."amountUsd") FILTER (WHERE e."direction" = 'IN'),  0) AS "inflowUsd",
-      COALESCE(SUM(e."amountUsd") FILTER (WHERE e."direction" = 'OUT'), 0) AS "outflowUsd",
-      COUNT(*)                                                             AS "entries",
-      MAX(e."occurredAt")                                                  AS "lastMovedAt"
+      COALESCE(SUM(e."amount")    FILTER (WHERE e."direction" = 'IN'  AND ${LIVE}), 0) AS "inflow",
+      COALESCE(SUM(e."amount")    FILTER (WHERE e."direction" = 'OUT' AND ${LIVE}), 0) AS "outflow",
+      COALESCE(SUM(e."amountUsd") FILTER (WHERE e."direction" = 'IN'  AND ${LIVE}), 0) AS "inflowUsd",
+      COALESCE(SUM(e."amountUsd") FILTER (WHERE e."direction" = 'OUT' AND ${LIVE}), 0) AS "outflowUsd",
+      COUNT(*)                                                                         AS "entries",
+      MAX(e."occurredAt")                                                              AS "lastMovedAt"
     FROM "LedgerEntry" e
     JOIN "CompanyAccount" a ON a."id" = e."accountId"
     GROUP BY e."accountId", a."currency"

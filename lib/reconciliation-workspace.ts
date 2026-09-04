@@ -333,9 +333,12 @@ export async function queueTotals(filters: QueueFilters) {
     if (agreed.length > 0) where.id = { notIn: agreed };
   }
   const [grouped] = await Promise.all([
+    /* In and Out are stated separately here, so a cancelled movement must
+       appear in neither: the register keeps both halves and they are the same
+       money twice, once on each side. See lib/ledger.ts for the same rule. */
     prisma.ledgerEntry.groupBy({
       by: ["direction"],
-      where,
+      where: { ...where, reversesId: null, reversedBy: { is: null } },
       _sum: { amountUsd: true },
       _count: { _all: true },
     }),

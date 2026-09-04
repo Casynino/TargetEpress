@@ -156,14 +156,24 @@ async function checkLedger() {
   for (const account of accounts) {
     const entries = await prisma.ledgerEntry.findMany({
       where: { accountId: account.id },
-      select: { direction: true, amount: true },
+      select: {
+        direction: true,
+        amount: true,
+        /* Both halves of a cancellation. The balance is right either way — the
+           pair nets — but "in" and "out" are printed separately, and counting
+           a cancelled movement on both sides told whoever read this line that
+           an account had taken money it never took. */
+        reversesId: true,
+        reversedBy: { select: { id: true } },
+      },
     });
     if (entries.length === 0) continue;
 
-    const inflow = entries
+    const live = entries.filter((e) => !e.reversesId && !e.reversedBy);
+    const inflow = live
       .filter((e) => e.direction === "IN")
       .reduce((n, e) => n + toNumber(e.amount), 0);
-    const outflow = entries
+    const outflow = live
       .filter((e) => e.direction === "OUT")
       .reduce((n, e) => n + toNumber(e.amount), 0);
 
@@ -199,28 +209,56 @@ async function checkLedger() {
   const payments = await prisma.payment.count({
     where: { accountId: { not: null }, voidedAt: null },
   });
+  /*
+    A PAYMENT'S LINE IS FOUND BY EITHER LINKAGE, BECAUSE IT HAS TO BE.
+
+    LedgerEntry.paymentId is unique — one line per payment for the life of the
+    row — so a reinstated payment's fresh IN line CANNOT carry it. voidPayment
+    and restorePayment both ride on sourceEntity "Payment" and sourceId
+    instead. Asking only for `payment: { is: ... }` therefore missed every
+    reinstated line, and this check would have failed on books that were right;
+    while `paymentId: null` matched nothing at all, so the stranded-line check
+    could never fire even on the day it should.
+  */
+  const OF_A_PAYMENT = {
+    OR: [
+      { payment: { is: { voidedAt: null } } },
+      { paymentId: null, sourceEntity: "Payment" },
+    ],
+  } as const;
+
   const paymentLines = await prisma.ledgerEntry.count({
     where: {
       kind: "CUSTOMER_PAYMENT",
       reversesId: null,
       reversedBy: { is: null },
-      /* Belonging to a payment that still exists and still counts. A line
-         answering nothing is its own fault, reported separately below. */
-      payment: { is: { voidedAt: null } },
+      ...OF_A_PAYMENT,
     },
   });
   compare("ledger", "live payments with a live ledger line", paymentLines, payments);
 
-  /* A money line that names no record is money nobody can explain. */
-  const strandedLines = await prisma.ledgerEntry.count({
-    where: {
-      kind: "CUSTOMER_PAYMENT",
-      reversesId: null,
-      reversedBy: { is: null },
-      paymentId: null,
-    },
-  });
-  compare("ledger", "payment lines naming no payment", strandedLines, 0);
+  /*
+    A MONEY LINE WHOSE RECORD IS NOT THERE.
+
+    Raw, because the question is whether the sourceId resolves — and "no
+    Payment has this id" is not something the query builder can ask. sourceEntity
+    is a required column, so the earlier `paymentId: null` test matched nothing
+    and this check could never fire; asked properly it is what found the
+    orphaned GL line that started this.
+  */
+  const [stranded] = await prisma.$queryRawUnsafe<{ n: number }[]>(`
+    SELECT count(*)::int AS n
+      FROM "LedgerEntry" e
+     WHERE e."kind" = 'CUSTOMER_PAYMENT'
+       AND e."reversesId" IS NULL
+       AND NOT EXISTS (SELECT 1 FROM "LedgerEntry" r WHERE r."reversesId" = e."id")
+       AND e."paymentId" IS NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM "Payment" p
+          WHERE e."sourceEntity" = 'Payment' AND p."id" = e."sourceId"
+       )
+  `);
+  compare("ledger", "payment lines naming no payment", stranded?.n ?? 0, 0);
 
   const unattributed = await prisma.payment.count({ where: { accountId: null } });
   if (unattributed > 0) {

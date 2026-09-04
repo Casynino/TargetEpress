@@ -1308,7 +1308,10 @@ async function ledgerRows(f: ReportFilters, kinds?: string[]) {
       currency: true,
       amountUsd: true,
       description: true,
+      /* Both halves of a cancellation, so a report can list every line and
+         still foot only the money that moved. */
       reversesId: true,
+      reversedBy: { select: { id: true } },
       account: { select: { name: true, kind: true } },
       recordedBy: { select: { name: true } },
     },
@@ -1379,11 +1382,29 @@ function ledgerReport(
       { key: "recordedBy", label: "Recorded by" },
     ],
     rows,
+    /*
+      FOOTED ON THE MONEY THAT MOVED.
+
+      Every line stays in the register above, cancelled ones included — that is
+      what a register is for, and hiding a line from an audit document would be
+      the wrong cure. But the foot is a total, and a cancelled movement is two
+      lines that answer each other: adding both puts the same money in the
+      Debit column and the Credit column at once, so a page of cancellations
+      reads as a busy month rather than an empty one.
+    */
     totals: mixed
       ? undefined
       : {
-          debit: money(rows.reduce((n, r) => n + Number(r.debit ?? 0), 0)),
-          credit: money(rows.reduce((n, r) => n + Number(r.credit ?? 0), 0)),
+          debit: money(
+            entries
+              .filter((e) => !e.reversesId && !e.reversedBy)
+              .reduce((n, e) => n + (e.direction === "OUT" ? toNumber(e.amount) : 0), 0)
+          ),
+          credit: money(
+            entries
+              .filter((e) => !e.reversesId && !e.reversedBy)
+              .reduce((n, e) => n + (e.direction === "IN" ? toNumber(e.amount) : 0), 0)
+          ),
         },
   };
 }
@@ -1418,6 +1439,10 @@ async function payrollReport(f: ReportFilters): Promise<ReportResult> {
       approvedBy: { select: { name: true } },
       account: { select: { name: true } },
       items: { select: { gross: true, allowance: true, deduction: true, net: true } },
+      /* Whether the money is still out. Cancelling the SALARIES cost puts it
+         back in the account, and a run whose cost has been reversed has not
+         been paid however its own column reads. */
+      expense: { select: { status: true } },
     },
   });
 
@@ -1445,7 +1470,13 @@ async function payrollReport(f: ReportFilters): Promise<ReportResult> {
     };
   });
 
-  const paid = inWindow.filter((r) => r.status === "PAID");
+  /* Paid means the money left and stayed gone. A run whose salary cost was
+     cancelled has had it returned, so counting it in the total below would say
+     the company paid wages it got back. The row stays in the table with its
+     own state; only the total moves. */
+  const paid = inWindow.filter(
+    (r) => r.status === "PAID" && r.expense?.status !== "VOID"
+  );
 
   return {
     key: "payroll",
@@ -1543,6 +1574,9 @@ async function cashFlow(f: ReportFilters): Promise<ReportResult> {
   const entries = await ledgerRows(f);
   const months = new Map<string, { in: number; out: number }>();
   for (const e of entries) {
+    /* A cancelled movement and the line that answers it are the same money
+       twice, once on each side. Neither is cash that flowed. */
+    if (e.reversesId || e.reversedBy) continue;
     const key = e.occurredAt.toISOString().slice(0, 7);
     const row = months.get(key) ?? { in: 0, out: 0 };
     const usd = toNumber(e.amountUsd);

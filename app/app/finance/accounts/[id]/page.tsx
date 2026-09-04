@@ -80,7 +80,8 @@ export default async function AccountDetailPage({
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
 
-  const [entries, totals, monthTotals, fixAccounts] = await Promise.all([
+  const [entries, totals, monthTotals, movementCount, fixAccounts] =
+    await Promise.all([
     prisma.ledgerEntry.findMany({
       where: { accountId: account.id },
       orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
@@ -158,17 +159,47 @@ export default async function AccountDetailPage({
         },
       },
     }),
+    /*
+      RECEIVED AND PAID OUT ARE STATED SEPARATELY, SO A CANCELLATION MUST NOT
+      APPEAR IN EITHER.
+
+      The register is append-only: cancelling leaves the original line and adds
+      one going the other way. Netting them is fine — which is why the balance
+      below has always been right — but "Received" and "Paid out" are two
+      figures, and keeping either half turns a cancellation into fresh money on
+      one side and fresh spending on the other. On the local data Office cash
+      read "Received TSh 145,450" when nothing has ever genuinely come into
+      that tin, and "Paid out TSh 168,450" against a real TSh 23,000.
+
+      Both halves go: the reversal, and the line it answers.
+    */
     prisma.ledgerEntry.groupBy({
       by: ["direction"],
-      where: { accountId: account.id },
+      where: {
+        accountId: account.id,
+        reversesId: null,
+        reversedBy: { is: null },
+      },
       _sum: { amount: true },
-      _count: true,
     }),
+    /*
+      And the month, filtered the same way for a second reason as well: a
+      reversal is dated today while the line it answers keeps its own date, so
+      cancelling last month's cost lifted THIS month's net by the whole amount.
+    */
     prisma.ledgerEntry.groupBy({
       by: ["direction"],
-      where: { accountId: account.id, occurredAt: { gte: monthStart } },
+      where: {
+        accountId: account.id,
+        occurredAt: { gte: monthStart },
+        reversesId: null,
+        reversedBy: { is: null },
+      },
       _sum: { amount: true },
     }),
+    /* The register below lists every line including the cancelled ones, so the
+       count beside it has to mean the same thing the list does. */
+    prisma.ledgerEntry.count({ where: { accountId: account.id } }),
     /* Every account, not just this one — a correction here may be moving the
        money to a different account, which is half of what a correction is
        for. */
@@ -184,7 +215,7 @@ export default async function AccountDetailPage({
   const outflow = sum(totals, "OUT");
   const balance = inflow - outflow;
   const netMonth = sum(monthTotals, "IN") - sum(monthTotals, "OUT");
-  const movements = totals.reduce((n, r) => n + r._count, 0);
+  const movements = movementCount;
 
   const Icon = KIND_ICON[account.kind];
   const money = (n: number) => formatMoney(n, account.currency);
