@@ -66,23 +66,18 @@ export function PaymentProofField({
         <Paperclip className="h-4 w-4 shrink-0" />
         {t("Payment proof — the slip or the screenshot")}
       </Label>
-      <p className="mt-1 text-xs text-muted-foreground">
-        {t(
-          "Not compulsory, but it is what settles an argument months from now. Without it Finance is agreeing to this on somebody's word."
-        )}
-      </p>
       <Input
         id={id}
         name={name}
         type="file"
         accept="image/jpeg,image/png,image/webp,application/pdf"
         multiple
-        className="mt-2.5 file:mr-3 file:rounded file:border-0 file:bg-warning/15 file:px-2 file:py-1 file:text-xs file:font-medium file:text-warning"
+        className="mt-2 file:mr-3 file:rounded file:border-0 file:bg-warning/15 file:px-2 file:py-1 file:text-xs file:font-medium file:text-warning"
       />
+      {/* One line, not three. It said the same thing above the input and again
+          below it, and a desk that has read it once does not need it twice. */}
       <p className="mt-1.5 text-[11px] text-muted-foreground">
-        {t(
-          "The M-Pesa screenshot, bank slip or transfer confirmation. This is what settles an argument months later — a typed number is only a claim that it happened."
-        )}
+        {t("Optional, but it is what settles an argument later.")}
       </p>
     </div>
   );

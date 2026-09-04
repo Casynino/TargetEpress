@@ -200,14 +200,14 @@ export function ShipmentActions(props: Props) {
           template, so a customer chased from two screens reads one thing.
         */}
         {props.customerWhatsapp ? (
-          <div className="border-l-2 border-success bg-success/5 p-5">
+          <div className="border-l-2 border-success bg-success/5 px-4 py-3.5">
             <p className="flex items-center gap-2 font-medium">
               <MessageCircle className="h-5 w-5 text-success" />
               {t("Tell the customer")}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {t(
-                "Opens WhatsApp with the whole message written: the cargo, the weight, the rate, the total and a link to their invoice. Read it before you send it."
+                "The message is written. Read it before you send it."
               )}
             </p>
             <a
@@ -223,14 +223,14 @@ export function ShipmentActions(props: Props) {
         ) : null}
         {canPay ? <PaymentPanel {...props} /> : null}
         {canCollect ? (
-          <div className="border-l-2 border-brand bg-brand/5 p-5">
+          <div className="border-l-2 border-brand bg-brand/5 px-4 py-3.5">
             <p className="flex items-center gap-2 font-medium">
               <Wallet className="h-5 w-5 text-brand" />
               {t("Customer paid?")}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {t(
-                "Everything on this bill is already known. Add the reference they sent and their receipt, and it goes to Finance to verify."
+                "Add their receipt. Finance verifies it before anything is settled."
               )}
             </p>
             <Link
@@ -242,17 +242,17 @@ export function ShipmentActions(props: Props) {
           </div>
         ) : null}
         {props.credit ? (
-          <div className="border-l-2 border-warning bg-warning/5 p-5">
+          <div className="border-l-2 border-warning bg-warning/5 px-4 py-3.5">
             <p className="flex items-center gap-2 font-medium">
               <CalendarClock className="h-5 w-5 text-warning" />
               {t("Taking it on credit?")}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {t(
-                "The cargo goes now and the bill stays owed, with a due date. No money is recorded until they actually pay."
+                "Cargo goes now, the bill falls due on a date."
               )}
             </p>
-            <div className="mt-3">
+            <div className="mt-2.5">
               <CreditRequest
                 invoiceId={props.credit.invoiceId}
                 outstanding={props.credit.outstanding}
@@ -309,7 +309,7 @@ function ConfirmPricePanel(props: Props) {
         </p>
         <p className="text-xs text-muted-foreground">
           {t(
-            "The system priced this from the rate book when the cargo was checked in. Confirming re-works it out now — picking up storage days accrued since, and today’s exchange rate — and turns it into a real bill that can be sent and paid."
+            "Re-prices at today's rate and storage, then it can be sent and paid."
           )}
         </p>
         <FormError state={state} />
@@ -354,19 +354,13 @@ function InvoicePanel(props: Props) {
   if (props.invoiceNumber) {
     const confirmed = props.invoiceStatus !== "DRAFT";
     return (
-      <div className="p-5">
+      <div className="px-4 py-3.5">
         <p className="flex items-center gap-2 text-sm font-medium">
           <FileText className="h-4 w-4 text-brand" />
           {t("Invoice")} {props.invoiceNumber}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t(
-            confirmed
-              ? "Confirmed. Send it to the customer, or open it to adjust anything before they pay."
-              : "Open it to change the freight, add a charge, apply a discount or move the exchange rate. Confirm the price above before sending it."
-          )}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        
+        <div className="mt-2.5 flex flex-wrap gap-2">
           {/* Only on a confirmed price. A draft is the system's own working
               figure and must not leave the building. */}
           {confirmed ? (
@@ -395,7 +389,7 @@ function InvoicePanel(props: Props) {
   // in at Dar, so reaching this means the rate book could not price it or the
   // cargo has not landed — either way, raising one by hand is the way out.
   return (
-    <div className="p-5">
+    <div className="px-4 py-3.5">
       {/*
         Nothing is priced before it lands.
 
@@ -414,7 +408,7 @@ function InvoicePanel(props: Props) {
           </p>
           <p className="text-xs text-muted-foreground">
             {t(
-              "This cargo has not been checked in at Dar yet, so there is no final weight to price it on. The bill is raised by the system the moment the warehouse checks it off the manifest."
+              "Priced automatically once Dar checks it off the manifest."
             )}
           </p>
         </div>
@@ -425,11 +419,7 @@ function InvoicePanel(props: Props) {
           <FileText className="h-4 w-4 text-signal" />
           {t("Generate invoice")}
         </p>
-        <p className="text-xs text-muted-foreground">
-          {t(
-            "Prices from the cargo category, weight and the published rates, and adds storage if the free days have run out."
-          )}
-        </p>
+        
         <FormError state={state} />
         <FormSuccess
           message={
@@ -557,7 +547,7 @@ function PaymentPanel(props: Props) {
   return (
     <div
       className={
-        settled ? "p-5" : "border-l-2 border-brand bg-brand/5 p-5"
+        settled ? "p-5" : "border-l-2 border-brand bg-brand/5 px-4 py-3.5"
       }
     >
       <button
@@ -640,7 +630,7 @@ function PaymentPanel(props: Props) {
                   ? t(
                       "This invoice carries no rate, so the one you agreed at the counter is the one that counts."
                     )
-                  : `${t("The invoice was raised at")} ${props.invoiceRate.toLocaleString()}. ${t("Change it if you agreed a different rate — this payment is recorded at whatever you put here.")}`}
+                  : `${t("Raised at")} ${props.invoiceRate.toLocaleString()}. ${t("Change it if you agreed another.")}`}
               </p>
             </div>
           ) : null}
@@ -693,7 +683,7 @@ function PaymentPanel(props: Props) {
               </NativeSelect>
               <p className="text-xs text-muted-foreground">
                 {t(
-                  "Which of our accounts this went into. Leave it if you are not sure — it shows as unattributed until someone knows, which is better than a guess that looks reconciled."
+                  "Leave it blank if you are not sure."
                 )}
               </p>
               <AccountCurrencyNote
@@ -744,7 +734,7 @@ function PaymentPanel(props: Props) {
           />
           <p className="text-xs text-muted-foreground">
             {t(
-              "Settling the balance in full also issues the pickup note and clears the cargo for collection."
+              "Paying in full releases the cargo."
             )}
           </p>
           <SubmitButton variant="brand" size="sm" pendingLabel="Confirming…">
@@ -767,12 +757,12 @@ function PickupNotePanel(props: Props) {
   // the whole point of pickupNote.view. Support prints it at the counter.
   if (props.pickupNoteNumber && props.pickupNoteStatus !== "CANCELLED") {
     return (
-      <div className="p-5">
+      <div className="px-4 py-3.5">
         <p className="flex items-center gap-2 text-sm font-medium">
           <QrCode className="h-4 w-4 text-success" />
           {t("Pickup note")} {props.pickupNoteNumber}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-0.5 text-xs text-muted-foreground">
           {t(
             props.pickupNoteStatus === "USED"
               ? "Used — cargo collected."
@@ -786,7 +776,7 @@ function PickupNotePanel(props: Props) {
              brings back, offered only a print dialog. Same permission either
              way: the PDF route asks for pickupNote.view, exactly what put this
              panel on the screen. */
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-2.5 flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm">
               <Link href={`/app/finance/pickup-notes/${props.pickupNoteId}`}>
                 <Printer className="mr-2 h-4 w-4" />
@@ -812,14 +802,14 @@ function PickupNotePanel(props: Props) {
   // which is Finance's call — Support sees nothing here until it exists.
   if (!can(props.role, "pickupNote.issue")) {
     return (
-      <div className="p-5">
+      <div className="px-4 py-3.5">
         <p className="flex items-center gap-2 text-sm font-medium">
           <QrCode className="h-4 w-4 text-muted-foreground" />
           {t("No pickup note yet")}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-0.5 text-xs text-muted-foreground">
           {t(
-            "Finance issues it once the invoice is settled in full. It will appear here, ready to print."
+            "Appears once the bill is settled."
           )}
         </p>
       </div>
@@ -834,7 +824,7 @@ function PickupNotePanel(props: Props) {
     (!onCredit && (props.outstanding === null || props.outstanding > 0));
 
   return (
-    <div className="p-5">
+    <div className="px-4 py-3.5">
       <form action={action} className="space-y-3">
         <input type="hidden" name="shipmentId" value={props.shipmentId} />
         <p className="flex items-center gap-2 text-sm font-medium">
@@ -844,7 +834,7 @@ function PickupNotePanel(props: Props) {
         <p className="text-xs text-muted-foreground">
           {t(
             blocked
-              ? "Available once the cargo is checked in at Dar and the invoice is settled in full."
+              ? "Needs the cargo at Dar and the bill settled."
               : onCredit
                 ? "Released on credit — the note will say the bill is still owed, with its due date."
                 : "This clears the cargo for release and notifies the warehouse."
@@ -879,7 +869,7 @@ function CancelPanel({ shipmentId }: { shipmentId: string }) {
   });
 
   return (
-    <div className="p-5">
+    <div className="px-4 py-3.5">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

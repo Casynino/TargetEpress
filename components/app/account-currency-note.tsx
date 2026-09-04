@@ -33,13 +33,14 @@ export function AccountCurrencyNote({
   const rest = hidden.length - Math.min(2, hidden.length);
   const others = [...new Set(hidden.map((a) => a.currency))].join(", ");
 
+  /* One sentence, not a row of fragments: Chinese does not put the pieces back
+     together in English's order, and a note this short must still read as a
+     sentence in both. */
   return (
     <p className="text-[11px] text-muted-foreground">
-      {named}
-      {rest > 0 ? ` ${t("and")} ${rest} ${t("more")}` : ""}{" "}
-      {t("are held in")} {others}
-      {t(", so they cannot take")} {currency}.{" "}
-      {t("Change the currency above to use them.")}
+      {t("{names} are {other} accounts — switch Paid in.")
+        .replace("{names}", named + (rest > 0 ? ` +${rest}` : ""))
+        .replace("{other}", others)}
     </p>
   );
 }

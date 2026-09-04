@@ -2736,6 +2736,23 @@ const ZH: Record<string, string> = {
   "It arrived on another day": "款项是其他日期到账的",
   "A Friday transfer entered on Monday belongs to Friday, and the payments report follows this date.":
     "周五的转账在周一录入，仍属于周五，付款报表以此日期为准。",
+  "{names} are {other} accounts — switch Paid in.":
+    "{names} 为 {other} 账户 — 请切换上方付款币种。",
+  "Optional, but it is what settles an argument later.": "非必填，但日后有争议时以此为准。",
+  "The message is written. Read it before you send it.": "消息已写好，发送前请先核对。",
+  "Add their receipt. Finance verifies it before anything is settled.":
+    "上传客户的付款凭证，财务核实后才会入账。",
+  "Cargo goes now, the bill falls due on a date.": "货物先放行，账款按约定日期到期。",
+  "Re-prices at today's rate and storage, then it can be sent and paid.":
+    "按今天的汇率和仓储费重新计价，之后即可发送并收款。",
+  "Priced automatically once Dar checks it off the manifest.":
+    "达累斯萨拉姆仓库核对清单后自动计价。",
+  "Raised at": "开单汇率",
+  "Change it if you agreed another.": "如另有约定汇率，请修改。",
+  "Leave it blank if you are not sure.": "不确定可留空。",
+  "Paying in full releases the cargo.": "付清后货物即可放行。",
+  "Appears once the bill is settled.": "账单付清后显示。",
+  "Needs the cargo at Dar and the bill settled.": "需货物已到达并且账单已付清。",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
   "No exchange rate was published on the day this money arrived, so it cannot be valued in the register. Publish one for that date and record it again.":
