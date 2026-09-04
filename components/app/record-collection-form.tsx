@@ -291,14 +291,12 @@ export function RecordCollectionForm({
       {/* The evidence. A submission without it is refused by the action, so it
           is given the room that importance deserves rather than being a row of
           small print at the bottom. */}
-      <div className="space-y-1.5">
-        {/* The same words every other screen asks for evidence in. This said
-            "What the customer sent you", which is softer and does not name the
-            thing — a desk skimming does not know a screenshot is wanted until
-            they read the drop zone. Optional, and said plainly to be the one
-            thing that settles an argument later. */}
-        <Label className="flex items-center gap-1.5 text-sm font-medium">
-          <Paperclip className="h-4 w-4 text-brand" />
+      {/* The same words and the same amber every other proof field carries —
+          this screen keeps its drop zone, which is the nicest way to take a
+          screenshot, and gains the colour that says read this one. */}
+      <div className="space-y-1.5 rounded-xl border border-warning/40 bg-warning/5 p-3.5">
+        <Label className="flex items-center gap-1.5 text-sm font-semibold text-warning">
+          <Paperclip className="h-4 w-4 shrink-0" />
           {t("Payment proof — the slip or the screenshot")}
         </Label>
         <div
@@ -316,7 +314,7 @@ export function RecordCollectionForm({
             syncInput(next);
           }}
           className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
-            dragging ? "border-brand bg-brand/5" : "border-border bg-muted/20"
+            dragging ? "border-brand bg-brand/10" : "border-warning/40 bg-card/40"
           }`}
         >
           <CloudUpload className="mx-auto h-7 w-7 text-muted-foreground" />

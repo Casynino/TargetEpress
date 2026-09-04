@@ -174,6 +174,7 @@ export default async function LedgerPage({
     entries,
     total,
     totals,
+    cancelledRows,
     rateRow,
     unpaid,
     unpaidByKind,
@@ -278,12 +279,36 @@ export default async function LedgerPage({
         },
       }),
       prisma.ledgerEntry.count({ where }),
-      /* By currency as well as direction, because the two are summed
-         differently — see the note where these are added up. */
+      /*
+        THE TOTALS ARE THE TRUE POSITION, NOT A COUNT OF ROWS.
+
+        A cancelled line and the line that cancels it are both real records and
+        both belong in the list below — the register is append-only and that is
+        the whole point of it. Neither is money that moved.
+
+        Summed with everything else, cancelling an income of 54 ADDED 54 to
+        Money out, because the reversal is an OUT line. The customer's 54 never
+        left the building; it simply never arrived. So both halves of a
+        reversed pair come out of these three figures, which makes cancelling
+        an income reduce Money in, and cancelling a cost reduce Money out —
+        each undoing itself rather than inventing a movement in the opposite
+        direction.
+
+        By currency as well as direction, because the two are summed
+        differently — see the note where these are added up.
+      */
       prisma.ledgerEntry.groupBy({
         by: ["direction", "currency"],
-        where,
+        where: { ...where, reversesId: null, reversedBy: { is: null } },
         _sum: { amount: true, amountUsd: true },
+      }),
+      /* How many of the rows below are a cancellation or its answer, so the
+         card can say why its count differs from the list. */
+      prisma.ledgerEntry.count({
+        where: {
+          ...where,
+          OR: [{ reversesId: { not: null } }, { reversedBy: { isNot: null } }],
+        },
       }),
       currentRate(),
       // Costs recorded but not yet disbursed have no ledger line, because no
@@ -634,7 +659,15 @@ export default async function LedgerPage({
             v: shillings(inTsh - outTsh, inUsd - outUsd),
             tone: inTsh - outTsh >= 0 ? "text-foreground" : "text-destructive",
             wash: inTsh - outTsh >= 0 ? "from-brand/10" : "from-destructive/10",
-            hint: `${total} ${t(locale, total === 1 ? "movement" : "movements")}`,
+            /* Says what these figures actually cover. The list below shows
+               every row including the cancelled ones; the money does not. */
+            hint:
+              cancelledRows > 0
+                ? `${total - cancelledRows} ${t(
+                    locale,
+                    total - cancelledRows === 1 ? "movement" : "movements"
+                  )} · ${cancelledRows} ${t(locale, "cancelled, not counted")}`
+                : `${total} ${t(locale, total === 1 ? "movement" : "movements")}`,
           },
         ].map((cell) => (
           <div

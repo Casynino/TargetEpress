@@ -21,6 +21,8 @@ import {
   IdempotencyKey,
   useIdempotencyKey,
 } from "@/components/app/idempotency-key";
+import { AccountCurrencyNote } from "@/components/app/account-currency-note";
+import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -693,31 +695,13 @@ function PaymentPanel(props: Props) {
                   "Which of our accounts this went into. Leave it if you are not sure — it shows as unattributed until someone knows, which is better than a guess that looks reconciled."
                 )}
               </p>
+              <AccountCurrencyNote
+                currency={currency}
+                hidden={(props.accounts ?? []).length - eligibleAccounts.length}
+              />
             </div>
           ) : null}
-          <div className="space-y-1.5">
-            <Label htmlFor="proof" className="text-xs">
-              {t("Payment proof — the slip or the screenshot")}
-            </Label>
-            <p className="text-[11px] text-muted-foreground">
-              {t(
-                "Not compulsory, but it is what settles an argument months from now. Without it Finance is agreeing to this on somebody's word."
-              )}
-            </p>
-            <Input
-              id="proof"
-              name="proof"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              multiple
-              className="file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
-            />
-            <p className="text-xs text-muted-foreground">
-              {t(
-                "The M-Pesa screenshot, bank slip or transfer confirmation. This is what settles an argument months later — a typed number is only a claim that it happened."
-              )}
-            </p>
-          </div>
+          <PaymentProofField />
           {/*
               No Reference field.
 

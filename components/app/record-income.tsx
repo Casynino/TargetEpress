@@ -8,6 +8,7 @@ import {
   IdempotencyKey,
   useIdempotencyKey,
 } from "@/components/app/idempotency-key";
+import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -579,21 +580,9 @@ export function RecordIncome({
               catches up. What arrives without proof is still visible as exactly
               that.
             */}
-            <label className="flex min-w-0 flex-col gap-1">
-              {/* Named for what it is and why, not shrugged off as
-                  "(optional)" — see AttachmentManager for the same wording
-                  everywhere else evidence is asked for. */}
-              <span className="text-[11px] font-medium text-foreground">
-                {t("Payment proof — the slip or the screenshot")}
-              </span>
-              <Input
-                name="proof"
-                type="file"
-                multiple
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                className="w-56 bg-card file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs"
-              />
-            </label>
+            {/* Named for what it is and why, not shrugged off as "(optional)",
+                and carrying the same amber every other proof field carries. */}
+            <PaymentProofField compact />
 
             <SubmitButton
               variant="brand"

@@ -14,6 +14,7 @@ import {
   IdempotencyKey,
   useIdempotencyKey,
 } from "@/components/app/idempotency-key";
+import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -705,24 +706,8 @@ export function CustomerPaymentForm({
               is not on the table. Nothing new is asked for.
           */}
 
-          <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="proof">{t("Payment proof — the slip or the screenshot")}</Label>
-            <p className="text-[11px] text-muted-foreground">
-              {t(
-                "Not compulsory, but it is what settles an argument months from now. Without it Finance is agreeing to this on somebody's word."
-              )}
-            </p>
-            <input
-              id="proof"
-              name="proof"
-              type="file"
-              multiple
-              accept="image/*,application/pdf"
-              className="focus-ring block w-full rounded-lg border bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-medium"
-            />
-            <p className="text-xs text-muted-foreground">
-              {t("The M-Pesa message, a bank slip, a photo of the receipt.")}
-            </p>
+          <div className="min-w-0">
+            <PaymentProofField />
           </div>
 
           <div className="min-w-0 space-y-1.5 sm:col-span-2">
