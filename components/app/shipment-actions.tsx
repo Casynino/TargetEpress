@@ -208,7 +208,23 @@ export function ShipmentActions(props: Props) {
           by permission — so this order is what Finance, Support, both
           warehouses, the manager and the owner all see.
         */}
-        {canPay ? <PaymentPanel {...props} /> : null}
+        {canPay ? (
+          <PaymentPanel
+            {...props}
+            beside={
+              props.credit ? (
+                <CreditRequest
+                  invoiceId={props.credit.invoiceId}
+                  outstanding={props.credit.outstanding}
+                  defaultTerm={props.credit.defaultTerm}
+                  limitLabel={props.credit.limitLabel}
+                  outstandingLabel={null}
+                  canApprove={props.credit.canApprove}
+                />
+              ) : null
+            }
+          />
+        ) : null}
         {canCollect ? (
           <div className="border-l-2 border-brand bg-brand/5 px-4 py-3.5">
             <p className="flex items-center gap-2 font-medium">
@@ -228,35 +244,22 @@ export function ShipmentActions(props: Props) {
             </Link>
           </div>
         ) : null}
-        {props.credit ? (
-          /*
-            The alternative to the button above it, and it reads that way.
-
-            It had its own amber band and looked like a separate department's
-            business. Releasing on credit is simply what you do INSTEAD of
-            taking the money, so it sits directly under Confirm payment with
-            no rule between them and no colour of its own — the same block,
-            continued. !border-t-0 cancels the divider the panel draws between
-            its children, which is the whole point here.
-          */
-          <div
-            className={
-              canPay
-                ? /* Under Confirm payment: same block, continued. */
-                  "!border-t-0 border-l-2 border-brand bg-brand/5 px-4 pb-3.5 pt-0"
-                : /* On its own, for a desk that cannot take the money — it
-                     needs the rule and the padding back or it floats. */
-                  "border-l-2 border-brand bg-brand/5 px-4 py-3"
-            }
-          >
-            <CreditRequest
-              invoiceId={props.credit.invoiceId}
-              outstanding={props.credit.outstanding}
-              defaultTerm={props.credit.defaultTerm}
-              limitLabel={props.credit.limitLabel}
-              outstandingLabel={null}
-              canApprove={props.credit.canApprove}
-            />
+        {/*
+          Only where there is no payment form to sit beside. A desk that can
+          release cargo on credit but cannot take the money gets the button on
+          its own; everyone else sees it next to Confirm payment, because the
+          two are alternatives and a reader compares them side by side.
+        */}
+        {props.credit && !canPay ? (
+          <div className="border-l-2 border-brand bg-brand/5 px-4 py-3">
+          <CreditRequest
+            invoiceId={props.credit.invoiceId}
+            outstanding={props.credit.outstanding}
+            defaultTerm={props.credit.defaultTerm}
+            limitLabel={props.credit.limitLabel}
+            outstandingLabel={null}
+            canApprove={props.credit.canApprove}
+          />
           </div>
         ) : null}
         {canInvoice && props.invoiceStatus === "DRAFT" ? (
@@ -439,7 +442,18 @@ function InvoicePanel(props: Props) {
  */
 const TODAY = new Date().toISOString().slice(0, 10);
 
-function PaymentPanel(props: Props) {
+function PaymentPanel({
+  beside,
+  ...props
+}: Props & {
+  /**
+   * Rendered on the same row as Confirm payment. Releasing on credit is the
+   * alternative to taking the money, so the two belong side by side the way
+   * Download and Open invoice do — and that means the credit control has to
+   * live inside this form's button row rather than in a block beneath it.
+   */
+  beside?: React.ReactNode;
+}) {
   const t = useT();
   const settledOnLoad = props.outstanding !== null && props.outstanding <= 0;
   // Open unless there is nothing to take. A collapsed panel makes the main
@@ -600,7 +614,22 @@ function PaymentPanel(props: Props) {
               </NativeSelect>
             </div>
           </div>
-          {currency !== props.currency ? (
+          {/*
+            THE RATE IS THE BILL'S, NOT THIS FORM'S.
+
+            It was an editable box on every payment, for something the desk
+            almost never changes — and a rate typed here belongs to this
+            payment alone, while the same number on the invoice is what the
+            customer was quoted. Changing it is an invoice decision, so it is
+            made on the invoice, and the line below still says which rate this
+            payment is settling at. recordPayment falls back to the invoice's
+            own rate when the form sends none.
+
+            The box comes back for the one bill that has no rate at all, where
+            there is nothing to fall back to and the counter has to say what
+            they agreed.
+          */}
+          {currency !== props.currency && props.invoiceRate === null ? (
             <div className="space-y-1.5">
               <Label htmlFor="paymentRate" className="text-xs">
                 {t("Exchange rate")}{" "}
@@ -613,26 +642,28 @@ function PaymentPanel(props: Props) {
                 name="exchangeRate"
                 value={rate}
                 onValueChange={setRate}
-                placeholder={
-                  props.invoiceRate === null
-                    ? t("e.g. 2700")
-                    : String(props.invoiceRate)
-                }
+                placeholder={t("e.g. 2700")}
                 required
               />
-              {/* Only where the box is empty and has to be filled. When the
-                  invoice carries a rate it is already in the field, and saying
-                  what it is a second time is the sentence, not the number. */}
-              {props.invoiceRate === null ? (
-                <p className="text-xs text-muted-foreground">
-                  {t("No rate on this bill — use the one you agreed.")}
-                </p>
-              ) : null}
+              <p className="text-xs text-muted-foreground">
+                {t("No rate on this bill — use the one you agreed.")}
+              </p>
             </div>
           ) : null}
           {converted ? (
             <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
               {converted}
+              {props.invoiceRate !== null && props.invoiceNumber ? (
+                <>
+                  {" "}
+                  <Link
+                    href={`/app/finance/invoices/${props.invoiceNumber}`}
+                    className="font-medium text-brand underline-offset-2 hover:underline"
+                  >
+                    {t("Change the rate")}
+                  </Link>
+                </>
+              ) : null}
               {shortfall ? (
                 <>
                   {" "}
@@ -721,15 +752,15 @@ function PaymentPanel(props: Props) {
               type, an icon — because the two are the alternatives to each
               other and a reader compares them. Filled rather than outlined, so
               which one is the money is still obvious. */}
-          <SubmitButton
-            variant="brand"
-            size="sm"
-            className="h-8 gap-1.5 px-3 text-xs"
-            pendingLabel="Confirming…"
-          >
-            <Wallet className="h-3.5 w-3.5" />
-            {t("Confirm payment")}
-          </SubmitButton>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* No icon, and a notch less padding: the two have to fit on one
+                line in a 318px sidebar, and the icon was the twenty pixels
+                that pushed them onto two. */}
+            <SubmitButton variant="brand" size="sm" className="px-2.5" pendingLabel="Confirming…">
+              {t("Confirm payment")}
+            </SubmitButton>
+            {beside}
+          </div>
         </form>
       ) : null}
     </div>

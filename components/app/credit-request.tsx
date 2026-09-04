@@ -69,7 +69,7 @@ export function CreditRequest({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition-colors hover:bg-accent hover:text-brand"
+        className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-accent hover:text-brand"
       >
         <CalendarClock className="h-3.5 w-3.5" />
         {/* The word matches the authority. Finance saw "Ask for credit" and

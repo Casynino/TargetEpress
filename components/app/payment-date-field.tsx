@@ -39,11 +39,9 @@ export function PaymentDateField({
     return (
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         {/* Posted whether or not the field is on screen, so the action always
-            receives the day the desk is actually working. */}
+            receives the day the desk is actually working. Today is the default
+            and saying so was one more line to read past. */}
         <input type="hidden" name={name} value={today} />
-        <span className="text-xs text-muted-foreground">
-          {t("Recorded as today.")}
-        </span>
         <button
           type="button"
           onClick={() => setOpen(true)}

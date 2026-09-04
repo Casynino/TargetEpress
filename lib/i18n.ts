@@ -2729,7 +2729,6 @@ const ZH: Record<string, string> = {
   "Opens WhatsApp with the whole message written: the cargo, the weight, the rate, the total and a link to their invoice. Read it before you send it.":
     "打开 WhatsApp，消息已写好：货物、重量、费率、总额，以及账单链接。发送前请先核对。",
   "cancelled, not counted": "已取消，未计入",
-  "Recorded as today.": "按今天记录。",
   "It arrived on another day": "款项是其他日期到账的",
   "A Friday transfer entered on Monday belongs to Friday, and the payments report follows this date.":
     "周五的转账在周一录入，仍属于周五，付款报表以此日期为准。",
@@ -2745,6 +2744,7 @@ const ZH: Record<string, string> = {
   "No rate on this bill — use the one you agreed.": "此账单没有汇率 — 请使用你们约定的汇率。",
   "Notify on WhatsApp": "用 WhatsApp 通知",
   "No file chosen": "未选择文件",
+  "Change the rate": "修改汇率",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
   "No exchange rate was published on the day this money arrived, so it cannot be valued in the register. Publish one for that date and record it again.":
