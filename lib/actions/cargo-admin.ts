@@ -155,9 +155,12 @@ export async function restoreCargo(
   const locale = await viewerLocale();
   let user: SessionUser;
   try {
-    // Restoring is management's call, not the warehouse's — putting a record
-    // back onto a batch that has since flown is how a manifest stops matching.
-    user = await authorize("shipment.cancel");
+    /* Restoring is management's call, not the warehouse's — putting a record
+       back onto a batch that has since flown is how a manifest stops matching.
+       It said so and then guarded on shipment.cancel, which both warehouses
+       hold. records.viewDeleted resolves to the owner and a manager, and it is
+       the permission on the only screen this is driven from. */
+    user = await authorize("records.viewDeleted");
   } catch (error) {
     return fail(t(locale, toActionError(error)));
   }
@@ -165,10 +168,23 @@ export async function restoreCargo(
   try {
     const cargo = await prisma.shipment.findUnique({
       where: { id: shipmentId },
-      select: { id: true, trackingNumber: true, deletedAt: true },
+      select: { id: true, trackingNumber: true, deletedAt: true, status: true },
     });
     if (!cargo) return fail(t(locale, "That cargo no longer exists."));
     if (!cargo.deletedAt) return fail(t(locale, "That cargo is not deleted."));
+    /* Custody, the same test deleteCargo makes. Putting a record back is the
+       same intervention as taking it away, and the floor holding the cargo is
+       the one that answers for it. */
+    if (!canAmendCargo(user.role, cargo.status)) {
+      return fail(
+        t(
+          locale,
+          cargoCustody(cargo.status) === "LANDED"
+            ? "This cargo has landed in Dar. Only the Dar warehouse, a manager or the owner can change it now."
+            : "This cargo has not landed in Dar yet. Only Guangzhou, a manager or the owner can change it now."
+        )
+      );
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.shipment.update({

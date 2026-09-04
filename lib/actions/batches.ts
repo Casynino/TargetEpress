@@ -1775,7 +1775,7 @@ export async function undoBatchArrival(
 
   let user: SessionUser;
   try {
-    user = await authorize("shipment.cancel");
+    user = await authorize("batch.undoArrival");
   } catch (error) {
     return fail(toActionError(error));
   }

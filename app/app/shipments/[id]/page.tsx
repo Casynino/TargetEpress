@@ -550,7 +550,7 @@ export default async function ShipmentPage({
           urgent. See undoBatchArrival. */}
       {(dispatch.status === "ARRIVED" || dispatch.status === "VERIFIED") &&
       !dispatch.closedAt &&
-      can(user.role, "shipment.cancel") ? (
+      can(user.role, "batch.undoArrival") ? (
         <div className="mt-6">
           <BatchArrivalUndo
             batchId={dispatch.id}

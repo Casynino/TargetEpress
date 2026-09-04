@@ -788,7 +788,7 @@ export default async function ShipmentDetailPage({
               {/* The way back, at the foot of the record it undoes. Management
                   only: Dar hands cargo over, and the desk that made the
                   mistake is not the desk that should erase it. */}
-              {can(user.role, "shipment.cancel") ? (
+              {can(user.role, "delivery.undo") ? (
                 <ReleaseUndo
                   shipmentId={shipment.id}
                   trackingNumber={shipment.trackingNumber}

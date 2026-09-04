@@ -61,7 +61,7 @@ export async function undoRelease(
   const locale = await viewerLocale();
   let user: SessionUser;
   try {
-    user = await authorize("shipment.cancel");
+    user = await authorize("delivery.undo");
   } catch (error) {
     return fail(t(locale, toActionError(error)));
   }

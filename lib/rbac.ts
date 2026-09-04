@@ -261,6 +261,21 @@ export type Permission =
    */
   | "records.viewDeleted"
   /**
+   * Putting a landed flight back in the air, and putting collected cargo back
+   * on the shelf.
+   *
+   * Both undo a step a warehouse just performed, and both were gated on
+   * `shipment.cancel` — which both warehouses hold. So the desk that made the
+   * mistake was also the desk that could erase the evidence of it: undoing an
+   * arrival unwinds every check-in on the manifest, and undoing a release
+   * deletes the handover record and the photographs taken at the counter.
+   *
+   * Management only, which is what the comments above both actions always
+   * claimed and what neither of them enforced.
+   */
+  | "batch.undoArrival"
+  | "delivery.undo"
+  /**
    * Take a file off a consignment that somebody else attached.
    *
    * Anyone who may attach can always remove their OWN upload; this is the key
@@ -607,6 +622,9 @@ const ALL: Permission[] = Array.from(
        warehouses were given cancelling, so that neither inherited the deleted
        records register or the right to bin another desk's paperwork. */
     "records.viewDeleted",
+    /* Undoing a warehouse's own last step — see the declarations above. */
+    "batch.undoArrival",
+    "delivery.undo",
     "document.removeAny",
     // Erasing a record for good. Nobody else has it, at any rank.
     "shipment.purge",
