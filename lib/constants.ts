@@ -144,7 +144,13 @@ export type CollectionAccount = {
   number: string;
   /** What the customer must see on their screen before they confirm. */
   accountName: string;
-  kind: "MOBILE" | "BANK";
+  /**
+   * CASH is not a number to send money to — it is a counter to walk up to. It
+   * carries the office address where the others carry an account, so the card
+   * reads the same shape on every surface without any of them special-casing
+   * it.
+   */
+  kind: "MOBILE" | "BANK" | "CASH";
   /** Banks only. Mobile money is shillings by definition here. */
   currency?: "TZS" | "USD";
 };
@@ -174,6 +180,22 @@ export const PAYMENT_METHODS: readonly CollectionAccount[] = [
     number: "5581590",
     accountName: "TARGET EXPRESS AIR CARGO",
     kind: "MOBILE",
+  },
+  /*
+    Paying at the counter is a payment method, and it was the only one this
+    list did not name. A customer standing in Kariakoo with the cash in their
+    hand had every way to pay EXCEPT the one they were about to use, and the
+    desk had to tell them by hand that it was allowed.
+
+    The address rather than a number, because that is what somebody needs to
+    act on it — the same address the footer and the contact page carry, read
+    from COMPANY so there is still only one copy of it.
+  */
+  {
+    label: "PAY IN CASH — AT OUR OFFICE",
+    number: "Kariakoo, Agrey & Ndanda Street",
+    accountName: "Opposite Mkombozi Bank, Dar es Salaam",
+    kind: "CASH",
   },
   {
     label: "CRDB BANK — TZS ACCOUNT",

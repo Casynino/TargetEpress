@@ -919,7 +919,7 @@ export async function adjustInvoice(
       if (
         input.exchangeRate !== null &&
         input.exchangeRate !== currentRate &&
-        !can(user.role, "fx.manage")
+        !can(user.role, "invoice.rate")
       ) {
         throw new Error(
           "You are not authorised to change the exchange rate on an invoice."
@@ -1236,10 +1236,11 @@ export async function applyInvoiceDiscount(
  * already been paid is touched either: an earlier payment settled at the rate
  * agreed on its own day, and its receipt says so.
  *
- * fx.manage, the same permission adjustInvoice demands before it will let the
- * rate move — Finance, the manager and the owner. Moving a rate moves what a
- * customer owes in the money they actually hand over, so it is not a counter
- * decision.
+ * invoice.rate, which is NOT fx.manage: fx.manage publishes the company's own
+ * rate and prices every bill raised after it, and that stays with Finance.
+ * This is the narrow thing — one bill, settled today at a figure agreed with
+ * the customer — and the desk on the phone holds it. Audited with a reason
+ * either way, because it still moves what somebody owes.
  */
 export async function changeInvoiceRate(
   _prev: ActionResult<{ totalLocal: number | null }> | undefined,
@@ -1247,7 +1248,7 @@ export async function changeInvoiceRate(
 ): Promise<ActionResult<{ totalLocal: number | null }>> {
   const locale = await viewerLocale();
   try {
-    const user = await authorize("fx.manage");
+    const user = await authorize("invoice.rate");
     const parsed = invoiceRateSchema.safeParse(
       Object.fromEntries(formData) as Record<string, string>
     );

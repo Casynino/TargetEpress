@@ -137,6 +137,7 @@ export type Permission =
   | "invoice.manage"
   | "invoice.edit" // change a bill before the customer has paid anything
   | "invoice.discount"
+  | "invoice.rate"
   | "invoice.send"
   | "payment.record"
   /* Credit sales. Four permissions rather than one, because the whole control
@@ -431,14 +432,30 @@ const CUSTOMER_CARE: Permission[] = [
   "invoice.manage",
   "invoice.edit",
   /*
-    The desk that agrees a price with a customer is the desk that agrees a
-    discount with them. Splitting the two meant Support could change what a
-    bill says but not move it down, so every negotiated price went through
-    Finance for a keystroke — and the reason for the change lived with whoever
-    typed it rather than whoever agreed it. Every use is audited and an
-    override still demands a reason.
+    NO DISCOUNT FROM THIS DESK.
+
+    This desk did hold it, on the reasoning that whoever agrees a price with a
+    customer is whoever agrees a discount with them. The owner has since drawn
+    the line differently: giving money away is Finance's, the manager's and his
+    own, and Support asks rather than decides. What Support keeps is the rate —
+    the line below — because agreeing what today's shillings are worth against
+    a dollar bill is the conversation they are actually having on the phone.
   */
-  "invoice.discount",
+  /*
+    THE RATE ON ONE BILL — NOT THE RATE BOOK.
+
+    fx.manage publishes the company's rate, which prices every invoice raised
+    after it, and that stays with Finance. This is the narrower thing: a bill
+    raised weeks ago being settled today at a figure the counter agreed with
+    the customer, on that bill and no other.
+
+    The owner asked for the two to be separated. Until now both went through
+    fx.manage, on the reasoning that moving a rate moves what a customer owes
+    just as surely as a discount does — which is still true, and is why every
+    use is audited with a reason. What changed is who is standing in front of
+    the customer when it is agreed.
+  */
+  "invoice.rate",
   // Correcting which flight a box is on: a customer rings to say their cargo
   // is not on the flight they were told, and this desk takes that call.
   "shipment.move",
@@ -516,6 +533,7 @@ const FINANCE: Permission[] = [
   "invoice.manage",
   "invoice.edit",
   "invoice.discount",
+  "invoice.rate",
   "invoice.send",
   "message.send",
   "payment.record",

@@ -6,6 +6,7 @@ import {
   Camera,
   CheckCircle2,
   CircleHelp,
+  Clock,
   MapPin,
   MessageCircle,
   Plane,
@@ -409,6 +410,66 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
                   : `The first ${result.storage.freeDays} days are free. After that storage is USD ${result.storage.perDayUsd} a day until it is collected.`}
             </p>
           ) : null}
+
+        </section>
+      ) : null}
+
+      {/*
+        THE POLICY ITSELF, IN BOTH LANGUAGES AND AT A SIZE PEOPLE READ.
+
+        The storage card above says what is happening to THIS consignment; this
+        is the rule it comes from, in the owner's own words. It began as small
+        print inside that card and was, fairly, called small — a customer who
+        does not know the clock has started cannot beat it, and the first they
+        hear of a charge should never be the charge itself.
+
+        So it stands on its own, in the amber this app uses for "read this
+        one", with Swahili first because that is who is reading. The days and
+        the daily fee come from STORAGE_POLICY, so it cannot drift from what
+        the system will actually charge.
+      */}
+      {result.storage && !result.storage.collected ? (
+        <section className="overflow-hidden rounded-xl border-2 border-warning/50 bg-warning/5">
+          <header className="flex items-center gap-2 border-b border-warning/30 px-5 py-3">
+            <Clock className="h-4 w-4 shrink-0 text-warning" />
+            <h2 className="text-sm font-semibold text-warning">
+              Sera ya Uhifadhi · Warehouse Storage Policy
+            </h2>
+          </header>
+          <div className="grid grid-cols-1 gap-px bg-warning/20 sm:grid-cols-2">
+            <div className="bg-card px-5 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Kiswahili
+              </p>
+              <p className="mt-2 text-sm leading-relaxed">
+                Kutokana na wingi wa mizigo katika warehouse yetu, mzigo wako
+                utahifadhiwa <strong className="font-semibold">bure</strong> kwa
+                siku {result.storage.freeDays} kuanzia siku utakapofika Dar es
+                Salaam. Baada ya siku {result.storage.freeDays}, utatozwa{" "}
+                <strong className="font-semibold text-warning">
+                  USD {result.storage.perDayUsd} kwa siku
+                </strong>
+                . Tafadhali chukua mzigo wako mapema ili kuepuka gharama za
+                ziada.
+              </p>
+            </div>
+            <div className="bg-card px-5 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                English
+              </p>
+              <p className="mt-2 text-sm leading-relaxed">
+                Due to the high volume of cargo in our warehouse, your cargo is
+                stored <strong className="font-semibold">free of charge</strong>{" "}
+                for {result.storage.freeDays} days from the day it arrives in
+                Dar es Salaam. After that, a{" "}
+                <strong className="font-semibold text-warning">
+                  USD {result.storage.perDayUsd} per day storage fee
+                </strong>{" "}
+                applies. Please collect your cargo early to avoid additional
+                charges.
+              </p>
+            </div>
+          </div>
         </section>
       ) : null}
 
