@@ -14,7 +14,10 @@ import { PageHeader } from "@/components/app/page-header";
 import { ReceivingQueue } from "@/components/app/receiving-queue";
 import { StatStrip } from "@/components/app/stat-strip";
 import { Button } from "@/components/ui/button";
+import { BatchStatusBadge } from "@/components/app/status-badge";
+import { ORIGIN_LABELS } from "@/lib/constants";
 import { formatWeight } from "@/lib/format";
+import { prisma } from "@/lib/prisma";
 import { t } from "@/lib/i18n";
 import { receivingQueue } from "@/lib/queries";
 import { requirePermission } from "@/lib/session";
@@ -30,6 +33,21 @@ export default async function ReceivePage() {
 
   const locale = await viewerLocale();
   const { rows, summary } = await receivingQueue();
+
+  /* Flights whose check-in is over. Not part of the queue — see the note by
+     the section that renders them. */
+  const older = await prisma.batch.findMany({
+    where: { permanent: false, status: { in: ["VERIFIED", "CLOSED"] } },
+    orderBy: { arrivalDate: "desc" },
+    take: 12,
+    select: {
+      id: true,
+      batchNumber: true,
+      origin: true,
+      status: true,
+      _count: { select: { shipments: { where: { deletedAt: null } } } },
+    },
+  });
 
   // The single most urgent batch, so the operator never has to hunt for it.
   const next = rows.find((r) => r.status === "ARRIVED" && r.unchecked > 0);
@@ -171,6 +189,55 @@ export default async function ReceivePage() {
       ) : null}
 
       <ReceivingQueue rows={rows} />
+
+      {/*
+        FLIGHTS THAT ARE DONE, FOR THE BOX THAT TURNS UP LATE.
+
+        The queue above is the work: what is in the air and what is on the
+        floor. This is not work — it is the way back to a flight that was
+        finished last week, because a consignment surfaces in a corner of the
+        warehouse a fortnight after the aircraft it came on was closed, and it
+        belongs to that flight rather than to whichever one happens to be open.
+
+        Opening one gives the same screen, with the same "Add cargo".
+      */}
+      {older.length > 0 ? (
+        <section className="mt-6 rounded-xl border bg-card">
+          <header className="border-b p-4">
+            <h2 className="text-sm font-semibold">
+              {t(locale, "Flights already finished")}
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t(
+                locale,
+                "Open one to add a consignment that turned up after it was closed."
+              )}
+            </p>
+          </header>
+          <ul className="divide-y">
+            {older.map((batch) => (
+              <li key={batch.id}>
+                <Link
+                  href={`/app/receive/${batch.id}`}
+                  className="focus-ring flex items-center justify-between gap-3 px-4 py-3 hover:bg-accent/40"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">
+                      {batch.batchNumber}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {t(locale, ORIGIN_LABELS[batch.origin])} ·{" "}
+                      {batch._count.shipments}{" "}
+                      {t(locale, "consignment(s)")}
+                    </span>
+                  </span>
+                  <BatchStatusBadge status={batch.status} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </>
   );
 }

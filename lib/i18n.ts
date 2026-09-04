@@ -3343,6 +3343,13 @@ const ZH: Record<string, string> = {
   "Settings": "设置",
   "Merge Payment": "合并付款",
   "Add cargo": "添加货物",
+  "Adding cargo to a flight is done by the desk that receives cargo at Dar.":
+    "向航班添加货物由达市收货岗位操作。",
+  "For a box on the floor that was never registered. It joins this flight, is recorded as already here, and goes straight to Finance for the price to be confirmed.":
+    "用于仓库现场从未登记过的货物。它将加入该航班，记录为已抵达，并直接交财务确认价格。",
+  "Flights already finished": "已完成的航班",
+  "Open one to add a consignment that turned up after it was closed.":
+    "打开航班，可添加在其关闭后才出现的货物。",
   "Add cargo to": "添加货物至",
   "Back to the check-in": "返回入库核对",
   "For a box that came off this flight and was not on the manifest. It joins the flight and is checked in with the rest.":

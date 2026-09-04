@@ -20,6 +20,7 @@ import {
 import { assignToLoadingTable } from "@/lib/batching";
 import { quote } from "@/lib/pricing";
 import { prisma, type TxClient } from "@/lib/prisma";
+import { autoPriceShipments } from "@/lib/auto-price";
 import { canAmendCargo, cargoCustody } from "@/lib/rbac";
 import { translateText, translationColumns } from "@/lib/translate";
 import { filesFrom, putImages } from "@/lib/storage";
@@ -261,18 +262,20 @@ export async function createShipment(
           },
         });
         if (!batch) throw new Error("That flight no longer exists.");
-        /* A loading table is not a flight — cargo joins one of those by being
-           registered in China, which is the other half of this function. */
+        /*
+          A loading table is not a flight.
+
+          The one refusal left. Cargo joins a loading table by being registered
+          in China and waiting for an aircraft; a box the Dar floor is holding
+          has already flown. Putting it there would record it as both at once.
+
+          Nothing else is refused: a box turns up weeks after its flight was
+          closed, and the desk must still be able to put it where it belongs
+          rather than on whichever flight happens to be open.
+        */
         if (batch.permanent) {
           throw new Error(
             `${batch.batchNumber} is a loading table, not a flight. Register the cargo normally and it will be assigned.`
-          );
-        }
-        /* Only a flight that has actually landed. Adding cargo to one still
-           in the air says a box was on an aircraft nobody has opened. */
-        if (batch.status !== "ARRIVED" && batch.status !== "VERIFIED") {
-          throw new Error(
-            `${batch.batchNumber} has not landed yet, so nothing can be added to it from the floor.`
           );
         }
         origin = batch.origin;
@@ -336,16 +339,18 @@ export async function createShipment(
           internalNotes: input.internalNotes || null,
           batchId: assignment.batchId,
           /*
-            IN_TRANSIT, NOT RECEIVED.
+            ALREADY IN DAR, BECAUSE IT IS.
 
-            The box is on the floor, but this is a record being created, not a
-            check-in. Marking it received here would price it — autoPrice runs
-            when the manifest is ticked — off a weight nobody has confirmed
-            against a manifest line that does not exist. So it joins the batch
-            unticked, and the same check-in that prices every other box on that
-            flight prices this one.
+            The box is on the floor in front of the person filling this in.
+            Recording it as in transit would send it back through an arrival
+            it has already made — it would sit on the manifest waiting to land,
+            and the desk that just held it would have to tick it in again.
+
+            So it is received, the arrival is stamped, and it goes straight
+            into the queue that prices everything else the floor has taken in.
           */
-          status: intoBatch ? "IN_TRANSIT" : "READY_TO_DEPART",
+          status: intoBatch ? "RECEIVED_AT_DAR" : "READY_TO_DEPART",
+          arrivedAt: intoBatch ? new Date() : null,
           createdById: user.id,
         },
       });
@@ -379,10 +384,10 @@ export async function createShipment(
       await appendHistory(tx, {
         shipmentId: shipment.id,
         fromStatus: null,
-        toStatus: intoBatch ? "IN_TRANSIT" : "READY_TO_DEPART",
+        toStatus: intoBatch ? "RECEIVED_AT_DAR" : "READY_TO_DEPART",
         location: intoBatch ? "Dar es Salaam" : ORIGIN_PLACE[origin],
         note: intoBatch
-          ? `Found on the floor during check-in of ${assignment.batchNumber} and added to it — it was not on the manifest. Waiting to be checked in like the rest of the flight.`
+          ? `Found on the Dar floor and added to ${assignment.batchNumber} — it was never on the manifest. Priced from the weight recorded here, for Finance to confirm.`
           : `Cargo received and registered as ${CATEGORY_LABELS[input.cargoCategory].toLowerCase()}, waiting on the ${AIRPORT_LABELS[origin]} loading table.`,
         actorId: user.id,
       });
@@ -409,13 +414,40 @@ export async function createShipment(
         tx
       );
 
-      return { shipment, assignment };
+      return { shipment, assignment, intoBatch: Boolean(intoBatch) };
     });
+
+    /*
+      INTO THE PRICING QUEUE, THE SAME WAY EVERY OTHER DAR ARRIVAL GETS THERE.
+
+      A box added at Dar has landed, so it is priced from the weight recorded
+      here — exactly what the manifest check-in does for the rest of the
+      flight. That raises a DRAFT, which is what puts it in front of Finance,
+      the manager, the owner and Support to confirm. Dar does not set the
+      price; it states the weight.
+
+      Outside the transaction, and never fatal, for the reasons priceAfterCheckIn
+      gives: it is slow, and a cargo record that exists without a draft is a
+      bill somebody raises by hand, while a record that failed to save is a box
+      nobody can find.
+    */
+    if (result.intoBatch) {
+      try {
+        await autoPriceShipments([result.shipment.id], user.id);
+      } catch (error) {
+        console.error("Auto-pricing failed after cargo was added at Dar", {
+          shipmentId: result.shipment.id,
+          error,
+        });
+      }
+    }
 
     revalidatePath("/app/cargo");
     revalidatePath("/app/dashboard");
     revalidatePath("/app/batches");
+    revalidatePath("/app/finance");
     revalidatePath(`/app/batches/${result.assignment.batchId}`);
+    revalidatePath(`/app/receive/${result.assignment.batchId}`);
 
     return ok({
       id: result.shipment.id,
