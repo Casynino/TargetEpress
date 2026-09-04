@@ -10,6 +10,7 @@ import {
 } from "@/components/app/idempotency-key";
 import { ChangeRate } from "@/components/app/change-rate";
 import { GiveDiscount } from "@/components/app/give-discount";
+import { WaiveStorage } from "@/components/app/waive-storage";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,8 @@ export function RecordCollectionForm({
   canChangeRate,
   invoiceDiscount,
   invoiceTotal,
+  storage,
+  canWaiveStorage,
 }: {
   invoiceId: string;
   invoiceNumber: string;
@@ -86,6 +89,10 @@ export function RecordCollectionForm({
   invoiceDiscount?: number;
   /** The bill's own total, for the rate dialog's preview. */
   invoiceTotal?: number;
+  /** Storage on the bill. Nothing to forgive when it is zero. */
+  storage?: number;
+  /** invoice.storage.waive — Support holds this one, unlike the discount. */
+  canWaiveStorage?: boolean;
 }) {
   const t = useT();
   /* The authority decides which action this form is. Support files a claim;
@@ -209,6 +216,15 @@ export function RecordCollectionForm({
               invoiceId={invoiceId}
               currency={currency}
               current={invoiceDiscount ?? 0}
+              rate={rate}
+            />
+          ) : null}
+          {canWaiveStorage ? (
+            <WaiveStorage
+              invoiceId={invoiceId}
+              storage={storage ?? 0}
+              currency={currency}
+              rate={rate}
             />
           ) : null}
           {canChangeRate ? (

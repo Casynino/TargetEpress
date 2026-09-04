@@ -255,6 +255,8 @@ export type FollowUpRow = {
   currency: string;
   /** What is already off it, so a discount box opens on the truth. */
   invoiceDiscount: number;
+  /** Storage on the bill, so the counter can forgive it without leaving. */
+  invoiceStorage: number;
   localCurrency: string | null;
   outstandingLocal: number | null;
   invoiceSentAt: string | null;
@@ -337,6 +339,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
           exchangeRate: true,
           currency: true,
           discount: true,
+          storageCharge: true,
           localCurrency: true,
           sentAt: true,
           confirmedAt: true,
@@ -474,6 +477,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       outstanding,
       currency: invoice?.currency ?? "USD",
       invoiceDiscount: invoice ? toNumber(invoice.discount) : 0,
+      invoiceStorage: invoice ? toNumber(invoice.storageCharge) : 0,
       localCurrency: invoice?.localCurrency ?? null,
       outstandingLocal:
         rate === null || outstanding === null ? null : Math.round(outstanding * rate),
@@ -592,6 +596,7 @@ function creditFollowUpRow(r: CreditRow): FollowUpRow {
     currency: r.currency ?? "USD",
     /* A credit row's bill is not being re-priced from this list. */
     invoiceDiscount: 0,
+    invoiceStorage: 0,
     localCurrency: null,
     outstandingLocal:
       r.exchangeRate === null ? null : Math.round(r.outstandingUsd * r.exchangeRate),

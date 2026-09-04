@@ -174,6 +174,12 @@ export const discountSchema = z.object({
   /** One id, or several comma-separated when a payment covers more than one. */
   invoiceId: z.string().min(1),
   discount: numeric("Discount", { min: 0 }),
+  /* Which money the figure was typed in. The counter agrees discounts in
+     shillings — "punguza elfu tano" — while the bill is written in dollars,
+     and the desk was made to do that division in its head. "local" means the
+     figure is shillings and the server converts it at the rate frozen on each
+     bill; anything else means it is already in the bill's own currency. */
+  discountIn: z.enum(["invoice", "local"]).optional(),
   /* Required, because money given away with no reason against it is the thing
      nobody can answer for a year later. */
   reason: z.string().trim().min(3, "Say why the discount is being given."),

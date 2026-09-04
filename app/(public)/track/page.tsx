@@ -511,8 +511,12 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
             <Camera className="h-4 w-4 text-brand" />
             Your cargo at our China warehouse
           </h2>
+          {/* The photographs open and save, and nothing on a thumbnail says
+              so — a customer wanting the picture for their supplier had no
+              reason to think tapping it would do anything. */}
           <p className="mt-1 text-xs text-muted-foreground">
-            Taken when we received it, before it was packed for the flight.
+            Taken when we received it, before it was packed for the flight. Tap
+            any photo to view it full screen or download it.
           </p>
           <CargoPhotos
             photos={result.photos}

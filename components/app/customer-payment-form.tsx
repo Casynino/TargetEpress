@@ -42,6 +42,20 @@ export type OpenBill = {
       per-bill actions beside this form need. */
   total: number;
   discount: number;
+  /** Storage on the bill, so it can be forgiven from the screen taking the
+      money rather than only from the cargo page. */
+  storage: number;
+  /**
+   * Whether the Dar floor has confirmed the cargo.
+   *
+   * False means it is still in China or in the air, and it cannot be paid for
+   * — the price on it is the estimate from the packing list, not the weight
+   * the warehouse confirmed. Shown all the same, greyed and saying why: a
+   * customer with four consignments who can only settle two needs to see the
+   * other two on this screen, or the desk hunts for bills that are not
+   * missing.
+   */
+  payable: boolean;
 };
 
 const LOCAL = "TZS";
@@ -80,6 +94,7 @@ export function CustomerPaymentForm({
   bills,
   accounts,
   canDiscount,
+  canWaiveStorage,
   canChangeRate,
   canApproveCredit,
 }: {
@@ -99,6 +114,8 @@ export function CustomerPaymentForm({
   accounts: { id: string; name: string; currency: string; kind: string }[];
   /** invoice.discount — Finance, the manager and the owner. */
   canDiscount?: boolean;
+  /** invoice.storage.waive — Support has it where it has no discount. */
+  canWaiveStorage?: boolean;
   /** invoice.rate — the per-bill rate, which Support holds too. */
   canChangeRate?: boolean;
   /** Whether pressing credit grants the terms or asks Finance for them. */
@@ -181,7 +198,13 @@ export function CustomerPaymentForm({
   const [typedTotal, setTypedTotal] = useState<string | null>(null);
 
   const payable = useMemo(
-    () => bills.filter((b) => b.currency === billCurrency),
+    () => bills.filter((b) => b.currency === billCurrency && b.payable),
+    [bills, billCurrency]
+  );
+
+  /* Listed under them, not hidden: see OpenBill.payable. */
+  const waiting = useMemo(
+    () => bills.filter((b) => b.currency === billCurrency && !b.payable),
     [bills, billCurrency]
   );
 
@@ -217,11 +240,10 @@ export function CustomerPaymentForm({
   }, [payable]);
 
   /** A bill's figure, restated in what the customer is handing over. */
-  const inPay = (bill: OpenBill) => {
+  const inPay = (bill: OpenBill, amount = bill.outstanding) => {
     const rate = bill.exchangeRate;
-    if (!cross || !rate) return bill.outstanding;
-    const converted =
-      payCurrency === LOCAL ? bill.outstanding * rate : bill.outstanding / rate;
+    if (!cross || !rate) return amount;
+    const converted = payCurrency === LOCAL ? amount * rate : amount / rate;
     /* Shillings are whole numbers at a counter; cents are not handed over. */
     return payCurrency === LOCAL
       ? Math.round(converted)
@@ -260,6 +282,14 @@ export function CustomerPaymentForm({
     `${currency === LOCAL ? "TSh" : currency} ${n.toLocaleString(undefined, {
       maximumFractionDigits: currency === LOCAL ? 0 : 2,
     })}`;
+
+  /* Storage inside the ticked total, converted at each bill's own rate. */
+  const tickedBills = payable.filter((b) => picked.has(b.invoiceId));
+  const tickedWithStorage = tickedBills.filter((b) => b.storage > 0.005).length;
+  const tickedStorage = tickedBills.reduce(
+    (sum, b) => sum + inPay(b, b.storage),
+    0
+  );
 
   function toggle(invoiceId: string) {
     setPicked((prev) => {
@@ -406,7 +436,13 @@ export function CustomerPaymentForm({
           </div>
         </header>
 
-        {payable.length === 0 ? (
+        {payable.length === 0 && waiting.length > 0 ? (
+          <p className="px-5 py-6 text-sm text-muted-foreground">
+            {t(
+              "Nothing here can be paid for yet — every one of these consignments is still on its way to Dar."
+            )}
+          </p>
+        ) : payable.length === 0 ? (
           <p className="px-5 py-6 text-sm text-muted-foreground">
             {t("This customer has no open bills in this currency.")}
           </p>
@@ -439,6 +475,16 @@ export function CustomerPaymentForm({
                             apart, and the desk is asked which is which. */}
                         {bill.batchNumber ? ` · ${bill.batchNumber}` : ""}
                       </span>
+                      {/* Storage sits inside the figure to the right and was
+                          invisible here, so a customer asking "why is this one
+                          more than you told me" had to be answered from
+                          another screen. Each box has its own clock, so it is
+                          named on the box it belongs to. */}
+                      {bill.storage > 0.005 ? (
+                        <span className="mt-0.5 block text-[11px] font-medium text-[var(--amber,#a86a08)]">
+                          {t("Includes storage")} {money(inPay(bill, bill.storage))}
+                        </span>
+                      ) : null}
                     </span>
                     <span className="shrink-0 text-right">
                       <span className="block font-display text-sm font-bold tabular-nums">
@@ -482,6 +528,40 @@ export function CustomerPaymentForm({
           </ul>
         )}
 
+        {/*
+          STILL ON ITS WAY.
+
+          Shown, and not tickable. A consignment is priced from the weight the
+          Dar floor confirms when it checks the boxes off the manifest, so
+          until then the figure on it is the estimate from the packing list
+          and nobody may be asked to pay it. Hiding these rows would have the
+          desk searching for cargo the customer is asking about; this says
+          where it is instead.
+        */}
+        {waiting.length > 0 ? (
+          <ul className="divide-y border-t bg-muted/20">
+            {waiting.map((bill) => (
+              <li
+                key={bill.invoiceId}
+                className="flex items-center gap-3 px-5 py-3 opacity-70"
+              >
+                <span className="h-5 w-5 shrink-0" aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">
+                    {bill.trackingNumber}{" "}
+                    <span className="text-muted-foreground">
+                      {bill.description}
+                    </span>
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {t("Not in Dar yet — it can be paid for once the warehouse checks it in.")}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted/20 px-5 py-3">
           <div>
             <p className="text-xs text-muted-foreground">
@@ -490,6 +570,18 @@ export function CustomerPaymentForm({
             <p className="font-display text-lg font-bold tabular-nums">
               {money(allocated)}
             </p>
+            {/* What of that figure is late-collection charge rather than
+                freight. It is the part somebody argues about at the counter,
+                and the part the desk may forgive — so it is named before the
+                money is taken, not after. */}
+            {tickedStorage > 0.005 ? (
+              <p className="text-[11px] font-medium text-[var(--amber,#a86a08)]">
+                {t("Of that, storage")} {money(tickedStorage)}
+                {tickedWithStorage > 1
+                  ? ` · ${tickedWithStorage} ${t("consignments")}`
+                  : ""}
+              </p>
+            ) : null}
             {/* What the bills themselves say, beside the figure being handed
                 over. The clerk checks a shilling transfer; the bill, the
                 receipt and the pickup note are all in dollars. */}
@@ -742,6 +834,7 @@ export function CustomerPaymentForm({
               canDiscount={canDiscount}
               canChangeRate={canChangeRate}
               canApproveCredit={canApproveCredit}
+              canWaiveStorage={canWaiveStorage}
             />
           </div>
 

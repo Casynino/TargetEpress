@@ -19,6 +19,11 @@ import {
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import {
+  COLLECTABLE_SHIPMENT_WHERE,
+  isCollectable,
+  notPayableMessage,
+} from "@/lib/payable";
 import { can } from "@/lib/rbac";
 import { authorize } from "@/lib/session";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
@@ -117,7 +122,7 @@ export async function requestCredit(
         total: true,
         amountPaid: true,
         customerId: true,
-        shipment: { select: { trackingNumber: true } },
+        shipment: { select: { trackingNumber: true, status: true } },
       },
     });
     if (invoices.length !== ids.length) {
@@ -134,7 +139,15 @@ export async function requestCredit(
     }
 
     for (const invoice of invoices) {
-      if (!canRequestCredit(invoice)) {
+      /* Credit is a debt agreed for a particular consignment. Agreeing one on
+         cargo the Dar floor has not confirmed commits the customer to a price
+         worked out from a packing list — see lib/payable.ts. */
+      if (
+        !canRequestCredit({
+          ...invoice,
+          shipmentStatus: invoice.shipment?.status ?? null,
+        })
+      ) {
         const which = invoices.length > 1 ? `${invoice.invoiceNumber}: ` : "";
         return fail(
           which +
@@ -144,7 +157,11 @@ export async function requestCredit(
                 ? t(locale, "This consignment is already approved for credit.")
                 : invoice.status === "DRAFT"
                   ? t(locale, "Confirm the price first — credit cannot be granted against a figure nobody has signed off.")
-                  : t(locale, "There is nothing outstanding on this bill to defer."))
+                  : /* Said plainly, or the desk is refused with no idea why:
+                       the bill looks perfectly ordinary on screen. */
+                    !isCollectable(invoice.shipment?.status ?? null)
+                    ? notPayableMessage(invoice.shipment?.trackingNumber ?? invoice.invoiceNumber)
+                    : t(locale, "There is nothing outstanding on this bill to defer."))
         );
       }
     }
@@ -275,7 +292,7 @@ export async function approveCredit(
           exchangeRate: true,
           customerId: true,
           customer: { select: { name: true, creditLimitUsd: true, creditTermDays: true } },
-          shipment: { select: { trackingNumber: true } },
+          shipment: { select: { trackingNumber: true, status: true } },
         },
       });
       if (!invoice) throw new Error("That invoice no longer exists.");
@@ -286,6 +303,19 @@ export async function approveCredit(
             ? `${invoice.invoiceNumber} is already approved for credit.`
             : `There is no open credit request on ${invoice.invoiceNumber}.`
         );
+      }
+
+      /*
+        Re-asked at the grant, not only at the request.
+
+        A request raised while the cargo was still coming — or raised before
+        this rule existed — is sitting in Finance's queue now, and approving it
+        is the moment the company commits to the debt. Finance is told to
+        reject it instead, which leaves the audit trail showing a decision
+        rather than a request that quietly stopped working.
+      */
+      if (!isCollectable(invoice.shipment?.status ?? null)) {
+        throw new Error(notPayableMessage(invoice.shipment?.trackingNumber ?? invoice.invoiceNumber));
       }
 
       /*
@@ -794,6 +824,10 @@ export async function creditCandidates(
     where: {
       status: { in: ["UNPAID", "PARTIALLY_PAID"] },
       creditStatus: "NONE",
+      /* Only cargo Dar has confirmed. This list is what every "Ask for
+         credit" and "Release on credit" panel offers, and it was offering to
+         agree terms on consignments still in Guangzhou. */
+      shipment: COLLECTABLE_SHIPMENT_WHERE,
       ...(q.length >= 2
         ? {
             OR: [
@@ -829,7 +863,7 @@ export async function creditCandidates(
         },
       },
       shipment: {
-        select: { trackingNumber: true, ...selectText("description") },
+        select: { trackingNumber: true, status: true, ...selectText("description") },
       },
     },
   });
@@ -930,7 +964,7 @@ export async function creditContextFor(
         },
       },
       shipment: {
-        select: { trackingNumber: true, ...selectText("description") },
+        select: { trackingNumber: true, status: true, ...selectText("description") },
       },
     },
   });
@@ -940,7 +974,11 @@ export async function creditContextFor(
   if (
     !inv ||
     inv.creditStatus !== "NONE" ||
-    (inv.status !== "UNPAID" && inv.status !== "PARTIALLY_PAID")
+    (inv.status !== "UNPAID" && inv.status !== "PARTIALLY_PAID") ||
+    /* Nothing Dar has not confirmed may be released on credit, so the button
+       does not render for it. The action refuses too — this only spares the
+       desk pressing something that was always going to be refused. */
+    !isCollectable(inv.shipment?.status ?? null)
   ) {
     return null;
   }
@@ -977,6 +1015,7 @@ export async function creditContextFor(
         customerId: true,
         status: true,
         creditStatus: true,
+        shipment: { select: { status: true } },
       },
     });
     /* Every one of them has to be releasable, of one customer and in one
@@ -989,7 +1028,8 @@ export async function creditContextFor(
           r.customerId !== inv.customer.id ||
           r.currency !== inv.currency ||
           r.creditStatus !== "NONE" ||
-          (r.status !== "UNPAID" && r.status !== "PARTIALLY_PAID")
+          (r.status !== "UNPAID" && r.status !== "PARTIALLY_PAID") ||
+          !isCollectable(r.shipment?.status ?? null)
       )
     ) {
       return null;

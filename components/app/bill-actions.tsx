@@ -6,6 +6,7 @@ import { Download, FileText } from "lucide-react";
 import { ChangeRate } from "@/components/app/change-rate";
 import { CreditRequest } from "@/components/app/credit-request";
 import { GiveDiscount } from "@/components/app/give-discount";
+import { WaiveStorage } from "@/components/app/waive-storage";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { creditContextFor } from "@/lib/actions/credit";
@@ -37,6 +38,7 @@ export function BillActions({
   canDiscount,
   canChangeRate,
   canApproveCredit,
+  canWaiveStorage,
 }: {
   bill:
     | {
@@ -46,6 +48,7 @@ export function BillActions({
         total: number;
         discount: number;
         exchangeRate: number | null;
+        storage: number;
       }
     | null;
   /** Every ticked bill. Discount and rate act on all of them at once. */
@@ -55,12 +58,15 @@ export function BillActions({
     total: number;
     discount: number;
     exchangeRate: number | null;
+    storage: number;
   }[];
   selectedCount: number;
   canDiscount?: boolean;
   canChangeRate?: boolean;
   /** Whether pressing it GRANTS the terms or asks Finance for them. */
   canApproveCredit?: boolean;
+  /** invoice.storage.waive. Support holds this where it has no discount. */
+  canWaiveStorage?: boolean;
 }) {
   const t = useT();
   const [credit, setCredit] = useState<Awaited<
@@ -93,6 +99,7 @@ export function BillActions({
 
   if (selectedCount === 0) return null;
 
+
   /*
     DISCOUNT AND RATE WORK ON EVERYTHING TICKED; the rest needs one bill.
 
@@ -104,6 +111,19 @@ export function BillActions({
   */
   const many = bills && bills.length > 0 ? bills : bill ? [bill] : [];
   const ids = many.map((b) => b.invoiceId).join(",");
+  /*
+    THE STORAGE ON WHAT IS TICKED.
+
+    Each consignment's clock runs from the day that box landed, so a customer
+    collecting three at once can be carrying three different fees — and the
+    desk was shown none of them here. Summed for the figure, counted for the
+    sentence, and forgiven in one gesture that still writes an audit line per
+    bill. It is never removed by the system: the clock keeps running and
+    somebody has to decide.
+  */
+  const withStorage = many.filter((b) => b.storage > 0.005);
+  const storageTotal = withStorage.reduce((sum, b) => sum + b.storage, 0);
+
   const combinedDiscount =
     Math.round(many.reduce((n, b) => n + b.discount, 0) * 100) / 100;
   const combinedTotal =
@@ -156,12 +176,26 @@ export function BillActions({
         />
       ) : null}
       <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+        {/* Storage is per consignment — each box has its own clock — so this
+            answers for the one bill in front of the desk, unlike the discount
+            and the rate, which are agreed over the whole payment. */}
+        {canWaiveStorage && storageTotal > 0 ? (
+          <WaiveStorage
+            /* Only the bills that actually carry a fee. */
+            invoiceId={withStorage.map((b) => b.invoiceId).join(",")}
+            storage={storageTotal}
+            across={withStorage.length}
+            currency={many[0]!.currency}
+            rate={many[0]!.exchangeRate}
+          />
+        ) : null}
         {canDiscount && oneCurrency ? (
           <GiveDiscount
             invoiceId={ids}
             currency={many[0]!.currency}
             current={combinedDiscount}
             across={many.length}
+            rate={sharedRate}
           />
         ) : null}
         {canChangeRate && oneCurrency ? (

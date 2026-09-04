@@ -11,6 +11,7 @@ import {
   formatPackages,
 } from "@/lib/constants";
 import { normaliseCode, toNumber } from "@/lib/format";
+import { isCollectable } from "@/lib/payable";
 import { currentRateValue, toLocal } from "@/lib/fx";
 import { quote } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
@@ -470,9 +471,28 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
     // it. Showing one here would put an unreviewed number in front of the
     // customer and then change it, so as far as this page is concerned a draft
     // is no invoice at all, and the rate-book estimate below stands instead.
-    const invoice =
+    /*
+      AND NOT UNTIL DAR HAS IT.
+
+      A draft is no invoice as far as this page is concerned — and neither is
+      a confirmed bill on cargo the Dar floor has not checked in. This page
+      was telling a customer "your cargo left Guangzhou on 27 Aug, due in Dar
+      around 29 Aug" and, directly beneath it, "AMOUNT DUE TSh 91,125" with
+      every bank account to send it to. The figure came from a packing list.
+
+      Money already received is the exception: a customer who has paid must
+      still see that they have, or the page reads as though their money went
+      nowhere. So a bill with anything against it stays visible whatever the
+      cargo is doing.
+    */
+    const billable =
       shipment.invoice && shipment.invoice.status !== "DRAFT"
         ? shipment.invoice
+        : null;
+    const invoice =
+      billable &&
+      (isCollectable(shipment.status) || toNumber(billable.amountPaid) > 0)
+        ? billable
         : null;
 
     // What the flight is expected to land, when the cargo is on one.

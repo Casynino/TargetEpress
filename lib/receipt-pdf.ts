@@ -1,6 +1,13 @@
 import "server-only";
 
-import { createSheet } from "@/lib/pdf-kit";
+import { PAYMENT_METHODS, storageNotice } from "@/lib/constants";
+import {
+  INK,
+  MUTED,
+  NAVY,
+  RED,
+  createSheet,
+} from "@/lib/pdf-kit";
 import { latinLabel } from "@/lib/manifest-pdf";
 
 export type CombinedReceiptInput = {
@@ -278,15 +285,113 @@ export function combinedBillToPdf(input: CombinedBillInput) {
       : undefined,
   });
 
-  sheet.y += 6;
-  sheet.put(
-    "Paying the total above settles every consignment listed. You will receive one receipt naming all of them, and a pickup note for each cargo as it clears.",
-    sheet.geometry.MARGIN,
-    sheet.y,
-    { size: 8.5 }
-  );
-  sheet.y += 16;
+  const { doc, geometry } = sheet;
+  const { MARGIN, RIGHT, CONTENT } = geometry;
 
+  /* sheet.put draws a single unwrapped line, so anything sentence-length has
+     to be split to the content width first — this paragraph was running off
+     the right edge of the page and losing its last three words. */
+  const paragraph = (text: string, size = 8.5, colour = INK) => {
+    /* The font has to be set BEFORE the split: jsPDF measures against whatever
+       size is current, so splitting first and sizing afterwards wraps to the
+       wrong width and the last words fall off the right edge. */
+    doc.setFontSize(size);
+    doc.setFont("helvetica", "normal");
+    const lines = doc.splitTextToSize(text, CONTENT);
+    sheet.need(lines.length * (size + 2) + 6);
+    sheet.setInk(colour);
+    doc.text(lines, MARGIN, sheet.y);
+    sheet.y += lines.length * (size + 2) + 4;
+  };
+
+  sheet.y += 6;
+  paragraph(
+    "Paying the total above settles every consignment listed. You will receive one receipt naming all of them, and a pickup note for each cargo as it clears."
+  );
+  sheet.y += 6;
+
+  /*
+    HOW TO PAY.
+
+    This document says "one transfer settles all of them" and then gave the
+    customer nowhere to send it — no lipa number, no account, not even the
+    counter address. The single invoice has carried them all along; a customer
+    billed for four consignments at once was the one customer who had to ring
+    the office to ask where the money goes.
+
+    Same accounts, same grouping and same reference line as the invoice, so
+    the two documents cannot come to disagree about where Target Express is
+    paid.
+  */
+  const mobile = PAYMENT_METHODS.filter((a) => a.kind === "MOBILE");
+  const banks = PAYMENT_METHODS.filter((a) => a.kind === "BANK");
+  const cash = PAYMENT_METHODS.filter((a) => a.kind === "CASH");
+  const rows = Math.max(mobile.length, banks.length);
+  const payH = 40 + rows * 30 + (cash.length > 0 ? 34 : 0) + 8;
+  sheet.need(payH + 24);
+
+  doc.setDrawColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.setLineWidth(1);
+  doc.roundedRect(MARGIN, sheet.y, CONTENT, payH, 5, 5, "S");
+  sheet.put("HOW TO PAY", MARGIN + 14, sheet.y + 20, {
+    size: 10,
+    style: "bold",
+    colour: NAVY,
+  });
+  /* One reference for the whole statement — the customer's own code, because
+     no single tracking number covers every line on it. */
+  sheet.put(
+    `Quote ${input.customerCode} as the reference`,
+    RIGHT - 14,
+    sheet.y + 20,
+    { size: 8, align: "right", colour: MUTED }
+  );
+
+  const account = (a: (typeof PAYMENT_METHODS)[number], x: number, top: number) => {
+    sheet.put(a.label, x, top, { size: 7.5, style: "bold", colour: MUTED });
+    sheet.put(a.number, x, top + 12, { size: 11, style: "bold", colour: NAVY });
+    sheet.put(a.accountName, x, top + 21, { size: 7, colour: MUTED });
+  };
+
+  const colW = (CONTENT - 28) / 2;
+  const top = sheet.y + 44;
+  mobile.forEach((a, i) => account(a, MARGIN + 14, top + i * 30));
+  banks.forEach((a, i) => account(a, MARGIN + 14 + colW + 4, top + i * 30));
+  cash.forEach((a, i) => account(a, MARGIN + 14, top + rows * 30 + i * 30));
+  sheet.y += payH + 18;
+
+  /*
+    The storage clock, in red and in both languages, Kiswahili first.
+
+    Identical to the invoice's footing and for the same reason: it is the one
+    part of this document that costs the customer money if it goes unread, and
+    a customer holding only this statement was never shown it.
+  */
+  const notice = storageNotice();
+  sheet.need(84);
+  sheet.put(notice.sw.heading, MARGIN, sheet.y, {
+    size: 8,
+    style: "bold",
+    colour: RED,
+  });
+  sheet.y += 11;
+  /* Kiswahili first — the customer holding this reads Kiswahili; the English
+     is for the forwarder and the file. One heading covers both. */
+  for (const part of [notice.sw, notice.en]) {
+    paragraph(part.body, 7.5, RED);
+    sheet.y += 2;
+  }
+
+  /* The shilling figure is not a promise. Storage accrues daily and the rate
+     moves, so a statement printed today can be short by the time it is paid. */
+  sheet.y += 2;
+  paragraph(
+    "This amount can change: storage is charged daily once the free window closes, and the shilling figure follows the exchange rate on the day of payment.",
+    7.5,
+    MUTED
+  );
+
+  sheet.y += 6;
   sheet.signature("Target Express Air Cargo");
   return sheet.finish();
 }

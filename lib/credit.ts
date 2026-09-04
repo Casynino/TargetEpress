@@ -1,4 +1,10 @@
-import type { CreditStatus, InvoiceStatus, Prisma } from "@prisma/client";
+import type {
+  CreditStatus,
+  InvoiceStatus,
+  Prisma,
+  ShipmentStatus,
+} from "@prisma/client";
+import { isCollectable } from "@/lib/payable";
 
 import { toNumber } from "@/lib/format";
 
@@ -333,9 +339,25 @@ export function canRequestCredit(invoice: {
   creditStatus: CreditStatus;
   total: Money;
   amountPaid: Money;
+  /*
+    Where the cargo is.
+
+    Releasing on credit is agreeing a debt for a particular consignment, and
+    it was being offered on cargo still in Guangzhou — a debt agreed against a
+    price that is still an estimate, for goods the company has not yet
+    weighed. Optional so the older callers that ask only about the invoice
+    still compile; every one of them that decides money now passes it.
+  */
+  shipmentStatus?: ShipmentStatus | null;
 }): boolean {
   if (invoice.status === "DRAFT" || invoice.status === "VOID") return false;
   if (invoice.status === "PAID" || invoice.status === "WRITTEN_OFF") return false;
+  if (
+    invoice.shipmentStatus !== undefined &&
+    !isCollectable(invoice.shipmentStatus)
+  ) {
+    return false;
+  }
   if (invoice.creditStatus === "REQUESTED" || invoice.creditStatus === "APPROVED") {
     return false;
   }

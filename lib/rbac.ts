@@ -138,6 +138,7 @@ export type Permission =
   | "invoice.edit" // change a bill before the customer has paid anything
   | "invoice.discount"
   | "invoice.rate"
+  | "invoice.storage.waive"
   | "invoice.send"
   | "payment.record"
   /* Credit sales. Four permissions rather than one, because the whole control
@@ -456,6 +457,20 @@ const CUSTOMER_CARE: Permission[] = [
     the customer when it is agreed.
   */
   "invoice.rate",
+  /*
+    FORGIVING THE STORAGE FEE, WHICH IS NOT A DISCOUNT.
+
+    This desk deliberately has no invoice.discount: a discount is any figure
+    off any bill, and that decision belongs to Finance. A storage waiver is
+    not that. The amount is not chosen — it is whatever the clock accrued —
+    and the conversation is always the same one this desk is already having:
+    the customer was late, they are standing at the counter, and somebody has
+    to say whether the late days are charged.
+
+    Bounded, audited and reasoned, so it can sit here without handing this
+    desk the power to write money off generally.
+  */
+  "invoice.storage.waive",
   // Correcting which flight a box is on: a customer rings to say their cargo
   // is not on the flight they were told, and this desk takes that call.
   "shipment.move",
@@ -534,6 +549,7 @@ const FINANCE: Permission[] = [
   "invoice.edit",
   "invoice.discount",
   "invoice.rate",
+  "invoice.storage.waive",
   "invoice.send",
   "message.send",
   "payment.record",

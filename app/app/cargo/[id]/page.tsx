@@ -905,6 +905,8 @@ export default async function ShipmentDetailPage({
               shipment.invoice ? toNumber(shipment.invoice.discount) : 0
             }
             canDiscount={can(user.role, "invoice.discount")}
+            invoiceStorage={toNumber(shipment.invoice?.storageCharge ?? 0)}
+            canWaiveStorage={can(user.role, "invoice.storage.waive")}
             invoiceTotal={shipment.invoice ? toNumber(shipment.invoice.total) : 0}
             canChangeRate={can(user.role, "invoice.rate")}
             /* Credit granted means the cargo may go before the money does —

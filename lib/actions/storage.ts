@@ -10,8 +10,9 @@ import { toNumber } from "@/lib/format";
 import { toLocal } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { invoiceStatusFor } from "@/lib/invoice-status";
+import type { Locale } from "@/lib/locale";
 import { prisma } from "@/lib/prisma";
-import { authorize } from "@/lib/session";
+import { authorize, type SessionUser } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import { firstError } from "@/lib/validation";
@@ -310,17 +311,81 @@ export async function waiveStorageFee(
 ): Promise<ActionResult> {
   const locale = await viewerLocale();
   try {
-    const user = await authorize("invoice.discount");
+    /* Its own permission rather than invoice.discount, so the counter can
+       forgive late days without also being able to write any figure off any
+       bill. See the note beside it in rbac. */
+    const user = await authorize("invoice.storage.waive");
     const parsed = z
       .object({
+        /* One bill, or the comma-separated set ticked on the merge screen —
+           the same shape the discount and the rate take. */
         invoiceId: z.string().min(1),
         reason: z.string().trim().min(3, "Say why the fee is being waived."),
       })
       .safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
 
-    const found = await currentStorage(parsed.data.invoiceId);
-    if (!found) return fail(t(locale, "That invoice no longer exists."));
+    const ids = parsed.data.invoiceId
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+
+    /*
+      EACH CONSIGNMENT HAS ITS OWN CLOCK.
+
+      Storage is counted per box from the day that box landed, so three
+      consignments ticked together carry three different day counts and three
+      different fees. They are forgiven in one gesture because that is the one
+      conversation the desk is having, but the arithmetic stays per bill and
+      each gets its own audit line.
+    */
+    let waivedAny = false;
+    for (const id of ids) {
+      const found = await currentStorage(id);
+      if (!found) return fail(t(locale, "That invoice no longer exists."));
+      /* A ticked set will usually hold consignments that owe nothing —
+         collected inside their free week — and those are not a reason to
+         refuse the ones that do. Skipped, not failed. */
+      const onBill = toNumber(found.invoice.storageCharge);
+      const owing = onBill > 0 ? onBill : found.status.chargeUsd;
+      if (owing <= 0) continue;
+      const refusal = await waiveOne(found, parsed.data.reason, user, locale);
+      if (refusal) return refusal;
+      waivedAny = true;
+    }
+    if (!waivedAny) {
+      return fail(
+        t(
+          locale,
+          ids.length > 1
+            ? "None of those consignments has a storage fee to remove."
+            : "There is no storage fee on this cargo to waive."
+        )
+      );
+    }
+
+    revalidatePath("/app/collections/follow-up");
+    return ok();
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+/**
+ * One bill's waiver, exactly as it always was.
+ *
+ * Split out so a merged waiver runs the same guards for every consignment
+ * rather than a looser copy of them: the overpayment refusal, the conditional
+ * claim on the total and the audit line are each per bill. Returns null when
+ * it worked, and the refusal when it did not.
+ */
+async function waiveOne(
+  found: NonNullable<Awaited<ReturnType<typeof currentStorage>>>,
+  reason: string,
+  user: SessionUser,
+  locale: Locale
+): Promise<ActionResult | null> {
+  try {
     const { invoice, status } = found;
 
     /* Whatever is on the bill, or whatever has accrued if nothing is yet. */
@@ -401,7 +466,7 @@ export async function waiveStorageFee(
           storageWaivedUsd: new Prisma.Decimal(waived),
           storageWaivedAt: new Date(),
           storageWaivedById: user.id,
-          storageWaiveReason: parsed.data.reason,
+          storageWaiveReason: reason,
           total: new Prisma.Decimal(total),
           totalLocal:
             totalLocal === null ? null : new Prisma.Decimal(totalLocal),
@@ -420,13 +485,13 @@ export async function waiveStorageFee(
           action: "storage.waived",
           entity: "Invoice",
           entityId: invoice.id,
-          summary: `${invoice.invoiceNumber}: storage fee of USD ${waived.toFixed(2)} waived — ${parsed.data.reason}`,
+          summary: `${invoice.invoiceNumber}: storage fee of USD ${waived.toFixed(2)} waived — ${reason}`,
           metadata: {
             tracking: invoice.shipment?.trackingNumber ?? null,
             daysInWarehouse: status.daysInWarehouse,
             chargeableDays: status.chargeableDays,
             waivedUsd: waived,
-            reason: parsed.data.reason,
+            reason: reason,
             newTotal: total,
             exchangeRate: rate,
             newTotalLocal: totalLocal,
@@ -437,8 +502,7 @@ export async function waiveStorageFee(
     });
 
     revalidatePath(`/app/finance/invoices/${invoice.id}`);
-    revalidatePath("/app/collections/follow-up");
-    return ok();
+    return null;
   } catch (error) {
     return fail(t(locale, toActionError(error)));
   }

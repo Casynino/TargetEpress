@@ -211,6 +211,8 @@ export default async function RecordCollectionPage({
                 rate={rate}
                 banks={banks}
                 canRecord={canRecordDirectly}
+                storage={storageCharged}
+                canWaiveStorage={can(user.role, "invoice.storage.waive")}
               />
             </>
           ) : invoice.creditStatus === "REQUESTED" ? (
@@ -253,6 +255,8 @@ export default async function RecordCollectionPage({
                   rate={rate}
                   banks={banks}
                   canRecord={canRecordDirectly}
+                  storage={storageCharged}
+                  canWaiveStorage={can(user.role, "invoice.storage.waive")}
                 />
               }
               credit={

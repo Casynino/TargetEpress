@@ -30,6 +30,12 @@ import {
 } from "@/lib/ids";
 import { companySettings } from "@/lib/company-settings";
 import { prisma } from "@/lib/prisma";
+import {
+  COLLECTABLE_SHIPMENT_WHERE,
+  isCollectable,
+  isDarConfirmed,
+  notPayableMessage,
+} from "@/lib/payable";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -332,6 +338,7 @@ export async function confirmInvoicePrice(
             select: {
               id: true,
               trackingNumber: true,
+              status: true,
               cargoCategory: true,
               cargoTypeId: true,
               weightKg: true,
@@ -347,6 +354,25 @@ export async function confirmInvoicePrice(
         throw new Error(
           `${invoice.invoiceNumber} has already been confirmed.`
         );
+      }
+
+      /*
+        THE LOCK THE WHOLE RULE HANGS ON.
+
+        A DRAFT is the system's own estimate; confirming one is what turns it
+        into a bill somebody can be asked to pay, and almost every screen in
+        the app already draws the line at DRAFT. So this is where "no Dar
+        confirmation, no final price" has to be enforced — hold it here and
+        the merge screen, the chase list, the outstanding tiles and the
+        reports all follow without being touched, because none of them counts
+        a draft.
+
+        Not gated on arrivedAt: that stamp is set on cargo still recorded as
+        in the air (dispatch does not clear it), so it says nothing about
+        whether the floor has the boxes.
+      */
+      if (!isDarConfirmed(invoice.shipment.status)) {
+        throw new Error(notPayableMessage(invoice.shipment.trackingNumber));
       }
 
       const shipment = invoice.shipment;
@@ -1173,14 +1199,58 @@ export async function applyInvoiceDiscount(
         throw new Error("There is nothing on these bills to discount.");
       }
 
-      let handedOut = 0;
-      const shares = invoices.map((_, idx) => {
-        if (idx === invoices.length - 1) {
-          return Math.round((input.discount - handedOut) * 100) / 100;
+      /*
+        THE FIGURE MAY HAVE BEEN AGREED IN SHILLINGS.
+
+        The counter says "punguza elfu tano" and the bill is written in
+        dollars; the box only ever accepted dollars, so the desk was doing
+        that division in its head and typing the result. Now the figure comes
+        with the money it was typed in and the conversion happens here.
+
+        Each bill converts at the rate frozen onto IT, not at one rate for the
+        batch: two consignments billed a fortnight apart were quoted at the
+        two rates published on those days, and both are right. So the shilling
+        figure is shared out in shillings first, then each share is turned
+        into that bill's own currency.
+      */
+      const typedInLocal = input.discountIn === "local";
+      const rateOf = (invoice: (typeof invoices)[number]) => {
+        if (invoice.currency === (invoice.localCurrency ?? "TZS")) return 1;
+        return invoice.exchangeRate === null ? 0 : toNumber(invoice.exchangeRate);
+      };
+      if (typedInLocal) {
+        for (const invoice of invoices) {
+          if (rateOf(invoice) <= 0) {
+            throw new Error(
+              `${invoice.invoiceNumber} has no exchange rate on it, so a shilling discount cannot be worked out. Give the figure in ${invoice.currency}, or set the rate on the bill first.`
+            );
+          }
         }
-        const share = Math.round((input.discount * gross[idx]!) / basis * 100) / 100;
+      }
+
+      /* Shared out in proportion to what each bill is worth IN THE MONEY THE
+         FIGURE WAS TYPED IN, so the parts of a shilling discount add up to
+         the shillings that were agreed. */
+      const weights = typedInLocal
+        ? invoices.map((invoice, idx) => gross[idx]! * rateOf(invoice))
+        : gross;
+      const weighed = weights.reduce((n, g) => n + g, 0);
+
+      let handedOut = 0;
+      const shares = invoices.map((invoice, idx) => {
+        const last = idx === invoices.length - 1;
+        const raw = last
+          ? input.discount - handedOut
+          : (input.discount * weights[idx]!) / weighed;
+        /* Rounded in the money it was typed in — shillings are never quoted
+           to the cent — and only then converted onto the bill. */
+        const share = typedInLocal
+          ? Math.round(raw)
+          : Math.round(raw * 100) / 100;
         handedOut += share;
-        return share;
+        return typedInLocal
+          ? Math.round((share / rateOf(invoice)) * 100) / 100
+          : share;
       });
 
       const changed: { number: string; was: number; now: number; total: number }[] = [];
@@ -1468,7 +1538,16 @@ export async function recordPayment(
           /* The payer, carried onto the payment: money that arrives ahead of a
              bill, or beyond every bill, still belongs to somebody. */
           customerId: true,
-          shipment: { select: { id: true, trackingNumber: true, batchId: true } },
+          shipment: {
+            select: {
+              id: true,
+              trackingNumber: true,
+              batchId: true,
+              /* Where the boxes are. Money may not be taken for cargo the Dar
+                 floor has not confirmed — see lib/payable.ts. */
+              status: true,
+            },
+          },
         },
       });
       if (!invoice) throw new Error("Invoice not found.");
@@ -1484,6 +1563,17 @@ export async function recordPayment(
         throw new Error(
           `${invoice.invoiceNumber} is still a draft. Confirm the price before recording a payment against it.`
         );
+      }
+      /*
+        And where the cargo is, not only what the bill says.
+
+        confirmInvoicePrice will not lift a draft on cargo Dar has not
+        confirmed, so a bill in this state is either older than that rule or
+        belongs to a consignment that has since been sent back out. Either way
+        this endpoint is reachable without the screen, so it asks for itself.
+      */
+      if (!isCollectable(invoice.shipment.status)) {
+        throw new Error(notPayableMessage(invoice.shipment.trackingNumber));
       }
 
       /*
@@ -2456,6 +2546,10 @@ export async function searchBillable(query: string): Promise<BillableHit[]> {
   const invoices = await prisma.invoice.findMany({
     where: {
       status: { not: "WRITTEN_OFF" },
+      /* Typing a tracking number was making an in-transit bill pickable on a
+         payment form. Searching is how somebody finds the bill they are about
+         to take money against, so it answers with what can be paid for. */
+      shipment: COLLECTABLE_SHIPMENT_WHERE,
       OR: [
         { invoiceNumber: { contains: q, mode: "insensitive" } },
         { shipment: { trackingNumber: { contains: q, mode: "insensitive" } } },
@@ -2565,7 +2659,13 @@ export async function billableQueue(
       where: {
         /* Drafts and written-off bills are not money anybody may take. */
         status: { in: ["UNPAID", "PARTIALLY_PAID"] },
-        ...(batchId ? { shipment: { batchId } } : {}),
+        /* Only what somebody could actually collect on. This queue is the
+           picker behind the payment forms and it rolls into the per-flight
+           chips, so un-landed cargo was both offered as payable and counted
+           into a figure that reads as ready to collect. */
+        shipment: batchId
+          ? { batchId, ...COLLECTABLE_SHIPMENT_WHERE }
+          : COLLECTABLE_SHIPMENT_WHERE,
       },
       /* Oldest first: the bill that has been owed longest is the one somebody
          should be ringing about, which is the opposite of the search's order. */
@@ -2947,7 +3047,16 @@ export async function recordCustomerPayment(
           total: true,
           amountPaid: true,
           customerId: true,
-          shipment: { select: { id: true, trackingNumber: true, batchId: true } },
+          shipment: {
+            select: {
+              id: true,
+              trackingNumber: true,
+              batchId: true,
+              /* Where the boxes are. Money may not be taken for cargo the Dar
+                 floor has not confirmed — see lib/payable.ts. */
+              status: true,
+            },
+          },
           submissions: {
             where: { status: "PENDING" },
             select: { submissionNumber: true },
@@ -2973,6 +3082,19 @@ export async function recordCustomerPayment(
         }
         if (invoice.status === "VOID" || invoice.status === "WRITTEN_OFF") {
           throw new Error(`${invoice.invoiceNumber} is not a live bill.`);
+        }
+        /*
+          EVERY BILL IN THE MERGE, NOT JUST THE FIRST.
+
+          This endpoint takes a list of invoice ids and is reachable without
+          the screen that built the list, which is precisely the bypass the
+          rule forbids: one un-landed consignment slipped into an otherwise
+          good set would be paid for along with the rest. Named in the
+          refusal, because "one of them has not landed" is not something a
+          desk can act on.
+        */
+        if (!isCollectable(invoice.shipment.status)) {
+          throw new Error(notPayableMessage(invoice.shipment.trackingNumber));
         }
         /* The same refusal the single-invoice form makes, for the same reason:
            money already claimed and awaiting Finance must not be taken twice. */

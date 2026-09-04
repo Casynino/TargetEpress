@@ -13,6 +13,7 @@ import {
   isRepeatSubmission,
 } from "@/lib/idempotency";
 import { prisma, type TxClient } from "@/lib/prisma";
+import { isCollectable, notPayableMessage } from "@/lib/payable";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { authorize, type SessionUser } from "@/lib/session";
 import { toNumber } from "@/lib/format";
@@ -174,7 +175,7 @@ export async function submitPaymentForVerification(
           total: true,
           amountPaid: true,
           customerId: true,
-          shipment: { select: { trackingNumber: true } },
+          shipment: { select: { trackingNumber: true, status: true } },
           customer: { select: { name: true } },
         },
       });
@@ -189,6 +190,11 @@ export async function submitPaymentForVerification(
       }
       if (invoice.status === "PAID") {
         throw new Error(`${invoice.invoiceNumber} is already settled.`);
+      }
+      /* And where the cargo is. A claim is a customer being asked to send
+         money, so it is refused on the same terms as taking it. */
+      if (!isCollectable(invoice.shipment.status)) {
+        throw new Error(notPayableMessage(invoice.shipment.trackingNumber));
       }
 
       // One claim at a time per bill. Two pending submissions against one
@@ -732,7 +738,7 @@ export async function submitCombinedPayment(
           invoiceNumber: true,
           status: true,
           customerId: true,
-          shipment: { select: { trackingNumber: true } },
+          shipment: { select: { trackingNumber: true, status: true } },
           submissions: {
             where: { status: "PENDING" },
             select: { submissionNumber: true },
@@ -761,6 +767,11 @@ export async function submitCombinedPayment(
         }
         if (invoice.status === "PAID") {
           throw new Error(`${invoice.invoiceNumber} is already settled.`);
+        }
+        /* Every bill in the merge, so one un-landed consignment cannot ride
+           in on a set that is otherwise good. */
+        if (!isCollectable(invoice.shipment.status)) {
+          throw new Error(notPayableMessage(invoice.shipment.trackingNumber));
         }
         /* One claim at a time per bill. Two pending claims against one invoice
            is two people ringing the same customer and Finance verifying the

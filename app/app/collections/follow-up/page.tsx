@@ -821,6 +821,8 @@ export default async function FollowUpPage({
                           canChangeRate={can(user.role, "invoice.rate")}
                           invoiceDiscount={row.invoiceDiscount}
                           invoiceTotal={row.total ?? undefined}
+                          storage={row.invoiceStorage}
+                          canWaiveStorage={can(user.role, "invoice.storage.waive")}
                           label={`${t(locale, "Record a payment for")} ${row.invoiceNumber ?? row.trackingNumber}`}
                         />
                       </IconHint>

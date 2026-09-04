@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { cardFileName, pdfHeaders } from "@/lib/card-pdf";
 import { BILLED_INVOICE_STATUSES } from "@/lib/constants";
+import { COLLECTABLE_SHIPMENT_WHERE } from "@/lib/payable";
 import { toNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { combinedBillToPdf } from "@/lib/receipt-pdf";
@@ -37,7 +38,14 @@ export async function GET(
       code: true,
       phone: true,
       invoices: {
-        where: { status: { in: [...BILLED_INVOICE_STATUSES] } },
+        /* Only what the customer can actually be asked for. This document is
+           a demand for money, and it was printing consignments still in the
+           air as lines on it — a figure quoted from a packing list, on paper,
+           over the company's own letterhead. */
+        where: {
+          status: { in: [...BILLED_INVOICE_STATUSES] },
+          shipment: COLLECTABLE_SHIPMENT_WHERE,
+        },
         orderBy: { issuedAt: "asc" },
         select: {
           invoiceNumber: true,

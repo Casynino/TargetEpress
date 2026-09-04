@@ -29,6 +29,7 @@ export function GiveDiscount({
   currency,
   current,
   across = 1,
+  rate,
 }: {
   invoiceId: string;
   currency: string;
@@ -36,9 +37,45 @@ export function GiveDiscount({
   current: number;
   /** How many bills this covers. One figure, shared out by the server. */
   across?: number;
+  /**
+   * The rate frozen on the bill, so a shilling figure can be shown as it will
+   * land. Null means the bill has none and the figure has to be given in its
+   * own currency.
+   */
+  rate?: number | null;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
+
+  /*
+    SHILLINGS FIRST, BECAUSE THAT IS WHAT IS AGREED.
+
+    The bill is written in dollars but the discount is settled at the counter
+    in shillings — "punguza elfu tano" — and this box only ever accepted
+    dollars, so the desk divided by 2,700 in its head and typed the result. It
+    now takes either, opening on shillings, and the conversion is the server's
+    at the rate frozen on the bill.
+  */
+  const local = "TSh";
+  const canLocal = typeof rate === "number" && rate > 0 && currency !== "TZS";
+  const [mode, setMode] = useState<"local" | "invoice">(
+    canLocal ? "local" : "invoice"
+  );
+  const [typed, setTyped] = useState(current > 0 ? String(current) : "");
+
+  /* What will actually come off, shown before it is agreed rather than
+     discovered on the bill afterwards. A shilling figure rarely divides into
+     whole cents, so the two lines can differ by a few shillings and the desk
+     should see that here. */
+  const amount = Number(typed);
+  const usingLocal = mode === "local" && canLocal;
+  const offInvoice =
+    !Number.isFinite(amount) || amount <= 0
+      ? 0
+      : usingLocal
+        ? Math.round((amount / (rate as number)) * 100) / 100
+        : amount;
+  const offLocal = canLocal ? Math.round(offInvoice * (rate as number)) : null;
   const [state, action] = useActionState<
     ActionResult<{ total: number }>,
     FormData
@@ -95,19 +132,66 @@ export function GiveDiscount({
           </p>
         ) : null}
       <input type="hidden" name="invoiceId" value={invoiceId} />
+      <input
+        type="hidden"
+        name="discountIn"
+        value={usingLocal ? "local" : "invoice"}
+      />
       <div className="flex items-center gap-2">
-        <span className="shrink-0 text-[11px] text-muted-foreground">
-          {currency}
-        </span>
+        {canLocal ? (
+          /* Two words, not a dropdown: there are exactly two answers and the
+             desk should be able to see which one is armed. */
+          <div className="flex shrink-0 overflow-hidden rounded-md border">
+            {([
+              ["local", local],
+              ["invoice", currency],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setMode(value)}
+                className={
+                  "focus-ring px-2 py-1 text-[11px] font-semibold " +
+                  (mode === value
+                    ? "bg-brand text-brand-foreground"
+                    : "text-muted-foreground hover:text-foreground")
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span className="shrink-0 text-[11px] text-muted-foreground">
+            {currency}
+          </span>
+        )}
         <MoneyInput
           name="discount"
-          defaultValue={current > 0 ? String(current) : ""}
+          key={mode}
+          value={typed}
+          onValueChange={setTyped}
+          decimals={usingLocal ? 0 : 2}
           placeholder="0"
           className="h-8 text-xs"
           required
           autoFocus
         />
       </div>
+      {offInvoice > 0 ? (
+        <p className="text-[11px] text-muted-foreground">
+          {t("Comes off the bill")}:{" "}
+          <span className="font-semibold text-foreground">
+            {currency} {offInvoice.toFixed(2)}
+          </span>
+          {offLocal !== null && offLocal > 0
+            ? ` · ${local} ${offLocal.toLocaleString("en-US")}`
+            : ""}
+          {usingLocal
+            ? ` — ${t("at the rate")} ${rate!.toLocaleString("en-US")}`
+            : ""}
+        </p>
+      ) : null}
       <Input
         name="reason"
         placeholder={t("Why — agreed with the customer, damaged goods…")}

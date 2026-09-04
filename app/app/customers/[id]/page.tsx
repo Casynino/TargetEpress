@@ -32,6 +32,7 @@ import {
 } from "@/lib/messages";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
+import { isCollectable } from "@/lib/payable";
 import { requirePermission } from "@/lib/session";
 import { customerProfile } from "@/lib/support";
 import { cargoText, viewerLocale } from "@/lib/viewer";
@@ -172,6 +173,9 @@ export default async function CustomerProfilePage({
     (s) =>
       s.invoice &&
       s.invoice.status !== "DRAFT" &&
+      /* And in Dar. Cargo still on its way has an estimate on it, not a bill,
+         and the merge screen will not offer it. */
+      isCollectable(s.status) &&
       toNumber(s.invoice.total) - toNumber(s.invoice.amountPaid) > 0
   ).length;
   const mayCollect = can(user.role, "payment.submit");

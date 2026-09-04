@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Banknote, MessageCircle, ReceiptText, Search, Users, Wallet } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+
 import { CustomerPaymentForm, type OpenBill } from "@/components/app/customer-payment-form";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchBox } from "@/components/app/search-box";
@@ -22,6 +24,10 @@ import {
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import {
+  COLLECTABLE_SHIPMENT_WHERE,
+  isCollectable,
+} from "@/lib/payable";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cargoText, viewerLocale } from "@/lib/viewer";
@@ -88,7 +94,13 @@ export default async function RecordCustomerPaymentPage({
       phone: true,
       code: true,
       invoices: {
-        where: { status: { in: [...BILLED_INVOICE_STATUSES] } },
+        /* Only bills somebody could settle today. Counting cargo still in the
+           air put "3 consignments" beside a customer whose screen then offered
+           one, and sent the desk looking for the other two. */
+        where: {
+          status: { in: [...BILLED_INVOICE_STATUSES] },
+          shipment: COLLECTABLE_SHIPMENT_WHERE,
+        },
         select: {
           currency: true,
           total: true,
@@ -100,6 +112,7 @@ export default async function RecordCustomerPaymentPage({
           shipment: {
             select: {
               trackingNumber: true,
+              status: true,
               description: true,
               descriptionEn: true,
               descriptionZh: true,
@@ -113,7 +126,12 @@ export default async function RecordCustomerPaymentPage({
       ? []
       : await prisma.customer.findMany({
           where: {
-            invoices: { some: { status: { in: [...BILLED_INVOICE_STATUSES] } } },
+            invoices: {
+              some: {
+                status: { in: [...BILLED_INVOICE_STATUSES] },
+                shipment: COLLECTABLE_SHIPMENT_WHERE,
+              },
+            },
           },
           take: 200,
           orderBy: { name: "asc" },
@@ -463,6 +481,9 @@ export default async function RecordCustomerPaymentPage({
     select: {
       id: true,
       name: true,
+      /* For the reminder. The chooser could message this customer and the
+         screen they open from it could not. */
+      phone: true,
       invoices: {
         where: { status: { in: [...BILLED_INVOICE_STATUSES] } },
         orderBy: { issuedAt: "asc" },
@@ -478,9 +499,11 @@ export default async function RecordCustomerPaymentPage({
           /* Read so the per-bill actions beside the form can act on the bill
              itself: what it comes to, and what is already off it. */
           discount: true,
+          storageCharge: true,
           shipment: {
             select: {
               trackingNumber: true,
+              status: true,
               description: true,
               descriptionEn: true,
               descriptionZh: true,
@@ -511,6 +534,7 @@ export default async function RecordCustomerPaymentPage({
     .map((invoice) => ({
       invoiceId: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
+      storage: toNumber(invoice.storageCharge),
       trackingNumber: invoice.shipment.trackingNumber,
       description: cargoText(locale, invoice.shipment, "description"),
       batchNumber: invoice.shipment.batch?.batchNumber ?? null,
@@ -520,8 +544,17 @@ export default async function RecordCustomerPaymentPage({
       outstanding: toNumber(invoice.total) - toNumber(invoice.amountPaid),
       total: toNumber(invoice.total),
       discount: toNumber(invoice.discount),
+      /* The rule, at the screen: nothing is payable until the Dar floor has
+         confirmed it. Enforced again in recordCustomerPayment, because this
+         list is not what makes the endpoint safe. */
+      payable: isCollectable(invoice.shipment.status),
     }))
     .filter((bill) => bill.outstanding > 0.005);
+
+  /* Only what they can actually settle goes in the reminder. */
+  const payableBills = bills.filter((bill) => bill.payable);
+  /* Today's published rate, for any bill that was raised without one. */
+  const rate = await currentRateValue();
 
   return (
     <div className="w-full">
@@ -535,6 +568,63 @@ export default async function RecordCustomerPaymentPage({
           href: "/app/finance/payments/new",
           label: t(locale, "Another customer"),
         }}
+        actions={
+          /*
+            The same message the chooser sends, from the screen the desk is
+            actually standing on. It names every payable consignment and the
+            one total, which is exactly what this screen is for — and the
+            un-landed ones are not in it, because the customer cannot pay
+            those yet.
+          */
+          customer.phone && payableBills.length > 0 ? (
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="gap-1.5 border-success/40 text-success hover:bg-success/10"
+            >
+              <a
+                href={whatsappLink(
+                  customer.phone,
+                  severalBillsReminderSwahili({
+                    customerName: customer.name,
+                    lines: payableBills.map((b) => ({
+                      trackingNumber: b.trackingNumber,
+                      description: b.description,
+                      amount: formatShillingTotal(
+                        b.exchangeRate === null
+                          ? 0
+                          : b.outstanding * b.exchangeRate,
+                        b.outstanding,
+                        rate
+                      ),
+                    })),
+                    total: formatShillingTotal(
+                      payableBills.reduce(
+                        (sum, b) =>
+                          sum +
+                          (b.exchangeRate === null
+                            ? 0
+                            : b.outstanding * b.exchangeRate),
+                        0
+                      ),
+                      payableBills.reduce((sum, b) => sum + b.outstanding, 0),
+                      rate
+                    ),
+                    totalUsd: formatUsd(
+                      payableBills.reduce((sum, b) => sum + b.outstanding, 0)
+                    ),
+                  })
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                {t(locale, "Notify on WhatsApp")}
+              </a>
+            </Button>
+          ) : null
+        }
       />
       <CustomerPaymentForm
         canRecord={canRecord}
@@ -546,6 +636,7 @@ export default async function RecordCustomerPaymentPage({
                permissions the cargo page reads, so one bill answers the same
                question wherever it is opened. */
             canDiscount={can(viewer.role, "invoice.discount")}
+            canWaiveStorage={can(viewer.role, "invoice.storage.waive")}
             canChangeRate={can(viewer.role, "invoice.rate")}
             canApproveCredit={can(viewer.role, "credit.approve")}
       />

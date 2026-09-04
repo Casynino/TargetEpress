@@ -25,6 +25,7 @@ import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { PaymentDateField } from "@/components/app/payment-date-field";
 import { ChangeRate } from "@/components/app/change-rate";
 import { GiveDiscount } from "@/components/app/give-discount";
+import { WaiveStorage } from "@/components/app/waive-storage";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +84,10 @@ type Props = {
   invoiceDiscount?: number;
   /** Whether this desk may change it — Finance, the manager and the owner. */
   canDiscount?: boolean;
+  /** Storage on the bill, and whether this desk may forgive it. Support may:
+      it is bounded by the clock, unlike a discount. */
+  invoiceStorage?: number;
+  canWaiveStorage?: boolean;
   /** The bill's own total, so the rate dialog can show what it becomes. */
   invoiceTotal?: number;
   /** fx.manage — the same permission the invoice edit demands. */
@@ -665,6 +670,17 @@ function PaymentPanel({
                 invoiceId={props.invoiceId}
                 currency={props.currency}
                 current={props.invoiceDiscount ?? 0}
+                rate={props.invoiceRate}
+              />
+            </div>
+          ) : null}
+          {props.canWaiveStorage && props.invoiceId ? (
+            <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+              <WaiveStorage
+                invoiceId={props.invoiceId}
+                storage={props.invoiceStorage ?? 0}
+                currency={props.currency}
+                rate={props.invoiceRate}
               />
             </div>
           ) : null}
