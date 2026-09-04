@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { ChevronRight, Layers, Paperclip } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
@@ -425,20 +425,31 @@ export default async function LedgerPage({
   const oldest = entries[entries.length - 1];
   let opening = 0;
   if (oldest) {
-    const before = await prisma.ledgerEntry.groupBy({
-      by: ["direction"],
-      where: {
-        ...(params.account ? { accountId: params.account } : {}),
-        OR: [
-          { occurredAt: { lt: oldest.occurredAt } },
-          { occurredAt: oldest.occurredAt, createdAt: { lt: oldest.createdAt } },
-        ],
-      },
-      _sum: { amount: true, amountUsd: true },
-    });
+    /*
+      ONE RANGE SCAN, NOT A TABLE SCAN.
+
+      "Everything before this page" was expressed as `occurredAt < X OR
+      (occurredAt = X AND createdAt < Y)`, and an OR across two columns cannot
+      use @@index([occurredAt]) or @@index([accountId, occurredAt]) — so the
+      opening balance re-aggregated the whole register on every page load, and
+      the register only ever grows. The row comparison below says the same
+      thing in the form the index is built for.
+    */
+    const account = params.account ?? null;
+    const before = await prisma.$queryRaw<
+      { direction: string; amount: number; amountUsd: number }[]
+    >(Prisma.sql`
+      SELECT "direction",
+             COALESCE(SUM("amount"), 0)::float8    AS "amount",
+             COALESCE(SUM("amountUsd"), 0)::float8 AS "amountUsd"
+        FROM "LedgerEntry"
+       WHERE ("occurredAt", "createdAt") < (${oldest.occurredAt}, ${oldest.createdAt})
+         ${account ? Prisma.sql`AND "accountId" = ${account}` : Prisma.empty}
+       GROUP BY "direction"
+    `);
     const pick = (dir: "IN" | "OUT") => {
       const row = before.find((r) => r.direction === dir);
-      return toNumber((single ? row?._sum.amount : row?._sum.amountUsd) ?? 0);
+      return single ? (row?.amount ?? 0) : (row?.amountUsd ?? 0);
     };
     opening = pick("IN") - pick("OUT");
   }

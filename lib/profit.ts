@@ -186,7 +186,6 @@ export async function profitAndLoss(window: ProfitWindow) {
     billed,
     writtenOff,
     collected,
-    incurred,
     paidOut,
     byCategory,
     special,
@@ -254,14 +253,6 @@ export async function profitAndLoss(window: ProfitWindow) {
       shillings and it reads TSh 20,007 — a figure the owner never typed. The
       error is per row, so the busiest month drifts furthest.
     */
-    prisma.expense.findMany({
-      where: {
-        incurredAt: range,
-        status: { not: "VOID" },
-        expenseClass: "OPERATING",
-      },
-      select: { amount: true, currency: true, amountUsd: true },
-    }),
     // Cash out: money that actually left an account — ALL of it, including the
     // special class. Profit and cash answer different questions: a
     // non-operating payment does not belong in the margin, but it absolutely
@@ -361,8 +352,11 @@ export async function profitAndLoss(window: ProfitWindow) {
     rows as unknown as MoneyRow[];
 
   const feeLocal = rate ? feeUsd * rate : 0;
-  const costs = sumUsd(asRows(incurred), rate) + feeUsd;
-  const costsLocal = sumShillings(asRows(incurred), rate) + feeLocal;
+  /* The same rows the category breakdown below is built from — they used to be
+     fetched a second time with one column fewer, which is a whole extra read of
+     every operating cost in the window for nothing. */
+  const costs = sumUsd(asRows(byCategory), rate) + feeUsd;
+  const costsLocal = sumShillings(asRows(byCategory), rate) + feeLocal;
   const cashOut = sumUsd(asRows(paidOut), rate) + feeUsd;
   const cashOutLocal = sumShillings(asRows(paidOut), rate) + feeLocal;
 

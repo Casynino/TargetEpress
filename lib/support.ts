@@ -935,6 +935,11 @@ export async function customerProfile(idOrCode: string) {
       shipments: {
         where: { deletedAt: null },
         orderBy: { registeredAt: "desc" },
+        /* The most recent sixty. A customer three years in has hundreds, and
+           the page rendered every one of them — the figures beside the list
+           are counted across the whole history below, so capping the list
+           does not cap the numbers. */
+        take: 60,
         select: {
           id: true,
           trackingNumber: true,
@@ -961,6 +966,7 @@ export async function customerProfile(idOrCode: string) {
       },
       pickupNotes: {
         orderBy: { issuedAt: "desc" },
+        take: 20,
         select: {
           id: true,
           noteNumber: true,
@@ -1010,38 +1016,55 @@ export async function customerProfile(idOrCode: string) {
 
   if (!customer) return null;
 
-  const active = customer.shipments.filter(
-    (s) => s.status !== "DELIVERED" && s.status !== "CANCELLED"
-  );
-  const completed = customer.shipments.filter((s) => s.status === "DELIVERED");
+  /*
+    THE FIGURES ARE COUNTED ACROSS EVERY CONSIGNMENT, NOT THE PAGE.
 
-  /* Only bills that are actually owed — the same test receivablesAgeing uses.
-     A draft is the system's own price before Finance has agreed it, and a
-     written-off bill is one the company decided never to collect; counting
-     either had the profile telling a desk to chase money nobody was owed. */
-  const outstanding = customer.shipments.reduce((sum, shipment) => {
-    const invoice = shipment.invoice;
-    if (!invoice) return sum;
-    if (invoice.status !== "UNPAID" && invoice.status !== "PARTIALLY_PAID") {
-      return sum;
-    }
-    return (
-      sum + Math.max(0, toNumber(invoice.total) - toNumber(invoice.amountPaid))
-    );
-  }, 0);
+    The list above is capped at sixty; these are the whole history. Counting
+    them off the capped list would have quietly restated a long-standing
+    customer's debt and lifetime value the moment they passed sixty
+    consignments, which is the kind of wrong figure nobody notices.
 
-  const lifetimeValue = customer.shipments.reduce(
-    (sum, shipment) =>
-      shipment.invoice ? sum + toNumber(shipment.invoice.amountPaid) : sum,
-    0
+    Only bills actually owed count as debt — the same test receivablesAgeing
+    uses. A draft is the system's own price before Finance has agreed it, and a
+    written-off bill is one the company decided never to collect.
+  */
+  const [total, active, completed, owed, paid] = await Promise.all([
+    prisma.shipment.count({ where: { customerId: customer.id } }),
+    prisma.shipment.count({
+      where: {
+        customerId: customer.id,
+        status: { notIn: ["DELIVERED", "CANCELLED"] },
+      },
+    }),
+    prisma.shipment.count({
+      where: { customerId: customer.id, status: "DELIVERED" },
+    }),
+    prisma.invoice.aggregate({
+      where: {
+        customerId: customer.id,
+        status: { in: ["UNPAID", "PARTIALLY_PAID"] },
+        shipment: { deletedAt: null },
+      },
+      _sum: { total: true, amountPaid: true },
+    }),
+    prisma.invoice.aggregate({
+      where: { customerId: customer.id, shipment: { deletedAt: null } },
+      _sum: { amountPaid: true },
+    }),
+  ]);
+
+  const outstanding = Math.max(
+    0,
+    toNumber(owed._sum.total) - toNumber(owed._sum.amountPaid)
   );
+  const lifetimeValue = toNumber(paid._sum.amountPaid);
 
   return {
     customer,
     stats: {
-      total: customer.shipments.length,
-      active: active.length,
-      completed: completed.length,
+      total,
+      active,
+      completed,
       outstanding,
       lifetimeValue,
     },

@@ -133,8 +133,11 @@ export default async function FinanceReportsPage({
   if (currency === "usd") linkQuery.set("currency", "usd");
   if (currency !== "usd") reportQuery.set("unit", "tzs");
 
-  const [pl, dispatches, rawReportResult, flights, prior, dash, rateRow] = await Promise.all([
-    profitAndLoss(window),
+  /* `pl` and `prior` come off the dashboard below rather than being run again
+     here: financeDashboard already computes both for the same two windows, so
+     this page used to run the whole profit and loss four times to print it
+     twice. */
+  const [dispatches, rawReportResult, flights, dash, rateRow] = await Promise.all([
     profitByDispatch(8),
     runReport(reportKey, {
       /* The chip's window unless somebody typed their own dates. */
@@ -147,16 +150,15 @@ export default async function FinanceReportsPage({
       take: 30,
       select: { id: true, batchNumber: true },
     }),
-    /* The same figures for the stretch before, so every card can say which
-       way it went rather than only how much. */
-    profitAndLoss(picked.previous),
-    /* Everything else on this page, from the one function Admin reads too. */
+    /* Everything else on this page — and the profit and loss for both the
+       window and the stretch before it — from the one function Admin reads. */
     financeDashboard(window, picked.previous, { batchId: batch ?? null }),
     /* The published rate, so this page can talk about money in the currency
        the office actually holds. */
     currentRate(),
   ]);
 
+  const { pl, prior } = dash;
   const profitable = pl.profit >= 0;
   const biggest = pl.categories[0]?.amount ?? 0;
 

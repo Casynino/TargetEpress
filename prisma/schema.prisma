@@ -920,6 +920,13 @@ model Shipment {
   @@index([createdAt])
   @@index([status, batchId])
   @@index([cartonRef])
+  /* The three dates every dashboard, report and ageing figure ranges on.
+     Without them a window like "arrived this month" reads the whole shipment
+     table, on every one of those screens, and the table only grows. */
+  @@index([arrivedAt])
+  @@index([registeredAt])
+  @@index([deliveredAt])
+  @@index([status, arrivedAt])
 }
 
 model ShipmentStatusHistory {
@@ -2602,6 +2609,9 @@ model LedgerEntry {
   @@index([occurredAt])
   @@index([kind])
   @@index([sourceEntity, sourceId])
+  /* Filtering the register by who recorded a line, which is the first thing
+     anybody does when a figure looks wrong. It served the sort as well. */
+  @@index([recordedById, occurredAt])
 }
 
 enum ExpenseStatus {

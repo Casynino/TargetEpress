@@ -19,8 +19,16 @@ export async function collectionsOverview() {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  const [owing, awaiting, pending, verifiedToday, rejected, notesReady, todaysValue] =
-    await Promise.all([
+  const [
+    owing,
+    awaiting,
+    pending,
+    verifiedToday,
+    rejected,
+    notesReady,
+    todaysValue,
+    byStatus,
+  ] = await Promise.all([
       // Everything a customer still owes on a bill that has actually been raised.
       prisma.invoice.aggregate({
         where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
@@ -45,10 +53,17 @@ export async function collectionsOverview() {
         where: { status: "VERIFIED", reviewedAt: { gte: startOfToday } },
         _sum: { amount: true },
       }),
+      /* Every claim, bucketed once, for the two lifetime counts below. */
+      prisma.paymentSubmission.groupBy({ by: ["status"], _count: true }),
     ]);
 
-  const submitted = await prisma.paymentSubmission.count();
-  const verified = await prisma.paymentSubmission.count({ where: { status: "VERIFIED" } });
+  /* Both counts out of one grouped read, and inside the Promise.all above —
+     they used to run one after the other after everything else had finished,
+     so the page waited for two whole round trips it need not have waited for
+     at all. */
+  const submitted = byStatus.reduce((n, row) => n + row._count, 0);
+  const verified =
+    byStatus.find((row) => row.status === "VERIFIED")?._count ?? 0;
 
   return {
     outstandingUsd: toNumber(owing._sum.total) - toNumber(owing._sum.amountPaid),

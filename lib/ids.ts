@@ -76,6 +76,35 @@ export async function nextInvoiceNumber(
   return `INV-${year}-${pad(n)}`;
 }
 
+/**
+ * A block of invoice numbers, taken in one go.
+ *
+ * Check-in raises a draft for every consignment on a manifest, and asking the
+ * counter for one number at a time meant a round trip per line — eighty-seven
+ * boxes, eighty-seven waits. One increment of N hands back the whole run, and
+ * it is exactly as safe as N separate ones: the upsert is atomic, so two desks
+ * checking in different flights at the same moment get disjoint blocks.
+ *
+ * Returned in order, oldest number first.
+ */
+export async function reserveInvoiceNumbers(
+  tx: TxClient,
+  count: number,
+  year = new Date().getFullYear()
+): Promise<string[]> {
+  if (count <= 0) return [];
+  const counter = await tx.counter.upsert({
+    where: { key: `invoice:${year}` },
+    create: { key: `invoice:${year}`, value: count },
+    update: { value: { increment: count } },
+  });
+  const last = counter.value;
+  return Array.from(
+    { length: count },
+    (_, i) => `INV-${year}-${pad(last - count + 1 + i)}`
+  );
+}
+
 export async function nextReceiptNumber(
   tx: TxClient,
   year = new Date().getFullYear()

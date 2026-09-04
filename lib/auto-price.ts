@@ -5,9 +5,25 @@ import { Prisma } from "@prisma/client";
 import { STORAGE_POLICY, storageDaysFor } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { LOCAL_CURRENCY, currentRateValue, toLocal } from "@/lib/fx";
-import { nextInvoiceNumber } from "@/lib/ids";
+import { reserveInvoiceNumbers } from "@/lib/ids";
 import { quote, quoteContext } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+
+/** The invoice columns check-in writes, whether it creates or re-prices. */
+type Figures = {
+  currency: string;
+  freightCost: Prisma.Decimal;
+  storageDays: number;
+  storageCharge: Prisma.Decimal;
+  total: Prisma.Decimal;
+  exchangeRate: Prisma.Decimal | null;
+  localCurrency: string;
+  totalLocal: Prisma.Decimal | null;
+  status: "DRAFT";
+};
+
+/** A successful quote — the shape `quote()` returns when it can price. */
+type Quoted = Extract<Awaited<ReturnType<typeof quote>>, { ok: true }>;
 
 /**
  * Price cargo the moment it is checked in at Dar, as a DRAFT invoice.
@@ -76,8 +92,24 @@ export async function autoPriceShipments(
   const [rate, pricebook] = await Promise.all([currentRateValue(), quoteContext()]);
 
   const blocked: AutoPriceResult["blocked"] = [];
-  let priced = 0;
   let skipped = 0;
+
+  /*
+    EVERY QUOTE FIRST, THEN THE WRITES.
+
+    This used to open one interactive transaction per consignment — BEGIN,
+    write, write, COMMIT, four round trips a line — so an eighty-seven box
+    manifest cost the warehouse several hundred waits before the screen came
+    back, and the wait grew with the flight.
+
+    The reason it was per consignment was that a rate book gap on line forty
+    must not roll back the thirty-nine drafts before it. Quoting every line
+    before anything is written keeps that guarantee outright: a line with no
+    price is known to be blocked BEFORE the writes start, and is never in them.
+  */
+  const blockedWrites: Prisma.PrismaPromise<unknown>[] = [];
+  const updates: { invoiceId: string; shipmentId: string; figures: Figures; quoted: Quoted }[] = [];
+  const creates: { shipmentId: string; customerId: string; figures: Figures; quoted: Quoted }[] = [];
 
   for (const shipment of cargo) {
     // Already confirmed, sent, part-paid or paid. Not ours to touch.
@@ -102,13 +134,15 @@ export async function autoPriceShipments(
         trackingNumber: shipment.trackingNumber,
         reason: quoted.message,
       });
-      await prisma.shipment.update({
-        where: { id: shipment.id },
-        data: {
-          pricingBlockedReason: quoted.message,
-          pricingCheckedAt: new Date(),
-        },
-      });
+      blockedWrites.push(
+        prisma.shipment.update({
+          where: { id: shipment.id },
+          data: {
+            pricingBlockedReason: quoted.message,
+            pricingCheckedAt: new Date(),
+          },
+        })
+      );
       continue;
     }
 
@@ -125,7 +159,7 @@ export async function autoPriceShipments(
     const total = quoted.total + storageCharge;
     const totalLocal = rate === null ? null : toLocal(total, rate);
 
-    const figures = {
+    const figures: Figures = {
       currency: quoted.currency,
       freightCost: new Prisma.Decimal(quoted.total),
       storageDays,
@@ -137,46 +171,82 @@ export async function autoPriceShipments(
       status: "DRAFT" as const,
     };
 
-    // One transaction per consignment rather than one for the batch: a rate
-    // book gap on line 40 must not roll back the thirty-nine drafts before it.
-    await prisma.$transaction(async (tx) => {
-      if (shipment.invoice) {
-        await tx.invoice.update({
-          where: { id: shipment.invoice.id },
-          data: figures,
-        });
-      } else {
-        await tx.invoice.create({
+    if (shipment.invoice) {
+      updates.push({
+        invoiceId: shipment.invoice.id,
+        shipmentId: shipment.id,
+        figures,
+        quoted,
+      });
+    } else {
+      creates.push({
+        shipmentId: shipment.id,
+        customerId: shipment.customerId,
+        figures,
+        quoted,
+      });
+    }
+  }
+
+  /** What check-in stamps back onto the consignment beside its draft. */
+  const stamp = (quoted: Quoted) => ({
+    quotedAmount: new Prisma.Decimal(quoted.total),
+    quoteCurrency: quoted.currency,
+    quotedMethod: quoted.method,
+    quotedRate: new Prisma.Decimal(quoted.rate),
+    chargeableKg:
+      quoted.chargeableWeightKg === null
+        ? null
+        : new Prisma.Decimal(quoted.chargeableWeightKg),
+    currency: quoted.currency,
+    pricingBlockedReason: null,
+    pricingCheckedAt: new Date(),
+  });
+
+  if (blockedWrites.length > 0) await prisma.$transaction(blockedWrites);
+
+  /* The re-run path: every draft already exists, so this is pure updates and
+     goes down as one batch. */
+  if (updates.length > 0) {
+    await prisma.$transaction(
+      updates.flatMap((row) => [
+        prisma.invoice.update({
+          where: { id: row.invoiceId },
+          data: row.figures,
+        }),
+        prisma.shipment.update({
+          where: { id: row.shipmentId },
+          data: stamp(row.quoted),
+        }),
+      ])
+    );
+  }
+
+  /* The first run: numbers are taken as one block rather than one at a time,
+     which is what made the create path the slow half. Disjoint by
+     construction, so two flights checked in at once cannot collide. */
+  if (creates.length > 0) {
+    const numbers = await reserveInvoiceNumbers(prisma, creates.length);
+    await prisma.$transaction(
+      creates.flatMap((row, i) => [
+        prisma.invoice.create({
           data: {
-            ...figures,
-            invoiceNumber: await nextInvoiceNumber(tx),
-            shipmentId: shipment.id,
-            customerId: shipment.customerId,
+            ...row.figures,
+            invoiceNumber: numbers[i]!,
+            shipmentId: row.shipmentId,
+            customerId: row.customerId,
             issuedById: actorId,
           },
-        });
-      }
-
-      await tx.shipment.update({
-        where: { id: shipment.id },
-        data: {
-          quotedAmount: new Prisma.Decimal(quoted.total),
-          quoteCurrency: quoted.currency,
-          quotedMethod: quoted.method,
-          quotedRate: new Prisma.Decimal(quoted.rate),
-          chargeableKg:
-            quoted.chargeableWeightKg === null
-              ? null
-              : new Prisma.Decimal(quoted.chargeableWeightKg),
-          currency: quoted.currency,
-          pricingBlockedReason: null,
-          pricingCheckedAt: new Date(),
-        },
-      });
-    });
-
-    priced += 1;
+        }),
+        prisma.shipment.update({
+          where: { id: row.shipmentId },
+          data: stamp(row.quoted),
+        }),
+      ])
+    );
   }
+
+  const priced = updates.length + creates.length;
 
   return { priced, skipped, blocked };
 }

@@ -19,6 +19,27 @@ import type { Locale } from "@/lib/locale";
 import { REJECTED_NEEDING_A_CALL } from "@/lib/collections";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * WHAT THE COMPANY IS OWED, ASKED ONCE PER REQUEST.
+ *
+ * The owner's dashboard calls three of the functions in this file, and each of
+ * them asked the database for this same aggregate — so one page load ran the
+ * same sum over every unpaid bill three times over. cache() is per request, so
+ * the second and third callers get the first one's answer.
+ */
+const unpaidPosition = cache(() =>
+  prisma.invoice.aggregate({
+    where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
+    _sum: { total: true, amountPaid: true },
+  })
+);
+
+/** The same population, counted. Shares the same reason and the same scope. */
+const unpaidBillCount = cache(() =>
+  prisma.invoice.count({ where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } } })
+);
+
+
 const MONTHS = [
   "Jan",
   "Feb",
@@ -454,11 +475,8 @@ export async function deskPulse(
         arrivedAt: { lte: storageChargingSince() },
       },
     }),
-    prisma.invoice.count({ where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } } }),
-    prisma.invoice.aggregate({
-      where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
-      _sum: { total: true, amountPaid: true },
-    }),
+    unpaidBillCount(),
+    unpaidPosition(),
     prisma.supportTicket.count({
       where: { status: { in: ["OPEN", "IN_PROGRESS", "WAITING_CUSTOMER"] } },
     }),
@@ -591,11 +609,8 @@ export async function ownerAttention(
            into — but a cancelled payment went into none of them by definition,
            so chasing it would be chasing nothing. */
         prisma.payment.count({ where: { accountId: null, voidedAt: null } }),
-        prisma.invoice.count({ where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } } }),
-        prisma.invoice.aggregate({
-          where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
-          _sum: { total: true, amountPaid: true },
-        }),
+        unpaidBillCount(),
+        unpaidPosition(),
       ]);
       const owedUsd =
         toNumber(unpaidValue._sum.total ?? 0) - toNumber(unpaidValue._sum.amountPaid ?? 0);
@@ -964,10 +979,7 @@ export const executiveStats = cache(async function executiveStats() {
         WHERE "voidedAt" IS NULL
       `
     ),
-    prisma.invoice.aggregate({
-      where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
-      _sum: { total: true, amountPaid: true },
-    }),
+    unpaidPosition(),
   ]);
 
   return {
