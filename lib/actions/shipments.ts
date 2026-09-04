@@ -225,14 +225,61 @@ export async function createShipment(
     const result = await prisma.$transaction(async (tx) => {
       const customer = await resolveCustomer(tx, input, user.id);
 
-      // The departure airport is derived from what the cargo is. The warehouse
-      // never picks it, so cargo cannot be routed to the wrong hub by mistake.
-      const origin = routeFor(input.cargoCategory);
+      /*
+        TWO WAYS A CARGO RECORD IS BORN, AND ONE PLACE THAT WRITES IT.
 
-      // Which loading table this lands on is decided here, not by the clerk.
-      // The category fixes the route, the route fixes the table. See
-      // lib/batching.
-      const assignment = await assignToLoadingTable(tx, origin);
+        Guangzhou registers a box it is receiving: the category fixes the
+        route, the route fixes the loading table, and the clerk picks neither,
+        so cargo cannot be sent to the wrong hub by a mistyped field.
+
+        Dar adds a box that came off a flight and was never on the manifest.
+        There is nothing to work out — the aircraft it arrived on is a fact,
+        and the origin is that flight's, not whatever the category would have
+        implied. It joins that batch and is checked in with everything else.
+
+        One function either way, so the tracking number, the per-package rows,
+        the history line and the audit entry are written once and cannot come
+        to differ between the two desks.
+      */
+      let origin = routeFor(input.cargoCategory);
+      let assignment: { batchId: string; batchNumber: string };
+      const intoBatch = input.batchId?.trim();
+
+      if (intoBatch) {
+        /* Adding to a flight is Dar's job on the floor, and the permission
+           that says so is the one that checks a batch in. Asked for here as
+           well as at the screen, because this action is a public endpoint. */
+        await authorize("batch.verify");
+        const batch = await tx.batch.findUnique({
+          where: { id: intoBatch },
+          select: {
+            id: true,
+            batchNumber: true,
+            origin: true,
+            status: true,
+            permanent: true,
+          },
+        });
+        if (!batch) throw new Error("That flight no longer exists.");
+        /* A loading table is not a flight — cargo joins one of those by being
+           registered in China, which is the other half of this function. */
+        if (batch.permanent) {
+          throw new Error(
+            `${batch.batchNumber} is a loading table, not a flight. Register the cargo normally and it will be assigned.`
+          );
+        }
+        /* Only a flight that has actually landed. Adding cargo to one still
+           in the air says a box was on an aircraft nobody has opened. */
+        if (batch.status !== "ARRIVED" && batch.status !== "VERIFIED") {
+          throw new Error(
+            `${batch.batchNumber} has not landed yet, so nothing can be added to it from the floor.`
+          );
+        }
+        origin = batch.origin;
+        assignment = { batchId: batch.id, batchNumber: batch.batchNumber };
+      } else {
+        assignment = await assignToLoadingTable(tx, origin);
+      }
 
       // Cargo billed per item is counted in items, not cartons.
       //
@@ -288,7 +335,17 @@ export async function createShipment(
           ...translationColumns("internalNotes", notedAs),
           internalNotes: input.internalNotes || null,
           batchId: assignment.batchId,
-          status: "READY_TO_DEPART",
+          /*
+            IN_TRANSIT, NOT RECEIVED.
+
+            The box is on the floor, but this is a record being created, not a
+            check-in. Marking it received here would price it — autoPrice runs
+            when the manifest is ticked — off a weight nobody has confirmed
+            against a manifest line that does not exist. So it joins the batch
+            unticked, and the same check-in that prices every other box on that
+            flight prices this one.
+          */
+          status: intoBatch ? "IN_TRANSIT" : "READY_TO_DEPART",
           createdById: user.id,
         },
       });
@@ -309,7 +366,12 @@ export async function createShipment(
           shipmentId: shipment.id,
           url: image.url,
           kind: "CARGO" as const,
-          caption: index === 0 ? "Received at the China warehouse" : null,
+          caption:
+            index === 0
+              ? intoBatch
+                ? "Photographed at Dar when it was found off the manifest"
+                : "Received at the China warehouse"
+              : null,
           uploadedById: user.id,
         })),
       });
@@ -317,9 +379,11 @@ export async function createShipment(
       await appendHistory(tx, {
         shipmentId: shipment.id,
         fromStatus: null,
-        toStatus: "READY_TO_DEPART",
-        location: ORIGIN_PLACE[origin],
-        note: `Cargo received and registered as ${CATEGORY_LABELS[input.cargoCategory].toLowerCase()}, waiting on the ${AIRPORT_LABELS[origin]} loading table.`,
+        toStatus: intoBatch ? "IN_TRANSIT" : "READY_TO_DEPART",
+        location: intoBatch ? "Dar es Salaam" : ORIGIN_PLACE[origin],
+        note: intoBatch
+          ? `Found on the floor during check-in of ${assignment.batchNumber} and added to it — it was not on the manifest. Waiting to be checked in like the rest of the flight.`
+          : `Cargo received and registered as ${CATEGORY_LABELS[input.cargoCategory].toLowerCase()}, waiting on the ${AIRPORT_LABELS[origin]} loading table.`,
         actorId: user.id,
       });
 
@@ -329,7 +393,9 @@ export async function createShipment(
           action: "shipment.create",
           entity: "Shipment",
           entityId: shipment.id,
-          summary: `Registered ${shipment.trackingNumber} for ${customer.name}`,
+          summary: intoBatch
+            ? `Added ${shipment.trackingNumber} for ${customer.name} to ${assignment.batchNumber} — found at Dar, not on the manifest`
+            : `Registered ${shipment.trackingNumber} for ${customer.name}`,
           metadata: {
             packages: input.packages,
             weightKg: input.weightKg,
@@ -337,6 +403,7 @@ export async function createShipment(
             origin,
             photos: uploaded.length,
             loadingTable: assignment.batchNumber,
+            addedAtDar: Boolean(intoBatch),
           },
         },
         tx

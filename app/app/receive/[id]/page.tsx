@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { FileText } from "lucide-react";
+import { FileText, PackagePlus } from "lucide-react";
 
 import { BackLinkButton } from "@/components/app/back-link-button";
 import { PageHeader } from "@/components/app/page-header";
@@ -81,6 +81,23 @@ export default async function VerifyBatchPage({
         actions={
           <>
             <BatchStatusBadge status={batch.status} />
+            {/*
+              A BOX ON THE FLOOR THAT IS NOT ON THE LIST.
+
+              It happens on most flights: something was never registered in
+              Guangzhou, or was registered against another flight. Until now
+              the only answer was to leave it unrecorded, so it sits here — on
+              the screen where somebody is holding it — rather than on a page
+              belonging to another desk.
+            */}
+            {can(user.role, "shipment.create") ? (
+              <Button asChild variant="brand" size="sm">
+                <Link href={`/app/receive/${batch.id}/add`}>
+                  <PackagePlus className="mr-2 h-4 w-4" />
+                  {t(locale, "Add cargo")}
+                </Link>
+              </Button>
+            ) : null}
             <Button asChild variant="outline" size="sm">
               <Link href={`/app/batches/${batch.id}/manifest`}>
                 <FileText className="mr-2 h-4 w-4" />

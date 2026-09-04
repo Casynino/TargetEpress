@@ -362,6 +362,19 @@ const CHINA: Permission[] = [
  */
 const DAR: Permission[] = [
   "shipment.view",
+  /*
+    CARGO THAT ARRIVED WITHOUT A RECORD.
+
+    A box comes off the flight and is not on the manifest — never registered
+    in Guangzhou, or registered against another flight. This floor could see
+    it, hold it and photograph it, but not record it, so it either sat
+    unrecorded or was invented on a screen belonging to another desk.
+
+    It creates that record now. It does not price it and it does not skip the
+    check-in: the cargo joins the batch it physically came on and is ticked
+    off the manifest like everything else, which is what prices it.
+  */
+  "shipment.create",
   /* Dar too: they open the box on arrival, and a mislabelled consignment is
      most often caught there rather than in Guangzhou. */
   "cargoType.suggest",

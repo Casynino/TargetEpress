@@ -3342,6 +3342,17 @@ const ZH: Record<string, string> = {
   "Scan": "扫码",
   "Settings": "设置",
   "Merge Payment": "合并付款",
+  "Add cargo": "添加货物",
+  "Add cargo to": "添加货物至",
+  "Back to the check-in": "返回入库核对",
+  "For a box that came off this flight and was not on the manifest. It joins the flight and is checked in with the rest.":
+    "用于随该航班抵达但不在舱单上的货物。它将加入该航班，并与其余货物一同入库核对。",
+  "Adding cargo to a flight is done by the desk that checks flights in.":
+    "向航班添加货物由负责航班入库核对的岗位操作。",
+  "This is a loading table, not a flight. Cargo joins it by being registered in China.":
+    "这是装货台，不是航班。货物需在中国登记后加入。",
+  "This flight has not landed yet, so there is nothing on the floor to add to it.":
+    "该航班尚未抵达，仓库现场没有可添加的货物。",
   "That did not work.": "操作未成功。",
   "Add storage": "加入仓储费",
   "storage, not yet on the bill": "仓储费，尚未计入账单",

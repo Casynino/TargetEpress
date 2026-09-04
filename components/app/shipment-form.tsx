@@ -54,6 +54,14 @@ type ShipmentFormProps = {
   /** Whether this desk may add an item that is not on the list. */
   canAddItem: boolean;
   photosDurable: boolean;
+  /**
+   * The flight this cargo is being added to, when Dar found it off the
+   * manifest. Absent in Guangzhou, where the loading table is worked out from
+   * the route and nobody picks it.
+   */
+  batchId?: string;
+  /** Its number, so the form can say which flight it is joining. */
+  batchNumber?: string;
 };
 
 /**
@@ -101,6 +109,8 @@ function RegistrationRound({
   addedTypes,
   setAddedTypes,
   onRegisterAnother,
+  batchId,
+  batchNumber,
 }: ShipmentFormProps & {
   addedTypes: Record<string, CargoTypeOption[]>;
   setAddedTypes: React.Dispatch<
@@ -267,6 +277,11 @@ function RegistrationRound({
 
   return (
     <form action={formAction} className="space-y-6">
+      {/* The flight it came on. Read by createShipment, which then joins it to
+          that batch instead of a loading table. */}
+      {batchId ? (
+        <input type="hidden" name="batchId" value={batchId} />
+      ) : null}
       {/* Fifteen fields deep, on a phone, with no browser back button behind
           it — one stray tap on a link used to empty the lot without asking. */}
       <UnsavedGuard />
@@ -671,15 +686,20 @@ function RegistrationRound({
           field, and Cancel gets the same 44px as everything else it sits beside
           — it was 40, the one control on the screen under the line. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        {/* Guangzhou registers cargo it is receiving; Dar adds a box that came
+            off a flight and was missing from the manifest. Same form, and the
+            owner asked that the two not be called the same thing. */}
         <SubmitButton
           variant="signal"
-          pendingLabel="Registering…"
+          pendingLabel={batchNumber ? "Adding…" : "Registering…"}
           className="w-full sm:w-auto"
         >
-          {t(locale, "Register cargo")}
+          {batchNumber
+            ? `${t(locale, "Add cargo to")} ${batchNumber}`
+            : t(locale, "Register cargo")}
         </SubmitButton>
         <Link
-          href="/app/cargo"
+          href={batchId ? `/app/receive/${batchId}` : "/app/cargo"}
           className="inline-flex h-11 items-center justify-center rounded-md border px-4 text-sm hover:bg-muted sm:justify-start"
         >
           {t(locale, "Cancel")}
