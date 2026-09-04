@@ -95,8 +95,19 @@ export function ReceivingQueue({ rows }: { rows: ReceivingRow[] }) {
           ) : (
             <ClipboardCheck className="h-3 w-3" />
           )}
+          {/*
+            THE JOB WHERE THERE IS ONE, THE PLACE WHERE THERE IS NOT.
+
+            "On the floor" is where the flight is, not what to do about it —
+            and a landed flight with boxes still unticked is the one row on
+            this page that is asking for something. It says so. Once every box
+            is checked off it goes back to being a location, because then
+            there is nothing to instruct.
+          */}
           {row.status === "ARRIVED"
-            ? t("On the floor")
+            ? row.unchecked > 0
+              ? t("To check in")
+              : t("On the floor")
             : row.status === "IN_TRANSIT"
               ? t("In the air")
               : t(BATCH_STATUS_META[row.status].label)}

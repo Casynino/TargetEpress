@@ -420,10 +420,13 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       nextAction = "Confirm the price";
       urgency = 65;
     } else if (outstanding !== null && outstanding <= 0) {
+      /* Both name the job and whose it is. "Awaiting a pickup note" described
+         a state and left the reader to work out that somebody has to issue
+         one, and that the somebody is them. */
       nextAction =
         shipment.status === "READY_FOR_PICKUP"
           ? "Paid — tell them to collect"
-          : "Paid — awaiting pickup note";
+          : "Paid — issue the pickup note";
       urgency = 30;
     } else if (invoice.submissions.length > 0) {
       /*
@@ -448,10 +451,16 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       // performs — 81 rows read "Send the invoice" for a job that does not
       // exist, which is worse than no instruction at all.
       const daysBilled = daysBetween(invoice.confirmedAt ?? invoice.issuedAt);
+      /*
+        "Awaiting payment" was the most-printed line on this page — a hundred
+        and thirty-four rows of it — and it told the desk nothing to do. It
+        also broke the pair: the row beside it says "Payment to verify", which
+        is a job, so this one should be the other job. Collect it.
+      */
       nextAction =
         daysBilled >= 3
           ? `Chase payment — billed ${daysBilled} days ago`
-          : "Awaiting payment";
+          : "Payment to collect";
       urgency = 50 + Math.min(daysBilled * 3, 30);
     }
 
@@ -585,7 +594,7 @@ function creditFollowUpRow(r: CreditRow): FollowUpRow {
     nextAction = "Credit with no due date — set the terms";
     urgency = 55;
   } else if (days <= 7) {
-    nextAction = "Inside terms — a reminder now saves the chase";
+    nextAction = "Inside terms — send a reminder";
     urgency = 35 + Math.max(0, 8 - days);
   } else {
     nextAction = "Inside terms — nothing to chase";

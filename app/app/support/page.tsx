@@ -242,7 +242,7 @@ export default async function SupportHome() {
 
   /** What the pile is made of, biggest blocker first. */
   const split = [
-    { label: "Awaiting payment", rows: chasing, tone: 1 as const, href: "/app/collections/follow-up?filter=awaiting-payment" },
+    { label: "Payment to collect", rows: chasing, tone: 1 as const, href: "/app/collections/follow-up?filter=awaiting-payment" },
     { label: "Paid, not collected", rows: settled, tone: 5 as const, href: "/app/collections/follow-up?filter=ready" },
   ].filter((slice) => slice.rows.length > 0);
 
