@@ -112,22 +112,29 @@ export function batchPrefix(route: Origin) {
 }
 
 /**
- * The shape of every batch number: GZ-0028, HK-0013.
+ * The shape of every batch number: GZ-31, HK-16.
  *
  * Where it loaded, then its place in that location's own run. The two runs are
- * independent — Hong Kong's fourteenth batch is HK-0014 whether Guangzhou has
+ * independent — Hong Kong's sixteenth batch is HK-16 whether Guangzhou has
  * sent four or four hundred — because they are two warehouses packing two sets
  * of cargo, and a shared counter would make each one's numbers jump for
  * reasons the other warehouse could not see.
  *
  * The run does not restart in January. A batch number is how the office refers
  * to a load for years afterwards, on paperwork that outlives the year it was
- * printed in, so GZ-0028 stays the only GZ-0028 there will ever be.
+ * printed in, so GZ-31 stays the only GZ-31 there will ever be.
  *
- * Four digits so a column of them reads straight down, and more than four once
- * a location passes 9999 rather than rolling over onto a number already used.
+ * IT ALSO DID NOT START HERE. Guangzhou had reached 30 and Hong Kong 15 in the
+ * books this system replaced, and the office still counts from those. Starting
+ * again at one would have given two different loads the same name in the same
+ * year — the paper GZ-31 and a screen that called the next flight GZ-0001 —
+ * so the runs were moved onto the numbers the office was already using and
+ * carry on from there.
+ *
+ * Unpadded for the same reason: the office writes GZ-31, not GZ-0031, and a
+ * number nobody uses is a number people have to translate.
  */
-export const BATCH_NUMBER = /^(GZ|HK)-(\d{4,})$/;
+export const BATCH_NUMBER = /^(GZ|HK)-(\d{1,})$/;
 
 /**
  * The notation the office wrote before this one: GZ/26-28.
@@ -140,7 +147,7 @@ export const LEGACY_BATCH_NUMBER = /^(GZ|HK)\/(\d{2})-(\d{1,})$/;
 
 /** A batch number, assembled. */
 export function batchNumberFor(route: Origin, sequence: number) {
-  return `${batchPrefix(route)}-${String(sequence).padStart(4, "0")}`;
+  return `${batchPrefix(route)}-${sequence}`;
 }
 
 /**
