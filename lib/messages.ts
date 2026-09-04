@@ -3,6 +3,7 @@ import "server-only";
 import type { MessageKind } from "@prisma/client";
 
 import { COMPANY, PAYMENT_METHODS, STORAGE_POLICY } from "@/lib/constants";
+import { siteUrl } from "@/lib/site-url";
 import { formatLocal, formatUsd } from "@/lib/fx";
 
 /**
@@ -84,31 +85,14 @@ export const CHANNEL_LABELS: Record<string, string> = {
  * building, so that is what a local value falls back to.
  */
 /**
- * The company's own address, and the only one a customer may be sent to.
+ * Where a customer is sent, from the one place that decides it.
  *
- * Not a preview host, not a deployment URL, not a developer's laptop. The
- * fallback used to be targetexpress.co.tz, which is the STAFF EMAIL domain and
- * serves no website at all — a dead link in somebody's WhatsApp.
+ * A deployment URL is not an address this company promised anyone, and
+ * lib/site-url already refuses one for the QR codes and the canonical URLs.
+ * The same answer here, so a customer's WhatsApp link and the QR on their box
+ * cannot point at two different domains.
  */
-export const OFFICIAL_SITE = "https://www.targetexpressaircargo.com";
-
-/**
- * Anything that is not the company's own domain is refused, not used.
- *
- * NEXT_PUBLIC_SITE_URL is "http://localhost:3000" in this repo, and in
- * production it was the vercel.app deployment address — so every reminder that
- * went out carried a link to target-epress.vercel.app. It works, and it is
- * still wrong: a customer chasing their cargo should land on the company's
- * address, not on the name of the company's hosting provider, and a
- * deployment URL is not a promise anyone made to keep.
- */
-const PUBLIC_HOST = (() => {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
-  if (!configured) return OFFICIAL_SITE;
-  const unfit =
-    /localhost|127\.0\.0\.1|0\.0\.0\.0|\.vercel\.app|\.now\.sh/.test(configured);
-  return unfit ? OFFICIAL_SITE : configured;
-})();
+const PUBLIC_HOST = siteUrl();
 
 const TRACK_URL = `${PUBLIC_HOST}/track`;
 
