@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowRight, Hourglass, Paperclip } from "lucide-react";
+import { Hourglass, Paperclip } from "lucide-react";
 
 import { VerifySubmission } from "@/components/app/verify-submission";
 import { formatMoney, formatRelative } from "@/lib/format";
@@ -127,23 +126,25 @@ export async function PendingSubmissionNotice({
 
       <footer className="border-t bg-muted/20 px-5 py-3">
         {canVerify ? (
-          <>
-            {/* The warning and its fix in one place. A caution with no way to
-                act on it just makes the next person hesitate. */}
-            <p className="text-xs text-muted-foreground">
-              {t(
-                locale,
-                "Agree it above and it posts to the ledger itself. Recording it again below is refused — it would take the same money twice."
-              )}
-            </p>
-            <Link
-              href={`/app/finance/verify#${submissions[0].submissionNumber}`}
-              className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-lg bg-warning px-3 py-1.5 text-xs font-semibold text-warning-foreground transition-colors hover:bg-warning/90"
-            >
-              {t(locale, "Verify it")}
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </>
+          /*
+            THE SENTENCE, AND NO SECOND BUTTON.
+
+            This footer used to carry a "Verify it" link to the verify queue,
+            from the days when agreeing a claim meant going to another screen.
+            The decision moved onto the row above — see the note beside
+            VerifySubmission — and the link stayed, so the panel offered the
+            same job twice and a reader had to work out whether the two did the
+            same thing.
+
+            The sentence stays, because it is the one that explains why the
+            Record payment form below is going to refuse them.
+          */
+          <p className="text-xs text-muted-foreground">
+            {t(
+              locale,
+              "Agree it above and it posts to the ledger itself. Recording it again below is refused — it would take the same money twice."
+            )}
+          </p>
         ) : (
           <p className="text-xs text-muted-foreground">
             {t(
