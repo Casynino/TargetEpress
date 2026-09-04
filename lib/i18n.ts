@@ -2729,7 +2729,6 @@ const ZH: Record<string, string> = {
   "Opens WhatsApp with the whole message written: the cargo, the weight, the rate, the total and a link to their invoice. Read it before you send it.":
     "打开 WhatsApp，消息已写好：货物、重量、费率、总额，以及账单链接。发送前请先核对。",
   "cancelled, not counted": "已取消，未计入",
-  "It arrived on another day": "款项是其他日期到账的",
   "A Friday transfer entered on Monday belongs to Friday, and the payments report follows this date.":
     "周五的转账在周一录入，仍属于周五，付款报表以此日期为准。",
   "Optional, but it is what settles an argument later.": "非必填，但日后有争议时以此为准。",
@@ -2750,6 +2749,12 @@ const ZH: Record<string, string> = {
   "Why — agreed with the customer, damaged goods…": "原因 — 与客户协商、货物受损……",
   "Say why the discount is being given.": "请说明给予折扣的原因。",
   "That discount is larger than the rest of the bill.": "折扣金额超过了账单余额。",
+  "The bill (invoice)": "账单（发票）",
+  "Click here if you wish to change the date": "如需修改日期，请点击这里",
+  "This bill only. The dollar total does not move — only what it comes to in shillings.":
+    "仅限此账单。美元总额不变，改变的只是折合的先令金额。",
+  "Why — agreed at the counter, bank rate on the day…": "原因 — 柜台协商、当日银行汇率……",
+  "Say why the rate is being changed.": "请说明修改汇率的原因。",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
   "No exchange rate was published on the day this money arrived, so it cannot be valued in the register. Publish one for that date and record it again.":

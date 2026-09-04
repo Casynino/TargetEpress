@@ -40,6 +40,7 @@ import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import {
   discountSchema,
+  invoiceRateSchema,
   customerPaymentSchema,
   firstError,
   paymentSchema,
@@ -1215,6 +1216,113 @@ export async function applyInvoiceDiscount(
     revalidatePath("/app/collections/follow-up");
     revalidatePath("/app/cargo");
     return ok({ total: result.total });
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
+  }
+}
+
+/**
+ * Re-quoting ONE bill at a different rate.
+ *
+ * The rate on an invoice is frozen the day it is raised, and that is right:
+ * publishing a new rate tomorrow must not restate what a customer was already
+ * told. But a bill raised weeks ago and settled today at a rate the counter
+ * agreed is a real conversation, and whatever they agree has to be the number
+ * in the books — for this consignment and no other.
+ *
+ * The DOLLAR total does not move. Freight was priced in dollars and stays
+ * priced in dollars; what changes is the shilling figure that dollar total
+ * converts to, which is the only thing a rate decides. Nothing about what has
+ * already been paid is touched either: an earlier payment settled at the rate
+ * agreed on its own day, and its receipt says so.
+ *
+ * fx.manage, the same permission adjustInvoice demands before it will let the
+ * rate move — Finance, the manager and the owner. Moving a rate moves what a
+ * customer owes in the money they actually hand over, so it is not a counter
+ * decision.
+ */
+export async function changeInvoiceRate(
+  _prev: ActionResult<{ totalLocal: number | null }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ totalLocal: number | null }>> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("fx.manage");
+    const parsed = invoiceRateSchema.safeParse(
+      Object.fromEntries(formData) as Record<string, string>
+    );
+    if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+    const input = parsed.data;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.findUnique({
+        where: { id: input.invoiceId },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          status: true,
+          currency: true,
+          total: true,
+          exchangeRate: true,
+          localCurrency: true,
+        },
+      });
+      if (!invoice) throw new Error("That bill no longer exists.");
+      if (invoice.status === "VOID" || invoice.status === "WRITTEN_OFF") {
+        throw new Error(`${invoice.invoiceNumber} is not a live bill.`);
+      }
+
+      const was = invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
+      const total = toNumber(invoice.total);
+      const totalLocal = toLocal(total, input.exchangeRate);
+
+      /* Claimed on the rate this transaction read, so two people re-quoting at
+         once cannot leave the bill on a figure neither of them chose. */
+      const claimed = await tx.invoice.updateMany({
+        where: { id: invoice.id, exchangeRate: invoice.exchangeRate },
+        data: {
+          exchangeRate: new Prisma.Decimal(input.exchangeRate),
+          localCurrency: invoice.localCurrency ?? LOCAL_CURRENCY,
+          totalLocal: new Prisma.Decimal(totalLocal),
+        },
+      });
+      if (claimed.count === 0) {
+        throw new Error(
+          "This bill changed a moment ago. Reload the page and look again."
+        );
+      }
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "invoice.rate",
+          entity: "Invoice",
+          entityId: invoice.id,
+          summary:
+            `${invoice.invoiceNumber}: rate ${was === null ? "none" : was.toLocaleString()} → ` +
+            `${input.exchangeRate.toLocaleString()}, ${invoice.currency} ${total.toFixed(2)} ` +
+            `now ${Math.round(totalLocal).toLocaleString()} — ${input.reason}`,
+          metadata: {
+            rateBefore: was,
+            rateAfter: input.exchangeRate,
+            total,
+            totalLocalBefore:
+              was === null ? null : Math.round(toLocal(total, was)),
+            totalLocalAfter: Math.round(totalLocal),
+            reason: input.reason,
+          },
+        },
+        tx
+      );
+
+      return { totalLocal, invoiceId: invoice.id };
+    });
+
+    revalidatePath("/app/finance/invoices");
+    revalidatePath(`/app/finance/invoices/${result.invoiceId}`);
+    revalidatePath("/app/collections/follow-up");
+    revalidatePath("/app/cargo");
+    return ok({ totalLocal: result.totalLocal });
   } catch (error) {
     return fail(t(locale, toActionError(error)));
   }

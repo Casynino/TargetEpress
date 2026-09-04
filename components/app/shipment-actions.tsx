@@ -23,6 +23,7 @@ import {
 } from "@/components/app/idempotency-key";
 import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { PaymentDateField } from "@/components/app/payment-date-field";
+import { ChangeRate } from "@/components/app/change-rate";
 import { GiveDiscount } from "@/components/app/give-discount";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,10 @@ type Props = {
   invoiceDiscount?: number;
   /** Whether this desk may change it — Finance, the manager and the owner. */
   canDiscount?: boolean;
+  /** The bill's own total, so the rate dialog can show what it becomes. */
+  invoiceTotal?: number;
+  /** fx.manage — the same permission the invoice edit demands. */
+  canChangeRate?: boolean;
   /** DRAFT while the system's price is waiting on Finance to sign it off. */
   invoiceStatus: string | null;
   /**
@@ -230,6 +235,15 @@ export function ShipmentActions(props: Props) {
             }
           />
         ) : null}
+        {/*
+          THE SAME PANEL, WHATEVER THE DESK CAN DO.
+
+          Support does a different job here — they hand a claim to Finance
+          rather than settling it — but the panel is the same panel, and it was
+          drawn differently: a bigger icon, a bigger button in a different
+          shape, and asking for credit stranded in a band of its own below.
+          Two departments looking at one screen should see one design.
+        */}
         {canCollect ? (
           <div className="border-l-2 border-brand bg-brand/5 px-4 py-3.5">
             <p className="flex items-center gap-2 font-medium">
@@ -241,12 +255,25 @@ export function ShipmentActions(props: Props) {
                 "Add their receipt. Finance verifies it before anything is settled."
               )}
             </p>
-            <Link
-              href={`/app/collections/record/${props.invoiceId}`}
-              className="focus-ring mt-3 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground transition-colors hover:bg-brand/90"
-            >
-              {t("Record their payment")}
-            </Link>
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              <Button asChild size="sm" variant="brand" className="px-2.5">
+                <Link href={`/app/collections/record/${props.invoiceId}`}>
+                  {t("Record their payment")}
+                </Link>
+              </Button>
+              {/* Beside it, exactly as Release on credit sits beside Confirm
+                  payment — the two ways this bill can be cleared. */}
+              {props.credit ? (
+                <CreditRequest
+                  invoiceId={props.credit.invoiceId}
+                  outstanding={props.credit.outstanding}
+                  defaultTerm={props.credit.defaultTerm}
+                  limitLabel={props.credit.limitLabel}
+                  outstandingLabel={null}
+                  canApprove={props.credit.canApprove}
+                />
+              ) : null}
+            </div>
           </div>
         ) : null}
         {/*
@@ -255,7 +282,7 @@ export function ShipmentActions(props: Props) {
           its own; everyone else sees it next to Confirm payment, because the
           two are alternatives and a reader compares them side by side.
         */}
-        {props.credit && !canPay ? (
+        {props.credit && !canPay && !canCollect ? (
           <div className="border-l-2 border-brand bg-brand/5 px-4 py-3">
           <CreditRequest
             invoiceId={props.credit.invoiceId}
@@ -364,7 +391,7 @@ function InvoicePanel(props: Props) {
             they can DO. */}
         <p className="flex items-center gap-2 text-sm font-medium">
           <FileText className="h-4 w-4 text-brand" />
-          {t("The bill")}
+          {t("The bill (invoice)")}
         </p>
         
         <div className="mt-2.5 flex flex-wrap gap-2">
@@ -680,15 +707,15 @@ function PaymentPanel({
           {converted ? (
             <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
               {converted}
-              {props.invoiceRate !== null && props.invoiceNumber ? (
+              {props.canChangeRate && props.invoiceId ? (
                 <>
                   {" "}
-                  <Link
-                    href={`/app/finance/invoices/${props.invoiceNumber}`}
-                    className="font-medium text-brand underline-offset-2 hover:underline"
-                  >
-                    {t("Change the rate")}
-                  </Link>
+                  <ChangeRate
+                    invoiceId={props.invoiceId}
+                    currency={props.currency}
+                    current={props.invoiceRate}
+                    total={props.invoiceTotal ?? 0}
+                  />
                 </>
               ) : null}
 

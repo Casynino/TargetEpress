@@ -905,6 +905,8 @@ export default async function ShipmentDetailPage({
               shipment.invoice ? toNumber(shipment.invoice.discount) : 0
             }
             canDiscount={can(user.role, "invoice.discount")}
+            invoiceTotal={shipment.invoice ? toNumber(shipment.invoice.total) : 0}
+            canChangeRate={can(user.role, "fx.manage")}
             /* Credit granted means the cargo may go before the money does —
                without this the server can issue a credit note and no button in
                the interface can ask it to. */

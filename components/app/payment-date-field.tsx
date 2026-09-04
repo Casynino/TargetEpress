@@ -48,7 +48,7 @@ export function PaymentDateField({
           className="focus-ring inline-flex items-center gap-1 rounded text-xs font-medium text-brand underline-offset-2 hover:underline"
         >
           <CalendarDays className="h-3.5 w-3.5" />
-          {t("It arrived on another day")}
+          {t("Click here if you wish to change the date")}
         </button>
       </div>
     );

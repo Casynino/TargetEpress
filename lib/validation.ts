@@ -178,6 +178,18 @@ export const discountSchema = z.object({
   reason: z.string().trim().min(3, "Say why the discount is being given."),
 });
 
+/**
+ * Moving the rate a single bill is quoted at.
+ *
+ * Banded like every other rate in the app, so a mistyped digit is refused
+ * rather than silently restating a bill at ten times its shilling value.
+ */
+export const invoiceRateSchema = z.object({
+  invoiceId: z.string().min(1),
+  exchangeRate: numeric("Exchange rate", { min: 100, max: 100_000 }),
+  reason: z.string().trim().min(3, "Say why the rate is being changed."),
+});
+
 export const customerPaymentSchema = z.object({
   customerId: z.string().min(1, "Choose the customer who paid."),
   amount: numeric("Amount", { min: 0.01 }),
