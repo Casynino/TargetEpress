@@ -80,6 +80,17 @@ export default async function SupportHome() {
   /* Support files a claim, Finance banks it — both hold payment.submit, and the
      record screen behind this already knows which of the two is standing there. */
   const canTakePayments = can(user.role, "payment.submit");
+  /*
+    WHICH HALF OF THE JOB THIS READER DOES.
+    
+    The picker below was hard-wired to "submit a claim", which is right for
+    Support and wrong for everybody else who opens this page. The owner and
+    Finance hold payment.record — they say the money arrived — and were being
+    made to file a claim to themselves and then walk to the verify queue to
+    agree it. Same picker, same list of everyone who owes; the button does
+    whichever of the two jobs the reader is actually allowed to do.
+  */
+  const canBankIt = can(user.role, "payment.record");
   /* Asking for a consignment to be released unpaid. This desk asks; Finance
      grants — which is why the panel is opened here with canApprove false. */
   const canAskForCredit = can(user.role, "credit.request");
@@ -425,7 +436,11 @@ export default async function SupportHome() {
           after={
             <>
               {canTakePayments ? (
-                <RecordIncome accounts={payAccounts} rate={rate} canRecord={false} />
+                <RecordIncome
+                  accounts={payAccounts}
+                  rate={rate}
+                  canRecord={canBankIt}
+                />
               ) : null}
               {/* Asking for credit is an action too, and it was the one thing
                   in this row that walked you somewhere to press a second

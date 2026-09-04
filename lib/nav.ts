@@ -665,6 +665,24 @@ const FINANCE_SECTIONS: NavSection[] = [
       },
       {
         /*
+          TAKING ONE PAYMENT, WITH ITS OWN DOOR.
+
+          Support has had this row for a while; the desks that actually bank
+          money all day did not. It lived as a button on Home and on the call
+          list, so Finance coming down the sidebar had to first work out which
+          page carried it — and then find the customer on a list of a hundred
+          and thirty-four.
+
+          Lands with the picker already open: every customer who owes, filtered
+          by flight, one press each.
+        */
+        href: "/app/collections/follow-up?record=1",
+        label: "Record Payment",
+        icon: "Banknote",
+        permission: "payment.record",
+      },
+      {
+        /*
           The rate book, with its own door.
 
           It used to be reachable only as a tab inside the finance row. That row
@@ -883,6 +901,16 @@ const ADMIN_SECTIONS: NavSection[] = [
     group: { label: "Finance", icon: "ReceiptText" },
     items: [
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote", permission: "collections.view" },
+      {
+        /* Taking one payment, with its own door — the same row Finance and
+           Support carry. It lived as a button on Home and on the call list,
+           so anybody coming down the sidebar had to work out which page held
+           it. Lands with the picker open on everybody who owes. */
+        href: "/app/collections/follow-up?record=1",
+        label: "Record Payment",
+        icon: "Banknote",
+        permission: "payment.record",
+      },
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock", permission: "credit.view" },
       { href: "/app/finance/pricing", label: "Price Configuration", icon: "Tags", permission: "pricing.view" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode", permission: "pickupNote.view" },
@@ -1008,6 +1036,13 @@ const MANAGER_SECTIONS: NavSection[] = [
          behind those figures, and last the check that the figures agree. */
       { href: "/app/finance", label: "Overview", icon: "Wallet" },
       { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
+      {
+        /* The same row every other money desk carries. */
+        href: "/app/collections/follow-up?record=1",
+        label: "Record Payment",
+        icon: "Banknote",
+        permission: "payment.record",
+      },
       { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp" },
       { href: "/app/finance/transactions", label: "Transactions", icon: "ArrowLeftRight" },
       { href: "/app/manager/reconciliation", label: "Reconciliation", icon: "Scale" },
