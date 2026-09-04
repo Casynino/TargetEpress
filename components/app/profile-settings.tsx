@@ -124,8 +124,12 @@ export function PersonalDetailsForm({ profile }: { profile: EditableProfile }) {
             name="preferredLanguage"
             defaultValue={profile.preferredLanguage}
           >
+            {/* The two the staff app is written in. Kiswahili sat here as a
+                third choice and could be saved, and then every screen went on
+                rendering English — the customer site is the surface that has
+                Swahili, and it has its own copy. Offering a language the app
+                cannot speak is worse than not offering it. */}
             <option value="en">{t("English")}</option>
-            <option value="sw">{t("Kiswahili")}</option>
             <option value="zh">中文</option>
           </NativeSelect>
         </div>

@@ -44,7 +44,11 @@ const personalSchema = z.object({
     .max(120, "Keep the emergency contact short — a name and a number.")
     .optional()
     .transform((v) => (v?.length ? v : null)),
-  preferredLanguage: z.enum(["en", "sw", "zh"]),
+  /* The two the staff app is written in. "sw" was accepted here and stored,
+     and then localeOf narrowed it back to English on every read — a setting
+     that saved and did nothing. Rows that still carry it keep reading as
+     English, which is what they already did. */
+  preferredLanguage: z.enum(["en", "zh"]),
 });
 
 export async function updateMyProfile(
