@@ -251,6 +251,8 @@ export type FollowUpRow = {
   /** What has come in against it — the half that makes "partly paid" a state. */
   paid: number | null;
   outstanding: number | null;
+  /** What the BILL is priced in — the currency `outstanding` is stated in. */
+  currency: string;
   localCurrency: string | null;
   outstandingLocal: number | null;
   invoiceSentAt: string | null;
@@ -331,6 +333,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
           total: true,
           amountPaid: true,
           exchangeRate: true,
+          currency: true,
           localCurrency: true,
           sentAt: true,
           confirmedAt: true,
@@ -466,6 +469,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       total,
       paid,
       outstanding,
+      currency: invoice?.currency ?? "USD",
       localCurrency: invoice?.localCurrency ?? null,
       outstandingLocal:
         rate === null || outstanding === null ? null : Math.round(outstanding * rate),
@@ -581,6 +585,7 @@ function creditFollowUpRow(r: CreditRow): FollowUpRow {
     total: r.totalUsd,
     paid: r.paidUsd,
     outstanding: r.outstandingUsd,
+    currency: r.currency ?? "USD",
     localCurrency: null,
     outstandingLocal:
       r.exchangeRate === null ? null : Math.round(r.outstandingUsd * r.exchangeRate),

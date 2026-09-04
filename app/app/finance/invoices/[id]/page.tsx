@@ -16,12 +16,11 @@ import { formatPackages } from "@/lib/constants";
 import { activeAccounts } from "@/lib/accounts";
 import { accountsForInvoice } from "@/lib/company-settings";
 import { LOCAL_CURRENCY, formatLocal, toLocal } from "@/lib/fx";
-import { MESSAGE_KIND_LABELS, composeMessage, whatsappLink } from "@/lib/messages";
+import { MESSAGE_KIND_LABELS, composeMessage, trackLink, whatsappLink } from "@/lib/messages";
 import { freightBasisOf } from "@/lib/support";
 import { AIRPORT_LABELS, CATEGORY_LABELS, METHOD_LABELS } from "@/lib/cargo";
 import {
   COMPANY,
-  PAYMENT_METHODS,
 } from "@/lib/constants";
 import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -286,8 +285,8 @@ export default async function InvoicePage({
    * lines because on this message the labels do the work the reminder does
    * with three.
    *
-   * The accounts come from PAYMENT_METHODS with their full labels, so this
-   * cannot drift from the reminder, the PDF or the public tracking page.
+   * It ends with a link rather than the accounts, so it cannot drift from the
+   * PDF or the public tracking page — there is only one copy of them now.
    */
   const whatsappText = [
     `*${COMPANY.name.toUpperCase()}*`,
@@ -308,16 +307,21 @@ export default async function InvoicePage({
           : ` / ${formatLocal(outstandingLocal, localCurrency)}`)
       : `*Paid in full* — asante.`,
     ``,
-    // Only worth printing while there is something to pay.
+    /*
+      THE INVOICE ITSELF, NOT A COPY OF IT.
+
+      This message used to end with every payment account typed out. WhatsApp
+      cannot carry a PDF through a wa.me link, so showing somebody their
+      invoice meant retyping it — and the accounts underneath were a copy of
+      the truth that goes stale the day one of them changes.
+
+      The link is the invoice: the full bill, and the accounts to pay it into,
+      current every time it is opened. One place to keep right.
+    */
     ...(outstanding > 0
       ? [
-          `*Payment Options*`,
-          ``,
-          ...PAYMENT_METHODS.flatMap((account) => [
-            `*${account.label}*`,
-            `${account.number} — ${account.accountName}`,
-            ``,
-          ]),
+          `*See the full invoice and how to pay:*`,
+          trackLink(shipment.trackingNumber),
         ]
       : []),
   ]

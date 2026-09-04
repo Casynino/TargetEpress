@@ -97,6 +97,21 @@ const PUBLIC_HOST = siteUrl();
 const TRACK_URL = `${PUBLIC_HOST}/track`;
 
 /**
+ * The customer's own view of one consignment: the invoice in full, and the
+ * accounts to pay it into, always current.
+ *
+ * WhatsApp cannot carry a PDF through a wa.me link — only text — so a message
+ * that wanted to show somebody their invoice had to retype it, and the
+ * accounts underneath were a copy of the truth that goes stale the day one
+ * changes. A link is the invoice itself.
+ */
+export function trackLink(trackingNumber: string | null | undefined) {
+  return trackingNumber
+    ? `${TRACK_URL}?q=${encodeURIComponent(trackingNumber)}`
+    : TRACK_URL;
+}
+
+/**
  * The name to greet somebody by.
  *
  * Capitalised, because customers are registered however the desk happened to

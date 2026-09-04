@@ -98,6 +98,8 @@ export type CreditRow = {
   batchId: string | null;
   batchNumber: string | null;
   termDays: number | null;
+  /** What the bill is priced in, so a screen settling it knows the units. */
+  currency: string;
   /** The frozen rate on this bill, so the shilling figure never moves. */
   exchangeRate: number | null;
   /** Storage inside this credit — a receivable that grew in our own warehouse. */
@@ -126,6 +128,7 @@ function toRow(inv: Prisma.InvoiceGetPayload<{ select: typeof CREDIT_SELECT }>, 
     batchId: inv.shipment?.batch?.id ?? null,
     batchNumber: inv.shipment?.batch?.batchNumber ?? null,
     termDays: inv.creditTermDays,
+    currency: inv.currency,
     exchangeRate: inv.exchangeRate === null ? null : toNumber(inv.exchangeRate),
     storageUsd: toNumber(inv.storageCharge),
     storageWaivedUsd: toNumber(inv.storageWaivedUsd),

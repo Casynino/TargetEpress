@@ -706,7 +706,11 @@ export function CustomerPaymentForm({
               is not on the table. Nothing new is asked for.
           */}
 
-          <div className="min-w-0">
+          {/* The whole row. In one column of a two-column grid the heading
+              broke over three lines and the filename was cut to "No file …" —
+              the block asking for the evidence looked like the thing being
+              squeezed out. */}
+          <div className="min-w-0 sm:col-span-2">
             <PaymentProofField />
           </div>
 

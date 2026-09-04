@@ -58,7 +58,7 @@ export function PaymentProofField({
           setChosen(Array.from(event.target.files ?? []).map((f) => f.name))
         }
       />
-      <div className="flex items-center gap-2 rounded-md border border-input bg-background px-2 py-1.5">
+      <div className="flex min-w-0 items-center gap-2 rounded-md border border-input bg-background px-2 py-1.5">
         <button
           type="button"
           onClick={() => ref.current?.click()}
@@ -96,9 +96,9 @@ export function PaymentProofField({
     <div className="rounded-lg border border-warning/40 bg-warning/5 p-3.5">
       <label
         htmlFor={id}
-        className="flex items-center gap-1.5 text-sm font-semibold text-warning"
+        className="flex items-baseline gap-1.5 text-sm font-semibold text-warning"
       >
-        <Paperclip className="h-4 w-4 shrink-0" />
+        <Paperclip className="h-4 w-4 shrink-0 self-center" />
         {t("Payment proof — the slip or the screenshot")}
       </label>
       <div className="mt-2">{picker}</div>

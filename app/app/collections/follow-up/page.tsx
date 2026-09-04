@@ -16,6 +16,7 @@ import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
+import { RecordPaymentDialog } from "@/components/app/record-payment-dialog";
 import { IconHint } from "@/components/app/icon-hint";
 import { RecordIncome } from "@/components/app/record-income";
 import { SearchBox } from "@/components/app/search-box";
@@ -793,23 +794,31 @@ export default async function FollowUpPage({
                     row.outstanding !== null &&
                     row.outstanding > 0 ? (
                       <IconHint label={t(locale, "Record a payment")}>
-                      <Link
-                        /* A credit is settled against the BILL, never against
-                           the cargo: the boxes went home with the customer
-                           weeks ago, so the cargo page has nothing left to
-                           record a payment on — and collecting a credit must
-                           not look like a fresh sale. Same destination the
-                           credit book's own Collect action uses. */
-                        href={
-                          canRecord && row.credit === null
-                            ? `/app/cargo/${row.trackingNumber}`
-                            : `/app/collections/record/${row.invoiceId}`
-                        }
-                        aria-label={`${t(locale, "Record a payment for")} ${row.invoiceNumber ?? row.trackingNumber}`}
-                        className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-brand/40 text-brand transition-colors hover:bg-brand/10"
-                      >
-                        <Banknote className="h-3.5 w-3.5" />
-                      </Link>
+                        {/*
+                          THE FORM OPENS HERE, IT DOES NOT SEND YOU AWAY.
+
+                          This was a link: Finance to the cargo page to hunt
+                          for the panel, Support to a page of its own. Both
+                          meant leaving the call list — the screen a desk works
+                          down with a customer on the phone — and finding the
+                          way back to the row they were on. Opening the cargo
+                          already has its own icon two along; this one takes
+                          the money, the way the credit dialog beside it grants
+                          the terms.
+                        */}
+                        <RecordPaymentDialog
+                          invoiceId={row.invoiceId}
+                          invoiceNumber={row.invoiceNumber ?? ""}
+                          customerName={row.customerName}
+                          trackingNumber={row.trackingNumber ?? ""}
+                          goods={row.description}
+                          outstanding={row.outstanding}
+                          currency={row.currency ?? "USD"}
+                          rate={row.exchangeRate}
+                          banks={payAccounts}
+                          canRecord={canRecord}
+                          label={`${t(locale, "Record a payment for")} ${row.invoiceNumber ?? row.trackingNumber}`}
+                        />
                       </IconHint>
                     ) : null}
 
