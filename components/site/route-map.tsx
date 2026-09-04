@@ -151,7 +151,7 @@ export function RouteMap() {
       />
 
       <div className="container relative">
-        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[0.85fr_1.minmax(0,15fr)]">
+        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
           <div>
             <p className="eyebrow-gold">Njia zetu · Our routes</p>
             <h2 className="mt-3 font-display text-3xl font-bold leading-tight sm:text-4xl">

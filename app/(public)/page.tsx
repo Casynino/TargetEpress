@@ -338,7 +338,7 @@ export default function HomePage() {
       <section className="section relative isolate">
         <SectionBackdrop variant="aurora" />
         <div className="container">
-          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.1fr_0.minmax(0,9fr)]">
+          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
             <div className="relative order-2 overflow-hidden rounded-2xl border shadow-lift lg:order-1">
               <Image
                 src="https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=1200&q=70"

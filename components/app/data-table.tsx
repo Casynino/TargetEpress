@@ -264,7 +264,9 @@ export function DataTable<T>({
           <div className="flex-1" />
         )}
 
-        <div className="flex items-center gap-2">
+        {/* Wraps rather than widening the page: below 640px this row already
+            has the full content width and three unshrinkable buttons in it. */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {filters.length > 0 ? (
             <Button
               type="button"

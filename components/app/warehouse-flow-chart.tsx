@@ -61,10 +61,12 @@ export async function WarehouseFlowChart({
         {weeks.map((week, i) => (
           <div
             key={week.label}
-            className="group flex h-full flex-1 flex-col justify-end"
+            className="group flex h-full min-w-0 flex-1 flex-col justify-end"
             title={`${t(locale, "Week of")} ${week.label} — ${week.received} ${t(locale, "checked in")}, ${week.released} ${t(locale, "released")}`}
           >
-            <span className="pointer-events-none mb-1 text-center font-mono text-xs tabular text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+            {/* Hidden by opacity, not by layout — so without truncate it still
+                sets each column's minimum width and widens the page. */}
+            <span className="pointer-events-none mb-1 truncate text-center font-mono text-xs tabular text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
               {week.received}/{week.released}
             </span>
             <div className="flex h-full items-end justify-center gap-[3px]">

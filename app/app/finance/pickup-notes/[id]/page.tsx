@@ -218,8 +218,14 @@ export default async function PickupNotePage({
         hint={t(locale, "Print it for the customer, or send them the file.")}
       />
 
-      <div className="flex justify-center">
-        <PickupSlip data={data} />
+      {/* A scroll frame, not a centring one. The sheet is a fixed 100mm
+          (~378px) and cannot shrink, so on a narrower phone centring split
+          the overflow evenly and the left half went behind x=0, where no
+          scroll can reach it. Printing is unaffected. */}
+      <div className="-mx-4 overflow-x-auto px-4 print:mx-0 print:overflow-visible print:px-0">
+        <div className="mx-auto flex w-max justify-center">
+          <PickupSlip data={data} />
+        </div>
       </div>
 
     </div>

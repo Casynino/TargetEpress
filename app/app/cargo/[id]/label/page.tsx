@@ -119,10 +119,16 @@ export default async function LabelPage({
         </Link>
       </p>
 
-      <div className="flex flex-col items-center gap-4 print:gap-0">
+      {/* A scroll frame, not a centring one. The sheet is a fixed 100mm
+          (~378px) and cannot shrink, so on a narrower phone centring split
+          the overflow evenly and the left half went behind x=0, where no
+          scroll can reach it. Printing is unaffected. */}
+      <div className="-mx-4 overflow-x-auto px-4 print:mx-0 print:overflow-visible print:px-0">
+      <div className="mx-auto flex w-max flex-col items-center gap-4 print:gap-0">
         {stickers.map((sticker) => (
           <CargoSticker key={sticker.packageRef} data={sticker} />
         ))}
+      </div>
       </div>
     </div>
   );

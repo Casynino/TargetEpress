@@ -385,7 +385,11 @@ export default async function FollowUpPage({
           ) : null}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
+        {/* Scrolls sideways inside the card, the way the filter strip below it
+            does. The four segments are 392px wide and cannot shrink, and a row
+            cannot wrap a single child — so on a phone the last of them, "Most
+            urgent", was clipped off the card and could never be pressed. */}
+        <div className="flex items-center gap-3 overflow-x-auto border-b px-4 py-3">
         {/* How it is ordered, said out loud and changeable. The list has always
             been ranked by urgency and never said so, which on a day when every
             consignment landed together reads as no order at all. */}

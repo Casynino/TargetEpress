@@ -69,7 +69,10 @@ export function BarChart({
           <span
             key={`${d.label}-label-${i}`}
             className={cn(
-              "flex-1 text-center tabular",
+              /* min-w-0 because flex-1 leaves min-width:auto, so twelve month
+                 labels refuse to shrink below their own text and push the
+                 whole page sideways on a phone. flow-bars does the same. */
+              "min-w-0 flex-1 truncate text-center tabular",
               highlightIndex === i && "font-semibold text-foreground"
             )}
           >
