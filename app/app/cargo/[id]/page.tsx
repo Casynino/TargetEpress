@@ -33,7 +33,7 @@ import {
   blocksPickup,
   formatPackages,
   storageFreeDaysLeft,
-  storageOwedNow,
+  storageUncharged,
 } from "@/lib/constants";
 import {
   formatDate,
@@ -909,7 +909,14 @@ export default async function ShipmentDetailPage({
             canDiscount={can(user.role, "invoice.discount")}
             invoiceStorage={
               shipment.invoice
-                ? storageOwedNow({ ...shipment.invoice, shipment })
+                ? toNumber(shipment.invoice.storageWaivedUsd) > 0
+                  ? 0
+                  : toNumber(shipment.invoice.storageCharge)
+                : 0
+            }
+            invoiceStorageUncharged={
+              shipment.invoice
+                ? storageUncharged({ ...shipment.invoice, shipment })
                 : 0
             }
             invoiceStorageFreeDays={storageFreeDaysLeft(shipment)}

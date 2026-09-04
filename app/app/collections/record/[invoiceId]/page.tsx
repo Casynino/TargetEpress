@@ -11,7 +11,7 @@ import { CreditRequest } from "@/components/app/credit-request";
 import { PaymentTypeChoice } from "@/components/app/payment-type-choice";
 import { RecordCollectionForm } from "@/components/app/record-collection-form";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
-import { storageOwedNow, storageFreeDaysLeft } from "@/lib/constants";
+import { storageUncharged, storageFreeDaysLeft } from "@/lib/constants";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { activeAccounts } from "@/lib/accounts";
@@ -110,7 +110,13 @@ export default async function RecordCollectionPage({
   const storageCharged = toNumber(invoice.storageCharge);
   /* What the clock says is owed now, which is what the desk is being asked
      about — the bill's own figure stops moving the day it is written. */
-  const storageOwed = storageOwedNow(invoice);
+  /* On the bill (inside its total) and accrued-but-not-yet-charged are two
+     different figures — see AddStorage. */
+  const storageOwed =
+    toNumber(invoice.storageWaivedUsd) > 0
+      ? 0
+      : toNumber(invoice.storageCharge);
+  const storageToAdd = storageUncharged(invoice);
   const storageFree = storageFreeDaysLeft(invoice.shipment);
   const storageWaived = toNumber(invoice.storageWaivedUsd);
   const outstanding = toNumber(invoice.total) - toNumber(invoice.amountPaid);
@@ -220,6 +226,7 @@ export default async function RecordCollectionPage({
                 banks={banks}
                 canRecord={canRecordDirectly}
                 storage={storageOwed}
+                storageUncharged={storageToAdd}
                 storageFreeDaysLeft={storageFree}
                 canWaiveStorage={can(user.role, "invoice.storage.waive")}
               />
@@ -265,6 +272,7 @@ export default async function RecordCollectionPage({
                   banks={banks}
                   canRecord={canRecordDirectly}
                   storage={storageOwed}
+                  storageUncharged={storageToAdd}
                   storageFreeDaysLeft={storageFree}
                   canWaiveStorage={can(user.role, "invoice.storage.waive")}
                 />

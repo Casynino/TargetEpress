@@ -5,6 +5,7 @@ import { Download, FileText } from "lucide-react";
 
 import { ChangeRate } from "@/components/app/change-rate";
 import { CreditRequest } from "@/components/app/credit-request";
+import { AddStorage } from "@/components/app/add-storage";
 import { GiveDiscount } from "@/components/app/give-discount";
 import { WaiveStorage } from "@/components/app/waive-storage";
 import { useT } from "@/components/app/locale-provider";
@@ -49,6 +50,7 @@ export function BillActions({
         discount: number;
         exchangeRate: number | null;
         storage: number;
+        storageUncharged: number;
         storageFreeDaysLeft: number | null;
       }
     | null;
@@ -60,6 +62,7 @@ export function BillActions({
     discount: number;
     exchangeRate: number | null;
     storage: number;
+    storageUncharged: number;
     storageFreeDaysLeft: number | null;
   }[];
   selectedCount: number;
@@ -125,6 +128,12 @@ export function BillActions({
   */
   const withStorage = many.filter((b) => b.storage > 0.005);
   const storageTotal = withStorage.reduce((sum, b) => sum + b.storage, 0);
+  /* Accrued and not on the bill — a different figure and a different press. */
+  const unchargedBills = many.filter((b) => b.storageUncharged > 0.005);
+  const unchargedTotal = unchargedBills.reduce(
+    (sum, b) => sum + b.storageUncharged,
+    0
+  );
 
   const combinedDiscount =
     Math.round(many.reduce((n, b) => n + b.discount, 0) * 100) / 100;
@@ -181,6 +190,18 @@ export function BillActions({
         {/* Storage is per consignment — each box has its own clock — so this
             answers for the one bill in front of the desk, unlike the discount
             and the rate, which are agreed over the whole payment. */}
+        {/* Putting the late days ON the bill, so the total the customer is
+            asked for is the total they owe. Only when there are days the
+            invoice does not yet know about. */}
+        {canWaiveStorage && unchargedTotal > 0.005 ? (
+          <AddStorage
+            invoiceId={unchargedBills.map((b) => b.invoiceId).join(",")}
+            amount={unchargedTotal}
+            across={unchargedBills.length}
+            currency={many[0]!.currency}
+            rate={many[0]!.exchangeRate}
+          />
+        ) : null}
         {canWaiveStorage ? (
           <WaiveStorage
             /* Only the bills that actually carry a fee. */

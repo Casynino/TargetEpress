@@ -822,6 +822,7 @@ export default async function FollowUpPage({
                           invoiceDiscount={row.invoiceDiscount}
                           invoiceTotal={row.total ?? undefined}
                           storage={row.invoiceStorage}
+                          storageUncharged={row.invoiceStorageUncharged}
                           storageFreeDaysLeft={row.invoiceStorageFreeDays}
                           canWaiveStorage={can(user.role, "invoice.storage.waive")}
                           label={`${t(locale, "Record a payment for")} ${row.invoiceNumber ?? row.trackingNumber}`}

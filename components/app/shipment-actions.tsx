@@ -24,6 +24,7 @@ import {
 import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { PaymentDateField } from "@/components/app/payment-date-field";
 import { ChangeRate } from "@/components/app/change-rate";
+import { AddStorage } from "@/components/app/add-storage";
 import { GiveDiscount } from "@/components/app/give-discount";
 import { WaiveStorage } from "@/components/app/waive-storage";
 import { useT } from "@/components/app/locale-provider";
@@ -87,6 +88,8 @@ type Props = {
   /** Storage on the bill, and whether this desk may forgive it. Support may:
       it is bounded by the clock, unlike a discount. */
   invoiceStorage?: number;
+  /** Accrued but not on the bill — a different figure, a different press. */
+  invoiceStorageUncharged?: number;
   /** Free days left when nothing has accrued, so the panel says why. */
   invoiceStorageFreeDays?: number | null;
   canWaiveStorage?: boolean;
@@ -678,6 +681,12 @@ function PaymentPanel({
           ) : null}
           {props.canWaiveStorage && props.invoiceId ? (
             <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+              <AddStorage
+                invoiceId={props.invoiceId}
+                amount={props.invoiceStorageUncharged ?? 0}
+                currency={props.currency}
+                rate={props.invoiceRate}
+              />
               <WaiveStorage
                 invoiceId={props.invoiceId}
                 storage={props.invoiceStorage ?? 0}

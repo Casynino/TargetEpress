@@ -45,6 +45,8 @@ export type OpenBill = {
   /** Storage on the bill, so it can be forgiven from the screen taking the
       money rather than only from the cargo page. */
   storage: number;
+  /** Accrued but not on the bill — see AddStorage for why they are separate. */
+  storageUncharged: number;
   /** Free days left when nothing has accrued, so the screen can say so. */
   storageFreeDaysLeft: number | null;
   /**
@@ -292,6 +294,14 @@ export function CustomerPaymentForm({
     (sum, b) => sum + inPay(b, b.storage),
     0
   );
+  /* Accrued across what is ticked and not yet inside the figure above. */
+  const tickedUncharged = tickedBills.reduce(
+    (sum, b) => sum + inPay(b, b.storageUncharged),
+    0
+  );
+  const tickedUnchargedCount = tickedBills.filter(
+    (b) => b.storageUncharged > 0.005
+  ).length;
 
   function toggle(invoiceId: string) {
     setPicked((prev) => {
@@ -487,6 +497,15 @@ export function CustomerPaymentForm({
                           {t("Includes storage")} {money(inPay(bill, bill.storage))}
                         </span>
                       ) : null}
+                      {/* Accrued and NOT in the figure to the right. Said
+                          separately, because folding it in would promise a
+                          total the payment would then be refused for. */}
+                      {bill.storageUncharged > 0.005 ? (
+                        <span className="mt-0.5 block text-[11px] font-medium text-[var(--amber,#a86a08)]">
+                          + {money(inPay(bill, bill.storageUncharged))}{" "}
+                          {t("storage, not yet on the bill")}
+                        </span>
+                      ) : null}
                     </span>
                     <span className="shrink-0 text-right">
                       <span className="block font-display text-sm font-bold tabular-nums">
@@ -581,6 +600,17 @@ export function CustomerPaymentForm({
                 {t("Of that, storage")} {money(tickedStorage)}
                 {tickedWithStorage > 1
                   ? ` · ${tickedWithStorage} ${t("consignments")}`
+                  : ""}
+              </p>
+            ) : null}
+            {/* Not in the figure above, and it says so — adding it is a press
+                on the panel beside this, after which the two agree. */}
+            {tickedUncharged > 0.005 ? (
+              <p className="text-[11px] font-medium text-[var(--amber,#a86a08)]">
+                + {money(tickedUncharged)}{" "}
+                {t("storage, not yet on the bill")}
+                {tickedUnchargedCount > 1
+                  ? ` · ${tickedUnchargedCount} ${t("consignments")}`
                   : ""}
               </p>
             ) : null}

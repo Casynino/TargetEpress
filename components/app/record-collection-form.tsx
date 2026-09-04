@@ -9,6 +9,7 @@ import {
   useIdempotencyKey,
 } from "@/components/app/idempotency-key";
 import { ChangeRate } from "@/components/app/change-rate";
+import { AddStorage } from "@/components/app/add-storage";
 import { GiveDiscount } from "@/components/app/give-discount";
 import { WaiveStorage } from "@/components/app/waive-storage";
 import { useT } from "@/components/app/locale-provider";
@@ -51,6 +52,7 @@ export function RecordCollectionForm({
   invoiceDiscount,
   invoiceTotal,
   storage,
+  storageUncharged,
   storageFreeDaysLeft,
   canWaiveStorage,
 }: {
@@ -92,6 +94,8 @@ export function RecordCollectionForm({
   invoiceTotal?: number;
   /** Storage on the bill. Nothing to forgive when it is zero. */
   storage?: number;
+  /** Accrued but not on the bill — a different figure, a different press. */
+  storageUncharged?: number;
   /** Free days left when it is zero, so the screen can say why. */
   storageFreeDaysLeft?: number | null;
   /** invoice.storage.waive — Support holds this one, unlike the discount. */
@@ -219,6 +223,14 @@ export function RecordCollectionForm({
               invoiceId={invoiceId}
               currency={currency}
               current={invoiceDiscount ?? 0}
+              rate={rate}
+            />
+          ) : null}
+          {canWaiveStorage && (storageUncharged ?? 0) > 0.005 ? (
+            <AddStorage
+              invoiceId={invoiceId}
+              amount={storageUncharged ?? 0}
+              currency={currency}
               rate={rate}
             />
           ) : null}

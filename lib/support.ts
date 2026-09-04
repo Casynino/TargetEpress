@@ -258,6 +258,8 @@ export type FollowUpRow = {
   invoiceDiscount: number;
   /** Storage on the bill, so the counter can forgive it without leaving. */
   invoiceStorage: number;
+  /** Accrued but not on the bill — a different figure, a different press. */
+  invoiceStorageUncharged: number;
   /** Free days left when there is none, so the row can say why. */
   invoiceStorageFreeDays: number | null;
   localCurrency: string | null;
@@ -483,12 +485,16 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       /* What is owed NOW, not the snapshot written onto the bill the day it
          was raised: this row already derives the accrued figure above, and a
          bill raised on arrival day carries 0.00 for ever otherwise. */
+      /* What is inside the bill's total, and what has accrued beyond it. */
       invoiceStorage:
+        storageWaivedUsd > 0 || !invoice ? 0 : toNumber(invoice.storageCharge),
+      invoiceStorageUncharged:
         storageWaivedUsd > 0
           ? 0
           : Math.max(
-              invoice ? toNumber(invoice.storageCharge) : 0,
-              storageDays * STORAGE_POLICY.perDayUsd
+              0,
+              storageDays * STORAGE_POLICY.perDayUsd -
+                (invoice ? toNumber(invoice.storageCharge) : 0)
             ),
       invoiceStorageFreeDays: storageFreeDaysLeft(shipment),
       localCurrency: invoice?.localCurrency ?? null,
@@ -610,6 +616,7 @@ function creditFollowUpRow(r: CreditRow): FollowUpRow {
     /* A credit row's bill is not being re-priced from this list. */
     invoiceDiscount: 0,
     invoiceStorage: 0,
+    invoiceStorageUncharged: 0,
     invoiceStorageFreeDays: null,
     localCurrency: null,
     outstandingLocal:

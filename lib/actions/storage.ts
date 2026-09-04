@@ -105,6 +105,46 @@ export async function chargeStorageFee(
     const parsed = schema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
 
+    /*
+      ONE BILL, OR THE SET TICKED ON A PAYMENT SCREEN.
+
+      Each consignment's clock runs from the day that box landed, so the fees
+      differ; they are added in one gesture because that is the one thing the
+      desk is deciding, and each still gets its own arithmetic and its own
+      audit line. A consignment inside its free days is skipped rather than
+      refusing the ones that are not.
+    */
+    const chargeIds = parsed.data.invoiceId
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (chargeIds.length > 1) {
+      let chargedAny = false;
+      for (const id of chargeIds) {
+        const each = await currentStorage(id);
+        if (!each) return fail(t(locale, "That invoice no longer exists."));
+        if (each.status.chargeUsd <= 0) continue;
+        if (
+          toNumber(each.invoice.storageCharge) === each.status.chargeUsd &&
+          toNumber(each.invoice.storageWaivedUsd) === 0
+        ) {
+          continue;
+        }
+        const data = new FormData();
+        data.set("invoiceId", id);
+        const one = await chargeStorageFee(undefined, data);
+        if (!one.ok) return one;
+        chargedAny = true;
+      }
+      if (!chargedAny) {
+        return fail(
+          t(locale, "None of those consignments has a storage fee to add.")
+        );
+      }
+      revalidatePath("/app/collections/follow-up");
+      return ok();
+    }
+
     const found = await currentStorage(parsed.data.invoiceId);
     if (!found) return fail(t(locale, "That invoice no longer exists."));
     const { invoice, status } = found;

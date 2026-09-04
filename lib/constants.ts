@@ -505,6 +505,30 @@ export function storageOwedNow(invoice: {
 }
 
 /**
+ * Storage the clock says is owed but that is NOT on the bill yet.
+ *
+ * The two are different money. What is on the invoice is inside its total and
+ * is what a payment settles; what has merely accrued is not, and the server
+ * refuses an allocation larger than the bill. So a screen that folds the two
+ * together promises a figure the payment would then be refused for.
+ *
+ * This is the difference — what pressing "Add storage" would put on the bill.
+ */
+export function storageUncharged(invoice: {
+  storageCharge: unknown;
+  storageWaivedUsd: unknown;
+  shipment: { arrivedAt: Date | null; deliveredAt: Date | null } | null;
+}): number {
+  const num = (v: unknown) => (v == null ? 0 : Number(v));
+  if (num(invoice.storageWaivedUsd) > 0) return 0;
+  const accrued = invoice.shipment
+    ? storageStatus(invoice.shipment.arrivedAt, invoice.shipment.deliveredAt)
+        .chargeUsd
+    : 0;
+  return Math.max(0, accrued - num(invoice.storageCharge));
+}
+
+/**
  * Free days still left on a consignment, or null once it is past them.
  *
  * The companion to storageOwedNow: when that returns nothing, this is why.

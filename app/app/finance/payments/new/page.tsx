@@ -11,7 +11,7 @@ import { activeAccounts } from "@/lib/accounts";
 import {
   BILLED_INVOICE_STATUSES,
   storageFreeDaysLeft,
-  storageOwedNow,
+  storageUncharged,
 } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
@@ -544,7 +544,13 @@ export default async function RecordCustomerPaymentPage({
       invoiceNumber: invoice.invoiceNumber,
       /* What the customer is actually being asked about — see storageOwedNow.
          The bill's own figure is a snapshot; the clock keeps running. */
-      storage: storageOwedNow(invoice),
+      /* What is INSIDE the total — the only part a payment settles. */
+      storage:
+        toNumber(invoice.storageWaivedUsd) > 0
+          ? 0
+          : toNumber(invoice.storageCharge),
+      /* And what the clock says is owed but is not on the bill yet. */
+      storageUncharged: storageUncharged(invoice),
       /* And why, when there is none — see storageFreeDaysLeft. */
       storageFreeDaysLeft: storageFreeDaysLeft(invoice.shipment),
       trackingNumber: invoice.shipment.trackingNumber,
