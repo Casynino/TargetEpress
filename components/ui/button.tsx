@@ -21,11 +21,25 @@ const buttonVariants = cva(
         brand: "bg-brand text-brand-foreground hover:bg-brand/90",
         signal: "bg-signal text-signal-foreground hover:bg-signal/90",
       },
+      /*
+        A REAL SCALE AGAIN, WITHOUT LOSING THE THUMB.
+
+        All four of these were h-11. That came from a fair worry — a warehouse
+        phone presses "Edit" with the same thumb as everything else — but the
+        cure made `sm` and `lg` identical to `default`, so asking for a small
+        button did nothing and every panel in the app was a stack of 44px
+        slabs. The owner is right that it reads as heavy.
+
+        36px is still a thumb-sized target, and it is what the secondary
+        actions want: Download, Open invoice, the row actions in a table. 40px
+        stays the default for anything that commits money, and lg keeps the
+        full 44 for the one button on a page that matters most.
+      */
       size: {
-        default: "h-11 px-4 py-2",
-        sm: "h-11 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-11 w-11",
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3",
+        lg: "h-11 rounded-md px-6",
+        icon: "h-10 w-10",
       },
     },
     defaultVariants: {

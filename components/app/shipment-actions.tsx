@@ -229,11 +229,26 @@ export function ShipmentActions(props: Props) {
           </div>
         ) : null}
         {props.credit ? (
-          /* Just the button. "Release on credit" says what it does, and the
-             form behind it asks the terms — a heading and a sentence above it
-             were describing a decision the reader has already made by the time
-             they are looking for the button. */
-          <div className="border-l-2 border-warning bg-warning/5 px-4 py-2.5">
+          /*
+            The alternative to the button above it, and it reads that way.
+
+            It had its own amber band and looked like a separate department's
+            business. Releasing on credit is simply what you do INSTEAD of
+            taking the money, so it sits directly under Confirm payment with
+            no rule between them and no colour of its own — the same block,
+            continued. !border-t-0 cancels the divider the panel draws between
+            its children, which is the whole point here.
+          */
+          <div
+            className={
+              canPay
+                ? /* Under Confirm payment: same block, continued. */
+                  "!border-t-0 border-l-2 border-brand bg-brand/5 px-4 pb-3.5 pt-0"
+                : /* On its own, for a desk that cannot take the money — it
+                     needs the rule and the padding back or it floats. */
+                  "border-l-2 border-brand bg-brand/5 px-4 py-3"
+            }
+          >
             <CreditRequest
               invoiceId={props.credit.invoiceId}
               outstanding={props.credit.outstanding}
