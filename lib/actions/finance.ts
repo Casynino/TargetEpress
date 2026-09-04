@@ -7,11 +7,11 @@ import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { settleBatchIfClear } from "@/lib/batch-close";
 import { applyCreditToInvoice } from "@/lib/customer-credit";
+import { STORAGE_POLICY, storageDaysFor } from "@/lib/constants";
 import {
-  EXCEPTION_OPEN_STATUSES,
-  STORAGE_POLICY,
-  storageDaysFor,
-} from "@/lib/constants";
+  PICKUP_LOCKING_STATUSES,
+  PICKUP_LOCKING_TYPES,
+} from "@/lib/pickup-lock";
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { invoiceStatusFor } from "@/lib/invoice-status";
@@ -1491,17 +1491,39 @@ export async function recordPayment(
             // thing the owner said must never happen. And damaged, wrong-item
             // and held cargo were never covered at all.
             exceptions: {
-              where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } },
+              /* BOTH DIMENSIONS, like findPickupLock. Status alone counted
+                 every open case as a blocker, including ones that do not lock
+                 a pickup at all — so cargo with a routine query against it sat
+                 waiting for a note nobody was withholding on purpose. */
+              where: {
+                status: { in: PICKUP_LOCKING_STATUSES },
+                type: { in: PICKUP_LOCKING_TYPES },
+              },
               select: { id: true },
             },
           },
         });
 
-        const alreadyActive = shipment?.pickupNote?.status === "ACTIVE";
+        /*
+          ANY NOTE AT ALL, NOT JUST AN ACTIVE ONE.
+
+          PickupNote.shipmentId is unique, so a consignment carries one note for
+          its whole life. This tested only for an ACTIVE one — so a shipment
+          whose note had been cancelled (a payment reversed, a release undone)
+          passed the test, the create hit the unique index, and the transaction
+          unwound: the customer's money was refused outright with a database
+          error. The other three places that issue a note all test for any note,
+          two of them with a comment about this exact constraint.
+
+          Not issuing one here is the right outcome. A cancelled note was
+          cancelled by somebody; re-deciding it is Finance's call on the bill's
+          own page, not a side effect of taking money.
+        */
+        const hasNote = shipment?.pickupNote != null;
         const blocked = (shipment?.exceptions.length ?? 0) > 0;
         const atDar = shipment?.status === "RECEIVED_AT_DAR";
 
-        if (shipment && !alreadyActive && !blocked && atDar) {
+        if (shipment && !hasNote && !blocked && atDar) {
           const note = await tx.pickupNote.create({
             data: {
               noteNumber: await nextPickupNoteNumber(tx),
@@ -1643,7 +1665,11 @@ export async function issuePickupNote(
           // thing the owner said must never happen. And damaged, wrong-item
           // and held cargo were never covered at all.
           exceptions: {
-            where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } },
+            /* Both dimensions — see the note in recordPayment. */
+            where: {
+              status: { in: PICKUP_LOCKING_STATUSES },
+              type: { in: PICKUP_LOCKING_TYPES },
+            },
             select: { id: true },
           },
         },
@@ -2913,7 +2939,14 @@ export async function recordCustomerPayment(
             customerId: true,
             pickupNote: { select: { status: true } },
             exceptions: {
-              where: { status: { in: [...EXCEPTION_OPEN_STATUSES] } },
+              /* BOTH DIMENSIONS, like findPickupLock. Status alone counted
+                 every open case as a blocker, including ones that do not lock
+                 a pickup at all — so cargo with a routine query against it sat
+                 waiting for a note nobody was withholding on purpose. */
+              where: {
+                status: { in: PICKUP_LOCKING_STATUSES },
+                type: { in: PICKUP_LOCKING_TYPES },
+              },
               select: { id: true },
             },
           },

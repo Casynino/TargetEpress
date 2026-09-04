@@ -438,7 +438,17 @@ export async function verifyPaymentSubmission(
     payments would recreate the four-receipts problem the combined screen
     exists to end, on the far side of the verification step.
   */
-  const combined = submission.allocations.length > 1;
+  /*
+    ANY split, not only a split across several bills.
+
+    This tested for MORE than one allocation, so a claim carrying exactly one —
+    legal, and what the combined form produces when the customer overpaid and
+    the balance is to sit as credit — took the single-bill branch and put the
+    WHOLE tendered amount against that bill, ignoring the share Support had
+    written down. The combined action honours both the amount and the split, so
+    anything carrying a split goes to it.
+  */
+  const combined = submission.allocations.length >= 1;
   const handover = new FormData();
   handover.set("amount", toNumber(submission.amount).toString());
   handover.set("currency", submission.currency);

@@ -985,6 +985,29 @@ export async function verifyShipment(
         throw new Error("That cargo is not in this batch.");
       }
 
+      /*
+        THE FLIGHT HAS TO HAVE LANDED.
+
+        Checking a box off the manifest is what prices the cargo and moves it to
+        RECEIVED_AT_DAR — so doing it before the flight arrives puts cargo on
+        the Dar floor that is still in the air, with a bill raised against a
+        weight nobody has put on a scale. The screen only offers the button on
+        an arrived flight, but the action is reachable without the screen. Both
+        siblings check; this one did not.
+
+        VERIFIED counts as landed: cargo moved onto a flight whose check-in is
+        already finished still has to be checkable.
+      */
+      const batch = await tx.batch.findUnique({
+        where: { id: batchId },
+        select: { status: true },
+      });
+      if (!batch || (batch.status !== "ARRIVED" && batch.status !== "VERIFIED")) {
+        throw new Error(
+          "This batch has not landed yet. Mark it arrived before checking it in."
+        );
+      }
+
       await tx.batchVerification.upsert({
         where: { batchId_shipmentId: { batchId, shipmentId } },
         create: {

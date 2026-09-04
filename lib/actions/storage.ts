@@ -141,6 +141,15 @@ export async function chargeStorageFee(
           discount: true,
           exchangeRate: true,
           total: true,
+          /* The clearance this charge may have to withdraw — see below. */
+          shipment: {
+            select: {
+              id: true,
+              trackingNumber: true,
+              status: true,
+              pickupNote: { select: { id: true, noteNumber: true, status: true } },
+            },
+          },
         },
       });
       if (!fresh) throw new Error(t(locale, "That invoice no longer exists."));
@@ -175,15 +184,8 @@ export async function chargeStorageFee(
         uses.
       */
       const paidSoFar = toNumber(fresh.amountPaid);
-      const settled = paidSoFar + 0.001 >= total;
       const nextStatus =
-        fresh.status === "DRAFT"
-          ? "DRAFT"
-          : settled
-            ? "PAID"
-            : paidSoFar > 0
-              ? "PARTIALLY_PAID"
-              : "UNPAID";
+        invoiceStatusFor(fresh.status, paidSoFar, total) ?? fresh.status;
 
       /* Conditional on the total this transaction read: a concurrent change
          makes this touch nothing, and the person is told to look again. */
@@ -210,15 +212,59 @@ export async function chargeStorageFee(
         );
       }
 
+      /*
+        THE CLEARANCE GOES WITH THE DEBT.
+
+        A pickup note is the company saying the bill is settled and the cargo
+        may go. Charging storage on a bill that was settled reopens it — and the
+        note said nothing about storage, so the boxes walked out on a clearance
+        that was true when it was printed and false by the time it was used. The
+        release path never re-reads the invoice, so nothing downstream would
+        have caught it.
+
+        A note already USED is left alone and said out loud in the audit line:
+        the cargo has gone, and cancelling the note would only make the record
+        disagree with the warehouse. That is a live debt for somebody to chase.
+      */
+      const cargo = fresh.shipment;
+      const note = cargo?.pickupNote ?? null;
+      let noteOutcome: "cancelled" | "already-collected" | "none" = "none";
+      if (cargo && note && nextStatus !== "PAID" && nextStatus !== "DRAFT") {
+        if (note.status === "USED") {
+          noteOutcome = "already-collected";
+        } else if (note.status === "ACTIVE") {
+          await tx.pickupNote.update({
+            where: { id: note.id },
+            data: { status: "CANCELLED" },
+          });
+          noteOutcome = "cancelled";
+          if (cargo.status === "READY_FOR_PICKUP") {
+            await tx.shipment.update({
+              where: { id: cargo.id },
+              data: { status: "RECEIVED_AT_DAR" },
+            });
+          }
+        }
+      }
+
       await recordAudit(
         {
           actor: user,
           action: "storage.charged",
           entity: "Invoice",
           entityId: invoice.id,
-          summary: `${invoice.invoiceNumber}: storage fee of USD ${status.chargeUsd.toFixed(2)} charged — ${status.chargeableDays} day(s) beyond the ${STORAGE_POLICY.freeDays} free days`,
+          summary:
+            `${invoice.invoiceNumber}: storage fee of USD ${status.chargeUsd.toFixed(2)} charged — ${status.chargeableDays} day(s) beyond the ${STORAGE_POLICY.freeDays} free days` +
+            (noteOutcome === "already-collected"
+              ? ` — WARNING: pickup note ${note?.noteNumber} was already used, the cargo has been collected and this storage is now a live debt`
+              : noteOutcome === "cancelled"
+                ? ` — pickup note ${note?.noteNumber} withdrawn until it is paid`
+                : ""),
           metadata: {
             tracking: invoice.shipment?.trackingNumber ?? null,
+            pickupNote: note?.noteNumber ?? null,
+            pickupNoteOutcome: noteOutcome,
+            cargoAlreadyCollected: noteOutcome === "already-collected",
             daysInWarehouse: status.daysInWarehouse,
             freeDays: STORAGE_POLICY.freeDays,
             chargeableDays: status.chargeableDays,
