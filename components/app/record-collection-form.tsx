@@ -51,6 +51,7 @@ export function RecordCollectionForm({
   invoiceDiscount,
   invoiceTotal,
   storage,
+  storageFreeDaysLeft,
   canWaiveStorage,
 }: {
   invoiceId: string;
@@ -91,6 +92,8 @@ export function RecordCollectionForm({
   invoiceTotal?: number;
   /** Storage on the bill. Nothing to forgive when it is zero. */
   storage?: number;
+  /** Free days left when it is zero, so the screen can say why. */
+  storageFreeDaysLeft?: number | null;
   /** invoice.storage.waive — Support holds this one, unlike the discount. */
   canWaiveStorage?: boolean;
 }) {
@@ -223,6 +226,7 @@ export function RecordCollectionForm({
             <WaiveStorage
               invoiceId={invoiceId}
               storage={storage ?? 0}
+              freeDaysLeft={storageFreeDaysLeft}
               currency={currency}
               rate={rate}
             />

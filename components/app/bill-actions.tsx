@@ -49,6 +49,7 @@ export function BillActions({
         discount: number;
         exchangeRate: number | null;
         storage: number;
+        storageFreeDaysLeft: number | null;
       }
     | null;
   /** Every ticked bill. Discount and rate act on all of them at once. */
@@ -59,6 +60,7 @@ export function BillActions({
     discount: number;
     exchangeRate: number | null;
     storage: number;
+    storageFreeDaysLeft: number | null;
   }[];
   selectedCount: number;
   canDiscount?: boolean;
@@ -179,7 +181,7 @@ export function BillActions({
         {/* Storage is per consignment — each box has its own clock — so this
             answers for the one bill in front of the desk, unlike the discount
             and the rate, which are agreed over the whole payment. */}
-        {canWaiveStorage && storageTotal > 0 ? (
+        {canWaiveStorage ? (
           <WaiveStorage
             /* Only the bills that actually carry a fee. */
             invoiceId={withStorage.map((b) => b.invoiceId).join(",")}
@@ -187,6 +189,19 @@ export function BillActions({
             across={withStorage.length}
             currency={many[0]!.currency}
             rate={many[0]!.exchangeRate}
+            /* When nothing has accrued the control says so instead of
+               vanishing — the fewest free days across what is ticked, since
+               that is the one that runs out first. */
+            freeDaysLeft={
+              storageTotal > 0
+                ? null
+                : many.reduce<number | null>((least, b) => {
+                    if (b.storageFreeDaysLeft === null) return least;
+                    return least === null
+                      ? b.storageFreeDaysLeft
+                      : Math.min(least, b.storageFreeDaysLeft);
+                  }, null)
+            }
           />
         ) : null}
         {canDiscount && oneCurrency ? (

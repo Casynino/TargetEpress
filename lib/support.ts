@@ -6,6 +6,7 @@ import {
   EXCEPTION_OPEN_STATUSES,
   STORAGE_POLICY,
   storageDaysFor,
+  storageFreeDaysLeft,
 } from "@/lib/constants";
 import { CREDIT_STATE_LABEL, dueLabel, type CreditState } from "@/lib/credit";
 import {
@@ -257,6 +258,8 @@ export type FollowUpRow = {
   invoiceDiscount: number;
   /** Storage on the bill, so the counter can forgive it without leaving. */
   invoiceStorage: number;
+  /** Free days left when there is none, so the row can say why. */
+  invoiceStorageFreeDays: number | null;
   localCurrency: string | null;
   outstandingLocal: number | null;
   invoiceSentAt: string | null;
@@ -477,7 +480,17 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       outstanding,
       currency: invoice?.currency ?? "USD",
       invoiceDiscount: invoice ? toNumber(invoice.discount) : 0,
-      invoiceStorage: invoice ? toNumber(invoice.storageCharge) : 0,
+      /* What is owed NOW, not the snapshot written onto the bill the day it
+         was raised: this row already derives the accrued figure above, and a
+         bill raised on arrival day carries 0.00 for ever otherwise. */
+      invoiceStorage:
+        storageWaivedUsd > 0
+          ? 0
+          : Math.max(
+              invoice ? toNumber(invoice.storageCharge) : 0,
+              storageDays * STORAGE_POLICY.perDayUsd
+            ),
+      invoiceStorageFreeDays: storageFreeDaysLeft(shipment),
       localCurrency: invoice?.localCurrency ?? null,
       outstandingLocal:
         rate === null || outstanding === null ? null : Math.round(outstanding * rate),
@@ -597,6 +610,7 @@ function creditFollowUpRow(r: CreditRow): FollowUpRow {
     /* A credit row's bill is not being re-priced from this list. */
     invoiceDiscount: 0,
     invoiceStorage: 0,
+    invoiceStorageFreeDays: null,
     localCurrency: null,
     outstandingLocal:
       r.exchangeRate === null ? null : Math.round(r.outstandingUsd * r.exchangeRate),

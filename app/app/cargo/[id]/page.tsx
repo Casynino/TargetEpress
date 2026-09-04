@@ -32,6 +32,8 @@ import {
   SHIPMENT_STATUS_META,
   blocksPickup,
   formatPackages,
+  storageFreeDaysLeft,
+  storageOwedNow,
 } from "@/lib/constants";
 import {
   formatDate,
@@ -905,7 +907,12 @@ export default async function ShipmentDetailPage({
               shipment.invoice ? toNumber(shipment.invoice.discount) : 0
             }
             canDiscount={can(user.role, "invoice.discount")}
-            invoiceStorage={toNumber(shipment.invoice?.storageCharge ?? 0)}
+            invoiceStorage={
+              shipment.invoice
+                ? storageOwedNow({ ...shipment.invoice, shipment })
+                : 0
+            }
+            invoiceStorageFreeDays={storageFreeDaysLeft(shipment)}
             canWaiveStorage={can(user.role, "invoice.storage.waive")}
             invoiceTotal={shipment.invoice ? toNumber(shipment.invoice.total) : 0}
             canChangeRate={can(user.role, "invoice.rate")}

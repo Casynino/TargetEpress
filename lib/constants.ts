@@ -476,6 +476,50 @@ export function storageStatus(
  * in a hurry, and what a customer needs is when the free week ends and what it
  * costs afterwards. The Kiswahili is the owner's own wording.
  */
+/**
+ * WHAT STORAGE THE CUSTOMER OWES RIGHT NOW.
+ *
+ * The invoice's own storageCharge is a snapshot: it is written when the price
+ * is generated or confirmed and then stands still, so a consignment billed on
+ * the day it landed reads 0.00 however many weeks it then sits on the floor.
+ * The clock, meanwhile, keeps running.
+ *
+ * This is the figure a desk taking money is actually being asked about — the
+ * larger of what is on the bill and what has since accrued — and it is what
+ * waiveStorageFee forgives when nothing has been charged yet. A fee already
+ * forgiven stays forgiven: reversing that is chargeStorageFee's job, on the
+ * record, and not something a payment screen does by showing a number again.
+ */
+export function storageOwedNow(invoice: {
+  storageCharge: unknown;
+  storageWaivedUsd: unknown;
+  shipment: { arrivedAt: Date | null; deliveredAt: Date | null } | null;
+}): number {
+  const num = (v: unknown) => (v == null ? 0 : Number(v));
+  if (num(invoice.storageWaivedUsd) > 0) return 0;
+  const accrued = invoice.shipment
+    ? storageStatus(invoice.shipment.arrivedAt, invoice.shipment.deliveredAt)
+        .chargeUsd
+    : 0;
+  return Math.max(num(invoice.storageCharge), accrued);
+}
+
+/**
+ * Free days still left on a consignment, or null once it is past them.
+ *
+ * The companion to storageOwedNow: when that returns nothing, this is why.
+ * A payment screen that shows neither a fee nor a reason reads as a screen
+ * that failed to load, and the desk goes looking on the cargo page for a
+ * figure that was never there.
+ */
+export function storageFreeDaysLeft(
+  shipment: { arrivedAt: Date | null; deliveredAt: Date | null } | null
+): number | null {
+  if (!shipment?.arrivedAt) return null;
+  const st = storageStatus(shipment.arrivedAt, shipment.deliveredAt);
+  return st.chargeableDays > 0 ? null : st.freeDaysRemaining;
+}
+
 export function storageNotice(): {
   en: { heading: string; body: string };
   sw: { heading: string; body: string };

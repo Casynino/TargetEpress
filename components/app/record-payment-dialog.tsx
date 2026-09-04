@@ -37,6 +37,7 @@ export function RecordPaymentDialog({
   invoiceDiscount,
   invoiceTotal,
   storage,
+  storageFreeDaysLeft,
   canWaiveStorage,
   label,
 }: {
@@ -56,6 +57,7 @@ export function RecordPaymentDialog({
   invoiceTotal?: number;
   /** Storage on the bill, and whether this reader may forgive it. */
   storage?: number;
+  storageFreeDaysLeft?: number | null;
   canWaiveStorage?: boolean;
   /** For the screen reader, so the row it belongs to is not a guess. */
   label: string;
@@ -114,6 +116,7 @@ export function RecordPaymentDialog({
             invoiceDiscount={invoiceDiscount}
             invoiceTotal={invoiceTotal}
             storage={storage}
+            storageFreeDaysLeft={storageFreeDaysLeft}
             canWaiveStorage={canWaiveStorage}
           />
         </div>

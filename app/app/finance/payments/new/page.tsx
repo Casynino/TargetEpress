@@ -8,7 +8,11 @@ import { CustomerPaymentForm, type OpenBill } from "@/components/app/customer-pa
 import { PageHeader } from "@/components/app/page-header";
 import { SearchBox } from "@/components/app/search-box";
 import { activeAccounts } from "@/lib/accounts";
-import { BILLED_INVOICE_STATUSES } from "@/lib/constants";
+import {
+  BILLED_INVOICE_STATUSES,
+  storageFreeDaysLeft,
+  storageOwedNow,
+} from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
 import { IconHint } from "@/components/app/icon-hint";
@@ -500,10 +504,14 @@ export default async function RecordCustomerPaymentPage({
              itself: what it comes to, and what is already off it. */
           discount: true,
           storageCharge: true,
+          storageWaivedUsd: true,
           shipment: {
             select: {
               trackingNumber: true,
               status: true,
+              /* The two dates the storage clock runs between. */
+              arrivedAt: true,
+              deliveredAt: true,
               description: true,
               descriptionEn: true,
               descriptionZh: true,
@@ -534,7 +542,11 @@ export default async function RecordCustomerPaymentPage({
     .map((invoice) => ({
       invoiceId: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
-      storage: toNumber(invoice.storageCharge),
+      /* What the customer is actually being asked about — see storageOwedNow.
+         The bill's own figure is a snapshot; the clock keeps running. */
+      storage: storageOwedNow(invoice),
+      /* And why, when there is none — see storageFreeDaysLeft. */
+      storageFreeDaysLeft: storageFreeDaysLeft(invoice.shipment),
       trackingNumber: invoice.shipment.trackingNumber,
       description: cargoText(locale, invoice.shipment, "description"),
       batchNumber: invoice.shipment.batch?.batchNumber ?? null,

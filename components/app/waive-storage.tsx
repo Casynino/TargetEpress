@@ -32,6 +32,7 @@ export function WaiveStorage({
   currency,
   rate,
   across = 1,
+  freeDaysLeft,
 }: {
   /** One id, or the comma-separated set ticked on the merge screen. */
   invoiceId: string;
@@ -42,6 +43,14 @@ export function WaiveStorage({
   rate?: number | null;
   /** How many consignments this forgives. Each keeps its own clock. */
   across?: number;
+  /**
+   * Free days still left, when nothing has accrued.
+   *
+   * Shown instead of the control, because a screen that says nothing about
+   * storage looks like a screen that failed rather than a consignment that
+   * owes nothing — and then somebody checks the cargo page to be sure.
+   */
+  freeDaysLeft?: number | null;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -56,7 +65,17 @@ export function WaiveStorage({
     if (state?.ok) setOpen(false);
   }, [state]);
 
-  if (!(storage > 0)) return null;
+  if (!(storage > 0)) {
+    if (freeDaysLeft === null || freeDaysLeft === undefined) return null;
+    return (
+      <span className="inline-flex items-center gap-1 text-muted-foreground">
+        <Ban className="h-3.5 w-3.5 opacity-60" />
+        {freeDaysLeft > 0
+          ? `${t("No storage fee")} · ${freeDaysLeft} ${t("free days left")}`
+          : t("No storage fee — the last free day is today.")}
+      </span>
+    );
+  }
 
   const local =
     typeof rate === "number" && rate > 0 && currency !== "TZS"

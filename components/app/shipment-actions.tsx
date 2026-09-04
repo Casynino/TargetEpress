@@ -87,6 +87,8 @@ type Props = {
   /** Storage on the bill, and whether this desk may forgive it. Support may:
       it is bounded by the clock, unlike a discount. */
   invoiceStorage?: number;
+  /** Free days left when nothing has accrued, so the panel says why. */
+  invoiceStorageFreeDays?: number | null;
   canWaiveStorage?: boolean;
   /** The bill's own total, so the rate dialog can show what it becomes. */
   invoiceTotal?: number;
@@ -679,6 +681,7 @@ function PaymentPanel({
               <WaiveStorage
                 invoiceId={props.invoiceId}
                 storage={props.invoiceStorage ?? 0}
+                freeDaysLeft={props.invoiceStorageFreeDays}
                 currency={props.currency}
                 rate={props.invoiceRate}
               />

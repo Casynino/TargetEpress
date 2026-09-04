@@ -509,14 +509,12 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
         <div className="border-t p-6">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
             <Camera className="h-4 w-4 text-brand" />
-            Your cargo at our China warehouse
+            Picture of your cargo
           </h2>
-          {/* The photographs open and save, and nothing on a thumbnail says
-              so — a customer wanting the picture for their supplier had no
-              reason to think tapping it would do anything. */}
+          {/* One line. A photograph does not need explaining — the only thing
+              a customer cannot see is that it opens and saves. */}
           <p className="mt-1 text-xs text-muted-foreground">
-            Taken when we received it, before it was packed for the flight. Tap
-            any photo to view it full screen or download it.
+            Tap to view and download.
           </p>
           <CargoPhotos
             photos={result.photos}

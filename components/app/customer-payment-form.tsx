@@ -45,6 +45,8 @@ export type OpenBill = {
   /** Storage on the bill, so it can be forgiven from the screen taking the
       money rather than only from the cargo page. */
   storage: number;
+  /** Free days left when nothing has accrued, so the screen can say so. */
+  storageFreeDaysLeft: number | null;
   /**
    * Whether the Dar floor has confirmed the cargo.
    *
