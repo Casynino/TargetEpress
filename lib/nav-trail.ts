@@ -195,7 +195,17 @@ const NAMES: { prefix: string; label: string }[] = [
   { prefix: "/app/dashboard", label: "Home" },
 ];
 
+/**
+ * The name of a LIST page, or null.
+ *
+ * Null for a record, deliberately. The prefixes here are list routes, and a
+ * bare startsWith matched their records too — so backing out of a bill onto the
+ * cargo it belongs to offered "Loading batches", and backing onto a payment
+ * offered "Payments". Only the page being returned to knows what a record is
+ * called, and it passes that in as the fallback.
+ */
 export function labelForPath(path: string): string | null {
   const clean = path.split("?")[0];
+  if (isDetailPath(clean)) return null;
   return NAMES.find((row) => clean.startsWith(row.prefix))?.label ?? null;
 }

@@ -130,31 +130,30 @@ export function MobileBack() {
   const match = PARENTS.find(
     (p) => pathname.startsWith(p.prefix) && pathname !== p.parent
   );
-  const label = walked ? t(walked.label) : match ? t(match.label) : t("Back");
+
+  /*
+    ONE DECISION, SO THE WORD AND THE DESTINATION CANNOT DISAGREE.
+
+    The label came from the PARENTS table whenever the trail was empty, while
+    the press fell through to history.back() — so the button read "Awaiting
+    payment" and went wherever the browser happened to have been, which on a
+    phone opened from a WhatsApp link was nowhere at all. And history.length
+    counts entries from before this app was opened, so it cannot answer "did
+    they walk here from inside it"; the trail already does.
+  */
+  const dest =
+    walked ??
+    (match
+      ? { href: match.parent, label: match.label }
+      : { href: "/app/dashboard", label: "Home" });
+  const label = t(dest.label);
 
   return (
     <button
       type="button"
-      onClick={() => {
-        /*
-          Somewhere to come back from? Go there. Otherwise climb.
-
-          `history.length > 1` is the honest test for "this page was opened from
-          another one in the app" — a first load from a link, a QR scan or a
-          WeChat webview starts at 1, and calling back() there does nothing at
-          all, which is the failure the desk actually hit.
-        */
-        if (walked) {
-          /* Where they came from, with its filters and its page number. */
-          router.push(walked.href);
-        } else if (typeof window !== "undefined" && window.history.length > 1) {
-          router.back();
-        } else if (match) {
-          router.push(match.parent);
-        } else {
-          router.push("/app/dashboard");
-        }
-      }}
+      /* Where the label says, always: the trail if they walked here, otherwise
+         this record's own parent. */
+      onClick={() => router.push(dest.href)}
       /* 44px high and reaching the screen edge, so a thumb finds it without
          aiming — this is pressed more than anything else on a phone. */
       className="focus-ring -ml-1 inline-flex h-11 max-w-[9rem] items-center gap-0.5 rounded-md pl-1 pr-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground active:bg-accent"

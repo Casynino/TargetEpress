@@ -23,7 +23,19 @@ export function NavTrail() {
   const search = useSearchParams();
 
   useEffect(() => {
-    const query = search.toString();
+    /*
+      What somebody was LOOKING at, not what they just did.
+
+      The tab, the filter, the page number and the search box are their place
+      and are kept. A one-shot instruction is not: `?record=1` opens the Record
+      Payment panel on arrival, so storing it meant backing out of a payment
+      re-opened the panel the reader had just closed, every time.
+    */
+    const params = new URLSearchParams(search.toString());
+    for (const oneShot of ["record", "note", "verdict", "open", "new"]) {
+      params.delete(oneShot);
+    }
+    const query = params.toString();
     visit(query ? `${pathname}?${query}` : pathname);
   }, [pathname, search]);
 

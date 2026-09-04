@@ -7,7 +7,7 @@ import { CreditRequest } from "@/components/app/credit-request";
 import { InvoiceDocument } from "@/components/app/invoice-document";
 import { InvoiceEditor } from "@/components/app/invoice-editor";
 import { MessageComposer } from "@/components/app/message-composer";
-import { BackLink } from "@/components/app/page-header";
+import { SmartBack } from "@/components/app/smart-back";
 import { InvoiceVoid } from "@/components/app/invoice-void";
 import { LedgerRowFix } from "@/components/app/ledger-row-fix";
 import { PrintButton } from "@/components/app/print-button";
@@ -338,9 +338,9 @@ export default async function InvoicePage({
           "Collections". Saying TX-000125 is the one thing the guess cannot do,
           so unlike the other detail pages this one is worth its row on a phone.
         */}
-        <BackLink
-          href={`/app/cargo/${shipment.trackingNumber}`}
-          label={shipment.trackingNumber}
+        <SmartBack
+          fallbackHref={`/app/cargo/${shipment.trackingNumber}`}
+          fallbackLabel={shipment.trackingNumber}
           className="min-w-0"
         />
         <div className="flex flex-wrap items-center gap-2">

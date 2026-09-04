@@ -21,52 +21,19 @@ import { viewerLocale } from "@/lib/viewer";
  * below `lg` and stay as the desktop convenience they are; the ones that name
  * a specific record earn their place on both.
  */
+/*
+  Only a shape now. The fixed-href BackLink that used to live beside it is gone:
+  every caller has become SmartBack or BackLinkButton, both of which read the
+  trail, and leaving a hardcoded one exported was an invitation for the next
+  detail page to point back at a record's relationship instead of the list the
+  reader was working in — which is exactly what the invoice page did.
+*/
 export type BackTo = {
   href: string;
   label: string;
   /** Show on phones too. Default true; false when the shell already says this. */
   mobile?: boolean;
 };
-
-export async function BackLink({
-  href,
-  label,
-  mobile = true,
-  className,
-}: BackTo & { className?: string }) {
-  const locale = await viewerLocale();
-  return (
-    <Link
-      href={href}
-      className={cn(
-        /*
-          Desktop only, and 44px tall where it does show.
-
-          On a phone the shell's top bar already carries a back control naming
-          the same parent, and two "← Arrived batches" stacked one above the
-          other is not twice as helpful — it reads as a mistake. Desktop has no
-          such bar, so this is the only named way up there and it earns its
-          place. `min-h-11` is kept anyway for the tablet width where it appears
-          and a finger is still what presses it.
-        */
-        "focus-ring -ml-1 hidden max-w-full items-center gap-1 rounded-md pl-1 pr-2 text-sm text-muted-foreground transition-colors hover:text-foreground active:bg-accent lg:inline-flex lg:min-h-11",
-        /* 44px where a thumb has to find it while the other hand holds a box;
-           a normal text line on a desktop, where it sits beside a sidebar that
-           already shows the section and must not shout. */
-        "h-11 lg:h-7",
-        mobile ? "" : "hidden lg:inline-flex",
-        className
-      )}
-    >
-      <ChevronLeft className="h-4 w-4 shrink-0" />
-      {/* Truncates rather than wrapping. Labels here are record names, and a
-          long one — a customer, a batch with a suffix — would otherwise take a
-          second line of a header the owner already wants shorter, or on the
-          invoice toolbar push the print and download buttons off the row. */}
-      <span className="truncate">{t(locale, label)}</span>
-    </Link>
-  );
-}
 
 /**
  * The title bar on every screen, in the reader's language.
