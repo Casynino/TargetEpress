@@ -358,9 +358,13 @@ function InvoicePanel(props: Props) {
     const confirmed = props.invoiceStatus !== "DRAFT";
     return (
       <div className="px-4 py-3.5">
+        {/* The number is on the invoice itself, one press away, and on every
+            row that names this bill. Repeating it as a heading told the reader
+            something they were not looking for in the place they look for what
+            they can DO. */}
         <p className="flex items-center gap-2 text-sm font-medium">
           <FileText className="h-4 w-4 text-brand" />
-          {t("Invoice")} {props.invoiceNumber}
+          {t("The bill")}
         </p>
         
         <div className="mt-2.5 flex flex-wrap gap-2">
@@ -368,9 +372,12 @@ function InvoicePanel(props: Props) {
               figure and must not leave the building. */}
           {confirmed ? (
             <>
-              <Button asChild size="sm" variant="brand">
+              {/* The same rule the pair above follows: the filled one carries
+                  no icon, the outline one does, and both share the padding.
+                  Two rows of buttons on one panel have to look like one
+                  decision made twice, not two designs. */}
+              <Button asChild size="sm" variant="brand" className="px-2.5">
                 <a href={`/app/finance/invoices/${props.invoiceNumber}/pdf`}>
-                  <Download className="mr-2 h-4 w-4" />
                   {t("Download")}
                 </a>
               </Button>
@@ -378,8 +385,9 @@ function InvoicePanel(props: Props) {
                   wonders whether the two send the same thing. */}
             </>
           ) : null}
-          <Button asChild size="sm" variant="outline">
+          <Button asChild size="sm" variant="outline" className="gap-1.5 px-2.5">
             <Link href={`/app/finance/invoices/${props.invoiceNumber}`}>
+              <FileText className="h-3.5 w-3.5" />
               {t("Open invoice")}
             </Link>
           </Button>
@@ -619,6 +627,20 @@ function PaymentPanel({
               </NativeSelect>
             </div>
           </div>
+          {/* Straight under the figure it changes. A discount moves what the
+              customer owes, so it belongs beside the amount rather than down
+              among the fields about where the money landed — and on its own
+              line, so it does not depend on the customer paying in another
+              currency for the conversion box to carry it. */}
+          {props.canDiscount && props.invoiceId ? (
+            <div className="text-xs">
+              <GiveDiscount
+                invoiceId={props.invoiceId}
+                currency={props.currency}
+                current={props.invoiceDiscount ?? 0}
+              />
+            </div>
+          ) : null}
           {/*
             THE RATE IS THE BILL'S, NOT THIS FORM'S.
 
@@ -714,18 +736,6 @@ function PaymentPanel({
                   </option>
                 ))}
               </NativeSelect>
-            </div>
-          ) : null}
-          {/* A change to the BILL, made from the form about to settle it — and
-              on its own row, because it must not depend on whether the
-              customer happens to be paying in another currency. */}
-          {props.canDiscount && props.invoiceId ? (
-            <div className="text-xs">
-              <GiveDiscount
-                invoiceId={props.invoiceId}
-                currency={props.currency}
-                current={props.invoiceDiscount ?? 0}
-              />
             </div>
           ) : null}
           <PaymentProofField />
@@ -890,6 +900,7 @@ function PickupNotePanel(props: Props) {
         <SubmitButton
           variant="brand"
           size="sm"
+          className="px-2.5"
           disabled={blocked}
           pendingLabel="Issuing…"
         >
