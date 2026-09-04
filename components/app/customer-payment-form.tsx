@@ -618,7 +618,7 @@ export function CustomerPaymentForm({
           <p className="rounded-lg border border-brand/30 bg-brand/5 px-3 py-2 text-xs text-muted-foreground">
             {oneRate
               ? t(
-                  "Converted at {rate}, the rate frozen onto these bills when they were raised — not today's."
+                  "At {rate} — the rate on these bills, not today's."
                 ).replace("{rate}", oneRate.toLocaleString())
               : t(
                   "Each bill converted at the rate frozen onto it when it was raised — not today's."
@@ -637,11 +637,12 @@ export function CustomerPaymentForm({
               value={typedTotal ?? String(allocated || "")}
               onValueChange={(raw) => setTypedTotal(raw)}
             />
-            <p className="text-xs text-muted-foreground">
-              {typedTotal === null
-                ? t("Following what you ticked. Change it if they sent a different amount.")
-                : t("Typed by you.")}
-            </p>
+            {/* Only when it stops following the ticks. The box filling itself
+                from what was ticked needs no sentence; a figure somebody typed
+                over it does, because nothing else on screen would say so. */}
+            {typedTotal !== null ? (
+              <p className="text-xs text-muted-foreground">{t("Typed by you.")}</p>
+            ) : null}
           </div>
 
 
@@ -736,6 +737,7 @@ export function CustomerPaymentForm({
           <div className="min-w-0 sm:col-span-2">
             <BillActions
               bill={soleBill}
+              bills={payable.filter((b) => picked.has(b.invoiceId))}
               selectedCount={picked.size}
               canDiscount={canDiscount}
               canChangeRate={canChangeRate}

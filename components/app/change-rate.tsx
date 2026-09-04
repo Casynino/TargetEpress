@@ -28,6 +28,7 @@ export function ChangeRate({
   currency,
   current,
   total,
+  across = 1,
 }: {
   invoiceId: string;
   /** The currency the bill is priced in — the FROM side of the rate. */
@@ -36,6 +37,8 @@ export function ChangeRate({
   current: number | null;
   /** The bill's own total, to show what the new rate makes of it. */
   total: number;
+  /** How many bills this rate lands on. */
+  across?: number;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -87,7 +90,9 @@ export function ChangeRate({
           {t("Change the rate")}
         </p>
         <p className="text-[11px] text-muted-foreground">
-          {t("This bill only. The dollar total does not move — only what it comes to in shillings.")}
+          {across > 1
+            ? `${t("All")} ${across} ${t("bills. The dollar totals do not move — only what they come to in shillings.")}`
+            : t("This bill only. The dollar total does not move — only what it comes to in shillings.")}
         </p>
         <input type="hidden" name="invoiceId" value={invoiceId} />
         <div className="flex items-center gap-2">

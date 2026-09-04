@@ -32,6 +32,7 @@ const money = (n: number, currency: string) =>
  */
 export function BillActions({
   bill,
+  bills,
   selectedCount,
   canDiscount,
   canChangeRate,
@@ -47,6 +48,14 @@ export function BillActions({
         exchangeRate: number | null;
       }
     | null;
+  /** Every ticked bill. Discount and rate act on all of them at once. */
+  bills?: {
+    invoiceId: string;
+    currency: string;
+    total: number;
+    discount: number;
+    exchangeRate: number | null;
+  }[];
   selectedCount: number;
   canDiscount?: boolean;
   canChangeRate?: boolean;
@@ -79,30 +88,47 @@ export function BillActions({
 
   if (selectedCount === 0) return null;
 
-  if (!bill) {
-    return (
-      <p className="text-[11px] text-muted-foreground">
-        {t(
-          "Discount, rate and credit apply to one bill — tick a single one to use them."
-        )}
-      </p>
-    );
-  }
+  /*
+    DISCOUNT AND RATE WORK ON EVERYTHING TICKED; the rest needs one bill.
+
+    A payment that covers two consignments is one conversation — "take fifty
+    thousand off" means off the lot, and "we agreed 2,800" means on both — so
+    those two act on the whole set and the server splits or applies
+    accordingly. Opening an invoice or releasing on credit still needs a single
+    bill named, because neither has an answer for three at once.
+  */
+  const many = bills && bills.length > 0 ? bills : bill ? [bill] : [];
+  const ids = many.map((b) => b.invoiceId).join(",");
+  const combinedDiscount =
+    Math.round(many.reduce((n, b) => n + b.discount, 0) * 100) / 100;
+  const combinedTotal =
+    Math.round(many.reduce((n, b) => n + b.total, 0) * 100) / 100;
+  /* Every bill this business raises is in one currency, and a mixed set has no
+     single rate to set — so the rate control stands down rather than guess. */
+  const oneCurrency = new Set(many.map((b) => b.currency)).size === 1;
+  const sharedRate =
+    new Set(many.map((b) => b.exchangeRate)).size === 1
+      ? (many[0]?.exchangeRate ?? null)
+      : null;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button asChild size="sm" variant="outline" className="gap-1.5 px-2.5">
-        <Link href={`/app/finance/invoices/${bill.invoiceNumber}`}>
-          <FileText className="h-3.5 w-3.5" />
-          {t("Open invoice")}
-        </Link>
-      </Button>
-      <Button asChild size="sm" variant="outline" className="gap-1.5 px-2.5">
-        <a href={`/app/finance/invoices/${bill.invoiceNumber}/pdf`}>
-          <Download className="h-3.5 w-3.5" />
-          {t("Download")}
-        </a>
-      </Button>
+      {bill ? (
+        <>
+          <Button asChild size="sm" variant="outline" className="gap-1.5 px-2.5">
+            <Link href={`/app/finance/invoices/${bill.invoiceNumber}`}>
+              <FileText className="h-3.5 w-3.5" />
+              {t("Open invoice")}
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="outline" className="gap-1.5 px-2.5">
+            <a href={`/app/finance/invoices/${bill.invoiceNumber}/pdf`}>
+              <Download className="h-3.5 w-3.5" />
+              {t("Download")}
+            </a>
+          </Button>
+        </>
+      ) : null}
       {/* Mapped exactly as the credit panel maps it, so one bill reads the
           same however it is reached. */}
       {credit ? (
@@ -122,22 +148,29 @@ export function BillActions({
         />
       ) : null}
       <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-        {canDiscount ? (
+        {canDiscount && oneCurrency ? (
           <GiveDiscount
-            invoiceId={bill.invoiceId}
-            currency={bill.currency}
-            current={bill.discount}
+            invoiceId={ids}
+            currency={many[0]!.currency}
+            current={combinedDiscount}
+            across={many.length}
           />
         ) : null}
-        {canChangeRate ? (
+        {canChangeRate && oneCurrency ? (
           <ChangeRate
-            invoiceId={bill.invoiceId}
-            currency={bill.currency}
-            current={bill.exchangeRate}
-            total={bill.total}
+            invoiceId={ids}
+            currency={many[0]!.currency}
+            current={sharedRate}
+            total={combinedTotal}
+            across={many.length}
           />
         ) : null}
       </div>
+      {!bill && many.length > 1 ? (
+        <p className="w-full text-[11px] text-muted-foreground">
+          {t("Opening a bill or releasing on credit needs a single one ticked.")}
+        </p>
+      ) : null}
     </div>
   );
 }

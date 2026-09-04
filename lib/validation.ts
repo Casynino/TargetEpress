@@ -171,6 +171,7 @@ export const invoiceSchema = z.object({
  * transaction, because only those are current.
  */
 export const discountSchema = z.object({
+  /** One id, or several comma-separated when a payment covers more than one. */
   invoiceId: z.string().min(1),
   discount: numeric("Discount", { min: 0 }),
   /* Required, because money given away with no reason against it is the thing
@@ -185,6 +186,7 @@ export const discountSchema = z.object({
  * rather than silently restating a bill at ten times its shilling value.
  */
 export const invoiceRateSchema = z.object({
+  /** One id, or several comma-separated — the rate lands on each of them. */
   invoiceId: z.string().min(1),
   exchangeRate: numeric("Exchange rate", { min: 100, max: 100_000 }),
   reason: z.string().trim().min(3, "Say why the rate is being changed."),

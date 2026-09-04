@@ -1125,9 +1125,13 @@ export async function applyInvoiceDiscount(
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
     const input = parsed.data;
 
+    /* One id, or several when a payment covers several bills. */
+    const ids = input.invoiceId.split(",").map((v) => v.trim()).filter(Boolean);
+
     const result = await prisma.$transaction(async (tx) => {
-      const invoice = await tx.invoice.findUnique({
-        where: { id: input.invoiceId },
+      const invoices = await tx.invoice.findMany({
+        where: { id: { in: ids } },
+        orderBy: { invoiceNumber: "asc" },
         select: {
           id: true,
           invoiceNumber: true,
@@ -1140,75 +1144,131 @@ export async function applyInvoiceDiscount(
           localCurrency: true,
         },
       });
-      if (!invoice) throw new Error("That bill no longer exists.");
-      if (invoice.status === "VOID" || invoice.status === "WRITTEN_OFF") {
-        throw new Error(`${invoice.invoiceNumber} is not a live bill.`);
+      if (invoices.length !== ids.length) {
+        throw new Error("One of those bills no longer exists. Reload and try again.");
+      }
+      for (const invoice of invoices) {
+        if (invoice.status === "VOID" || invoice.status === "WRITTEN_OFF") {
+          throw new Error(`${invoice.invoiceNumber} is not a live bill.`);
+        }
       }
 
-      const wasDiscount = toNumber(invoice.discount);
-      const paid = toNumber(invoice.amountPaid);
-      const total = toNumber(invoice.total) + wasDiscount - input.discount;
+      /*
+        ONE DISCOUNT, SPLIT ACROSS THE BILLS IT COVERS — AND IT ADDS UP.
 
-      if (total < 0) {
-        throw new Error("That discount is larger than the rest of the bill.");
+        The figure typed is the discount for the whole payment, because that is
+        the conversation: "I'll take fifty thousand off". It has to land on the
+        invoices, so it is shared out in proportion to what each is worth
+        BEFORE any discount — the larger bill carries the larger share, which
+        is the only split nobody has to argue about.
+
+        The last bill takes the remainder rather than its own rounded share, so
+        the parts sum to the figure agreed EXACTLY. Rounding each independently
+        loses or invents a cent, and a cent that came from nowhere is the thing
+        this system exists not to do.
+      */
+      const gross = invoices.map((i) => toNumber(i.total) + toNumber(i.discount));
+      const basis = gross.reduce((n, g) => n + g, 0);
+      if (basis <= 0) {
+        throw new Error("There is nothing on these bills to discount.");
       }
-      if (total < paid - 0.005) {
-        throw new Error(
-          `${invoice.invoiceNumber} has ${invoice.currency} ${paid.toFixed(2)} paid against it, so it cannot be discounted to ${total.toFixed(2)}. Handing the difference back is a refund, not a discount.`
-        );
-      }
 
-      const rate =
-        invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
-      const nextStatus = invoiceStatusFor(invoice.status, paid, total);
-
-      /* The claim: both the balance and the discount have to be what this
-         transaction read, so two people discounting at once cannot stack. */
-      const claimed = await tx.invoice.updateMany({
-        where: {
-          id: invoice.id,
-          amountPaid: invoice.amountPaid,
-          discount: invoice.discount,
-        },
-        data: {
-          discount: new Prisma.Decimal(input.discount),
-          total: new Prisma.Decimal(total),
-          totalLocal:
-            rate === null ? null : new Prisma.Decimal(toLocal(total, rate)),
-          ...(nextStatus ? { status: nextStatus } : {}),
-        },
+      let handedOut = 0;
+      const shares = invoices.map((_, idx) => {
+        if (idx === invoices.length - 1) {
+          return Math.round((input.discount - handedOut) * 100) / 100;
+        }
+        const share = Math.round((input.discount * gross[idx]!) / basis * 100) / 100;
+        handedOut += share;
+        return share;
       });
-      if (claimed.count === 0) {
-        throw new Error(
-          "This bill changed a moment ago. Reload the page and look again."
+
+      const changed: { number: string; was: number; now: number; total: number }[] = [];
+
+      for (const [idx, invoice] of invoices.entries()) {
+        const wasDiscount = toNumber(invoice.discount);
+        const paid = toNumber(invoice.amountPaid);
+        const share = shares[idx]!;
+        const total = gross[idx]! - share;
+
+        if (total < 0) {
+          throw new Error("That discount is larger than the rest of the bill.");
+        }
+        if (total < paid - 0.005) {
+          throw new Error(
+            `${invoice.invoiceNumber} has ${invoice.currency} ${paid.toFixed(2)} paid against it, so it cannot be discounted to ${total.toFixed(2)}. Handing the difference back is a refund, not a discount.`
+          );
+        }
+
+        const rate =
+          invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
+        const nextStatus = invoiceStatusFor(invoice.status, paid, total);
+
+        /* The claim: both the balance and the discount have to be what this
+           transaction read, so two people discounting at once cannot stack.
+           A throw here unwinds every bill in this batch. */
+        const claimed = await tx.invoice.updateMany({
+          where: {
+            id: invoice.id,
+            amountPaid: invoice.amountPaid,
+            discount: invoice.discount,
+          },
+          data: {
+            discount: new Prisma.Decimal(share),
+            total: new Prisma.Decimal(total),
+            totalLocal:
+              rate === null ? null : new Prisma.Decimal(toLocal(total, rate)),
+            ...(nextStatus ? { status: nextStatus } : {}),
+          },
+        });
+        if (claimed.count === 0) {
+          throw new Error(
+            "This bill changed a moment ago. Reload the page and look again."
+          );
+        }
+
+        await recordAudit(
+          {
+            actor: user,
+            action: "invoice.discount",
+            entity: "Invoice",
+            entityId: invoice.id,
+            summary:
+              `${invoice.invoiceNumber}: discount ${wasDiscount.toFixed(2)} → ` +
+              `${share.toFixed(2)} ${invoice.currency}, bill now ` +
+              `${total.toFixed(2)}` +
+              (invoices.length > 1
+                ? ` (its share of ${input.discount.toFixed(2)} across ${invoices.length} bills)`
+                : "") +
+              ` — ${input.reason}`,
+            metadata: {
+              discountBefore: wasDiscount,
+              discountAfter: share,
+              totalBefore: toNumber(invoice.total),
+              totalAfter: total,
+              amountPaid: paid,
+              statusBefore: invoice.status,
+              statusAfter: nextStatus ?? invoice.status,
+              acrossBills: invoices.length,
+              discountAcrossAll: input.discount,
+              reason: input.reason,
+            },
+          },
+          tx
         );
+
+        changed.push({
+          number: invoice.invoiceNumber,
+          was: wasDiscount,
+          now: share,
+          total,
+        });
       }
 
-      await recordAudit(
-        {
-          actor: user,
-          action: "invoice.discount",
-          entity: "Invoice",
-          entityId: invoice.id,
-          summary:
-            `${invoice.invoiceNumber}: discount ${wasDiscount.toFixed(2)} → ` +
-            `${input.discount.toFixed(2)} ${invoice.currency}, bill now ` +
-            `${total.toFixed(2)} — ${input.reason}`,
-          metadata: {
-            discountBefore: wasDiscount,
-            discountAfter: input.discount,
-            totalBefore: toNumber(invoice.total),
-            totalAfter: total,
-            amountPaid: paid,
-            statusBefore: invoice.status,
-            statusAfter: nextStatus ?? invoice.status,
-            reason: input.reason,
-          },
-        },
-        tx
-      );
-
-      return { total, invoiceId: invoice.id };
+      return {
+        total: changed.reduce((n, c) => n + c.total, 0),
+        invoiceId: invoices[0]!.id,
+      };
     });
 
     revalidatePath("/app/finance/invoices");
@@ -1255,9 +1315,15 @@ export async function changeInvoiceRate(
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
     const input = parsed.data;
 
+    /* One id, or several when a payment covers several bills. Unlike the
+       discount there is nothing to share out — a rate is a rate, and each
+       bill's own dollar total converts at it. */
+    const ids = input.invoiceId.split(",").map((v) => v.trim()).filter(Boolean);
+
     const result = await prisma.$transaction(async (tx) => {
-      const invoice = await tx.invoice.findUnique({
-        where: { id: input.invoiceId },
+      const invoices = await tx.invoice.findMany({
+        where: { id: { in: ids } },
+        orderBy: { invoiceNumber: "asc" },
         select: {
           id: true,
           invoiceNumber: true,
@@ -1268,7 +1334,12 @@ export async function changeInvoiceRate(
           localCurrency: true,
         },
       });
-      if (!invoice) throw new Error("That bill no longer exists.");
+      if (invoices.length !== ids.length) {
+        throw new Error("One of those bills no longer exists. Reload and try again.");
+      }
+
+      let lastLocal = 0;
+      for (const invoice of invoices) {
       if (invoice.status === "VOID" || invoice.status === "WRITTEN_OFF") {
         throw new Error(`${invoice.invoiceNumber} is not a live bill.`);
       }
@@ -1276,9 +1347,11 @@ export async function changeInvoiceRate(
       const was = invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
       const total = toNumber(invoice.total);
       const totalLocal = toLocal(total, input.exchangeRate);
+      lastLocal = totalLocal;
 
       /* Claimed on the rate this transaction read, so two people re-quoting at
-         once cannot leave the bill on a figure neither of them chose. */
+         once cannot leave the bill on a figure neither of them chose. A throw
+         here unwinds every bill in this batch. */
       const claimed = await tx.invoice.updateMany({
         where: { id: invoice.id, exchangeRate: invoice.exchangeRate },
         data: {
@@ -1316,7 +1389,9 @@ export async function changeInvoiceRate(
         tx
       );
 
-      return { totalLocal, invoiceId: invoice.id };
+      }
+
+      return { totalLocal: lastLocal, invoiceId: invoices[0]!.id };
     });
 
     revalidatePath("/app/finance/invoices");

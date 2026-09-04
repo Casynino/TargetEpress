@@ -28,11 +28,14 @@ export function GiveDiscount({
   invoiceId,
   currency,
   current,
+  across = 1,
 }: {
   invoiceId: string;
   currency: string;
   /** What is already off the bill, so the box opens on the truth. */
   current: number;
+  /** How many bills this covers. One figure, shared out by the server. */
+  across?: number;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -84,6 +87,13 @@ export function GiveDiscount({
           <Tag className="h-4 w-4 text-brand" />
           {current > 0 ? t("Change the discount") : t("Give a discount")}
         </p>
+        {/* Said before it is agreed, not discovered afterwards: one figure off
+            the lot, shared out in proportion to what each bill is worth. */}
+        {across > 1 ? (
+          <p className="text-[11px] text-muted-foreground">
+            {t("One figure off all")} {across} {t("bills, split between them by size.")}
+          </p>
+        ) : null}
       <input type="hidden" name="invoiceId" value={invoiceId} />
       <div className="flex items-center gap-2">
         <span className="shrink-0 text-[11px] text-muted-foreground">

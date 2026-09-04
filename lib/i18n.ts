@@ -2757,6 +2757,13 @@ const ZH: Record<string, string> = {
   "Say why the rate is being changed.": "请说明修改汇率的原因。",
   "Discount, rate and credit apply to one bill — tick a single one to use them.":
     "折扣、汇率和赊账只适用于单张账单 — 请只勾选一张。",
+  "At {rate} — the rate on these bills, not today's.": "按 {rate} 折算 — 这些账单的汇率，非今日汇率。",
+  "One figure off all": "一次性折扣，适用于全部",
+  "bills, split between them by size.": "张账单，按金额比例分摊。",
+  "bills. The dollar totals do not move — only what they come to in shillings.":
+    "张账单。美元总额不变，改变的只是折合的先令金额。",
+  "Opening a bill or releasing on credit needs a single one ticked.":
+    "打开账单或赊账放行需要只勾选一张。",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
   "No exchange rate was published on the day this money arrived, so it cannot be valued in the register. Publish one for that date and record it again.":
