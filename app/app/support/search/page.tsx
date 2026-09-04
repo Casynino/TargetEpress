@@ -153,13 +153,13 @@ export default async function SupportSearchPage({
                     ) : null}
                     {/* Beside the figure, never instead of it: the bill still
                         owes this until Finance agrees the claim. */}
+                    {/* The same yellow chip this desk sees on the flight
+                        manifest and in cargo search — a plain span, because
+                        Badge's outline variant sets its own text colour. */}
                     {shipment.invoice && claims.get(shipment.invoice.id) ? (
-                      <Badge
-                        variant="outline"
-                        className="border-warning/40 text-xs text-warning"
-                      >
-                        {t(locale, "Payment submitted")}
-                      </Badge>
+                      <span className="rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[11px] font-semibold text-warning">
+                        {t(locale, "Payment to verify")}
+                      </span>
                     ) : null}
                   </div>
                 ) : null}
@@ -246,12 +246,9 @@ export default async function SupportSearchPage({
                           </Badge>
                         ) : null}
                         {shipment.invoice && claims.get(shipment.invoice.id) ? (
-                          <Badge
-                            variant="outline"
-                            className="mt-1 block w-fit border-warning/40 text-xs text-warning"
-                          >
-                            {t(locale, "Payment submitted")}
-                          </Badge>
+                          <span className="mt-1 block w-fit rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[11px] font-semibold text-warning">
+                            {t(locale, "Payment to verify")}
+                          </span>
                         ) : null}
                       </td>
                     ) : null}

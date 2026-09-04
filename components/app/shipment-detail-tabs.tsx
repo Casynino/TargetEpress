@@ -520,7 +520,7 @@ export function ShipmentDetailTabs({
                          not take it again — and it is the colour it wears
                          everywhere else in the app. */
                       line.price?.claimed
-                        ? "bg-warning/[0.10] shadow-[inset_3px_0_0_0_hsl(var(--warning))]"
+                        ? "bg-warning/10 shadow-[inset_3px_0_0_0_hsl(var(--warning))]"
                         : line.price?.credit?.overdue
                           ? "bg-destructive/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--destructive))]"
                           : line.price?.credit

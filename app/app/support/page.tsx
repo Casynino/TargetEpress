@@ -737,9 +737,15 @@ export default async function SupportHome() {
                       <div className="text-right">
                         <p
                           className={
-                            row.credit !== null && row.credit.daysOverdue === 0
-                              ? "text-sm font-medium text-muted-foreground"
-                              : "text-sm font-medium"
+                            /* Yellow wherever a payment is waiting to be
+                               verified — the same colour it wears on every
+                               other screen, so this desk does not ring a
+                               customer who has already paid. */
+                            row.nextAction === "Waiting on Finance to verify"
+                              ? "text-sm font-medium text-warning"
+                              : row.credit !== null && row.credit.daysOverdue === 0
+                                ? "text-sm font-medium text-muted-foreground"
+                                : "text-sm font-medium"
                           }
                         >
                           {t(locale, row.nextAction)}
