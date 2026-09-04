@@ -366,7 +366,7 @@ export default async function PickupNotesPage({
                               <Phone className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                             </a>
                           </IconHint>
-                          <IconHint label={t(locale, "Message on WhatsApp")}>
+                          <IconHint label={t(locale, "Notify on WhatsApp")}>
                             <a
                               href={`https://wa.me/${digits}`}
                               target="_blank"

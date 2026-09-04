@@ -224,7 +224,7 @@ export default async function InvoicePage({
     the state Finance opens most often — and both ways of sending it out were
     offered here regardless. "Download PDF" is a plain <a>, so the route's
     honest 409 took the browser out of the app and onto a raw JSON body the
-    user had to press Back to escape; "Send on WhatsApp" had no draft guard at
+    user had to press Back to escape; "Notify on WhatsApp" had no draft guard at
     all and would have quoted the customer an unconfirmed total. The cargo
     screen already draws exactly this line (components/app/shipment-actions),
     so this page now agrees with it, and the route's 409 stays as the net
@@ -354,7 +354,7 @@ export default async function InvoicePage({
                   rel="noopener noreferrer"
                 >
                   <MessageCircle className="mr-2 h-4 w-4" />
-                  {t(locale, "Send on WhatsApp")}
+                  {t(locale, "Notify on WhatsApp")}
                 </a>
               </Button>
               {/* A real file, not a print dialog — the point is something that

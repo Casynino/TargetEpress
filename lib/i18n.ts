@@ -2729,15 +2729,10 @@ const ZH: Record<string, string> = {
   "Opens WhatsApp with the whole message written: the cargo, the weight, the rate, the total and a link to their invoice. Read it before you send it.":
     "打开 WhatsApp，消息已写好：货物、重量、费率、总额，以及账单链接。发送前请先核对。",
   "cancelled, not counted": "已取消，未计入",
-  "are held in": "使用的币种为",
-  ", so they cannot take": "，因此无法收取",
-  "Change the currency above to use them.": "如需使用，请更改上方的币种。",
   "Recorded as today.": "按今天记录。",
   "It arrived on another day": "款项是其他日期到账的",
   "A Friday transfer entered on Monday belongs to Friday, and the payments report follows this date.":
     "周五的转账在周一录入，仍属于周五，付款报表以此日期为准。",
-  "{names} are {other} accounts — switch Paid in.":
-    "{names} 为 {other} 账户 — 请切换上方付款币种。",
   "Optional, but it is what settles an argument later.": "非必填，但日后有争议时以此为准。",
   "The message is written. Read it before you send it.": "消息已写好，发送前请先核对。",
   "Add their receipt. Finance verifies it before anything is settled.":
@@ -2747,12 +2742,11 @@ const ZH: Record<string, string> = {
     "按今天的汇率和仓储费重新计价，之后即可发送并收款。",
   "Priced automatically once Dar checks it off the manifest.":
     "达累斯萨拉姆仓库核对清单后自动计价。",
-  "Raised at": "开单汇率",
-  "Change it if you agreed another.": "如另有约定汇率，请修改。",
-  "Leave it blank if you are not sure.": "不确定可留空。",
   "Paying in full releases the cargo.": "付清后货物即可放行。",
   "Appears once the bill is settled.": "账单付清后显示。",
   "Needs the cargo at Dar and the bill settled.": "需货物已到达并且账单已付清。",
+  "No rate on this bill — use the one you agreed.": "此账单没有汇率 — 请使用你们约定的汇率。",
+  "Notify on WhatsApp": "用 WhatsApp 通知",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
   "No exchange rate was published on the day this money arrived, so it cannot be valued in the register. Publish one for that date and record it again.":

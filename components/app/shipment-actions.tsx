@@ -21,7 +21,6 @@ import {
   IdempotencyKey,
   useIdempotencyKey,
 } from "@/components/app/idempotency-key";
-import { AccountCurrencyNote } from "@/components/app/account-currency-note";
 import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { PaymentDateField } from "@/components/app/payment-date-field";
 import { useT } from "@/components/app/locale-provider";
@@ -205,19 +204,16 @@ export function ShipmentActions(props: Props) {
               <MessageCircle className="h-5 w-5 text-success" />
               {t("Tell the customer")}
             </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(
-                "The message is written. Read it before you send it."
-              )}
-            </p>
+            {/* No sentence: the heading says what it is for and the button
+                says what it does. */}
             <a
               href={props.customerWhatsapp}
               target="_blank"
               rel="noopener noreferrer"
-              className="focus-ring mt-3 inline-flex items-center gap-2 rounded-lg bg-success px-4 py-2 text-sm font-semibold text-success-foreground transition-colors hover:bg-success/90"
+              className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md bg-success px-3 py-1.5 text-xs font-semibold text-success-foreground transition-colors hover:bg-success/90"
             >
-              <MessageCircle className="h-4 w-4" />
-              {t("Message on WhatsApp")}
+              <MessageCircle className="h-3.5 w-3.5" />
+              {t("Notify on WhatsApp")}
             </a>
           </div>
         ) : null}
@@ -625,13 +621,14 @@ function PaymentPanel(props: Props) {
                 }
                 required
               />
-              <p className="text-xs text-muted-foreground">
-                {props.invoiceRate === null
-                  ? t(
-                      "This invoice carries no rate, so the one you agreed at the counter is the one that counts."
-                    )
-                  : `${t("Raised at")} ${props.invoiceRate.toLocaleString()}. ${t("Change it if you agreed another.")}`}
-              </p>
+              {/* Only where the box is empty and has to be filled. When the
+                  invoice carries a rate it is already in the field, and saying
+                  what it is a second time is the sentence, not the number. */}
+              {props.invoiceRate === null ? (
+                <p className="text-xs text-muted-foreground">
+                  {t("No rate on this bill — use the one you agreed.")}
+                </p>
+              ) : null}
             </div>
           ) : null}
           {converted ? (
@@ -681,17 +678,6 @@ function PaymentPanel(props: Props) {
                   </option>
                 ))}
               </NativeSelect>
-              <p className="text-xs text-muted-foreground">
-                {t(
-                  "Leave it blank if you are not sure."
-                )}
-              </p>
-              <AccountCurrencyNote
-                currency={currency}
-                hidden={(props.accounts ?? []).filter(
-                  (a) => a.currency !== currency
-                )}
-              />
             </div>
           ) : null}
           <PaymentProofField />

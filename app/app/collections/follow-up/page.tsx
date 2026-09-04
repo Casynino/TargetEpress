@@ -764,8 +764,8 @@ export default async function FollowUpPage({
                       <IconHint
                         label={
                           row.credit
-                            ? t(locale, "Remind on WhatsApp")
-                            : t(locale, "Message on WhatsApp")
+                            ? t(locale, "Notify on WhatsApp")
+                            : t(locale, "Notify on WhatsApp")
                         }
                       >
                       <a
