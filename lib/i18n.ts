@@ -2668,6 +2668,57 @@ const ZH: Record<string, string> = {
   "waiting since it was registered": "自登记起等待",
   "which batch": "哪个航班",
   "why is my total more than the price I was quoted?": "为什么我的总额比报价高？",
+  /* The long month names. Only the three-letter forms were ever added, and
+     "May" is the same string in both — so the payroll month picker read in
+     English except for one row. */
+  "January": "一月",
+  "February": "二月",
+  "March": "三月",
+  "April": "四月",
+  "June": "六月",
+  "July": "七月",
+  "August": "八月",
+  "September": "九月",
+  "October": "十月",
+  "November": "十一月",
+  "December": "十二月",
+  /* Every payment-correction and credit action on the audit log. The log
+     reads by action key, so none of these were visible to the checker. */
+  "Payment claim corrected": "付款申报已更正",
+  "Payment claim withdrawn": "付款申报已撤回",
+  "Payment cancelled": "付款已取消",
+  "Cancelled payment reinstated": "已取消的付款已恢复",
+  "Payment details corrected": "付款信息已更正",
+  "Credit requested": "已申请赊账",
+  "Credit approved": "赊账已批准",
+  "Credit refused": "赊账已拒绝",
+  "Credit due date extended": "赊账到期日已延长",
+  "Credit due date brought forward": "赊账到期日已提前",
+  "Credit limit set": "已设定赊账额度",
+  "Credit facility withdrawn": "已撤销赊账额度",
+  "Storage fee charged": "已收取仓储费",
+  "Storage fee waived": "已减免仓储费",
+  /* Sidebar rows. Every other row in lib/nav.ts had one. */
+  "Batch finances": "航班财务",
+  "Transactions": "交易记录",
+  "Bank & cash": "银行与现金",
+  "Decisions": "审批",
+  "People": "人员",
+  /* Page titles and their standfirsts. PageHeader translates what it is
+     handed, so these were only ever visible by reading the callers. */
+  "Nothing is ever destroyed. Every deletion and every cancelled payment is kept here with its reason and the person who made it.":
+    "任何记录都不会被销毁。每一次删除、每一笔取消的付款都保存在这里，附带原因和操作人。",
+  "Claims Customer Support has collected from customers. Nothing is settled and no cargo is released until you agree.":
+    "客服从客户处收集的付款申报。在你确认之前，不会结清任何账单，也不会放行任何货物。",
+  "What each closed batch made. The figures are worked out when Finance shuts the books and frozen there — then the boss reviews them.":
+    "每个已关闭航班的收益。数字在财务结账时算出并就此固定——之后由老板审阅。",
+  "Build the month from the staff register, correct the exceptions, and send it to the manager. Nothing leaves the account until he has agreed it.":
+    "依据员工名册生成本月工资，更正例外情况，然后提交给经理。在经理批准之前，账户不会支出任何款项。",
+  "What Finance has prepared, name by name. Agree it, send it back with a reason, or pay what you have already agreed.":
+    "财务已准备好的名单，逐人列出。你可以批准、附理由退回，或支付已批准的部分。",
+  "Find cargo": "查找货物",
+  "Search by tracking number, customer name, phone number, batch or invoice.":
+    "可按运单号、客户姓名、电话号码、航班或账单搜索。",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
   "No exchange rate was published on the day this money arrived, so it cannot be valued in the register. Publish one for that date and record it again.":

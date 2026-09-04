@@ -74,11 +74,33 @@ const LABEL_KEYS =
 const HELPER_CALL =
   /\b(say|count|tell|phrase|line|sentence)\(\s*("((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)')/g;
 
+/*
+  Three more places a phrase is translated by value rather than by literal:
+  a <PageHeader title="…"> (the component calls t on what it is handed), the
+  sidebar rows in lib/nav.ts, and the audit log's action table. All three read
+  as ordinary object properties, so nothing else was going to notice them.
+*/
+const BY_VALUE =
+  /(?:<PageHeader[\s\S]{0,800}?\/>)|(?:^\s*"[\w.]+":\s*"[^"\n]+",$)/gm;
+
 const missing = new Map();
 for (const file of files) {
   const src = readFileSync(file, "utf8");
-  if (!COMPUTED.test(src)) continue;
+  const alsoByValue =
+    /components\/app\/page-header|lib\/nav\.ts$|lib\/audit-humanise\.ts$/.test(file) ||
+    src.includes("<PageHeader");
+  if (!COMPUTED.test(src) && !alsoByValue) continue;
   const found = new Set();
+  if (alsoByValue) {
+    for (const m of src.matchAll(BY_VALUE)) {
+      for (const p of m[0].matchAll(
+        /\b(?:title|description)=\{?"([^"\n]+)"\}?|^\s*"[\w.]+":\s*"([^"\n]+)",$/gm
+      )) {
+        const raw = p[1] ?? p[2] ?? "";
+        if (userFacing(raw) && !known.has(raw)) found.add(raw);
+      }
+    }
+  }
   for (const re of [LABEL_KEYS, HELPER_CALL]) {
     re.lastIndex = 0;
     for (const m of src.matchAll(re)) {
