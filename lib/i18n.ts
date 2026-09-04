@@ -2541,6 +2541,10 @@ const ZH: Record<string, string> = {
     "出了点问题。请改用 WhatsApp 联系我们。",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
+  "This payment is not against a bill. Cancel it and record it again.":
+    "这笔款项没有对应的账单。请取消后重新记录。",
+  "This claim covers more than one bill, so its total cannot be changed here. Withdraw it and raise the payment again against the bills it should cover.":
+    "这笔申报涵盖多张账单，金额不能在此更改。请撤回后，按应对应的账单重新提交。",
   "This payment has already been recorded. Reload the page — recording it again would take the same money twice.":
     "这笔款项已经入账。请刷新页面——再记一次会把同一笔钱收两遍。",
   "This payment has already been sent to Finance. Reload the page — sending it again would claim the same money twice.":

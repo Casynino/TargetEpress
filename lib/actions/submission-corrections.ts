@@ -66,6 +66,9 @@ async function pendingOnly(id: string) {
           shipment: { select: { trackingNumber: true } },
         },
       },
+      /* How many bills it answers — a combined claim's total cannot be
+         restated without saying how the change is split. */
+      _count: { select: { allocations: true } },
     },
   });
   return sub;
@@ -173,6 +176,24 @@ export async function editSubmission(
       (k) => before[k] !== after[k]
     );
     if (changed.length === 0) return fail(t(locale, "Nothing was changed."));
+
+    /*
+      A COMBINED CLAIM'S TOTAL IS THE SUM OF ITS PARTS.
+
+      Its allocations say how much answers each bill. Moving the total without
+      restating them leaves the two disagreeing, and Finance then verifies a
+      figure the split cannot account for — one bill credited with another's
+      money. The reference, the note and the account are all still correctable;
+      only the figure has to go back through the form that asks how it splits.
+    */
+    if (sub._count.allocations > 1 && changed.includes("amount")) {
+      return fail(
+        t(
+          locale,
+          "This claim covers more than one bill, so its total cannot be changed here. Withdraw it and raise the payment again against the bills it should cover."
+        )
+      );
+    }
 
     await prisma.$transaction(async (tx) => {
       /* Still pending at the moment of writing. Finance may have verified it
@@ -522,6 +543,17 @@ export async function resubmitSubmission(
         submittedById: true,
         replacedBy: { select: { submissionNumber: true } },
         invoice: { select: { invoiceNumber: true, status: true } },
+        /* Which bills this claim covered. A combined claim answers several,
+           and a replacement that carried none of them was verified against the
+           anchor bill alone for the whole sum — the others stayed unpaid and
+           kept being chased. */
+        allocations: {
+          select: {
+            invoiceId: true,
+            amount: true,
+            invoice: { select: { invoiceNumber: true, status: true } },
+          },
+        },
         proofs: {
           select: { url: true, contentType: true, bytes: true, filename: true },
         },
@@ -546,9 +578,40 @@ export async function resubmitSubmission(
         t(locale, "Only the person who submitted this can correct it. Ask them to, or let Finance decide it as it stands.")
       );
     }
-    if (old.invoice.status === "PAID") {
+    /* Every bill it covers, not only the one it was anchored to. */
+    const settled = [
+      old.invoice.status === "PAID" ? old.invoice.invoiceNumber : null,
+      ...old.allocations.map((a) =>
+        a.invoice.status === "PAID" ? a.invoice.invoiceNumber : null
+      ),
+    ].filter((n): n is string => n !== null);
+    if (settled.length > 0) {
       return fail(
-        t(locale, `${old.invoice.invoiceNumber} is already settled, so there is nothing left to claim against it.`)
+        t(
+          locale,
+          `${[...new Set(settled)].join(", ")} is already settled, so there is nothing left to claim against it.`
+        )
+      );
+    }
+
+    /*
+      A COMBINED CLAIM CANNOT HAVE ITS FIGURE RESTATED HERE.
+
+      The allocations say how much of the money answers each bill. Changing the
+      total without saying how the change is split is a question this form does
+      not ask, and answering it by guessing is how one bill gets credited with
+      another's money. Same amount, and the split is carried across untouched.
+    */
+    const claimed = old.allocations.reduce((sum, a) => sum + toNumber(a.amount), 0);
+    if (
+      old.allocations.length > 1 &&
+      Math.abs(claimed - parsed.data.amount) >= 0.005
+    ) {
+      return fail(
+        t(
+          locale,
+          "This claim covers more than one bill, so its total cannot be changed here. Withdraw it and raise the payment again against the bills it should cover."
+        )
       );
     }
 
@@ -587,8 +650,18 @@ export async function resubmitSubmission(
       /* Same rule the first submission obeys: one claim at a time per bill.
          Two pending claims is two people ringing the same customer and Finance
          agreeing to the same money twice. */
+      const covered = [
+        old.invoiceId,
+        ...old.allocations.map((a) => a.invoiceId),
+      ].filter((id): id is string => id !== null);
       const pending = await tx.paymentSubmission.findFirst({
-        where: { invoiceId: old.invoiceId, status: "PENDING" },
+        where: {
+          status: "PENDING",
+          OR: [
+            { invoiceId: { in: covered } },
+            { allocations: { some: { invoiceId: { in: covered } } } },
+          ],
+        },
         select: { submissionNumber: true },
       });
       if (pending) {
@@ -621,6 +694,15 @@ export async function resubmitSubmission(
           note: parsed.data.note || null,
           submittedById: user.id,
           replacesId: old.id,
+          /* The split goes with it. Without these the replacement looked like
+             a single-bill claim, and Finance verifying it put the whole sum
+             against the anchor. */
+          allocations: {
+            create: old.allocations.map((a) => ({
+              invoiceId: a.invoiceId,
+              amount: a.amount,
+            })),
+          },
           /* The same files, not re-uploaded. The refused claim keeps its own
              rows, so what Finance was looking at when they said no survives. */
           proofs: {

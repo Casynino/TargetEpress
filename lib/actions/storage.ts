@@ -9,6 +9,7 @@ import { STORAGE_POLICY, storageStatus } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { toLocal } from "@/lib/fx";
 import { t } from "@/lib/i18n";
+import { invoiceStatusFor } from "@/lib/invoice-status";
 import { prisma } from "@/lib/prisma";
 import { authorize } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
@@ -332,16 +333,10 @@ export async function waiveStorageFee(
         );
       }
 
-      /* Waiving can legitimately SETTLE a bill the customer had part-paid. */
-      const settled = paidSoFar + 0.001 >= total;
+      /* Waiving can legitimately SETTLE a bill the customer had part-paid.
+         Derived where every other door derives it — lib/invoice-status.ts. */
       const nextStatus =
-        fresh.status === "DRAFT"
-          ? "DRAFT"
-          : settled
-            ? "PAID"
-            : paidSoFar > 0
-              ? "PARTIALLY_PAID"
-              : "UNPAID";
+        invoiceStatusFor(fresh.status, paidSoFar, total) ?? fresh.status;
 
       const claimed = await tx.invoice.updateMany({
         where: { id: invoice.id, total: fresh.total },

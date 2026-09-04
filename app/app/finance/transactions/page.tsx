@@ -207,6 +207,9 @@ export default async function LedgerPage({
               amount: true,
               currency: true,
               invoiceId: true,
+              /* One bill or several. A merged payment's figure cannot be
+                 corrected here — see changePaymentAmount. */
+              _count: { select: { allocations: true } },
               /* Who first took this money in, when it did not start at the
                  counter. A payment that came up from Customer Support was
                  recorded by Finance but collected by somebody else, and the
@@ -1291,7 +1294,10 @@ export default async function LedgerPage({
                             currency: entry.currency,
                             /* A combined payment answers several bills; moving
                                its figure is the allocation screen's question. */
-                            amountEditable: Boolean(entry.payment?.invoiceId),
+                            amountEditable:
+                              entry.payment !== null &&
+                              entry.payment.invoiceId !== null &&
+                              entry.payment._count.allocations <= 1,
                             /* expenseFor, not entry.expense: a corrected
                                line's own expenseId is empty by design (see the
                                note above orphanedExpenseIds), and reading that

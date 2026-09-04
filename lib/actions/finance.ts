@@ -14,6 +14,7 @@ import {
 } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
+import { invoiceStatusFor } from "@/lib/invoice-status";
 import {
   LOCAL_CURRENCY,
   billingRate,
@@ -716,6 +717,9 @@ export async function adjustInvoice(
           otherCharges: true,
           discount: true,
           amountPaid: true,
+          /* Read so the correction can carry the status with the total; a
+             cancelled or written-off bill is left as it is. */
+          status: true,
           /* Whose money may settle this, and in what — the deposit below needs
              both, the same three columns confirmInvoicePrice reads. */
           customerId: true,
@@ -949,6 +953,21 @@ export async function adjustInvoice(
           localCurrency: invoice.localCurrency ?? LOCAL_CURRENCY,
           totalLocal: totalLocal === null ? null : new Prisma.Decimal(totalLocal),
           notes: input.notes || null,
+          /*
+            THE STATUS FOLLOWS THE TOTAL.
+
+            Without this a bill corrected upward stayed PAID with the new money
+            owed on it — absent from every receivables read, so nobody chased
+            it — and a bill corrected down to exactly what had been paid stayed
+            PARTIALLY_PAID, which the pickup gate reads, so cargo could not be
+            released for a bill that was settled. The storage card next door
+            has always done this; both doors move the same total, and now both
+            derive the state the same way. See lib/invoice-status.ts.
+          */
+          ...(() => {
+            const next = invoiceStatusFor(invoice.status, alreadyPaid, total);
+            return next === null ? {} : { status: next };
+          })(),
         },
       });
       if (adjusted.count === 0) {
@@ -986,7 +1005,7 @@ export async function adjustInvoice(
           where: { id: invoice.id },
           data: {
             amountPaid: new Prisma.Decimal(paidAfter),
-            status: paidAfter + 0.001 >= total ? "PAID" : "PARTIALLY_PAID",
+            status: invoiceStatusFor(invoice.status, paidAfter, total) ?? undefined,
           },
         });
       }

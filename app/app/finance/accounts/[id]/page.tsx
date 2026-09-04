@@ -98,6 +98,9 @@ export default async function AccountDetailPage({
             note: true,
             accountId: true,
             invoiceId: true,
+            /* One bill or several. A merged payment's figure cannot be
+               corrected here — see changePaymentAmount. */
+            _count: { select: { allocations: true } },
             voidReason: true,
             voidedBy: { select: { name: true } },
             receipt: { select: { receiptNumber: true } },
@@ -548,7 +551,10 @@ export default async function AccountDetailPage({
                             paymentAccountId: entry.payment?.accountId ?? null,
                             amount: toNumber(entry.amount),
                             currency: entry.currency,
-                            amountEditable: Boolean(entry.payment?.invoiceId),
+                            amountEditable:
+                              entry.payment !== null &&
+                              entry.payment.invoiceId !== null &&
+                              entry.payment._count.allocations <= 1,
                             expenseId: entry.expense?.id ?? null,
                             expenseDescription: entry.expense?.description ?? null,
                             expenseCategory: entry.expense?.category ?? null,

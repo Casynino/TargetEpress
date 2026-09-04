@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
+import { invoiceStatusFor } from "@/lib/invoice-status";
 import { t } from "@/lib/i18n";
 import { postLedgerEntry } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
@@ -45,31 +46,115 @@ import { firstError } from "@/lib/validation";
  * And because a void can itself be a mistake, it can be lifted again.
  */
 
-/** What this payment actually settled on the bill, in the bill's own currency. */
-function settledAmount(p: { amount: Money; creditedAmount: Money }) {
-  const credited = toNumber(p.creditedAmount);
-  return credited > 0 ? credited : toNumber(p.amount);
+/**
+ * WHAT THIS PAYMENT SETTLED, BILL BY BILL.
+ *
+ * One transfer can answer four invoices — that is the whole point of a merged
+ * payment — and the allocation rows are the only record of how much of it went
+ * against each one. They are written in the BILL's currency, already converted
+ * at the rate frozen onto that bill, which is exactly the figure a bill's
+ * amountPaid moves by.
+ *
+ * This used to read `creditedAmount` off the payment instead, which is one
+ * number for the whole transfer. Cancelling a merged payment then handed the
+ * entire sum back to the first bill and left the others reading as settled by a
+ * payment that no longer existed; and a shilling deposit later spent against a
+ * dollar bill handed back two and a half million against a bill of twelve
+ * hundred. The allocations cannot say either of those things.
+ *
+ * The fallback is for rows written before allocations existed: no allocation at
+ * all, but an anchor invoice in the same currency the customer paid in, so the
+ * figure needs no conversion to be trusted. Anything else settles nothing —
+ * a deposit has answered no bill yet, and inventing one is how a balance drifts.
+ */
+type Settlement = {
+  invoiceId: string;
+  invoiceNumber: string;
+  status: string;
+  /** In the bill's own currency. */
+  amount: number;
+  total: number;
+  amountPaid: Prisma.Decimal;
+  shipment: {
+    id: string;
+    trackingNumber: string;
+    status: string;
+    pickupNote: { id: string; noteNumber: string; status: string } | null;
+  } | null;
+};
+
+function settlementsOf(payment: {
+  amount: Money;
+  creditedAmount: Money;
+  currency: string;
+  allocations: {
+    amount: Prisma.Decimal;
+    invoice: {
+      id: string;
+      invoiceNumber: string;
+      status: string;
+      total: Prisma.Decimal;
+      amountPaid: Prisma.Decimal;
+      currency: string;
+      shipment: Settlement["shipment"];
+    };
+  }[];
+  invoice: {
+    id: string;
+    invoiceNumber: string;
+    status: string;
+    total: Prisma.Decimal;
+    amountPaid: Prisma.Decimal;
+    currency: string;
+    shipment: Settlement["shipment"];
+  } | null;
+}): Settlement[] {
+  if (payment.allocations.length > 0) {
+    return payment.allocations.map((a) => ({
+      invoiceId: a.invoice.id,
+      invoiceNumber: a.invoice.invoiceNumber,
+      status: a.invoice.status,
+      amount: toNumber(a.amount),
+      total: toNumber(a.invoice.total),
+      amountPaid: a.invoice.amountPaid,
+      shipment: a.invoice.shipment,
+    }));
+  }
+
+  const invoice = payment.invoice;
+  if (!invoice || invoice.currency !== payment.currency) return [];
+
+  const credited = toNumber(payment.creditedAmount);
+  return [
+    {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      status: invoice.status,
+      amount: credited > 0 ? credited : toNumber(payment.amount),
+      total: toNumber(invoice.total),
+      amountPaid: invoice.amountPaid,
+      shipment: invoice.shipment,
+    },
+  ];
 }
 
-/**
- * The invoice's status, worked out from its numbers rather than assumed.
- *
- * VOID and WRITTEN_OFF are left exactly as they are. Those are decisions
- * somebody made about the bill itself, and un-recording a payment is not a
- * reason to resurrect a bill that was cancelled or given up on.
- */
-function statusFor(
-  current: string,
-  paid: number,
-  total: number
-): "UNPAID" | "PARTIALLY_PAID" | "PAID" | null {
-  if (current === "VOID" || current === "WRITTEN_OFF" || current === "DRAFT") {
-    return null;
-  }
-  if (paid <= 0.005) return "UNPAID";
-  if (paid + 0.005 >= total) return "PAID";
-  return "PARTIALLY_PAID";
-}
+/** The bill and cargo columns every correction below needs off an invoice. */
+const SETTLED_INVOICE = {
+  id: true,
+  invoiceNumber: true,
+  status: true,
+  total: true,
+  amountPaid: true,
+  currency: true,
+  shipment: {
+    select: {
+      id: true,
+      trackingNumber: true,
+      status: true,
+      pickupNote: { select: { id: true, noteNumber: true, status: true } },
+    },
+  },
+} as const;
 
 const voidSchema = z.object({
   paymentId: z.string().min(1),
@@ -122,24 +207,11 @@ export async function voidPayment(
               reversedBy: { select: { id: true } },
             },
           },
-          invoice: {
-            select: {
-              id: true,
-              invoiceNumber: true,
-              status: true,
-              total: true,
-              amountPaid: true,
-              shipment: {
-                select: {
-                  id: true,
-                  trackingNumber: true,
-                  status: true,
-                  pickupNote: {
-                    select: { id: true, noteNumber: true, status: true },
-                  },
-                },
-              },
-            },
+          invoice: { select: SETTLED_INVOICE },
+          /* Every bill this payment answered, not just the first one it was
+             anchored to. See settlementsOf. */
+          allocations: {
+            select: { amount: true, invoice: { select: SETTLED_INVOICE } },
           },
         },
       });
@@ -157,15 +229,15 @@ export async function voidPayment(
         skipped for one — there is no balance to restore, and pretending there
         is would be inventing a bill.
       */
-      const invoice = payment.invoice;
-      const gave = settledAmount(payment);
-      const total = invoice ? toNumber(invoice.total) : 0;
-      const newPaid = invoice
-        ? Math.max(0, toNumber(invoice.amountPaid) - gave)
-        : 0;
-      const newStatus = invoice
-        ? statusFor(invoice.status, newPaid, total)
-        : null;
+      const settlements = settlementsOf(payment);
+      const gave = settlements.reduce((sum, s) => sum + s.amount, 0);
+
+      /* Worked out before anything is written, so the audit line and the
+         pickup-note decision below read the same figures the bills got. */
+      const unwound = settlements.map((s) => {
+        const paid = Math.max(0, toNumber(s.amountPaid) - s.amount);
+        return { ...s, newPaid: paid, newStatus: invoiceStatusFor(s.status, paid, s.total) };
+      });
 
       /* The claim. If two people press cancel at once, the second finds the row
          already voided and updates nothing, rather than reversing the ledger
@@ -184,31 +256,42 @@ export async function voidPayment(
         );
       }
 
-      /* Conditional on the balance this transaction read — the payment-row
-         claim above stops a double VOID, but not a payment landing on the
-         same bill between our read and this write. The loser unwinds whole. */
-      const invoiceClaim = invoice
-        ? await tx.invoice.updateMany({
-            where: { id: invoice.id, amountPaid: invoice.amountPaid },
-            data: {
-              amountPaid: new Prisma.Decimal(newPaid),
-              ...(newStatus ? { status: newStatus } : {}),
-            },
-          })
-        : { count: 1 };
-      /* The settlement goes with the money.
-         A void hands the invoice back exactly what this payment put against it,
-         so leaving the allocation behind would have the bill reading as settled
-         by a payment that no longer settles anything — and the invariant every
-         reconciliation depends on, that a bill's allocations add up to what it
-         has been paid, would drift on the first cancellation. */
-      await tx.paymentAllocation.deleteMany({ where: { paymentId: payment.id } });
+      /*
+        EVERY BILL IT ANSWERED, NOT JUST THE FIRST.
 
-      if (invoiceClaim.count === 0) {
-        throw new Error(
-          t(locale, "This bill's balance moved a moment ago. Reload and check it before cancelling.")
-        );
+        Each claim is conditional on the balance this transaction read — the
+        payment-row claim above stops a double VOID, but not a payment landing
+        on one of these bills between our read and this write. The loser
+        unwinds whole, which is why the throw is inside the loop.
+      */
+      for (const s of unwound) {
+        const claim = await tx.invoice.updateMany({
+          where: { id: s.invoiceId, amountPaid: s.amountPaid },
+          data: {
+            amountPaid: new Prisma.Decimal(s.newPaid),
+            ...(s.newStatus ? { status: s.newStatus } : {}),
+          },
+        });
+        if (claim.count === 0) {
+          throw new Error(
+            t(locale, "This bill's balance moved a moment ago. Reload and check it before cancelling.")
+          );
+        }
       }
+
+      /*
+        THE ALLOCATIONS STAY.
+
+        They are the only record of how this payment was split, and deleting
+        them made reinstating it impossible to get right: the money went back
+        onto the bills but the split was gone, so the credit engine read the
+        whole payment as unspent and put it against a second bill as well —
+        one payment settling twice what it was worth.
+
+        Nothing counts them as live money: every credit read filters
+        `voidedAt: null`, so a cancelled payment's allocations are as inert as
+        the payment itself, and they are here to be picked up again if it is.
+      */
 
       /* The money coming back out of the account it went into. Dated today: the
          reversal happens now, and backdating it would rewrite a month somebody
@@ -262,7 +345,9 @@ export async function voidPayment(
           exchangeRate: e.exchangeRate === null ? null : toNumber(e.exchangeRate),
           occurredAt: new Date(),
           description: `${t(locale, "Cancels")} ${e.entryNumber} — ${
-            invoice ? invoice.invoiceNumber : t(locale, "customer deposit")
+            unwound.length > 0
+              ? unwound.map((s) => s.invoiceNumber).join(", ")
+              : t(locale, "customer deposit")
           }: ${parsed.data.reason}`,
           sourceEntity: e.sourceEntity,
           sourceId: e.sourceId,
@@ -285,28 +370,51 @@ export async function voidPayment(
         with the warehouse. The honest outcome there is a live debt and a loud
         line in the audit log, which is exactly what somebody needs to chase.
       */
-      /* A deposit has released no cargo, so there is no note to withdraw. */
-      const note = invoice?.shipment.pickupNote ?? null;
-      let noteOutcome: "cancelled" | "already-collected" | "none" = "none";
-      if (invoice && note && newStatus !== "PAID") {
+      /* A deposit has released no cargo, so there is no note to withdraw —
+         and a merged payment may have released four consignments, every one of
+         which has to be stopped. */
+      const notes: {
+        invoiceNumber: string;
+        noteNumber: string;
+        outcome: "cancelled" | "already-collected";
+      }[] = [];
+      for (const s of unwound) {
+        const note = s.shipment?.pickupNote ?? null;
+        if (!note || s.newStatus === "PAID") continue;
         if (note.status === "USED") {
-          noteOutcome = "already-collected";
-        } else {
-          await tx.pickupNote.update({
-            where: { id: note.id },
-            data: { status: "CANCELLED" },
+          notes.push({
+            invoiceNumber: s.invoiceNumber,
+            noteNumber: note.noteNumber,
+            outcome: "already-collected",
           });
-          noteOutcome = "cancelled";
-          /* And the cargo stops being collectable, back to where it was before
-             the payment that is being taken away. */
-          if (invoice.shipment.status === "READY_FOR_PICKUP") {
-            await tx.shipment.update({
-              where: { id: invoice.shipment.id },
-              data: { status: "RECEIVED_AT_DAR" },
-            });
-          }
+          continue;
+        }
+        if (note.status === "CANCELLED") continue;
+        await tx.pickupNote.update({
+          where: { id: note.id },
+          data: { status: "CANCELLED" },
+        });
+        notes.push({
+          invoiceNumber: s.invoiceNumber,
+          noteNumber: note.noteNumber,
+          outcome: "cancelled",
+        });
+        /* And the cargo stops being collectable, back to where it was before
+           the payment that is being taken away. */
+        if (s.shipment && s.shipment.status === "READY_FOR_PICKUP") {
+          await tx.shipment.update({
+            where: { id: s.shipment.id },
+            data: { status: "RECEIVED_AT_DAR" },
+          });
         }
       }
+      const collected = notes.filter((n) => n.outcome === "already-collected");
+      const noteOutcome: "cancelled" | "already-collected" | "none" =
+        collected.length > 0
+          ? "already-collected"
+          : notes.length > 0
+            ? "cancelled"
+            : "none";
 
       await recordAudit(
         {
@@ -316,29 +424,47 @@ export async function voidPayment(
           entityId: payment.id,
           summary:
             `${
-              invoice
-                ? `${invoice.invoiceNumber} (${invoice.shipment.trackingNumber})`
+              unwound.length > 0
+                ? unwound
+                    .map(
+                      (s) =>
+                        `${s.invoiceNumber}${
+                          s.shipment ? ` (${s.shipment.trackingNumber})` : ""
+                        }`
+                    )
+                    .join(", ")
                 : "Customer deposit"
             }: payment of ` +
             `${payment.currency} ${toNumber(payment.amount).toFixed(2)} cancelled — ${parsed.data.reason}` +
-            (noteOutcome === "already-collected"
-              ? ` — WARNING: pickup note ${note?.noteNumber} was already used, the cargo has been collected and this debt is now live again`
-              : noteOutcome === "cancelled"
-                ? ` — pickup note ${note?.noteNumber} cancelled with it`
+            (collected.length > 0
+              ? ` — WARNING: pickup note${collected.length > 1 ? "s" : ""} ${collected
+                  .map((n) => n.noteNumber)
+                  .join(", ")} already used, that cargo has been collected and the debt is now live again`
+              : notes.length > 0
+                ? ` — pickup note${notes.length > 1 ? "s" : ""} ${notes
+                    .map((n) => n.noteNumber)
+                    .join(", ")} cancelled with it`
                 : ""),
           metadata: {
             receipt: payment.receipt?.receiptNumber ?? null,
             amount: toNumber(payment.amount),
             currency: payment.currency,
             settledAmount: gave,
-            invoicePaidBefore: invoice ? toNumber(invoice.amountPaid) : null,
-            invoicePaidAfter: invoice ? newPaid : null,
-            invoiceStatusBefore: invoice?.status ?? null,
-            invoiceStatusAfter: invoice ? (newStatus ?? invoice.status) : null,
+            /* One row per bill, because a merged payment moved more than one
+               and an audit line that named only the first was how this was
+               missed for as long as it was. */
+            bills: unwound.map((s) => ({
+              invoice: s.invoiceNumber,
+              gaveBack: s.amount,
+              paidBefore: toNumber(s.amountPaid),
+              paidAfter: s.newPaid,
+              statusBefore: s.status,
+              statusAfter: s.newStatus ?? s.status,
+            })),
             ledgerReversed: reversedEntry,
-            pickupNote: note?.noteNumber ?? null,
+            pickupNotes: notes,
             pickupNoteOutcome: noteOutcome,
-            cargoAlreadyCollected: noteOutcome === "already-collected",
+            cargoAlreadyCollected: collected.length > 0,
             reason: parsed.data.reason,
           },
         },
@@ -346,13 +472,15 @@ export async function voidPayment(
       );
 
       return {
-        invoiceId: invoice?.id ?? null,
-        invoiceNumber: invoice?.invoiceNumber ?? null,
+        invoiceIds: unwound.map((s) => s.invoiceId),
+        invoiceNumber: unwound[0]?.invoiceNumber ?? null,
         noteOutcome,
       };
     });
 
-    revalidatePath(`/app/finance/invoices/${result.invoiceId}`);
+    for (const id of result.invoiceIds) {
+      revalidatePath(`/app/finance/invoices/${id}`);
+    }
     revalidatePath("/app/finance/transactions");
     revalidatePath("/app/finance/ledger");
     revalidatePath("/app/collections/follow-up");
@@ -405,16 +533,10 @@ export async function restorePayment(
           paidAt: true,
           receipt: { select: { receiptNumber: true } },
           account: { select: { id: true, name: true, currency: true } },
-          invoice: {
-            select: {
-              id: true,
-              invoiceNumber: true,
-              status: true,
-              total: true,
-              amountPaid: true,
-              exchangeRate: true,
-              shipment: { select: { trackingNumber: true } },
-            },
+          invoice: { select: { ...SETTLED_INVOICE, exchangeRate: true } },
+          /* The split the void left behind, put back exactly as it was. */
+          allocations: {
+            select: { amount: true, invoice: { select: SETTLED_INVOICE } },
           },
         },
       });
@@ -424,14 +546,16 @@ export async function restorePayment(
       }
 
       /* A reinstated deposit puts money back in the account and settles
-         nothing, exactly as it did before it was cancelled. */
+         nothing, exactly as it did before it was cancelled. A reinstated
+         merged payment puts back the same split it took away — read off the
+         allocations the void deliberately left in place. */
       const invoice = payment.invoice;
-      const gave = settledAmount(payment);
-      const total = invoice ? toNumber(invoice.total) : 0;
-      const newPaid = invoice ? toNumber(invoice.amountPaid) + gave : 0;
-      const newStatus = invoice
-        ? statusFor(invoice.status, newPaid, total)
-        : null;
+      const settlements = settlementsOf(payment);
+      const gave = settlements.reduce((sum, s) => sum + s.amount, 0);
+      const redone = settlements.map((s) => {
+        const paid = toNumber(s.amountPaid) + s.amount;
+        return { ...s, newPaid: paid, newStatus: invoiceStatusFor(s.status, paid, s.total) };
+      });
 
       const claimed = await tx.payment.updateMany({
         where: { id: payment.id, voidedAt: { not: null } },
@@ -441,21 +565,21 @@ export async function restorePayment(
         throw new Error("That payment was reinstated by somebody else a moment ago.");
       }
 
-      /* Same discipline as void and recordPayment: the balance write only
-         lands if the balance is still what this transaction read. */
-      const invoiceClaim = invoice
-        ? await tx.invoice.updateMany({
-            where: { id: invoice.id, amountPaid: invoice.amountPaid },
-            data: {
-              amountPaid: new Prisma.Decimal(newPaid),
-              ...(newStatus ? { status: newStatus } : {}),
-            },
-          })
-        : { count: 1 };
-      if (invoiceClaim.count === 0) {
-        throw new Error(
-          t(locale, "This bill's balance moved a moment ago. Reload and check it before reinstating.")
-        );
+      /* Same discipline as void and recordPayment, once per bill: the balance
+         write only lands if the balance is still what this transaction read. */
+      for (const s of redone) {
+        const claim = await tx.invoice.updateMany({
+          where: { id: s.invoiceId, amountPaid: s.amountPaid },
+          data: {
+            amountPaid: new Prisma.Decimal(s.newPaid),
+            ...(s.newStatus ? { status: s.newStatus } : {}),
+          },
+        });
+        if (claim.count === 0) {
+          throw new Error(
+            t(locale, "This bill's balance moved a moment ago. Reload and check it before reinstating.")
+          );
+        }
       }
 
       /* The money goes back in. A fresh line, because the account really does
@@ -503,16 +627,27 @@ export async function restorePayment(
           entity: "Payment",
           entityId: payment.id,
           summary: `${
-            invoice
-              ? `${invoice.invoiceNumber} (${invoice.shipment.trackingNumber})`
+            redone.length > 0
+              ? redone
+                  .map(
+                    (s) =>
+                      `${s.invoiceNumber}${
+                        s.shipment ? ` (${s.shipment.trackingNumber})` : ""
+                      }`
+                  )
+                  .join(", ")
               : "Customer deposit"
           }: cancelled payment of ${payment.currency} ${toNumber(payment.amount).toFixed(2)} reinstated — ${parsed.data.reason}`,
           metadata: {
             receipt: payment.receipt?.receiptNumber ?? null,
             amount: toNumber(payment.amount),
             settledAmount: gave,
-            invoicePaidAfter: invoice ? newPaid : null,
-            invoiceStatusAfter: invoice ? (newStatus ?? invoice.status) : null,
+            bills: redone.map((s) => ({
+              invoice: s.invoiceNumber,
+              gaveBack: s.amount,
+              paidAfter: s.newPaid,
+              statusAfter: s.newStatus ?? s.status,
+            })),
             previousVoidReason: payment.voidReason,
             reason: parsed.data.reason,
           },
@@ -520,11 +655,11 @@ export async function restorePayment(
         tx
       );
 
-      return { invoiceId: invoice?.id ?? null };
+      return { invoiceIds: redone.map((s) => s.invoiceId) };
     });
 
-    if (result.invoiceId) {
-      revalidatePath(`/app/finance/invoices/${result.invoiceId}`);
+    for (const id of result.invoiceIds) {
+      revalidatePath(`/app/finance/invoices/${id}`);
     }
     revalidatePath("/app/finance/transactions");
     revalidatePath("/app/finance/ledger");
@@ -752,20 +887,38 @@ export async function changePaymentAmount(
         invoiceId: true,
         invoice: { select: { invoiceNumber: true, exchangeRate: true } },
         receipt: { select: { receiptNumber: true } },
+        /* How many bills this answered. The anchor invoiceId is set on ANY
+           allocated payment, one bill or four, so it cannot be the test. */
+        _count: { select: { allocations: true } },
       },
     });
     if (!payment) return fail(t(locale, "That payment no longer exists."));
     if (payment.voidedAt) {
       return fail(t(locale, "That payment has already been cancelled."));
     }
-    if (!payment.invoiceId || !payment.invoice) {
+    if (payment._count.allocations > 1) {
       /* A combined payment answers several bills at once, and moving either
          its figure or its account means deciding which bill loses what. That
-         is the allocation screen's question, not this dialog's. */
+         is the allocation screen's question, not this dialog's.
+
+         Counted, not inferred from invoiceId: a merged payment carries an
+         anchor invoiceId like any other, so the old test let a four-bill
+         payment straight through and re-recorded the whole sum against the
+         first bill. */
       return fail(
         t(
           locale,
           "This payment settles more than one bill. Cancel it and record it again against the bills it should cover."
+        )
+      );
+    }
+    if (!payment.invoiceId || !payment.invoice) {
+      /* A deposit answers no bill yet, so there is no bill to re-record it
+         against; it is corrected by cancelling and taking it again. */
+      return fail(
+        t(
+          locale,
+          "This payment is not against a bill. Cancel it and record it again."
         )
       );
     }

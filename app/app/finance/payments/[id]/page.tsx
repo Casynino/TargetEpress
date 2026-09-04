@@ -59,6 +59,9 @@ export default async function PaymentDetailPage({
   const payment = await prisma.payment.findUnique({
     where: { id },
     include: {
+      /* One bill or several. A merged payment's figure cannot be corrected
+         here — see changePaymentAmount. */
+      _count: { select: { allocations: true } },
       receipt: true,
       account: { select: { id: true, name: true, currency: true } },
       receivedBy: { select: { name: true } },
@@ -206,8 +209,11 @@ export default async function PaymentDetailPage({
                 amount: toNumber(payment.amount),
                 currency: payment.currency,
                 /* A combined payment answers several bills; moving its figure
-                   is the allocation screen's question, not this dialog's. */
-                amountEditable: Boolean(payment.invoiceId),
+                   is the allocation screen's question, not this dialog's. The
+                   anchor invoiceId is set on merged payments too, so the test
+                   is how many bills it actually answered. */
+                amountEditable:
+                  payment.invoiceId !== null && payment._count.allocations <= 1,
                 expenseId: null,
                 expenseDescription: null,
                 expenseCategory: null,
