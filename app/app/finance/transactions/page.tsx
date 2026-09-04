@@ -84,6 +84,31 @@ function windowStart(period: string | undefined): Date | null {
  * Recording a cost lives here too. The place you watch money leave is the place
  * you write down money leaving.
  */
+/*
+  EVERY CONSIGNMENT A PAYMENT ANSWERED.
+
+  A merged payment is one transaction settling several bills at once, and the
+  row named only the bill it is anchored to — so TSh 145,125 across two boxes
+  read as though it were for one, which is the opposite of what a combined
+  payment exists to show. The allocations are where the truth is; the anchor is
+  just the first of them. A single payment has one allocation and so reads
+  exactly as it always did.
+*/
+function cargoRefsOf(
+  // Null on every line that is not a payment — an expense, a transfer.
+  payment: {
+    invoice?: { shipment: { trackingNumber: string } } | null;
+    allocations?: { invoice: { shipment: { trackingNumber: string } | null } }[];
+  } | null
+): string[] {
+  const covered = (payment?.allocations ?? [])
+    .map((a) => a.invoice.shipment?.trackingNumber)
+    .filter((v): v is string => Boolean(v));
+  if (covered.length > 0) return covered;
+  const anchor = payment?.invoice?.shipment.trackingNumber;
+  return anchor ? [anchor] : [];
+}
+
 export default async function LedgerPage({
   searchParams,
 }: {
@@ -211,6 +236,25 @@ export default async function LedgerPage({
           recordedBy: { select: { name: true } },
           payment: {
             select: {
+              /*
+                EVERY CONSIGNMENT THIS MONEY ANSWERED.
+
+                A merged payment is one transaction covering several bills, and
+                the row named only the anchor — so TSh 145,125 across two boxes
+                read as though it were for one, which is the opposite of what a
+                combined payment has to be able to show. The allocations are
+                where the truth is; the anchor is just the first of them.
+              */
+              allocations: {
+                select: {
+                  invoice: {
+                    select: {
+                      invoiceNumber: true,
+                      shipment: { select: { trackingNumber: true } },
+                    },
+                  },
+                },
+              },
               /* The register corrects and cancels in place now — see
                  LedgerRowFix — so it needs what those actions address. */
               id: true,
@@ -891,7 +935,7 @@ export default async function LedgerPage({
                 entry.expense?.expenseNumber ??
                 entry.transfer?.transferNumber ??
                 entry.entryNumber,
-              entry.payment?.invoice?.shipment.trackingNumber,
+              ...cargoRefsOf(entry.payment),
             ].filter((v): v is string => Boolean(v));
 
             return (
@@ -1115,7 +1159,7 @@ export default async function LedgerPage({
                     entry.expense?.expenseNumber ??
                     entry.transfer?.transferNumber ??
                     entry.entryNumber,
-                  entry.payment?.invoice?.shipment.trackingNumber,
+                  ...cargoRefsOf(entry.payment),
                   entry.payment?.reference,
                 ].filter((v): v is string => Boolean(v));
 

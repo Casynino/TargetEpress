@@ -15,6 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 
+import { CargoPhotos } from "@/components/site/cargo-photos";
 import { PageHero } from "@/components/site/page-hero";
 import { CargoNote } from "@/components/site/cargo-note";
 import { SectionBackdrop } from "@/components/site/section-backdrop";
@@ -513,25 +514,10 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
           <p className="mt-1 text-xs text-muted-foreground">
             Taken when we received it, before it was packed for the flight.
           </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {result.photos.map((photo) => (
-              <a
-                key={photo.id}
-                href={photo.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block h-24 w-24 overflow-hidden rounded-lg border transition-transform hover:scale-105 motion-reduce:hover:scale-100"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.url}
-                  alt={`Cargo photo for ${result.trackingNumber}`}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-              </a>
-            ))}
-          </div>
+          <CargoPhotos
+            photos={result.photos}
+            trackingNumber={result.trackingNumber}
+          />
         </div>
       ) : null}
 

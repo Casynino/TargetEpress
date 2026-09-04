@@ -2762,8 +2762,10 @@ const ZH: Record<string, string> = {
   "bills, split between them by size.": "张账单，按金额比例分摊。",
   "bills. The dollar totals do not move — only what they come to in shillings.":
     "张账单。美元总额不变，改变的只是折合的先令金额。",
-  "Opening a bill or releasing on credit needs a single one ticked.":
-    "打开账单或赊账放行需要只勾选一张。",
+  "Opening a bill needs a single one ticked.": "打开账单需要只勾选一张。",
+  "bills, on the same terms.": "张账单，条件相同。",
+  "Those bills belong to different customers. Credit is agreed with one customer at a time.":
+    "这些账单属于不同客户。赊账每次只能与一位客户约定。",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
   "No exchange rate was published on the day this money arrived, so it cannot be valued in the register. Publish one for that date and record it again.":

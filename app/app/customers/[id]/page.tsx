@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MessageCircle, Phone } from "lucide-react";
+import { Layers, MessageCircle, Phone } from "lucide-react";
 
 import { CustomerCreditPanel } from "@/components/app/customer-credit";
 import {
@@ -165,6 +165,15 @@ export default async function CustomerProfilePage({
    * arrive from the same button on the same row.
    */
   const mayRecord = can(user.role, "payment.record");
+
+  /* Bills this customer could settle in one go: raised, not yet fully paid.
+     A draft is not a bill anyone can pay against. */
+  const unpaidCount = customer.shipments.filter(
+    (s) =>
+      s.invoice &&
+      s.invoice.status !== "DRAFT" &&
+      toNumber(s.invoice.total) - toNumber(s.invoice.amountPaid) > 0
+  ).length;
   const mayCollect = can(user.role, "payment.submit");
   const canMessage = can(user.role, "message.send");
 
@@ -336,8 +345,30 @@ export default async function CustomerProfilePage({
         <div className="space-y-6">
           {/* Shipments */}
           <section className="rounded-xl border bg-card shadow-soft">
-            <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b p-4">
+            <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b p-4">
               <h2 className="font-semibold">{t(locale, "Cargo")}</h2>
+              {/*
+                Paying for several boxes at once, from the page where you can
+                see that there are several.
+
+                A customer standing at the desk with four consignments was
+                being taken through four separate payments, because the only
+                action here was per-bill. Offered only when there is in fact
+                more than one bill outstanding — on a customer with one, it is
+                a second button that does what the first one does.
+              */}
+              {unpaidCount > 1 && mayRecord ? (
+                <Link
+                  href={`/app/finance/payments/new?customer=${customer.id}`}
+                  className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-brand px-3 text-xs font-semibold text-brand-foreground"
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                  {t(locale, "Merge Payment")}
+                  <span className="font-normal opacity-80">
+                    ({unpaidCount})
+                  </span>
+                </Link>
+              ) : null}
               {/* The list is the most recent sixty; the figures above it are
                   counted across everything. Saying so is the difference
                   between a capped list and a customer whose older cargo looks

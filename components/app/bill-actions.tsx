@@ -72,8 +72,13 @@ export function BillActions({
   useEffect(() => {
     let live = true;
     setCredit(null);
-    if (!bill) return;
-    creditContextFor(bill.invoiceId)
+    /* The terms belong to the CUSTOMER, so any one of the ticked bills answers
+       what they are — and the release itself covers all of them. */
+    const set = bills?.length ? bills.map((b) => b.invoiceId) : bill ? [bill.invoiceId] : [];
+    if (set.length === 0) return;
+    /* The whole ticked set, so the amount in the dialog is the amount being
+       agreed to rather than the first bill's share of it. */
+    creditContextFor(set.join(","))
       .then((c) => {
         if (live) setCredit(c);
       })
@@ -84,7 +89,7 @@ export function BillActions({
     return () => {
       live = false;
     };
-  }, [bill?.invoiceId]);
+  }, [bills?.map((b) => b.invoiceId).join(",") ?? bill?.invoiceId]);
 
   if (selectedCount === 0) return null;
 
@@ -131,9 +136,12 @@ export function BillActions({
       ) : null}
       {/* Mapped exactly as the credit panel maps it, so one bill reads the
           same however it is reached. */}
+      {/* Every ticked bill, on one set of terms — the action releases them in
+          a single transaction, so either all of them go on credit or none. */}
       {credit ? (
         <CreditRequest
-          invoiceId={credit.invoiceId}
+          invoiceId={ids}
+          across={many.length}
           outstanding={money(credit.outstanding, credit.currency)}
           defaultTerm={credit.termDays}
           limitLabel={
@@ -168,7 +176,7 @@ export function BillActions({
       </div>
       {!bill && many.length > 1 ? (
         <p className="w-full text-[11px] text-muted-foreground">
-          {t("Opening a bill or releasing on credit needs a single one ticked.")}
+          {t("Opening a bill needs a single one ticked.")}
         </p>
       ) : null}
     </div>

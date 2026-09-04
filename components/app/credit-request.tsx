@@ -35,12 +35,15 @@ export function CreditRequest({
   outstandingLabel,
   startOpen,
   canApprove,
+  across = 1,
 }: {
   invoiceId: string;
   outstanding: string;
   defaultTerm: number;
   limitLabel: string | null;
   outstandingLabel: string | null;
+  /** How many bills this releases. One arrangement, not one per box. */
+  across?: number;
   /**
    * Skip the button and show the form.
    *
@@ -104,6 +107,13 @@ export function CreditRequest({
         {canApprove ? t("Release on credit") : t("Ask Finance for credit")} ·{" "}
         {outstanding}
       </p>
+      {/* Said before it is agreed. Three boxes on terms is one arrangement,
+          and the desk should see that is what they are about to make. */}
+      {across > 1 ? (
+        <p className="text-[11px] text-muted-foreground">
+          {t("All")} {across} {t("bills, on the same terms.")}
+        </p>
+      ) : null}
 
       {/* Where they already stand. A request made without this is a request
           Finance has to research before it can answer. */}

@@ -89,8 +89,26 @@ export async function requestCredit(
     const parsed = requestSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: parsed.data.invoiceId },
+    /*
+      ONE CONSIGNMENT, OR EVERY ONE THIS PAYMENT COVERS.
+
+      A customer collecting three boxes on terms is one arrangement, not three
+      — the desk agrees it once and the terms are the same for all of them. So
+      the id may be a list, and every bill on it is released together inside a
+      single transaction: if any one of them cannot be, none of them is.
+
+      Everything below is unchanged per bill. The eligibility test, the
+      conditional claim on creditStatus and the audit line are exactly what a
+      single release always did, run once for each.
+    */
+    const ids = parsed.data.invoiceId
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+
+    const invoices = await prisma.invoice.findMany({
+      where: { id: { in: ids } },
+      orderBy: { invoiceNumber: "asc" },
       select: {
         id: true,
         invoiceNumber: true,
@@ -102,25 +120,41 @@ export async function requestCredit(
         shipment: { select: { trackingNumber: true } },
       },
     });
-    if (!invoice) return fail(t(locale, "That invoice no longer exists."));
+    if (invoices.length !== ids.length) {
+      return fail(t(locale, "That invoice no longer exists."));
+    }
 
-    if (!canRequestCredit(invoice)) {
+    /* Terms belong to a customer, so a single release cannot span two of them.
+       The screen that sends several only ever lists one customer's bills; this
+       is the action refusing to be told otherwise. */
+    if (new Set(invoices.map((i) => i.customerId)).size > 1) {
       return fail(
-        invoice.creditStatus === "REQUESTED"
-          ? t(locale, "Credit has already been requested on this bill and is with Finance.")
-          : invoice.creditStatus === "APPROVED"
-            ? t(locale, "This consignment is already approved for credit.")
-            : invoice.status === "DRAFT"
-              ? t(locale, "Confirm the price first — credit cannot be granted against a figure nobody has signed off.")
-              : t(locale, "There is nothing outstanding on this bill to defer.")
+        t(locale, "Those bills belong to different customers. Credit is agreed with one customer at a time.")
       );
     }
 
-    const owing = toNumber(invoice.total) - toNumber(invoice.amountPaid);
+    for (const invoice of invoices) {
+      if (!canRequestCredit(invoice)) {
+        const which = invoices.length > 1 ? `${invoice.invoiceNumber}: ` : "";
+        return fail(
+          which +
+            (invoice.creditStatus === "REQUESTED"
+              ? t(locale, "Credit has already been requested on this bill and is with Finance.")
+              : invoice.creditStatus === "APPROVED"
+                ? t(locale, "This consignment is already approved for credit.")
+                : invoice.status === "DRAFT"
+                  ? t(locale, "Confirm the price first — credit cannot be granted against a figure nobody has signed off.")
+                  : t(locale, "There is nothing outstanding on this bill to defer."))
+        );
+      }
+    }
+
     const now = new Date();
     const dueDate = grantsDirectly ? dueDateFrom(now, parsed.data.termDays) : null;
 
     await prisma.$transaction(async (tx) => {
+      for (const invoice of invoices) {
+      const owing = toNumber(invoice.total) - toNumber(invoice.amountPaid);
       /* Claimed on the creditStatus the eligibility check above actually read:
          two clerks pressing the button together, or a request landing on a
          credit Finance just decided, resolve to one winner and one clear
@@ -179,11 +213,15 @@ export async function requestCredit(
         },
         tx
       );
+      }
     });
 
-    revalidatePath(`/app/finance/invoices/${invoice.id}`);
+    for (const invoice of invoices) {
+      revalidatePath(`/app/finance/invoices/${invoice.id}`);
+    }
     revalidatePath("/app/finance/credit");
     revalidatePath("/app/credit");
+    revalidatePath("/app/collections/follow-up");
     return ok();
   } catch (error) {
     return fail(t(locale, toActionError(error)));
@@ -856,6 +894,7 @@ export async function creditCandidates(
  * thirty-four rows, almost none of which will be pressed.
  */
 export async function creditContextFor(
+  /* One id, or the comma-separated set the merge screen has ticked. */
   invoiceId: string
 ): Promise<CreditCandidate | null> {
   try {
@@ -865,8 +904,14 @@ export async function creditContextFor(
   }
 
   const locale = await viewerLocale();
+  const ids = invoiceId
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+  if (ids.length === 0) return null;
+
   const inv = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
+    where: { id: ids[0] },
     select: {
       id: true,
       invoiceNumber: true,
@@ -909,10 +954,51 @@ export async function creditContextFor(
     _sum: { total: true, amountPaid: true },
   });
 
-  const outstanding = Math.max(
-    0,
-    toNumber(inv.total) - toNumber(inv.amountPaid)
-  );
+  /*
+    WHAT THE RELEASE ACTUALLY COVERS.
+
+    Releasing three ticked bills is one arrangement over all three, and the
+    dialog was headed with the first one's figure — so the desk read USD 25
+    while agreeing to USD 40. Terms belong to the customer and are taken from
+    the bill above; only the amount has to be counted across the set. Derived
+    here rather than added up in the browser, because outstanding is a
+    subtraction this codebase does in one place.
+  */
+  let outstanding = 0;
+  if (ids.length === 1) {
+    outstanding = Math.max(0, toNumber(inv.total) - toNumber(inv.amountPaid));
+  } else {
+    const rest = await prisma.invoice.findMany({
+      where: { id: { in: ids } },
+      select: {
+        total: true,
+        amountPaid: true,
+        currency: true,
+        customerId: true,
+        status: true,
+        creditStatus: true,
+      },
+    });
+    /* Every one of them has to be releasable, of one customer and in one
+       currency — otherwise the sum in the heading is not a number anybody
+       could agree to. The button disappears and the desk ticks again. */
+    if (
+      rest.length !== ids.length ||
+      rest.some(
+        (r) =>
+          r.customerId !== inv.customer.id ||
+          r.currency !== inv.currency ||
+          r.creditStatus !== "NONE" ||
+          (r.status !== "UNPAID" && r.status !== "PARTIALLY_PAID")
+      )
+    ) {
+      return null;
+    }
+    outstanding = rest.reduce(
+      (sum, r) => sum + Math.max(0, toNumber(r.total) - toNumber(r.amountPaid)),
+      0
+    );
+  }
   if (outstanding <= 0.005) return null;
 
   return {
