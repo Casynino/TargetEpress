@@ -39,6 +39,7 @@ import {
   followUpQueue,
   supportOverview,
   ticketFlowByDay,
+  PAYMENT_TO_VERIFY,
 } from "@/lib/support";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
@@ -741,7 +742,7 @@ export default async function SupportHome() {
                                verified — the same colour it wears on every
                                other screen, so this desk does not ring a
                                customer who has already paid. */
-                            row.nextAction === "Waiting on Finance to verify"
+                            row.nextAction === PAYMENT_TO_VERIFY
                               ? "text-sm font-medium text-warning"
                               : row.credit !== null && row.credit.daysOverdue === 0
                                 ? "text-sm font-medium text-muted-foreground"

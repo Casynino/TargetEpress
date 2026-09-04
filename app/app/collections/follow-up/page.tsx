@@ -40,6 +40,7 @@ import {
   matchesFilter,
   type FollowUpFilter,
   type FollowUpRow,
+  PAYMENT_TO_VERIFY,
 } from "@/lib/support";
 import { cn } from "@/lib/utils";
 import { viewerLocale } from "@/lib/viewer";
@@ -437,7 +438,13 @@ export default async function FollowUpPage({
                 className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-r px-3 py-1.5 text-xs font-medium transition-colors last:border-r-0 ${
                   isActive
                     ? "bg-brand text-brand-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    : /* Yellow while it has rows in it, like the status it
+                         selects. A pill the same grey as its ten neighbours is
+                         a pill nobody notices, and this is the one that stops
+                         a customer being rung for money they have sent. */
+                      option.key === "with-finance" && count > 0
+                      ? "text-warning hover:bg-warning/10"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 }`}
               >
                 {t(locale, option.label)}
@@ -687,7 +694,7 @@ export default async function FollowUpPage({
                          here in the same ink as "Awaiting payment", so the one
                          row nobody should ring looked like the 130 rows they
                          should. */
-                      row.nextAction === "Waiting on Finance to verify"
+                      row.nextAction === PAYMENT_TO_VERIFY
                         ? "text-warning"
                         : row.credit === null
                           ? ""

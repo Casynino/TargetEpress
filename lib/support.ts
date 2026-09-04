@@ -68,9 +68,36 @@ export type FollowUpFilter =
  * app's oldest bug — a second definition of a deadline, disagreeing with the one
  * Finance granted.
  */
+/**
+ * WHAT THE ROW SAYS WHEN A PAYMENT IS SITTING WITH FINANCE.
+ *
+ * It read "Waiting on Finance to verify", which is written from Support's
+ * chair. On Finance's own call list — where most of these rows are read — it
+ * tells the person looking at it to wait for themselves. The same three words
+ * the yellow chip carries everywhere else work from either chair: Finance
+ * reads a job, Support reads a state.
+ *
+ * A constant because four places compare it — the row that sets it, the filter
+ * that selects it, and the two lists that colour it yellow — and a string
+ * typed out four times is a string that drifts in three.
+ */
+export const PAYMENT_TO_VERIFY = "Payment to verify";
+
 export const FOLLOW_UP_FILTERS: { key: FollowUpFilter; label: string; hint: string }[] = [
   { key: "all", label: "Everything", hint: "Every unpaid bill and every live credit" },
   { key: "awaiting-payment", label: "Cash outstanding", hint: "Billed on cash terms, still unpaid" },
+  /*
+    THIRD, BECAUSE IT IS THE ONE THAT STOPS A WRONG CALL.
+
+    It sat eleventh, past the end of a strip that scrolls sideways, so nobody
+    ever saw it — while the rows it selects were the only rows on the page the
+    desk must NOT ring. It is a state of the money like the two above it, not a
+    note about who has been contacted, and it belongs with them.
+
+    Named for what it is rather than for where it has got to internally: the
+    same three words the yellow chip carries on every other screen.
+  */
+  { key: "with-finance", label: "Payment to verify", hint: "The customer has paid and it is waiting for Finance to check it" },
   { key: "credit", label: "Credit outstanding", hint: "Released on terms and still owed" },
   { key: "overdue", label: "Overdue", hint: "Past the date the company granted" },
   { key: "due-today", label: "Due today", hint: "Last day inside terms" },
@@ -88,7 +115,6 @@ export const FOLLOW_UP_FILTERS: { key: FollowUpFilter; label: string; hint: stri
   */
   { key: "never-called", label: "Never called", hint: "Nobody has contacted this customer yet" },
   { key: "gone-quiet", label: "Not called in a week", hint: "Last contacted more than seven days ago" },
-  { key: "with-finance", label: "Paid, with Finance", hint: "The customer has paid and it is waiting to be checked" },
   { key: "long-wait", label: "Waiting over a week", hint: "Standing in Dar more than seven days" },
 ];
 
@@ -414,7 +440,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
         Support to do here: the ball is with Finance, and saying so is the whole
         point of the row.
       */
-      nextAction = "Waiting on Finance to verify";
+      nextAction = PAYMENT_TO_VERIFY;
       urgency = 20;
     } else {
       // Counted from when the bill became real, not from when somebody pressed
@@ -674,7 +700,7 @@ export function matchesFilter(row: FollowUpRow, filter: FollowUpFilter) {
     case "with-finance":
       /* Already paid as far as the customer is concerned. Ringing them is the
          wrong call — this pill exists so the desk can see them and skip them. */
-      return row.nextAction === "Waiting on Finance to verify";
+      return row.nextAction === PAYMENT_TO_VERIFY;
     case "long-wait":
       return row.daysInWarehouse > 7;
     case "all":
