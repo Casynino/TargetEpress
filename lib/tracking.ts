@@ -584,9 +584,13 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
         /*
           The one warning that changes what somebody does today, in the two
           languages this business is read in — Swahili first, because that is
-          who is reading. It replaced a two-column policy panel: the rule in
-          full was more than anybody wanted here, and the part that matters is
-          simply that waiting costs money.
+          who is reading, and in the owner's own words rather than a
+          translation of the English. "Storage" and not "uhifadhi" is
+          deliberate: it is the word the desk and the customer both use.
+
+          It replaced a two-column policy panel. The rule in full was more than
+          anybody wanted here, and the part that matters is simply that waiting
+          costs money.
 
           The free days and the daily fee come from STORAGE_POLICY, so the page
           cannot promise what the system will not charge.
@@ -594,7 +598,7 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
         mayChange:
           outstanding <= 0
             ? null
-            : `Kiasi hiki kinaweza kuongezeka. Siku ${STORAGE_POLICY.freeDays} za kwanza ni bure; baada ya hapo ni USD ${STORAGE_POLICY.perDayUsd} kwa siku hadi utakapochukua mzigo. Chukua mapema ili kuepuka gharama za ziada.\n\nThis amount can still change. The first ${STORAGE_POLICY.freeDays} days are free; after that storage is USD ${STORAGE_POLICY.perDayUsd} a day until you collect. Collect sooner to keep it lower.`,
+            : `Storage ni bure kwa siku ${STORAGE_POLICY.freeDays} tu kuanzia siku ya kupokea mzigo. Baada ya hapo, ni USD ${STORAGE_POLICY.perDayUsd} kwa siku hadi utakapoichukua. Chukua mapema kuepuka gharama za ziada.\n\nStorage is free for ${STORAGE_POLICY.freeDays} days only from the date your cargo is received. After that, a USD ${STORAGE_POLICY.perDayUsd}/day storage fee applies until pickup. Pick up early to avoid extra charges.`,
       };
     }
 
