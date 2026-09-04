@@ -3344,6 +3344,7 @@ const ZH: Record<string, string> = {
   "Merge Payment": "合并付款",
   "Add cargo": "添加货物",
   "Payment submitted": "已提交付款",
+  "Payment to verify": "待核实付款",
   "Waiting for Finance to verify": "等待财务核实",
   "waiting for Finance to verify": "等待财务核实",
   "Adding cargo to a flight is done by the desk that receives cargo at Dar.":

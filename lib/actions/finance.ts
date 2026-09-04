@@ -36,7 +36,7 @@ import {
   isDarConfirmed,
   notPayableMessage,
 } from "@/lib/payable";
-import { pendingClaimWhere } from "@/lib/claimed";
+import { claimsForInvoices, pendingClaimWhere } from "@/lib/claimed";
 import { filesFrom, putDocument } from "@/lib/storage";
 import { can } from "@/lib/rbac";
 import { authorize, type SessionUser } from "@/lib/session";
@@ -2495,6 +2495,16 @@ export type BillableHit = {
   batchId: string | null;
   batchNumber: string | null;
   flightNumber: string | null;
+  /**
+   * A payment already sent up for this bill and waiting on Finance.
+   *
+   * This picker is one click from taking money, so it is the last place a
+   * duplicate can be started and the best place to stop one. recordPayment
+   * refuses it anyway — but only after the form has been filled in, and by
+   * then the customer at the counter has often already been asked to pay
+   * again.
+   */
+  claimed?: boolean;
 };
 
 /** One flight with money still owed on it. */
@@ -2585,7 +2595,11 @@ export async function searchBillable(query: string): Promise<BillableHit[]> {
     },
   });
 
-  return invoices.map((inv) => toBillable(inv, locale));
+  const claims = await claimsForInvoices(invoices.map((i) => i.id));
+  return invoices.map((inv) => ({
+    ...toBillable(inv, locale),
+    claimed: claims.has(inv.id),
+  }));
 }
 
 /** One shape for a searched bill and a queued one, so one row renders both. */

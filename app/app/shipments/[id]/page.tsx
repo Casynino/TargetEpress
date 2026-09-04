@@ -36,6 +36,7 @@ import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { creditLine, dueLabel } from "@/lib/credit";
 import { can } from "@/lib/rbac";
+import { claimsForInvoices } from "@/lib/claimed";
 import { requirePermission } from "@/lib/session";
 import { cargoText, viewerLocale } from "@/lib/viewer";
 
@@ -133,6 +134,17 @@ export default async function ShipmentPage({
   /* One instant for every row. A list where each row read its own clock produced
      rows that disagreed about whether today was the due date. */
   const now = new Date();
+
+  /* Which of this flight's bills already has money waiting on Finance. One
+     query for the manifest, and only where the reader may see money. */
+  const claims = showMoney
+    ? await claimsForInvoices(
+        dispatch.shipments
+          .map((i) => i.invoice?.id)
+          .filter((v): v is string => Boolean(v))
+      )
+    : new Map<string, never>();
+
   const cargo: CargoLine[] = dispatch.shipments.map((item) => ({
     id: item.id,
     trackingNumber: item.trackingNumber,
@@ -167,6 +179,9 @@ export default async function ShipmentPage({
             /* Settled in full — the fact every desk was opening a consignment
                to find out. */
             paid: item.invoice.status === "PAID",
+            /* A payment already sent up for this bill and waiting on Finance
+               — see lib/claimed.ts. The row turns yellow for it. */
+            claimed: claims.has(item.invoice.id),
             /*
               Released on credit, and late or not.
 

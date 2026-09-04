@@ -63,6 +63,14 @@ export type CargoLine = {
      */
     paid?: boolean;
     /**
+     * A payment already sent up for this bill and waiting on Finance.
+     *
+     * The whole row turns yellow for it, like every other screen: somebody
+     * reading a flight's manifest to see who still owes should not be able to
+     * mistake a consignment that has been paid for one that has not.
+     */
+    claimed?: boolean;
+    /**
      * Released before payment, and whether the date has passed.
      *
      * A credit row must not read like an ordinary unpaid one. Unpaid means we
@@ -507,12 +515,18 @@ export function ShipmentDetailTabs({
                       /* Paid, at a glance: a green rail and a faint wash, so a
                          settled consignment is pickable out of fifty rows
                          without reading a figure. */
-                      line.price?.credit?.overdue
-                        ? "bg-destructive/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--destructive))]"
-                        : line.price?.credit
-                          ? "bg-warning/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--warning))]"
-                          : line.price?.paid &&
-                            "bg-success/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--success))]"
+                      /* A claim outranks the rest: it is the one state that
+                         changes what the reader should DO — do not chase, do
+                         not take it again — and it is the colour it wears
+                         everywhere else in the app. */
+                      line.price?.claimed
+                        ? "bg-warning/[0.10] shadow-[inset_3px_0_0_0_hsl(var(--warning))]"
+                        : line.price?.credit?.overdue
+                          ? "bg-destructive/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--destructive))]"
+                          : line.price?.credit
+                            ? "bg-warning/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--warning))]"
+                            : line.price?.paid &&
+                              "bg-success/[0.06] shadow-[inset_3px_0_0_0_hsl(var(--success))]"
                     )}
                   >
                     <td className="whitespace-nowrap px-3 py-1.5 text-xs text-muted-foreground">
@@ -596,6 +610,14 @@ export function ShipmentDetailTabs({
                             {line.price.paid ? (
                               <span className="rounded bg-success/15 px-1.5 py-0.5 text-xs font-semibold text-success">
                                 {t("Paid")}
+                              </span>
+                            ) : null}
+                            {/* Said as well as coloured: the rail alone cannot
+                                tell a claim from a credit still inside terms,
+                                which wears the same yellow. */}
+                            {line.price.claimed ? (
+                              <span className="rounded bg-warning/15 px-1.5 py-0.5 text-xs font-semibold text-warning">
+                                {t("Payment to verify")}
                               </span>
                             ) : null}
                             {line.price.credit ? (

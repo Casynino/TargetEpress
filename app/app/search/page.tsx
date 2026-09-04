@@ -175,31 +175,15 @@ export default async function SearchCargoPage({
             const claim = claims.get(shipment.invoice!.id)!;
             return {
               claimed: {
+                /* The status and nothing else. What was sent, into which
+                   account, against what reference and by whom all live on the
+                   cargo page, where somebody has arrived to do something
+                   about it. On a row being scanned, the only thing that
+                   matters is "do not chase this and do not take it again". */
                 label:
                   claim.covers.length > 1
-                    ? `${t(locale, "Payment submitted")} · ${claim.covers.length}`
-                    : t(locale, "Payment submitted"),
-                /* Everything the owner asked to see: what was sent, into
-                   what, against what reference, by whom, when, and which
-                   consignments it answers. */
-                detail: [
-                  `${claim.currency} ${claim.amount.toLocaleString()}`,
-                  claim.accountName ?? t(locale, "no account named"),
-                  claim.reference,
-                  claim.submissionNumber,
-                  claim.submittedByName
-                    ? `${t(locale, "by")} ${claim.submittedByName}`
-                    : null,
-                  formatDate(claim.submittedAt, locale),
-                  claim.covers.length > 1
-                    ? claim.covers
-                        .map((c) => c.trackingNumber)
-                        .filter(Boolean)
-                        .join(", ")
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · "),
+                    ? `${t(locale, "Payment to verify")} · ${claim.covers.length}`
+                    : t(locale, "Payment to verify"),
               },
             };
           })()

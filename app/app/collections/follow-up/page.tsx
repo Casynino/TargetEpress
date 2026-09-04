@@ -682,11 +682,18 @@ export default async function FollowUpPage({
                   <span
                     className={cn(
                       "font-medium",
-                      row.credit === null
-                        ? ""
-                        : row.credit.daysOverdue > 0
-                          ? "text-destructive"
-                          : "text-muted-foreground"
+                      /* Yellow wherever a payment is waiting to be verified —
+                         the same colour it wears on every other screen. It sat
+                         here in the same ink as "Awaiting payment", so the one
+                         row nobody should ring looked like the 130 rows they
+                         should. */
+                      row.nextAction === "Waiting on Finance to verify"
+                        ? "text-warning"
+                        : row.credit === null
+                          ? ""
+                          : row.credit.daysOverdue > 0
+                            ? "text-destructive"
+                            : "text-muted-foreground"
                     )}
                   >
                     {t(locale, row.nextAction)}

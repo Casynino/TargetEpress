@@ -437,11 +437,28 @@ export function RecordIncome({
                               </span>
                             ) : null}
                           </span>
-                          {/* Said out loud rather than left to be guessed from
-                              the fact that a row happens to be clickable. */}
-                          <span className="hidden shrink-0 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground transition-colors group-hover:border-success/40 group-hover:text-success sm:inline">
-                            {canRecord ? t("Record payment") : t("Record it")}
-                          </span>
+                          {/*
+                            ONE CLICK FROM TAKING THE MONEY AGAIN.
+
+                            This picker is the last place a duplicate can be
+                            started. recordPayment refuses it, but only once
+                            the form has been filled in — and by then the
+                            customer at the counter has usually been asked to
+                            pay a second time. Yellow, like everywhere else a
+                            payment is waiting to be verified.
+                          */}
+                          {hit.claimed ? (
+                            <span className="shrink-0 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[11px] font-semibold text-warning">
+                              {t("Payment to verify")}
+                            </span>
+                          ) : (
+                            /* Said out loud rather than left to be guessed
+                               from the fact that a row happens to be
+                               clickable. */
+                            <span className="hidden shrink-0 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground transition-colors group-hover:border-success/40 group-hover:text-success sm:inline">
+                              {canRecord ? t("Record payment") : t("Record it")}
+                            </span>
+                          )}
                         </>
                       )}
                     </button>

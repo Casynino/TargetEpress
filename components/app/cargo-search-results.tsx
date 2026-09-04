@@ -53,7 +53,7 @@ export type CargoSearchRow = {
    * this stays exactly what it was — but a desk that cannot see the claim
    * rings a customer who paid on Tuesday, or takes the money a second time.
    */
-  claimed?: { label: string; detail: string };
+  claimed?: { label: string };
 };
 
 export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
@@ -204,15 +204,9 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
                   >
                     {row.owed.label}
                   </span>
-                  {/* Under the figure, not instead of it — a claim is not a
-                      payment and the bill still owes this. Visible text, not a
-                      title= tooltip: half these desks are on a touch screen,
-                      where hover does not exist. */}
-                  {row.claimed ? (
-                    <span className="block max-w-[16rem] text-right text-[10px] font-normal leading-tight text-warning/80">
-                      {row.claimed.detail}
-                    </span>
-                  ) : null}
+                  {/* The status lives in the Status column, which is never
+                      hidden. Nothing here: the figure owed is what this column
+                      is for, and the claim does not change it. */}
                 </span>
               ),
           },
