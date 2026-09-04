@@ -45,6 +45,7 @@ import {
 import { activeAccounts } from "@/lib/accounts";
 import { t } from "@/lib/i18n";
 import { composeMessage, whatsappLink } from "@/lib/messages";
+import { freightBasisOf } from "@/lib/support";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrDataUrl } from "@/lib/qr";
 import { can, canAmendCargo } from "@/lib/rbac";
@@ -916,6 +917,12 @@ export default async function ShipmentDetailPage({
                       // page put 手机配件 in front of somebody in Dar.
                       description: cargoText("en", shipment, "description"),
                       invoiceNumber: shipment.invoice.invoiceNumber,
+                      /* The rate the cargo was charged at, composed where the
+                         follow-up queue composes it. Without this the message
+                         sent from here was missing the one line that makes the
+                         total checkable, while the same message sent from the
+                         queue had it. */
+                      freightBasis: freightBasisOf(shipment),
                       amountUsd: toNumber(shipment.invoice.total),
                       amountLocal:
                         shipment.invoice.totalLocal === null

@@ -156,7 +156,15 @@ export function ShipmentActions(props: Props) {
     status !== "DELIVERED" &&
     status !== "CANCELLED";
 
-  const anything = canInvoice || canPay || canCollect || canIssueNote || canCancel;
+  const anything =
+    canInvoice ||
+    canPay ||
+    canCollect ||
+    canIssueNote ||
+    canCancel ||
+    /* On its own this is reason enough to show the panel: a desk with no
+       permission to touch the money can still be the one who rings. */
+    Boolean(props.customerWhatsapp);
   if (!anything) return null;
 
   return (
@@ -209,6 +217,38 @@ export function ShipmentActions(props: Props) {
             >
               {t("Record their payment")}
             </Link>
+          </div>
+        ) : null}
+        {/*
+          THE MESSAGE, WITHOUT OPENING THE INVOICE.
+
+          This was a button called "Share" sitting third in the invoice card's
+          row, which said nothing about what it does and put the commonest job
+          on this page — telling the customer their cargo is here and what it
+          costs — behind the one thing a desk does not need to open to do it.
+          It is the same message the follow-up queue sends, from the same
+          template, so a customer chased from two screens reads one thing.
+        */}
+        {props.customerWhatsapp ? (
+          <div className="border-l-2 border-success bg-success/5 p-5">
+            <p className="flex items-center gap-2 font-medium">
+              <MessageCircle className="h-5 w-5 text-success" />
+              {t("Tell the customer")}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "Opens WhatsApp with the whole message written: the cargo, the weight, the rate, the total and a link to their invoice. Read it before you send it."
+              )}
+            </p>
+            <a
+              href={props.customerWhatsapp}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="focus-ring mt-3 inline-flex items-center gap-2 rounded-lg bg-success px-4 py-2 text-sm font-semibold text-success-foreground transition-colors hover:bg-success/90"
+            >
+              <MessageCircle className="h-4 w-4" />
+              {t("Message on WhatsApp")}
+            </a>
           </div>
         ) : null}
         {canInvoice && props.invoiceStatus === "DRAFT" ? (
@@ -324,18 +364,8 @@ function InvoicePanel(props: Props) {
                   {t("Download")}
                 </a>
               </Button>
-              {props.customerWhatsapp ? (
-                <Button asChild size="sm" variant="outline">
-                  <a
-                    href={props.customerWhatsapp}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <MessageCircle className="mr-2 h-4 w-4" />
-                    {t("Share")}
-                  </a>
-                </Button>
-              ) : null}
+              {/* The message has its own panel above — one door, so nobody
+                  wonders whether the two send the same thing. */}
             </>
           ) : null}
           <Button asChild size="sm" variant="outline">
