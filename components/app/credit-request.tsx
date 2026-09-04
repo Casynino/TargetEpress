@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { createPortal } from "react-dom";
 import { CalendarClock, Clock } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
@@ -80,8 +81,23 @@ export function CreditRequest({
     );
   }
 
-  return (
-    <form action={action} className="space-y-2 rounded-lg border bg-card p-3">
+  /*
+    PORTALLED, BECAUSE A FORM MAY NOT LIVE INSIDE A FORM.
+
+    This trigger now sits beside Confirm payment, which is inside the payment
+    form — and a nested <form> is invalid HTML: the browser drops the inner one
+    and its fields silently join the outer submit, so asking for credit would
+    have tried to record a payment instead. The button stays in the row; the
+    form is rendered to the body, over the page, belonging to nobody.
+  */
+  const dialog = (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) setOpen(false);
+      }}
+    >
+    <form action={action} className="w-full max-w-sm space-y-2 rounded-xl border bg-card p-4 shadow-lg">
       <input type="hidden" name="invoiceId" value={invoiceId} />
 
       <p className="text-xs font-semibold">
@@ -145,5 +161,10 @@ export function CreditRequest({
 
       <FormError state={state} />
     </form>
+    </div>
   );
+
+  return typeof document === "undefined"
+    ? null
+    : createPortal(dialog, document.body);
 }

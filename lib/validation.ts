@@ -170,6 +170,14 @@ export const invoiceSchema = z.object({
  * owes — is checked again in the action against figures read inside the
  * transaction, because only those are current.
  */
+export const discountSchema = z.object({
+  invoiceId: z.string().min(1),
+  discount: numeric("Discount", { min: 0 }),
+  /* Required, because money given away with no reason against it is the thing
+     nobody can answer for a year later. */
+  reason: z.string().trim().min(3, "Say why the discount is being given."),
+});
+
 export const customerPaymentSchema = z.object({
   customerId: z.string().min(1, "Choose the customer who paid."),
   amount: numeric("Amount", { min: 0.01 }),

@@ -2745,6 +2745,11 @@ const ZH: Record<string, string> = {
   "Notify on WhatsApp": "用 WhatsApp 通知",
   "No file chosen": "未选择文件",
   "Change the rate": "修改汇率",
+  "Give a discount": "给予折扣",
+  "Change the discount": "修改折扣",
+  "Why — agreed with the customer, damaged goods…": "原因 — 与客户协商、货物受损……",
+  "Say why the discount is being given.": "请说明给予折扣的原因。",
+  "That discount is larger than the rest of the bill.": "折扣金额超过了账单余额。",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
   "No exchange rate was published on the day this money arrived, so it cannot be valued in the register. Publish one for that date and record it again.":

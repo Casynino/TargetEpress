@@ -23,6 +23,7 @@ import {
 } from "@/components/app/idempotency-key";
 import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { PaymentDateField } from "@/components/app/payment-date-field";
+import { GiveDiscount } from "@/components/app/give-discount";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,10 @@ type Props = {
    * another currency. Null when none was published when it was raised.
    */
   invoiceRate: number | null;
+  /** What is already off this bill, so the discount box opens on the truth. */
+  invoiceDiscount?: number;
+  /** Whether this desk may change it — Finance, the manager and the owner. */
+  canDiscount?: boolean;
   /** DRAFT while the system's price is waiting on Finance to sign it off. */
   invoiceStatus: string | null;
   /**
@@ -664,6 +669,7 @@ function PaymentPanel({
                   </Link>
                 </>
               ) : null}
+
               {shortfall ? (
                 <>
                   {" "}
@@ -708,6 +714,18 @@ function PaymentPanel({
                   </option>
                 ))}
               </NativeSelect>
+            </div>
+          ) : null}
+          {/* A change to the BILL, made from the form about to settle it — and
+              on its own row, because it must not depend on whether the
+              customer happens to be paying in another currency. */}
+          {props.canDiscount && props.invoiceId ? (
+            <div className="text-xs">
+              <GiveDiscount
+                invoiceId={props.invoiceId}
+                currency={props.currency}
+                current={props.invoiceDiscount ?? 0}
+              />
             </div>
           ) : null}
           <PaymentProofField />

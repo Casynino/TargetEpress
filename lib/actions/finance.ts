@@ -39,6 +39,7 @@ import { type Locale } from "@/lib/locale";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types";
 import {
+  discountSchema,
   customerPaymentSchema,
   firstError,
   paymentSchema,
@@ -1085,6 +1086,137 @@ export async function adjustInvoice(
     return ok({ total: result.total });
   } catch (error) {
     return fail(toActionError(error));
+  }
+}
+
+/**
+ * Taking something off the bill, from wherever the desk is standing.
+ *
+ * Discounting is ordinary here — a customer negotiates at the counter and the
+ * figure moves — and until now it meant leaving the payment, opening the
+ * invoice, editing four fields and coming back. This does the one thing.
+ *
+ * THE TOTAL IS DERIVED FROM THE TOTAL, NOT RE-COMPUTED.
+ *
+ * adjustInvoice rebuilds the bill from freight, storage and charges, and
+ * re-prices from the rate book on the way through. Repeating that arithmetic
+ * here would be a second definition of what a bill comes to, and the two would
+ * disagree the first time either changed. So this works from the stored total:
+ * put back the discount that is on it, take off the new one. Whatever the
+ * total was built from stays exactly as it was built.
+ *
+ * A discount can settle a bill outright — that is the point of it — so the
+ * status follows the arithmetic through the same derivation everything else
+ * uses. What it may never do is drop the total below what the customer has
+ * already handed over: that is money owed BACK to them, which is a refund and
+ * not a discount, and this refuses it rather than inventing one.
+ */
+export async function applyInvoiceDiscount(
+  _prev: ActionResult<{ total: number }> | undefined,
+  formData: FormData
+): Promise<ActionResult<{ total: number }>> {
+  const locale = await viewerLocale();
+  try {
+    const user = await authorize("invoice.discount");
+    const parsed = discountSchema.safeParse(
+      Object.fromEntries(formData) as Record<string, string>
+    );
+    if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+    const input = parsed.data;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.findUnique({
+        where: { id: input.invoiceId },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          status: true,
+          currency: true,
+          discount: true,
+          total: true,
+          amountPaid: true,
+          exchangeRate: true,
+          localCurrency: true,
+        },
+      });
+      if (!invoice) throw new Error("That bill no longer exists.");
+      if (invoice.status === "VOID" || invoice.status === "WRITTEN_OFF") {
+        throw new Error(`${invoice.invoiceNumber} is not a live bill.`);
+      }
+
+      const wasDiscount = toNumber(invoice.discount);
+      const paid = toNumber(invoice.amountPaid);
+      const total = toNumber(invoice.total) + wasDiscount - input.discount;
+
+      if (total < 0) {
+        throw new Error("That discount is larger than the rest of the bill.");
+      }
+      if (total < paid - 0.005) {
+        throw new Error(
+          `${invoice.invoiceNumber} has ${invoice.currency} ${paid.toFixed(2)} paid against it, so it cannot be discounted to ${total.toFixed(2)}. Handing the difference back is a refund, not a discount.`
+        );
+      }
+
+      const rate =
+        invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
+      const nextStatus = invoiceStatusFor(invoice.status, paid, total);
+
+      /* The claim: both the balance and the discount have to be what this
+         transaction read, so two people discounting at once cannot stack. */
+      const claimed = await tx.invoice.updateMany({
+        where: {
+          id: invoice.id,
+          amountPaid: invoice.amountPaid,
+          discount: invoice.discount,
+        },
+        data: {
+          discount: new Prisma.Decimal(input.discount),
+          total: new Prisma.Decimal(total),
+          totalLocal:
+            rate === null ? null : new Prisma.Decimal(toLocal(total, rate)),
+          ...(nextStatus ? { status: nextStatus } : {}),
+        },
+      });
+      if (claimed.count === 0) {
+        throw new Error(
+          "This bill changed a moment ago. Reload the page and look again."
+        );
+      }
+
+      await recordAudit(
+        {
+          actor: user,
+          action: "invoice.discount",
+          entity: "Invoice",
+          entityId: invoice.id,
+          summary:
+            `${invoice.invoiceNumber}: discount ${wasDiscount.toFixed(2)} → ` +
+            `${input.discount.toFixed(2)} ${invoice.currency}, bill now ` +
+            `${total.toFixed(2)} — ${input.reason}`,
+          metadata: {
+            discountBefore: wasDiscount,
+            discountAfter: input.discount,
+            totalBefore: toNumber(invoice.total),
+            totalAfter: total,
+            amountPaid: paid,
+            statusBefore: invoice.status,
+            statusAfter: nextStatus ?? invoice.status,
+            reason: input.reason,
+          },
+        },
+        tx
+      );
+
+      return { total, invoiceId: invoice.id };
+    });
+
+    revalidatePath("/app/finance/invoices");
+    revalidatePath(`/app/finance/invoices/${result.invoiceId}`);
+    revalidatePath("/app/collections/follow-up");
+    revalidatePath("/app/cargo");
+    return ok({ total: result.total });
+  } catch (error) {
+    return fail(t(locale, toActionError(error)));
   }
 }
 

@@ -899,6 +899,12 @@ export default async function ShipmentDetailPage({
                 : null
             }
             outstanding={outstanding}
+            /* What is already off the bill, and whether this desk may move it.
+               Finance, the manager and the owner hold invoice.discount. */
+            invoiceDiscount={
+              shipment.invoice ? toNumber(shipment.invoice.discount) : 0
+            }
+            canDiscount={can(user.role, "invoice.discount")}
             /* Credit granted means the cargo may go before the money does —
                without this the server can issue a credit note and no button in
                the interface can ask it to. */
