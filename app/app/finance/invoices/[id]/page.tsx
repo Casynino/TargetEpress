@@ -17,6 +17,7 @@ import { activeAccounts } from "@/lib/accounts";
 import { accountsForInvoice } from "@/lib/company-settings";
 import { LOCAL_CURRENCY, formatLocal, toLocal } from "@/lib/fx";
 import { MESSAGE_KIND_LABELS, composeMessage, whatsappLink } from "@/lib/messages";
+import { freightBasisOf } from "@/lib/support";
 import { AIRPORT_LABELS, CATEGORY_LABELS, METHOD_LABELS } from "@/lib/cargo";
 import {
   COMPANY,
@@ -596,21 +597,12 @@ export default async function InvoicePage({
                 storageDays: invoice.storageDays,
                 weightKg: toNumber(shipment.weightKg),
                 /*
-                  Just the price, in the customer's terms.
-
-                  It carried the whole freight note — route, method, rate and
-                  chargeable weight — which reads as paperwork and invited the
-                  wrong question: a 0.6 kg parcel billed at a 1 kg minimum
-                  showed both numbers and looked like a mistake. The customer
-                  asked one thing, "what is the rate", so the message answers
-                  exactly that. The full working stays on the invoice, where
-                  somebody querying it will look.
+                  Just the price, in the customer's terms — and composed in the
+                  one place that composes it, so this message and the reminder
+                  chasing it cannot state the same rate two ways. It said
+                  "USD 13.50/kg" here and the queue said nothing at all.
                 */
-                freightBasis: shipment.quotedRate
-                  ? `${money(toNumber(shipment.quotedRate), currency)}/${
-                      shipment.quotedMethod === "FIXED_PER_ITEM" ? "pcs" : "kg"
-                    }`
-                  : null,
+                freightBasis: freightBasisOf(shipment),
                 // The rate frozen on THIS invoice. Publishing a new rate
                 // tomorrow must not restate what this customer was quoted.
                 exchangeRate: invoiceRate,

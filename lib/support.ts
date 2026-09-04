@@ -156,6 +156,42 @@ export type FollowUpCredit = {
   batchNumber: string | null;
 };
 
+/**
+ * The rate line a customer reads, composed once.
+ *
+ * "USD 13.50/KG (Minimum 1 KG)". The minimum is stated only when one was
+ * actually applied, and it is read off the chargeable weight rather than
+ * assumed to be one kilo — minimums live on the pricing rule, and a rule with
+ * a two-kilo minimum must not have a message telling the customer otherwise.
+ * Per-item pricing has no weight minimum, so it says none.
+ */
+export function freightBasisOf(shipment: {
+  quotedRate: Prisma.Decimal | null;
+  quotedMethod: string | null;
+  chargeableKg: Prisma.Decimal | null;
+  quoteCurrency: string | null;
+  weightKg: Prisma.Decimal | null;
+}): string | null {
+  if (shipment.quotedRate === null) return null;
+  const currency = shipment.quoteCurrency ?? "USD";
+  /* To the cent, always. formatMoney trims a trailing zero — right for a
+     screen, wrong in a price quoted to a customer, where "USD 13.5/KG" reads
+     as a figure somebody typed rather than one the system holds. */
+  const rate = `${currency} ${toNumber(shipment.quotedRate).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+  if (shipment.quotedMethod === "FIXED_PER_ITEM") return `${rate}/pcs`;
+
+  const charged = shipment.chargeableKg === null ? null : toNumber(shipment.chargeableKg);
+  const actual = shipment.weightKg === null ? null : toNumber(shipment.weightKg);
+  const minimumApplied =
+    charged !== null && actual !== null && charged > actual + 0.0005;
+
+  return `${rate}/KG${minimumApplied ? ` (Minimum ${charged} KG)` : ""}`;
+}
+
 export type FollowUpRow = {
   /**
    * The row's identity on screen.
@@ -178,6 +214,8 @@ export type FollowUpRow = {
    * accessories" — resolved here so no screen has to remember to do it.
    */
   description: string;
+  /** The same cargo, in English, for the message that leaves the building. */
+  descriptionForCustomer: string;
   status: string;
   customerId: string;
   customerName: string;
@@ -186,6 +224,12 @@ export type FollowUpRow = {
   daysInWarehouse: number;
   /** Off the cargo record, for the customer's message. */
   weightKg: number | null;
+  /**
+   * How the freight figure was reached, ready to print: "USD 13.50/KG
+   * (Minimum 1 KG)". Composed where the quote is read rather than at each
+   * screen, so no two messages state the same rate differently.
+   */
+  freightBasis: string | null;
   /** The rate frozen on this invoice, never today's published one. */
   exchangeRate: number | null;
   storageDays: number;
@@ -270,6 +314,14 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       // The customer must be told what their cargo weighs, and nobody at a
       // desk should be typing it.
       weightKg: true,
+      /* And the rate it was charged at, for the same reason. The customer
+         could see the amount but never the arithmetic between the weight and
+         it, so the figure arrived as something to be taken on trust.
+         chargeableKg is what a minimum was applied to, when one was. */
+      quotedRate: true,
+      quotedMethod: true,
+      chargeableKg: true,
+      quoteCurrency: true,
       customer: { select: { id: true, name: true, phone: true } },
       invoice: {
         select: {
@@ -380,6 +432,21 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       credit: null,
       trackingNumber: shipment.trackingNumber,
       description: cargoText(locale, shipment, "description"),
+      /*
+        THE CUSTOMER'S COPY, NEVER THE CLERK'S LANGUAGE.
+
+        `description` above follows whoever is at the keyboard, which is right
+        for the column they are reading. The WhatsApp message is not for them:
+        it is Swahili, to a Tanzanian customer, and a Guangzhou desk chasing a
+        payment must not send them 普通百货. English is the language this
+        business writes to customers in when Swahili copy does not exist, so
+        the message asks for English regardless of who is looking at the row.
+
+        Falls back to whatever the desk originally typed when there is no
+        English rendering at all — a Chinese description is still better than
+        a blank line where the cargo should be.
+      */
+      descriptionForCustomer: cargoText("en", shipment, "description"),
       status: shipment.status,
       customerId: shipment.customer.id,
       customerName: shipment.customer.name,
@@ -387,6 +454,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       arrivedAt: shipment.arrivedAt?.toISOString() ?? null,
       daysInWarehouse: shipment.arrivedAt ? daysBetween(shipment.arrivedAt) : 0,
       weightKg: shipment.weightKg === null ? null : toNumber(shipment.weightKg),
+      freightBasis: freightBasisOf(shipment),
       exchangeRate: rate,
       storageDays,
       storageCharge:
@@ -487,6 +555,7 @@ function creditFollowUpRow(r: CreditRow): FollowUpRow {
        what is in the boxes, and a row that spends a line saying it does not know
        the cargo description teaches the reader to stop reading rows. */
     description: "",
+    descriptionForCustomer: "",
     status: "ON_CREDIT",
     customerId: r.customerId,
     customerName: r.customerName,
@@ -494,6 +563,9 @@ function creditFollowUpRow(r: CreditRow): FollowUpRow {
     arrivedAt: null,
     daysInWarehouse: 0,
     weightKg: null,
+    /* The consignment behind a credit has usually gone, and the quote went
+       with it — the bill is what is outstanding. */
+    freightBasis: null,
     /* The bill's own frozen rate. A credit is quoted once and settled weeks
        later, so today's published rate would restate a figure the customer is
        holding on a printed invoice. */

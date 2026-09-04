@@ -83,27 +83,65 @@ export const CHANNEL_LABELS: Record<string, string> = {
  * phone. The public domain is the only sane answer for a message leaving the
  * building, so that is what a local value falls back to.
  */
+/**
+ * The company's own address, and the only one a customer may be sent to.
+ *
+ * Not a preview host, not a deployment URL, not a developer's laptop. The
+ * fallback used to be targetexpress.co.tz, which is the STAFF EMAIL domain and
+ * serves no website at all — a dead link in somebody's WhatsApp.
+ */
+export const OFFICIAL_SITE = "https://www.targetexpressaircargo.com";
+
+/**
+ * Anything that is not the company's own domain is refused, not used.
+ *
+ * NEXT_PUBLIC_SITE_URL is "http://localhost:3000" in this repo, and in
+ * production it was the vercel.app deployment address — so every reminder that
+ * went out carried a link to target-epress.vercel.app. It works, and it is
+ * still wrong: a customer chasing their cargo should land on the company's
+ * address, not on the name of the company's hosting provider, and a
+ * deployment URL is not a promise anyone made to keep.
+ */
 const PUBLIC_HOST = (() => {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
-  if (!configured) return "https://targetexpress.co.tz";
-  return /localhost|127\.0\.0\.1|0\.0\.0\.0/.test(configured)
-    ? "https://targetexpress.co.tz"
-    : configured;
+  if (!configured) return OFFICIAL_SITE;
+  const unfit =
+    /localhost|127\.0\.0\.1|0\.0\.0\.0|\.vercel\.app|\.now\.sh/.test(configured);
+  return unfit ? OFFICIAL_SITE : configured;
 })();
 
 const TRACK_URL = `${PUBLIC_HOST}/track`;
 
+/**
+ * The name to greet somebody by.
+ *
+ * Capitalised, because customers are registered however the desk happened to
+ * type them — "sam", "lengai store" — and a message that opens "Habari sam,"
+ * reads as carelessness to the person it is addressed to. Only the first
+ * letter is touched: nothing else about how they wrote their own name is this
+ * function's business.
+ */
 function firstName(fullName: string) {
-  return fullName.trim().split(/\s+/)[0] ?? fullName;
+  const first = fullName.trim().split(/\s+/)[0] ?? fullName;
+  return first ? first.charAt(0).toUpperCase() + first.slice(1) : first;
 }
 
+/**
+ * The amount, in both currencies, for a message.
+ *
+ * The ISO code rather than the TSh symbol the screens use, because the line
+ * directly above this one states the exchange rate as "USD 1 = TZS 2,700" —
+ * and one message calling the same currency two things is the kind of small
+ * wrongness a customer notices and a desk then has to explain.
+ */
 function money(context: MessageContext) {
   const parts: string[] = [];
   if (context.amountUsd !== null && context.amountUsd !== undefined) {
     parts.push(formatUsd(context.amountUsd));
   }
   if (context.amountLocal !== null && context.amountLocal !== undefined) {
-    parts.push(formatLocal(context.amountLocal, context.localCurrency ?? "TZS"));
+    const code = context.localCurrency ?? "TZS";
+    parts.push(`${code} ${Math.round(context.amountLocal).toLocaleString("en-US")}`);
   }
   return parts.join(" / ");
 }
@@ -134,66 +172,57 @@ function money(context: MessageContext) {
  * first time one is reworded.
  */
 const ARRIVED_AND_HELD =
-  "Tunafurahi kukujulisha kuwa mzigo wako umefika salama kwenye *warehouse yetu ya Dar es Salaam* na uko tayari kuchukuliwa baada ya malipo kuthibitishwa.";
+  "Mzigo wako umefika salama Dar es Salaam na uko tayari kuchukuliwa baada ya malipo kuthibitishwa.";
 
 function moneyMessage(context: MessageContext, opening: string) {
   const name = firstName(context.customerName);
   const tracking = context.trackingNumber ?? "";
-  const bold = (text: string) => `*${text}*`;
 
+  /*
+    THE OWNER'S OWN WORDING, KEPT SHORT ON PURPOSE.
+
+    This used to carry the payment accounts, the office addresses and the
+    phone number as well — a wall of text on a phone, where the part that
+    matters scrolled off the top. The link answers all of it and is always
+    current, which a pasted account number is not: one mistyped Lipa number in
+    a template sends every customer's money nowhere.
+
+    So the message states what the cargo is, what it weighs, what rate was
+    used, what it comes to in both currencies, and where the full invoice and
+    the payment accounts live. Nothing a desk types, nothing that can drift.
+  */
   return [
-    `📦 ${bold(COMPANY.name.toUpperCase())}`,
+    `📦 ${COMPANY.name.toUpperCase()}`,
     ``,
-    `${bold(`Habari ${name},`)}`,
-    ``,
+    `Habari ${name},`,
     opening,
     ``,
-    `📋 ${bold("Maelezo ya Mzigo")}`,
-    ...(tracking ? [`• ${bold("Tracking No.:")} ${tracking}`] : []),
-    ...(context.invoiceNumber
-      ? [`• ${bold("Invoice No.:")} ${context.invoiceNumber}`]
-      : []),
-    ...(context.description ? [`• ${bold("Mzigo:")} ${context.description}`] : []),
+    `📋 MAELEZO YA MZIGO`,
+    ...(tracking ? [`• Tracking: ${tracking}`] : []),
+    ...(context.description ? [`• Bidhaa: ${context.description}`] : []),
     ...(context.weightKg !== null && context.weightKg !== undefined
-      ? [`• ${bold("Uzito:")} ${context.weightKg} kg`]
+      ? [`• Uzito: ${context.weightKg} KG`]
       : []),
-    ...(context.freightBasis
-      ? [`• ${bold("Bei:")} ${context.freightBasis}`]
-      : []),
+    ...(context.freightBasis ? [`• Rate: ${context.freightBasis}`] : []),
     ...(context.exchangeRate
       ? [
-          `• ${bold("Rate:")} USD 1 = TZS ${context.exchangeRate.toLocaleString("en-US")}`,
+          `• Exchange Rate: USD 1 = TZS ${context.exchangeRate.toLocaleString("en-US")}`,
         ]
       : []),
-    `• ${bold("Kiasi:")} ${bold(money(context))}`,
+    `• Jumla: ${money(context)}`,
     ``,
     /*
-      The storage policy, in the message itself.
+      The storage clock, in one line and in the message itself.
 
-      It was one line near the bottom — "chukua mzigo wako mapema" — with no
-      number attached, sitting under the payment accounts where nobody reads.
-      A customer who does not know the clock has started cannot beat it, and
-      the first they hear of a charge is when it is on the bill. So it is the
-      owner's own wording, high up, right after the amount, with the free days
-      and the daily fee taken from STORAGE_POLICY so they cannot drift.
+      A customer who does not know it has started cannot beat it, and the
+      first they hear of a charge is when it is on the bill. The days and the
+      daily fee come from STORAGE_POLICY so the sentence cannot drift from
+      what the system will actually charge.
     */
-    `📦 ${bold("STORAGE POLICY")}`,
-    `Kutokana na wingi wa mizigo katika warehouse yetu, mzigo wako unapata siku ${STORAGE_POLICY.freeDays} za kuhifadhi bure (${bold("Free Storage")}) kuanzia siku unapofika Dar es Salaam.`,
-    `⚠️ Baada ya siku ${STORAGE_POLICY.freeDays}, ${bold(`Storage Fee ya USD ${STORAGE_POLICY.perDayUsd} kwa siku`)} itatozwa hadi utakapochukua mzigo wako.`,
-    `Tafadhali chukua mzigo wako mapema ili kuepuka gharama za ziada za storage.`,
+    `📦 STORAGE: Siku ${STORAGE_POLICY.freeDays} bure, baada ya hapo USD ${STORAGE_POLICY.perDayUsd}/siku hadi mzigo uchukuliwe.`,
     ``,
-    `📄 ${bold("Angalia invoice yako kamili:")}`,
+    `📄 Angalia invoice yako kamili na njia za malipo:`,
     `🔗 ${TRACK_URL}${tracking ? `?q=${encodeURIComponent(tracking)}` : ""}`,
-    ``,
-    `💳 ${bold("Njia za Malipo")}`,
-    ``,
-    ...paymentBlock(bold),
-    `Baada ya kufanya malipo, tafadhali tuma ${bold("uthibitisho wa malipo")} ili timu yetu iweze kuuhakiki. Malipo yakishathibitishwa, utapokea ${bold("Pickup Note")} ya kuchukua mzigo wako.`,
-    ``,
-    ...officeBlock(bold),
-    `Asante kwa kutumia ${bold(COMPANY.name)}.`,
-    ``,
-    `📞 ${bold(COMPANY.phone)}`,
   ]
     .join("\n")
     .replace(/\n{3,}/g, "\n\n");

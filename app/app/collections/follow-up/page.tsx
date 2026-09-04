@@ -147,9 +147,15 @@ export default async function FollowUpPage({
     paymentReminderSwahili({
       customerName: row.customerName,
       trackingNumber: row.trackingNumber ?? "",
-      description: row.description,
+      /* English, not the clerk's language — the message is Swahili to a
+         Tanzanian customer and must not carry 普通百货. */
+      description: row.descriptionForCustomer,
       invoiceNumber: row.invoiceNumber,
       weightKg: row.weightKg,
+      // The rate the cargo was actually charged at, composed once in
+      // followUpQueue so this screen and the invoice cannot state it
+      // differently.
+      freightBasis: row.freightBasis,
       // The invoice's own rate, so the figure the customer was quoted is the
       // figure they are reminded of.
       exchangeRate: row.exchangeRate,
