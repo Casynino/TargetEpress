@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { FileText, Plane, Users } from "lucide-react";
+import { FileText, Plane, Users, PackagePlus } from "lucide-react";
 
 import { PageHeader } from "@/components/app/page-header";
 import {
@@ -464,6 +464,24 @@ export default async function ShipmentPage({
         actions={
           <>
             <BatchStatusBadge status={dispatch.status} />
+            {/*
+              THE FLIGHT'S OWN PAGE IS WHERE A MISSING BOX IS NOTICED.
+
+              The receiving dock sends you here when you open a flight, and
+              this is the list somebody is reading when they realise a
+              consignment on the floor is not on it. Whatever the flight's
+              state: a box surfaces a fortnight after the aircraft was closed
+              and still belongs to it.
+            */}
+            {can(user.role, "shipment.create") &&
+            can(user.role, "batch.verify") ? (
+              <Button asChild variant="brand" size="sm">
+                <Link href={`/app/receive/${dispatch.id}/add`}>
+                  <PackagePlus className="mr-2 h-4 w-4" />
+                  {t(locale, "Add cargo")}
+                </Link>
+              </Button>
+            ) : null}
             <Button asChild variant="outline" size="sm">
               <Link href={`/app/batches/${dispatch.id}/manifest`}>
                 <FileText className="mr-2 h-4 w-4" />
