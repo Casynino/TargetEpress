@@ -2755,6 +2755,8 @@ const ZH: Record<string, string> = {
     "仅限此账单。美元总额不变，改变的只是折合的先令金额。",
   "Why — agreed at the counter, bank rate on the day…": "原因 — 柜台协商、当日银行汇率……",
   "Say why the rate is being changed.": "请说明修改汇率的原因。",
+  "Discount, rate and credit apply to one bill — tick a single one to use them.":
+    "折扣、汇率和赊账只适用于单张账单 — 请只勾选一张。",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
   "No exchange rate was published on the day this money arrived, so it cannot be valued in the register. Publish one for that date and record it again.":

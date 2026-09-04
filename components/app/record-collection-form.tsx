@@ -8,6 +8,8 @@ import {
   IdempotencyKey,
   useIdempotencyKey,
 } from "@/components/app/idempotency-key";
+import { ChangeRate } from "@/components/app/change-rate";
+import { GiveDiscount } from "@/components/app/give-discount";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +45,10 @@ export function RecordCollectionForm({
   rate,
   banks,
   canRecord,
+  canDiscount,
+  canChangeRate,
+  invoiceDiscount,
+  invoiceTotal,
 }: {
   invoiceId: string;
   invoiceNumber: string;
@@ -72,6 +78,14 @@ export function RecordCollectionForm({
    * the person is the one who says that.
    */
   canRecord?: boolean;
+  /** invoice.discount — Finance, the manager and the owner. */
+  canDiscount?: boolean;
+  /** invoice.rate — the per-bill rate, which Support holds too. */
+  canChangeRate?: boolean;
+  /** What is already off the bill, so the box opens on the truth. */
+  invoiceDiscount?: number;
+  /** The bill's own total, for the rate dialog's preview. */
+  invoiceTotal?: number;
 }) {
   const t = useT();
   /* The authority decides which action this form is. Support files a claim;
@@ -184,6 +198,29 @@ export function RecordCollectionForm({
           </div>
         ))}
       </dl>
+
+      {/* The bill's own two controls, on the form that settles it — the same
+          pair the cargo panel carries, so a desk sees one set of choices
+          wherever it takes the money. */}
+      {canDiscount || canChangeRate ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          {canDiscount ? (
+            <GiveDiscount
+              invoiceId={invoiceId}
+              currency={currency}
+              current={invoiceDiscount ?? 0}
+            />
+          ) : null}
+          {canChangeRate ? (
+            <ChangeRate
+              invoiceId={invoiceId}
+              currency={currency}
+              current={rate}
+              total={invoiceTotal ?? outstanding}
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto_1fr]">
         <div className="space-y-1.5">

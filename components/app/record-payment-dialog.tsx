@@ -32,6 +32,10 @@ export function RecordPaymentDialog({
   rate,
   banks,
   canRecord,
+  canDiscount,
+  canChangeRate,
+  invoiceDiscount,
+  invoiceTotal,
   label,
 }: {
   invoiceId: string;
@@ -44,6 +48,10 @@ export function RecordPaymentDialog({
   rate: number | null;
   banks?: { id: string; name: string; currency: string; kind: string }[] | null;
   canRecord?: boolean;
+  canDiscount?: boolean;
+  canChangeRate?: boolean;
+  invoiceDiscount?: number;
+  invoiceTotal?: number;
   /** For the screen reader, so the row it belongs to is not a guess. */
   label: string;
 }) {
@@ -96,6 +104,10 @@ export function RecordPaymentDialog({
             rate={rate}
             banks={banks}
             canRecord={canRecord}
+            canDiscount={canDiscount}
+            canChangeRate={canChangeRate}
+            invoiceDiscount={invoiceDiscount}
+            invoiceTotal={invoiceTotal}
           />
         </div>
       </div>

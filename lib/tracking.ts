@@ -155,7 +155,8 @@ export type PublicCharge = {
    */
   exchangeRate: number | null;
   /** Freight, storage and anything added or taken off, as the invoice holds them. */
-  lines: { label: string; amount: number }[];
+  /** `note` is how the figure was reached — the rate and what it applied to. */
+  lines: { label: string; amount: number; note?: string | null }[];
   /**
    * Whether this figure can still move, and why.
    *
@@ -401,6 +402,12 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
       deliveredAt: true,
       updatedAt: true,
       weightKg: true,
+      /* How the freight figure was reached, so the customer can check it
+         rather than take the total on trust. */
+      quotedRate: true,
+      quotedMethod: true,
+      chargeableKg: true,
+      quoteCurrency: true,
       cargoCategory: true,
       batch: { select: { batchNumber: true } },
       cargoType: { select: { id: true, name: true } },
@@ -542,6 +549,22 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
             // from, so the parts add up to the whole.
             label: "Usafirishaji (freight)",
             amount: toNumber(invoice.freightOverride ?? invoice.freightCost),
+            /*
+              THE ARITHMETIC, NOT JUST THE ANSWER.
+
+              A customer could see what they owe and never how it was reached,
+              so the figure arrived as a number to be taken on trust. This is
+              the rate and what it was applied to — the same line the invoice
+              itself carries. Only where the system priced it: a freight figure
+              Finance typed over has no rate to show, and inventing one would
+              be worse than showing none.
+            */
+            note:
+              invoice.freightOverride === null && shipment.quotedRate !== null
+                ? shipment.quotedMethod === "FIXED_PER_ITEM"
+                  ? `${shipment.quoteCurrency ?? "USD"} ${toNumber(shipment.quotedRate).toFixed(2)} × ${shipment.packages} ${shipment.packages === 1 ? "kipande" : "vipande"}`
+                  : `${shipment.quoteCurrency ?? "USD"} ${toNumber(shipment.quotedRate).toFixed(2)}/kg × ${toNumber(shipment.chargeableKg ?? shipment.weightKg)} kg`
+                : null,
           },
           ...(toNumber(invoice.storageCharge) > 0
             ? [
@@ -558,10 +581,20 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
             ? [{ label: "Punguzo", amount: -toNumber(invoice.discount) }]
             : []),
         ],
+        /*
+          The one warning that changes what somebody does today, in the two
+          languages this business is read in — Swahili first, because that is
+          who is reading. It replaced a two-column policy panel: the rule in
+          full was more than anybody wanted here, and the part that matters is
+          simply that waiting costs money.
+
+          The free days and the daily fee come from STORAGE_POLICY, so the page
+          cannot promise what the system will not charge.
+        */
         mayChange:
           outstanding <= 0
             ? null
-            : `This amount can still change — storage is charged for every day after the first ${STORAGE_POLICY.freeDays}, and the shilling figure follows the exchange rate on the day you pay. Collecting sooner keeps it lower.`,
+            : `Kiasi hiki kinaweza kuongezeka. Siku ${STORAGE_POLICY.freeDays} za kwanza ni bure; baada ya hapo ni USD ${STORAGE_POLICY.perDayUsd} kwa siku hadi utakapochukua mzigo. Chukua mapema ili kuepuka gharama za ziada.\n\nThis amount can still change. The first ${STORAGE_POLICY.freeDays} days are free; after that storage is USD ${STORAGE_POLICY.perDayUsd} a day until you collect. Collect sooner to keep it lower.`,
       };
     }
 

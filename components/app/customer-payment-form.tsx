@@ -14,6 +14,7 @@ import {
   IdempotencyKey,
   useIdempotencyKey,
 } from "@/components/app/idempotency-key";
+import { BillActions } from "@/components/app/bill-actions";
 import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,10 @@ export type OpenBill = {
   /** The rate frozen onto this bill — what a payment in another currency
       converts at. Null on bills raised before rates were stored. */
   exchangeRate: number | null;
+  /** What the bill comes to, and what is already off it — the two figures the
+      per-bill actions beside this form need. */
+  total: number;
+  discount: number;
 };
 
 const LOCAL = "TZS";
@@ -74,6 +79,9 @@ export function CustomerPaymentForm({
   customerName,
   bills,
   accounts,
+  canDiscount,
+  canChangeRate,
+  canApproveCredit,
 }: {
   /**
    * Whether this desk may say money ARRIVED, or only that a customer says so.
@@ -89,6 +97,12 @@ export function CustomerPaymentForm({
   customerName: string;
   bills: OpenBill[];
   accounts: { id: string; name: string; currency: string; kind: string }[];
+  /** invoice.discount — Finance, the manager and the owner. */
+  canDiscount?: boolean;
+  /** invoice.rate — the per-bill rate, which Support holds too. */
+  canChangeRate?: boolean;
+  /** Whether pressing credit grants the terms or asks Finance for them. */
+  canApproveCredit?: boolean;
 }) {
   const t = useT();
   const [state, action] = useActionState<
@@ -213,6 +227,13 @@ export function CustomerPaymentForm({
       ? Math.round(converted)
       : Math.round(converted * 100) / 100;
   };
+
+  /* Exactly one, or none. Every control in BillActions is a decision about a
+     particular bill, so three ticked has no answer to "which one". */
+  const soleBill =
+    picked.size === 1
+      ? (payable.find((b) => picked.has(b.invoiceId)) ?? null)
+      : null;
 
   const allocations = payable
     .filter((b) => picked.has(b.invoiceId))
@@ -710,6 +731,18 @@ export function CustomerPaymentForm({
               broke over three lines and the filename was cut to "No file …" —
               the block asking for the evidence looked like the thing being
               squeezed out. */}
+          {/* The same things the single-payment panel can do to a bill,
+              on the screen that settles several of them. */}
+          <div className="min-w-0 sm:col-span-2">
+            <BillActions
+              bill={soleBill}
+              selectedCount={picked.size}
+              canDiscount={canDiscount}
+              canChangeRate={canChangeRate}
+              canApproveCredit={canApproveCredit}
+            />
+          </div>
+
           <div className="min-w-0 sm:col-span-2">
             <PaymentProofField />
           </div>

@@ -253,6 +253,8 @@ export type FollowUpRow = {
   outstanding: number | null;
   /** What the BILL is priced in — the currency `outstanding` is stated in. */
   currency: string;
+  /** What is already off it, so a discount box opens on the truth. */
+  invoiceDiscount: number;
   localCurrency: string | null;
   outstandingLocal: number | null;
   invoiceSentAt: string | null;
@@ -334,6 +336,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
           amountPaid: true,
           exchangeRate: true,
           currency: true,
+          discount: true,
           localCurrency: true,
           sentAt: true,
           confirmedAt: true,
@@ -470,6 +473,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
       paid,
       outstanding,
       currency: invoice?.currency ?? "USD",
+      invoiceDiscount: invoice ? toNumber(invoice.discount) : 0,
       localCurrency: invoice?.localCurrency ?? null,
       outstandingLocal:
         rate === null || outstanding === null ? null : Math.round(outstanding * rate),
@@ -586,6 +590,8 @@ function creditFollowUpRow(r: CreditRow): FollowUpRow {
     paid: r.paidUsd,
     outstanding: r.outstandingUsd,
     currency: r.currency ?? "USD",
+    /* A credit row's bill is not being re-priced from this list. */
+    invoiceDiscount: 0,
     localCurrency: null,
     outstandingLocal:
       r.exchangeRate === null ? null : Math.round(r.outstandingUsd * r.exchangeRate),

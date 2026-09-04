@@ -817,6 +817,10 @@ export default async function FollowUpPage({
                           rate={row.exchangeRate}
                           banks={payAccounts}
                           canRecord={canRecord}
+                          canDiscount={can(user.role, "invoice.discount")}
+                          canChangeRate={can(user.role, "invoice.rate")}
+                          invoiceDiscount={row.invoiceDiscount}
+                          invoiceTotal={row.total ?? undefined}
                           label={`${t(locale, "Record a payment for")} ${row.invoiceNumber ?? row.trackingNumber}`}
                         />
                       </IconHint>

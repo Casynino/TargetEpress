@@ -6,7 +6,6 @@ import {
   Camera,
   CheckCircle2,
   CircleHelp,
-  Clock,
   MapPin,
   MessageCircle,
   Plane,
@@ -414,65 +413,6 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
         </section>
       ) : null}
 
-      {/*
-        THE POLICY ITSELF, IN BOTH LANGUAGES AND AT A SIZE PEOPLE READ.
-
-        The storage card above says what is happening to THIS consignment; this
-        is the rule it comes from, in the owner's own words. It began as small
-        print inside that card and was, fairly, called small — a customer who
-        does not know the clock has started cannot beat it, and the first they
-        hear of a charge should never be the charge itself.
-
-        So it stands on its own, in the amber this app uses for "read this
-        one", with Swahili first because that is who is reading. The days and
-        the daily fee come from STORAGE_POLICY, so it cannot drift from what
-        the system will actually charge.
-      */}
-      {result.storage && !result.storage.collected ? (
-        <section className="overflow-hidden rounded-xl border-2 border-warning/50 bg-warning/5">
-          <header className="flex items-center gap-2 border-b border-warning/30 px-5 py-3">
-            <Clock className="h-4 w-4 shrink-0 text-warning" />
-            <h2 className="text-sm font-semibold text-warning">
-              Sera ya Uhifadhi · Warehouse Storage Policy
-            </h2>
-          </header>
-          <div className="grid grid-cols-1 gap-px bg-warning/20 sm:grid-cols-2">
-            <div className="bg-card px-5 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Kiswahili
-              </p>
-              <p className="mt-2 text-sm leading-relaxed">
-                Kutokana na wingi wa mizigo katika warehouse yetu, mzigo wako
-                utahifadhiwa <strong className="font-semibold">bure</strong> kwa
-                siku {result.storage.freeDays} kuanzia siku utakapofika Dar es
-                Salaam. Baada ya siku {result.storage.freeDays}, utatozwa{" "}
-                <strong className="font-semibold text-warning">
-                  USD {result.storage.perDayUsd} kwa siku
-                </strong>
-                . Tafadhali chukua mzigo wako mapema ili kuepuka gharama za
-                ziada.
-              </p>
-            </div>
-            <div className="bg-card px-5 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                English
-              </p>
-              <p className="mt-2 text-sm leading-relaxed">
-                Due to the high volume of cargo in our warehouse, your cargo is
-                stored <strong className="font-semibold">free of charge</strong>{" "}
-                for {result.storage.freeDays} days from the day it arrives in
-                Dar es Salaam. After that, a{" "}
-                <strong className="font-semibold text-warning">
-                  USD {result.storage.perDayUsd} per day storage fee
-                </strong>{" "}
-                applies. Please collect your cargo early to avoid additional
-                charges.
-              </p>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
       <dl className="grid grid-cols-1 gap-px bg-border sm:grid-cols-3 lg:grid-cols-4">
         {[
           { label: "Cargo", value: result.description },
@@ -788,8 +728,18 @@ function ChargePanel({
             <dl className="mt-4 space-y-1.5 border-t pt-3 text-sm">
               {charge.lines.map((line) => (
                 <div key={line.label} className="flex justify-between gap-4">
-                  <dt className="text-muted-foreground">{line.label}</dt>
-                  <dd className="font-mono tabular-nums">
+                  <dt className="min-w-0 text-muted-foreground">
+                    {line.label}
+                    {/* How the figure was reached, under the name of it. A
+                        customer could see what they owe and never the
+                        arithmetic behind it. */}
+                    {line.note ? (
+                      <span className="block font-mono text-[11px] text-muted-foreground/70">
+                        {line.note}
+                      </span>
+                    ) : null}
+                  </dt>
+                  <dd className="shrink-0 font-mono tabular-nums">
                     {charge.currency} {line.amount.toFixed(2)}
                   </dd>
                 </div>
@@ -842,9 +792,23 @@ function ChargePanel({
       {/* Why collecting sooner is cheaper. Not a disclaimer bolted on the
           bottom — it is the reason to come today rather than next week. */}
       {charge.mayChange ? (
-        <p className="mt-4 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-xs text-muted-foreground">
-          {charge.mayChange}
-        </p>
+        /* Two paragraphs, one per language — whitespace-pre-line would keep
+           the break but leave them looking like one run of text, and the
+           Swahili leads because that is who is reading. */
+        <div className="mt-4 space-y-2 rounded-lg border border-warning/40 bg-warning/5 px-4 py-3">
+          {charge.mayChange.split("\n\n").map((line, i) => (
+            <p
+              key={line.slice(0, 24)}
+              className={
+                i === 0
+                  ? "text-xs leading-relaxed text-foreground/90"
+                  : "text-xs leading-relaxed text-muted-foreground"
+              }
+            >
+              {line}
+            </p>
+          ))}
+        </div>
       ) : null}
 
       {/* Where to send it.

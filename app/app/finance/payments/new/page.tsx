@@ -475,6 +475,9 @@ export default async function RecordCustomerPaymentPage({
           exchangeRate: true,
           total: true,
           amountPaid: true,
+          /* Read so the per-bill actions beside the form can act on the bill
+             itself: what it comes to, and what is already off it. */
+          discount: true,
           shipment: {
             select: {
               trackingNumber: true,
@@ -515,6 +518,8 @@ export default async function RecordCustomerPaymentPage({
       exchangeRate:
         invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate),
       outstanding: toNumber(invoice.total) - toNumber(invoice.amountPaid),
+      total: toNumber(invoice.total),
+      discount: toNumber(invoice.discount),
     }))
     .filter((bill) => bill.outstanding > 0.005);
 
@@ -537,6 +542,12 @@ export default async function RecordCustomerPaymentPage({
         customerName={customer.name}
         bills={bills}
         accounts={accounts}
+            /* Who may change the bill itself from here. The same three
+               permissions the cargo page reads, so one bill answers the same
+               question wherever it is opened. */
+            canDiscount={can(viewer.role, "invoice.discount")}
+            canChangeRate={can(viewer.role, "invoice.rate")}
+            canApproveCredit={can(viewer.role, "credit.approve")}
       />
     </div>
   );
