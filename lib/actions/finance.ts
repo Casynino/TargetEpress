@@ -990,14 +990,31 @@ export async function adjustInvoice(
         back if the bill went down — money already against a bill is a
         settlement, not a running balance.
       */
-      const settledFromCredit = await applyCreditToInvoice(tx, {
-        invoiceId: invoice.id,
-        customerId: invoice.customerId,
-        currency: invoice.currency,
-        invoiceRate: rate,
-        outstanding: total - alreadyPaid,
-        user,
-      });
+      /*
+        NOT AGAINST A DRAFT.
+
+        A draft is the system's own price before Finance has agreed it, and
+        confirmInvoicePrice is where the deposit is applied — it says so in its
+        own comment: taking money against a price nobody has looked at is the
+        thing the confirm step exists to prevent. Applying it here would also
+        leave the bill unable to say it had been paid, because a draft's status
+        is deliberately never rewritten by arithmetic; the money would land and
+        the label would still read DRAFT.
+
+        Correcting a draft is fine. The deposit follows a moment later, when
+        somebody confirms the price.
+      */
+      const settledFromCredit =
+        invoice.status === "DRAFT"
+          ? 0
+          : await applyCreditToInvoice(tx, {
+              invoiceId: invoice.id,
+              customerId: invoice.customerId,
+              currency: invoice.currency,
+              invoiceRate: rate,
+              outstanding: total - alreadyPaid,
+              user,
+            });
 
       const paidAfter = alreadyPaid + settledFromCredit;
       if (settledFromCredit > 0.005) {
@@ -1481,7 +1498,7 @@ export async function recordPayment(
             status: true,
             customerId: true,
             currency: true,
-            pickupNote: { select: { id: true, status: true } },
+            pickupNote: { select: { id: true, status: true, noteNumber: true } },
             // Any case that blocks pickup, not just a missing shipment.
             //
             // This filtered on status "OPEN" and type MISSING_SHIPMENT, which
@@ -1522,6 +1539,38 @@ export async function recordPayment(
         const hasNote = shipment?.pickupNote != null;
         const blocked = (shipment?.exceptions.length ?? 0) > 0;
         const atDar = shipment?.status === "RECEIVED_AT_DAR";
+
+        /*
+          A NOTE THAT IS STILL GOOD, ON CARGO THAT WAS HELD.
+
+          Charging storage on a settled bill reopens the debt and puts the
+          consignment back on the shelf, deliberately leaving its note alive —
+          the note cannot be reissued, so destroying it would strand the cargo
+          for ever. Paying the storage is what lets it go again, and this is
+          where that happens: the note it already holds is the clearance, and
+          the cargo simply becomes collectable once more.
+        */
+        if (
+          shipment &&
+          shipment.pickupNote?.status === "ACTIVE" &&
+          !blocked &&
+          atDar
+        ) {
+          await tx.shipment.update({
+            where: { id: shipment.id },
+            data: { status: "READY_FOR_PICKUP", readyForPickup: new Date() },
+          });
+          await tx.shipmentStatusHistory.create({
+            data: {
+              shipmentId: shipment.id,
+              fromStatus: "RECEIVED_AT_DAR",
+              toStatus: "READY_FOR_PICKUP",
+              location: "Dar es Salaam warehouse",
+              note: `Balance cleared. Pickup note ${shipment.pickupNote.noteNumber} stands.`,
+              actorId: user.id,
+            },
+          });
+        }
 
         if (shipment && !hasNote && !blocked && atDar) {
           const note = await tx.pickupNote.create({

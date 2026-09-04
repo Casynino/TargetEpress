@@ -36,9 +36,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; revoked?: string }>;
 }) {
-  const { callbackUrl } = await searchParams;
+  const { callbackUrl, revoked } = await searchParams;
   const locale = await viewerLocale();
 
   return (
@@ -140,6 +140,19 @@ export default async function LoginPage({
                     "Your dashboard opens automatically based on your department."
                   )}
                 </p>
+
+                {/* Sent here by the app itself, because the account behind
+                    their session was suspended or its role changed while they
+                    were working. Saying so is the difference between "sign in
+                    again" and "the system is broken". */}
+                {revoked === "1" ? (
+                  <p className="mt-6 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-xs leading-relaxed text-amber-100">
+                    {t(
+                      locale,
+                      "Your access has changed since you signed in. Please sign in again."
+                    )}
+                  </p>
+                ) : null}
 
                 <div className="mt-7">
                   <LoginForm callbackUrl={callbackUrl} />

@@ -228,16 +228,25 @@ export async function chargeStorageFee(
       */
       const cargo = fresh.shipment;
       const note = cargo?.pickupNote ?? null;
-      let noteOutcome: "cancelled" | "already-collected" | "none" = "none";
+      let noteOutcome: "held" | "already-collected" | "none" = "none";
       if (cargo && note && nextStatus !== "PAID" && nextStatus !== "DRAFT") {
         if (note.status === "USED") {
           noteOutcome = "already-collected";
         } else if (note.status === "ACTIVE") {
-          await tx.pickupNote.update({
-            where: { id: note.id },
-            data: { status: "CANCELLED" },
-          });
-          noteOutcome = "cancelled";
+          /*
+            THE CARGO IS HELD, THE NOTE IS NOT DESTROYED.
+
+            Reverting the consignment is enough to stop it: releaseShipment
+            refuses anything that is not READY_FOR_PICKUP, so the boxes cannot
+            walk on a clearance that storage has just made untrue.
+
+            Cancelling the note would be one-way. PickupNote.shipmentId is
+            unique, so a consignment carries one note for its whole life and a
+            cancelled one can never be replaced — the customer would pay the
+            storage and find their cargo permanently unreleasable, which is a
+            worse outcome than the one being prevented. Paying puts it back.
+          */
+          noteOutcome = "held";
           if (cargo.status === "READY_FOR_PICKUP") {
             await tx.shipment.update({
               where: { id: cargo.id },
@@ -257,8 +266,8 @@ export async function chargeStorageFee(
             `${invoice.invoiceNumber}: storage fee of USD ${status.chargeUsd.toFixed(2)} charged — ${status.chargeableDays} day(s) beyond the ${STORAGE_POLICY.freeDays} free days` +
             (noteOutcome === "already-collected"
               ? ` — WARNING: pickup note ${note?.noteNumber} was already used, the cargo has been collected and this storage is now a live debt`
-              : noteOutcome === "cancelled"
-                ? ` — pickup note ${note?.noteNumber} withdrawn until it is paid`
+              : noteOutcome === "held"
+                ? ` — ${cargo?.trackingNumber} held against pickup note ${note?.noteNumber} until the storage is paid`
                 : ""),
           metadata: {
             tracking: invoice.shipment?.trackingNumber ?? null,

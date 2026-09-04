@@ -55,7 +55,14 @@ async function viewer(): Promise<SessionUser | null> {
   if (!session?.user?.id) return null;
 
   const user = await liveUser(session.user.id);
-  if (!user || !user.active || user.status !== "ACTIVE") return null;
+  if (!user || !user.active || user.status !== "ACTIVE") {
+    /* Distinguished from "not signed in", because the cookie is still valid
+       and the middleware would otherwise bounce them straight back off the
+       login page into the app, and the app straight back to login. See
+       revokedRedirect below. */
+    revoked = true;
+    return null;
+  }
 
   return {
     id: user.id,
@@ -66,10 +73,30 @@ async function viewer(): Promise<SessionUser | null> {
   };
 }
 
+/**
+ * Set by viewer() when the session is real but the account behind it is not.
+ *
+ * A module-level flag rather than a return value because viewer() has three
+ * callers with three different shapes, and only the redirecting one needs to
+ * know the difference. It is read immediately after the call that sets it.
+ */
+let revoked = false;
+
 /** For pages: bounce to login when there is no session. */
 export async function requireUser(): Promise<SessionUser> {
   const user = await viewer();
-  if (!user) redirect("/login");
+  if (!user) {
+    /*
+      A SUSPENDED ACCOUNT MUST NOT LOOP.
+
+      Their cookie is still valid, so middleware sees a signed-in person on
+      /login and sends them to the dashboard, which sends them back here. The
+      marker tells middleware to let the login page render, and the page tells
+      them what happened instead of leaving them staring at a form that was
+      working ten minutes ago.
+    */
+    redirect(revoked ? "/login?revoked=1" : "/login");
+  }
   return user;
 }
 

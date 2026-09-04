@@ -575,7 +575,7 @@ export default async function ManagerBatches({
                       }`}
                     >
                       {row.profitUsd < 0 ? "− " : ""}
-                      {money(Math.abs(row.profitUsd))}
+                      {exact(Math.abs(row.profitLocal), Math.abs(row.profitUsd))}
                     </TableCell>
                     <TableCell
                       className={`tabular py-2 text-right text-xs ${
@@ -631,7 +631,7 @@ export default async function ManagerBatches({
                       <TrendingUp className="h-3.5 w-3.5" />
                     )}
                     {row.profitUsd < 0 ? "− " : ""}
-                    {money(Math.abs(row.profitUsd))}
+                    {exact(Math.abs(row.profitLocal), Math.abs(row.profitUsd))}
                   </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground">

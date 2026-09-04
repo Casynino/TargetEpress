@@ -3,7 +3,7 @@ import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server
 
 import { authConfig } from "@/auth.config";
 import { maintenancePage } from "@/lib/maintenance-page";
-import { permissionForPath, ROLE_PERMISSIONS } from "@/lib/rbac";
+
 
 const { auth } = NextAuth(authConfig);
 
@@ -105,7 +105,11 @@ const guarded = auth((req) => {
   const isInternal = pathname.startsWith("/app");
   const isLogin = pathname === "/login";
 
-  if (isLogin && session?.user) {
+  /* A cookie whose account has been suspended: the app has just sent them
+     here on purpose, so bouncing them back would loop for ever. */
+  const revoked = req.nextUrl.searchParams.get("revoked") === "1";
+
+  if (isLogin && session?.user && !revoked) {
     return withHint(
       NextResponse.redirect(new URL("/app/dashboard", req.nextUrl)),
       true
@@ -124,18 +128,22 @@ const guarded = auth((req) => {
     return withHint(NextResponse.redirect(url), false);
   }
 
-  const required = permissionForPath(pathname);
-  if (required) {
-    const role = session.user.role;
-    const granted = role ? ROLE_PERMISSIONS[role] ?? [] : [];
-    if (!granted.includes(required)) {
-      return withHint(
-        NextResponse.redirect(new URL("/app/no-access", req.nextUrl)),
-        true
-      );
-    }
-  }
+  /*
+    THE ROLE IS NOT DECIDED HERE ANY MORE.
 
+    This runs on the edge, where the database is unreachable, so the only role
+    it can see is the one frozen into the token at sign-in. Every page now
+    reads the LIVE role — that is the whole point of checking the database on
+    each request, so that removing somebody's access means now — and the two
+    layers disagreeing is worse than one layer fewer: a promoted user was sent
+    to /app/no-access by middleware for a page their real role opens, and their
+    own dashboard could become unreachable until the token expired.
+
+    So this checks that somebody is signed in, and nothing else. Every page
+    behind /app calls requirePermission, and every action calls authorize;
+    both read the database. The gate did not move, it stopped being duplicated
+    against a stale copy.
+  */
   return withHint(NextResponse.next(), true);
 });
 

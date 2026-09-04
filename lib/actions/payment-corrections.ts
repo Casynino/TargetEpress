@@ -122,9 +122,26 @@ function settlementsOf(payment: {
   }
 
   const invoice = payment.invoice;
-  if (!invoice || invoice.currency !== payment.currency) return [];
+  if (!invoice) return [];
 
+  /*
+    THE CREDITED FIGURE IS ALREADY IN THE BILL'S CURRENCY.
+
+    recordPayment writes it that way — a shilling payment against a dollar bill
+    stores what the DOLLAR bill received — so it needs no conversion and no
+    currency test. Refusing on the currencies alone abandoned exactly the
+    commonest payment this business takes: cancelling one reversed the cash out
+    of the account and left the bill reading paid, with its pickup note still
+    live and the boxes still collectable.
+
+    The guard belongs only where there is NO credited figure to trust: a
+    deposit taken in shillings, later pointed at a dollar bill by the credit
+    engine, whose stored amount is the shillings that were handed over.
+    Subtracting those from a dollar bill is the thing that must never happen.
+  */
   const credited = toNumber(payment.creditedAmount);
+  if (invoice.currency !== payment.currency && !(credited > 0)) return [];
+
   return [
     {
       invoiceId: invoice.id,

@@ -981,8 +981,14 @@ export default async function LedgerPage({
                   {t(locale, "By")}
                 </TableHead>
                 <TableHead className="text-right">{t(locale, "Debit")}</TableHead>
+                {/* Its own key, not the plain word. "Credit" elsewhere in this
+                    app means a sale on credit — money owed — and translates to
+                    赊账; here it is the accounting column for money IN, which
+                    is 收入, the pair of the 支出 beside it. One key for both
+                    senses had the ledger telling a Chinese reader that its
+                    incoming column was debt. */}
                 <TableHead className="text-right">
-                  {t(locale, "Credit")}
+                  {t(locale, "Credit (in)")}
                 </TableHead>
                 <TableHead className="text-right">
                   {t(locale, "Balance")}

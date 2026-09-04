@@ -203,13 +203,34 @@ export async function autoPriceShipments(
     pricingCheckedAt: new Date(),
   });
 
-  if (blockedWrites.length > 0) await prisma.$transaction(blockedWrites);
+  /*
+    WRITTEN IN SLICES, SO A FAILURE COSTS ONE SLICE.
 
-  /* The re-run path: every draft already exists, so this is pure updates and
-     goes down as one batch. */
-  if (updates.length > 0) {
+    The old shape was a transaction per consignment, for a stated reason: a
+    rate book gap on line forty must not roll back the thirty-nine drafts
+    before it. Quoting first removes the pricing half of that — a line with no
+    price never reaches these writes at all — but it does not remove the other
+    half. A database error on line forty in ONE batch would still discard the
+    thirty-nine, which is a worse failure than the one this was speeding up.
+
+    Twenty at a time keeps effectively all of the round-trip saving, because
+    what cost the time was the begin-and-commit per consignment rather than
+    per flight, and bounds a failure to the slice it happened in. What
+    committed before it stands, and check-in is re-runnable by design.
+  */
+  const SLICE = 20;
+  const sliced = <T,>(rows: T[]) => {
+    const out: T[][] = [];
+    for (let i = 0; i < rows.length; i += SLICE) out.push(rows.slice(i, i + SLICE));
+    return out;
+  };
+
+  let priced = 0;
+
+  /* The re-run path: every draft already exists, so this is pure updates. */
+  for (const slice of sliced(updates)) {
     await prisma.$transaction(
-      updates.flatMap((row) => [
+      slice.flatMap((row) => [
         prisma.invoice.update({
           where: { id: row.invoiceId },
           data: row.figures,
@@ -220,16 +241,21 @@ export async function autoPriceShipments(
         }),
       ])
     );
+    priced += slice.length;
   }
 
-  /* The first run: numbers are taken as one block rather than one at a time,
-     which is what made the create path the slow half. Disjoint by
-     construction, so two flights checked in at once cannot collide. */
-  if (creates.length > 0) {
-    const numbers = await reserveInvoiceNumbers(prisma, creates.length);
-    await prisma.$transaction(
-      creates.flatMap((row, i) => [
-        prisma.invoice.create({
+  /*
+    The first run. The numbers are taken INSIDE the slice's own transaction,
+    so a slice that rolls back rolls its numbers back with it — taking them
+    outside left a hole in the invoice sequence that no document explains, and
+    an unexplained gap in a numbered financial series is the thing an auditor
+    asks about first.
+  */
+  for (const slice of sliced(creates)) {
+    await prisma.$transaction(async (tx) => {
+      const numbers = await reserveInvoiceNumbers(tx, slice.length);
+      for (const [i, row] of slice.entries()) {
+        await tx.invoice.create({
           data: {
             ...row.figures,
             invoiceNumber: numbers[i]!,
@@ -237,16 +263,32 @@ export async function autoPriceShipments(
             customerId: row.customerId,
             issuedById: actorId,
           },
-        }),
-        prisma.shipment.update({
+        });
+        await tx.shipment.update({
           where: { id: row.shipmentId },
           data: stamp(row.quoted),
-        }),
-      ])
-    );
+        });
+      }
+    });
+    priced += slice.length;
   }
 
-  const priced = updates.length + creates.length;
+  /*
+    LAST, AND NEVER IN FRONT OF THE MONEY.
+
+    A blocked reason is advisory — it is re-derived on the next pricing run —
+    while a draft that was never raised does not come back on its own. These
+    used to run first as one transaction, so a failure writing a cosmetic
+    sentence discarded every invoice on the flight. Each stands alone now and
+    a failure among them is not allowed to take the drafts down.
+  */
+  for (const write of blockedWrites) {
+    try {
+      await write;
+    } catch {
+      /* The next check-in re-derives it. Nothing here is money. */
+    }
+  }
 
   return { priced, skipped, blocked };
 }

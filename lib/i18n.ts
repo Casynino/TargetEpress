@@ -808,6 +808,9 @@ const ZH: Record<string, string> = {
      finance band, in the ledger and on the credit screen itself. 赊账 is the
      word the other forty credit strings in this file already use. */
   "Credit": "赊账",
+  /* The ledger column for money in, paired with 支出. Distinct from the
+     word above, which is a sale on credit. */
+  "Credit (in)": "收入",
   "ctn": "纸箱",
   "Currency": "币种",
   "Current password": "当前密码",
@@ -2719,6 +2722,10 @@ const ZH: Record<string, string> = {
   "Find cargo": "查找货物",
   "Search by tracking number, customer name, phone number, batch or invoice.":
     "可按运单号、客户姓名、电话号码、航班或账单搜索。",
+  "Your access has changed since you signed in. Please sign in again.":
+    "自您登录后，您的权限已发生变更。请重新登录。",
+  "Showing the most recent": "仅显示最近",
+  "see all": "查看全部",
   "This bill changed a moment ago. Reload the page and look again.":
     "这张账单刚刚发生了变动。请刷新页面后再查看。",
   "No exchange rate was published on the day this money arrived, so it cannot be valued in the register. Publish one for that date and record it again.":

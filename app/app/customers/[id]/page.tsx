@@ -336,8 +336,21 @@ export default async function CustomerProfilePage({
         <div className="space-y-6">
           {/* Shipments */}
           <section className="rounded-xl border bg-card shadow-soft">
-            <header className="border-b p-4">
+            <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b p-4">
               <h2 className="font-semibold">{t(locale, "Cargo")}</h2>
+              {/* The list is the most recent sixty; the figures above it are
+                  counted across everything. Saying so is the difference
+                  between a capped list and a customer whose older cargo looks
+                  as though it was never registered. */}
+              {stats.total > customer.shipments.length ? (
+                <Link
+                  href={`/app/cargo?q=${encodeURIComponent(customer.phone ?? customer.code)}`}
+                  className="focus-ring rounded text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                >
+                  {t(locale, "Showing the most recent")} {customer.shipments.length}{" "}
+                  {t(locale, "of")} {stats.total} — {t(locale, "see all")}
+                </Link>
+              ) : null}
             </header>
             {/*
               A customer's shipments, on a phone.

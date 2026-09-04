@@ -1373,7 +1373,8 @@ function ledgerReport(
       { key: "account", label: "Account" },
       { key: "currency", label: "Currency" },
       { key: "debit", label: "Debit", numeric: true },
-      { key: "credit", label: "Credit", numeric: true },
+      /* The accounting column, not a credit sale — see the ledger page. */
+      { key: "credit", label: "Credit (in)", numeric: true },
       { key: "balance", label: "Balance", numeric: true },
       { key: "recordedBy", label: "Recorded by" },
     ],

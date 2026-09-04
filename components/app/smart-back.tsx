@@ -30,7 +30,20 @@ export function useSmartBack(fallbackHref: string, fallbackLabel: string) {
   useEffect(() => {
     const back = previous(readTrail());
     if (!back) return;
-    setTarget({ href: back, label: labelForPath(back) ?? fallbackLabel });
+    /*
+      THE FALLBACK LABEL BELONGS TO THE FALLBACK HREF.
+
+      Callers pass a record's own name — "TX-000165" — as the word for the
+      place they know about. labelForPath names lists and returns null for a
+      record, so falling through to that name for a DIFFERENT destination put
+      one consignment's number on a link to another's page. A neutral word is
+      the honest answer when only the page itself knows the name.
+    */
+    const named = labelForPath(back);
+    setTarget({
+      href: back,
+      label: named ?? (back === fallbackHref ? fallbackLabel : "Back"),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fallbackHref, fallbackLabel]);
 

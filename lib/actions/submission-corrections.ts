@@ -178,13 +178,17 @@ export async function editSubmission(
     if (changed.length === 0) return fail(t(locale, "Nothing was changed."));
 
     /*
-      A COMBINED CLAIM'S TOTAL IS THE SUM OF ITS PARTS.
+      A CLAIM'S TOTAL IS THE SUM OF ITS PARTS.
 
       Its allocations say how much answers each bill. Moving the total without
       restating them leaves the two disagreeing, and Finance then verifies a
       figure the split cannot account for — one bill credited with another's
       money. The reference, the note and the account are all still correctable;
       only the figure has to go back through the form that asks how it splits.
+
+      More than one bill is refused. Exactly one is not ambiguous — there is
+      only one place the difference can go — so the allocation is restated
+      below and the desk keeps the ordinary correction of a mistyped figure.
     */
     if (sub._count.allocations > 1 && changed.includes("amount")) {
       return fail(
@@ -213,6 +217,16 @@ export async function editSubmission(
         throw new Error(
           `${sub.submissionNumber} was decided by Finance a moment ago. Reload before editing it.`
         );
+      }
+
+      /* And the split moves with the total. Verifying reads the allocations,
+         not the claim's own figure, so leaving a stale one behind would settle
+         the bill at the amount before the correction. */
+      if (sub._count.allocations === 1 && changed.includes("amount")) {
+        await tx.submissionAllocation.updateMany({
+          where: { submissionId: sub.id },
+          data: { amount: new Prisma.Decimal(after.amount) },
+        });
       }
 
       await recordAudit(
@@ -601,6 +615,11 @@ export async function resubmitSubmission(
       total without saying how the change is split is a question this form does
       not ask, and answering it by guessing is how one bill gets credited with
       another's money. Same amount, and the split is carried across untouched.
+
+      One bill is different: there is only one place the difference can go, so
+      the replacement's allocation is written at the corrected figure below.
+      Carrying the OLD one across would have Finance settle the bill at the
+      amount the desk had just corrected away from.
     */
     const claimed = old.allocations.reduce((sum, a) => sum + toNumber(a.amount), 0);
     if (
@@ -696,11 +715,16 @@ export async function resubmitSubmission(
           replacesId: old.id,
           /* The split goes with it. Without these the replacement looked like
              a single-bill claim, and Finance verifying it put the whole sum
-             against the anchor. */
+             against the anchor. A one-bill split is restated to the corrected
+             figure; a multi-bill one cannot have changed, because the check
+             above refuses that. */
           allocations: {
             create: old.allocations.map((a) => ({
               invoiceId: a.invoiceId,
-              amount: a.amount,
+              amount:
+                old.allocations.length === 1
+                  ? new Prisma.Decimal(parsed.data.amount)
+                  : a.amount,
             })),
           },
           /* The same files, not re-uploaded. The refused claim keeps its own
