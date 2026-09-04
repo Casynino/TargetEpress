@@ -50,6 +50,12 @@ export default async function RecordCollectionPage({
         total: true,
         amountPaid: true,
         currency: true,
+        /* The rate FROZEN onto this bill, which is the rate recordPayment will
+           settle it at. Quoting today's instead meant the counter asked for a
+           shilling figure the server then credited as something else, leaving
+           the bill a few thousand shillings short of settled and the cargo on
+           the floor after the screen had said "paid in full". */
+        exchangeRate: true,
         storageCharge: true,
         storageWaivedUsd: true,
         /* The credit state of this bill, and the customer's facility, because
@@ -84,7 +90,15 @@ export default async function RecordCollectionPage({
   ]);
   if (!invoice) notFound();
 
-  const rate = rateRow ? toNumber(rateRow.rate) : null;
+  /* Today's rate is the fallback for a bill that never had one — an older
+     invoice raised before the shilling column existed. Everything else on this
+     screen quotes the bill's own rate. */
+  const rate =
+    invoice.exchangeRate !== null
+      ? toNumber(invoice.exchangeRate)
+      : rateRow
+        ? toNumber(rateRow.rate)
+        : null;
   /* The one question asked at the counter that this screen could not answer:
      "why is my total more than the price I was quoted?" Storage is the usual
      answer, and it was invisible here — the person taking the money had to

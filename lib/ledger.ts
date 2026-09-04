@@ -96,6 +96,10 @@ export async function accountBalances(
   return client.$queryRaw<
     {
       accountId: string;
+      /* The currency the account is actually held in. Without it a caller
+         totalling several accounts has to convert the frozen dollar column at
+         today's rate, which is not what the account holds. */
+      currency: string;
       inflow: Prisma.Decimal;
       outflow: Prisma.Decimal;
       inflowUsd: Prisma.Decimal;
@@ -105,14 +109,16 @@ export async function accountBalances(
     }[]
   >(Prisma.sql`
     SELECT
-      "accountId",
-      COALESCE(SUM("amount")    FILTER (WHERE "direction" = 'IN'),  0) AS "inflow",
-      COALESCE(SUM("amount")    FILTER (WHERE "direction" = 'OUT'), 0) AS "outflow",
-      COALESCE(SUM("amountUsd") FILTER (WHERE "direction" = 'IN'),  0) AS "inflowUsd",
-      COALESCE(SUM("amountUsd") FILTER (WHERE "direction" = 'OUT'), 0) AS "outflowUsd",
-      COUNT(*)                                                         AS "entries",
-      MAX("occurredAt")                                                AS "lastMovedAt"
-    FROM "LedgerEntry"
-    GROUP BY "accountId"
+      e."accountId",
+      a."currency",
+      COALESCE(SUM(e."amount")    FILTER (WHERE e."direction" = 'IN'),  0) AS "inflow",
+      COALESCE(SUM(e."amount")    FILTER (WHERE e."direction" = 'OUT'), 0) AS "outflow",
+      COALESCE(SUM(e."amountUsd") FILTER (WHERE e."direction" = 'IN'),  0) AS "inflowUsd",
+      COALESCE(SUM(e."amountUsd") FILTER (WHERE e."direction" = 'OUT'), 0) AS "outflowUsd",
+      COUNT(*)                                                             AS "entries",
+      MAX(e."occurredAt")                                                  AS "lastMovedAt"
+    FROM "LedgerEntry" e
+    JOIN "CompanyAccount" a ON a."id" = e."accountId"
+    GROUP BY e."accountId", a."currency"
   `);
 }

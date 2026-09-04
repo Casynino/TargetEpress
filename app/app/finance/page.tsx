@@ -37,6 +37,7 @@ import {
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
 import { sumShillings, sumUsd } from "@/lib/money-totals";
 import { currentRate, formatUsd } from "@/lib/fx";
+import { formatShillingTotal, LOCAL_CURRENCY } from "@/lib/money";
 import { t } from "@/lib/i18n";
 import { accountBalances } from "@/lib/ledger";
 import {
@@ -216,6 +217,24 @@ export default async function FinanceOverviewPage() {
   );
   const cashOnHand = balances.reduce(
     (sum, row) => sum + toNumber(row.inflowUsd) - toNumber(row.outflowUsd),
+    0
+  );
+  /*
+    THE SHILLINGS AS THEY ARE HELD.
+
+    A shilling account's dollar column was frozen at the rate of each posting,
+    so totalling those and multiplying by today's gave a figure that moved
+    whenever the rate was republished — and disagreed with the Accounts page,
+    which adds each account up in its own currency.
+  */
+  const cashLocal = balances.reduce(
+    (sum, row) =>
+      sum +
+      (row.currency === LOCAL_CURRENCY
+        ? toNumber(row.inflow) - toNumber(row.outflow)
+        : rate === null
+          ? 0
+          : (toNumber(row.inflowUsd) - toNumber(row.outflowUsd)) * rate),
     0
   );
   const unattributedCount = unattributed?.length ?? 0;
@@ -455,7 +474,9 @@ export default async function FinanceOverviewPage() {
               k: seesCompanyMoney
                 ? t(locale, "Cash available")
                 : t(locale, "Collected all time"),
-              v: tsh(seesCompanyMoney ? cashOnHand : stats.collected),
+              v: seesCompanyMoney
+                ? formatShillingTotal(cashLocal, cashOnHand, rate)
+                : tsh(stats.collected),
               usd: formatUsd(seesCompanyMoney ? cashOnHand : stats.collected),
               tone: "text-foreground",
               wash: "from-brand/10",

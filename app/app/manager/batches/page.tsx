@@ -35,7 +35,12 @@ import { formatDate, formatDateTime, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
-import { formatLocal, formatShillings, formatUsd } from "@/lib/money";
+import {
+  formatLocal,
+  formatShillings,
+  formatShillingTotal,
+  formatUsd,
+} from "@/lib/money";
 import { windowFor } from "@/lib/profit";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -269,6 +274,13 @@ export default async function ManagerBatches({
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
   const money = (usd: number) => formatShillings(usd, rate);
+  /* A flight's own totals were added up as shillings by the engine, so print
+     those rather than multiplying the dollar snapshot back: a cost of
+     TSh 20,000 is stored as USD 7.41, and 7.41 × 2,700 is 20,007. The same
+     rows on the Manager's Finance page always printed the exact figure, so
+     the two screens disagreed on the same flight. See lib/money-totals.ts. */
+  const exact = (local: number, usd: number) =>
+    formatShillingTotal(local, usd, rate);
   const ids = dash.batches.map((b) => b.id);
 
   const [costRows, reviewRows] = await Promise.all([
@@ -543,19 +555,19 @@ export default async function ManagerBatches({
                       {row.kg.toLocaleString("en-US", { maximumFractionDigits: 0 })}
                     </TableCell>
                     <TableCell className="tabular py-2 text-right text-xs">
-                      {money(row.expectedUsd)}
+                      {exact(row.expectedLocal, row.expectedUsd)}
                     </TableCell>
                     <TableCell className="tabular hidden py-2 text-right text-xs text-success lg:table-cell">
-                      {money(row.collectedUsd)}
+                      {exact(row.collectedLocal, row.collectedUsd)}
                     </TableCell>
                     <TableCell className="tabular hidden py-2 text-right text-xs text-brand xl:table-cell">
                       {money(row.creditUsd)}
                     </TableCell>
                     <TableCell className="tabular hidden py-2 text-right text-xs text-signal lg:table-cell">
-                      {money(row.outstandingUsd)}
+                      {exact(row.outstandingLocal, row.outstandingUsd)}
                     </TableCell>
                     <TableCell className="tabular hidden py-2 text-right text-xs text-destructive xl:table-cell">
-                      {money(row.expensesUsd)}
+                      {exact(row.expensesLocal, row.expensesUsd)}
                     </TableCell>
                     <TableCell
                       className={`tabular py-2 text-right text-xs font-semibold ${
@@ -630,11 +642,11 @@ export default async function ManagerBatches({
                 </p>
                 <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
                   {[
-                    { k: "Revenue", v: money(row.expectedUsd), tone: "" },
-                    { k: "Collected", v: money(row.collectedUsd), tone: "text-success" },
+                    { k: "Revenue", v: exact(row.expectedLocal, row.expectedUsd), tone: "" },
+                    { k: "Collected", v: exact(row.collectedLocal, row.collectedUsd), tone: "text-success" },
                     { k: "Credit", v: money(row.creditUsd), tone: "text-brand" },
-                    { k: "Outstanding", v: money(row.outstandingUsd), tone: "text-signal" },
-                    { k: "Expenses", v: money(row.expensesUsd), tone: "text-destructive" },
+                    { k: "Outstanding", v: exact(row.outstandingLocal, row.outstandingUsd), tone: "text-signal" },
+                    { k: "Expenses", v: exact(row.expensesLocal, row.expensesUsd), tone: "text-destructive" },
                   ].map((cell) => (
                     <div
                       key={cell.k}
@@ -704,7 +716,7 @@ export default async function ManagerBatches({
                       <StandingBadge standing={row.standing} locale={locale} />
                     ) : null}
                     <span className="tabular text-xs font-semibold">
-                      {money(row.expensesUsd)}
+                      {exact(row.expensesLocal, row.expensesUsd)}
                       <span className="ml-1 font-normal text-muted-foreground">
                         · {row.costs.length}{" "}
                         {t(locale, row.costs.length === 1 ? "cost" : "costs")}
@@ -800,7 +812,7 @@ export default async function ManagerBatches({
 
                     {row.specialUsd > 0 ? (
                       <p className="mt-1 text-[11px] text-muted-foreground">
-                        {t(locale, "Operating costs")} {money(row.expensesUsd)} ·{" "}
+                        {t(locale, "Operating costs")} {exact(row.expensesLocal, row.expensesUsd)} ·{" "}
                         {money(row.specialUsd)}{" "}
                         {t(
                           locale,

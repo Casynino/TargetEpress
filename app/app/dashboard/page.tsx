@@ -1679,6 +1679,20 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     })
     .sort((a, b) => b.usd - a.usd);
   const cashUsd = accountRows.reduce((sum, a) => sum + a.usd, 0);
+  /*
+    THE SHILLINGS AS THEY ARE HELD, NOT CONVERTED BACK.
+
+    A shilling account's ledger dollar column was frozen at the rate of each
+    posting. Totalling those and multiplying by today's rate gave a figure that
+    moved every time the CEO republished the rate — and disagreed with the
+    Accounts page this tile links to, which adds each account up in its own
+    currency. Press the tile and the total changed.
+  */
+  const cashLocal = accountRows.reduce(
+    (sum, a) =>
+      sum + (a.currency === "TZS" ? a.native : rate === null ? 0 : a.usd * rate),
+    0
+  );
   const holding = accountRows.filter((a) => a.native !== 0).length;
 
   /**
@@ -1939,6 +1953,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
         <MoneyTile
           label={t(locale, "Cash available")}
           usd={cashUsd}
+          local={cashLocal}
           rate={rate}
           icon={Wallet}
           tone="good"
