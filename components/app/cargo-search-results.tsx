@@ -129,6 +129,25 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
               {problem}
             </Badge>
           ))}
+          {/*
+            HERE, BECAUSE THIS COLUMN IS NEVER HIDDEN.
+
+            It sat with the money, which is hidden below xl — so on a laptop
+            with a sidebar open, a tablet, or a split screen, the one fact that
+            stops a customer being asked to pay twice was display:none.
+
+            row.claimed is only ever set when the reader may see money at all
+            (see app/app/search/page.tsx), so a warehouse row carries none and
+            renders nothing. That invariant is load-bearing now: this column is
+            shown to every role, so do not populate `claimed` without the same
+            finance.view check that fills `owed`.
+          */}
+          {row.claimed ? (
+            <span className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-1.5 py-px text-[10px] font-semibold text-warning">
+              <Hourglass className="h-2.5 w-2.5" />
+              {row.claimed.label}
+            </span>
+          ) : null}
         </div>
       ),
     },
@@ -185,14 +204,13 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
                   >
                     {row.owed.label}
                   </span>
-                  {/* Under the figure, not instead of it. */}
+                  {/* Under the figure, not instead of it — a claim is not a
+                      payment and the bill still owes this. Visible text, not a
+                      title= tooltip: half these desks are on a touch screen,
+                      where hover does not exist. */}
                   {row.claimed ? (
-                    <span
-                      title={row.claimed.detail}
-                      className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-1.5 py-px text-[10px] font-semibold text-warning"
-                    >
-                      <Hourglass className="h-2.5 w-2.5" />
-                      {row.claimed.label}
+                    <span className="block max-w-[16rem] text-right text-[10px] font-normal leading-tight text-warning/80">
+                      {row.claimed.detail}
                     </span>
                   ) : null}
                 </span>
@@ -277,6 +295,32 @@ export function CargoSearchResults({ rows }: { rows: CargoSearchRow[] }) {
             {row.packages} {t("pkg")} · {formatWeight(row.weightKg)} ·{" "}
             {t(SHIPMENT_STATUS_META[row.status].publicLocation)}
           </p>
+          {/* The card was the only layout in the app that showed a desk with
+              money rights no money at all — and so no claim either. This is
+              the phone, which is where the counter actually works. */}
+          {row.owed || row.claimed ? (
+            <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+              {row.owed ? (
+                <span
+                  className={
+                    row.owed.state === "due"
+                      ? "font-mono font-medium tabular text-warning"
+                      : row.owed.state === "settled"
+                        ? "font-medium text-success"
+                        : "text-muted-foreground"
+                  }
+                >
+                  {row.owed.label}
+                </span>
+              ) : null}
+              {row.claimed ? (
+                <span className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-1.5 py-px text-[10px] font-semibold text-warning">
+                  <Hourglass className="h-2.5 w-2.5" />
+                  {row.claimed.label}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
         </Link>
       )}
     />

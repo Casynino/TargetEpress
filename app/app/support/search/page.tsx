@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate, formatWeight, toNumber } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
 import { can } from "@/lib/rbac";
+import { claimsForInvoices } from "@/lib/claimed";
+import { t } from "@/lib/i18n";
 import { requirePermission } from "@/lib/session";
 import { searchShipments } from "@/lib/support";
 import { cargoText, viewerLocale } from "@/lib/viewer";
@@ -33,6 +35,23 @@ export default async function SupportSearchPage({
   const showMoney = can(user.role, "finance.view");
 
   const results = q ? await searchShipments(q) : [];
+
+  /*
+    WHICH OF THESE HAS ALREADY BEEN PAID FOR.
+
+    This is the box Support reads with the customer on the line, and it showed
+    a cargo with a claim already sitting in Finance's queue exactly as it shows
+    one nobody has ever paid: the same figure, in the same red. So the desk
+    asks a customer who paid on Tuesday to pay again.
+
+    One query for the page. Only when this reader may see money at all — the
+    warehouse desks reach this same page and have never seen a figure on it.
+  */
+  const claims = showMoney
+    ? await claimsForInvoices(
+        results.map((r) => r.invoice?.id).filter((v): v is string => Boolean(v))
+      )
+    : new Map();
 
   return (
     <>
@@ -132,6 +151,16 @@ export default async function SupportSearchPage({
                         never sent
                       </Badge>
                     ) : null}
+                    {/* Beside the figure, never instead of it: the bill still
+                        owes this until Finance agrees the claim. */}
+                    {shipment.invoice && claims.get(shipment.invoice.id) ? (
+                      <Badge
+                        variant="outline"
+                        className="border-warning/40 text-xs text-warning"
+                      >
+                        {t(locale, "Payment submitted")}
+                      </Badge>
+                    ) : null}
                   </div>
                 ) : null}
               </li>
@@ -214,6 +243,14 @@ export default async function SupportSearchPage({
                             className="mt-1 block w-fit border-warning/40 text-xs text-warning"
                           >
                             never sent
+                          </Badge>
+                        ) : null}
+                        {shipment.invoice && claims.get(shipment.invoice.id) ? (
+                          <Badge
+                            variant="outline"
+                            className="mt-1 block w-fit border-warning/40 text-xs text-warning"
+                          >
+                            {t(locale, "Payment submitted")}
                           </Badge>
                         ) : null}
                       </td>

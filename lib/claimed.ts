@@ -36,6 +36,9 @@ export type Claim = {
   reference: string | null;
   submittedAt: Date;
   submittedByName: string | null;
+  /** Which account the desk says it landed in. Null on claims raised before
+      naming one was compulsory — say so rather than leaving a gap. */
+  accountName: string | null;
   /** Every consignment this one claim answers, so a merge names them all. */
   covers: { invoiceId: string; invoiceNumber: string; trackingNumber: string | null }[];
 };
@@ -104,6 +107,7 @@ export async function claimsForInvoices(
       reference: true,
       createdAt: true,
       submittedBy: { select: { name: true } },
+      account: { select: { name: true } },
       invoice: {
         select: {
           id: true,
@@ -159,6 +163,7 @@ export async function claimsForInvoices(
       reference: s.reference,
       submittedAt: s.createdAt,
       submittedByName: s.submittedBy?.name ?? null,
+      accountName: s.account?.name ?? null,
       covers: [...covered.values()],
     };
 

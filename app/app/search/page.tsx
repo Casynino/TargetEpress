@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { SearchBox } from "@/components/app/search-box";
 import { EXCEPTION_TYPE_LABELS } from "@/lib/constants";
 import { suggestCargo } from "@/lib/actions/suggest";
-import { toNumber } from "@/lib/format";
+import { toNumber, formatDate } from "@/lib/format";
 import { formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { resolveScannedCode } from "@/lib/packages";
@@ -179,12 +179,24 @@ export default async function SearchCargoPage({
                   claim.covers.length > 1
                     ? `${t(locale, "Payment submitted")} · ${claim.covers.length}`
                     : t(locale, "Payment submitted"),
+                /* Everything the owner asked to see: what was sent, into
+                   what, against what reference, by whom, when, and which
+                   consignments it answers. */
                 detail: [
-                  `${claim.currency} ${claim.amount}`,
-                  claim.submissionNumber,
+                  `${claim.currency} ${claim.amount.toLocaleString()}`,
+                  claim.accountName ?? t(locale, "no account named"),
                   claim.reference,
-                  claim.submittedByName,
-                  claim.covers.map((c) => c.trackingNumber).filter(Boolean).join(", "),
+                  claim.submissionNumber,
+                  claim.submittedByName
+                    ? `${t(locale, "by")} ${claim.submittedByName}`
+                    : null,
+                  formatDate(claim.submittedAt, locale),
+                  claim.covers.length > 1
+                    ? claim.covers
+                        .map((c) => c.trackingNumber)
+                        .filter(Boolean)
+                        .join(", ")
+                    : null,
                 ]
                   .filter(Boolean)
                   .join(" · "),
