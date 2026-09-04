@@ -505,6 +505,9 @@ export default async function RecordCustomerPaymentPage({
           discount: true,
           storageCharge: true,
           storageWaivedUsd: true,
+          /* So the credit control can decide whether to show itself without
+             asking the server — see the note in BillActions. */
+          creditStatus: true,
           shipment: {
             select: {
               trackingNumber: true,
@@ -566,6 +569,7 @@ export default async function RecordCustomerPaymentPage({
          confirmed it. Enforced again in recordCustomerPayment, because this
          list is not what makes the endpoint safe. */
       payable: isCollectable(invoice.shipment.status),
+      creditStatus: invoice.creditStatus,
     }))
     .filter((bill) => bill.outstanding > 0.005);
 

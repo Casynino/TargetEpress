@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { CalendarClock, Search, X } from "lucide-react";
 
 import { CreditRequest } from "@/components/app/credit-request";
+import { IconHint } from "@/components/app/icon-hint";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import {
@@ -298,15 +299,24 @@ export function CreditOnRow({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        title={label}
-        aria-label={label}
-        className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-chart-4/40 text-chart-4 transition-colors hover:bg-chart-4/10"
-      >
-        <CalendarClock className="h-3.5 w-3.5" />
-      </button>
+      {/*
+        The app's own hint, not the browser's.
+
+        This was the one icon on the row still leaning on `title`: a second of
+        stillness, then a grey box in the operating system's font, while every
+        icon beside it named itself instantly in the app's own type. See the
+        note in IconHint — the native tooltip reads as something the app forgot.
+      */}
+      <IconHint label={label}>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={label}
+          className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-chart-4/40 text-chart-4 transition-colors hover:bg-chart-4/10"
+        >
+          <CalendarClock className="h-3.5 w-3.5" />
+        </button>
+      </IconHint>
 
       {open ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/70 p-4 backdrop-blur-sm sm:p-8">

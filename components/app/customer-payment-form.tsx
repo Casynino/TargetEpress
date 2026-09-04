@@ -49,6 +49,8 @@ export type OpenBill = {
   storageUncharged: number;
   /** Free days left when nothing has accrued, so the screen can say so. */
   storageFreeDaysLeft: number | null;
+  /** NONE, REQUESTED or APPROVED — whether credit can still be asked for. */
+  creditStatus: string;
   /**
    * Whether the Dar floor has confirmed the cargo.
    *

@@ -52,6 +52,8 @@ export function BillActions({
         storage: number;
         storageUncharged: number;
         storageFreeDaysLeft: number | null;
+        creditStatus: string;
+        outstanding: number;
       }
     | null;
   /** Every ticked bill. Discount and rate act on all of them at once. */
@@ -64,6 +66,8 @@ export function BillActions({
     storage: number;
     storageUncharged: number;
     storageFreeDaysLeft: number | null;
+    creditStatus: string;
+    outstanding: number;
   }[];
   selectedCount: number;
   canDiscount?: boolean;
@@ -78,20 +82,27 @@ export function BillActions({
     ReturnType<typeof creditContextFor>
   > | null>(null);
 
-  /* Asked for only once a single bill is settled on, so the common case —
-     ticking through a list — costs nothing. */
+  /*
+    THE TERMS ARE THE CUSTOMER'S, SO THEY ARE FETCHED ONCE.
+
+    This ran on every tick and cleared the answer first, so "Release on credit"
+    vanished and reappeared each time a box was ticked — the desk saw the panel
+    stutter and waited to see whether the button was coming back.
+
+    Nothing it fetches actually moves with the ticking: the limit, what the
+    customer already owes on terms and the agreed term days belong to the
+    customer, not the selection. The one thing that does move — the amount
+    being put on terms — is the sum of what is ticked, which is already on this
+    screen. So it is asked for once, while the page is loading, and the tick
+    itself costs nothing.
+  */
+  const anchorId = (bills?.[0] ?? bill)?.invoiceId;
   useEffect(() => {
     let live = true;
-    setCredit(null);
-    /* The terms belong to the CUSTOMER, so any one of the ticked bills answers
-       what they are — and the release itself covers all of them. */
-    const set = bills?.length ? bills.map((b) => b.invoiceId) : bill ? [bill.invoiceId] : [];
-    if (set.length === 0) return;
-    /* The whole ticked set, so the amount in the dialog is the amount being
-       agreed to rather than the first bill's share of it. */
-    creditContextFor(set.join(","))
+    if (!anchorId) return;
+    creditContextFor(anchorId)
       .then((c) => {
-        if (live) setCredit(c);
+        if (live && c) setCredit(c);
       })
       .catch(() => {
         /* Credit is an extra here. A screen that takes money must not fail
@@ -100,7 +111,8 @@ export function BillActions({
     return () => {
       live = false;
     };
-  }, [bills?.map((b) => b.invoiceId).join(",") ?? bill?.invoiceId]);
+    /* Deliberately not the ticked set — see above. */
+  }, [anchorId]);
 
   if (selectedCount === 0) return null;
 
@@ -126,6 +138,14 @@ export function BillActions({
     bill. It is never removed by the system: the clock keeps running and
     somebody has to decide.
   */
+  /* Whether credit can be asked for at all: the bill's own state, so the
+     control renders with the rest of the panel instead of arriving after it. */
+  const creditable = many.filter((b) => b.creditStatus === "NONE");
+  const creditOutstanding =
+    Math.round(
+      creditable.reduce((n, b) => n + Math.max(0, b.outstanding), 0) * 100
+    ) / 100;
+
   const withStorage = many.filter((b) => b.storage > 0.005);
   const storageTotal = withStorage.reduce((sum, b) => sum + b.storage, 0);
   /* Accrued and not on the bill — a different figure and a different press. */
@@ -169,17 +189,20 @@ export function BillActions({
           same however it is reached. */}
       {/* Every ticked bill, on one set of terms — the action releases them in
           a single transaction, so either all of them go on credit or none. */}
-      {credit ? (
+      {creditable.length > 0 && creditOutstanding > 0.005 ? (
         <CreditRequest
-          invoiceId={ids}
-          across={many.length}
-          outstanding={money(credit.outstanding, credit.currency)}
-          defaultTerm={credit.termDays}
+          invoiceId={creditable.map((b) => b.invoiceId).join(",")}
+          across={creditable.length}
+          /* Summed here, from what is ticked, rather than waited for. */
+          outstanding={money(creditOutstanding, many[0]!.currency)}
+          defaultTerm={credit?.termDays ?? 14}
           limitLabel={
-            credit.limitUsd === null ? null : money(credit.limitUsd, "USD")
+            credit && credit.limitUsd !== null
+              ? money(credit.limitUsd, "USD")
+              : null
           }
           outstandingLabel={
-            credit.alreadyOwesUsd > 0.005
+            credit && credit.alreadyOwesUsd > 0.005
               ? money(credit.alreadyOwesUsd, "USD")
               : null
           }
