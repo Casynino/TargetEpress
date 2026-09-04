@@ -82,11 +82,14 @@ export function CargoEditForm({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="customerPhone">{t("Phone")}</Label>
+            {/* Required, because a blank one used to save as no number at
+                all — a customer nobody could ring about their own cargo. */}
             <Input
               id="customerPhone"
               name="customerPhone"
               defaultValue={cargo.customerPhone ?? ""}
               inputMode="tel"
+              required
             />
           </div>
         </div>

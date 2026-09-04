@@ -93,18 +93,34 @@ export async function createCustomer(
   const input = parsed.data;
   const phone = normalisePhone(input.phone);
 
+  const MATCH = {
+    id: true,
+    code: true,
+    name: true,
+    phone: true,
+    city: true,
+    _count: { select: { shipments: { where: { deletedAt: null } } } },
+  } as const;
+
   try {
-    const existing = await prisma.customer.findUnique({
+    /*
+      BOTH TABLES, BECAUSE A CUSTOMER HAS MORE THAN ONE NUMBER.
+
+      Customer.phone is the main line; CustomerPhone holds the others — the
+      second SIM, the son who collects, the office landline. Checking only the
+      first meant somebody registering a walk-in by the number already on file
+      as a customer's SECOND number got a whole new customer for them, with
+      their cargo and their debt split across two records.
+
+      addCustomerPhone has always asked both. This is the same question.
+    */
+    const alsoKnown = await prisma.customerPhone.findUnique({
       where: { phone },
-      select: {
-        id: true,
-        code: true,
-        name: true,
-        phone: true,
-        city: true,
-        _count: { select: { shipments: { where: { deletedAt: null } } } },
-      },
+      select: { customer: { select: MATCH } },
     });
+    const existing =
+      alsoKnown?.customer ??
+      (await prisma.customer.findUnique({ where: { phone }, select: MATCH }));
 
     if (existing) {
       return ok({
@@ -127,6 +143,14 @@ export async function createCustomer(
           city: input.city || null,
           email: input.email || null,
           createdById: user.id,
+          /* Mirrored, so every lookup has one place to ask — the same write
+             resolveCustomer does when a shipment brings in a new customer.
+             Without it the number was in Customer.phone alone, the phone list
+             on the profile read "no number on file", and setting another
+             number as the main one overwrote the only one they had. */
+          phones: {
+            create: { phone, isPrimary: true, addedById: user.id },
+          },
         },
         select: { id: true, code: true, name: true, phone: true, city: true },
       });
@@ -235,6 +259,13 @@ export async function mergeCustomers(input: {
         .count;
       moved.messages = (await tx.customerMessage.updateMany({ where, data }))
         .count;
+      /* Support's claims name the customer too, and their foreign key is
+         Restrict — so a customer with even one claim against them could not be
+         merged at all, and the merge failed on the delete with a constraint
+         error rather than a sentence. */
+      moved.submissions = (
+        await tx.paymentSubmission.updateMany({ where, data })
+      ).count;
 
       /*
         THE NUMBERS COME TOO.

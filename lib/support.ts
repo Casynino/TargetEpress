@@ -1015,14 +1015,18 @@ export async function customerProfile(idOrCode: string) {
   );
   const completed = customer.shipments.filter((s) => s.status === "DELIVERED");
 
+  /* Only bills that are actually owed — the same test receivablesAgeing uses.
+     A draft is the system's own price before Finance has agreed it, and a
+     written-off bill is one the company decided never to collect; counting
+     either had the profile telling a desk to chase money nobody was owed. */
   const outstanding = customer.shipments.reduce((sum, shipment) => {
-    if (!shipment.invoice) return sum;
+    const invoice = shipment.invoice;
+    if (!invoice) return sum;
+    if (invoice.status !== "UNPAID" && invoice.status !== "PARTIALLY_PAID") {
+      return sum;
+    }
     return (
-      sum +
-      Math.max(
-        0,
-        toNumber(shipment.invoice.total) - toNumber(shipment.invoice.amountPaid)
-      )
+      sum + Math.max(0, toNumber(invoice.total) - toNumber(invoice.amountPaid))
     );
   }, 0);
 

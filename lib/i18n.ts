@@ -4093,6 +4093,7 @@ const ZH: Record<string, string> = {
     "该号码已在客户档案中——这是已有客户，不是新客户。",
   "That payment date is not valid.": "付款日期无效。",
   "That phone number is too short.": "电话号码太短。",
+  "That phone number is not valid.": "电话号码无效。",
   "That photo appears to be empty. Take it again.": "这张照片是空的，请重拍。",
   "That pickup note no longer exists.": "该提货单已不存在。",
   "That rate looks wrong for USD→TZS. Check the number of digits.":

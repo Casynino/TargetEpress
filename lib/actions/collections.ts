@@ -173,6 +173,7 @@ export async function submitPaymentForVerification(
           status: true,
           total: true,
           amountPaid: true,
+          customerId: true,
           shipment: { select: { trackingNumber: true } },
           customer: { select: { name: true } },
         },
@@ -210,6 +211,11 @@ export async function submitPaymentForVerification(
           submissionNumber: await nextSubmissionNumber(tx),
           idempotencyKey,
           invoiceId: invoice.id,
+          /* Named on both shapes of claim, as the schema says it is. Without
+             it a single-bill claim belonged to no customer, so a merge could
+             not carry it across and the customer's own page could not find
+             what they had been chased for. */
+          customerId: invoice.customerId,
           amount: new Prisma.Decimal(input.amount),
           currency: input.currency,
           method: methodForKind(account.kind),

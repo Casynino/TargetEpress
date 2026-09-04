@@ -36,11 +36,14 @@ const editSchemaFor = (locale: Locale) =>
   z.object({
   shipmentId: z.string().trim().min(1),
   customerName: z.string().trim().min(2, t(locale, "The customer needs a name.")),
+  /* A customer without a number cannot be rung about their cargo, and this
+     form used to accept an empty one and write null over the number they had.
+     Same rule the registration form has always enforced. */
   customerPhone: z
     .string()
     .trim()
-    .optional()
-    .transform((v) => (v?.length ? v : null)),
+    .min(7, t(locale, "That phone number is too short."))
+    .regex(/^[\d+\s()-]+$/, t(locale, "That phone number is not valid.")),
   cargoTypeId: z
     .string()
     .trim()
@@ -155,9 +158,7 @@ export async function updateCargo(
       );
     }
 
-    const phone = input.customerPhone
-      ? normalisePhone(input.customerPhone)
-      : null;
+    const phone = normalisePhone(input.customerPhone);
 
     const cargoType = input.cargoTypeId
       ? await prisma.cargoType.findUnique({
@@ -193,6 +194,55 @@ export async function updateCargo(
     }
 
     await prisma.$transaction(async (tx) => {
+      /*
+        A NUMBER IS AN IDENTITY, SO CHANGING ONE IS CHECKED AND MIRRORED.
+
+        Two things went wrong here. The number could be taken — typed onto this
+        cargo while it was already on file as somebody else, which is how one
+        customer's consignment reaches another's phone. And the CustomerPhone
+        list, which every lookup reads, was left describing the old number, so
+        the customer could still be found by a number they no longer use and
+        not by the one they do.
+      */
+      if (phone !== before.customer.phone) {
+        const theirs = await tx.customerPhone.findUnique({ where: { phone } });
+        if (theirs && theirs.customerId !== before.customer.id) {
+          const owner = await tx.customer.findUnique({
+            where: { id: theirs.customerId },
+            select: { name: true, code: true },
+          });
+          throw new Error(
+            `${phone} is already on file as ${owner?.name ?? "another customer"} (${owner?.code ?? ""}). Use a different number, or merge the two records.`
+          );
+        }
+        const taken = await tx.customer.findUnique({
+          where: { phone },
+          select: { id: true, name: true, code: true },
+        });
+        if (taken && taken.id !== before.customer.id) {
+          throw new Error(
+            `${phone} is already on file as ${taken.name} (${taken.code}). Use a different number, or merge the two records.`
+          );
+        }
+
+        /* The list follows the main number: the new one becomes primary, the
+           old one stays as a number they can still be reached on. */
+        await tx.customerPhone.updateMany({
+          where: { customerId: before.customer.id },
+          data: { isPrimary: false },
+        });
+        await tx.customerPhone.upsert({
+          where: { phone },
+          create: {
+            phone,
+            customerId: before.customer.id,
+            isPrimary: true,
+            addedById: user.id,
+          },
+          update: { isPrimary: true },
+        });
+      }
+
       await tx.customer.update({
         where: { id: before.customer.id },
         data: { name: input.customerName, phone },

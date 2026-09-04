@@ -151,12 +151,37 @@ export function formatRelative(
 /**
  * Tanzanian numbers get typed in half a dozen shapes (0762…, +255762…,
  * 255762…). Normalise to +255XXXXXXXXX so customer lookup actually matches.
+ *
+ * A NUMBER IS AN IDENTITY HERE. Two spellings of one phone are two customers,
+ * each with their own bills and their own credit — which is why the shapes
+ * this got wrong mattered. "00255712000002", the way a number is dialled
+ * internationally from Tanzania, came out as +2550255712000002; and
+ * "+255 0712 000 002", the shape somebody types when they paste a country code
+ * in front of a local number, came out as +2550712000002. Both were new people.
+ *
+ * So the prefixes come off in order — international dialling first, then the
+ * country code, then the trunk zero behind it — before anything is decided.
  */
 export function normalisePhone(input: string): string {
-  const digits = input.replace(/[^\d+]/g, "").replace(/^\+/, "");
-  if (digits.startsWith("255")) return `+${digits}`;
-  if (digits.startsWith("0")) return `+255${digits.slice(1)}`;
+  let digits = input.replace(/[^\d+]/g, "").replace(/^\+/, "");
+
+  /* "00" is how the rest of the world is dialled from here. It is a prefix,
+     not part of the number. */
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  /* And a single trunk zero in front of the country code is the same mistake
+     from the other side — 0 255 712…, where either half alone is the number. */
+  if (digits.startsWith("0") && digits.slice(1).startsWith("255")) {
+    digits = digits.slice(1);
+  }
+
+  if (digits.startsWith("255")) {
+    /* And a trunk zero behind the country code is somebody having typed both
+       — +255 and 0712… — which is one zero too many, not a different line. */
+    const rest = digits.slice(3).replace(/^0+/, "");
+    return `+255${rest}`;
+  }
   if (digits.startsWith("86")) return `+${digits}`; // China
+  if (digits.startsWith("0")) return `+255${digits.slice(1)}`;
   if (digits.length === 9) return `+255${digits}`;
   return `+${digits}`;
 }

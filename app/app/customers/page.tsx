@@ -109,7 +109,7 @@ export default async function CustomersPage({
           status: true,
           registeredAt: true,
           invoice: showMoney
-            ? { select: { total: true, amountPaid: true } }
+            ? { select: { status: true, total: true, amountPaid: true } }
             : false,
         },
       },
@@ -122,10 +122,17 @@ export default async function CustomersPage({
         shipment.status !== "DELIVERED" && shipment.status !== "CANCELLED"
     ).length;
 
+    /* Only bills that are actually owed. A draft is the system's own price
+       before Finance has agreed it, and a written-off bill is one the company
+       has decided it will never collect — counting either as debt puts a
+       figure next to a customer's name that nobody intends to chase. */
     const outstanding = showMoney
       ? customer.shipments.reduce((sum, shipment) => {
           const invoice = shipment.invoice;
           if (!invoice) return sum;
+          if (invoice.status !== "UNPAID" && invoice.status !== "PARTIALLY_PAID") {
+            return sum;
+          }
           return (
             sum + Math.max(0, toNumber(invoice.total) - toNumber(invoice.amountPaid))
           );
