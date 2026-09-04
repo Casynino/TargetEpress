@@ -12,6 +12,7 @@ import { TreasuryActions } from "@/components/app/treasury-panels";
 import { financeTabs } from "@/lib/finance-tabs";
 import { formatMoney, formatRelative, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
+import { unattributedTotal } from "@/lib/payment-totals";
 import { t } from "@/lib/i18n";
 import { accountBalances } from "@/lib/ledger";
 import { prisma } from "@/lib/prisma";
@@ -45,13 +46,10 @@ export default async function AccountsPage() {
       orderBy: [{ active: "desc" }, { sortOrder: "asc" }],
     }),
     accountBalances(prisma),
-    // Money that was taken but never told where it went. Summed in USD because
-    // it is by definition a mixture of currencies.
-    prisma.payment.aggregate({
-      where: { accountId: null },
-      _sum: { creditedAmount: true },
-      _count: true,
-    }),
+    /* Money that was taken but never told where it went. Summed in USD because
+       it is by definition a mixture of currencies — and derived where every
+       other screen derives it, so the same job is not counted two ways. */
+    unattributedTotal(),
     currentRate(),
     prisma.cashCount.findMany({
       orderBy: { countedAt: "desc" },
@@ -127,7 +125,7 @@ export default async function AccountsPage() {
   // The ledger's own dollar column — what this money was worth at the rate on
   // each movement, which is the figure the small print under each card carries.
   const totalUsd = rows.reduce((sum, row) => sum + row.netUsd, 0);
-  const unattributedUsd = toNumber(unattributed._sum.creditedAmount);
+  const unattributedUsd = unattributed.usd;
   const needsOpening = accounts.filter((a) => a.active && a.openingSetAt === null);
 
   // Only live accounts can send, receive or be counted. An archived account is
@@ -259,7 +257,7 @@ export default async function AccountsPage() {
           job above the accounts rather than as a seventh card among them: it
           is not an account, and shaped like one it sat alone in a row of three
           looking like a layout fault. */}
-      {unattributed._count > 0 ? (
+      {unattributed.count > 0 ? (
         <Link
           href="/app/finance/payments"
           className="focus-ring mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-warning/40 bg-warning/5 px-5 py-3.5 transition-colors hover:bg-warning/10"
@@ -267,8 +265,8 @@ export default async function AccountsPage() {
           <CircleHelp className="h-4 w-4 shrink-0 text-warning" />
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-medium">
-              {unattributed._count}{" "}
-              {unattributed._count === 1
+              {unattributed.count}{" "}
+              {unattributed.count === 1
                 ? t(locale, "payment")
                 : t(locale, "payments")}{" "}
               {t(locale, "not in any account")}

@@ -18,6 +18,12 @@ import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { activeAccounts } from "@/lib/accounts";
 import { t } from "@/lib/i18n";
+import {
+  collectedByAccount,
+  collectedTotals,
+  tenderedByCurrency,
+  unattributedTotal,
+} from "@/lib/payment-totals";
 import { prisma } from "@/lib/prisma";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { financeTabs } from "@/lib/finance-tabs";
@@ -38,8 +44,7 @@ export default async function PaymentsPage() {
 
   const [
     payments,
-    monthAgg,
-    allTime,
+    collected,
     byAccount,
     unattributed,
     byTendered,
@@ -63,62 +68,25 @@ export default async function PaymentsPage() {
         },
       },
     }),
-    // Both totals sum `creditedAmount`, not `amount`. A customer hands over
-    // shillings or dollars as they please; `amount` is whatever was handed
-    // over, so adding it up produces a figure in no currency at all.
-    // `creditedAmount` is that same money restated in the invoice's currency
-    // at the rate frozen onto the invoice — the only version that adds up.
-    prisma.payment.aggregate({
-      where: { paidAt: { gte: monthStart } },
-      _sum: { creditedAmount: true },
-      _count: true,
-    }),
-    prisma.payment.aggregate({ _sum: { creditedAmount: true }, _count: true }),
-    /*
-      Where the money went, by account.
-
-      This grouped by PaymentMethod, which answered "how did it arrive" with a
-      category — and the company runs named accounts, of which two are mobile
-      money. It now names them.
-
-      Raw because of COALESCE: an older USD payment has a null creditedAmount
-      and a Prisma _sum would count it as zero. Every other total in this
-      codebase already follows that rule; this one did not.
-    */
-    prisma.$queryRaw<
-      { accountId: string | null; name: string | null; total: number; count: bigint }[]
-    >`
-      SELECT p."accountId",
-             a."name",
-             SUM(COALESCE(p."creditedAmount", p."amount"))::float8 AS total,
-             COUNT(*) AS count
-        FROM "Payment" p
-        LEFT JOIN "CompanyAccount" a ON a."id" = p."accountId"
-       GROUP BY p."accountId", a."name"
-       ORDER BY total DESC
-    `,
+    /* Every money figure on this page comes out of lib/payment-totals, which
+       is where the two rules live: cancelled payments are not money, and a
+       null credited column falls back to what was handed over. */
+    collectedTotals(monthStart),
+    // Where the money went, by the account that received it.
+    collectedByAccount(),
     // Money in hand that nobody has said where it went — a job, not a statistic.
-    prisma.payment.aggregate({
-      where: { accountId: null },
-      _sum: { creditedAmount: true },
-      _count: true,
-    }),
-    // How customers actually tendered — shillings or dollars. Distinct from
-    // every other figure here, which is the money restated in the invoice's
-    // currency, and the one that says whether this is a shilling business.
-    prisma.payment.groupBy({
-      by: ["currency"],
-      _sum: { creditedAmount: true },
-      _count: true,
-    }),
+    unattributedTotal(),
+    // How customers actually tendered — shillings or dollars. The one figure
+    // here that is NOT restated into the bill's currency, because it answers
+    // whether this is a shilling business.
+    tenderedByCurrency(),
     currentRate(),
     activeAccounts(),
   ]);
 
   const rate = rateRow ? toNumber(rateRow.rate) : null;
-  const attributedCount = byAccount.reduce((n, r) => n + Number(r.count), 0);
   const inShillings = byTendered.find((r) => r.currency === "TZS");
-  const tenderedTotal = byTendered.reduce((n, r) => n + r._count, 0);
+  const tenderedTotal = byTendered.reduce((n, r) => n + r.count, 0);
 
   return (
     <>
@@ -132,47 +100,52 @@ export default async function PaymentsPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MoneyTile
           label="Collected this month"
-          usd={toNumber(monthAgg._sum.creditedAmount)}
+          usd={collected.month.usd}
           rate={rate}
           icon={Banknote}
           tone="good"
-          count={`${monthAgg._count} ${t(locale, monthAgg._count === 1 ? "payment" : "payments")}`}
+          count={`${collected.month.count} ${t(locale, collected.month.count === 1 ? "payment" : "payments")}`}
         />
         <MoneyTile
           label="Collected all time"
-          usd={toNumber(allTime._sum.creditedAmount)}
+          usd={collected.allTime.usd}
           rate={rate}
           icon={HandCoins}
-          count={`${allTime._count} ${t(locale, allTime._count === 1 ? "payment" : "payments")}`}
+          count={`${collected.allTime.count} ${t(locale, collected.allTime.count === 1 ? "payment" : "payments")}`}
         />
         <MoneyTile
           label="No account named"
-          usd={toNumber(unattributed._sum.creditedAmount)}
+          usd={unattributed.usd}
           rate={rate}
           icon={CircleHelp}
-          tone={unattributed._count > 0 ? "warn" : "good"}
+          tone={unattributed.count > 0 ? "warn" : "good"}
           count={
-            unattributed._count > 0
-              ? `${unattributed._count} ${t(locale, unattributed._count === 1 ? "payment" : "payments")}`
+            unattributed.count > 0
+              ? `${unattributed.count} ${t(locale, unattributed.count === 1 ? "payment" : "payments")}`
               : undefined
           }
           hint={
-            unattributed._count > 0
+            unattributed.count > 0
               ? "Open the payment and say where it landed"
               : "Every payment says where it landed"
           }
         />
         {/* Never a copy of a total above it: this is the share of money
             handed over in shillings, which is the thing worth knowing here. */}
+        {/* `local`, not `usd`: this is the money as it was handed over. Quoting
+            the credited column here divided the shillings by the bill's frozen
+            rate and multiplied them back by today's — two conversions of a
+            number that never needed one. */}
         <MoneyTile
           label="Handed over in shillings"
-          usd={toNumber(inShillings?._sum.creditedAmount ?? 0)}
+          usd={rate ? (inShillings?.tendered ?? 0) / rate : 0}
+          local={inShillings?.tendered ?? 0}
           rate={rate}
           icon={Wallet}
           tone="brand"
           count={
             tenderedTotal > 0
-              ? `${inShillings?._count ?? 0} ${t(locale, "of")} ${tenderedTotal} ${t(locale, tenderedTotal === 1 ? "payment" : "payments")}`
+              ? `${inShillings?.count ?? 0} ${t(locale, "of")} ${tenderedTotal} ${t(locale, tenderedTotal === 1 ? "payment" : "payments")}`
               : undefined
           }
           hint={

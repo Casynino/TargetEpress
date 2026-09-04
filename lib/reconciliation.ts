@@ -244,7 +244,14 @@ export async function reconciliation(locale: Locale = "en") {
         FROM "Payment"
         WHERE "voidedAt" IS NULL
       `,
-      prisma.ledgerEntry.aggregate({
+      /* Split by direction so the reversing lines can be taken OFF rather
+         than added on. `amount` and `amountUsd` are always positive and the
+         direction carries the sign, so a plain sum counted a cancellation
+         twice over — the original IN and the reversing OUT both as money
+         collected — and the check reported a register 200 dollars ahead of
+         the payments for every cancelled hundred. */
+      prisma.ledgerEntry.groupBy({
+        by: ["direction"],
         where: { kind: "CUSTOMER_PAYMENT" },
         _sum: { amountUsd: true },
       }),
@@ -337,7 +344,12 @@ export async function reconciliation(locale: Locale = "en") {
      side reads every CUSTOMER_PAYMENT line while the other reads only live
      payments. Filtering both the same way would hide exactly the case where a
      cancellation reversed the bill and not the register. */
-  const ledgerUsd = toNumber(postedSum._sum.amountUsd ?? 0);
+  const ledgerUsd = postedSum.reduce(
+    (net, row) =>
+      net +
+      (row.direction === "IN" ? 1 : -1) * toNumber(row._sum.amountUsd ?? 0),
+    0
+  );
 
   /* ---------------------------------------- 3. status against arithmetic */
   const bills = invoiceAgg[0] ?? { live: 0, mislabelled: 0 };

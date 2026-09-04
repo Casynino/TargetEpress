@@ -166,6 +166,12 @@ export async function corridorPerformance() {
  * produces a number in no currency at all. `creditedAmount` is the same money
  * expressed in the invoice's currency at the rate frozen onto that invoice,
  * which is the only figure that can honestly be summed across payments.
+ *
+ * Cancelled payments are left out, like every other money total in the app. A
+ * void stamps `voidedAt` and leaves `paidAt` alone, so without this the row
+ * sits in its month forever and the owner's headline revenue keeps counting
+ * money that was handed back — while the all-time figure beside it, which does
+ * filter, disagrees.
  */
 export async function monthlyRevenue(now = new Date(), locale: Locale = "en") {
   const year = now.getFullYear();
@@ -177,7 +183,7 @@ export async function monthlyRevenue(now = new Date(), locale: Locale = "en") {
         EXTRACT(MONTH FROM "paidAt")::int                  AS month,
         COALESCE(SUM(COALESCE("creditedAmount", "amount")), 0) AS total
       FROM "Payment"
-      WHERE "paidAt" >= ${from}
+      WHERE "paidAt" >= ${from} AND "voidedAt" IS NULL
       GROUP BY 1
       ORDER BY 1
     `

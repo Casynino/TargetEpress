@@ -107,6 +107,7 @@ import {
 } from "@/lib/queries";
 import { sumShillings, sumUsd } from "@/lib/money-totals";
 import { prisma } from "@/lib/prisma";
+import { unattributedTotal } from "@/lib/payment-totals";
 import { can } from "@/lib/rbac";
 import { CargoMix } from "@/components/app/cargo-mix";
 import {
@@ -1573,13 +1574,11 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       select: { id: true, batchNumber: true },
       take: 2,
     }),
-    // Money we hold that nobody has said where it landed. It is in no account
-    // and therefore in no balance, so it can only be seen by asking.
-    prisma.payment.aggregate({
-      where: { accountId: null },
-      _count: true,
-      _sum: { creditedAmount: true },
-    }),
+    /* Money we hold that nobody has said where it landed. It is in no account
+       and therefore in no balance, so it can only be seen by asking — and it
+       is asked where every other screen asks it, so the desk cannot read one
+       count here and a different one on the Finance page. */
+    unattributedTotal(),
     /*
       Rows, not SUM(amountUsd).
 
@@ -1592,8 +1591,23 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
       where: { status: { in: ["PENDING", "APPROVED"] } },
       select: { amount: true, currency: true, amountUsd: true },
     }),
+    /*
+      WHAT WENT OUT, NOT WHAT MOVED.
+
+      Every OUT line was counted here, which meant shifting money from the till
+      to the bank read as spending it, and cancelling a customer payment — a
+      reversing OUT line dated today — read as spending it too. Only real
+      outgoings count: costs and what the company paid a customer back.
+      Reversing lines are excluded by the same test, since a reversal answers a
+      line that was already counted or was never spending at all.
+    */
     prisma.ledgerEntry.findMany({
-      where: { direction: "OUT", occurredAt: { gte: monthStart } },
+      where: {
+        direction: "OUT",
+        occurredAt: { gte: monthStart },
+        kind: { in: ["EXPENSE", "COMPENSATION"] },
+        reversesId: null,
+      },
       select: { amount: true, currency: true, amountUsd: true },
     }),
     /* The credit book, from the one place that computes it — the same figures
@@ -1630,7 +1644,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
   const draftBatchHref = draftBatch
     ? `/app/shipments/${draftBatch.id}`
     : "/app/shipments";
-  const unattributedUsd = toNumber(unattributed._sum.creditedAmount);
+  const unattributedUsd = unattributed.usd;
   const owedOutUsd = sumUsd(owedOut, rate);
   const owedOutLocal = sumShillings(owedOut, rate);
   const spentUsd = sumUsd(spent, rate);
@@ -1710,10 +1724,10 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
     },
     {
       group: t(locale, "Payments"),
-      when: unattributed._count > 0,
-      label: `${unattributed._count} ${t(
+      when: unattributed.count > 0,
+      label: `${unattributed.count} ${t(
         locale,
-        unattributed._count === 1
+        unattributed.count === 1
           ? "payment with no account"
           : "payments with no account"
       )}`,
