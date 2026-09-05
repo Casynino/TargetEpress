@@ -529,6 +529,10 @@ function PaymentPanel({
   /* Follows the account. Mobile money until one is named, which is what it is
      at this counter nine times in ten. */
   const [accountId, setAccountId] = useState("");
+  /* The delivery half of what was handed over, and the account it is settled
+     out of — see the note beside the fields. */
+  const [transport, setTransport] = useState("");
+  const [transportSourceId, setTransportSourceId] = useState("");
   const [state, action] = useActionState<
     ActionResult<{ receiptNumber: string; pickupNoteNumber: string | null }>,
     FormData
@@ -793,6 +797,59 @@ function PaymentPanel({
               </NativeSelect>
             </div>
           ) : null}
+
+          {/*
+            THE DELIVERY, INSIDE THE SAME TRANSFER.
+
+            A customer settling this consignment often sends the freight and
+            the delivery together. The amount above stays whole — it is what
+            they sent and what the receipt says — and this is the part of it
+            that was never the company's: it comes off the cargo before the
+            bill is settled and goes back out of whichever account the driver
+            is paid from.
+
+            Its own account on purpose: they can pay by bank while the driver
+            is handed cash from the till.
+          */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="transport" className="text-xs">
+                {t("Of that, transport")}
+              </Label>
+              <MoneyInput
+                id="transport"
+                name="transport"
+                value={transport}
+                onValueChange={setTransport}
+                decimals={currency === "TZS" ? 0 : 2}
+                placeholder="0"
+              />
+            </div>
+            {Number(transport) > 0 ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="transportSourceId" className="text-xs">
+                  {t("Transport settled from")}
+                </Label>
+                <NativeSelect
+                  id="transportSourceId"
+                  name="transportSourceId"
+                  required
+                  value={transportSourceId}
+                  onChange={(event) => setTransportSourceId(event.target.value)}
+                >
+                  <option value="" disabled>
+                    {t("Choose the account")}
+                  </option>
+                  {eligibleAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
+            ) : null}
+          </div>
+
           <PaymentProofField />
           {/*
               No Reference field.

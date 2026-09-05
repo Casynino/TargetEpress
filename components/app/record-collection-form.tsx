@@ -156,6 +156,10 @@ export function RecordCollectionForm({
   */
   const eligible = (banks ?? []).filter((a) => a.currency === currencyChoice);
   const [accountId, setAccountId] = useState("");
+  /* The delivery half of what was handed over, and the account it leaves from
+     — see the note beside the fields. */
+  const [transport, setTransport] = useState("");
+  const [transportSourceId, setTransportSourceId] = useState("");
   /*
     Derived, not corrected in an effect.
 
@@ -342,6 +346,53 @@ export function RecordCollectionForm({
           {/* Derived, never asked. Cash tin → CASH, a till → mobile money,
               anything else → a transfer into the bank. */}
         </div>
+      </div>
+
+      {/*
+        THE DELIVERY, INSIDE THE SAME TRANSFER.
+
+        The figure above stays whole — it is what the customer sent and what
+        the receipt says. This is the part of it that was never the company's:
+        it comes off the cargo before the bill is settled, and goes back out of
+        whichever account the driver is paid from. Its own account on purpose:
+        they can pay by bank while the till hands over cash.
+      */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="transport">{t("Of that, transport")}</Label>
+          <MoneyInput
+            id="transport"
+            name="transport"
+            value={transport}
+            onValueChange={setTransport}
+            decimals={currencyChoice === "TZS" ? 0 : 2}
+            placeholder="0"
+          />
+        </div>
+        {Number(transport) > 0 ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="transportSourceId">
+              {t("Transport settled from")}
+            </Label>
+            <NativeSelect
+              id="transportSourceId"
+              name="transportSourceId"
+              required
+              value={transportSourceId}
+              onChange={(event) => setTransportSourceId(event.target.value)}
+              className="h-11"
+            >
+              <option value="" disabled>
+                {t("Choose the account")}
+              </option>
+              {eligible.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+        ) : null}
       </div>
 
       {/*
