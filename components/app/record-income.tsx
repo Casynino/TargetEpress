@@ -130,6 +130,15 @@ export function RecordIncome({
   const [queue, setQueue] = useState<BillableHit[]>([]);
   const [batches, setBatches] = useState<BillableBatch[]>([]);
   const [batchId, setBatchId] = useState<string>("");
+  /*
+    THE OTHER QUESTION THIS LIST IS ASKED.
+
+    The flight chips answer "which aircraft"; this answers "has somebody
+    already paid". Two different reasons to open this panel — banking a
+    payment that has just come in, and clearing the claims Support sent up —
+    and only the first had a way to narrow the list.
+  */
+  const [onlyClaimed, setOnlyClaimed] = useState(false);
   const [loadingQueue, startQueue] = useTransition();
   /*
     The currency the money actually arrived in, which is not always the
@@ -200,7 +209,11 @@ export function RecordIncome({
     and the row is where somebody decides how much a customer owes.
   */
   const searchTerm = query.trim();
-  const shown = searchTerm.length >= 2 ? hits : queue;
+  const found = searchTerm.length >= 2 ? hits : queue;
+  const shown = onlyClaimed ? found.filter((b) => b.claimed) : found;
+  /* Counted off the whole list, not the filtered one, or the chip would
+     always read the number it is about to show. */
+  const claimedCount = found.filter((b) => b.claimed).length;
   const busy = searchTerm.length >= 2 ? searching : loadingQueue;
 
   /* Once it saves, the panel resets rather than leaving a filled form that
@@ -349,7 +362,9 @@ export function RecordIncome({
               works one arrival at a time — a plane lands and its customers are
               rung through in a sitting — so the list opens grouped the way the
               money actually comes in. */}
-          {searchTerm.length < 2 && batches.length > 0 ? (
+          {/* Shown while browsing rather than searching. Either axis is enough
+              to be worth a row: a flight to narrow to, or claims to clear. */}
+          {searchTerm.length < 2 && (batches.length > 0 || claimedCount > 0) ? (
             <div className="mt-3 flex flex-wrap gap-1.5">
               <button
                 type="button"
@@ -358,6 +373,23 @@ export function RecordIncome({
               >
                 {t("Everyone who owes")}
               </button>
+              {/* Yellow, and only when there is something in it — the same
+                  colour a claim wears on every other screen. */}
+              {claimedCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setOnlyClaimed((v) => !v)}
+                  className={
+                    onlyClaimed
+                      ? "focus-ring rounded-full border border-warning bg-warning px-2.5 py-1 text-xs font-semibold text-warning-foreground"
+                      : "focus-ring rounded-full border border-warning/40 bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning hover:bg-warning/20"
+                  }
+                >
+                  {t("Payment to verify")}
+                  <span className="ml-1.5 opacity-50">·</span>
+                  <span className="ml-1 opacity-80">{claimedCount}</span>
+                </button>
+              ) : null}
               {batches.map((b) => (
                 <button
                   key={b.id}

@@ -2772,9 +2772,17 @@ export async function billableQueue(
     }
   }
 
+  /* Which of these already has money waiting on Finance. One query for the
+     whole queue — the picker's second filter reads it, and so does the row,
+     which is one press from taking the money a second time. */
+  const claims = await claimsForInvoices(rows.map((inv) => inv.id));
+
   return {
     batches: [...byBatch.values()].sort((a, b) => b.owedUsd - a.owedUsd),
-    hits: rows.map((inv) => toBillable(inv, locale)),
+    hits: rows.map((inv) => ({
+      ...toBillable(inv, locale),
+      claimed: claims.has(inv.id),
+    })),
   };
 }
 
