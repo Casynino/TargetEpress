@@ -114,15 +114,7 @@ export const REJECTED_NEEDING_A_CALL: Prisma.PaymentSubmissionWhereInput = {
 
 /** One queue, filtered by where a claim has got to. */
 export async function submissionQueue(
-  status:
-    | "PENDING"
-    | "VERIFIED"
-    | "REJECTED"
-    | "WITHDRAWN"
-    /** Everything this desk still has a say in — a verified claim is a payment
-        and is looked up in the ledger, not here. */
-    | "UNVERIFIED"
-    | null,
+  status: "PENDING" | "VERIFIED" | "REJECTED" | "WITHDRAWN" | null,
   take = 60
 ) {
   return prisma.paymentSubmission.findMany({
@@ -132,11 +124,9 @@ export async function submissionQueue(
     where:
       status === "REJECTED"
         ? REJECTED_NEEDING_A_CALL
-        : status === "UNVERIFIED"
-          ? { status: { not: "VERIFIED" } }
-          : status
-            ? { status }
-            : {},
+        : status
+          ? { status }
+          : {},
     orderBy: [{ submittedAt: "desc" }],
     take,
     select: {

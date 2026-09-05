@@ -49,17 +49,21 @@ const FILTERS = [
   */
   { key: "REJECTED", label: "Sent back" },
   /*
-    No tab of its own for WITHDRAWN.
+    TWO CHIPS, AND NO "EVERYTHING".
 
-    The STATUS is still necessary — it is what taking a claim back produces,
-    and keeping it apart from REJECTED is what stops "we sent this by mistake"
-    being recorded as "Finance refused it", which is a different fact about a
-    customer. But nobody works a list of the desk's own cancellations, and a
-    tab nobody opens is a tab that teaches people to stop reading the row.
-    They are still there under Everything, where the record lives.
+    Everything mixed claims waiting on Finance with claims Finance refused and
+    claims this desk took back, and put a status badge on each so the reader
+    could tell them apart again — a list whose rows have to be sorted by eye is
+    a list that has stopped answering a question. The two chips left ARE the
+    two questions this desk has: what is Finance still holding, and what has
+    come back to me.
+
+    Withdrawn claims are in neither, deliberately. A claim taken back is
+    finished with; the row stays in the database and in the audit log, which is
+    where a finished thing is looked up.
   */
-  { key: "ALL", label: "Everything" },
 ] as const;
+
 
 /**
  * The desk's own collection history.
@@ -91,14 +95,7 @@ export default async function SubmissionsPage({
   // the desk that can act is a dead end dressed as a queue.
   if (canVerify && active === "PENDING") redirect("/app/collections/verify");
   const [rows, rate, payAccounts] = await Promise.all([
-    /* "Everything" means everything this desk still has a say in — so it
-       leaves out the verified ones too, rather than showing under one chip
-       what the page no longer shows under its own. */
-    submissionQueue(
-      active === "ALL"
-        ? "UNVERIFIED"
-        : (active as "PENDING" | "REJECTED" | "WITHDRAWN")
-    ),
+    submissionQueue(active as "PENDING" | "REJECTED"),
     currentRateValue(),
     /* To correct the account on a pending claim. Fetched even when nobody on
        this page may correct anything — one list, and the buttons above decide
@@ -244,11 +241,7 @@ export default async function SubmissionsPage({
       <div className="mb-4 rounded-xl border bg-card p-4 shadow-soft sm:w-fit">
         <p
           className={`text-xs font-semibold uppercase tracking-widest ${
-            active === "REJECTED"
-              ? "text-destructive"
-              : active === "ALL"
-                ? "text-muted-foreground"
-                : "text-warning"
+            active === "REJECTED" ? "text-destructive" : "text-warning"
           }`}
         >
           {rows.length} {t(locale, FILTERS.find((f) => f.key === active)?.label ?? "")}
@@ -385,26 +378,10 @@ export default async function SubmissionsPage({
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">
                       {row.invoice.customer.name}
-                      {/* Only where the list is mixed. On the Sent back tab
-                          every row is sent back, and the line underneath
-                          already names who sent it back and why — so the badge
-                          was the same fact a third time, in red, on every
-                          row. */}
-                      {active === "ALL" ? (
-                        <span
-                          className={`ml-2 rounded px-1.5 py-0.5 text-[11px] font-normal ${
-                            row.status === "VERIFIED"
-                              ? "bg-success/15 text-success"
-                              : row.status === "REJECTED"
-                                ? "bg-destructive/15 text-destructive"
-                                : row.status === "WITHDRAWN"
-                                  ? "bg-muted text-muted-foreground"
-                                  : "bg-warning/15 text-warning"
-                          }`}
-                        >
-                          {t(locale, SUBMISSION_STATUS_LABELS[row.status])}
-                        </span>
-                      ) : null}
+                      {/* No status badge. It existed for the mixed list, and
+                          both chips left are a single status — so it said, on
+                          every row of a page called Sent back, that the row
+                          was sent back. */}
                     </p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                       <span className="font-mono">{row.submissionNumber}</span>
@@ -529,18 +506,10 @@ export default async function SubmissionsPage({
                               different problems. Who refused it and what they
                               said is in the panel that opens, beside the
                               fields for answering it. */}
-                          {active === "ALL" ? (
-                            <>
-                              <span>·</span>
-                              <span className="text-destructive">
-                                {t(locale, "Sent back by")}{" "}
-                                {row.reviewedBy?.name ?? t(locale, "Finance")}
-                                {row.rejectionReason
-                                  ? `: ${row.rejectionReason}`
-                                  : ""}
-                              </span>
-                            </>
-                          ) : null}
+                          {/* Nor who refused it, on a page where every row
+                              was refused by somebody. The name and the words
+                              are in the panel that opens, next to the fields
+                              for answering them. */}
                           {/* Under Everything, a refused claim whose bill has
                               since been settled would otherwise read as work
                               still owed. It is the record, not a job — the
