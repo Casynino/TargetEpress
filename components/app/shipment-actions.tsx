@@ -953,6 +953,20 @@ function PaymentPanel({
                 balance={props.outstanding ?? 0}
                 total={props.invoiceTotal ?? 0}
                 rate={props.invoiceRate}
+                /* What is typed into the payment box above, restated in the
+                   bill's own money. The dialog asks before writing anything
+                   off while that figure is unsaved — see AdjustDifference. */
+                pendingCargo={
+                  !open || cargoHalf <= 0
+                    ? 0
+                    : currency === props.currency
+                      ? cargoHalf
+                      : rateUsable
+                        ? currency === "TZS"
+                          ? cargoHalf / activeRate
+                          : cargoHalf * activeRate
+                        : 0
+                }
                 money={(v) =>
                   `${props.currency} ${v.toLocaleString(undefined, {
                     minimumFractionDigits: props.currency === "TZS" ? 0 : 2,

@@ -324,8 +324,10 @@ export function LedgerRowFix({
                 )}
               </p>
               <div className="space-y-1.5">
+                {/* Offered, not demanded — see the cancel dialog below. */}
                 <Label htmlFor="fix-restore-reason">
-                  {t("Why is it being reinstated?")}
+                  {t("Note")}{" "}
+                  <span className="text-muted-foreground">{t("(optional)")}</span>
                 </Label>
                 <Textarea
                   id="fix-restore-reason"
@@ -344,7 +346,7 @@ export function LedgerRowFix({
                 <Button
                   type="button"
                   size="sm"
-                  disabled={pending || reason.trim().length < 3}
+                  disabled={pending}
                   onClick={restoreIt}
                 >
                   {pending ? t("Working…") : t("Reinstate it")}
@@ -629,8 +631,12 @@ export function LedgerRowFix({
               </div>
             ) : (
               <div className="space-y-1.5">
+                {/* Warn, confirm, do. The reversing line names the entry it
+                    cancels and the audit line names who cancelled it; a box
+                    that must be filled in is filled in with "wrong". */}
                 <Label htmlFor="fix-reason">
-                  {t("Why is it being cancelled?")}
+                  {t("Note")}{" "}
+                  <span className="text-muted-foreground">{t("(optional)")}</span>
                 </Label>
                 <Textarea
                   id="fix-reason"
@@ -653,7 +659,7 @@ export function LedgerRowFix({
                 type="button"
                 size="sm"
                 variant={open === "cancel" ? "destructive" : "default"}
-                disabled={pending || reason.trim().length < 3}
+                disabled={pending}
                 onClick={open === "cancel" ? cancelIt : saveEdit}
               >
                 {pending

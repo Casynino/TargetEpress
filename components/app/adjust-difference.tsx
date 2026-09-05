@@ -40,6 +40,7 @@ export function AdjustDifference({
   total,
   money,
   rate,
+  pendingCargo = 0,
 }: {
   invoiceId: string;
   currency: string;
@@ -56,9 +57,34 @@ export function AdjustDifference({
    * in the bill's own currency.
    */
   rate?: number | null;
+  /**
+   * WHAT IS SITTING IN THE PAYMENT BOX BESIDE THIS, UNSAVED. In the bill's own
+   * currency, and zero when the payment panel is shut.
+   *
+   * THE ACCIDENT THIS EXISTS TO STOP. A bill of 36,450 is answered by 36,000.
+   * The desk types 36,000 into the payment box, sees 450 still owing, and
+   * reaches for the control named "Adjust the difference" — which is exactly
+   * what it sounds like. But this dialog is seeded from the SAVED balance, and
+   * nothing has been saved: it offers to clear the whole 36,450. Confirming
+   * settles the bill, releases the cargo, and the customer's 36,000 is never
+   * recorded anywhere. The money simply leaves the books.
+   *
+   * Nothing about that is visible at the moment of pressing Confirm. The
+   * figure looks large but a large adjustment is legal here, and the flag that
+   * fires reads like a formality.
+   *
+   * So while a payment is pending this asks first, and names the control that
+   * does the right thing. It does not refuse — writing a bill off when no
+   * money is coming is a real job, and the desk may have typed into that box
+   * and thought better of it.
+   */
+  pendingCargo?: number;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
+  /* Cleared every time the dialog closes, so the warning is answered afresh
+     rather than once per page load. */
+  const [warned, setWarned] = useState(false);
   /* Shillings first when the bill carries a rate: the panel around this
      dialog is working in shillings and the desk should not convert in their
      head to answer it. */
@@ -77,7 +103,10 @@ export function AdjustDifference({
      form left open invites a second clearing of a difference that no longer
      exists. */
   useEffect(() => {
-    if (state.ok && state.data) setOpen(false);
+    if (state.ok && state.data) {
+      setOpen(false);
+      setWarned(false);
+    }
   }, [state]);
 
   /* Re-opens on the current difference. The balance moves when a payment is
@@ -98,9 +127,84 @@ export function AdjustDifference({
         className="focus-ring inline-flex items-center gap-1 rounded font-medium text-brand underline-offset-2 hover:underline"
       >
         <Scale className="h-3.5 w-3.5" />
-        {t("Adjust the difference")}
+        {t("Write off the balance")}
       </button>
     );
+  }
+
+  /* The unsaved payment beside this, and what the bill would be short by if it
+     were recorded — the figure the desk was actually reaching for. */
+  const pending = Math.max(0, pendingCargo);
+  /*
+    NOT ROUNDED TO CENTS FIRST.
+
+    A 40.50 bill answered by 108,850 shillings is short by 0.185185 dollars.
+    Rounded to 0.19 and then multiplied by 2,700 that reads as TSh 513, while
+    the button in the payment form beside it — which does the subtraction in
+    shillings, where the customer is — says TSh 500. Two figures for one gap on
+    one screen, and neither is the one the server would write.
+
+    Converted once, at the end, by shownLocal.
+  */
+  const gapAfterPayment = Math.max(0, balance - pending);
+  const asksFirst = pending > 0.005 && !warned;
+
+  const shownLocal = (v: number) =>
+    canLocal ? `TSh ${asLocal(v).toLocaleString()}` : money(v);
+
+  if (asksFirst) {
+    const warning = (
+      <div
+        className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) setOpen(false);
+        }}
+      >
+        <div className="w-full max-w-sm space-y-3 rounded-xl border bg-card p-4 shadow-lg">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-warning">
+            <TriangleAlert className="h-4 w-4 shrink-0" />
+            {t("There is a payment in the box that has not been recorded")}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {t("The payment box beside this holds")}{" "}
+            <span className="font-semibold text-foreground">
+              {shownLocal(pending)}
+            </span>
+            . {t("Writing the bill off now would settle it and let the cargo go, and that money would never be recorded anywhere.")}
+          </p>
+          {gapAfterPayment > 0.005 ? (
+            <p className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-xs text-success">
+              {t("If the customer sent it, record the payment first — the notice under the amount offers to clear the last")}{" "}
+              <span className="font-semibold">{shownLocal(gapAfterPayment)}</span>{" "}
+              {t("in the same step, which keeps their money on the books.")}
+            </p>
+          ) : (
+            <p className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-xs text-success">
+              {t("That covers the bill in full. Record it instead — there is nothing left to write off.")}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="focus-ring rounded-md bg-brand px-3 py-2 text-xs font-semibold text-brand-foreground"
+            >
+              {t("Go back to the payment")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setWarned(true)}
+              className="focus-ring rounded-md px-2 py-2 text-xs font-medium text-destructive underline-offset-2 hover:underline"
+            >
+              {t("No money is coming — write off")} {shownLocal(balance)}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+    return typeof document === "undefined"
+      ? null
+      : createPortal(warning, document.body);
   }
 
   const typed = Math.max(0, Number(amount) || 0);

@@ -78,10 +78,8 @@ export function PayrollDecision({
           <input type="hidden" name="decision" value="REJECTED" />
           <Input
             name="decisionNote"
-            required
-            minLength={4}
-            aria-label={`${t("Why is")} ${code} ${t("going back?")}`}
-            placeholder={t("What is wrong with it? Finance sees only this.")}
+            aria-label={`${t("Note on sending")} ${code} ${t("back")}`}
+            placeholder={t("Note (optional) — Finance sees only this.")}
             className="h-7 min-w-[220px] flex-1 text-[11px]"
           />
           <SubmitButton

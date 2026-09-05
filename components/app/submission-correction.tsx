@@ -577,12 +577,18 @@ export function SubmissionCorrection({
 
                 {open !== "view" ? (
                   <div className="space-y-1.5">
+                    {/* Asked, never demanded — the button below no longer
+                        waits for it. The claim, the bill and the name of
+                        whoever acted are on the audit line either way. */}
                     <Label htmlFor="sub-reason">
                       {open === "withdraw"
-                        ? t("Why is it being deleted?")
+                        ? t("Note")
                         : canRaiseAgain
                           ? t("What did you fix?")
-                          : t("What was wrong with it?")}
+                          : t("What was wrong with it?")}{" "}
+                      <span className="text-muted-foreground">
+                        {t("(optional)")}
+                      </span>
                     </Label>
                     <Textarea
                       id="sub-reason"
@@ -631,7 +637,7 @@ export function SubmissionCorrection({
                       type="button"
                       size="sm"
                       variant={open === "withdraw" ? "destructive" : "default"}
-                      disabled={pending || reason.trim().length < 3}
+                      disabled={pending}
                       onClick={
                         open === "withdraw"
                           ? deleteIt

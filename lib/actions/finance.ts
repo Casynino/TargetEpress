@@ -2554,7 +2554,9 @@ export async function cancelPickupNote(
   const noteId = String(formData.get("noteId") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
   if (!noteId) return fail("Missing pickup note.");
-  if (reason.length < 3) return fail("Give a reason for cancelling.");
+  /* Warn, confirm, do. Cancelling a pickup note stops the cargo leaving, which
+     the next person to scan it discovers immediately; the audit line names who
+     did it. */
 
   try {
     await prisma.$transaction(async (tx) => {

@@ -2095,9 +2095,8 @@ export async function reviewStatement(
   if (decision !== "CONFIRMED" && decision !== "RETURNED") {
     return fail(t(locale, "Confirm it or send it back."));
   }
-  if (decision === "RETURNED" && reviewNote.length < 4) {
-    return fail(t(locale, "Say what needs fixing before sending it back."));
-  }
+  /* Sending a statement back asks for nothing. What was returned, by whom
+     and when is on the record either way, and the note is offered above it. */
 
   try {
     await prisma.$transaction(async (tx) => {

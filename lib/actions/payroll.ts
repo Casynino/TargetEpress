@@ -499,10 +499,10 @@ export async function decidePayrollRun(
   if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
   const input = parsed.data;
 
+  /* Optional. Finance sees the note where there is one, and sees the
+     rejection either way — a run handed back with nothing typed is still a run
+     handed back, by a named person, at a known moment. */
   const note = input.decisionNote ?? "";
-  if (input.decision === "REJECTED" && note.length < 4) {
-    return fail(t(locale, "Say what is wrong with it before sending it back."));
-  }
 
   /* Needed the moment an acceptance lands, and read before the run is locked. */
   const publishedRate = await currentRateValue();

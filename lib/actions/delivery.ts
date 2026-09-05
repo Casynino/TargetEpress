@@ -67,12 +67,10 @@ export async function undoRelease(
   }
 
   const shipmentId = String(formData.get("shipmentId") ?? "");
+  /* Optional. Taking a handover back is loud enough on its own — the cargo
+     goes back on the shelf and the audit line names who did it. */
   const reason = String(formData.get("reason") ?? "").trim();
   if (!shipmentId) return fail(t(locale, "Missing cargo."));
-  if (reason.length < 4) {
-    /* Nothing asked. Taking a handover back is loud enough on its own: the
-       cargo goes back on the shelf and the audit line names who did it. */
-  }
 
   try {
     const trackingNumber = await prisma.$transaction(async (tx) => {

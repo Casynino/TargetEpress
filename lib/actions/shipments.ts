@@ -562,7 +562,7 @@ export async function cancelShipment(
   const id = String(formData.get("shipmentId") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
   if (!id) return fail("Missing shipment.");
-  if (reason.length < 3) return fail("Give a reason for cancelling.");
+  /* Warn, confirm, do — see the pickup-note cancellation for the same rule. */
 
   try {
     await prisma.$transaction(async (tx) => {
