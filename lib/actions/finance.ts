@@ -2071,7 +2071,24 @@ export async function recordPayment(
         0,
         Math.round((total - newPaid - adjusted) * 100) / 100
       );
-      const clearing = input.clearShortfall && shortfall > 0.005 ? shortfall : 0;
+      /*
+        NEVER MORE THAN THE DESK WAS SHOWN.
+
+        `shortfall` is what the bill is short of NOW; the ceiling is what the
+        screen said when the button was pressed. They differ whenever the bill
+        moved in between — storage accruing overnight is the everyday case, and
+        it would otherwise be written off by a click that never saw it.
+
+        A cent of slack, because the screen converts shillings to the bill's
+        money to draw the figure and the two roundings need not land on the
+        same hundredth. More than a cent apart is a real change, not noise.
+      */
+      const agreed = input.clearShortfallUpTo;
+      const ceiling = agreed === null ? shortfall : agreed + 0.01;
+      const clearing =
+        input.clearShortfall && shortfall > 0.005
+          ? Math.min(shortfall, ceiling)
+          : 0;
       if (clearing > 0 && !can(user.role, "ledger.adjust")) {
         throw new Error(
           "Writing off the difference is Finance's decision. Record what came in, and ask Finance to clear the rest."
@@ -3981,26 +3998,133 @@ export async function recordCustomerPayment(
         });
       }
 
+      /*
+        WRITING OFF THE LAST OF IT, THE SAME WAY THE SINGLE-BILL DOOR DOES.
+
+        Only when this payment answers ONE bill. Across several, "the rest is
+        not coming" does not say which bill's rest, and a rule that spread it
+        would be inventing a decision nobody made — the verify screen does not
+        offer the tick on a multi-bill claim for the same reason, and
+        verifyPaymentSubmission refuses it there.
+      */
+      const clearOne =
+        input.clearShortfall && input.allocations.length === 1
+          ? input.allocations[0]!.invoiceId
+          : null;
+      if (clearOne && !can(user.role, "ledger.adjust")) {
+        throw new Error(
+          "Writing off the difference is Finance's decision. Record what came in, and ask Finance to clear the rest."
+        );
+      }
+
       const settledNumbers: string[] = [];
       for (const alloc of input.allocations) {
         const invoice = byId.get(alloc.invoiceId)!;
         const newPaid = toNumber(invoice.amountPaid) + credited.get(alloc.invoiceId)!;
-        const settled = newPaid + 0.001 >= toNumber(invoice.total);
+        const wasAdjusted = toNumber(invoice.amountAdjusted);
+        /*
+          The gap this payment leaves, and what may be written off it — never
+          more than the figure the verify screen printed. See recordPayment,
+          which does the identical arithmetic for the single-bill door.
+        */
+        const gap = Math.max(
+          0,
+          Math.round((toNumber(invoice.total) - newPaid - wasAdjusted) * 100) / 100
+        );
+        const ceiling =
+          input.clearShortfallUpTo === null
+            ? gap
+            : input.clearShortfallUpTo + 0.01;
+        const clearing =
+          clearOne === alloc.invoiceId && gap > 0.005
+            ? Math.min(gap, ceiling)
+            : 0;
+        const nextAdjusted = Math.round((wasAdjusted + clearing) * 100) / 100;
+        /*
+          AND THE ADJUSTMENT ALREADY ON THE BILL COUNTS TOWARDS SETTLING IT.
+
+          This asked only whether the money covered the total, so a bill whose
+          last few shillings had been written off on another screen was left
+          PARTIALLY_PAID by the payment that finished it, and its cargo never
+          got a pickup note.
+        */
+        const settled = newPaid + nextAdjusted + 0.001 >= toNumber(invoice.total);
 
         /* Conditional on the figure this transaction read, per bill — the same
            claim the single-invoice form makes. A payment landing on any one of
            these between our read and this write unwinds the whole thing rather
            than silently losing a credit. */
         const claimed = await tx.invoice.updateMany({
-          where: { id: invoice.id, amountPaid: invoice.amountPaid },
+          where: {
+            id: invoice.id,
+            amountPaid: invoice.amountPaid,
+            ...(clearing > 0 ? { amountAdjusted: invoice.amountAdjusted } : {}),
+          },
           data: {
             amountPaid: new Prisma.Decimal(newPaid),
+            ...(clearing > 0
+              ? { amountAdjusted: new Prisma.Decimal(nextAdjusted) }
+              : {}),
             status: settled ? "PAID" : "PARTIALLY_PAID",
           },
         });
         if (claimed.count === 0) {
           throw new Error(
             `A payment landed on ${invoice.invoiceNumber} a moment ago. Reload and check the balances before recording again.`
+          );
+        }
+
+        /* The row is the record; the column above is only the sum aggregates
+           can read. Written exactly as recordPayment writes it, so an
+           adjustment made through the merge door is indistinguishable
+           afterwards from one made at the counter. */
+        if (clearing > 0) {
+          const row = await tx.invoiceAdjustment.create({
+            data: {
+              invoiceId: invoice.id,
+              amount: new Prisma.Decimal(clearing),
+              currency: invoice.currency,
+              reason: null,
+              totalAtTime: new Prisma.Decimal(toNumber(invoice.total)),
+              amountPaidAtTime: new Prisma.Decimal(newPaid),
+              createdById: user.id,
+            },
+            select: { id: true },
+          });
+          const large = isLargeAdjustment(
+            clearing,
+            toNumber(invoice.total),
+            invoice.currency
+          );
+          await recordAudit(
+            {
+              actor: user,
+              action: "invoice.adjusted",
+              entity: "Invoice",
+              entityId: invoice.id,
+              summary:
+                `${invoice.invoiceNumber}: ${invoice.currency} ${clearing.toLocaleString()} cleared with the payment ` +
+                `on ${invoice.shipment.trackingNumber}${large ? " — LARGE ADJUSTMENT" : ""}`,
+              metadata: {
+                adjustmentId: row.id,
+                tracking: invoice.shipment.trackingNumber,
+                currency: invoice.currency,
+                amount: clearing,
+                large,
+                withPayment: true,
+                paymentId: payment.id,
+                amountDue: toNumber(invoice.total),
+                actualPaid: newPaid,
+                adjustedBefore: wasAdjusted,
+                adjustedAfter: nextAdjusted,
+                balanceAfter: Math.max(
+                  0,
+                  toNumber(invoice.total) - newPaid - nextAdjusted
+                ),
+                reason: null,
+              },
+            },
+            tx
           );
         }
 

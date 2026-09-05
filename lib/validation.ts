@@ -250,6 +250,30 @@ export const customerPaymentSchema = z.object({
     .trim()
     .optional()
     .transform((v) => v === "1" || v === "true" || v === "on"),
+  /*
+    THE SAME TICK THE SINGLE-BILL DOOR TAKES — see paymentSchema.
+    
+    It was absent here, and zod strips what it does not know. So a claim raised
+    on the combined form — which is EVERY claim carrying an allocation, single
+    bill included — reached this action with the flag silently removed: the
+    verify screen had told Finance "the bill will be settled", the payment was
+    written, no adjustment was, and the bill stayed short with no pickup note.
+    Exactly the half-finished state the whole feature exists to end.
+  */
+  clearShortfall: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v === "1" || v === "true" || v === "on"),
+  clearShortfallUpTo: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? Number(v) : null))
+    .refine(
+      (v) => v === null || (Number.isFinite(v) && v >= 0),
+      "That write-off ceiling is not a number."
+    ),
   currency: z.enum(["USD", "TZS"]),
   reference: z.string().trim().max(120).optional(),
   note: z.string().trim().max(500).optional(),
@@ -375,6 +399,32 @@ export const paymentSchema = z.object({
     .trim()
     .optional()
     .transform((v) => v === "1" || v === "true" || v === "on"),
+  /*
+    THE FIGURE THE SCREEN NAMED, AS A CEILING.
+
+    The flag above says "write off the rest"; the server works out what the
+    rest IS at write time, from the database. Those are not the same number
+    whenever the bill moved between the page being drawn and Confirm being
+    pressed — a storage charge that accrued overnight, a discount reversed, a
+    rate re-quoted, another desk's payment landing first.
+
+    The desk agreed to a figure they could see. This carries it, and the action
+    clears the SMALLER of the two: the bill is never written off by more than
+    the person pressing the button was shown. When the real gap is larger the
+    difference simply stays owing, which is visible on the next screen, rather
+    than being forgiven by a click nobody made.
+
+    In the BILL's own currency, because that is what gets written.
+  */
+  clearShortfallUpTo: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? Number(v) : null))
+    .refine(
+      (v) => v === null || (Number.isFinite(v) && v >= 0),
+      "That write-off ceiling is not a number."
+    ),
   /**
    * What the customer actually handed over. A bill in USD is routinely settled
    * in shillings at the counter, and recording it as USD would put a figure on

@@ -200,6 +200,9 @@ export async function verifySubmissions(
         submissionNumber: true,
         status: true,
         accountId: true,
+        /* Support's "the rest is not coming". Read here so this run can
+           refuse it rather than agreeing to it unseen — see below. */
+        clearShortfall: true,
       },
     });
     const byId = new Map(rows.map((r) => [r.id, r]));
@@ -236,9 +239,41 @@ export async function verifySubmissions(
         });
         continue;
       }
+      /*
+        A WRITE-OFF IS NOT AGREED IN BULK.
+
+        verifyPaymentSubmission reads clearShortfall off the form and falls
+        back to what Support claimed when the form says nothing — which is the
+        right reading for a screen that shows the figure and lets Finance
+        untick it. This run shows nothing: its only sentence is that each claim
+        goes into its account with its own receipt.
+
+        So a claim carrying Support's tick used to be verified here with the
+        gap written off under Finance's name, at whatever size, with the figure
+        on no screen anybody looked at. Twenty thousand shillings claimed
+        against a half-million bill would have settled it and released the
+        cargo on one press of a button about something else.
+
+        Held back instead. The row is named, the desk opens it, sees the figure
+        on the verify panel and decides there — which is the same handling this
+        run already gives a claim that does not say where the money landed.
+      */
+      if (row.clearShortfall) {
+        failed.push({
+          name: row.submissionNumber,
+          why: t(
+            locale,
+            "Support says the rest is not coming — open this one so you can see what would be written off."
+          ),
+        });
+        continue;
+      }
       const one = new FormData();
       one.set("submissionId", id);
       one.set("accountId", row.accountId);
+      /* Stated, not left silent: an unstated flag falls back to the claim's
+         own answer, and this run is not in a position to give one. */
+      one.set("clearShortfall", "0");
       const result = await verifyPaymentSubmission(undefined, one);
       if (result.ok) done += 1;
       else

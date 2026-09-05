@@ -3417,6 +3417,7 @@ const ZH: Record<string, string> = {
   "still owing on the bill.": "尚未付清。",
   "clears it in full.": "可全额付清。",
   "Write off the balance": "核销余额",
+  "Support says the rest is not coming — open this one so you can see what would be written off.": "客服表示余款不会再来——请单独打开该条，以便查看将要核销的金额。",
   "There is a payment in the box that has not been recorded": "收款框中有一笔尚未入账的款项",
   "The payment box beside this holds": "旁边的收款框中填写的金额为",
   "Writing the bill off now would settle it and let the cargo go, and that money would never be recorded anywhere.": "此时核销账单会将其结清并放行货物，而这笔款项将不会记录在任何地方。",

@@ -118,6 +118,9 @@ export default async function ShipmentDetailPage({
               /* Where Support expects the fare to be paid from, so the panel
                  can offer it back to Finance already chosen. */
               transportSource: { select: { id: true, name: true } },
+              /* How many bills the claim covers — a write-off across several
+                 says nothing about which one, so the tick is withheld. */
+              _count: { select: { allocations: true } },
               proofs: { select: { id: true } },
             },
           },
@@ -222,6 +225,7 @@ export default async function ShipmentDetailPage({
         /* What Support was told about the gap, so the verify panel opens with
            their answer rather than making Finance work it out again. */
         clearShortfall: s.clearShortfall,
+        coversSeveralBills: s._count.allocations > 1,
       }))
     : [];
   // Only for the desk that can take money. Nobody else is offered a question

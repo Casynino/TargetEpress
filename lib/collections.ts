@@ -158,6 +158,10 @@ export async function submissionQueue(
          not coming. The verify screen opens with this already ticked, and
          Finance's own answer is what actually travels. */
       clearShortfall: true,
+      /* How many bills this one claim covers. A write-off across several does
+         not say which bill's rest is not coming, so the tick is not offered
+         on a merged claim — see VerifySubmission. */
+      _count: { select: { allocations: true } },
       /* What answered this one, and what it answered. Both directions, so a
          refused claim can say it has been re-raised and the fresh one can say
          what it replaces. */

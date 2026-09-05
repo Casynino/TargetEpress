@@ -158,7 +158,21 @@ export function PaymentDifference({
         recomputes the gap from the database before it clears anything, so this
         can only ever ask, never decide.
       */}
-      {clearRest ? <input type="hidden" name="clearShortfall" value="1" /> : null}
+      {clearRest ? (
+        <>
+          <input type="hidden" name="clearShortfall" value="1" />
+          {/* The figure on the button, travelling with the tick. The action
+              clears the smaller of this and the gap it finds at write time, so
+              a bill that moved between this page being drawn and Confirm being
+              pressed cannot be written off by more than the desk was shown. In
+              the BILL's own money, which is what gets written. */}
+          <input
+            type="hidden"
+            name="clearShortfallUpTo"
+            value={Math.max(0, gapInBill).toFixed(2)}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

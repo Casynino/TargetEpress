@@ -41,6 +41,7 @@ export function VerifySubmission({
   shortfall = 0,
   billCurrency = "USD",
   clearShortfallClaimed = false,
+  canClearHere = true,
 }: {
   submissionId: string;
   accounts: { id: string; name: string; currency: string }[];
@@ -61,6 +62,15 @@ export function VerifySubmission({
   billCurrency?: string;
   /** Support ticked "the rest is not coming" when they raised it. */
   clearShortfallClaimed?: boolean;
+  /**
+   * False on a claim covering several bills.
+   *
+   * "The rest is not coming" does not say WHICH bill's rest when one transfer
+   * answers four, and the counter action refuses it there rather than invent a
+   * rule for spreading it. The gap is still stated; only the tick is withheld,
+   * with the reason said out loud so the desk is not left wondering.
+   */
+  canClearHere?: boolean;
 }) {
   const [mode, setMode] = useState<"idle" | "verify" | "reject">("idle");
   /*
@@ -146,7 +156,23 @@ export function VerifySubmission({
           is the BILL that closes, by an adjustment that moves no money and has
           its own reversible row.
         */}
-        {shortfall > 0.005 ? (
+        {shortfall > 0.005 && !canClearHere ? (
+          <p className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-warning">
+            <span className="font-semibold">
+              This leaves {billCurrency}{" "}
+              {shortfall.toLocaleString(undefined, {
+                maximumFractionDigits: billCurrency === "TZS" ? 0 : 2,
+              })}{" "}
+              owing on the bill it is anchored to.
+            </span>
+            <span className="mt-0.5 block opacity-90">
+              This claim covers several bills, so it cannot say which one the
+              rest is not coming on. Verify it here and write the difference off
+              on the bill&rsquo;s own page.
+            </span>
+          </p>
+        ) : null}
+        {shortfall > 0.005 && canClearHere ? (
           <label className="flex cursor-pointer items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-warning">
             <input
               type="checkbox"
@@ -174,12 +200,20 @@ export function VerifySubmission({
         ) : null}
         {/* Stated either way, so an untick here is a NO rather than a silence
             the action would read as Support's yes. */}
-        {shortfall > 0.005 ? (
-          <input
-            type="hidden"
-            name="clearShortfall"
-            value={clearRest ? "1" : "0"}
-          />
+        {shortfall > 0.005 && canClearHere ? (
+          <>
+            <input
+              type="hidden"
+              name="clearShortfall"
+              value={clearRest ? "1" : "0"}
+            />
+            {/* The figure printed on the tick above — see PaymentDifference. */}
+            <input
+              type="hidden"
+              name="clearShortfallUpTo"
+              value={shortfall.toFixed(2)}
+            />
+          </>
         ) : null}
         <div className="space-y-1">
           <Label htmlFor={`account-${submissionId}`} className="text-xs">

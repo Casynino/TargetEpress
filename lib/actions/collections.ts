@@ -716,7 +716,36 @@ export async function verifyPaymentSubmission(
     shortfallSaid === null
       ? submission.clearShortfall
       : String(shortfallSaid) === "1";
-  if (clearRest) handover.set("clearShortfall", "1");
+  /*
+    A WRITE-OFF ACROSS SEVERAL BILLS SAYS NOTHING.
+
+    "The rest is not coming" is an answer about one bill. On a claim covering
+    four, it does not say which one, and recordCustomerPayment refuses to
+    invent a rule for spreading it — so it would be silently dropped, after the
+    desk had been told the bill would be settled. Refused here instead, with
+    the door that does work named.
+
+    The verify screen already withholds the tick on these, so this is the
+    backstop for a claim ticked by Support and then merged, and for the action
+    being a public endpoint.
+  */
+  if (clearRest && submission.allocations.length > 1) {
+    return fail(
+      `${submission.submissionNumber} covers ${submission.allocations.length} bills, so "the rest is not coming" does not say which one. Verify it, then write the difference off on the bill's own page.`
+    );
+  }
+
+  if (clearRest) {
+    handover.set("clearShortfall", "1");
+    /* The ceiling the verify screen printed, carried through so the counter
+       action cannot write off more than Finance was shown. Absent when the
+       claim is verified from a door that states no figure, and then
+       recordPayment falls back to the gap it finds. */
+    const upTo = formData.get("clearShortfallUpTo");
+    if (upTo !== null && String(upTo).trim() !== "") {
+      handover.set("clearShortfallUpTo", String(upTo));
+    }
+  }
 
   if (submission.reference) handover.set("reference", submission.reference);
   if (submission.note) handover.set("note", submission.note);

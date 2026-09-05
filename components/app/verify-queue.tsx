@@ -399,6 +399,10 @@ export async function VerifyQueue() {
                         shortfall={Math.max(0, outstanding - forBillInvoiceMoney)}
                         billCurrency={row.invoice.currency}
                         clearShortfallClaimed={row.clearShortfall}
+                        /* One bill, or the claim's anchor with nothing
+                           allocated. Across several, the tick is withheld and
+                           the reason said on the panel. */
+                        canClearHere={(row._count?.allocations ?? 0) <= 1}
                         /* Cash or the Lipa number, in the currency the money
                            came in. A driver is not paid out of a bank account,
                            and an account cannot give up money it is not
