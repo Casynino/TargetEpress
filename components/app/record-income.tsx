@@ -9,6 +9,7 @@ import {
   useIdempotencyKey,
 } from "@/components/app/idempotency-key";
 import { PaymentProofField } from "@/components/app/payment-proof-field";
+import { TransportSplit } from "@/components/app/transport-split";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -761,19 +762,15 @@ export function RecordIncome({
                 and carrying the same amber every other proof field carries. */}
             <PaymentProofField compact />
 
-            {/* THE SPLIT, WHERE THE PROOF IS. The customer's message shows one
-                figure; this is how it was separated, so the two can be laid
-                side by side before anything is recorded. */}
-            {fare > 0 ? (
-              <p className="w-full rounded-md border border-warning/40 bg-warning/[0.06] px-3 py-2 text-[11px] leading-relaxed text-warning">
-                <span className="font-semibold">
-                  {t("The customer paid cargo plus transport")}
-                </span>{" "}
-                — {tendered} {cargoHalf.toLocaleString()} {t("to the bill")},{" "}
-                {tendered} {fare.toLocaleString()} {t("transport")}.{" "}
-                {t("Total received")}: {tendered} {total.toLocaleString()}.
-              </p>
-            ) : null}
+            {/* The same three lines every other money screen shows. */}
+            <div className="w-full">
+              <TransportSplit
+                cargo={cargoHalf}
+                transport={fare}
+                total={total}
+                money={(v) => `${tendered} ${v.toLocaleString()}`}
+              />
+            </div>
 
             {short && billInTender !== null ? (
               <p className="w-full rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[11px] text-warning">

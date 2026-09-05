@@ -12,6 +12,7 @@ import { ChangeRate } from "@/components/app/change-rate";
 import { AddStorage } from "@/components/app/add-storage";
 import { GiveDiscount } from "@/components/app/give-discount";
 import { WaiveStorage } from "@/components/app/waive-storage";
+import { TransportSplit } from "@/components/app/transport-split";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -556,19 +557,14 @@ export function RecordCollectionForm({
         }
       />
 
-      {/* THE SPLIT, BEFORE THE BUTTON. The customer's message shows one
-          figure; this says how it was separated, so the two can be compared
-          without anybody doing arithmetic on the phone. */}
-      {fare > 0 ? (
-        <p className="rounded-md border border-warning/40 bg-warning/[0.06] px-3 py-2 text-xs leading-relaxed text-warning">
-          <span className="font-semibold">
-            {t("The customer paid cargo plus transport")}
-          </span>{" "}
-          — {currencyChoice} {cargoHalf.toLocaleString()} {t("to the bill")},{" "}
-          {currencyChoice} {fare.toLocaleString()} {t("transport")}.{" "}
-          {t("Total received")}: {currencyChoice} {total.toLocaleString()}.
-        </p>
-      ) : null}
+      {/* The same three lines every other money screen shows. Support is
+          reading the customer's message just as Finance is. */}
+      <TransportSplit
+        cargo={cargoHalf}
+        transport={fare}
+        total={total}
+        money={(v) => `${currencyChoice} ${v.toLocaleString()}`}
+      />
 
       {short ? (
         <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">

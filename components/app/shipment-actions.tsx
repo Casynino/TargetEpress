@@ -26,6 +26,7 @@ import { PaymentDateField } from "@/components/app/payment-date-field";
 import { ChangeRate } from "@/components/app/change-rate";
 import { AddStorage } from "@/components/app/add-storage";
 import { GiveDiscount } from "@/components/app/give-discount";
+import { TransportSplit } from "@/components/app/transport-split";
 import { WaiveStorage } from "@/components/app/waive-storage";
 import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -958,40 +959,13 @@ function PaymentPanel({
             </p>
           ) : null}
 
-          {fare > 0 && !fareEatsTotal ? (
-            <div className="rounded-lg border border-warning/40 bg-warning/[0.06] p-3 text-xs">
-              <p className="font-semibold uppercase tracking-wide text-warning">
-                {t("The customer paid cargo plus transport")}
-              </p>
-              <dl className="mt-2 space-y-1">
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-muted-foreground">
-                    {t("Cargo charge")}
-                  </dt>
-                  <dd className="font-semibold tabular-nums">
-                    {currency} {cargoHalf.toLocaleString()}
-                  </dd>
-                </div>
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-muted-foreground">
-                    {t("Transport (passed on)")}
-                  </dt>
-                  <dd className="font-semibold tabular-nums text-warning">
-                    {currency} {fare.toLocaleString()}
-                  </dd>
-                </div>
-                <div className="flex items-baseline justify-between gap-3 border-t border-warning/20 pt-1">
-                  <dt className="font-medium">{t("Total received")}</dt>
-                  <dd className="font-bold tabular-nums">
-                    {currency} {typed.toLocaleString()}
-                  </dd>
-                </div>
-              </dl>
-              <p className="mt-2 border-t border-warning/20 pt-2 text-[11px] text-muted-foreground">
-                {t("Check this total against the customer's message.")}
-              </p>
-            </div>
-          ) : null}
+          <TransportSplit
+            cargo={cargoHalf}
+            transport={fare}
+            total={typed}
+            money={(v) => `${currency} ${v.toLocaleString()}`}
+            className={fareEatsTotal ? "hidden" : undefined}
+          />
 
           {/*
             THE BILL IS NOT BEING CLEARED, AND SOMEBODY IS TOLD.

@@ -16,6 +16,7 @@ import {
 } from "@/components/app/idempotency-key";
 import { BillActions } from "@/components/app/bill-actions";
 import { PaymentProofField } from "@/components/app/payment-proof-field";
+import { TransportSplit } from "@/components/app/transport-split";
 import { useT } from "@/components/app/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -845,7 +846,10 @@ export function CustomerPaymentForm({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="min-w-0 space-y-1.5">
             <Label htmlFor="amountShown">
-              {t("Amount received")} ({payCurrency === LOCAL ? "TSh" : "USD"})
+              {/* The same words as every other money screen. This box holds
+                  the bills PLUS the fare, which is what "total" says and
+                  "amount" leaves open. */}
+              {t("Total received")} ({payCurrency === LOCAL ? "TSh" : "USD"})
             </Label>
             {/* Shows the DERIVED total while it is following the ticks —
                 the bills plus the fare, which is what the customer actually
@@ -1047,15 +1051,14 @@ export function CustomerPaymentForm({
             Read back before the button, so the desk sending this to Finance —
             or recording it outright — can see that the figure they typed is
             deliberately larger than the bills, and by exactly what. */}
-        {fare > 0 && !fareTooBig ? (
-          <div className="rounded-lg border border-warning/40 bg-warning/[0.06] p-3 text-sm text-warning">
-            <span className="font-medium">
-              {t("The customer paid cargo plus transport")}
-            </span>{" "}
-            — {money(forBills)} {t("to the bill")}, {money(fare)}{" "}
-            {t("transport")}. {t("Total received")}: {money(received)}.{" "}
-            {t("Check this total against the customer's message.")}
-          </div>
+        {/* The same three lines every other money screen shows. */}
+        {!fareTooBig ? (
+          <TransportSplit
+            cargo={forBills}
+            transport={fare}
+            total={received}
+            money={money}
+          />
         ) : null}
 
         {fareTooBig ? (
