@@ -45,7 +45,8 @@ const TABS: Tab[] = [
   // than no tab at all.
   { href: "/app/collections/verify", label: "Verify payments", verifierOnly: true },
   { href: "/app/collections/submissions?status=PENDING", label: "With Finance", match: "/app/collections/submissions", collectorOnly: true },
-  { href: "/app/collections/submissions?status=VERIFIED", label: "Verified", match: "/app/collections/submissions", query: "VERIFIED" },
+  /* No Verified tab: an agreed claim is a payment, and a payment is looked up
+     in the ledger. See the note on FILTERS in the submissions page. */
   /* No Credit or Pickup notes tab. Both are pages in their own right with their
      own sidebar rows, and a tab that duplicates a door already on screen only
      makes this row longer. What is left is the one thing this workspace IS: a

@@ -100,9 +100,9 @@ export async function VerifyQueue() {
             <div className="flex items-center justify-between border-b bg-muted/20 px-4 py-1.5">
               <SelectAllTick />
               <span className="text-[11px] text-muted-foreground">
-                {bulkReady.length} {t(locale, "ready to agree together")}
+                {bulkReady.length} {t(locale, "can be verified together")}
                 {bulkReady.length < rows.length
-                  ? ` · ${rows.length - bulkReady.length} ${t(locale, "need an account named first")}`
+                  ? ` · ${rows.length - bulkReady.length} ${t(locale, "needs an account first")}`
                   : ""}
               </span>
             </div>
@@ -360,10 +360,7 @@ export async function VerifyQueue() {
           noun={t(locale, "payment")}
           nounPlural={t(locale, "payments")}
           pendingLabel={t(locale, "Recording…")}
-          note={t(
-            locale,
-            "Each one is banked into the account its claim names, with its own receipt."
-          )}
+          note={t(locale, "Each one goes into the account on its claim, with its own receipt.")}
         />
         </BulkSelect>
       )}

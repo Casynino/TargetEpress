@@ -101,10 +101,28 @@ export async function withdrawSubmissions(
     const parsed = z
       .object({
         ids: idsSchema.shape.ids,
-        reason: z.string().trim().min(3, "Say why they are being taken back."),
+        /*
+          NOT ASKED FOR, AND NOT INVENTED EITHER.
+
+          The single-row control asks why, because deciding one claim is a
+          considered act. Deciding twenty is one act, and stopping to write a
+          sentence about each — or one sentence pretending to explain all of
+          them — is friction that buys nothing: the audit line already records
+          who did it and when.
+
+          So the column says exactly what happened, including the fact that
+          nobody gave a reason. That is more honest than a default sentence
+          dressed up as an explanation, and it is what somebody reading the row
+          in six months actually needs to know.
+        */
+        reason: z.string().trim().optional(),
       })
       .safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
+    const reason =
+      parsed.data.reason && parsed.data.reason.length >= 3
+        ? parsed.data.reason
+        : "Taken back from the list — no reason given.";
 
     const { withdrawSubmission } = await import(
       "@/lib/actions/submission-corrections"
@@ -129,7 +147,7 @@ export async function withdrawSubmissions(
     for (const id of parsed.data.ids) {
       const one = new FormData();
       one.set("submissionId", id);
-      one.set("reason", parsed.data.reason);
+      one.set("reason", reason);
       const result = await withdrawSubmission(undefined, one);
       if (result.ok) done += 1;
       else failed.push({ name: nameOf.get(id) ?? id, why: result.error ?? "Refused." });

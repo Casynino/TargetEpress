@@ -33,7 +33,20 @@ export const metadata: Metadata = { title: "Submissions" };
 
 const FILTERS = [
   { key: "PENDING", label: "With Finance" },
-  { key: "VERIFIED", label: "Verified" },
+  /*
+    NO VERIFIED TAB.
+
+    A claim Finance has agreed is not a claim any more — it is a payment, with
+    a receipt number and two lines in the ledger, and the ledger is where a
+    payment is looked up. Keeping a second copy of it here gave this desk a
+    list with nothing to do on it and a second place to go asking what happened
+    to money, which is how two screens start giving different answers.
+
+    THE ROWS ARE NOT DELETED. Every verified submission stays exactly where it
+    was: it is the trail from a customer's screenshot to a receipt, it is what
+    lets a payment say who first raised it, and none of that is display. What
+    changed is only that this page stopped listing them.
+  */
   { key: "REJECTED", label: "Sent back" },
   /*
     No tab of its own for WITHDRAWN.
@@ -78,10 +91,13 @@ export default async function SubmissionsPage({
   // the desk that can act is a dead end dressed as a queue.
   if (canVerify && active === "PENDING") redirect("/app/collections/verify");
   const [rows, rate, payAccounts] = await Promise.all([
+    /* "Everything" means everything this desk still has a say in — so it
+       leaves out the verified ones too, rather than showing under one chip
+       what the page no longer shows under its own. */
     submissionQueue(
       active === "ALL"
-        ? null
-        : (active as "PENDING" | "VERIFIED" | "REJECTED" | "WITHDRAWN")
+        ? "UNVERIFIED"
+        : (active as "PENDING" | "REJECTED" | "WITHDRAWN")
     ),
     currentRateValue(),
     /* To correct the account on a pending claim. Fetched even when nobody on
@@ -228,13 +244,11 @@ export default async function SubmissionsPage({
       <div className="mb-4 rounded-xl border bg-card p-4 shadow-soft sm:w-fit">
         <p
           className={`text-xs font-semibold uppercase tracking-widest ${
-            active === "VERIFIED"
-              ? "text-success"
-              : active === "REJECTED"
-                ? "text-destructive"
-                : active === "ALL"
-                  ? "text-muted-foreground"
-                  : "text-warning"
+            active === "REJECTED"
+              ? "text-destructive"
+              : active === "ALL"
+                ? "text-muted-foreground"
+                : "text-warning"
           }`}
         >
           {rows.length} {t(locale, FILTERS.find((f) => f.key === active)?.label ?? "")}
@@ -348,7 +362,7 @@ export default async function SubmissionsPage({
             <div className="flex items-center justify-between border-b bg-muted/20 px-4 py-1.5">
               <SelectAllTick />
               <span className="text-[11px] text-muted-foreground">
-                {takeable.length} {t(locale, "can be taken back")}
+                {takeable.length} {t(locale, "can be deleted")}
               </span>
             </div>
           ) : null}
@@ -634,16 +648,13 @@ export default async function SubmissionsPage({
         <BulkBar
           action={withdrawSubmissions}
           tone="destructive"
-          reason
-          reasonLabel={t(locale, "Why are these being taken back?")}
-          verb={t(locale, "Take back")}
-          noun={t(locale, "claim")}
-          nounPlural={t(locale, "claims")}
-          pendingLabel={t(locale, "Taking them back…")}
-          note={t(
-            locale,
-            "The bills are untouched. Each cargo goes back on the chase list to be recorded again."
-          )}
+          /* The same word as the button on the row, because it is the same
+             job. A second name for one action is a second thing to learn. */
+          verb={t(locale, "Delete")}
+          noun={t(locale, "payment")}
+          nounPlural={t(locale, "payments")}
+          pendingLabel={t(locale, "Deleting…")}
+          note={t(locale, "The bills do not change. The cargo goes back on the call list.")}
         />
         </BulkSelect>
       )}

@@ -9,10 +9,9 @@ import {
   type ReactNode,
 } from "react";
 import { useActionState } from "react";
-import { CheckSquare, Square, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 
 import { FormError, SubmitButton } from "@/components/app/form-feedback";
-import { Input } from "@/components/ui/input";
 import { useT } from "@/components/app/locale-provider";
 import type { ActionResult } from "@/lib/actions/types";
 import type { BulkOutcome } from "@/lib/actions/submission-bulk";
@@ -101,14 +100,28 @@ export function RowTick({ id, label }: { id: string; label?: string }) {
   const { isSelected, toggle } = useSelection();
   const t = useT();
   const on = isSelected(id);
+  /* Big enough to see and to hit. A 16px box with the browser's own styling
+     disappeared into a dark row — the desk could not tell at a glance which
+     rows were picked, which is the only thing this control is for. */
   return (
-    <input
-      type="checkbox"
-      checked={on}
-      onChange={() => toggle(id)}
-      aria-label={label ?? t("Select this one")}
-      className="h-4 w-4 shrink-0 cursor-pointer accent-brand"
-    />
+    <label className="flex shrink-0 cursor-pointer items-center">
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={() => toggle(id)}
+        aria-label={label ?? t("Pick this one")}
+        className="peer sr-only"
+      />
+      <span
+        className={`flex h-6 w-6 items-center justify-center rounded-md border-2 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background ${
+          on
+            ? "border-brand bg-brand text-brand-foreground"
+            : "border-muted-foreground/50 bg-transparent hover:border-brand/60"
+        }`}
+      >
+        {on ? <Check className="h-4 w-4 stroke-[3]" /> : null}
+      </span>
+    </label>
   );
 }
 
@@ -121,14 +134,18 @@ export function SelectAllTick({ label }: { label?: string }) {
     <button
       type="button"
       onClick={() => (all ? clear() : selectAll())}
-      className="focus-ring inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+      className="focus-ring inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm font-medium hover:text-foreground"
     >
-      {all ? (
-        <CheckSquare className="h-3.5 w-3.5 text-brand" />
-      ) : (
-        <Square className="h-3.5 w-3.5" />
-      )}
-      {label ?? (all ? t("Select none") : t("Select all"))}
+      <span
+        className={`flex h-6 w-6 items-center justify-center rounded-md border-2 transition-colors ${
+          all
+            ? "border-brand bg-brand text-brand-foreground"
+            : "border-muted-foreground/50"
+        }`}
+      >
+        {all ? <Check className="h-4 w-4 stroke-[3]" /> : null}
+      </span>
+      {label ?? (all ? t("Pick none") : t("Pick all"))}
     </button>
   );
 }
@@ -150,8 +167,6 @@ export function BulkBar({
   noun,
   nounPlural,
   pendingLabel,
-  reason,
-  reasonLabel,
   tone = "brand",
   note,
 }: {
@@ -170,16 +185,12 @@ export function BulkBar({
   noun: string;
   nounPlural: string;
   pendingLabel: string;
-  /** Ask for a reason before doing it. */
-  reason?: boolean;
-  reasonLabel?: string;
   tone?: "brand" | "destructive";
   /** A sentence under the button — what this will and will not touch. */
   note?: string;
 }) {
   const { selected, clear } = useSelection();
   const t = useT();
-  const [open, setOpen] = useState(false);
   const [state, run] = useActionState<ActionResult<BulkOutcome>, FormData>(
     action as never,
     { ok: true }
@@ -208,7 +219,6 @@ export function BulkBar({
           formData.set("ids", JSON.stringify(ids));
           run(formData);
           clear();
-          setOpen(false);
         }}
         className="rounded-xl border bg-card p-3 shadow-soft"
       >
@@ -221,21 +231,7 @@ export function BulkBar({
             <span className="text-sm font-semibold">{t("Done")}</span>
           )}
 
-          {ids.length > 0 && reason && !open ? (
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className={`focus-ring inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold ${
-                tone === "destructive"
-                  ? "border border-destructive/40 text-destructive hover:bg-destructive/10"
-                  : "bg-brand text-brand-foreground hover:bg-brand/90"
-              }`}
-            >
-              {label}
-            </button>
-          ) : null}
-
-          {ids.length > 0 && (!reason || open) ? (
+          {ids.length > 0 ? (
             <SubmitButton
               size="sm"
               variant={tone === "destructive" ? "outline" : "brand"}
@@ -247,10 +243,7 @@ export function BulkBar({
 
           <button
             type="button"
-            onClick={() => {
-              clear();
-              setOpen(false);
-            }}
+            onClick={clear}
             className="focus-ring rounded-md p-1.5 text-muted-foreground hover:text-foreground"
             aria-label={t("Clear the selection")}
           >
@@ -258,36 +251,33 @@ export function BulkBar({
           </button>
         </div>
 
-        {ids.length > 0 && reason && open ? (
-          <div className="mt-2 space-y-1">
-            <Input
-              name="reason"
-              required
-              minLength={3}
-              placeholder={reasonLabel ?? t("Why are these being taken back?")}
-              className="h-9 text-sm"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              {t("The same reason is written onto every one of them.")}
-            </p>
-          </div>
-        ) : null}
-
         {ids.length > 0 && note ? (
           <p className="mt-2 text-[11px] text-muted-foreground">{note}</p>
         ) : null}
 
-        <FormError state={state} />
-        {/* Said plainly when some of them did not go through. A run that
-            half-worked and reported only success is worse than one that
-            failed outright — the desk walks away believing all of it. */}
-        {state.ok && state.data?.note ? (
-          <p className="mt-2 text-xs text-warning">{state.data.note}</p>
-        ) : null}
-        {state.ok && state.data && !state.data.note ? (
-          <p className="mt-2 text-xs text-success">
-            {state.data.done} {t("done")}.
-          </p>
+        {/*
+          THE LAST RUN'S ANSWER, AND ONLY UNTIL THE NEXT PICK.
+
+          Said plainly when some of them did not go through: a run that
+          half-worked and reported only success is worse than one that failed
+          outright, because the desk walks away believing all of it.
+
+          Hidden the moment anything is ticked again, though. "3 done" sitting
+          under a fresh selection of six reads as a fact about the six, and it
+          is a fact about the three before them.
+        */}
+        {ids.length === 0 ? (
+          <>
+            <FormError state={state} />
+            {state.ok && state.data?.note ? (
+              <p className="mt-2 text-xs text-warning">{state.data.note}</p>
+            ) : null}
+            {state.ok && state.data && !state.data.note ? (
+              <p className="mt-2 text-xs text-success">
+                {state.data.done} {t("done")}.
+              </p>
+            ) : null}
+          </>
         ) : null}
       </form>
     </div>
