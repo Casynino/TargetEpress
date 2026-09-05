@@ -361,7 +361,9 @@ export function SubmissionCorrection({
             className={pillButton}
           >
             <Pencil className="h-3.5 w-3.5" />
-            {canRaiseAgain ? t("Fix and send again") : t("Edit Payment")}
+            {/* The row already says what it is. "Payment" on both buttons was
+                the noun repeated twice on every line of the list. */}
+            {canRaiseAgain ? t("Fix and send again") : t("Edit")}
           </button>
           {canDelete && (editable || canRaiseAgain) ? (
             <button
@@ -370,7 +372,7 @@ export function SubmissionCorrection({
               className={`${pillButton} hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive`}
             >
               <Ban className="h-3.5 w-3.5" />
-              {t("Delete Payment")}
+              {t("Delete")}
             </button>
           ) : null}
         </>
