@@ -519,13 +519,20 @@ function PaymentPanel({
   const [rate, setRate] = useState(
     props.invoiceRate === null ? "" : String(props.invoiceRate)
   );
-  // ...and the amount defaults to the balance expressed in that currency,
-  // rounded to the shilling, because nobody hands over 405.27 TZS.
-  const [amount, setAmount] = useState(() => {
-    if (props.outstanding === null) return "";
-    if (props.invoiceRate === null) return String(props.outstanding);
-    return String(Math.round(props.outstanding * props.invoiceRate));
-  });
+  /*
+    THE TOTAL FOLLOWS THE BILL UNTIL SOMEBODY TYPES OVER IT.
+
+    Null means "still following", exactly as the merge screen's typedTotal
+    does. It matters because of what the transport box now does: while the
+    total is following, a fare ADDS to it, because the customer hands over the
+    bill AND the fare. Once a clerk has typed the figure off the customer's
+    screenshot, that figure is the truth and nothing may move it under them.
+
+    Before this, the box was seeded with the bill and the fare was carved OUT
+    of it — so the ordinary case (leave the box alone, type the fare) left the
+    bill short by exactly the fare, with no sentence anywhere on the screen.
+  */
+  const [typedTotal, setTypedTotal] = useState<string | null>(null);
   /* Follows the account. Mobile money until one is named, which is what it is
      at this counter nine times in ten. */
   const [accountId, setAccountId] = useState("");
@@ -567,49 +574,127 @@ function PaymentPanel({
     (account) => account.currency === currency
   );
 
-  // Shown as the clerk types, so the figure that will land against the bill is
-  // visible before it is committed. The server recomputes it from the invoice's
-  // own frozen rate — this is a preview, never the stored value.
-  const typed = Number(amount);
   const activeRate = Number(rate);
   const rateUsable = Number.isFinite(activeRate) && activeRate > 0;
+
+  /*
+    WHAT THE BILL COMES TO IN THE MONEY BEING HANDED OVER.
+
+    Derived on every render rather than seeded once, so a discount given, a
+    rate agreed or storage waived on this same panel moves the figure instead
+    of leaving a stale one the server will refuse.
+  */
+  const billInTender =
+    props.outstanding === null
+      ? null
+      : currency === props.currency
+        ? props.outstanding
+        : !rateUsable
+          ? null
+          : currency === "TZS"
+            ? Math.round(props.outstanding * activeRate)
+            : Math.round((props.outstanding / activeRate) * 100) / 100;
+
+  const fare = Math.max(0, Number(transport) || 0);
+
+  /*
+    THE FARE IS ADDED, NOT TAKEN OUT.
+
+    The customer owes the bill and also hands over the delivery, so what they
+    actually send is the two together — and that is the figure on the phone
+    screenshot the clerk is holding. Rounded rather than concatenated: adding
+    a fare to a dollar balance produces floats like 8.399999999999999, and the
+    money box truncates instead of rounding, so a cent would go missing.
+  */
+  const followedTotal =
+    billInTender === null
+      ? ""
+      : currency === "TZS"
+        ? String(Math.round(billInTender + fare))
+        : String(Math.round((billInTender + fare) * 100) / 100);
+
+  /* Shown as the clerk types, so the figure that will land against the bill
+     is visible before it is committed. The server recomputes it from the
+     invoice's own frozen rate — this is a preview, never the stored value. */
+  const amount = typedTotal ?? followedTotal;
+  const typed = Number(amount);
+  /* What actually reaches the bill. Every figure below measures from here —
+     the whole point is that the two are no longer the same number. */
+  const cargoHalf =
+    Number.isFinite(typed) && typed > 0
+      ? Math.round((typed - fare) * 100) / 100
+      : 0;
+
+  /*
+    THE CARGO HALF IS WHAT SETTLES THE BILL, SO IT IS WHAT THIS CONVERTS.
+
+    This sentence used to convert the WHOLE typed figure and call the answer
+    what the payment settles. With a fare inside the transfer it overstated
+    the bill's share by exactly the fare — the screen said "TZS 36,450 settles
+    USD 13.50" while the server credited USD 9.80 — and it was the last line
+    the clerk read before pressing Confirm.
+  */
   const converted =
     currency === props.currency
       ? null
       : !rateUsable
         ? `${t("Set an exchange rate to take a payment in")} ${currency}.`
-        : Number.isFinite(typed) && typed > 0
-          ? `${currency} ${typed.toLocaleString()} ${t("settles")} ${props.currency} ${(
-              currency === "TZS" ? typed / activeRate : typed * activeRate
+        : cargoHalf > 0
+          ? `${currency} ${cargoHalf.toLocaleString()} ${t("settles")} ${props.currency} ${(
+              currency === "TZS" ? cargoHalf / activeRate : cargoHalf * activeRate
             ).toFixed(2)} ${t("at")} ${activeRate.toLocaleString()}.`
           : null;
 
-  // Agreeing a different rate changes what the same shillings are worth, so a
-  // figure that cleared the bill a moment ago may no longer. Say what would,
-  // rather than leaving the clerk to work it out and leave 3 dollars behind —
-  // an unsettled cent is a pickup note that never issues.
-  const clearing =
-    currency !== props.currency && rateUsable && props.outstanding !== null
-      ? currency === "TZS"
-        ? Math.round(props.outstanding * activeRate)
-        : Number((props.outstanding / activeRate).toFixed(2))
-      : null;
-  const shortfall =
-    clearing !== null &&
-    Number.isFinite(typed) &&
-    typed > 0 &&
-    Math.abs(typed - clearing) > 0.5;
+  /*
+    IS THE BILL ACTUALLY BEING CLEARED?
 
-  // Switching currency re-expresses the outstanding balance, so the figure in
-  // the box is always the whole balance in whatever is selected.
+    Asked of the cargo half against the balance, in whatever money is being
+    handed over — and asked for a same-currency payment too, which it never
+    was. It only existed for cross-currency payments before, so a shilling
+    bill paid in shillings with a fare inside it produced no sentence at all
+    while the bill was left short. That silence is the bug the owner reported.
+
+    The tolerance is a cent, not half a unit: half a shilling is nothing but
+    fifty cents on a dollar bill is a balance that never clears and a pickup
+    note that never issues.
+  */
+  const clearing = billInTender;
+  const tolerance = currency === "TZS" ? 0.5 : 0.005;
+  const short =
+    clearing !== null && cargoHalf > 0 && clearing - cargoHalf > tolerance;
+  const overpaid =
+    clearing !== null && cargoHalf > 0 && cargoHalf - clearing > tolerance;
+
+  /*
+    A FARE LARGER THAN THE CARGO IS USUALLY AN EXTRA NOUGHT.
+
+    It is not impossible — a short haul on a small consignment really can cost
+    more than the freight — so this is a question, not a refusal. But the
+    server refuses it without an answer, because the fare's old ceiling ("it
+    cannot be more than what came in") is an identity once the total is the
+    bill plus the fare, and an unchecked mistyped fare empties the till.
+  */
+  const fareOverCargo =
+    fare > 0 && typed > 0 && fare > cargoHalf + 0.001;
+  const [fareConfirmed, setFareConfirmed] = useState(false);
+
+  /*
+    SWITCHING THE MONEY CLEARS THE FARE.
+
+    The fare is typed in whatever was selected at the time, and this switch
+    used to leave it alone — so a TZS 10,000 fare typed before the clerk
+    learned the customer had sent dollars became a USD 10,000 fare, ten
+    thousand dollars out of a till, and the old ceiling could not catch it
+    because the total had grown to match. The bill's own figure re-expresses
+    itself; a fare cannot be re-expressed without inventing a rate for money
+    that never had one, so it is asked for again.
+  */
   const switchCurrency = (next: string) => {
     setCurrency(next);
-    if (props.outstanding === null || !rateUsable) return;
-    setAmount(
-      next === "TZS"
-        ? String(Math.round(props.outstanding * activeRate))
-        : String(props.outstanding)
-    );
+    setTypedTotal(null);
+    setTransport("");
+    setTransportSourceId("");
+    setFareConfirmed(false);
   };
 
   return (
@@ -644,16 +729,23 @@ function PaymentPanel({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
             <div className="space-y-1.5">
               <Label htmlFor="amount" className="text-xs">
-                {t("Amount")}
+                {t("Total received")}
               </Label>
               {/* Cents matter. A bill of 39.15 part-paid with 39 leaves 0.15
                   outstanding, and a whole-number input made that last balance
                   impossible to clear — so the cargo could never be released. */}
+              {/* Typing here latches the figure: from that moment it is the
+                  clerk's own reading of the customer's message and the fare
+                  stops moving it. */}
               <MoneyInput
                 id="amount"
                 name="amount"
                 value={amount}
-                onValueChange={setAmount}
+                /* Emptying the box hands it BACK to the bill rather than
+                   latching an empty string — otherwise clearing it to retype
+                   left the panel following nothing, with a breakdown of
+                   zeroes and a fare hanging off no total at all. */
+                onValueChange={(raw) => setTypedTotal(raw === "" ? null : raw)}
                 required
               />
             </div>
@@ -690,14 +782,23 @@ function PaymentPanel({
           */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
+              {/* "Of that" was the old carve-out speaking. The fare is money
+                  the customer hands over ON TOP of the bill, and the label has
+                  to say so or the total above reads as already including it. */}
               <Label htmlFor="transport" className="text-xs">
-                {t("Of that, transport")}
+                {t("Transport they added")}
               </Label>
               <MoneyInput
                 id="transport"
                 name="transport"
                 value={transport}
-                onValueChange={setTransport}
+                onValueChange={(raw) => {
+                    setTransport(raw);
+                    /* A tick confirms ONE figure. Left standing, a clerk who
+                       confirmed 100,000 and then slipped another nought onto
+                       it would send 1,000,000 through already confirmed. */
+                    setFareConfirmed(false);
+                  }}
                 decimals={currency === "TZS" ? 0 : 2}
                 placeholder="0"
               />
@@ -738,27 +839,7 @@ function PaymentPanel({
             </div>
           </div>
 
-          {/*
-            SAID OUT LOUD, SO NOBODY WONDERS WHICH FIGURE IS WHICH.
 
-            The amount at the top is the WHOLE thing the customer handed over —
-            the freight and the delivery in one transfer. Without this line a
-            clerk cannot tell whether the box above was meant to be the cargo
-            price or the total, and the difference is somebody being asked for
-            the transport twice.
-          */}
-          {Number(transport) > 0 && Number(amount) > 0 ? (
-            <p className="rounded-md border border-warning/30 bg-warning/[0.06] px-3 py-2 text-[11px] leading-relaxed text-warning">
-              {t("The customer paid cargo plus transport")}:{" "}
-              <span className="font-semibold">
-                {currency} {Number(amount).toLocaleString()}
-              </span>{" "}
-              — {currency}{" "}
-              {Math.max(0, Number(amount) - Number(transport)).toLocaleString()}{" "}
-              {t("to the bill")}, {currency}{" "}
-              {Number(transport).toLocaleString()} {t("transport")}.
-            </p>
-          ) : null}
           {/* Straight under the figure it changes. A discount moves what the
               customer owes, so it belongs beside the amount rather than down
               among the fields about where the money landed — and on its own
@@ -842,20 +923,116 @@ function PaymentPanel({
                 </>
               ) : null}
 
-              {shortfall ? (
-                <>
-                  {" "}
-                  <button
-                    type="button"
-                    onClick={() => setAmount(String(clearing))}
-                    className="font-medium text-brand underline-offset-2 hover:underline"
-                  >
-                    {currency} {clearing!.toLocaleString()}{" "}
-                    {t("clears the balance.")}
-                  </button>
-                </>
-              ) : null}
             </p>
+          ) : null}
+
+          {/*
+            THE SPLIT, IN WORDS, WHERE IT CANNOT BE MISSED.
+
+            The customer's proof shows ONE figure. This is how that figure was
+            separated, said in the same order the clerk types it, so the total
+            on the screen can be laid beside the total on the phone. Without
+            it the panel showed a bill's figure, a fare, and nothing joining
+            them — and the arithmetic happened on the server where nobody
+            could see it.
+          */}
+          {fare > 0 ? (
+            <div className="rounded-lg border border-warning/40 bg-warning/[0.06] p-3 text-xs">
+              <p className="font-semibold uppercase tracking-wide text-warning">
+                {t("The customer paid cargo plus transport")}
+              </p>
+              <dl className="mt-2 space-y-1">
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-muted-foreground">
+                    {t("Cargo charge")}
+                  </dt>
+                  <dd className="font-semibold tabular-nums">
+                    {currency} {cargoHalf.toLocaleString()}
+                  </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-muted-foreground">
+                    {t("Transport (passed on)")}
+                  </dt>
+                  <dd className="font-semibold tabular-nums text-warning">
+                    {currency} {fare.toLocaleString()}
+                  </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3 border-t border-warning/20 pt-1">
+                  <dt className="font-medium">{t("Total received")}</dt>
+                  <dd className="font-bold tabular-nums">
+                    {currency} {typed.toLocaleString()}
+                  </dd>
+                </div>
+              </dl>
+              <p className="mt-2 border-t border-warning/20 pt-2 text-[11px] text-muted-foreground">
+                {t("Check this total against the customer's message.")}
+              </p>
+            </div>
+          ) : null}
+
+          {/*
+            THE BILL IS NOT BEING CLEARED, AND SOMEBODY IS TOLD.
+
+            A part payment is perfectly legitimate. A SILENT one is not — and
+            with the fare carved out of the bill's own figure, this was the
+            everyday case and no sentence appeared anywhere. The button puts
+            the total where it clears the balance WITH the fare still on top,
+            rather than back to the bare bill, which is what it used to do and
+            was how the shortfall came back the moment it was dismissed.
+          */}
+          {short && clearing !== null ? (
+            <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+              {t("This leaves")} {props.currency}{" "}
+              {(currency === props.currency
+                ? clearing - cargoHalf
+                : (clearing - cargoHalf) /
+                  (currency === "TZS" ? activeRate : 1 / activeRate)
+              ).toFixed(2)}{" "}
+              {t("still owing on the bill.")}{" "}
+              <button
+                type="button"
+                onClick={() =>
+                  setTypedTotal(
+                    currency === "TZS"
+                      ? String(Math.round(clearing + fare))
+                      : String(Math.round((clearing + fare) * 100) / 100)
+                  )
+                }
+                className="font-semibold underline underline-offset-2"
+              >
+                {currency} {(clearing + fare).toLocaleString()}{" "}
+                {t("clears it in full.")}
+              </button>
+            </p>
+          ) : null}
+
+          {/*
+            A FARE BIGGER THAN THE CARGO — ALMOST ALWAYS AN EXTRA NOUGHT.
+
+            The server refuses this without the tick, because the fare's old
+            ceiling cannot fire any more: once the total is the bill plus the
+            fare, "the fare is smaller than the total" is true no matter what
+            was typed. A hundred thousand where ten was meant would settle the
+            bill correctly and quietly empty the till.
+          */}
+          {fareOverCargo ? (
+            <label className="flex cursor-pointer items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs">
+              <input
+                type="checkbox"
+                name="transportConfirmed"
+                value="1"
+                checked={fareConfirmed}
+                onChange={(event) => setFareConfirmed(event.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 shrink-0"
+              />
+              <span>
+                <span className="font-semibold">
+                  {t("The transport is more than the cargo.")}
+                </span>{" "}
+                {t("Check the figure. Tick this if it is right.")}
+              </span>
+            </label>
           ) : null}
           {/* Where the money landed. Compulsory — the owner's rule: money is
               never recorded without saying where it went, and this counter is

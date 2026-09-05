@@ -145,7 +145,17 @@ export function RecordCollectionForm({
       : currencyChoice === "TZS" && rate
         ? Math.round(outstanding * rate)
         : outstanding;
-  const [amount, setAmount] = useState(String(suggested));
+  /*
+    NULL MEANS THE TOTAL IS STILL FOLLOWING THE BILL.
+
+    While it is, a fare ADDS to it: the customer owes the bill and hands over
+    the delivery on top, so what they send is the two together. This was a
+    plain string seeded once, so the ordinary case — leave it, type the fare —
+    carved the fare out of the bill's own figure and left the bill short by
+    exactly the fare, with nothing on screen saying so. Seeding once also meant
+    a discount or a rate agreed on this same form left a stale figure behind.
+  */
+  const [typedTotal, setTypedTotal] = useState<string | null>(null);
 
   /*
     Only accounts that could really have received THIS money.
@@ -160,6 +170,24 @@ export function RecordCollectionForm({
      — see the note beside the fields. */
   const [transport, setTransport] = useState("");
   const [transportSourceId, setTransportSourceId] = useState("");
+  /* The desk looked at a fare bigger than the cargo and said it was right. */
+  const [fareConfirmed, setFareConfirmed] = useState(false);
+
+  /* Derived every render, so a bill that moves underneath moves the total. */
+  const fare = Math.max(0, Number(transport) || 0);
+  const followedTotal =
+    currencyChoice === "TZS"
+      ? String(Math.round(suggested + fare))
+      : String(Math.round((suggested + fare) * 100) / 100);
+  const amount = typedTotal ?? followedTotal;
+  const total = Number(amount);
+  const cargoHalf =
+    Number.isFinite(total) && total > 0
+      ? Math.round((total - fare) * 100) / 100
+      : 0;
+  const tolerance = currencyChoice === "TZS" ? 0.5 : 0.005;
+  const short = cargoHalf > 0 && suggested - cargoHalf > tolerance;
+  const fareOverCargo = fare > 0 && total > 0 && fare > cargoHalf + 0.001;
   /*
     Derived, not corrected in an effect.
 
@@ -261,13 +289,15 @@ export function RecordCollectionForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto_1fr]">
         <div className="space-y-1.5">
           <Label htmlFor="collectionAmount" className="text-xs">
-            {t("What the customer sent")}
+            {t("Total received")}
           </Label>
+          {/* Emptying it hands the figure back to the bill rather than
+              latching an empty string. */}
           <MoneyInput
             id="collectionAmount"
             name="amount"
             value={amount}
-            onValueChange={setAmount}
+            onValueChange={(raw) => setTypedTotal(raw === "" ? null : raw)}
             required
           />
         </div>
@@ -279,18 +309,16 @@ export function RecordCollectionForm({
             id="collectionCurrency"
             name="currency"
             value={currencyChoice}
+            /* The bill re-expresses itself; a fare cannot be re-expressed
+               without inventing a rate for money that never had one, so it is
+               asked for again. Leaving it put a TZS 10,000 fare through as a
+               USD 10,000 one. */
             onChange={(event) => {
-              const next = event.target.value;
-              setCurrencyChoice(next);
-              setAmount(
-                String(
-                  next === currency
-                    ? outstanding
-                    : next === "TZS" && rate
-                      ? Math.round(outstanding * rate)
-                      : outstanding
-                )
-              );
+              setCurrencyChoice(event.target.value);
+              setTypedTotal(null);
+              setTransport("");
+              setTransportSourceId("");
+              setFareConfirmed(false);
             }}
             className="h-11 w-[6.5rem]"
           >
@@ -359,12 +387,18 @@ export function RecordCollectionForm({
       */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="transport">{t("Of that, transport")}</Label>
+          <Label htmlFor="transport">{t("Transport they added")}</Label>
           <MoneyInput
             id="transport"
             name="transport"
             value={transport}
-            onValueChange={setTransport}
+            onValueChange={(raw) => {
+                setTransport(raw);
+                /* A tick confirms ONE figure. Left standing, a clerk who
+                   confirmed 100,000 and then slipped another nought onto
+                   it would send 1,000,000 through already confirmed. */
+                setFareConfirmed(false);
+              }}
             decimals={currencyChoice === "TZS" ? 0 : 2}
             placeholder="0"
           />
@@ -521,6 +555,61 @@ export function RecordCollectionForm({
             : null
         }
       />
+
+      {/* THE SPLIT, BEFORE THE BUTTON. The customer's message shows one
+          figure; this says how it was separated, so the two can be compared
+          without anybody doing arithmetic on the phone. */}
+      {fare > 0 ? (
+        <p className="rounded-md border border-warning/40 bg-warning/[0.06] px-3 py-2 text-xs leading-relaxed text-warning">
+          <span className="font-semibold">
+            {t("The customer paid cargo plus transport")}
+          </span>{" "}
+          — {currencyChoice} {cargoHalf.toLocaleString()} {t("to the bill")},{" "}
+          {currencyChoice} {fare.toLocaleString()} {t("transport")}.{" "}
+          {t("Total received")}: {currencyChoice} {total.toLocaleString()}.
+        </p>
+      ) : null}
+
+      {short ? (
+        <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          {t("This leaves")} {currencyChoice}{" "}
+          {(suggested - cargoHalf).toLocaleString()}{" "}
+          {t("still owing on the bill.")}{" "}
+          <button
+            type="button"
+            onClick={() =>
+              setTypedTotal(
+                currencyChoice === "TZS"
+                  ? String(Math.round(suggested + fare))
+                  : String(Math.round((suggested + fare) * 100) / 100)
+              )
+            }
+            className="font-semibold underline underline-offset-2"
+          >
+            {currencyChoice} {(suggested + fare).toLocaleString()}{" "}
+            {t("clears it in full.")}
+          </button>
+        </p>
+      ) : null}
+
+      {fareOverCargo ? (
+        <label className="flex cursor-pointer items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs">
+          <input
+            type="checkbox"
+            name="transportConfirmed"
+            value="1"
+            checked={fareConfirmed}
+            onChange={(event) => setFareConfirmed(event.target.checked)}
+            className="mt-0.5 h-3.5 w-3.5 shrink-0"
+          />
+          <span>
+            <span className="font-semibold">
+              {t("The transport is more than the cargo.")}
+            </span>{" "}
+            {t("Check the figure. Tick this if it is right.")}
+          </span>
+        </label>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
         <SubmitButton variant="brand" pendingLabel={direct ? "Recording…" : "Sending…"}>

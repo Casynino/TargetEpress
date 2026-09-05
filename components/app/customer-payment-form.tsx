@@ -229,6 +229,8 @@ export function CustomerPaymentForm({
   */
   const [transport, setTransport] = useState("");
   const [transportSourceId, setTransportSourceId] = useState("");
+  /* The desk looked at a fare bigger than the cargo and said it was right. */
+  const [fareConfirmed, setFareConfirmed] = useState(false);
   /** Null while the total is following the selection, which is nearly always. */
   const [typedTotal, setTypedTotal] = useState<string | null>(null);
 
@@ -309,17 +311,38 @@ export function CustomerPaymentForm({
   /* The figure the customer actually sent. It follows what was ticked until
      somebody says otherwise, because in the ordinary case they are the same
      number and asking for it twice is how a 330,000 becomes a 33,000. */
-  const received = typedTotal === null ? allocated : Number(typedTotal) || 0;
-  /* Comes off the top. What is left after the fare is the only money that can
-     answer a bill, so every figure below measures from here rather than from
-     the total the customer sent. */
   const fare = Math.max(0, Number(transport) || 0);
-  const forBills = received - fare;
+  /*
+    THE FARE IS ADDED TO WHAT THE TICKS COME TO, NOT TAKEN OUT OF IT.
+
+    While the total is still following the ticked bills, the customer owes
+    those bills AND hands over the delivery, so what they actually send is the
+    two together — and that is the figure on the screenshot the desk is
+    holding. Taking it out instead left every ticked bill short by the fare
+    between them.
+
+    Once somebody types the total by hand, that figure is their own reading of
+    the customer's message and the fare stops moving it; the fare is then
+    genuinely inside what they typed.
+  */
+  const received =
+    typedTotal === null
+      ? Math.round((allocated + fare) * 100) / 100
+      : Number(typedTotal) || 0;
+  /* What is left after the fare is the only money that can answer a bill, so
+     every figure below measures from here rather than from the total. */
+  const forBills = Math.round((received - fare) * 100) / 100;
   const left = forBills - allocated;
   const over = left < -0.005;
-  /* A fare bigger than the transfer settles nothing and means somebody has
-     typed the wrong box. Said separately, because "you have put more against
-     bills than the customer sent" is the wrong sentence for it. */
+  /*
+    A FARE BIGGER THAN THE CARGO IS ALMOST ALWAYS AN EXTRA NOUGHT.
+
+    This used to ask whether the fare exceeded the TOTAL, which is an identity
+    while the total follows the ticks — the fare would have had to exceed
+    itself plus the bills. Measured against the half that answers bills it
+    stands out, and the server refuses it without the tick below.
+  */
+  const fareOverCargo = fare > 0 && received > 0 && fare > forBills + 0.005;
   const fareTooBig = fare > received + 0.005;
 
   const chosen = accounts.find((a) => a.id === accountId) ?? null;
@@ -465,6 +488,10 @@ export function CustomerPaymentForm({
                   setPicked(new Set());
                   setShares({});
                   setTypedTotal(null);
+                  /* And the fare — see the note on the Paid-in switch. */
+                  setTransport("");
+                  setTransportSourceId("");
+                  setFareConfirmed(false);
                 }}
               >
                 <option value="TZS">{t("TSh bills")}</option>
@@ -781,6 +808,13 @@ export function CustomerPaymentForm({
                          typed in the old one would now mean something else. */
                       setTypedTotal(null);
                       setShares({});
+                      /* And the fare, which was typed in the old unit and
+                         cannot be restated without inventing a rate for money
+                         that never had one. Left alone, a TZS 10,000 fare
+                         became a USD 10,000 one. */
+                      setTransport("");
+                      setTransportSourceId("");
+                      setFareConfirmed(false);
                     }}
                     className={`focus-ring rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
                       payCurrency === option
@@ -813,11 +847,19 @@ export function CustomerPaymentForm({
             <Label htmlFor="amountShown">
               {t("Amount received")} ({payCurrency === LOCAL ? "TSh" : "USD"})
             </Label>
+            {/* Shows the DERIVED total while it is following the ticks —
+                the bills plus the fare, which is what the customer actually
+                sent. It showed the bills alone, so the figure on screen
+                disagreed with the figure on the button and with what was
+                submitted. Emptying it hands the box back to the ticks rather
+                than latching an empty string. */}
             <MoneyInput
               id="amountShown"
               name="amountShown"
-              value={typedTotal ?? String(allocated || "")}
-              onValueChange={(raw) => setTypedTotal(raw)}
+              value={
+                typedTotal ?? (received > 0 ? String(received) : "")
+              }
+              onValueChange={(raw) => setTypedTotal(raw === "" ? null : raw)}
             />
             {/* Only when it stops following the ticks. The box filling itself
                 from what was ticked needs no sentence; a figure somebody typed
@@ -842,7 +884,13 @@ export function CustomerPaymentForm({
               id="transport"
               name="transport"
               value={transport}
-              onValueChange={(raw) => setTransport(raw)}
+              onValueChange={(raw) => {
+                  setTransport(raw);
+                  /* A tick confirms ONE figure. Left standing, a clerk who
+                     confirmed 100,000 and then slipped another nought onto
+                     it would send 1,000,000 through already confirmed. */
+                  setFareConfirmed(false);
+                }}
             />
           </div>
 
@@ -999,7 +1047,8 @@ export function CustomerPaymentForm({
               {t("The customer paid cargo plus transport")}
             </span>{" "}
             — {money(forBills)} {t("to the bill")}, {money(fare)}{" "}
-            {t("transport")}.
+            {t("transport")}. {t("Total received")}: {money(received)}.{" "}
+            {t("Check this total against the customer's message.")}
           </div>
         ) : null}
 
@@ -1009,6 +1058,25 @@ export function CustomerPaymentForm({
               "The transport is more than the customer sent. Check which box the figure belongs in."
             )}
           </div>
+        ) : null}
+
+        {fareOverCargo && !fareTooBig ? (
+          <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
+            <input
+              type="checkbox"
+              name="transportConfirmed"
+              value="1"
+              checked={fareConfirmed}
+              onChange={(event) => setFareConfirmed(event.target.checked)}
+              className="mt-1 h-4 w-4 shrink-0"
+            />
+            <span>
+              <span className="font-medium">
+                {t("The transport is more than the cargo.")}
+              </span>{" "}
+              {t("Check the figure. Tick this if it is right.")}
+            </span>
+          </label>
         ) : null}
 
         {/* Shown only when the two figures differ, because in the ordinary case
@@ -1046,6 +1114,11 @@ export function CustomerPaymentForm({
           over ||
           fareTooBig ||
           received <= 0 ||
+          /* A fare and nothing ticked is not a deposit. The money would be
+             recorded as arriving, the whole of it handed straight back out
+             as transport, and the button would call the remainder — nothing —
+             the customer's credit. */
+          (fare > 0 && allocations.length === 0) ||
           (!canRecord && allocations.length === 0)
         }
         pendingLabel="Recording…"

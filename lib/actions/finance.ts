@@ -1658,6 +1658,32 @@ export async function recordPayment(
         );
       }
       const cargoTendered = Math.round((input.amount - transport) * 100) / 100;
+      /*
+        THE FARE IS MEASURED AGAINST THE CARGO, NOT AGAINST THE TOTAL.
+
+        This guard used to read "the fare cannot exceed what came in". That
+        sentence was true when the desk typed the whole transfer and the fare
+        was carved out of it. The screens now do the arithmetic the other way
+        round — the total is the bill plus the fare, because that is what the
+        customer actually hands over — and against THAT total the old test is
+        an identity: the fare is always smaller, so it could never refuse
+        anything again.
+
+        An extra nought on a 10,000 fare would then settle the bill correctly,
+        issue the pickup note, and quietly post 100,000 out of the cash tin,
+        with nothing on any screen or server saying a word.
+
+        So it is compared to the half that actually settles the bill, which is
+        where a mistyped fare stands out. A delivery really can cost more than
+        a small consignment's freight, so this is a question and not a wall:
+        the desk ticks to say it is right, and that tick travels here.
+      */
+      if (transport > cargoTendered + 0.001 && !input.transportConfirmed) {
+        throw new Error(
+          `The transport (${transport.toLocaleString()}) is more than the ${cargoTendered.toLocaleString()} going to the bill. ` +
+            `Check the figure — if it is right, tick to confirm it.`
+        );
+      }
 
       let credited = cargoTendered;
       let rateUsed: number | null = null;
@@ -1906,17 +1932,25 @@ export async function recordPayment(
         // cross accounts of different currencies — the same discipline as
         // creditedAmount, and for the same reason.
         //
-        // `credited` is already the payment restated in the invoice's currency,
-        // so when the bill is in dollars — which every bill in this system is —
-        // it is exactly the figure wanted here.
+        // THE WHOLE TRANSFER, RESTATED — NOT THE CARGO HALF.
+        //
+        // This used to take `credited` whenever the bill was in dollars, on
+        // the grounds that credited IS the payment restated. That stopped
+        // being true the day a payment could carry transport: credited is the
+        // cargo half, while `amount` on this very line is the whole lump. The
+        // row contradicted itself — TSh 46,450 in, worth USD 13.50 — and
+        // since the TRANSPORT_OUT leg beside it is valued honestly, every
+        // account total in dollars drifted DOWN by the fare on each one.
+        //
+        // Restated at the rate this payment settled at, so the two legs and
+        // the credited figure all speak about the same money at the same rate.
+        const usdRate = rateUsed ?? invoiceRate;
         const usdValue =
-          invoice.currency === "USD"
-            ? credited
-            : tenderedCurrency === "USD"
-              ? input.amount
-              : rateUsed ?? invoiceRate
-                ? input.amount / (rateUsed ?? invoiceRate)!
-                : input.amount;
+          tenderedCurrency === "USD"
+            ? input.amount
+            : usdRate
+              ? input.amount / usdRate
+              : input.amount;
 
         await postLedgerEntry(tx, {
           accountId: account.id,
@@ -1927,7 +1961,20 @@ export async function recordPayment(
           amountUsd: usdValue,
           exchangeRate: rateUsed,
           occurredAt: input.paidAt ?? payment.paidAt,
-          description: `${receipt.receiptNumber} — ${invoice.invoiceNumber} for ${invoice.shipment.trackingNumber}`,
+          /*
+            THE ONE LUMP, AND HOW IT WAS SEPARATED, ON THE ROW ITSELF.
+
+            The customer's proof shows a single figure. The register shows
+            that figure arriving and, on another account, part of it leaving
+            again — and nothing tied the two together for somebody scrolling
+            the ledger. Saying the split here means the row can be read
+            against the screenshot without opening the payment.
+          */
+          description:
+            `${receipt.receiptNumber} — ${invoice.invoiceNumber} for ${invoice.shipment.trackingNumber}` +
+            (transport > 0
+              ? ` (${cargoTendered.toLocaleString()} cargo + ${transport.toLocaleString()} transport)`
+              : ""),
           sourceEntity: "Payment",
           sourceId: payment.id,
           paymentId: payment.id,
@@ -2497,6 +2544,8 @@ export async function attributePayment(
             select: {
               invoiceNumber: true,
               currency: true,
+              /* The fallback when the payment carries no rate of its own. */
+              exchangeRate: true,
               shipment: { select: { trackingNumber: true } },
             },
           },
@@ -2533,10 +2582,26 @@ export async function attributePayment(
 
       // The line that was never written, written now — at the rate and on the
       // date the money actually moved, not today's.
+      //
+      // Valued on the WHOLE transfer. It used to take creditedAmount when the
+      // bill was in dollars, which is the cargo half once a payment can carry
+      // transport — the same self-contradicting row recordPayment used to
+      // write, where the native figure is the lump and its dollar twin is not.
+      /* The payment's own rate, or the bill's frozen one. A payment taken
+         before this column was written has null, and treating that as "no
+         conversion" books a shilling figure as dollars. */
+      const attributedRate =
+        payment.exchangeRate !== null
+          ? toNumber(payment.exchangeRate)
+          : payment.invoice?.exchangeRate != null
+            ? toNumber(payment.invoice.exchangeRate)
+            : null;
       const usdValue =
-        payment.invoice?.currency === "USD"
-          ? toNumber(payment.creditedAmount ?? payment.amount)
-          : toNumber(payment.amount);
+        payment.currency === "USD"
+          ? toNumber(payment.amount)
+          : attributedRate
+            ? toNumber(payment.amount) / attributedRate
+            : toNumber(payment.amount);
 
       await postLedgerEntry(tx, {
         accountId: account.id,
@@ -2554,6 +2619,51 @@ export async function attributePayment(
         paymentId: payment.id,
         recordedById: user.id,
       });
+
+      /*
+        AND THE FARE, WHICH HAS BEEN OWED TO A TILL ALL THIS TIME.
+
+        A payment taken without naming an account writes no ledger line at all
+        — neither leg. This path exists to write the line that was missed, and
+        it wrote only the one: the transfer arrived, and the transport inside
+        it never left. The tin was short by the fare from the day the driver
+        was paid, and no screen could say why.
+
+        Guarded on the source still being named, because a fare with nowhere
+        to come from is exactly what the counter refuses in the first place.
+      */
+      const unbookedFare = toNumber(payment.transportAmount);
+      if (unbookedFare > 0 && payment.transportSourceId) {
+        const fareAccount = await tx.companyAccount.findUnique({
+          where: { id: payment.transportSourceId },
+          select: { id: true, name: true, currency: true },
+        });
+        if (!fareAccount) {
+          throw new Error(
+            "The account this payment's transport was settled from no longer exists, so the transport cannot be booked."
+          );
+        }
+        await postLedgerEntry(tx, {
+          accountId: fareAccount.id,
+          currency: fareAccount.currency,
+          direction: "OUT",
+          kind: "TRANSPORT_OUT",
+          amount: unbookedFare,
+          amountUsd:
+            fareAccount.currency === "USD"
+              ? unbookedFare
+              : attributedRate
+                ? unbookedFare / attributedRate
+                : unbookedFare,
+          exchangeRate: attributedRate,
+          occurredAt: payment.paidAt,
+          description: `${payment.receipt?.receiptNumber ?? "Payment"} — transport`,
+          sourceEntity: "Payment",
+          sourceId: payment.id,
+          paymentId: payment.id,
+          recordedById: user.id,
+        });
+      }
 
       await recordAudit(
         {
@@ -3183,6 +3293,33 @@ export async function recordCustomerPayment(
      compared, so a split typed to match it to the shilling is not refused by
      a floating-point tail. */
   const forBills = Math.round((input.amount - transport) * 100) / 100;
+  /*
+    THE FARE IS MEASURED AGAINST THE CARGO, NOT AGAINST THE TOTAL.
+
+    This guard used to read "the fare cannot exceed what came in". That
+    sentence was true when the desk typed the whole transfer and the fare
+    was carved out of it. The screens now do the arithmetic the other way
+    round — the total is the bill plus the fare, because that is what the
+    customer actually hands over — and against THAT total the old test is
+    an identity: the fare is always smaller, so it could never refuse
+    anything again.
+
+    An extra nought on a 10,000 fare would then settle the bill correctly,
+    issue the pickup note, and quietly post 100,000 out of the cash tin,
+    with nothing on any screen or server saying a word.
+
+    So it is compared to the half that actually settles the bill, which is
+    where a mistyped fare stands out. A delivery really can cost more than
+    a small consignment's freight, so this is a question and not a wall:
+    the desk ticks to say it is right, and that tick travels here.
+  */
+  if (transport > forBills + 0.005 && !input.transportConfirmed) {
+    return fail(
+      `The transport (${input.currency} ${transport.toLocaleString()}) is more than the ` +
+        `${input.currency} ${forBills.toLocaleString()} going to the bills. ` +
+        `Check the figure — if it is right, tick to confirm it.`
+    );
+  }
   const allocated = input.allocations.reduce((sum, a) => sum + a.amount, 0);
   /* Checked here for a plain answer, and again inside the transaction against
      figures read there — this one only saves a round trip. */
@@ -3554,6 +3691,22 @@ export async function recordCustomerPayment(
                    against bills is what arrived minus the fare. */
                 forBills
           ),
+          /*
+            THE RATE THIS PAYMENT SETTLED AT, STORED.
+
+            This door never wrote the column, on the reasoning that a merge can
+            answer bills carrying different frozen rates and there is then no
+            single answer. But three readers ask the payment for its rate and
+            take null to mean "no conversion needed": the reconciliation check
+            restating the fare in dollars, and the two correction paths that
+            repost a reversed leg. Null made every merged shilling fare count
+            as dollars — 15,000 TSh read as USD 15,000.
+
+            Written whenever there IS one rate, which is the ordinary case, and
+            left null only when the bills genuinely disagree — where the
+            readers now fall back to the bill's own rate instead of to one.
+          */
+          ...(rateUsed ? { exchangeRate: new Prisma.Decimal(rateUsed) } : {}),
           idempotencyKey,
           method: methodForKind(mustHaveAccount(account).kind),
           reference: input.reference || null,
@@ -3641,11 +3794,16 @@ export async function recordCustomerPayment(
           amountUsd: usdValue,
           exchangeRate: input.currency === "USD" ? null : rate,
           occurredAt,
+          /* The split named on the row, same as the single-bill door — see
+             the note there. */
           description:
             `${receipt.receiptNumber} — ${customer.name}, ` +
             (input.allocations.length
               ? `${input.allocations.length} bill(s) settled`
-              : "deposit, no bill yet"),
+              : "deposit, no bill yet") +
+            (transport > 0
+              ? ` (${forBills.toLocaleString()} cargo + ${transport.toLocaleString()} transport)`
+              : ""),
           sourceEntity: "Payment",
           sourceId: payment.id,
           paymentId: payment.id,

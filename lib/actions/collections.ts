@@ -88,6 +88,14 @@ const submissionSchema = z.object({
   /* Where Support expects it to be paid out of. Finance can name a different
      account when they verify, exactly as they can with the one above. */
   transportSourceId: z.string().trim().optional(),
+  /* The desk looked at a fare bigger than the cargo and said it was right.
+     See paymentSchema in lib/validation.ts for why the ceiling had to move
+     off the total and onto the cargo half. */
+  transportConfirmed: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v === "1" || v === "true" || v === "on"),
   // The one thing this desk genuinely has to type: the code off the customer's
   // message. Everything else is already on the invoice.
   /* Expected on screen, optional here: cash across the counter has no code,
@@ -291,6 +299,23 @@ export async function submitPaymentForVerification(
       if (input.transport > input.amount + 0.001) {
         throw new Error(
           `The transport (${input.currency} ${input.transport.toLocaleString()}) is more than the customer sent (${input.currency} ${input.amount.toLocaleString()}).`
+        );
+      }
+      /*
+        AND MEASURED AGAINST THE CARGO, WHICH IS WHERE IT SHOWS.
+
+        The screens make the total the bill plus the fare, so "the fare is
+        less than the total" is now true by construction and refuses nothing.
+        An extra nought would sail through and be handed to Finance as a claim
+        that looks ordinary. Compared to the half that settles the bill it
+        stands out, and the desk can still say it is right.
+      */
+      const forBill = Math.round((input.amount - input.transport) * 100) / 100;
+      if (input.transport > forBill + 0.001 && !input.transportConfirmed) {
+        throw new Error(
+          `The transport (${input.currency} ${input.transport.toLocaleString()}) is more than the ` +
+            `${input.currency} ${forBill.toLocaleString()} going to the bill. ` +
+            `Check the figure — if it is right, tick to confirm it.`
         );
       }
       const transportSource = await claimedTransportSource(
@@ -634,6 +659,17 @@ export async function verifyPaymentSubmission(
   const transport = toNumber(submission.transportAmount);
   if (transport > 0) {
     handover.set("transport", transport.toString());
+    /*
+      A CLAIM THAT WAS ALREADY QUESTIONED IS NOT QUESTIONED AGAIN HERE.
+
+      recordPayment refuses a fare bigger than the cargo half unless somebody
+      has looked at it and said it is right. Support answered that question
+      when they raised the claim — the claim would not exist otherwise — and
+      Finance is looking at both halves on this screen before agreeing. Without
+      this the claim would be accepted, marked VERIFIED, and then bounce off
+      the counter action with nothing left to show for it.
+    */
+    handover.set("transportConfirmed", "1");
     const namedSource = String(formData.get("transportSourceId") ?? "");
     const source = namedSource || submission.transportSourceId;
     if (source) handover.set("transportSourceId", source);
@@ -845,6 +881,16 @@ export async function submitCombinedPayment(
     );
   }
   const forBills = Math.round((input.amount - transport) * 100) / 100;
+  /* The same ceiling as the single-bill claim, for the same reason — see
+     there. Measured against the cargo half, because against the total it is
+     an identity now that the screens add the fare on top. */
+  if (transport > forBills + 0.005 && !input.transportConfirmed) {
+    return fail(
+      `The transport (${input.currency} ${transport.toLocaleString()}) is more than the ` +
+        `${input.currency} ${forBills.toLocaleString()} going to the bills. ` +
+        `Check the figure — if it is right, tick to confirm it.`
+    );
+  }
   const allocated = input.allocations.reduce((sum, a) => sum + a.amount, 0);
   if (allocated > forBills + 0.005) {
     return fail(

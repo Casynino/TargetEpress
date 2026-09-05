@@ -41,6 +41,30 @@ const numeric = (
     )
     .transform(Number);
 
+/**
+ * A MONEY FIELD THAT IS USUALLY LEFT ALONE.
+ *
+ * `numeric(...).optional()` is NOT this. Zod's .optional() short-circuits on
+ * undefined and nothing else, so an empty string still runs the inner schema —
+ * whose first rule is .min(1, "... is required."). And MoneyInput ALWAYS
+ * renders its hidden field, so an untouched money box submits "" rather than
+ * nothing at all.
+ *
+ * The two together refused every ordinary payment on every screen carrying a
+ * transport box, with the message "Transport is required." on a field the desk
+ * had correctly left blank. Blank means none, and none means zero.
+ */
+const untouchedMoney = (label: string) =>
+  z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? Number(v) : 0))
+    .refine(
+      (v) => Number.isFinite(v) && v >= 0,
+      `${label} must be a number, or left blank.`
+    );
+
 const optionalNumeric = z
   .string()
   .trim()
@@ -205,8 +229,14 @@ export const customerPaymentSchema = z.object({
      with four consignments sends one transfer for all four AND the transport,
      so the merge screen has to be able to say so, or the whole feature refuses
      the payment as an overpayment against the four bills. */
-  transport: numeric("Transport", { min: 0 }).optional(),
+  transport: untouchedMoney("Transport"),
   transportSourceId: z.string().trim().optional(),
+  /* See paymentSchema — the same escape hatch, for the same reason. */
+  transportConfirmed: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v === "1" || v === "true" || v === "on"),
   currency: z.enum(["USD", "TZS"]),
   reference: z.string().trim().max(120).optional(),
   note: z.string().trim().max(500).optional(),
@@ -286,10 +316,28 @@ export const paymentSchema = z.object({
     Optional and zero by default: almost every payment has no transport, and
     the form does not ask unless the desk opens it.
   */
-  transport: numeric("Transport", { min: 0 }).optional(),
+  transport: untouchedMoney("Transport"),
   /* Cash or the Lipa number — deliberately not forced to match the account
      the customer paid into. */
   transportSourceId: z.string().trim().optional(),
+  /*
+    THE DESK LOOKED AT A FARE BIGGER THAN THE CARGO AND SAID IT WAS RIGHT.
+
+    The fare used to be bounded by "it cannot exceed what came in". Once the
+    total is the cargo plus the fare, that sentence is true by construction
+    and can never refuse anything — an extra nought on a 10,000 fare simply
+    makes the total 90,000 larger and empties the till by the difference.
+
+    So the ceiling moved onto the cargo half, where a mistyped fare actually
+    stands out, and this is the one way past it. Not a refusal the desk cannot
+    get around: a delivery genuinely can cost more than a small consignment's
+    freight, and a system that refuses that outright would be lied to instead.
+  */
+  transportConfirmed: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v === "1" || v === "true" || v === "on"),
   /**
    * What the customer actually handed over. A bill in USD is routinely settled
    * in shillings at the counter, and recording it as USD would put a figure on

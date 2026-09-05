@@ -240,9 +240,37 @@ export async function reconciliation(locale: Locale = "en") {
             whoever drove, so the account received it and no bill records it.
             Both sides of this check have to count it or the register and the
             bills disagree by exactly the transport, every day, for ever.
+
+            DIVIDED BY THE RATE, BECAUSE THE TWO COLUMNS ARE NOT THE SAME
+            MONEY. creditedAmount is written in the BILL's currency — dollars —
+            while transportAmount is written in the currency that was tendered,
+            which for a fare is shillings, because the fare leaves a shilling
+            till. Added raw, ten thousand shillings counted as ten thousand
+            dollars and this check reported a mismatch of twenty-seven million.
+            THE DIVISOR IS NOT ALWAYS ON THE PAYMENT. A payment tendered in
+            the bill's own currency has no rate and needs none, so one is
+            right there. But a shilling payment taken through the merge door
+            stored no rate at all until recently, and falling back to one
+            there would count the fare in dollars — the very bug this line
+            was added to fix. So the payment's own rate first, then the rate
+            frozen onto the bill it answers, and only then one; and the whole
+            term is skipped when the fare and the credited figure are already
+            the same money, which is what a null rate on a same-currency
+            payment means.
           */
           COALESCE(SUM(COALESCE("creditedAmount", "amount")), 0)
-            + COALESCE(SUM("transportAmount"), 0) AS "collected",
+            + COALESCE(SUM(
+                "transportAmount" / COALESCE(
+                  NULLIF("Payment"."exchangeRate", 0),
+                  NULLIF((
+                    SELECT i."exchangeRate" FROM "Invoice" i
+                     WHERE i."id" = "Payment"."invoiceId"
+                       AND i."currency" <> "Payment"."currency"
+                  ), 0),
+                  1
+                )
+              ), 0)
+            AS "collected",
           COUNT(*) FILTER (WHERE NOT EXISTS (
             SELECT 1 FROM "LedgerEntry" l
             WHERE l."paymentId" = "Payment"."id" AND l."kind" = 'CUSTOMER_PAYMENT'

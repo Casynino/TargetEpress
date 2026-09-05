@@ -134,6 +134,8 @@ export function RecordIncome({
   /* The delivery half of what was handed over, and where it is paid from. */
   const [transport, setTransport] = useState("");
   const [transportSourceId, setTransportSourceId] = useState("");
+  /* The desk looked at a fare bigger than the cargo and said it was right. */
+  const [fareConfirmed, setFareConfirmed] = useState(false);
   /*
     THE OTHER QUESTION THIS LIST IS ASKED.
 
@@ -155,8 +157,19 @@ export function RecordIncome({
     choice that can only end in an error message. The list follows the switch.
   */
   const [tendered, setTendered] = useState<string>("TZS");
-  /* Typed over freely; recomputed whenever the bill or the currency changes. */
-  const [amount, setAmount] = useState<string>("");
+  /*
+    NULL MEANS THE TOTAL IS STILL FOLLOWING THE BILL.
+
+    While it is, a fare ADDS to it — the customer owes the bill and hands over
+    the delivery on top, so what they actually send is the two together. Once
+    the clerk has typed the figure off the customer's message, that figure is
+    the truth and the fare stops moving it.
+
+    It was a plain string seeded with the balance, so the ordinary case — leave
+    it alone, type the fare — carved the fare OUT of the bill's own figure and
+    left the bill short by exactly the fare, silently.
+  */
+  const [typedTotal, setTypedTotal] = useState<string | null>(null);
   const [searching, startSearch] = useTransition();
 
   /* The authority picks the action; the form is the same either way. */
@@ -270,16 +283,28 @@ export function RecordIncome({
     is actually about to happen — and the amount opens as the shilling value of
     the whole balance rather than a dollar figure nobody in the room said.
   */
-  const pick = (hit: BillableHit) => {
-    const currency = "TZS";
-    setPicked(hit);
-    setTendered(currency);
-    setAmount(String(owedIn(hit, currency)));
+  /* Everything about the last payment goes, not just the bill. The fare and
+     the till it came from used to survive a pick, so the next customer's box
+     opened inflated by the previous customer's delivery. */
+  const clearMoney = () => {
+    setTypedTotal(null);
+    setTransport("");
+    setTransportSourceId("");
+    setFareConfirmed(false);
   };
 
+  const pick = (hit: BillableHit) => {
+    setPicked(hit);
+    setTendered("TZS");
+    clearMoney();
+  };
+
+  /* A fare is typed in whatever money was selected at the time and cannot be
+     re-expressed without inventing a rate for it, so switching asks again —
+     otherwise a TZS 10,000 fare silently became a USD 10,000 one. */
   const switchCurrency = (currency: string) => {
     setTendered(currency);
-    if (picked) setAmount(String(owedIn(picked, currency)));
+    clearMoney();
   };
 
   const close = () => {
@@ -287,7 +312,38 @@ export function RecordIncome({
     setPicked(null);
     setQuery("");
     setHits([]);
+    clearMoney();
   };
+
+  /*
+    THE BILL, THE FARE, THE TOTAL — DERIVED, NOT SEEDED.
+
+    Recomputed every render so the figure cannot go stale under a bill that
+    changed, and so the fare is added on top rather than carved out of the
+    bill's own number. Rounded rather than concatenated: adding a fare to a
+    dollar balance gives floats like 8.399999999999999.
+  */
+  const billInTender = picked ? owedIn(picked, tendered) : null;
+  const fare = Math.max(0, Number(transport) || 0);
+  const followedTotal =
+    billInTender === null
+      ? ""
+      : tendered === "TZS"
+        ? String(Math.round(billInTender + fare))
+        : String(Math.round((billInTender + fare) * 100) / 100);
+  const amount = typedTotal ?? followedTotal;
+  const total = Number(amount);
+  const cargoHalf =
+    Number.isFinite(total) && total > 0
+      ? Math.round((total - fare) * 100) / 100
+      : 0;
+  const tolerance = tendered === "TZS" ? 0.5 : 0.005;
+  const short =
+    billInTender !== null && cargoHalf > 0 && billInTender - cargoHalf > tolerance;
+  /* Almost always an extra nought. The server refuses it without the tick,
+     because the fare's old ceiling ("no bigger than what came in") is an
+     identity once the total is the bill plus the fare. */
+  const fareOverCargo = fare > 0 && total > 0 && fare > cargoHalf + 0.001;
 
   if (!open) {
     return (
@@ -548,14 +604,18 @@ export function RecordIncome({
                 are the rest. */}
             <label className="flex flex-col gap-1">
               <span className="text-[11px] text-muted-foreground">
-                {t("How much came in")}
+                {t("Total received")}
               </span>
+              {/* Emptying it hands the figure back to the bill rather than
+                  latching an empty string. */}
               <Input
                 name="amount"
                 inputMode="decimal"
                 required
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) =>
+                  setTypedTotal(e.target.value === "" ? null : e.target.value)
+                }
                 className="w-36 bg-card tabular-nums"
               />
             </label>
@@ -574,12 +634,18 @@ export function RecordIncome({
             */}
             <label className="flex flex-col gap-1">
               <span className="whitespace-nowrap text-[11px] text-muted-foreground">
-                {t("Of that, transport")}
+                {t("Transport they added")}
               </span>
               <MoneyInput
                 name="transport"
                 value={transport}
-                onValueChange={setTransport}
+                onValueChange={(raw) => {
+                    setTransport(raw);
+                    /* A tick confirms ONE figure. Left standing, a clerk who
+                       confirmed 100,000 and then slipped another nought onto
+                       it would send 1,000,000 through already confirmed. */
+                    setFareConfirmed(false);
+                  }}
                 decimals={tendered === "TZS" ? 0 : 2}
                 placeholder="0"
                 className="w-28 bg-card"
@@ -694,6 +760,61 @@ export function RecordIncome({
             {/* Named for what it is and why, not shrugged off as "(optional)",
                 and carrying the same amber every other proof field carries. */}
             <PaymentProofField compact />
+
+            {/* THE SPLIT, WHERE THE PROOF IS. The customer's message shows one
+                figure; this is how it was separated, so the two can be laid
+                side by side before anything is recorded. */}
+            {fare > 0 ? (
+              <p className="w-full rounded-md border border-warning/40 bg-warning/[0.06] px-3 py-2 text-[11px] leading-relaxed text-warning">
+                <span className="font-semibold">
+                  {t("The customer paid cargo plus transport")}
+                </span>{" "}
+                — {tendered} {cargoHalf.toLocaleString()} {t("to the bill")},{" "}
+                {tendered} {fare.toLocaleString()} {t("transport")}.{" "}
+                {t("Total received")}: {tendered} {total.toLocaleString()}.
+              </p>
+            ) : null}
+
+            {short && billInTender !== null ? (
+              <p className="w-full rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[11px] text-warning">
+                {t("This leaves")} {tendered}{" "}
+                {(billInTender - cargoHalf).toLocaleString()}{" "}
+                {t("still owing on the bill.")}{" "}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTypedTotal(
+                      tendered === "TZS"
+                        ? String(Math.round(billInTender + fare))
+                        : String(Math.round((billInTender + fare) * 100) / 100)
+                    )
+                  }
+                  className="font-semibold underline underline-offset-2"
+                >
+                  {tendered} {(billInTender + fare).toLocaleString()}{" "}
+                  {t("clears it in full.")}
+                </button>
+              </p>
+            ) : null}
+
+            {fareOverCargo ? (
+              <label className="flex w-full cursor-pointer items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-[11px]">
+                <input
+                  type="checkbox"
+                  name="transportConfirmed"
+                  value="1"
+                  checked={fareConfirmed}
+                  onChange={(event) => setFareConfirmed(event.target.checked)}
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                />
+                <span>
+                  <span className="font-semibold">
+                    {t("The transport is more than the cargo.")}
+                  </span>{" "}
+                  {t("Check the figure. Tick this if it is right.")}
+                </span>
+              </label>
+            ) : null}
 
             <SubmitButton
               variant="brand"

@@ -18,6 +18,9 @@ export type CombinedReceiptInput = {
   customerPhone: string | null;
   /** What actually arrived, in the money it arrived in. */
   tendered: { amount: number; currency: string };
+  /* The delivery half of what was received, when the customer paid the cargo
+     and the transport in one transfer. Null on almost every receipt. */
+  transport?: { amount: number; from: string | null } | null;
   reference: string | null;
   account: string | null;
   receivedBy: string | null;
@@ -85,6 +88,29 @@ export function combinedReceiptToPdf(input: CombinedReceiptInput) {
     reference: input.receiptNumber,
     facts: [
       { label: "Received", value: money(input.tendered.amount, input.tendered.currency) },
+      /*
+        THE CUSTOMER'S OWN TRANSFER, SPLIT WHERE THEY CAN SEE IT.
+
+        "Received" is the whole figure, because that is what their phone says
+        and a receipt that disagreed with their screenshot would be argued
+        with. But the bills below add up to less than it, and without these
+        two lines the difference looks like money the company kept.
+      */
+      ...(input.transport && input.transport.amount > 0.005
+        ? [
+            {
+              label: "Of that, cargo",
+              value: money(
+                input.tendered.amount - input.transport.amount,
+                input.tendered.currency
+              ),
+            },
+            {
+              label: "Of that, transport",
+              value: money(input.transport.amount, input.tendered.currency),
+            },
+          ]
+        : []),
       { label: "Paid on", value: input.paidAt.toISOString().slice(0, 10) },
       ...(input.reference ? [{ label: "Reference", value: input.reference }] : []),
       /* Unconditional now that every payment names one. A receipt is the thing
@@ -137,7 +163,18 @@ export function combinedReceiptToPdf(input: CombinedReceiptInput) {
       "",
       "",
       "",
-      ...(cross ? ["", money(input.tendered.amount, input.tendered.currency)] : []),
+      /* The CARGO half, because the column above it is a column of bills and
+         the fare answers none of them. Printing the whole transfer here put a
+         total over figures that could never sum to it. */
+      ...(cross
+        ? [
+            "",
+            money(
+              input.tendered.amount - (input.transport?.amount ?? 0),
+              input.tendered.currency
+            ),
+          ]
+        : []),
       money(
         input.lines.reduce((sum, line) => sum + line.settled, 0),
         input.lines[0]?.currency ?? input.tendered.currency
@@ -148,6 +185,18 @@ export function combinedReceiptToPdf(input: CombinedReceiptInput) {
       ? "Each bill converted at the exchange rate frozen onto it when it was raised, which is the rate the customer was quoted for that consignment."
       : undefined,
   });
+
+  if (input.transport && input.transport.amount > 0.005) {
+    sheet.y += 6;
+    sheet.put(
+      `${money(input.transport.amount, input.tendered.currency)} of this payment was for delivery, not for the cargo. It answers no bill and is paid on to whoever delivers` +
+        `${input.transport.from ? `, out of ${input.transport.from}` : ""}.`,
+      sheet.geometry.MARGIN,
+      sheet.y,
+      { size: 8.5 }
+    );
+    sheet.y += 14;
+  }
 
   if (input.heldAsCredit > 0.005) {
     sheet.y += 6;

@@ -1,0 +1,10 @@
+import { PrismaClient } from "@prisma/client";
+const p = new PrismaClient();
+const sh = await p.shipment.findUnique({ where: { id: 'cmto567jq0005sbbxy256sj03' } });
+const inv = await p.invoice.findUnique({ where: { id: 'cmto567js0007sbbxvmehxi60' } });
+const { id, createdAt, updatedAt, trackingNumber, qrToken, ...rest } = sh;
+const created = await p.shipment.create({ data: { ...rest, trackingNumber: "TX-EMPTY2", qrToken: "qr-empty-fare-2" } });
+const { id: iid, updatedAt: iu, invoiceNumber, shipmentId, ...irest } = inv;
+const cinv = await p.invoice.create({ data: { ...irest, invoiceNumber: "INV-EMPTY2", shipmentId: created.id, total: "13.5", freightCost: "13.5", amountPaid: "0", status: "UNPAID" } });
+console.log(JSON.stringify({ shipmentId: created.id, invoiceId: cinv.id, invoiceNumber: cinv.invoiceNumber }));
+await p.$disconnect();

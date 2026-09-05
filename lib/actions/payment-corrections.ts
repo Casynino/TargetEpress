@@ -566,6 +566,11 @@ export async function restorePayment(
           paidAt: true,
           receipt: { select: { receiptNumber: true } },
           account: { select: { id: true, name: true, currency: true } },
+          /* The fare and the till it left from. Cancelling put it BACK in the
+             till; reinstating has to take it out again, or the tin keeps
+             money it has already handed to a driver. */
+          transportAmount: true,
+          transportSource: { select: { id: true, name: true, currency: true } },
           invoice: { select: { ...SETTLED_INVOICE, exchangeRate: true } },
           /* The split the void left behind, put back exactly as it was. */
           allocations: {
@@ -647,6 +652,56 @@ export async function restorePayment(
             invoice?.invoiceNumber ??
             t(locale, "customer deposit")
           } — ${parsed.data.reason}`,
+          sourceEntity: "Payment",
+          sourceId: payment.id,
+          recordedById: user.id,
+        });
+      }
+
+      /*
+        AND THE FARE GOES BACK OUT.
+
+        Cancelling reverses every leg this payment wrote, the transport
+        included — the till gets its money back because the payment is being
+        treated as though it never happened. Reinstating said the opposite
+        about only half of it: the bank leg was posted again and the transport
+        leg was not, so the cash tin was left permanently ahead by the fare
+        while the driver had still been paid.
+
+        Two legs out, two legs back. The money really does leave the till
+        again today, for the same reason the money really does arrive again
+        above: the reversal stays on the record rather than being unwound.
+      */
+      const reinstatedFare = toNumber(payment.transportAmount);
+      if (reinstatedFare > 0 && payment.transportSource) {
+        /* The same fallback the IN leg above uses. A payment taken through the
+           merge door carried no rate of its own until recently, and treating
+           null as "no conversion" reposts a shilling fare as dollars. */
+        const fareRate =
+          payment.exchangeRate !== null
+            ? toNumber(payment.exchangeRate)
+            : invoice?.exchangeRate != null
+              ? toNumber(invoice.exchangeRate)
+              : null;
+        const fareUsd =
+          payment.transportSource.currency === "USD"
+            ? reinstatedFare
+            : fareRate
+              ? reinstatedFare / fareRate
+              : reinstatedFare;
+
+        await postLedgerEntry(tx, {
+          accountId: payment.transportSource.id,
+          currency: payment.transportSource.currency,
+          direction: "OUT",
+          kind: "TRANSPORT_OUT",
+          amount: reinstatedFare,
+          amountUsd: fareUsd,
+          exchangeRate: fareRate,
+          occurredAt: new Date(),
+          description: `${t(locale, "Reinstated")} ${
+            payment.receipt?.receiptNumber ?? t(locale, "customer payment")
+          } — ${t(locale, "transport")}`,
           sourceEntity: "Payment",
           sourceId: payment.id,
           recordedById: user.id,
@@ -916,6 +971,11 @@ export async function changePaymentAmount(
         paidAt: true,
         accountId: true,
         account: { select: { name: true } },
+        /* The fare, and where it was settled from. Without these the replay
+           below rebuilds the payment as though the customer had sent only
+           the cargo — see the note where they are put back on the form. */
+        transportAmount: true,
+        transportSourceId: true,
         voidedAt: true,
         invoiceId: true,
         invoice: { select: { invoiceNumber: true, exchangeRate: true } },
@@ -1021,6 +1081,30 @@ export async function changePaymentAmount(
         .join(" · ")
     );
     if (newAccountId) again.set("accountId", newAccountId);
+    /*
+      THE FARE COMES WITH IT, OR CORRECTING A PAYMENT DESTROYS IT.
+
+      This cancels the payment and records it again. The rebuilt form carried
+      the figure, the account, the reference and the note — and not the
+      transport. So a payment of 46,450 that was 36,450 of cargo and a 10,000
+      fare came back as 46,450 of pure cargo against a 36,450 bill, which
+      recordPayment refuses as more than is outstanding. The refusal is caught
+      and the cancellation is deliberately left standing, so a clerk doing
+      nothing worse than moving a payment from the bank to the till would have
+      destroyed it: no payment, no receipt, the bill open again, and the fare
+      already reversed out of the tin.
+
+      Confirmed on the way through, because it was confirmed when it was first
+      taken; this is the same money, not a new decision.
+    */
+    const keptTransport = toNumber(payment.transportAmount);
+    if (keptTransport > 0) {
+      again.set("transport", String(keptTransport));
+      if (payment.transportSourceId) {
+        again.set("transportSourceId", payment.transportSourceId);
+      }
+      again.set("transportConfirmed", "1");
+    }
     again.set("paidAt", payment.paidAt.toISOString().slice(0, 10));
     if (payment.invoice.exchangeRate) {
       again.set("exchangeRate", toNumber(payment.invoice.exchangeRate).toString());
