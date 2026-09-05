@@ -766,6 +766,7 @@ export default async function FollowUpPage({
                           rate={row.exchangeRate}
                           banks={payAccounts}
                           canRecord={canRecord}
+                          canAdjust={can(user.role, "ledger.adjust")}
                           canDiscount={can(user.role, "invoice.discount")}
                           canChangeRate={can(user.role, "invoice.rate")}
                           invoiceDiscount={row.invoiceDiscount}

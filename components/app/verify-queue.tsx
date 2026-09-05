@@ -173,6 +173,26 @@ export async function VerifyQueue() {
               const mismatch =
                 row.currency === row.invoice.currency &&
                 Math.abs(forBill - outstanding) > 0.5;
+              /*
+                The cargo half in the BILL's money, so it can be compared with
+                what the bill is owed.
+
+                Converted at the rate frozen onto the invoice and not today's:
+                that is the rate recordPayment will settle at, so anything else
+                here would put a figure on the tick that the adjustment then
+                does not write.
+              */
+              const billRate = row.invoice.exchangeRate
+                ? toNumber(row.invoice.exchangeRate)
+                : null;
+              const forBillInvoiceMoney =
+                row.currency === row.invoice.currency
+                  ? forBill
+                  : billRate
+                    ? row.currency === "TZS"
+                      ? forBill / billRate
+                      : forBill * billRate
+                    : forBill;
 
               return (
                 <li
@@ -372,6 +392,13 @@ export async function VerifyQueue() {
                         cargo={forBill}
                         transportSourceId={row.transportSourceId}
                         transportSourceName={row.transportSource?.name ?? null}
+                        /* What this claim would leave owing, in the bill's own
+                           money — the cargo half restated at the rate frozen
+                           onto the bill, never today's, so the figure on the
+                           tick is the figure the adjustment will write. */
+                        shortfall={Math.max(0, outstanding - forBillInvoiceMoney)}
+                        billCurrency={row.invoice.currency}
+                        clearShortfallClaimed={row.clearShortfall}
                         /* Cash or the Lipa number, in the currency the money
                            came in. A driver is not paid out of a bank account,
                            and an account cannot give up money it is not

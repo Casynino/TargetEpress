@@ -227,6 +227,7 @@ export default async function RecordCollectionPage({
                 rate={rate}
                 banks={banks}
                 canRecord={canRecordDirectly}
+                canAdjust={can(user.role, "ledger.adjust")}
                 storage={storageOwed}
                 storageUncharged={storageToAdd}
                 storageFreeDaysLeft={storageFree}
@@ -273,6 +274,7 @@ export default async function RecordCollectionPage({
                   rate={rate}
                   banks={banks}
                   canRecord={canRecordDirectly}
+                  canAdjust={can(user.role, "ledger.adjust")}
                   storage={storageOwed}
                   storageUncharged={storageToAdd}
                   storageFreeDaysLeft={storageFree}

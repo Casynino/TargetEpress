@@ -15,7 +15,7 @@ import {
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { invoiceStatusFor } from "@/lib/invoice-status";
-import { outstandingOf } from "@/lib/invoice-balance";
+import { isLargeAdjustment, outstandingOf } from "@/lib/invoice-balance";
 import {
   LOCAL_CURRENCY,
   billingRate,
@@ -2051,7 +2051,40 @@ export async function recordPayment(
       // In the invoice's currency, always. `input.amount` is what was handed
       // over, which may be shillings; the bill is settled by `credited`.
       const newPaid = paid + credited;
-      const settled = newPaid + 0.001 >= total;
+
+      /*
+        CLEARING THE LAST OF IT WITHOUT LEAVING THE SCREEN.
+
+        A 36,450 bill answered by 36,000 leaves 450 that is not coming. The
+        desk used to record the payment here and then go to the bill's own page
+        to clear the difference — and the half that got forgotten left cargo
+        settled in everybody's head and unreleasable in the system.
+
+        The tick on the form does both in one transaction. WHAT IT DOES NOT DO
+        is change the payment: `credited` is still the money that actually
+        arrived, the receipt still says 36,000, and the ledger still shows
+        36,000. The remainder becomes an InvoiceAdjustment exactly as if it had
+        been cleared on the other screen — no ledger line, because no money
+        moved — and is reversible on its own.
+
+        Bounded by what is left owing after this payment, so the tick can never
+        clear more than the gap it is describing, and ignored outright when
+        there is no gap: a payment that covers the bill needs nothing written
+        off, and one that overpays it certainly does not.
+      */
+      const shortfall = Math.max(
+        0,
+        Math.round((total - newPaid - adjusted) * 100) / 100
+      );
+      const clearing = input.clearShortfall && shortfall > 0.005 ? shortfall : 0;
+      if (clearing > 0 && !can(user.role, "ledger.adjust")) {
+        throw new Error(
+          "Writing off the difference is Finance's decision. Record what came in, and ask Finance to clear the rest."
+        );
+      }
+      const nextAdjusted = Math.round((adjusted + clearing) * 100) / 100;
+
+      const settled = newPaid + 0.001 >= total || clearing > 0;
 
       /*
         CONDITIONAL ON THE FIGURE THIS TRANSACTION READ.
@@ -2065,15 +2098,81 @@ export async function recordPayment(
         receipt and ledger line included.
       */
       const claimed = await tx.invoice.updateMany({
-        where: { id: invoice.id, amountPaid: invoice.amountPaid },
+        where: {
+          id: invoice.id,
+          amountPaid: invoice.amountPaid,
+          /* Only when something is being written off — the same discipline as
+             amountPaid above, so a difference cleared on another screen
+             between this read and this write fails rather than being
+             overwritten by a figure that did not know about it. */
+          ...(clearing > 0 ? { amountAdjusted: invoice.amountAdjusted } : {}),
+        },
         data: {
           amountPaid: new Prisma.Decimal(newPaid),
+          ...(clearing > 0
+            ? { amountAdjusted: new Prisma.Decimal(nextAdjusted) }
+            : {}),
           status: settled ? "PAID" : "PARTIALLY_PAID",
         },
       });
       if (claimed.count === 0) {
         throw new Error(
           "A payment landed on this bill a moment ago. Reload the page and check the balance before recording again."
+        );
+      }
+
+      /*
+        The row is the record; the column above is only the sum the aggregates
+        can read. Written the same way adjustDifference writes it, with the
+        figures as they stood, so the two paths leave rows that are
+        indistinguishable afterwards — one adjustment made two ways, not two
+        kinds of adjustment.
+      */
+      if (clearing > 0) {
+        const row = await tx.invoiceAdjustment.create({
+          data: {
+            invoiceId: invoice.id,
+            amount: new Prisma.Decimal(clearing),
+            currency: invoice.currency,
+            reason: null,
+            totalAtTime: new Prisma.Decimal(total),
+            amountPaidAtTime: new Prisma.Decimal(newPaid),
+            createdById: user.id,
+          },
+          select: { id: true },
+        });
+
+        const large = isLargeAdjustment(clearing, total, invoice.currency);
+
+        await recordAudit(
+          {
+            actor: user,
+            action: "invoice.adjusted",
+            entity: "Invoice",
+            entityId: invoice.id,
+            summary:
+              `${invoice.invoiceNumber}: ${invoice.currency} ${clearing.toLocaleString()} cleared with the payment ` +
+              `on ${invoice.shipment.trackingNumber}${large ? " — LARGE ADJUSTMENT" : ""}`,
+            metadata: {
+              adjustmentId: row.id,
+              tracking: invoice.shipment.trackingNumber,
+              currency: invoice.currency,
+              amount: clearing,
+              large,
+              /* Said on the line so management reading this months later can
+                 see it was decided at the counter, with the payment, rather
+                 than as a separate act afterwards. */
+              withPayment: true,
+              paymentId: payment.id,
+              amountDue: total,
+              actualPaid: newPaid,
+              adjustedBefore: adjusted,
+              adjustedAfter: nextAdjusted,
+              balanceAfter: Math.max(0, total - newPaid - nextAdjusted),
+              reason: null,
+            },
+          },
+          tx
         );
       }
 

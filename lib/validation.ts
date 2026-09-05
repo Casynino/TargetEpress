@@ -338,6 +338,30 @@ export const paymentSchema = z.object({
     .trim()
     .optional()
     .transform((v) => v === "1" || v === "true" || v === "on"),
+  /*
+    THE LAST FEW SHILLINGS, CLEARED IN THE SAME BREATH AS THE PAYMENT.
+
+    A bill of 36,450 answered by a transfer of 36,000 is the ordinary end of a
+    consignment: the 450 is a rounding at the other end, or the bank's fee, and
+    it is not coming. Recording 36,450 to make the screen tidy would put money
+    in the books that never arrived, so the desk recorded 36,000 and then went
+    to a second screen to clear the difference — two jobs for one decision, and
+    the one everybody forgot left cargo sitting paid-but-unreleasable.
+
+    Ticked here, the payment keeps the figure that actually came in and the
+    remainder is written off in the same transaction. It is still an
+    adjustment: no ledger line, no cash moved, its own row, its own audit
+    entry, reversible on its own. This flag decides only WHEN it is made,
+    never what it is.
+
+    Guarded by ledger.adjust in the action — a desk that may take money is not
+    automatically a desk that may decide money will never arrive.
+  */
+  clearShortfall: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v === "1" || v === "true" || v === "on"),
   /**
    * What the customer actually handed over. A bill in USD is routinely settled
    * in shillings at the counter, and recording it as USD would put a figure on

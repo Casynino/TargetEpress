@@ -24,6 +24,8 @@ export type PendingSubmission = {
   /** Where Support expects the fare to come from — cash or the Lipa number. */
   transportSourceId?: string | null;
   transportSourceName?: string | null;
+  /** Support ticked "the rest is not coming" when they raised it. */
+  clearShortfall?: boolean;
 };
 
 /**
@@ -48,6 +50,9 @@ export async function PendingSubmissionNotice({
   canVerify,
   accounts,
   transportAccounts = [],
+  billCurrency = "USD",
+  billOutstanding = 0,
+  billRate = null,
 }: {
   submissions: PendingSubmission[];
   /** payment.verify — Finance and the CEO. */
@@ -58,6 +63,13 @@ export async function PendingSubmissionNotice({
       to the currency that claim came in — an account cannot give up money it
       is not denominated in. */
   transportAccounts?: { id: string; name: string; currency: string }[];
+  /** The bill these claims answer, so the verify panel can say what one of
+      them would leave owing. */
+  billCurrency?: string;
+  billOutstanding?: number;
+  /** The rate frozen onto the bill — what a claim in another currency will
+      actually settle at. */
+  billRate?: number | null;
 }) {
   if (submissions.length === 0) return null;
 
@@ -151,6 +163,17 @@ export async function PendingSubmissionNotice({
                   transportAccounts={transportAccounts.filter(
                     (a) => a.currency === s.currency
                   )}
+                  shortfall={Math.max(
+                    0,
+                    billOutstanding -
+                      (s.currency === billCurrency || !billRate
+                        ? s.amount - (s.transport ?? 0)
+                        : s.currency === "TZS"
+                          ? (s.amount - (s.transport ?? 0)) / billRate
+                          : (s.amount - (s.transport ?? 0)) * billRate)
+                  )}
+                  billCurrency={billCurrency}
+                  clearShortfallClaimed={Boolean(s.clearShortfall)}
                 />
               </div>
             ) : null}

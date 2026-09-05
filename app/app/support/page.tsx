@@ -440,6 +440,7 @@ export default async function SupportHome() {
                   accounts={payAccounts}
                   rate={rate}
                   canRecord={canBankIt}
+                  canAdjust={can(user.role, "ledger.adjust")}
                 />
               ) : null}
               {/* Asking for credit is an action too, and it was the one thing

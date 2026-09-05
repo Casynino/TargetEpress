@@ -66,6 +66,7 @@ export default async function CollectionsLayout({
                 accounts={payAccounts}
                 rate={liveRate}
                 canRecord={can(user.role, "payment.record")}
+                canAdjust={can(user.role, "ledger.adjust")}
                 canAskForCredit={can(user.role, "credit.request")}
                 canDecideCredit={can(user.role, "credit.approve")}
               />

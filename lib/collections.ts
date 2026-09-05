@@ -154,6 +154,10 @@ export async function submissionQueue(
       transportAmount: true,
       transportSourceId: true,
       transportSource: { select: { id: true, name: true } },
+      /* The other half of the same conversation: Support was told the rest is
+         not coming. The verify screen opens with this already ticked, and
+         Finance's own answer is what actually travels. */
+      clearShortfall: true,
       /* What answered this one, and what it answered. Both directions, so a
          refused claim can say it has been re-raised and the fresh one can say
          what it replaces. */

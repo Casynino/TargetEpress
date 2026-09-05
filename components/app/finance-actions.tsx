@@ -31,6 +31,7 @@ export function FinanceActions({
   rate,
   canTakeMoney,
   canRecordCost,
+  canAdjust,
   canAskForCredit,
   canDecideCredit,
 }: {
@@ -39,6 +40,8 @@ export function FinanceActions({
   rate: number | null;
   canTakeMoney: boolean;
   canRecordCost: boolean;
+  /** ledger.adjust — may clear a difference that will never arrive. */
+  canAdjust?: boolean;
   canAskForCredit: boolean;
   canDecideCredit: boolean;
 }) {
@@ -52,6 +55,7 @@ export function FinanceActions({
           compact
           accounts={accounts}
           rate={rate}
+          canAdjust={canAdjust}
           autoOpen={params.get("income") === "1"}
         />
       ) : null}

@@ -32,6 +32,7 @@ export function RecordPaymentDialog({
   rate,
   banks,
   canRecord,
+  canAdjust,
   canDiscount,
   canChangeRate,
   invoiceDiscount,
@@ -52,6 +53,8 @@ export function RecordPaymentDialog({
   rate: number | null;
   banks?: { id: string; name: string; currency: string; kind: string }[] | null;
   canRecord?: boolean;
+  /** ledger.adjust — may clear a difference that will never arrive. */
+  canAdjust?: boolean;
   canDiscount?: boolean;
   canChangeRate?: boolean;
   invoiceDiscount?: number;
@@ -113,6 +116,7 @@ export function RecordPaymentDialog({
             rate={rate}
             banks={banks}
             canRecord={canRecord}
+            canAdjust={canAdjust}
             canDiscount={canDiscount}
             canChangeRate={canChangeRate}
             invoiceDiscount={invoiceDiscount}

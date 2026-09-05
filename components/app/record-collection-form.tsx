@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
 import { NativeSelect } from "@/components/ui/native-select";
+import { PaymentDifference } from "@/components/app/payment-difference";
 import { submitPaymentForVerification } from "@/lib/actions/collections";
 import { recordPayment } from "@/lib/actions/finance";
 import type { ActionResult } from "@/lib/actions/types";
@@ -48,6 +49,7 @@ export function RecordCollectionForm({
   rate,
   banks,
   canRecord,
+  canAdjust,
   canDiscount,
   canChangeRate,
   invoiceDiscount,
@@ -85,6 +87,8 @@ export function RecordCollectionForm({
    * the person is the one who says that.
    */
   canRecord?: boolean;
+  /** ledger.adjust — may decide a difference is never arriving. */
+  canAdjust?: boolean;
   /** invoice.discount — Finance, the manager and the owner. */
   canDiscount?: boolean;
   /** invoice.rate — the per-bill rate, which Support holds too. */
@@ -203,6 +207,9 @@ export function RecordCollectionForm({
   const total = Number(totalShown);
   const tolerance = currencyChoice === "TZS" ? 0.5 : 0.005;
   const short = cargoHalf > 0 && suggested - cargoHalf > tolerance;
+  /* The other side of the same sentence — an overpayment looks exactly like a
+     typo until something on the screen says it is fine. */
+  const overpaid = cargoHalf > 0 && cargoHalf - suggested > tolerance;
   const fareOverCargo = fare > 0 && cargoHalf > 0 && fare > cargoHalf + 0.001;
   /* The habit this change invites: typing the customer's grand total into a
      box that now means the cargo, which adds the fare twice. See the same
@@ -617,26 +624,23 @@ export function RecordCollectionForm({
         </p>
       ) : null}
 
-      {short ? (
-        <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-          {t("This leaves")} {currencyChoice}{" "}
-          {(suggested - cargoHalf).toLocaleString()}{" "}
-          {t("still owing on the bill.")}{" "}
-          <button
-            type="button"
-            onClick={() =>
-              setTypedCargo(
-                currencyChoice === "TZS"
-                  ? String(Math.round(suggested))
-                  : String(Math.round(suggested * 100) / 100)
-              )
-            }
-            className="font-semibold underline underline-offset-2"
-          >
-            {currencyChoice} {suggested.toLocaleString()}{" "}
-            {t("clears it in full.")}
-          </button>
-        </p>
+      {short || overpaid ? (
+        <PaymentDifference
+          gap={suggested - cargoHalf}
+          paid={cargoHalf}
+          tendered={currencyChoice}
+          billCurrency={currency}
+          gapInBill={
+            currencyChoice === currency || !rate
+              ? suggested - cargoHalf
+              : (suggested - cargoHalf) /
+                (currencyChoice === "TZS" ? rate : 1 / rate)
+          }
+          /* Support presses the same button; their copy submits the tick with
+             the claim and Finance confirms it on the verify screen. */
+          canClear={direct ? Boolean(canAdjust) : true}
+          submitting={!direct}
+        />
       ) : null}
 
       {fareOverCargo ? (

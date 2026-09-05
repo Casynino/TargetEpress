@@ -70,6 +70,7 @@ export async function FinanceWorkspaceHeader({ role }: { role: Role }) {
                 rate={rate}
                 canTakeMoney={canTakeMoney}
                 canRecordCost={canRecordCost}
+                canAdjust={can(role, "ledger.adjust")}
                 canAskForCredit={canAskForCredit}
                 canDecideCredit={can(role, "credit.approve")}
               />

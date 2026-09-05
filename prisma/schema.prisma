@@ -3051,6 +3051,19 @@ model PaymentSubmission {
   transportSourceId String?
   transportSource   CompanyAccount? @relation("SubmissionTransportFrom", fields: [transportSourceId], references: [id], onDelete: Restrict)
 
+  /// SUPPORT SAW THE SHORTFALL AND SAYS THE REST IS NOT COMING.
+  ///
+  /// A bill of 36,450 answered by 36,000: the 450 is a rounding at the far
+  /// end, or the bank's fee. The desk on the phone is the desk that knows,
+  /// and if the claim cannot carry that, Support submits a figure that is
+  /// simply short and Finance is left guessing whether to chase it.
+  ///
+  /// A CLAIM, like every other figure on this row — it is Finance's own tick
+  /// on the verify screen that decides, and the adjustment is written there,
+  /// by them, under their name. This only carries what Support was told, so
+  /// the verify screen opens with the right answer already filled in.
+  clearShortfall Boolean @default(false)
+
   status SubmissionStatus @default(PENDING)
 
   submittedById String?

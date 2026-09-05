@@ -219,6 +219,9 @@ export default async function ShipmentDetailPage({
         transport: toNumber(s.transportAmount),
         transportSourceId: s.transportSourceId,
         transportSourceName: s.transportSource?.name ?? null,
+        /* What Support was told about the gap, so the verify panel opens with
+           their answer rather than making Finance work it out again. */
+        clearShortfall: s.clearShortfall,
       }))
     : [];
   // Only for the desk that can take money. Nobody else is offered a question
@@ -827,6 +830,18 @@ export default async function ShipmentDetailPage({
               (account) =>
                 account.kind === "CASH" || account.kind === "MOBILE_MONEY"
             )}
+            /* The bill itself, so the panel can work out what a claim would
+               leave owing. Converted at the rate frozen onto the invoice — the
+               rate the payment will actually settle at. */
+            billCurrency={shipment.invoice?.currency ?? "USD"}
+            billOutstanding={
+              shipment.invoice ? outstandingOf(shipment.invoice) : 0
+            }
+            billRate={
+              shipment.invoice?.exchangeRate
+                ? toNumber(shipment.invoice.exchangeRate)
+                : null
+            }
           />
 
               {/*

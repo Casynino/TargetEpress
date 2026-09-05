@@ -38,6 +38,9 @@ export function VerifySubmission({
   transportSourceId = null,
   transportSourceName = null,
   transportAccounts = [],
+  shortfall = 0,
+  billCurrency = "USD",
+  clearShortfallClaimed = false,
 }: {
   submissionId: string;
   accounts: { id: string; name: string; currency: string }[];
@@ -52,8 +55,24 @@ export function VerifySubmission({
   transportSourceName?: string | null;
   /** Cash and Lipa accounts only — a driver is not paid out of a bank. */
   transportAccounts?: { id: string; name: string; currency: string }[];
+  /** What this claim leaves owing on the bill once it is recorded, in the
+      bill's own money. Zero when it settles or overpays. */
+  shortfall?: number;
+  billCurrency?: string;
+  /** Support ticked "the rest is not coming" when they raised it. */
+  clearShortfallClaimed?: boolean;
 }) {
   const [mode, setMode] = useState<"idle" | "verify" | "reject">("idle");
+  /*
+    Support's answer, and Finance's to change.
+
+    It starts where Support left it because that desk took the call and heard
+    what the customer said. Finance is the desk that signs for it, so the tick
+    here is the one that travels — and it is stated either way rather than
+    left absent, so an untick on this screen means NO rather than falling back
+    to the claim's own yes.
+  */
+  const [clearRest, setClearRest] = useState(clearShortfallClaimed);
   const [verifyState, verify] = useActionState<
     ActionResult<{ receiptNumber: string }>,
     FormData
@@ -112,6 +131,55 @@ export function VerifySubmission({
               {transport.toLocaleString()} transport
             </p>
           </div>
+        ) : null}
+        {/*
+          THE CUSTOMER SENT LESS THAN THE BILL, AND SOMEBODY HAS TO SAY SO.
+
+          The other half of the split above. A claim short of the bill leaves
+          the consignment settled in everybody's head and unreleasable in the
+          system until somebody remembers to go and clear the difference on the
+          bill's own page — so it is asked here, where the decision is already
+          being made, and the adjustment is written by the same transaction
+          that records the money.
+
+          Ticked, the payment still records exactly what the customer sent. It
+          is the BILL that closes, by an adjustment that moves no money and has
+          its own reversible row.
+        */}
+        {shortfall > 0.005 ? (
+          <label className="flex cursor-pointer items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-warning">
+            <input
+              type="checkbox"
+              checked={clearRest}
+              onChange={(event) => setClearRest(event.target.checked)}
+              className="mt-0.5 h-3.5 w-3.5 shrink-0"
+            />
+            <span>
+              <span className="font-semibold">
+                Clear the last {billCurrency}{" "}
+                {shortfall.toLocaleString(undefined, {
+                  maximumFractionDigits: billCurrency === "TZS" ? 0 : 2,
+                })}{" "}
+                and settle the bill
+              </span>
+              <span className="mt-0.5 block opacity-90">
+                {clearShortfallClaimed
+                  ? "Support was told the rest is not coming. "
+                  : "This claim is short of the bill. "}
+                The payment records what came in; the difference is written off
+                and moves no money.
+              </span>
+            </span>
+          </label>
+        ) : null}
+        {/* Stated either way, so an untick here is a NO rather than a silence
+            the action would read as Support's yes. */}
+        {shortfall > 0.005 ? (
+          <input
+            type="hidden"
+            name="clearShortfall"
+            value={clearRest ? "1" : "0"}
+          />
         ) : null}
         <div className="space-y-1">
           <Label htmlFor={`account-${submissionId}`} className="text-xs">

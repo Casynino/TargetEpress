@@ -96,6 +96,25 @@ const submissionSchema = z.object({
     .trim()
     .optional()
     .transform((v) => v === "1" || v === "true" || v === "on"),
+  /*
+    "THE CUSTOMER SENT A LITTLE LESS, AND THE REST IS NOT COMING."
+
+    The other half of the same conversation the transport fields carry. A bill
+    of 36,450 answered by 36,000 leaves 450 that is a rounding at the far end
+    or the bank's fee, and Support — the desk actually on the phone — is the
+    desk that hears so. Without somewhere to write it down, the claim Support
+    sends up is simply short, and Finance cannot tell "still being chased"
+    from "settled, clear the last of it".
+
+    A CLAIM, not a decision. Finance ticks it on the verify screen and the
+    adjustment is written there, under their name. This is the answer their
+    screen opens with.
+  */
+  clearShortfall: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v === "1" || v === "true" || v === "on"),
   // The one thing this desk genuinely has to type: the code off the customer's
   // message. Everything else is already on the invoice.
   /* Expected on screen, optional here: cash across the counter has no code,
@@ -342,6 +361,9 @@ export async function submitPaymentForVerification(
              figure above reading as an overpayment on the verify screen. */
           transportAmount: new Prisma.Decimal(input.transport),
           transportSourceId: transportSource?.id ?? null,
+          /* What Support was told about the gap. Carried, never acted on
+             here — no payment exists yet, so there is nothing to clear. */
+          clearShortfall: input.clearShortfall,
           currency: input.currency,
           method: methodForKind(account.kind),
           accountId: account.id,
@@ -549,6 +571,9 @@ export async function verifyPaymentSubmission(
          and becomes the Payment's own transport. */
       transportAmount: true,
       transportSourceId: true,
+      /* Support's answer to the shortfall. Finance's own tick on this screen
+         overrides it — see the handover below. */
+      clearShortfall: true,
       reference: true,
       note: true,
       proofs: { select: { id: true } },
@@ -675,6 +700,26 @@ export async function verifyPaymentSubmission(
     const source = namedSource || submission.transportSourceId;
     if (source) handover.set("transportSourceId", source);
   }
+  /*
+    THE LAST FEW SHILLINGS, DECIDED BY THE DESK THAT SIGNS FOR IT.
+
+    Support raises the claim knowing what the customer said; Finance is the
+    desk that may write a difference off, so Finance is the desk whose answer
+    travels. The verify form states one either way — "1" or "0" — so an
+    unticked box on that screen means NO rather than falling back to Support's
+    yes. A claim verified from anywhere that says nothing keeps what Support
+    was told, which is the only other honest reading.
+
+    recordPayment recomputes the gap from the database and refuses the tick to
+    a desk without ledger.adjust, so this can only ever ask.
+  */
+  const shortfallSaid = formData.get("clearShortfall");
+  const clearRest =
+    shortfallSaid === null
+      ? submission.clearShortfall
+      : String(shortfallSaid) === "1";
+  if (clearRest) handover.set("clearShortfall", "1");
+
   if (submission.reference) handover.set("reference", submission.reference);
   if (submission.note) handover.set("note", submission.note);
   if (accountId) handover.set("accountId", accountId);

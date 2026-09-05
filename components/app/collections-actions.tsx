@@ -27,12 +27,15 @@ export function CollectionsActions({
   accounts,
   rate,
   canRecord,
+  canAdjust,
   canAskForCredit,
   canDecideCredit,
 }: {
   accounts: ExpenseAccount[];
   rate: number | null;
   canRecord: boolean;
+  /** ledger.adjust — may clear a difference that will never arrive. */
+  canAdjust?: boolean;
   canAskForCredit: boolean;
   canDecideCredit: boolean;
 }) {
@@ -58,6 +61,7 @@ export function CollectionsActions({
         accounts={accounts}
         rate={rate}
         canRecord={canRecord}
+        canAdjust={canAdjust}
         autoOpen={params.get("record") === "1"}
       />
     </>

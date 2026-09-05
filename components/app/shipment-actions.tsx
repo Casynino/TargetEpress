@@ -26,6 +26,7 @@ import { PaymentDateField } from "@/components/app/payment-date-field";
 import { ChangeRate } from "@/components/app/change-rate";
 import { AddStorage } from "@/components/app/add-storage";
 import { AdjustDifference } from "@/components/app/adjust-difference";
+import { PaymentDifference } from "@/components/app/payment-difference";
 import { GiveDiscount } from "@/components/app/give-discount";
 import { TransportSplit } from "@/components/app/transport-split";
 import { WaiveStorage } from "@/components/app/waive-storage";
@@ -701,6 +702,11 @@ function PaymentPanel({
     clearing !== null && cargoHalf > 0 && clearing - cargoHalf > tolerance;
   const overpaid =
     clearing !== null && cargoHalf > 0 && cargoHalf - clearing > tolerance;
+  /* The difference, in the money being handed over — which is the money the
+     clerk is looking at. SIGNED: positive when the customer is short, negative
+     when they sent too much, because PaymentDifference reads the sign to know
+     which of the two it is looking at. */
+  const gapInTender = clearing === null ? 0 : clearing - cargoHalf;
   /*
     NO "the fare is bigger than the total" CHECK ANY MORE.
 
@@ -1053,28 +1059,6 @@ function PaymentPanel({
             the cargo box with what the bill comes to; the fare stays where the
             clerk put it and the total underneath follows.
           */}
-          {/*
-            AN OVERPAYMENT IS NOT A PROBLEM TO BE SOLVED.
-
-            This said the extra "stays with the customer as credit for next
-            time", which made a rounding into a running account somebody has to
-            remember. The owner's rule is simpler: take the money, say plainly
-            that they overpaid, settle the bill and let the cargo go. The
-            excess stays named as an overpayment on the payment itself and in
-            the ledger, where it can be found — it is never quietly counted as
-            cargo income, because revenue here comes from the bill, not from
-            what was handed over.
-          */}
-          {overpaid && clearing !== null ? (
-            <p className="rounded-md border border-success/40 bg-success/[0.06] px-3 py-2 text-xs text-success">
-              <span className="font-semibold">
-                {t("Overpaid by")} {currency}{" "}
-                {(cargoHalf - clearing).toLocaleString()}
-              </span>{" "}
-              {t("That is fine — the bill is settled and the cargo can go.")}
-            </p>
-          ) : null}
-
           {looksLikeTheWholeTransfer && clearing !== null ? (
             <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
               {t("That looks like the whole transfer, transport included.")}{" "}
@@ -1096,34 +1080,26 @@ function PaymentPanel({
             </p>
           ) : null}
 
-          {short && clearing !== null ? (
-            <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-              {t("This leaves")} {props.currency}{" "}
-              {(currency === props.currency
-                ? clearing - cargoHalf
-                : (clearing - cargoHalf) /
-                  (currency === "TZS" ? activeRate : 1 / activeRate)
-              ).toFixed(2)}{" "}
-              {t("still owing on the bill.")}{" "}
-              <button
-                type="button"
-                /* The BILL's figure, because the box it fills is the cargo
-                   charge now. Writing bill + fare here would put the fare into
-                   the cargo box and then add it again underneath — the same
-                   double count the labels were changed to end. */
-                onClick={() =>
-                  setTypedCargo(
-                    currency === "TZS"
-                      ? String(Math.round(clearing))
-                      : String(Math.round(clearing * 100) / 100)
-                  )
-                }
-                className="font-semibold underline underline-offset-2"
-              >
-                {currency} {clearing.toLocaleString()}{" "}
-                {t("clears it in full.")}
-              </button>
-            </p>
+          {/*
+            LESS THAN THE BILL — SAID PLAINLY, AND ANSWERABLE HERE.
+
+            See ClearShortfall. The link this replaced typed the bill's figure
+            into the box, which cleared the bill by recording money that never
+            arrived.
+          */}
+          {(short || overpaid) && clearing !== null ? (
+            <PaymentDifference
+              gap={gapInTender}
+              paid={cargoHalf}
+              tendered={currency}
+              billCurrency={props.currency}
+              gapInBill={
+                currency === props.currency
+                  ? gapInTender
+                  : gapInTender / (currency === "TZS" ? activeRate : 1 / activeRate)
+              }
+              canClear={Boolean(props.canAdjust)}
+            />
           ) : null}
 
           {/*

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { MoneyInput } from "@/components/ui/money-input";
+import { PaymentDifference } from "@/components/app/payment-difference";
 import { submitPaymentForVerification } from "@/lib/actions/collections";
 import {
   billableQueue,
@@ -76,6 +77,7 @@ export function RecordIncome({
   rate,
   autoOpen = false,
   canRecord = true,
+  canAdjust = false,
   compact = false,
 }: {
   accounts: ExpenseAccount[];
@@ -103,6 +105,8 @@ export function RecordIncome({
    * has been bitten by four times.
    */
   canRecord?: boolean;
+  /** ledger.adjust — may decide a difference is never arriving. */
+  canAdjust?: boolean;
   /**
    * One word instead of two.
    *
@@ -353,6 +357,11 @@ export function RecordIncome({
   const tolerance = tendered === "TZS" ? 0.5 : 0.005;
   const short =
     billInTender !== null && cargoHalf > 0 && billInTender - cargoHalf > tolerance;
+  /* The other side of the same sentence. Said out loud rather than left for
+     the clerk to notice, because an overpayment looks exactly like a typo
+     until something on the screen says it is fine. */
+  const overpaid =
+    billInTender !== null && cargoHalf > 0 && cargoHalf - billInTender > tolerance;
   /* Almost always an extra nought. The server refuses it without the tick. */
   const fareOverCargo = fare > 0 && cargoHalf > 0 && fare > cargoHalf + 0.001;
   /* The habit this change invites — see the same guard on the cargo panel. */
@@ -794,26 +803,24 @@ export function RecordIncome({
               />
             </div>
 
-            {short && billInTender !== null ? (
-              <p className="w-full rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[11px] text-warning">
-                {t("This leaves")} {tendered}{" "}
-                {(billInTender - cargoHalf).toLocaleString()}{" "}
-                {t("still owing on the bill.")}{" "}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setTypedCargo(
-                      tendered === "TZS"
-                        ? String(Math.round(billInTender))
-                        : String(Math.round(billInTender * 100) / 100)
-                    )
-                  }
-                  className="font-semibold underline underline-offset-2"
-                >
-                  {tendered} {billInTender.toLocaleString()}{" "}
-                  {t("clears it in full.")}
-                </button>
-              </p>
+            {(short || overpaid) && billInTender !== null ? (
+              <PaymentDifference
+                gap={billInTender - cargoHalf}
+                paid={cargoHalf}
+                tendered={tendered}
+                billCurrency={picked.currency}
+                gapInBill={
+                  tendered === picked.currency || !billRate
+                    ? billInTender - cargoHalf
+                    : (billInTender - cargoHalf) /
+                      (tendered === "TZS" ? billRate : 1 / billRate)
+                }
+                /* Support presses the same button. Their copy submits a claim
+                   rather than recording money, so the tick travels with it and
+                   Finance confirms it on the verify screen. */
+                canClear={canRecord ? Boolean(canAdjust) : true}
+                submitting={!canRecord}
+              />
             ) : null}
 
             {fareOverCargo ? (
