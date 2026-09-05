@@ -94,9 +94,8 @@ export function CreditDecision({
           <input type="hidden" name="invoiceId" value={invoiceId} />
           <Input
             name="note"
-            required
             aria-label={`${t("Why is credit refused on")} ${invoiceNumber}`}
-            placeholder={t("Why is the credit refused?")}
+            placeholder={t("Note (optional)")}
             className="h-11 md:h-7 min-w-[220px] flex-1 text-[11px]"
           />
           <SubmitButton

@@ -601,9 +601,7 @@ function ExpenseQuickDelete({
           </span>
           <Input
             name="reason"
-            required
-            minLength={3}
-            placeholder={t("Why")}
+            placeholder={t("Note (optional)")}
             className="h-9 bg-card text-sm"
             autoFocus
           />
@@ -821,12 +819,10 @@ function ExpenseEditor({
 
         <label className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="text-[11px] text-muted-foreground">
-            {t("Why is it being corrected")}
+            {t("Note (optional)")}
           </span>
           <Input
             name="reason"
-            required
-            minLength={3}
             placeholder={t("Typed the wrong figure")}
             className="h-9 bg-card text-sm"
           />
@@ -870,9 +866,7 @@ function ExpenseEditor({
           </span>
           <Input
             name="reason"
-            required
-            minLength={3}
-            placeholder={t("Why")}
+            placeholder={t("Note (optional)")}
             className="h-9 bg-card text-sm"
           />
         </label>

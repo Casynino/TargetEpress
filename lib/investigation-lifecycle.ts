@@ -225,17 +225,27 @@ export const LIFECYCLE_STEPS: Record<ExceptionStatus, LifecycleStep[]> = {
 };
 
 /**
- * A decision has to say why. Movement between working states does not — making
- * a clerk justify "I am now looking for it" just teaches them to type a dot.
+ * THE TWO PLACES THIS APP STILL ASKS FOR A SENTENCE.
  *
- * CARGO_FOUND is on the list because the delegated action demands it too: "say
- * where the cargo was found" is the question the next person always asks.
+ * The owner's rule is warn, confirm, do: nobody explains a delete, a
+ * cancellation or an edit, because a box that must be filled in is filled in
+ * with "ok" and the audit line already carries who, when and what changed.
+ *
+ * These two are not that. Neither is an explanation of an action:
+ *
+ *   CARGO_FOUND        asks WHERE it was found, which is the question the
+ *                      next person always asks and which nothing else records
+ *   *_APPROVED         authorises money leaving the business on a customer's
+ *                      claim — held by the CEO alone, and the one decision
+ *                      here with a genuine record to keep
+ *
+ * Closing a finished case came off the list: it is housekeeping, and the case
+ * it closes already says everything that happened inside it.
  */
 export const NOTE_REQUIRED_ON: ExceptionStatus[] = [
   "CARGO_FOUND",
   "COMPENSATION_APPROVED",
   "REPLACEMENT_APPROVED",
-  "CLOSED",
 ];
 
 /**

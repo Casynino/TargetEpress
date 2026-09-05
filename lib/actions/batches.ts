@@ -13,7 +13,7 @@ import {
   PACKAGE_TYPE_LABELS,
 } from "@/lib/constants";
 import { autoPriceShipments } from "@/lib/auto-price";
-import { recordAudit } from "@/lib/audit";
+import { recordAudit, withNote } from "@/lib/audit";
 import { CLOSEABLE_FROM, batchOwing, buildStatement } from "@/lib/batch-close";
 import { toNumber } from "@/lib/format";
 import { currentRateValue } from "@/lib/fx";
@@ -1815,9 +1815,8 @@ export async function undoBatchArrival(
   const batchId = String(formData.get("batchId") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
   if (!batchId) return fail(t(locale, "Missing batch."));
-  if (reason.length < 4) {
-    return fail(t(locale, "Say why this flight is being put back in the air."));
-  }
+  /* No question asked — warn, confirm, do. The audit line names the flight,
+     the person and the moment either way. */
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -1963,7 +1962,7 @@ export async function undoBatchArrival(
           action: "batch.arrivalUndone",
           entity: "Batch",
           entityId: batch.id,
-          summary: `${batch.batchNumber} put back in the air — ${reason}`,
+          summary: withNote(`${batch.batchNumber} put back in the air`, reason),
           metadata: {
             reason,
             consignments: batch.shipments.length,
@@ -2015,9 +2014,7 @@ export async function reopenBatch(
   const batchId = String(formData.get("batchId") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
   if (!batchId) return fail(t(locale, "Missing batch."));
-  if (reason.length < 4) {
-    return fail(t(locale, "Say why this batch is being reopened."));
-  }
+  /* See above: the note is offered, never demanded. */
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -2051,7 +2048,7 @@ export async function reopenBatch(
           action: "batch.reopened",
           entity: "Batch",
           entityId: batch.id,
-          summary: `Reopened ${batch.batchNumber} — ${reason}`,
+          summary: withNote(`Reopened ${batch.batchNumber}`, reason),
           metadata: { reason, closedAt: batch.closedAt.toISOString() },
         },
         tx
@@ -2304,9 +2301,8 @@ export async function moveShipmentToBatch(
   const reason = String(formData.get("reason") ?? "").trim();
 
   if (!shipmentId || !toBatchId) return fail(t(locale, "Missing cargo or batch."));
-  if (reason.length < 3) {
-    return fail(t(locale, "Say why it is moving."));
-  }
+  /* The audit line already names both flights and the cargo that moved
+     between them, which is the fact anybody checking is looking for. */
 
   try {
     const moved = await prisma.$transaction(async (tx) => {
@@ -2395,7 +2391,10 @@ export async function moveShipmentToBatch(
           entity: "Shipment",
           entityId: piece.id,
           summary:
-            `Moved ${piece.trackingNumber} from ${piece.batch?.batchNumber ?? "—"} to ${target.batchNumber} — ${reason}` +
+            withNote(
+              `Moved ${piece.trackingNumber} from ${piece.batch?.batchNumber ?? "—"} to ${target.batchNumber}`,
+              reason
+            ) +
             (originMoves
               ? `. Origin now ${ORIGIN_LABELS[target.origin]}` +
                 (categoryFitsRoute(piece.cargoCategory, target.origin)

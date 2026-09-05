@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { methodForKind } from "@/lib/accounts";
-import { recordAudit } from "@/lib/audit";
+import { recordAudit, withNote } from "@/lib/audit";
 import { nextSubmissionNumber } from "@/lib/ids";
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -116,7 +116,9 @@ export async function editSubmission(
            and typed as dollars — and because the account it may have landed in
            depends on the answer. */
         currency: z.enum(["TZS", "USD"]).optional(),
-        reason: z.string().trim().min(3, "Say what was wrong with it."),
+        /* Optional — warn, confirm, do. What changed is listed on the
+           audit line beside the name of whoever changed it. */
+        reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
       })
       .safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
@@ -283,13 +285,16 @@ export async function editSubmission(
           action: "submission.edit",
           entity: "PaymentSubmission",
           entityId: sub.id,
-          summary: `${sub.submissionNumber} (${sub.invoice.invoiceNumber}): claim corrected (${changed.join(", ")}) — ${parsed.data.reason}`,
+          summary: withNote(
+            `${sub.submissionNumber} (${sub.invoice.invoiceNumber}): claim corrected (${changed.join(", ")})`,
+            parsed.data.reason
+          ),
           metadata: {
             tracking: sub.invoice.shipment?.trackingNumber ?? null,
             before,
             after,
             changed,
-            reason: parsed.data.reason,
+            reason: parsed.data.reason ?? null,
           },
         },
         tx
@@ -314,7 +319,7 @@ export async function withdrawSubmission(
     const parsed = z
       .object({
         submissionId: z.string().min(1),
-        reason: z.string().trim().min(3, "Say why it is being withdrawn."),
+        reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
       })
       .safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
@@ -363,8 +368,11 @@ export async function withdrawSubmission(
              the whole row. */
           rejectionReason:
             sub.status === "REJECTED" && sub.rejectionReason
-              ? `${parsed.data.reason} (Finance had said: ${sub.rejectionReason})`
-              : parsed.data.reason,
+              ? withNote(
+                  `Withdrawn by the desk that raised it (Finance had said: ${sub.rejectionReason})`,
+                  parsed.data.reason
+                )
+              : parsed.data.reason || "Withdrawn by the desk that raised it",
         },
       });
       if (claimed.count === 0) {
@@ -379,12 +387,15 @@ export async function withdrawSubmission(
           action: "submission.withdrawn",
           entity: "PaymentSubmission",
           entityId: sub.id,
-          summary: `${sub.submissionNumber} (${sub.invoice.invoiceNumber}): claim of ${sub.currency} ${toNumber(sub.amount).toFixed(2)} withdrawn — ${parsed.data.reason}`,
+          summary: withNote(
+            `${sub.submissionNumber} (${sub.invoice.invoiceNumber}): claim of ${sub.currency} ${toNumber(sub.amount).toFixed(2)} withdrawn`,
+            parsed.data.reason
+          ),
           metadata: {
             tracking: sub.invoice.shipment?.trackingNumber ?? null,
             amount: toNumber(sub.amount),
             currency: sub.currency,
-            reason: parsed.data.reason,
+            reason: parsed.data.reason ?? null,
             raisedBy: sub.submittedById,
           },
         },
@@ -589,7 +600,7 @@ export async function resubmitSubmission(
         accountId: z.string().trim().min(1, "Say which account the money landed in."),
         reference: z.string().trim().optional(),
         note: z.string().trim().optional(),
-        reason: z.string().trim().min(3, "Say what was fixed before sending it up again."),
+        reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
       })
       .safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
@@ -847,13 +858,16 @@ export async function resubmitSubmission(
           action: "submission.resubmit",
           entity: "PaymentSubmission",
           entityId: fresh.id,
-          summary: `${fresh.submissionNumber} raised again in place of ${old.submissionNumber} (${old.invoice.invoiceNumber}) — ${parsed.data.reason}`,
+          summary: withNote(
+            `${fresh.submissionNumber} raised again in place of ${old.submissionNumber} (${old.invoice.invoiceNumber})`,
+            parsed.data.reason
+          ),
           metadata: {
             replaces: old.submissionNumber,
             amount: parsed.data.amount,
             currency: parsed.data.currency,
             account: account.name,
-            reason: parsed.data.reason,
+            reason: parsed.data.reason ?? null,
             evidenceAdded: uploaded.length,
           },
         },

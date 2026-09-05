@@ -139,13 +139,12 @@ export function InvoiceEditor({
             htmlFor="correctionReason"
             className="text-xs font-medium text-signal"
           >
-            {t("Why is this bill being corrected?")}
+            {t("Note")}{" "}
+            <span className="text-muted-foreground">{t("(optional)")}</span>
           </label>
           <Input
             id="correctionReason"
             name="correctionReason"
-            required
-            minLength={3}
             className="mt-1.5 h-8 text-sm"
             placeholder={t("What was wrong with it")}
           />
@@ -213,14 +212,12 @@ export function InvoiceEditor({
             {storageMoved ? (
               <div className="space-y-1.5">
                 <Label htmlFor="storageReason">
-                  {num(storageDraft) === 0
-                    ? t("Why is the storage being waived?")
-                    : t("Why is the storage changing?")}
+                  {t("Note")}{" "}
+                  <span className="text-muted-foreground">{t("(optional)")}</span>
                 </Label>
                 <Input
                   id="storageReason"
                   name="storageReason"
-                  required
                   placeholder={t("Our delay, goodwill, agreed with the customer…")}
                 />
               </div>
@@ -285,13 +282,13 @@ export function InvoiceEditor({
             Number(freightDraft) !== freight ? (
               <div className="space-y-1.5">
                 <Label htmlFor="freightOverrideReason">
-                  {t("Why is it different?")}
+                  {t("Note")}{" "}
+                  <span className="text-muted-foreground">{t("(optional)")}</span>
                 </Label>
                 <Input
                   id="freightOverrideReason"
                   name="freightOverrideReason"
                   placeholder={t("e.g. re-weighed on the floor scale at 8.9 kg")}
-                  required
                   disabled={locked && !canCorrect}
                 />
               </div>

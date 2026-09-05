@@ -236,12 +236,22 @@ const reviewSchema = z.object({
   issue: z.enum(FLAG_KINDS).optional(),
 });
 
-/** PENDING is the absence of a verdict, so nobody records one. */
+/**
+ * NOTHING IS REFUSED FOR WANT OF AN EXPLANATION ANY MORE.
+ *
+ * These four verdicts used to demand words: a flag with none is an alarm
+ * nobody can act on, a request for information containing no question is not
+ * one. That argument is still true, and the screens still ask — but asking is
+ * where it ends. A desk clearing forty duplicate records was typing the same
+ * sentence forty times to get past the bar, which is not a record of anything.
+ *
+ * The verdict, the record it lands on, the person and the moment are all
+ * written either way. Kept as a list because the screens read it to decide
+ * which prompts to put in front of the reader.
+ */
 const NEEDS_REASON: ReviewState[] = [
   "SENT_BACK",
   "MISMATCH",
-  /* A flag with no words is an alarm nobody can act on, and a question with no
-     question is not a request for information. */
   "FLAGGED",
   "INFO_REQUESTED",
 ];
@@ -292,8 +302,8 @@ async function targetExists(
  * what happened to any individual consignment.
  *
  * WHAT IT WILL NOT DO IN BULK: nothing here bypasses the rules the single
- * verdict follows. A reason is required for the same states, the same
- * permission is demanded, and a record that has vanished since the page was
+ * verdict follows. The same permission is demanded, and a record that has
+ * vanished since the page was
  * drawn is skipped rather than failing the whole batch — the count that comes
  * back is what was actually written, not what was asked for.
  */
@@ -332,16 +342,7 @@ export async function reviewRecords(
     input.state === "FLAGGED" && input.issue
       ? `${input.issue}: ${input.reason ?? ""}`.trim()
       : input.reason ?? "";
-  if (NEEDS_REASON.includes(input.state) && reason.replace(/^[^:]*:\s*/, "").length < 4) {
-    return fail(
-      t(
-        locale,
-        input.state === "SENT_BACK"
-          ? "Say what has to be corrected. A record handed back without a reason cannot be acted on."
-          : "Say what is wrong with them. A verdict with no words is one nobody can act on."
-      )
-    );
-  }
+
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -413,20 +414,7 @@ export async function reviewRecord(
     input.state === "FLAGGED" && input.issue
       ? `${input.issue}: ${input.reason ?? ""}`.trim()
       : input.reason ?? "";
-  if (NEEDS_REASON.includes(input.state) && reason.replace(/^[^:]*:\s*/, "").length < 4) {
-    return fail(
-      t(
-        locale,
-        input.state === "SENT_BACK"
-          ? "Say what has to be corrected. A record handed back without a reason cannot be acted on."
-          : input.state === "FLAGGED"
-            ? "Say what is wrong with it. A flag with no words is an alarm nobody can act on."
-            : input.state === "INFO_REQUESTED"
-              ? "Ask the question. Finance cannot answer a request that does not contain one."
-              : "Say what does not add up, so somebody can look into the right thing."
-      )
-    );
-  }
+
 
   try {
     const state = await prisma.$transaction(async (tx) => {

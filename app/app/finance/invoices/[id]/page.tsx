@@ -486,6 +486,7 @@ export default async function InvoicePage({
         amountPaid={toNumber(invoice.amountPaid)}
         paidInFull={paidInFull}
         heroUsd={heroUsd}
+        amountAdjusted={toNumber(invoice.amountAdjusted)}
         heroLocal={heroLocal}
         payments={invoice.payments.map((payment) => ({
           id: payment.id,

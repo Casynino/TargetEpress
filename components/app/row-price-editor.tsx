@@ -186,13 +186,13 @@ export function RowPriceEditor({
         {freight.trim() !== "" && n(freight) !== rateBookFreight ? (
           <div className="space-y-1">
             <Label htmlFor={`why-${invoiceId}`} className="text-xs">
-              {t("Why is it different?")}
+              {t("Note")}{" "}
+              <span className="text-muted-foreground">{t("(optional)")}</span>
             </Label>
             <Input
               id={`why-${invoiceId}`}
               name="freightOverrideReason"
               placeholder={t("e.g. weight re-checked on the floor scale")}
-              required
               className="h-8 text-sm"
             />
           </div>

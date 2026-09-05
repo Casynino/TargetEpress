@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma, type AccountKind } from "@prisma/client";
 import { z } from "zod";
 
-import { recordAudit } from "@/lib/audit";
+import { recordAudit, withNote } from "@/lib/audit";
 import { settleBatchIfClear } from "@/lib/batch-close";
 import { applyCreditToInvoice } from "@/lib/customer-credit";
 import { STORAGE_POLICY, storageDaysFor } from "@/lib/constants";
@@ -799,11 +799,9 @@ export async function adjustInvoice(
             `Money has already been received against ${invoice.invoiceNumber}, so correcting it needs someone who may adjust the ledger.`
           );
         }
-        if (!input.correctionReason || input.correctionReason.length < 3) {
-          throw new Error(
-            `Say what was wrong with ${invoice.invoiceNumber}. A bill that has been paid is not changed without a reason.`
-          );
-        }
+        /* The permission above is the control, not a typed sentence. Every
+           field that moves is written to the audit line with its value before
+           and after, and the desk was already confirming the change. */
       }
 
       const discountChanged = input.discount !== toNumber(invoice.discount);
@@ -811,9 +809,10 @@ export async function adjustInvoice(
         throw new Error("You are not authorised to change the discount on an invoice.");
       }
 
-      // The rate-book figure stays in freightCost, untouched. Overriding it is
-      // a departure that has to be explained, or in three months nobody can say
-      // why this consignment was billed differently from the price list.
+      // The rate-book figure stays in freightCost, untouched, so the audit
+      // line can always show the price list beside the figure actually billed
+      // — which is what says this consignment was priced differently and by
+      // how much, whether or not anybody wrote a sentence about it.
       const rateBookFreight = toNumber(invoice.freightCost);
       const previousOverride =
         invoice.freightOverride === null
@@ -826,9 +825,6 @@ export async function adjustInvoice(
           throw new Error(
             "You are not authorised to change the freight amount on an invoice."
           );
-        }
-        if (!input.freightOverrideReason) {
-          throw new Error("Say why the freight amount is being changed.");
         }
       }
 
@@ -876,13 +872,9 @@ export async function adjustInvoice(
       const alreadyWaived = toNumber(invoice.storageWaivedUsd);
       const storage = input.storageCharge ?? clockStorage;
       const storageMoved = Math.abs(storage - clockStorage) > 0.005;
-      if (storageMoved && (!input.storageReason || input.storageReason.length < 3)) {
-        throw new Error(
-          storage === 0
-            ? "Say why the storage charge is being waived."
-            : "Say why the storage charge is being changed."
-        );
-      }
+      /* Not questioned. The forgiven figure is kept against the bill with the
+         name of whoever forgave it, which is the record; the note beside it is
+         offered and usually empty. */
 
       /*
         This edit and the storage card are two doors onto the same money, so
@@ -1309,14 +1301,15 @@ export async function applyInvoiceDiscount(
             action: "invoice.discount",
             entity: "Invoice",
             entityId: invoice.id,
-            summary:
+            summary: withNote(
               `${invoice.invoiceNumber}: discount ${wasDiscount.toFixed(2)} → ` +
-              `${share.toFixed(2)} ${invoice.currency}, bill now ` +
-              `${total.toFixed(2)}` +
-              (invoices.length > 1
-                ? ` (its share of ${input.discount.toFixed(2)} across ${invoices.length} bills)`
-                : "") +
-              ` — ${input.reason}`,
+                `${share.toFixed(2)} ${invoice.currency}, bill now ` +
+                `${total.toFixed(2)}` +
+                (invoices.length > 1
+                  ? ` (its share of ${input.discount.toFixed(2)} across ${invoices.length} bills)`
+                  : ""),
+              input.reason
+            ),
             metadata: {
               discountBefore: wasDiscount,
               discountAfter: share,
@@ -1327,7 +1320,7 @@ export async function applyInvoiceDiscount(
               statusAfter: nextStatus ?? invoice.status,
               acrossBills: invoices.length,
               discountAcrossAll: input.discount,
-              reason: input.reason,
+              reason: input.reason ?? null,
             },
           },
           tx
@@ -1448,10 +1441,12 @@ export async function changeInvoiceRate(
           action: "invoice.rate",
           entity: "Invoice",
           entityId: invoice.id,
-          summary:
+          summary: withNote(
             `${invoice.invoiceNumber}: rate ${was === null ? "none" : was.toLocaleString()} → ` +
-            `${input.exchangeRate.toLocaleString()}, ${invoice.currency} ${total.toFixed(2)} ` +
-            `now ${Math.round(totalLocal).toLocaleString()} — ${input.reason}`,
+              `${input.exchangeRate.toLocaleString()}, ${invoice.currency} ${total.toFixed(2)} ` +
+              `now ${Math.round(totalLocal).toLocaleString()}`,
+            input.reason
+          ),
           metadata: {
             rateBefore: was,
             rateAfter: input.exchangeRate,
@@ -1459,7 +1454,7 @@ export async function changeInvoiceRate(
             totalLocalBefore:
               was === null ? null : Math.round(toLocal(total, was)),
             totalLocalAfter: Math.round(totalLocal),
-            reason: input.reason,
+            reason: input.reason ?? null,
           },
         },
         tx
@@ -3184,11 +3179,13 @@ export async function voidInvoice(
   const parsed = z
     .object({
       invoiceId: z.string().trim().min(1, "Missing invoice."),
+      /* Optional — warn, confirm, do. Cancelling a bill unwinds it visibly
+         and the audit line names the bill, the cargo and who did it. */
       reason: z
         .string()
         .trim()
-        .min(3, "Say why this bill is being cancelled.")
-        .max(500, "Keep the reason under 500 characters."),
+        .max(500, "Keep the note under 500 characters.")
+        .optional(),
     })
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
@@ -3279,7 +3276,10 @@ export async function voidInvoice(
           action: "invoice.void",
           entity: "Invoice",
           entityId: invoice.id,
-          summary: `Cancelled ${invoice.invoiceNumber} (${invoice.shipment.trackingNumber}) — ${parsed.data.reason}`,
+          summary: withNote(
+            `Cancelled ${invoice.invoiceNumber} (${invoice.shipment.trackingNumber})`,
+            parsed.data.reason
+          ),
           metadata: {
             invoiceNumber: invoice.invoiceNumber,
             shipment: invoice.shipment.trackingNumber,
@@ -3287,7 +3287,7 @@ export async function voidInvoice(
             statusWhenCancelled: invoice.status,
             total: toNumber(invoice.total).toFixed(2),
             currency: invoice.currency,
-            reason: parsed.data.reason,
+            reason: parsed.data.reason ?? null,
           },
         },
         tx

@@ -116,9 +116,8 @@ export function ChangeRate({
         ) : null}
         <Input
           name="reason"
-          placeholder={t("Why — agreed at the counter, bank rate on the day…")}
+          placeholder={t("Note (optional) — agreed at the counter, bank rate on the day…")}
           className="h-8 text-xs"
-          required
         />
         <FormError state={state} />
         <div className="flex items-center gap-2">

@@ -855,12 +855,11 @@ export default async function ManagerBatches({
                           htmlFor={`reason-${row.id}`}
                           className="text-[11px] font-medium text-muted-foreground"
                         >
-                          {t(locale, "What looks wrong — required with any verdict")}
+                          {t(locale, "What looks wrong (optional)")}
                         </label>
                         <Textarea
                           id={`reason-${row.id}`}
                           name="reason"
-                          required
                           rows={2}
                           className="mt-1 min-h-0 text-xs"
                           placeholder={t(

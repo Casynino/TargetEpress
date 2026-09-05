@@ -131,9 +131,8 @@ export function WaiveStorage({
         <input type="hidden" name="invoiceId" value={invoiceId} />
         <Input
           name="reason"
-          placeholder={t("Why — we were closed, our delay, agreed with them…")}
+          placeholder={t("Note (optional) — we were closed, our delay, agreed with them…")}
           className="h-8 text-xs"
-          required
           autoFocus
         />
         <FormError state={state} />

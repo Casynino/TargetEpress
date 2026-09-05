@@ -257,15 +257,17 @@ export function VerifySubmission({
       <input type="hidden" name="submissionId" value={submissionId} />
       <div className="space-y-1">
         <Label htmlFor={`reason-${submissionId}`} className="text-xs">
-          What is wrong with it?
+          What is wrong with it? <span className="text-muted-foreground">(optional)</span>
         </Label>
+        {/* Offered rather than demanded. It is worth writing — Support reads
+            it and it is the difference between "fix it" and "fix what" — but
+            a desk clearing a queue of duplicates should not have to type the
+            same sentence ten times to get through it. */}
         <Input
           id={`reason-${submissionId}`}
           name="reason"
           placeholder="e.g. no transaction with that code on the statement"
           className="h-9 text-sm"
-          minLength={10}
-          required
         />
         <p className="text-[11px] text-muted-foreground">
           The fault, not the next step — Support fixes it and sends it straight

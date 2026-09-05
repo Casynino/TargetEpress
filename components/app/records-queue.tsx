@@ -154,7 +154,6 @@ export function RecordsQueue({
           <Textarea
             name="reason"
             rows={2}
-            required={mode === "SENT_BACK"}
             className="mt-2 text-xs"
             placeholder={
               mode === "RECONCILED"

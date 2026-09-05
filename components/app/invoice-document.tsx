@@ -99,6 +99,16 @@ export type InvoiceDocumentProps = {
   /** What the big figure says: the total when settled, the balance when not. */
   heroUsd: number;
   heroLocal: number | null;
+  /**
+   * What was written off rather than received.
+   *
+   * A bill of 40.50 answered by 40.31, with the last 0.19 cleared as an
+   * adjustment, IS paid in full — but it printed "USD 40.50 received with
+   * thanks" on the customer's own copy, which is a receipt for money that
+   * never arrived. The bill is settled and says so; the line underneath now
+   * says how.
+   */
+  amountAdjusted?: number;
 
   payments: {
     id: string;
@@ -147,6 +157,7 @@ export async function InvoiceDocument({
   paidInFull,
   heroUsd,
   heroLocal,
+  amountAdjusted = 0,
   payments,
   accounts,
   qrDataUrl,
@@ -408,10 +419,15 @@ export async function InvoiceDocument({
           <p className="mt-2 text-xs text-white/75">
             {heroLocal === null
               ? t(locale, "No exchange rate was locked on this invoice")
-              : `${money(heroUsd, currency)} ${t(
-                  locale,
-                  paidInFull ? "received with thanks" : "at the rate on this invoice"
-                )}`}
+              : paidInFull && amountAdjusted > 0.005
+                ? `${money(amountPaid, currency)} ${t(locale, "received")} · ${money(
+                    amountAdjusted,
+                    currency
+                  )} ${t(locale, "cleared on the bill")}`
+                : `${money(heroUsd, currency)} ${t(
+                    locale,
+                    paidInFull ? "received with thanks" : "at the rate on this invoice"
+                  )}`}
           </p>
         </div>
       </div>

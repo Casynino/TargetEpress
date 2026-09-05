@@ -72,7 +72,10 @@ export function DeleteCargoForm({
           <FormError state={state} />
 
           <div className="space-y-1.5">
-            <Label htmlFor="reason">{t("Why is it being deleted?")}</Label>
+            <Label htmlFor="reason">
+              {t("Note")}{" "}
+              <span className="text-muted-foreground">{t("(optional)")}</span>
+            </Label>
             <Textarea
               id="reason"
               name="reason"
@@ -80,7 +83,6 @@ export function DeleteCargoForm({
               placeholder={t(
                 "e.g. Duplicate entry — same carton recorded twice"
               )}
-              required
             />
             <p className="text-xs text-muted-foreground">
               {t("Kept permanently against")} {trackingNumber}.
@@ -324,13 +326,13 @@ export function CargoDeleteButton({
                   </p>
                   <div className="space-y-1.5">
                     <Label htmlFor="quickDeleteReason">
-                      {t("Why is it being deleted?")}
+                      {t("Note")}{" "}
+                      <span className="text-muted-foreground">{t("(optional)")}</span>
                     </Label>
                     <Textarea
                       id="quickDeleteReason"
                       name="reason"
                       rows={2}
-                      required
                       placeholder={t("e.g. Duplicate entry — same carton recorded twice")}
                     />
                   </div>

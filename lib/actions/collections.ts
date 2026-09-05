@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { recordAudit } from "@/lib/audit";
+import { recordAudit, withNote } from "@/lib/audit";
 import { nextSubmissionNumber } from "@/lib/ids";
 import { methodForKind } from "@/lib/accounts";
 import {
@@ -434,9 +434,12 @@ const decisionSchema = z.object({
 /**
  * Finance says no.
  *
- * The reason is required, because "rejected" on its own is a message Support
- * cannot act on and a customer nobody can answer. Nothing is deleted — the
- * claim and the refusal both stay on the record.
+ * The fault is worth writing — Support rings the customer with it, and
+ * "rejected" on its own is a message nobody can act on — but it is asked for
+ * and no longer demanded. A desk clearing a queue of duplicates was typing the
+ * same sentence ten times to get through it, and that is not a record either.
+ *
+ * Nothing is deleted: the claim and the refusal both stay where they were.
  */
 export async function rejectPaymentSubmission(
   _prev: ActionResult | undefined,
@@ -453,15 +456,7 @@ export async function rejectPaymentSubmission(
     Object.fromEntries(formData) as Record<string, string>
   );
   if (!parsed.success) return fail(firstError(parsed.error));
-  const reason = parsed.data.reason;
-  /* Ten, not three. "No" and "ok" cleared the old bar, and so did an
-     instruction about what would happen next — which is not a fault anybody
-     can act on. Support rings a customer with this sentence. */
-  if (!reason || reason.length < 10) {
-    return fail(
-      "Say what is actually wrong with it — Support rings the customer with this, and fixes it from their own list."
-    );
-  }
+  const reason = parsed.data.reason?.trim() || null;
   const ip = await callerIp();
 
   try {
@@ -508,7 +503,10 @@ export async function rejectPaymentSubmission(
           action: "payment.rejected",
           entity: "PaymentSubmission",
           entityId: submission.id,
-          summary: `${submission.submissionNumber} sent back on ${submission.invoice.invoiceNumber} — ${reason}`,
+          summary: withNote(
+            `${submission.submissionNumber} sent back on ${submission.invoice.invoiceNumber}`,
+            reason
+          ),
           metadata: { ip, department: user.role },
         },
         tx

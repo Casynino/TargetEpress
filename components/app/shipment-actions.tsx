@@ -1368,11 +1368,17 @@ function CancelPanel({ shipmentId }: { shipmentId: string }) {
       {open ? (
         <form action={action} className="mt-4 space-y-3">
           <input type="hidden" name="shipmentId" value={shipmentId} />
+          <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs">
+            {t(
+              "The money comes back off the bill and the cargo stops being collectable. The payment stays visible in the records, marked cancelled."
+            )}
+          </p>
           <div className="space-y-1.5">
             <Label htmlFor="reason" className="text-xs">
-              {t("Reason")}
+              {t("Note")}{" "}
+              <span className="text-muted-foreground">{t("(optional)")}</span>
             </Label>
-            <Textarea id="reason" name="reason" rows={2} required />
+            <Textarea id="reason" name="reason" rows={2} />
           </div>
           <FormError state={state} />
           <div className="flex gap-2">

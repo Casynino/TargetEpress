@@ -80,9 +80,7 @@ export function MoveCargo({
         </NativeSelect>
         <Input
           name="reason"
-          required
-          minLength={3}
-          placeholder={t("e.g. scanned onto the wrong pallet")}
+          placeholder={t("Note (optional) — e.g. scanned onto the wrong pallet")}
           className="min-w-[16rem] flex-1"
         />
         <SubmitButton size="sm" variant="brand" pendingLabel={t("Moving…")}>

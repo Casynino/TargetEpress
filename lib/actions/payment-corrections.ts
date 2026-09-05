@@ -7,7 +7,7 @@ import { Prisma } from "@prisma/client";
 type Money = number | string | Prisma.Decimal | null | undefined;
 import { z } from "zod";
 
-import { recordAudit } from "@/lib/audit";
+import { recordAudit, withNote } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
 import { invoiceStatusFor } from "@/lib/invoice-status";
 import { t } from "@/lib/i18n";
@@ -176,7 +176,10 @@ const SETTLED_INVOICE = {
 
 const voidSchema = z.object({
   paymentId: z.string().min(1),
-  reason: z.string().trim().min(3, "Say why the payment is being cancelled."),
+  /* Optional — warn, confirm, do. The reversing ledger line, the receipt it
+     names and the audit entry already say what was cancelled, by whom and
+     when; a box that has to be filled in is filled in with "wrong". */
+  reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
 });
 
 export async function voidPayment(
@@ -270,7 +273,7 @@ export async function voidPayment(
         data: {
           voidedAt: new Date(),
           voidedById: user.id,
-          voidReason: parsed.data.reason,
+          voidReason: parsed.data.reason || null,
         },
       });
       if (claimed.count === 0) {
@@ -380,7 +383,7 @@ export async function voidPayment(
             unwound.length > 0
               ? unwound.map((s) => s.invoiceNumber).join(", ")
               : t(locale, "customer deposit")
-          }: ${parsed.data.reason}`,
+          }${parsed.data.reason ? `: ${parsed.data.reason}` : ""}`,
           sourceEntity: e.sourceEntity,
           sourceId: e.sourceId,
           recordedById: user.id,
@@ -469,7 +472,10 @@ export async function voidPayment(
                     .join(", ")
                 : "Customer deposit"
             }: payment of ` +
-            `${payment.currency} ${toNumber(payment.amount).toFixed(2)} cancelled — ${parsed.data.reason}` +
+            withNote(
+              `${payment.currency} ${toNumber(payment.amount).toFixed(2)} cancelled`,
+              parsed.data.reason
+            ) +
             (collected.length > 0
               ? ` — WARNING: pickup note${collected.length > 1 ? "s" : ""} ${collected
                   .map((n) => n.noteNumber)
@@ -499,7 +505,7 @@ export async function voidPayment(
             pickupNotes: notes,
             pickupNoteOutcome: noteOutcome,
             cargoAlreadyCollected: collected.length > 0,
-            reason: parsed.data.reason,
+            reason: parsed.data.reason ?? null,
           },
         },
         tx
@@ -547,7 +553,7 @@ export async function restorePayment(
     const parsed = z
       .object({
         paymentId: z.string().min(1),
-        reason: z.string().trim().min(3, "Say why the payment is being reinstated."),
+        reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
       })
       .safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
@@ -652,7 +658,7 @@ export async function restorePayment(
             payment.receipt?.receiptNumber ??
             invoice?.invoiceNumber ??
             t(locale, "customer deposit")
-          } — ${parsed.data.reason}`,
+          }${parsed.data.reason ? ` — ${parsed.data.reason}` : ""}`,
           sourceEntity: "Payment",
           sourceId: payment.id,
           recordedById: user.id,
@@ -726,7 +732,9 @@ export async function restorePayment(
                   )
                   .join(", ")
               : "Customer deposit"
-          }: cancelled payment of ${payment.currency} ${toNumber(payment.amount).toFixed(2)} reinstated — ${parsed.data.reason}`,
+          }: cancelled payment of ${payment.currency} ${toNumber(payment.amount).toFixed(2)} reinstated${
+            parsed.data.reason ? ` — ${parsed.data.reason}` : ""
+          }`,
           metadata: {
             receipt: payment.receipt?.receiptNumber ?? null,
             amount: toNumber(payment.amount),
@@ -738,7 +746,7 @@ export async function restorePayment(
               statusAfter: s.newStatus ?? s.status,
             })),
             previousVoidReason: payment.voidReason,
-            reason: parsed.data.reason,
+            reason: parsed.data.reason ?? null,
           },
         },
         tx
@@ -785,7 +793,7 @@ export async function editPayment(
         reference: z.string().trim().optional(),
         note: z.string().trim().optional(),
         paidAt: z.string().trim().optional(),
-        reason: z.string().trim().min(3, "Say what was wrong with the record."),
+        reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
       })
       .safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
@@ -882,8 +890,10 @@ export async function editPayment(
             payment.invoice
               ? `${payment.invoice.invoiceNumber} (${payment.invoice.shipment.trackingNumber})`
               : "Customer deposit"
-          }: payment details corrected (${changed.join(", ")}) — ${parsed.data.reason}`,
-          metadata: { before, after, changed, reason: parsed.data.reason },
+          }: payment details corrected (${changed.join(", ")})${
+            parsed.data.reason ? ` — ${parsed.data.reason}` : ""
+          }`,
+          metadata: { before, after, changed, reason: parsed.data.reason ?? null },
         },
         tx
       );
@@ -956,7 +966,8 @@ export async function changePaymentAmount(
         reason: z
           .string()
           .trim()
-          .min(3, "Say what was wrong with the record."),
+          .max(300, "Keep the note under 300 characters.")
+          .optional(),
       })
       .safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
@@ -1054,7 +1065,15 @@ export async function changePaymentAmount(
       .join(", ");
     const undo = new FormData();
     undo.set("paymentId", payment.id);
-    undo.set("reason", `${parsed.data.reason} — ${changeDescription}`);
+    /* The cancellation that a correction is built out of still says WHAT
+       changed, whether or not the desk typed anything. That sentence is the
+       one a reader of the register needs; the note is the optional half. */
+    undo.set(
+      "reason",
+      parsed.data.reason
+        ? `${parsed.data.reason} — ${changeDescription}`
+        : changeDescription
+    );
     const cancelled = await voidPayment(undefined, undo);
     if (!cancelled.ok) return cancelled as ActionResult<{ receiptNumber?: string }>;
 

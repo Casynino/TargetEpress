@@ -76,8 +76,7 @@ export function InvoiceVoid({
       <div className="flex flex-wrap items-center gap-2">
         <Input
           name="reason"
-          required
-          placeholder={t("Why is this bill being cancelled?")}
+          placeholder={t("Note (optional)")}
           className="h-11 min-w-[220px] flex-1 text-xs md:h-8"
         />
         <SubmitButton

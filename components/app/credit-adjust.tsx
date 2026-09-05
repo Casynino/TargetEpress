@@ -124,8 +124,7 @@ export function CreditAdjust({
 
       <Input
         name="reason"
-        required
-        placeholder={t("Why is the date moving?")}
+        placeholder={t("Note (optional)")}
         className="h-8 text-xs"
       />
 

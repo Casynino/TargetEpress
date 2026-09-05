@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { recordAudit } from "@/lib/audit";
+import { recordAudit, withNote } from "@/lib/audit";
 import {
   CREDIT_TERM_MAX,
   CREDIT_TERM_MIN,
@@ -443,7 +443,11 @@ export async function rejectCredit(
     const parsed = z
       .object({
         invoiceId: z.string().min(1),
-        note: z.string().trim().min(3, "Say why the credit is being refused."),
+        /* Optional. Refusing credit is a decision, and the decision itself
+           — who, when, which bill — is on the audit line whether or not
+           anybody types. Where a note IS left it reaches the desk that asked,
+           which is why it is worth offering. */
+        note: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
       })
       .safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
@@ -496,10 +500,10 @@ export async function rejectCredit(
           action: "credit.rejected",
           entity: "Invoice",
           entityId: invoice.id,
-          summary: `${invoice.invoiceNumber}: credit REFUSED — ${parsed.data.note}`,
+          summary: withNote(`${invoice.invoiceNumber}: credit REFUSED`, parsed.data.note),
           metadata: {
             tracking: invoice.shipment?.trackingNumber ?? null,
-            reason: parsed.data.note,
+            reason: parsed.data.note ?? null,
             requestedById: invoice.creditRequestedById,
           },
         },
@@ -655,7 +659,7 @@ export async function adjustCredit(
         dueDate: z.string().trim().optional(),
         /** 7, 14 or 30 — counted from today, not from the original grant. */
         termDays: z.coerce.number().int().optional(),
-        reason: z.string().trim().min(3, "Say why the due date is moving."),
+        reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
       })
       .safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
@@ -757,7 +761,9 @@ export async function adjustCredit(
           summary:
             `${invoice.invoiceNumber} (${invoice.customer.name}): credit due date ` +
             `${before ? before.toISOString().slice(0, 10) : "unset"} → ${nextDue.toISOString().slice(0, 10)}` +
-            ` on USD ${owing.toFixed(2)} — ${parsed.data.reason}`,
+            ` on USD ${owing.toFixed(2)}${
+              parsed.data.reason ? ` — ${parsed.data.reason}` : ""
+            }`,
           metadata: {
             tracking: invoice.shipment?.trackingNumber ?? null,
             fromDueDate: before ? before.toISOString() : null,
@@ -765,7 +771,7 @@ export async function adjustCredit(
             termDays,
             outstandingUsd: owing,
             extending,
-            reason: parsed.data.reason,
+            reason: parsed.data.reason ?? null,
           },
         },
         tx

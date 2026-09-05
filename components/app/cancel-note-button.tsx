@@ -34,11 +34,7 @@ export function CancelNoteButton({ noteId }: { noteId: string }) {
   return (
     <form action={action} className="w-full space-y-2">
       <input type="hidden" name="noteId" value={noteId} />
-      <Input
-        name="reason"
-        placeholder={t("Why is it being cancelled?")}
-        required
-      />
+      <Input name="reason" placeholder={t("Note (optional)")} />
       <FormError state={state} />
       <div className="flex gap-2">
         <SubmitButton

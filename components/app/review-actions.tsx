@@ -49,7 +49,15 @@ const VERDICTS: Record<
     icon: LucideIcon;
     tone: string;
     solid: string;
-    /** A verdict with no words is refused by the action; say so up here. */
+    /**
+     * Whether the box is worth filling in.
+     *
+     * It used to mean "the action refuses this without words". Nothing is
+     * refused for want of an explanation any more — warn, confirm, do — but
+     * a send-back with nothing in it gives the desk on the other end nothing
+     * to act on, so those prompts still ask plainly while the empty ones say
+     * so.
+     */
     needsWords: boolean;
   }
 > = {
@@ -256,13 +264,16 @@ export function ReviewActions({
           <div className="mt-3 space-y-1.5">
             <Label htmlFor={`reason-${open}`}>
               {t(chosen.prompt)}
-              {chosen.needsWords ? <span className="ml-1 text-destructive">*</span> : null}
+              {chosen.needsWords ? (
+                <span className="ml-1 text-muted-foreground">
+                  {t("(optional)")}
+                </span>
+              ) : null}
             </Label>
             <Textarea
               id={`reason-${open}`}
               name="reason"
               rows={3}
-              required={chosen.needsWords}
               placeholder={t(
                 open === "SENT_BACK"
                   ? "e.g. The amount does not match the bank slip — 2,700,000 on the slip, 2,070,000 here."

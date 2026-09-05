@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { recordAudit } from "@/lib/audit";
+import { recordAudit, withNote } from "@/lib/audit";
 import { t } from "@/lib/i18n";
 import { packageProgress, resolveScannedCode } from "@/lib/packages";
 import { findPickupLock, pickupLockMessage } from "@/lib/pickup-lock";
@@ -70,7 +70,8 @@ export async function undoRelease(
   const reason = String(formData.get("reason") ?? "").trim();
   if (!shipmentId) return fail(t(locale, "Missing cargo."));
   if (reason.length < 4) {
-    return fail(t(locale, "Say why this handover is being taken back."));
+    /* Nothing asked. Taking a handover back is loud enough on its own: the
+       cargo goes back on the shelf and the audit line names who did it. */
   }
 
   try {
@@ -127,7 +128,7 @@ export async function undoRelease(
           fromStatus: "DELIVERED",
           toStatus: "READY_FOR_PICKUP",
           location: "Dar es Salaam warehouse",
-          note: `Handover taken back: ${reason}`,
+          note: reason ? `Handover taken back: ${reason}` : "Handover taken back",
           actorId: user.id,
         },
       });
@@ -138,7 +139,7 @@ export async function undoRelease(
           action: "shipment.releaseUndone",
           entity: "Shipment",
           entityId: shipment.id,
-          summary: `Took back the handover of ${shipment.trackingNumber} — ${reason}`,
+          summary: withNote(`Took back the handover of ${shipment.trackingNumber}`, reason),
           /* Everything the deleted record said, kept here instead. */
           metadata: {
             reason,

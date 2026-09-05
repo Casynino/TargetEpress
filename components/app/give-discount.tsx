@@ -192,11 +192,12 @@ export function GiveDiscount({
             : ""}
         </p>
       ) : null}
+      {/* Offered, not demanded. The figure before, the figure after and the
+          name of whoever gave it are all on the audit line already. */}
       <Input
         name="reason"
-        placeholder={t("Why — agreed with the customer, damaged goods…")}
+        placeholder={t("Note (optional) — agreed with the customer, damaged goods…")}
         className="h-8 text-xs"
-        required
       />
       <FormError state={state} />
       <div className="flex items-center gap-2">

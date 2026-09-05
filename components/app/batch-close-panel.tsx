@@ -282,12 +282,10 @@ export function BatchClosePanel({ state }: { state: BatchCloseState }) {
             <div className="flex flex-wrap items-end gap-2">
               <label className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="text-[11px] text-muted-foreground">
-                  {t("Why is it being reopened")}
+                  {t("Note (optional)")}
                 </span>
                 <Input
                   name="reason"
-                  required
-                  minLength={4}
                   placeholder={t("A late customs receipt, a payment that arrived")}
                   className="h-9 text-sm"
                 />

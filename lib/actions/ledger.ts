@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { recordAudit } from "@/lib/audit";
+import { recordAudit, withNote } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { postLedgerEntry } from "@/lib/ledger";
@@ -33,7 +33,10 @@ import { firstError } from "@/lib/validation";
  */
 const schema = z.object({
   entryId: z.string().min(1),
-  reason: z.string().trim().min(3, "Say why this is being cancelled."),
+  /* Optional. Warn, confirm, do — the reversing line names the entry it
+     cancels and the audit line names who cancelled it and when, which is the
+     part anybody reading the register afterwards actually needs. */
+  reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
 });
 
 export async function cancelLedgerEntry(
@@ -81,7 +84,10 @@ export async function cancelLedgerEntry(
         /* Dated today, not on the original day. The money comes back now;
            backdating it would silently rewrite a month somebody has closed. */
         occurredAt: new Date(),
-        description: `${t(locale, "Cancels")} ${entry.entryNumber} — ${parsed.data.reason}`,
+        description: withNote(
+          `${t(locale, "Cancels")} ${entry.entryNumber}`,
+          parsed.data.reason
+        ),
         sourceEntity: entry.sourceEntity,
         sourceId: entry.sourceId,
         recordedById: user.id,
@@ -94,14 +100,14 @@ export async function cancelLedgerEntry(
           action: "ledger.cancel",
           entity: "LedgerEntry",
           entityId: entry.id,
-          summary: `${entry.entryNumber} cancelled — ${parsed.data.reason}`,
+          summary: withNote(`${entry.entryNumber} cancelled`, parsed.data.reason),
           metadata: {
             entryNumber: entry.entryNumber,
             account: entry.account.name,
             amount: toNumber(entry.amount),
             currency: entry.currency,
             direction: entry.direction,
-            reason: parsed.data.reason,
+            reason: parsed.data.reason ?? null,
           },
         },
         tx

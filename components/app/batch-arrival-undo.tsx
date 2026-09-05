@@ -80,13 +80,13 @@ export function BatchArrivalUndo({
 
           <div className="space-y-1.5">
             <Label htmlFor="undoArrivalReason">
-              {t("Why is it going back in the air?")}
+              {t("Note")}{" "}
+              <span className="text-muted-foreground">{t("(optional)")}</span>
             </Label>
             <Textarea
               id="undoArrivalReason"
               name="reason"
               rows={2}
-              required
               placeholder={t("e.g. Marked in by mistake — the plane has not landed")}
             />
             <p className="text-xs text-muted-foreground">

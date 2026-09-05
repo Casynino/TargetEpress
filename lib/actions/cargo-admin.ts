@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { recordAudit } from "@/lib/audit";
+import { recordAudit, withNote } from "@/lib/audit";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { canAmendCargo, cargoCustody } from "@/lib/rbac";
@@ -14,11 +14,15 @@ import { fail, ok, toActionError, type ActionResult } from "@/lib/actions/types"
 /**
  * Deleting and restoring cargo.
  *
- * Nothing is ever destroyed. A delete sets a timestamp, a person and a reason;
- * the row, its photos and its whole status history stay exactly where they were.
- * That is deliberate: the most common reason to delete is a duplicate entry, and
- * the second most common is a mistake — neither should be able to take the
- * evidence with it.
+ * Nothing is ever destroyed. A delete sets a timestamp and a person; the row,
+ * its photos and its whole status history stay exactly where they were. That is
+ * deliberate: the most common reason to delete is a duplicate entry, and the
+ * second most common is a mistake — neither should be able to take the evidence
+ * with it.
+ *
+ * A note may be left and usually is not. It was compulsory, and the box was
+ * answered with "duplicate" often enough that requiring it bought nothing the
+ * timestamp and the name did not already say.
  *
  * A restore is the same operation backwards, and is equally audited.
  */
@@ -34,8 +38,8 @@ const deleteSchema = z.object({
   reason: z
     .string()
     .trim()
-    .min(4, "Say why this is being deleted — it is kept on the record.")
-    .max(500),
+    .max(500, "Keep the note under 500 characters.")
+    .optional(),
 });
 
 export async function deleteCargo(
@@ -113,7 +117,7 @@ export async function deleteCargo(
         data: {
           deletedAt: new Date(),
           deletedById: user.id,
-          deleteReason: input.reason,
+          deleteReason: input.reason || null,
         },
       });
 
@@ -123,7 +127,7 @@ export async function deleteCargo(
           action: "cargo.delete",
           entity: "Shipment",
           entityId: cargo.id,
-          summary: `Deleted ${cargo.trackingNumber} — ${input.reason}`,
+          summary: withNote(`Deleted ${cargo.trackingNumber}`, input.reason),
           // The state at the moment of deletion, so the record can be read
           // without reconstructing it from a dozen other tables.
           metadata: {
@@ -133,7 +137,7 @@ export async function deleteCargo(
             weightKg: cargo.weightKg.toString(),
             status: cargo.status,
             photosPreserved: cargo._count.photos,
-            reason: input.reason,
+            reason: input.reason ?? null,
           },
         },
         tx

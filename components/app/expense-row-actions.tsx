@@ -73,9 +73,7 @@ export function ExpenseRowActions({
         <input type="hidden" name="expenseId" value={expenseId} />
         <Input
           name="reason"
-          required
-          minLength={3}
-          placeholder={t("Why is this being reversed?")}
+          placeholder={t("Note (optional)")}
           className="h-8 w-56 text-xs"
         />
         <SubmitButton size="sm" variant="signal" pendingLabel={t("Reversing…")}>
@@ -136,9 +134,8 @@ export function ExpenseRowActions({
           <input type="hidden" name="expenseId" value={expenseId} />
           <Input
             name="reason"
-            placeholder={t("Why is this being cancelled?")}
+            placeholder={t("Note (optional)")}
             className="h-8 w-auto min-w-[12rem] text-xs"
-            required
           />
           <SubmitButton size="sm" variant="destructive" pendingLabel="Cancelling…">
             {t("Confirm")}

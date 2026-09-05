@@ -204,9 +204,20 @@ export const discountSchema = z.object({
      figure is shillings and the server converts it at the rate frozen on each
      bill; anything else means it is already in the bill's own currency. */
   discountIn: z.enum(["invoice", "local"]).optional(),
-  /* Required, because money given away with no reason against it is the thing
-     nobody can answer for a year later. */
-  reason: z.string().trim().min(3, "Say why the discount is being given."),
+  /*
+    OPTIONAL, ON THE OWNER'S RULE.
+
+    It was compulsory on the argument that money given away with nothing
+    against it is what nobody can answer for a year later. In practice the box
+    was answered with "discount" and "ok" — a required field that is always
+    filled in with nothing is not a record, it is a keystroke.
+
+    The audit line still carries who, when, which bill, the figure before and
+    the figure after. That is the answer to "who did this", and it is written
+    whether or not anybody types here. The note is for the times there is
+    genuinely something to say.
+  */
+  reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
 });
 
 /**
@@ -219,7 +230,9 @@ export const invoiceRateSchema = z.object({
   /** One id, or several comma-separated — the rate lands on each of them. */
   invoiceId: z.string().min(1),
   exchangeRate: numeric("Exchange rate", { min: 100, max: 100_000 }),
-  reason: z.string().trim().min(3, "Say why the rate is being changed."),
+  /* Optional — see discountSchema above. The rate before and the rate after
+     are both on the audit line, which is the fact anybody checking wants. */
+  reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
 });
 
 export const customerPaymentSchema = z.object({

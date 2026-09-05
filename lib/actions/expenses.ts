@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { recordAudit } from "@/lib/audit";
+import { recordAudit, withNote } from "@/lib/audit";
 import { toNumber } from "@/lib/format";
 import {
   EXPENSE_CATEGORIES as CATEGORIES,
@@ -476,7 +476,9 @@ export async function voidExpense(
   const id = String(formData.get("expenseId") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
   if (!id) return fail("Missing expense.");
-  if (reason.length < 3) return fail("Say why this is being cancelled.");
+  /* No question asked. Warn, confirm, do — the cancellation names the cost,
+     the person and the moment, which is what a reader needs; a note is taken
+     when there is one. */
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -493,7 +495,7 @@ export async function voidExpense(
          this refuses rather than stamping VOID over money that really left. */
       const claimed = await tx.expense.updateMany({
         where: { id, status: { in: ["PENDING", "APPROVED"] } },
-        data: { status: "VOID", voidedAt: new Date(), voidReason: reason },
+        data: { status: "VOID", voidedAt: new Date(), voidReason: reason || null },
       });
       if (claimed.count === 0) {
         throw new Error(
@@ -507,7 +509,7 @@ export async function voidExpense(
           action: "expense.void",
           entity: "Expense",
           entityId: id,
-          summary: `Cancelled ${expense.expenseNumber}: ${reason}`,
+          summary: withNote(`Cancelled ${expense.expenseNumber}`, reason),
         },
         tx
       );
@@ -570,9 +572,10 @@ const editSchema = z.object({
       (d) => d === null || d.getTime() <= Date.now() + 86_400_000,
       "A cost cannot be dated in the future."
     ),
-  /// Not optional. A correction without a reason is indistinguishable from a
-  /// mistake, six months later, to the person trying to understand the books.
-  reason: z.string().trim().min(3, "Say why this is being corrected."),
+  /// Optional, on the owner's rule: warn, confirm, do. Every field that
+  /// changed is written to the audit line with its value before and after, so
+  /// a correction explains itself without anybody typing a word.
+  reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
 });
 
 /** Human labels, so the history reads as English rather than as column names. */
@@ -824,7 +827,7 @@ export async function editExpense(
           amountUsd: toNumber(live.amountUsd),
           exchangeRate: live.exchangeRate === null ? null : toNumber(live.exchangeRate),
           occurredAt: paidAt,
-          description: `Correction of ${before.expenseNumber} — ${input.reason}`,
+          description: withNote(`Correction of ${before.expenseNumber}`, input.reason),
           sourceEntity: "Expense",
           sourceId: before.id,
           /* LedgerEntry.expenseId is unique — one line per cost is what makes
@@ -874,8 +877,8 @@ export async function editExpense(
           entityId: before.id,
           summary: `Corrected ${before.expenseNumber}: ${changes
             .map((c) => `${c.field} ${c.before ?? "—"} → ${c.after ?? "—"}`)
-            .join("; ")} — ${input.reason}`,
-          metadata: { reason: input.reason, changes },
+            .join("; ")}${input.reason ? ` — ${input.reason}` : ""}`,
+          metadata: { reason: input.reason ?? null, changes },
         },
         tx
       );
@@ -893,7 +896,7 @@ export async function editExpense(
 
 const reverseSchema = z.object({
   expenseId: z.string().trim().min(1),
-  reason: z.string().trim().min(3, "Say why this is being reversed."),
+  reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
 });
 
 /**
@@ -1012,7 +1015,7 @@ export async function reverseExpense(
         exchangeRate:
           live.exchangeRate === null ? null : toNumber(live.exchangeRate),
         occurredAt,
-        description: `Reversal of ${expense.expenseNumber} — ${reason}`,
+        description: withNote(`Reversal of ${expense.expenseNumber}`, reason),
         sourceEntity: "Expense",
         sourceId: expense.id,
         /*
@@ -1040,7 +1043,7 @@ export async function reverseExpense(
           action: "expense.reverse",
           entity: "Expense",
           entityId: expense.id,
-          summary: `Reversed ${expense.expenseNumber} — ${reason}`,
+          summary: withNote(`Reversed ${expense.expenseNumber}`, reason),
           metadata: {
             reason,
             /* The figure actually taken off the account — the corrected one

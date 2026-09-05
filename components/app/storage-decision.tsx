@@ -138,12 +138,12 @@ export function StorageDecision({
                 htmlFor={`waive-${invoiceId}`}
                 className="block text-xs font-medium"
               >
-                {t("Why is the fee being waived?")}
+                {t("Note")}{" "}
+                <span className="text-muted-foreground">{t("(optional)")}</span>
               </label>
               <Input
                 id={`waive-${invoiceId}`}
                 name="reason"
-                required
                 placeholder={t("Customer consideration, our delay, goodwill…")}
                 className="h-11 text-sm sm:h-9"
               />

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { recordAudit } from "@/lib/audit";
+import { recordAudit, withNote } from "@/lib/audit";
 import { STORAGE_POLICY, storageStatus } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { toLocal } from "@/lib/fx";
@@ -362,7 +362,9 @@ export async function waiveStorageFee(
         /* One bill, or the comma-separated set ticked on the merge screen —
            the same shape the discount and the rate take. */
         invoiceId: z.string().min(1),
-        reason: z.string().trim().min(3, "Say why the fee is being waived."),
+        /* Optional — warn, confirm, do. The figure waived, the bill and the
+           person are all on the audit line without it. */
+        reason: z.string().trim().max(300, "Keep the note under 300 characters.").optional(),
       })
       .safeParse(Object.fromEntries(formData));
     if (!parsed.success) return fail(t(locale, firstError(parsed.error)));
@@ -423,7 +425,8 @@ export async function waiveStorageFee(
  */
 async function waiveOne(
   found: NonNullable<Awaited<ReturnType<typeof currentStorage>>>,
-  reason: string,
+  /** Optional — see the schema. Absent is the ordinary case. */
+  reason: string | undefined,
   user: SessionUser,
   locale: Locale
 ): Promise<ActionResult | null> {
@@ -528,7 +531,10 @@ async function waiveOne(
           action: "storage.waived",
           entity: "Invoice",
           entityId: invoice.id,
-          summary: `${invoice.invoiceNumber}: storage fee of USD ${waived.toFixed(2)} waived — ${reason}`,
+          summary: withNote(
+            `${invoice.invoiceNumber}: storage fee of USD ${waived.toFixed(2)} waived`,
+            reason
+          ),
           metadata: {
             tracking: invoice.shipment?.trackingNumber ?? null,
             daysInWarehouse: status.daysInWarehouse,

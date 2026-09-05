@@ -75,13 +75,13 @@ export function ReleaseUndo({
 
           <div className="space-y-1.5">
             <Label htmlFor="undoReleaseReason">
-              {t("Why is the handover being taken back?")}
+              {t("Note")}{" "}
+              <span className="text-muted-foreground">{t("(optional)")}</span>
             </Label>
             <Textarea
               id="undoReleaseReason"
               name="reason"
               rows={2}
-              required
               placeholder={t("e.g. Released by mistake — the cargo is still on the shelf")}
             />
           </div>

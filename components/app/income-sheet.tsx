@@ -597,12 +597,10 @@ export function IncomeSheetTable({
                       <input type="hidden" name="batchId" value={row.batchId} />
                       <label className="flex min-w-0 flex-1 flex-col gap-1">
                         <span className="text-[11px] text-muted-foreground">
-                          {t("Why is it being reopened")}
+                          {t("Note (optional)")}
                         </span>
                         <Input
                           name="reason"
-                          required
-                          minLength={4}
                           placeholder={t("A customs receipt turned up late")}
                           className="h-9 bg-card text-sm"
                         />
