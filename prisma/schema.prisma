@@ -1604,6 +1604,27 @@ model Payment {
   accountId String?
   account   CompanyAccount? @relation(fields: [accountId], references: [id], onDelete: Restrict)
 
+  /// THE TRANSPORT HALF OF WHAT THE CUSTOMER SENT.
+  ///
+  /// A customer settling a consignment often sends the freight and the
+  /// delivery in one transfer: 80,000 for the cargo and 20,000 to have it
+  /// brought to them. `amount` stays the whole 100,000, because that is what
+  /// they sent and the receipt has to say so. This is the part that was never
+  /// the company's — it goes on to whoever drives — so it is kept out of the
+  /// invoice allocation, out of revenue, and out of the credit a customer can
+  /// spend on another bill.
+  ///
+  /// Zero on every payment raised before this existed, which is all of them.
+  transportAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Which account the transport half is settled out of — Cash or the Lipa
+  /// number — chosen by the desk and deliberately NOT forced to match the
+  /// account the customer paid into. They can pay by bank while the driver is
+  /// handed cash from the till.
+  transportSourceId String?
+  transportSource   CompanyAccount? @relation("TransportSettledFrom", fields: [transportSourceId], references: [id], onDelete: Restrict)
+
+
   receivedById String?
   receivedBy   User?    @relation(fields: [receivedById], references: [id], onDelete: SetNull)
   paidAt       DateTime @default(now())
@@ -1645,7 +1666,8 @@ model Payment {
   createdAt DateTime @default(now())
 
   receipt     Receipt?
-  ledgerEntry LedgerEntry?
+  /// Two at most: the money in, and the transport settled out.
+  ledgerEntries LedgerEntry[]
   /// The Support submission that produced this, when one did. Null for a
   /// payment Finance recorded at the counter themselves.
   submission  PaymentSubmission?
@@ -2515,6 +2537,8 @@ model CompanyAccount {
   compensations   Compensation[]          @relation("CompensationPaidFrom")
 
   @@index([active, sortOrder])
+  /// Payments whose transport half was settled out of this account.
+  transportSettlements Payment[] @relation("TransportSettledFrom")
 }
 
 enum LedgerDirection {
@@ -2529,6 +2553,13 @@ enum LedgerKind {
   COMPENSATION
   TRANSFER_IN
   TRANSFER_OUT
+  /// The transport half of a customer payment, settled out to whoever does the
+  /// delivery. Its own kind because it is neither income nor an expense: the
+  /// company received it with the cargo money and passes it straight on, so it
+  /// must not reach revenue, must not reach profit, and must not be netted
+  /// against CUSTOMER_PAYMENT when the register is reconciled against what
+  /// customers actually sent.
+  TRANSPORT_OUT
   ADJUSTMENT
   /**
    * Kept for one historical row, not because the feature still exists.
@@ -2585,7 +2616,16 @@ model LedgerEntry {
 
   /// Typed link to the source, one per kind. Unique, so a double-write is a
   /// database error rather than a quietly duplicated line in the register.
-  paymentId  String?          @unique
+  ///
+  /// A PAYMENT MAY NOW WRITE TWO LEGS, so this is the pair below rather than
+  /// the column. A customer who pays for cargo and transport in one transfer
+  /// sends one amount into one account — that is the IN leg, and it stays the
+  /// whole figure the customer actually sent. The transport half is then
+  /// settled out of Cash or Lipa, which is a second movement of the company's
+  /// own money and belongs on the account it left. Same shape a transfer has
+  /// always had, and the same reason: two legs, one source row, the database
+  /// refusing a third.
+  paymentId  String?
   payment    Payment?         @relation(fields: [paymentId], references: [id], onDelete: Restrict)
   expenseId  String?          @unique
   expense    Expense?         @relation(fields: [expenseId], references: [id], onDelete: Restrict)
@@ -2605,6 +2645,8 @@ model LedgerEntry {
   /// Exactly one OUT leg and one IN leg per transfer, enforced by the database
   /// rather than by remembering.
   @@unique([transferId, direction])
+  /// And the same for a payment: the money in, and the transport settled out.
+  @@unique([paymentId, direction])
   @@index([accountId, occurredAt])
   @@index([occurredAt])
   @@index([kind])

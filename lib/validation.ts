@@ -268,6 +268,22 @@ export const customerPaymentSchema = z.object({
 export const paymentSchema = z.object({
   invoiceId: z.string().min(1),
   amount: numeric("Amount", { min: 0.01 }),
+  /*
+    THE TRANSPORT HALF OF WHAT WAS HANDED OVER.
+
+    `amount` stays the whole figure the customer sent — that is what the
+    receipt says and what the account received. This is the part of it that
+    was never the company's: the delivery, passed on to whoever drives. It
+    comes off the cargo before the bill is settled, and it is settled out of
+    whichever account the desk names below.
+
+    Optional and zero by default: almost every payment has no transport, and
+    the form does not ask unless the desk opens it.
+  */
+  transport: numeric("Transport", { min: 0 }).optional(),
+  /* Cash or the Lipa number — deliberately not forced to match the account
+     the customer paid into. */
+  transportSourceId: z.string().trim().optional(),
   /**
    * What the customer actually handed over. A bill in USD is routinely settled
    * in shillings at the counter, and recording it as USD would put a figure on

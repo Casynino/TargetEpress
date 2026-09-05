@@ -208,7 +208,12 @@ export async function voidPayment(
           voidedAt: true,
           paidAt: true,
           receipt: { select: { receiptNumber: true } },
-          ledgerEntry: {
+          /* The money-in leg. A payment may also carry a transport leg going
+             the other way, and a correction to what the customer paid is a
+             correction to what came in. */
+          ledgerEntries: {
+            where: { direction: "IN" },
+            take: 1,
             select: {
               id: true,
               entryNumber: true,
@@ -325,9 +330,19 @@ export async function voidPayment(
         So the search is for any un-reversed IN line belonging to this payment,
         by either linkage.
       */
-      const live = await tx.ledgerEntry.findFirst({
+      /*
+        EVERY LEG THIS PAYMENT PUT ON THE REGISTER, NOT JUST THE MONEY IN.
+
+        A payment that carried transport moved two accounts: the customer's
+        money into one, and the transport half out of another. Reversing only
+        the first would leave the till permanently short by the transport and
+        a live line on the register answering to a cancelled payment.
+
+        Still `reversedBy: null, reversesId: null` — an already-answered line
+        needs no second answer, and a reversing line is not itself reversed.
+      */
+      const legs = await tx.ledgerEntry.findMany({
         where: {
-          direction: "IN",
           reversedBy: null,
           reversesId: null,
           OR: [
@@ -350,8 +365,7 @@ export async function voidPayment(
           sourceId: true,
         },
       });
-      if (live) {
-        const e = live;
+      for (const e of legs) {
         await postLedgerEntry(tx, {
           accountId: e.accountId,
           currency: e.currency,
@@ -371,7 +385,9 @@ export async function voidPayment(
           recordedById: user.id,
           reversesId: e.id,
         });
-        reversedEntry = e.entryNumber;
+        /* The money-in leg is the one the desk is told about; the transport
+           reversal rides with it and needs no separate sentence. */
+        if (e.direction === "IN") reversedEntry = e.entryNumber;
       }
 
       /*

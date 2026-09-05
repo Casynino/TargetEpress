@@ -75,8 +75,16 @@ export default async function PaymentDetailPage({
         orderBy: { createdAt: "asc" },
         include: { uploadedBy: { select: { name: true } } },
       },
-      ledgerEntry: {
+      /* Both legs: what came in, and the transport settled out of another
+         account. The page shows each — a payment that moved two accounts and
+         named one of them is a payment nobody can follow. */
+      ledgerEntries: {
+        orderBy: { direction: "asc" },
         select: {
+          direction: true,
+          kind: true,
+          amount: true,
+          currency: true,
           entryNumber: true,
           accountId: true,
           /* Whether this movement has already been answered — a reversed line
@@ -153,13 +161,25 @@ export default async function PaymentDetailPage({
     { label: t(locale, "When"), value: formatDateTime(payment.paidAt, locale) },
     {
       label: t(locale, "Ledger line"),
-      value: payment.ledgerEntry ? (
-        <Link
-          href={`/app/finance/transactions?account=${payment.ledgerEntry.accountId}`}
-          className="font-mono text-xs hover:text-brand"
-        >
-          {payment.ledgerEntry.entryNumber}
-        </Link>
+      value: payment.ledgerEntries.length > 0 ? (
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {payment.ledgerEntries.map((line) => (
+            <Link
+              key={line.entryNumber}
+              href={`/app/finance/transactions?account=${line.accountId}`}
+              className="font-mono text-xs hover:text-brand"
+            >
+              {line.entryNumber}
+              {/* Named, because one of these is the customer's money arriving
+                  and the other is the transport going out again. */}
+              {line.kind === "TRANSPORT_OUT" ? (
+                <span className="ml-1 font-sans text-[10px] text-muted-foreground">
+                  {t(locale, "transport")}
+                </span>
+              ) : null}
+            </Link>
+          ))}
+        </span>
       ) : (
         <span className="text-warning">
           {t(locale, "none — no account was named")}

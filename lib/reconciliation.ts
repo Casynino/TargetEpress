@@ -232,7 +232,17 @@ export async function reconciliation(locale: Locale = "en") {
       >`
         SELECT
           COUNT(*)::int AS "taken",
-          COALESCE(SUM(COALESCE("creditedAmount", "amount")), 0) AS "collected",
+          /*
+            WHAT THE BILLS TOOK, PLUS WHAT WAS ONLY PASSING THROUGH.
+
+            creditedAmount is the cargo half — what actually settled a bill.
+            The transport half arrived in the same transfer and left again for
+            whoever drove, so the account received it and no bill records it.
+            Both sides of this check have to count it or the register and the
+            bills disagree by exactly the transport, every day, for ever.
+          */
+          COALESCE(SUM(COALESCE("creditedAmount", "amount")), 0)
+            + COALESCE(SUM("transportAmount"), 0) AS "collected",
           COUNT(*) FILTER (WHERE NOT EXISTS (
             SELECT 1 FROM "LedgerEntry" l
             WHERE l."paymentId" = "Payment"."id" AND l."kind" = 'CUSTOMER_PAYMENT'
@@ -403,8 +413,13 @@ export async function reconciliation(locale: Locale = "en") {
     {
       key: "collected",
       label: "Money collected",
-      question: "The bills say this much came in. The accounts should say the same.",
-      left: { label: "Settled against bills", value: usd(collectedUsd), usd: collectedUsd },
+      question:
+        "What the bills took, plus the transport passed straight on. The accounts should say the same.",
+      left: {
+        label: "Settled against bills, with transport",
+        value: usd(collectedUsd),
+        usd: collectedUsd,
+      },
       right: { label: "Received into accounts", value: usd(ledgerUsd), usd: ledgerUsd },
       difference: Math.abs(collectedUsd - ledgerUsd),
       ok: near(collectedUsd, ledgerUsd),

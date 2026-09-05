@@ -13,6 +13,7 @@ import { useT } from "@/components/app/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
+import { MoneyInput } from "@/components/ui/money-input";
 import { submitPaymentForVerification } from "@/lib/actions/collections";
 import {
   billableQueue,
@@ -130,6 +131,9 @@ export function RecordIncome({
   const [queue, setQueue] = useState<BillableHit[]>([]);
   const [batches, setBatches] = useState<BillableBatch[]>([]);
   const [batchId, setBatchId] = useState<string>("");
+  /* The delivery half of what was handed over, and where it is paid from. */
+  const [transport, setTransport] = useState("");
+  const [transportSourceId, setTransportSourceId] = useState("");
   /*
     THE OTHER QUESTION THIS LIST IS ASKED.
 
@@ -612,6 +616,58 @@ export function RecordIncome({
                   ))}
               </NativeSelect>
             </label>
+
+            {/*
+              THE DELIVERY, INSIDE THE SAME TRANSFER.
+
+              A customer settling a consignment often sends the freight and the
+              delivery together. The figure above stays whole — it is what they
+              sent and what the receipt says — and this is the part of it that
+              was never the company's, so it comes off the cargo before the
+              bill is settled and goes back out of whichever account the driver
+              is paid from.
+
+              Its own account on purpose: they can pay by bank while the driver
+              is handed cash from the till.
+            */}
+            <label className="flex flex-col gap-1">
+              <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                {t("Of that, transport")}
+              </span>
+              <MoneyInput
+                name="transport"
+                value={transport}
+                onValueChange={setTransport}
+                decimals={tendered === "TZS" ? 0 : 2}
+                placeholder="0"
+                className="w-28 bg-card"
+              />
+            </label>
+            {Number(transport) > 0 ? (
+              <label className="flex flex-col gap-1">
+                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                  {t("Transport settled from")}
+                </span>
+                <NativeSelect
+                  name="transportSourceId"
+                  required
+                  value={transportSourceId}
+                  onChange={(event) => setTransportSourceId(event.target.value)}
+                  className="w-52 bg-card"
+                >
+                  <option value="" disabled>
+                    {t("Choose the account")}
+                  </option>
+                  {accounts
+                    .filter((a) => a.currency === tendered)
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                </NativeSelect>
+              </label>
+            ) : null}
 
             {/*
               Proof, and nothing else to type.

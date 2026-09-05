@@ -43,6 +43,11 @@ import type { SessionUser } from "@/lib/session";
  */
 function spareOf(payment: {
   amount: Prisma.Decimal;
+  /* The half of `amount` that was never the company's and has already gone out
+     to whoever drove. Spending it on another bill would be spending it twice —
+     the payment looks like it has 20,000 left over precisely because that
+     20,000 has already left the till. */
+  transportAmount: Prisma.Decimal;
   currency: string;
   allocations: {
     amount: Prisma.Decimal;
@@ -63,11 +68,16 @@ function spareOf(payment: {
     spent +=
       payment.currency === LOCAL_CURRENCY ? settled * frozen : settled / frozen;
   }
-  return Math.max(0, toNumber(payment.amount) - spent);
+  return Math.max(
+    0,
+    toNumber(payment.amount) - toNumber(payment.transportAmount) - spent
+  );
 }
 
 const CREDIT_SELECT = {
   id: true,
+  /* Read because spareOf subtracts it — see the note there. */
+  transportAmount: true,
   amount: true,
   currency: true,
   receipt: { select: { receiptNumber: true } },

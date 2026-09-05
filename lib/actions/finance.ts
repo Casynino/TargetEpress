@@ -1641,7 +1641,25 @@ export async function recordPayment(
       const invoiceRate =
         invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate);
 
-      let credited = input.amount;
+      /*
+        WHAT THE CUSTOMER SENT, AND WHAT OF IT WAS THE COMPANY'S.
+
+        `input.amount` is the whole figure handed over and stays that way on
+        the payment and the receipt. The transport half was never the
+        company's — it goes on to whoever drives — so only the cargo half is
+        converted, compared against the bill and credited to it. A customer
+        who sends 100,000 against an 80,000 bill with 20,000 of transport has
+        paid in full and owes nothing, which is the whole point.
+      */
+      const transport = input.transport ?? 0;
+      if (transport > input.amount + 0.001) {
+        throw new Error(
+          `Transport of ${transport.toLocaleString()} is more than the ${input.amount.toLocaleString()} that came in.`
+        );
+      }
+      const cargoTendered = Math.round((input.amount - transport) * 100) / 100;
+
+      let credited = cargoTendered;
       let rateUsed: number | null = null;
 
       if (tenderedCurrency !== invoice.currency) {
@@ -1660,8 +1678,8 @@ export async function recordPayment(
         // in shillings.
         credited =
           tenderedCurrency === LOCAL_CURRENCY
-            ? input.amount / rateUsed
-            : input.amount * rateUsed;
+            ? cargoTendered / rateUsed
+            : cargoTendered * rateUsed;
         // Round to the cent the invoice is denominated in, or a payment meant
         // to settle a bill exactly leaves a fraction behind and the pickup
         // note never unlocks.
@@ -1674,8 +1692,41 @@ export async function recordPayment(
         throw new Error(
           tenderedCurrency === invoice.currency
             ? `That is more than the ${invoice.currency} ${outstanding.toLocaleString()} still outstanding.`
-            : `${tenderedCurrency} ${input.amount.toLocaleString()} is ${invoice.currency} ${credited.toLocaleString()} at this invoice's rate — more than the ${invoice.currency} ${outstanding.toLocaleString()} still outstanding.`
+            : `${tenderedCurrency} ${cargoTendered.toLocaleString()} of cargo is ${invoice.currency} ${credited.toLocaleString()} at this invoice's rate — more than the ${invoice.currency} ${outstanding.toLocaleString()} still outstanding.`
         );
+      }
+
+      /*
+        WHERE THE TRANSPORT HALF IS SETTLED FROM.
+
+        Required as soon as there is any, because a transport amount with
+        nowhere to come from is money that left no account — the register
+        would balance and the till would not. Deliberately not forced to match
+        the account the customer paid into: they can pay by bank while the
+        driver is handed cash.
+      */
+      let transportAccount: { id: string; name: string; currency: string } | null =
+        null;
+      if (transport > 0) {
+        if (!input.transportSourceId) {
+          throw new Error(
+            "Say which account the transport is settled from — the cash box or the Lipa number."
+          );
+        }
+        transportAccount = await tx.companyAccount.findUnique({
+          where: { id: input.transportSourceId },
+          select: { id: true, name: true, currency: true },
+        });
+        if (!transportAccount) {
+          throw new Error("That transport account no longer exists.");
+        }
+        /* The same refusal the receiving account makes: an account can only
+           give up money it is denominated in. */
+        if (transportAccount.currency !== tenderedCurrency) {
+          throw new Error(
+            `${transportAccount.name} is a ${transportAccount.currency} account, so ${tenderedCurrency} transport cannot be settled from it.`
+          );
+        }
       }
 
       // Where the money landed, if the desk said. Optional by design — see
@@ -1771,6 +1822,11 @@ export async function recordPayment(
           reference: input.reference || null,
           note: input.note || null,
           accountId: mustHaveAccount(account).id,
+          /* Recorded on the payment, not derived from the gap between what
+             came in and what the bill took — a payment can legitimately
+             overpay a bill, and the two must never be confused. */
+          transportAmount: new Prisma.Decimal(transport),
+          transportSourceId: transport > 0 ? transportAccount!.id : null,
           // Defaults to now in the schema when the desk leaves it blank.
           ...(input.paidAt ? { paidAt: input.paidAt } : {}),
           receivedById: user.id,
@@ -1848,6 +1904,48 @@ export async function recordPayment(
           exchangeRate: rateUsed,
           occurredAt: input.paidAt ?? payment.paidAt,
           description: `${receipt.receiptNumber} — ${invoice.invoiceNumber} for ${invoice.shipment.trackingNumber}`,
+          sourceEntity: "Payment",
+          sourceId: payment.id,
+          paymentId: payment.id,
+          recordedById: user.id,
+        });
+      }
+
+      /*
+        THE TRANSPORT, GOING BACK OUT.
+
+        The customer's whole 100,000 landed in the account above — that is the
+        IN leg and it says what they sent. This is the 20,000 of it that was
+        never the company's, leaving whichever account the desk named, on its
+        way to whoever drives.
+
+        Its own kind, TRANSPORT_OUT, so it is never mistaken for income, for
+        an expense, or for a customer payment being netted off in
+        reconciliation. Its own leg, so the account it left is the account the
+        register shows it leaving.
+
+        Written even when the customer's own account was not named — the two
+        are independent decisions, and transport that left the till is a fact
+        whether or not the desk said where the money arrived.
+      */
+      if (transport > 0 && transportAccount) {
+        const transportUsd =
+          tenderedCurrency === "USD"
+            ? transport
+            : rateUsed ?? invoiceRate
+              ? transport / (rateUsed ?? invoiceRate)!
+              : transport;
+
+        await postLedgerEntry(tx, {
+          accountId: transportAccount.id,
+          currency: transportAccount.currency,
+          direction: "OUT",
+          kind: "TRANSPORT_OUT",
+          amount: transport,
+          amountUsd: transportUsd,
+          exchangeRate: rateUsed,
+          occurredAt: input.paidAt ?? payment.paidAt,
+          description: `${receipt.receiptNumber} — transport on ${invoice.shipment.trackingNumber}`,
           sourceEntity: "Payment",
           sourceId: payment.id,
           paymentId: payment.id,
