@@ -3353,6 +3353,7 @@ const ZH: Record<string, string> = {
   "to the bill": "用于账单",
   "Cargo plus transport": "货运费加运输费",
   "Cargo charge": "货运费",
+  "Who owes us money, what has gone to Finance, and what has come back.": "谁欠我们钱、哪些已交财务、哪些被退回。",
   "sent back, waiting on this desk": "已退回，等待本部门处理",
   "the same money, at today's rate": "同一笔款项，按今日汇率折算",
   "can be deleted": "可以删除",

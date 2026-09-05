@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { useT } from "@/components/app/locale-provider";
 import { cn } from "@/lib/utils";
@@ -68,14 +68,16 @@ const TABS: Tab[] = [
 ];
 
 export function CollectionsNav({
-  status,
   canVerify = false,
 }: {
-  status?: string;
   /** payment.verify — Finance and the CEO. Support collects and hands up. */
   canVerify?: boolean;
 }) {
   const pathname = usePathname();
+  /* Read here rather than passed in. This row is rendered by the workspace's
+     layout now, so that there is one of it and it cannot differ between tabs
+     — and a layout is never given searchParams. */
+  const status = useSearchParams().get("status") ?? undefined;
   const t = useT();
 
   return (

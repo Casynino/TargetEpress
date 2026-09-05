@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  Banknote,
   CalendarClock,
   Download,
   FileText,
@@ -10,15 +9,9 @@ import {
   Search,
 } from "lucide-react";
 
-import { AskForCredit, CreditOnRow } from "@/components/app/ask-for-credit";
-import { CollectionsNav } from "@/components/app/collections-nav";
-import { FinanceNav } from "@/components/app/finance-nav";
-import { financeTabs } from "@/lib/finance-tabs";
-import { PageHeader } from "@/components/app/page-header";
-import { Button } from "@/components/ui/button";
+import { CreditOnRow } from "@/components/app/ask-for-credit";
 import { RecordPaymentDialog } from "@/components/app/record-payment-dialog";
 import { IconHint } from "@/components/app/icon-hint";
-import { RecordIncome } from "@/components/app/record-income";
 import { SearchBox } from "@/components/app/search-box";
 import { Input } from "@/components/ui/input";
 import { activeAccounts } from "@/lib/accounts";
@@ -261,64 +254,6 @@ export default async function FollowUpPage({
 
   return (
     <>
-      <PageHeader
-        title="Payment follow-up"
-        description="Every customer who owes us money — bills nobody has paid and credit we released on terms. Newest arrivals first; sort and filter it however the job needs."
-        /* The action belongs on the page where the call happens: this IS the
-           list of people who might ring back to say they have paid. */
-        actions={
-          canTakePayments ? (
-            <>
-              {/* The customer who rings back to say they have paid often has
-                  three consignments and has sent one transfer for all of them.
-                  Settling those one at a time makes three receipts and three
-                  account movements for a deposit the bank shows once, so the
-                  way to do it properly belongs on the page where that call is
-                  answered. */}
-              <Button asChild variant="outline" size="sm">
-                <Link href="/app/finance/payments/new">
-                  <Banknote className="mr-2 h-4 w-4" />
-                  {t(locale, "Merge Payment")}
-                </Link>
-              </Button>
-              {/* Credit beside the two payment doors, because it is the third
-                  answer to the same phone call: they have paid, they are
-                  paying several at once, or they want time. */}
-              {canAskForCredit ? (
-                <AskForCredit rate={liveRate} canApprove={canDecideCredit} />
-              ) : null}
-              {/* ?record=1 opens the panel on arrival, so the sidebar's
-                  Record Payment row lands on the form rather than on a page
-                  with a button to press a second time. */}
-              <RecordIncome
-                accounts={payAccounts}
-                rate={liveRate}
-                canRecord={canBankIt}
-                autoOpen={record === "1"}
-              />
-            </>
-          ) : null
-        }
-      />
-      {/*
-        The finance tab row stays put.
-
-        Collections is a tab of Finance AND a workspace of its own, so opening
-        it used to swap the whole tab row out — and getting back to the ledger
-        or the overview meant going down to the sidebar. The owner called that
-        inconvenient and he is right: a tab that removes its own tab bar leaves
-        the reader with nowhere to go but back.
-
-        Two rows, but hierarchical rather than identical: where you are in
-        Finance, then where you are inside Collections. Only shown to a reader
-        who has the finance tabs at all — Support shares this workspace and
-        must not be given doors it cannot open.
-      */}
-      {can(user.role, "accounting.view") ? (
-        <FinanceNav tabs={financeTabs(user.role)} />
-      ) : null}
-
-      <CollectionsNav canVerify={can(user.role, "payment.verify")} />
 
       <div className="mb-4 overflow-hidden rounded-xl border bg-card shadow-soft">
         {/*

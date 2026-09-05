@@ -3,11 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Paperclip } from "lucide-react";
 
-import { CollectionsNav } from "@/components/app/collections-nav";
-import { FinanceNav } from "@/components/app/finance-nav";
-import { financeTabs } from "@/lib/finance-tabs";
 import { EmptyState } from "@/components/app/empty-state";
-import { PageHeader } from "@/components/app/page-header";
 import { SearchBox } from "@/components/app/search-box";
 import { SubmissionCorrection } from "@/components/app/submission-correction";
 import {
@@ -29,7 +25,24 @@ import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Submissions" };
+/*
+  The workspace first, the tab second.
+
+  The browser tab was the last place this page still announced itself as
+  somewhere else — "Submissions", a word on no screen in the app. It follows
+  the query because one route serves two tabs, and a window titled for the
+  wrong one is the same confusion in a smaller font.
+*/
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}): Promise<Metadata> {
+  const { status } = await searchParams;
+  const locale = await viewerLocale();
+  const tab = t(locale, status === "REJECTED" ? "Sent back" : "With Finance");
+  return { title: `${tab} · ${t(locale, "Payment follow-up")}` };
+}
 
 const FILTERS = [
   { key: "PENDING", label: "With Finance" },
@@ -195,39 +208,6 @@ export default async function SubmissionsPage({
 
   return (
     <>
-      <PageHeader
-        title={t(locale, "Collection history")}
-        description={
-          canVerify
-            ? t(
-                locale,
-                "What Customer Support has handed up, and what was decided. The customer's evidence stays attached to every one."
-              )
-            : t(
-                locale,
-                "What this desk has handed to Finance, and what they decided. The customer's evidence stays attached to every one."
-              )
-        }
-      />
-      {/*
-        The finance tab row stays put.
-
-        Collections is a tab of Finance AND a workspace of its own, so opening
-        it used to swap the whole tab row out — and getting back to the ledger
-        or the overview meant going down to the sidebar. The owner called that
-        inconvenient and he is right: a tab that removes its own tab bar leaves
-        the reader with nowhere to go but back.
-
-        Two rows, but hierarchical rather than identical: where you are in
-        Finance, then where you are inside Collections. Only shown to a reader
-        who has the finance tabs at all — Support shares this workspace and
-        must not be given doors it cannot open.
-      */}
-      {can(user.role, "accounting.view") ? (
-        <FinanceNav tabs={financeTabs(user.role)} />
-      ) : null}
-
-      <CollectionsNav status={active} canVerify={canVerify} />
 
       {/*
         The headline figure, not just a queue of rows to add up by eye.
