@@ -11,7 +11,7 @@ import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
-export const metadata: Metadata = { title: "Batches" };
+export const metadata: Metadata = { title: "Loading batches" };
 
 const ROUTE_LABEL: Record<string, string> = {
   GUANGZHOU: "Guangzhou Batch",
@@ -66,7 +66,7 @@ export default async function BatchesPage() {
   return (
     <>
       <PageHeader
-        title="Batches"
+        title="Loading batches"
         description="The two loading tables. Cargo waiting to leave China, and nothing else."
       />
 

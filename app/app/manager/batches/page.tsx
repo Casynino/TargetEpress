@@ -48,7 +48,7 @@ import { authorize, requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: t(await viewerLocale(), "Batch control") };
+  return { title: t(await viewerLocale(), "Batch finances") };
 }
 
 /**
@@ -435,7 +435,7 @@ export default async function ManagerBatches({
   return (
     <>
       <PageHeader
-        title={t(locale, "Batch control")}
+        title={t(locale, "Batch finances")}
         description={t(
           locale,
           "Every flight's figures with the costs behind them, and a verdict kept beside the batch when they look wrong. Nothing here edits a record — a dispute goes back to Finance, who correct through reversing entries."

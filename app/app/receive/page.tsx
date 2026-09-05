@@ -25,7 +25,7 @@ import { viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await viewerLocale();
-  return { title: t(locale, "Incoming cargo") };
+  return { title: t(locale, "Receive & verify") };
 }
 
 export default async function ReceivePage() {
@@ -64,7 +64,7 @@ export default async function ReceivePage() {
   return (
     <>
       <PageHeader
-        title="Incoming cargo"
+        title="Receive & verify"
         description="Everything inbound — in the air, on the floor, and being checked off. Oldest first; cargo on the floor comes before cargo in the air."
         actions={
           next ? (

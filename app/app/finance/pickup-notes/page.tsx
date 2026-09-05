@@ -4,6 +4,7 @@ import { Clock, MessageCircle, Phone, QrCode } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { IconHint } from "@/components/app/icon-hint";
+import { FilterChip } from "@/components/app/filter-chip";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchBox } from "@/components/app/search-box";
 import { CancelNoteButton } from "@/components/app/cancel-note-button";
@@ -177,25 +178,24 @@ export default async function PickupNotesPage({
 
       {/* Answering "what is still waiting" without pressing anything. */}
       <div className="mb-4 flex flex-wrap gap-2">
+        {/* Filters, drawn as filters — see FilterChip. These used to wear the
+            tab row's brand fill, so the only lit pill on this page was a
+            filter sitting under a row of unlit tabs. */}
         {FILTERS.map((filter) => (
-          <Link
+          <FilterChip
             key={filter.label}
             href={pillHref(filter.key)}
-            className={`focus-ring inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
-              active === filter.key
-                ? "border-brand bg-brand text-brand-foreground"
-                : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
-            }`}
+            active={active === filter.key}
           >
             {t(locale, filter.label)}
             <span
               className={`rounded-full px-1.5 text-xs font-bold ${
-                active === filter.key ? "bg-white/20" : "bg-muted"
+                active === filter.key ? "bg-foreground/15" : "bg-muted"
               }`}
             >
               {countFor(filter.key)}
             </span>
-          </Link>
+          </FilterChip>
         ))}
       </div>
 

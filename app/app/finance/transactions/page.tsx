@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: t(await viewerLocale(), "The Ledger") };
+  return { title: t(await viewerLocale(), "General ledger") };
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -630,7 +630,7 @@ export default async function LedgerPage({
   return (
     <>
       <PageHeader
-        title={t(locale, "The Ledger")}
+        title={t(locale, "General ledger")}
         description={t(
           locale,
           "Every movement of money — freight collected, costs paid, transfers between accounts — with its account, who recorded it, and a running balance."

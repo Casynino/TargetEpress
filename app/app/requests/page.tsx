@@ -48,7 +48,7 @@ export default async function RequestsPage() {
   return (
     <>
       <PageHeader
-        title={t(locale, "Requests from the website")}
+        title={t(locale, "Requests")}
         description={`${openBookings} ${t(locale, "booking(s) and")} ${openPickups} ${t(
           locale,
           "pickup(s) waiting for a call."

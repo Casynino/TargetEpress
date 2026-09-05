@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 
 import { EmptyState } from "@/components/app/empty-state";
+import { FilterChip } from "@/components/app/filter-chip";
 import { PageHeader } from "@/components/app/page-header";
 import { FinanceNav } from "@/components/app/finance-nav";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,7 @@ import { viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await viewerLocale();
-  return { title: t(locale, "Audit") };
+  return { title: t(locale, "Money audit") };
 }
 
 /**
@@ -120,7 +121,7 @@ export default async function FinanceAuditPage({
   return (
     <>
       <PageHeader
-        title={t(locale, "Audit")}
+        title={t(locale, "Money audit")}
         description={t(
           locale,
           "Every money action on the system, who did it and when. Append-only — nothing here can be edited or removed, including by the CEO."
@@ -222,6 +223,14 @@ export default async function FinanceAuditPage({
   );
 }
 
+/*
+  The page's own filter, which is not one of the tabs above it.
+
+  It wore the tab row's brand fill, so this page showed two lit pills one row
+  apart and neither could be trusted to say where the reader was. FilterChip
+  is the app's answer: navigation keeps the brand colour, a filter says
+  "chosen" quietly.
+*/
 function Chip({
   href,
   active,
@@ -232,16 +241,8 @@ function Chip({
   children: React.ReactNode;
 }) {
   return (
-    <Link
-      href={href}
-      aria-current={active ? "true" : undefined}
-      className={`focus-ring rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-        active
-          ? "border-brand bg-brand text-brand-foreground"
-          : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
-      }`}
-    >
+    <FilterChip href={href} active={active}>
       {children}
-    </Link>
+    </FilterChip>
   );
 }

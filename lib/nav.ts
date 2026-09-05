@@ -160,7 +160,7 @@ const SECTIONS: NavSection[] = [
       // list all landed on "That area is not yours".
       {
         href: "/app/collections/follow-up",
-        label: "Collections",
+        label: "Payment follow-up",
         icon: "Banknote",
         permission: "collections.view",
       },
@@ -357,13 +357,13 @@ const DAR_SECTIONS: NavSection[] = [
       },
       {
         href: "/app/pickup-queue",
-        label: "Pickup Queue",
+        label: "Pickup queue",
         icon: "Truck",
         permission: "shipment.release",
       },
       {
         href: "/app/receive",
-        label: "Receiving Dock",
+        label: "Receive & verify",
         icon: "PackagePlus",
         permission: "batch.receive",
       },
@@ -467,7 +467,7 @@ const SUPPORT_SECTIONS: NavSection[] = [
          whether a customer's cargo can leave the building at all, so it is read
          before the chase list rather than after it. */
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
-      { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
+      { href: "/app/collections/follow-up", label: "Payment follow-up", icon: "Banknote" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode" },
       /* The dashboard pill is the fast way in; this is the way in for
          somebody who came down the sidebar instead, browsing rather than
@@ -485,7 +485,7 @@ const SUPPORT_SECTIONS: NavSection[] = [
       },
       // Read-only for this desk: they quote from the rate book and answer
       // "what will this cost", they do not set it. pricing.manage is Finance's.
-      { href: "/app/finance/pricing", label: "Price Configuration", icon: "Tags" },
+      { href: "/app/finance/pricing", label: "Price configuration", icon: "Tags" },
     ],
   },
   {
@@ -624,7 +624,7 @@ const FINANCE_SECTIONS: NavSection[] = [
       },
       {
         href: "/app/collections/follow-up",
-        label: "Collections",
+        label: "Payment follow-up",
         icon: "Banknote",
         permission: "collections.view",
       },
@@ -691,7 +691,7 @@ const FINANCE_SECTIONS: NavSection[] = [
           desk that sets prices would have had no way in at all.
         */
         href: "/app/finance/pricing",
-        label: "Price Configuration",
+        label: "Price configuration",
         icon: "Tags",
         permission: "pricing.view",
       },
@@ -900,7 +900,6 @@ const ADMIN_SECTIONS: NavSection[] = [
     title: "Finance",
     group: { label: "Finance", icon: "ReceiptText" },
     items: [
-      { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote", permission: "collections.view" },
       {
         /* Taking one payment, with its own door — the same row Finance and
            Support carry. It lived as a button on Home and on the call list,
@@ -912,7 +911,7 @@ const ADMIN_SECTIONS: NavSection[] = [
         permission: "payment.record",
       },
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock", permission: "credit.view" },
-      { href: "/app/finance/pricing", label: "Price Configuration", icon: "Tags", permission: "pricing.view" },
+      { href: "/app/finance/pricing", label: "Price configuration", icon: "Tags", permission: "pricing.view" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode", permission: "pickupNote.view" },
       { href: "/app/finance", label: "Overview", icon: "Wallet", permission: "accounting.view" },
       /* Off the tab row and into the menu — see the note in FINANCE_SECTIONS.
@@ -1035,7 +1034,7 @@ const MANAGER_SECTIONS: NavSection[] = [
          holds, who owes on terms, who owes now, what it earned, every line
          behind those figures, and last the check that the figures agree. */
       { href: "/app/finance", label: "Overview", icon: "Wallet" },
-      { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
+      { href: "/app/collections/follow-up", label: "Payment follow-up", icon: "Banknote" },
       {
         /* The same row every other money desk carries. */
         href: "/app/collections/follow-up?record=1",
@@ -1044,7 +1043,7 @@ const MANAGER_SECTIONS: NavSection[] = [
         permission: "payment.record",
       },
       { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp" },
-      { href: "/app/finance/transactions", label: "Transactions", icon: "ArrowLeftRight" },
+      { href: "/app/finance/transactions", label: "General ledger", icon: "ArrowLeftRight" },
       { href: "/app/manager/reconciliation", label: "Reconciliation", icon: "Scale" },
       /* No "Company accounts" or "Review transactions" rows. They were this
          desk's own copies of the accounts list and the ledger, and the owner
@@ -1063,7 +1062,7 @@ const MANAGER_SECTIONS: NavSection[] = [
          pays out. It came from the Finance group above. */
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
       { href: "/app/finance/expenses", label: "Expenses", icon: "Receipt" },
-      { href: "/app/finance/accounts", label: "Bank & cash", icon: "Landmark" },
+      { href: "/app/finance/accounts", label: "Accounts", icon: "Landmark" },
     ],
   },
   {
@@ -1080,7 +1079,7 @@ const MANAGER_SECTIONS: NavSection[] = [
          having to guess which queue to open. */
       { href: "/app/manager/control", label: "Control room", icon: "ShieldCheck" },
       /* Last, at the owner's instruction. */
-      { href: "/app/manager/approvals", label: "Pending approvals", icon: "BadgeCheck" },
+      { href: "/app/manager/approvals", label: "Approvals", icon: "BadgeCheck" },
     ],
   },
   {
@@ -1091,7 +1090,7 @@ const MANAGER_SECTIONS: NavSection[] = [
     group: { label: "People", icon: "UserCog" },
     items: [
       { href: "/app/admin/users", label: "Staff", icon: "UserCog", permission: "user.manage" },
-      { href: "/app/support/tickets", label: "Support tickets", icon: "Headset", permission: "ticket.manage" },
+      { href: "/app/support/tickets", label: "Tickets", icon: "Headset", permission: "ticket.manage" },
       /* Under Support tickets at the owner's instruction, and out of
          Operations. A claim and a ticket are the same afternoon's work — a
          customer with a problem — so they answer to one another rather than to

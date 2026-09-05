@@ -49,7 +49,7 @@ export function financeTabs(role: Role): FinanceTab[] {
         should route through it.
       */
       href: "/app/collections/follow-up",
-      label: "Collections",
+      label: "Payment follow-up",
       visible: can(role, "collections.view"),
     },
     {
@@ -126,7 +126,7 @@ export function financeTabs(role: Role): FinanceTab[] {
        A tab as well would be a second door into a room nobody visits twice. */
     {
       href: "/app/finance/audit",
-      label: "Audit",
+      label: "Money audit",
       visible: can(role, "audit.view"),
     },
   ];

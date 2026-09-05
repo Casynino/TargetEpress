@@ -11,7 +11,7 @@ import { storageIsDurable } from "@/lib/storage";
 import { viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: t(await viewerLocale(), "Release cargo") };
+  return { title: t(await viewerLocale(), "Scan & release") };
 }
 
 /**
@@ -103,7 +103,7 @@ export default async function ReleasePage({
   return (
     <>
       <PageHeader
-        title={t(locale, "Release cargo")}
+        title={t(locale, "Scan & release")}
         description={t(
           locale,
           "Scan the box. Everything you need to hand it over is on this screen."

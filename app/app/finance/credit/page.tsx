@@ -5,6 +5,8 @@ import { CreditAdjust } from "@/components/app/credit-adjust";
 import { CreditDecision } from "@/components/app/credit-decision";
 import { EmptyState } from "@/components/app/empty-state";
 import { AskForCredit } from "@/components/app/ask-for-credit";
+import { FinanceNav } from "@/components/app/finance-nav";
+import { financeTabs } from "@/lib/finance-tabs";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchBox } from "@/components/app/search-box";
 import { CREDIT_STATE_LABEL, dueLabel, type CreditState } from "@/lib/credit";
@@ -116,13 +118,17 @@ export default async function CreditPage({
       />
 
       {/*
-        No tab row. The credit book stands on its own, like the rate book.
+        THE ROW STAYS, BECAUSE CREDIT IS IN IT.
 
-        It is not a view of the ledger — it is the record of cargo the business
-        let go before it was paid for, and it is opened on purpose. Sitting it
-        beside Collections made the whole book read as one tab of the chase list,
-        when the chase list is only the part of it that has gone late.
+        This page argued that the credit book stands on its own and rendered no
+        tab row at all — while financeTabs listed Credit as a tab. So pressing
+        a tab made the entire row of tabs disappear, which is the strongest
+        version of the owner's complaint: not a changed heading, but no way
+        back to the thing you clicked from.
+
+        A page can be a tab or it can stand alone. It cannot be both.
       */}
+      <FinanceNav tabs={financeTabs(user.role)} />
 
       {/*
         Waiting on a decision, and it goes first.

@@ -235,7 +235,7 @@ export default async function TestDataPage() {
   return (
     <>
       <PageHeader
-        title="Test data & walkthrough"
+        title="Test data"
         description="Everything currently in the database, with one-click ways to try each workflow."
         actions={
           <Button asChild variant="outline" size="sm">

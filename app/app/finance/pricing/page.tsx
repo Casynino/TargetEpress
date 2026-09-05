@@ -32,7 +32,7 @@ import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: t(await viewerLocale(), "Pricing & configuration") };
+  return { title: t(await viewerLocale(), "Price configuration") };
 }
 
 /**
@@ -210,7 +210,7 @@ export default async function PricingConfigurationPage() {
   return (
     <>
       <PageHeader
-        title="Pricing & configuration"
+        title="Price configuration"
         description="Every figure this business quotes comes from this page. Change it here and the whole system follows — cargo, invoices, tracking and reports."
       />
 

@@ -41,11 +41,34 @@ export function FinanceNav({ tabs }: { tabs: FinanceTab[] }) {
       className="mb-6 flex gap-2 overflow-x-auto pb-1"
     >
       {shown.map((tab) => {
-        // Longest-prefix wins, so /app/finance/pricing does not also light up
-        // the Overview tab at /app/finance.
+        /*
+          LONGEST PREFIX WINS, so /app/finance/pricing does not also light up
+          the Overview tab at /app/finance.
+
+          AND EVERY PAGE THAT SHOWS THIS ROW LIGHTS SOMETHING. Seven pages
+          rendered the row with nothing lit at all — a bar of tabs and no
+          answer to "where am I", which is the same disorientation as a
+          changed title. They are pages that live under a tab without being
+          one: the whole collections workspace sits under Collections, and
+          Payments, Closed batches and Pickup notes are all reached from the
+          Ledger. Named here rather than given tabs of their own, because the
+          row is already long and none of them is a place this desk starts
+          from.
+        */
+        const belongsTo =
+          pathname.startsWith("/app/collections")
+            ? "/app/collections/follow-up"
+            : pathname.startsWith("/app/finance/payments") ||
+                pathname.startsWith("/app/finance/income") ||
+                pathname.startsWith("/app/finance/pickup-notes") ||
+                pathname.startsWith("/app/finance/receipts")
+              ? "/app/finance/transactions"
+              : null;
+
         const active =
           pathname === tab.href ||
-          (tab.href !== "/app/finance" && pathname.startsWith(`${tab.href}/`));
+          (tab.href !== "/app/finance" && pathname.startsWith(`${tab.href}/`)) ||
+          belongsTo === tab.href;
 
         return (
           <Link
