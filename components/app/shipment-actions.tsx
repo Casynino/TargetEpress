@@ -41,6 +41,7 @@ import {
   issuePickupNote,
   recordPayment,
 } from "@/lib/actions/finance";
+import { submitPaymentForVerification } from "@/lib/actions/collections";
 import { cancelShipment } from "@/lib/actions/shipments";
 import type { ActionResult } from "@/lib/actions/types";
 import { can, canAmendCargo } from "@/lib/rbac";
@@ -229,9 +230,11 @@ export function ShipmentActions(props: Props) {
           by permission — so this order is what Finance, Support, both
           warehouses, the manager and the owner all see.
         */}
-        {canPay ? (
+        {canPay || canCollect ? (
           <PaymentPanel
             {...props}
+            /* Finance banks it; Support hands it to Finance. Same panel. */
+            direct={canPay}
             beside={
               props.credit ? (
                 <CreditRequest
@@ -247,46 +250,16 @@ export function ShipmentActions(props: Props) {
           />
         ) : null}
         {/*
-          THE SAME PANEL, WHATEVER THE DESK CAN DO.
+          NO SEPARATE CARD FOR SUPPORT ANY MORE.
 
-          Support does a different job here — they hand a claim to Finance
-          rather than settling it — but the panel is the same panel, and it was
-          drawn differently: a bigger icon, a bigger button in a different
-          shape, and asking for credit stranded in a band of its own below.
-          Two departments looking at one screen should see one design.
+          This used to be a "Customer paid?" panel whose button left for a page
+          of its own — on the one screen where a customer's cargo, bill,
+          balance, photos and history are already in front of the reader. Two
+          desks doing the same job on the same consignment now do it in the
+          same place, with the same fields in the same order; the only
+          differences are the ones that are true, which the panel states for
+          itself: where the money goes, and what the button says.
         */}
-        {canCollect ? (
-          <div className="border-l-2 border-brand bg-brand/5 px-4 py-3.5">
-            <p className="flex items-center gap-2 font-medium">
-              <Wallet className="h-5 w-5 text-brand" />
-              {t("Customer paid?")}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(
-                "Add their receipt. Finance verifies it before anything is settled."
-              )}
-            </p>
-            <div className="mt-2.5 flex flex-wrap items-center gap-2">
-              <Button asChild size="sm" variant="brand" className="px-2.5">
-                <Link href={`/app/collections/record/${props.invoiceId}`}>
-                  {t("Record their payment")}
-                </Link>
-              </Button>
-              {/* Beside it, exactly as Release on credit sits beside Confirm
-                  payment — the two ways this bill can be cleared. */}
-              {props.credit ? (
-                <CreditRequest
-                  invoiceId={props.credit.invoiceId}
-                  outstanding={props.credit.outstanding}
-                  defaultTerm={props.credit.defaultTerm}
-                  limitLabel={props.credit.limitLabel}
-                  outstandingLabel={null}
-                  canApprove={props.credit.canApprove}
-                />
-              ) : null}
-            </div>
-          </div>
-        ) : null}
         {/*
           Only where there is no payment form to sit beside. A desk that can
           release cargo on credit but cannot take the money gets the button on
@@ -495,8 +468,25 @@ const TODAY = new Date().toISOString().slice(0, 10);
 
 function PaymentPanel({
   beside,
+  direct,
   ...props
 }: Props & {
+  /**
+   * TRUE FOR THE DESK THAT BANKS THE MONEY, FALSE FOR THE DESK THAT CLAIMS IT.
+   *
+   * Support does a different job on this screen — they hand the customer's
+   * proof to Finance rather than settling anything — but it is the same job
+   * shaped the same way: the same figures, the same fare, the same account,
+   * the same slip. They were sent to a page of their own to do it, which is
+   * the one screen where a customer's cargo, bill and balance are all in
+   * front of them and they had to leave it.
+   *
+   * Only two things differ, and both are the truth about who is pressing:
+   * which action the form posts to, and what the button says. The server
+   * authorises each of those separately, so this flag decides what is offered
+   * and never what is allowed.
+   */
+  direct: boolean;
   /**
    * Rendered on the same row as Confirm payment. Releasing on credit is the
    * alternative to taking the money, so the two belong side by side the way
@@ -552,9 +542,29 @@ function PaymentPanel({
   const [transport, setTransport] = useState("");
   const [transportSourceId, setTransportSourceId] = useState("");
   const [state, action] = useActionState<
-    ActionResult<{ receiptNumber: string; pickupNoteNumber: string | null }>,
+    ActionResult<{
+      receiptNumber?: string;
+      pickupNoteNumber?: string | null;
+      submissionNumber?: string;
+    }>,
     FormData
-  >(recordPayment, { ok: true });
+  >(
+    (direct ? recordPayment : submitPaymentForVerification) as unknown as (
+      state: ActionResult<{
+        receiptNumber?: string;
+        pickupNoteNumber?: string | null;
+        submissionNumber?: string;
+      }>,
+      payload: FormData
+    ) => Promise<
+      ActionResult<{
+        receiptNumber?: string;
+        pickupNoteNumber?: string | null;
+        submissionNumber?: string;
+      }>
+    >,
+    { ok: true }
+  );
   const idem = useIdempotencyKey();
 
   /* Part payments against one bill are normal at this counter, so the key is
@@ -1179,11 +1189,24 @@ function PaymentPanel({
             {/* No icon, and a notch less padding: the two have to fit on one
                 line in a 318px sidebar, and the icon was the twenty pixels
                 that pushed them onto two. */}
-            <SubmitButton variant="brand" size="sm" className="px-2.5" pendingLabel="Confirming…">
-              {t("Confirm payment")}
+            <SubmitButton
+              variant="brand"
+              size="sm"
+              className="px-2.5"
+              pendingLabel={direct ? "Confirming…" : "Sending…"}
+            >
+              {t(direct ? "Confirm payment" : "Submit to Finance")}
             </SubmitButton>
             {beside}
           </div>
+
+          {/* Said plainly to the desk that is not settling anything, because
+              the panel is otherwise identical to the one that does. */}
+          {!direct ? (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              {t("Nothing is settled until Finance verifies it. No money moves on this screen.")}
+            </p>
+          ) : null}
         </form>
       ) : null}
     </div>

@@ -226,8 +226,23 @@ export default async function ShipmentDetailPage({
   /* Also for the desk that VERIFIES money, not only the one that takes it —
      agreeing a claim has to say which account it landed in, and that decision
      is now made on this page rather than on another one. */
+  /*
+    AND FOR THE DESK THAT CLAIMS IT, NOT ONLY THE ONES THAT BANK IT.
+
+    Support raises the claim from this page now, and a claim has to say which
+    account the customer's proof names — the owner's rule, and the server
+    refuses one without it. Fetching the list for payment.record and
+    payment.verify alone left their two account fields empty with no way to
+    fill them, so the form could be completed and never accepted.
+
+    Reading the list is not permission to move money: recordPayment and
+    submitPaymentForVerification each authorise themselves, and which of them
+    this panel posts to is decided by the role.
+  */
   const accounts =
-    can(user.role, "payment.record") || canVerifyPayments
+    can(user.role, "payment.record") ||
+    can(user.role, "payment.submit") ||
+    canVerifyPayments
       ? await activeAccounts()
       : [];
   // Rounded to the cent: this figure is both shown to a person and used as the
