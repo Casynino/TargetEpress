@@ -55,6 +55,10 @@ async function pendingOnly(id: string) {
       reference: true,
       note: true,
       accountId: true,
+      /* The delivery half. A correction that moves the total without saying
+         what happened to the fare silently re-splits the payment. */
+      transportAmount: true,
+      transportSourceId: true,
       /* Finance's words, kept when a refused claim is taken back rather than
          overwritten by the desk's own reason. */
       rejectionReason: true,
@@ -199,6 +203,40 @@ export async function editSubmission(
       );
     }
 
+    /*
+      A TOTAL THAT CARRIES A FARE CANNOT BE RESTATED ON ITS OWN.
+
+      The claim's figure is the cargo AND the delivery. Change only the total
+      and the split moves silently underneath it: a 46,450 claim carrying a
+      10,000 fare, corrected to 36,450 because the customer rang back, leaves
+      the fare untouched and quietly turns 36,450 of freight into 26,450.
+      Nobody typed that number and nobody is shown it.
+
+      This screen has one money field, so there is no honest answer for it to
+      take. Refused with the way out, rather than guessed at — the same
+      treatment a combined claim's total already gets two blocks above.
+    */
+    const claimFare = toNumber(sub.transportAmount);
+    if (claimFare > 0 && changed.includes("amount")) {
+      return fail(
+        t(
+          locale,
+          `This claim includes ${sub.currency} ${claimFare.toLocaleString()} of transport, so its total cannot be changed here — the split would move without anybody saying so. Withdraw it and raise the payment again with the right figures.`
+        )
+      );
+    }
+    /* Same reason: the fare is quoted in the money it was taken in, and
+       restating the currency without restating the fare changes what leaves
+       the till. */
+    if (claimFare > 0 && changed.includes("currency")) {
+      return fail(
+        t(
+          locale,
+          "This claim includes transport, so its currency cannot be changed here. Withdraw it and raise the payment again."
+        )
+      );
+    }
+
     await prisma.$transaction(async (tx) => {
       /* Still pending at the moment of writing. Finance may have verified it
          while this form sat open, and editing the claim behind a payment that
@@ -222,10 +260,20 @@ export async function editSubmission(
       /* And the split moves with the total. Verifying reads the allocations,
          not the claim's own figure, so leaving a stale one behind would settle
          the bill at the amount before the correction. */
+      /* The CARGO half, not the gross figure. An allocation says how much of
+         a bill this claim answers, and the fare answers none of it — writing
+         the whole total here made every transport-bearing claim allocate more
+         than it had, which the counter action refuses on verification. Zero
+         while the block above refuses an amount change on a claim that has a
+         fare, and correct the day that screen learns to ask for one. */
       if (sub._count.allocations === 1 && changed.includes("amount")) {
         await tx.submissionAllocation.updateMany({
           where: { submissionId: sub.id },
-          data: { amount: new Prisma.Decimal(after.amount) },
+          data: {
+            amount: new Prisma.Decimal(
+              Math.round((after.amount - claimFare) * 100) / 100
+            ),
+          },
         });
       }
 
@@ -555,6 +603,16 @@ export async function resubmitSubmission(
         invoiceId: true,
         customerId: true,
         submittedById: true,
+        /* The delivery half and the till it comes from. A replacement raised
+           without them turns the fare into freight: the whole figure is put
+           against the bill, so the bill is overpaid or credited, and the money
+           that should have left the till never does. */
+        transportAmount: true,
+        transportSourceId: true,
+        currency: true,
+        /* The figure as it stands, so a total that moved under a fare can be
+           refused rather than silently re-splitting the claim. */
+        amount: true,
         replacedBy: { select: { submissionNumber: true } },
         invoice: { select: { invoiceNumber: true, status: true } },
         /* Which bills this claim covered. A combined claim answers several,
@@ -574,6 +632,37 @@ export async function resubmitSubmission(
       },
     });
     if (!old) return fail(t(locale, "That submission no longer exists."));
+
+    /*
+      A CLAIM'S FARE IS PART OF THE CLAIM, AND SO IS ITS TOTAL.
+
+      Re-raising is how a refused claim comes back. The desk fixes what Finance
+      objected to — usually a reference — and sends it again. If the total or
+      the currency is changed at the same time on a claim carrying a fare, the
+      split moves silently: the same 10,000 of transport sitting inside a
+      different figure means a different amount of freight, and nobody typed
+      that number. The correction screen refuses the same change for the same
+      reason.
+    */
+    const oldFare = toNumber(old.transportAmount);
+    if (oldFare > 0) {
+      if (Math.abs(parsed.data.amount - toNumber(old.amount)) > 0.005) {
+        return fail(
+          t(
+            locale,
+            `${old.submissionNumber} includes ${old.currency} ${oldFare.toLocaleString()} of transport, so its total cannot be changed while raising it again. Send it as it was, or withdraw it and raise a fresh payment with the right figures.`
+          )
+        );
+      }
+      if (parsed.data.currency !== old.currency) {
+        return fail(
+          t(
+            locale,
+            `${old.submissionNumber} includes transport, so its currency cannot be changed while raising it again.`
+          )
+        );
+      }
+    }
     /* Only a closed claim is re-raised. A pending one is corrected in place —
        that is what editSubmission is for — and a verified one has produced a
        real payment. */
@@ -706,6 +795,12 @@ export async function resubmitSubmission(
           invoiceId: old.invoiceId,
           customerId: old.customerId,
           amount: new Prisma.Decimal(parsed.data.amount),
+          /* Carried across, because it is part of what this claim IS. The
+             refusal above keeps the total and the currency from moving under
+             it, so the split that Support wrote down still describes the same
+             money on the replacement row. */
+          transportAmount: new Prisma.Decimal(oldFare),
+          transportSourceId: oldFare > 0 ? old.transportSourceId : null,
           currency: parsed.data.currency,
           method: methodForKind(account.kind),
           accountId: account.id,
@@ -721,9 +816,13 @@ export async function resubmitSubmission(
           allocations: {
             create: old.allocations.map((a) => ({
               invoiceId: a.invoiceId,
+              /* The CARGO half on a one-bill split — the fare answers no bill,
+                 and allocating it makes the claim impossible to verify. */
               amount:
                 old.allocations.length === 1
-                  ? new Prisma.Decimal(parsed.data.amount)
+                  ? new Prisma.Decimal(
+                      Math.round((parsed.data.amount - oldFare) * 100) / 100
+                    )
                   : a.amount,
             })),
           },

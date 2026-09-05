@@ -136,7 +136,14 @@ export default async function FinanceOverviewPage() {
       /* `currency`, because a shilling payment must be added up as shillings —
          see lib/money-totals.ts. Without it this tile disagreed with the
          ledger's own MONEY IN by four shillings on the same month. */
-      select: { amount: true, creditedAmount: true, currency: true },
+      /* transportAmount, because `amount` is the WHOLE transfer and part of it
+         was never the company's — see the shilling sum below. */
+      select: {
+        amount: true,
+        creditedAmount: true,
+        currency: true,
+        transportAmount: true,
+      },
     }),
     // Cargo that is paid for and cleared to go, still sitting on the shelf.
     // Distinct from everything else on this row: the money is already in, and
@@ -199,10 +206,21 @@ export default async function FinanceOverviewPage() {
     only genuinely foreign money goes through the snapshot. The dollar figures
     stay for the cards that state one, and for the no-rate fallback.
   */
+  /*
+    THE FARE IS NOT COLLECTION, AND NOT NET.
+
+    The dollar side of these cards reads creditedAmount, which is already the
+    cargo half, so it was right. The shilling side read `amount` — the whole
+    transfer — so every delivery fare a customer sent counted as money the
+    business took in, while the matching payment out of the till counts as
+    nothing on this page at all. "Collected this month" and "Net this month"
+    were both overstated by every fare, in the currency the owner actually
+    reads them in.
+  */
   const collectedMonthTsh = sumShillings(
     collectedThisMonth.map((p) => ({
       currency: p.currency,
-      amount: p.amount,
+      amount: toNumber(p.amount) - toNumber(p.transportAmount),
       amountUsd: p.creditedAmount ?? p.amount,
     })),
     rate

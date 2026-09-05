@@ -516,9 +516,19 @@ function PaymentPanel({
   const [currency, setCurrency] = useState(
     props.invoiceRate === null ? props.currency : "TZS"
   );
-  const [rate, setRate] = useState(
-    props.invoiceRate === null ? "" : String(props.invoiceRate)
-  );
+  /*
+    THE RATE IS THE BILL'S WHENEVER THE BILL HAS ONE.
+
+    Only asked for on a bill that carries none — the box below renders on
+    exactly that condition — so this state is a mirror of the prop the rest of
+    the time. Seeded once, it went stale the moment somebody agreed a new rate
+    from this same panel: the page revalidated, the prop changed, and the
+    figure the panel was deriving the total from did not. Derived instead, so
+    there is only ever one rate on the screen.
+  */
+  const [typedRate, setTypedRate] = useState("");
+  const rate = props.invoiceRate === null ? typedRate : String(props.invoiceRate);
+  const setRate = setTypedRate;
   /*
     THE TOTAL FOLLOWS THE BILL UNTIL SOMEBODY TYPES OVER IT.
 
@@ -664,6 +674,10 @@ function PaymentPanel({
     clearing !== null && cargoHalf > 0 && clearing - cargoHalf > tolerance;
   const overpaid =
     clearing !== null && cargoHalf > 0 && cargoHalf - clearing > tolerance;
+  /* A fare larger than the whole transfer leaves nothing for the bill and
+     makes the breakdown print a negative cargo figure. The server refuses it;
+     the screen has to say why before the clerk presses anything. */
+  const fareEatsTotal = fare > 0 && typed > 0 && fare > typed + 0.001;
 
   /*
     A FARE LARGER THAN THE CARGO IS USUALLY AN EXTRA NOUGHT.
@@ -936,7 +950,15 @@ function PaymentPanel({
             them — and the arithmetic happened on the server where nobody
             could see it.
           */}
-          {fare > 0 ? (
+          {fareEatsTotal ? (
+            <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs">
+              {t(
+                "The transport is more than the whole amount received. Check which box the figure belongs in."
+              )}
+            </p>
+          ) : null}
+
+          {fare > 0 && !fareEatsTotal ? (
             <div className="rounded-lg border border-warning/40 bg-warning/[0.06] p-3 text-xs">
               <p className="font-semibold uppercase tracking-wide text-warning">
                 {t("The customer paid cargo plus transport")}
@@ -981,7 +1003,15 @@ function PaymentPanel({
             rather than back to the bare bill, which is what it used to do and
             was how the shortfall came back the moment it was dismissed.
           */}
-          {short && clearing !== null ? (
+          {overpaid && clearing !== null && !fareEatsTotal ? (
+            <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              {t("That is more than the bill needs.")}{" "}
+              {currency} {(cargoHalf - clearing).toLocaleString()}{" "}
+              {t("stays with the customer as credit for next time.")}
+            </p>
+          ) : null}
+
+          {short && clearing !== null && !fareEatsTotal ? (
             <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
               {t("This leaves")} {props.currency}{" "}
               {(currency === props.currency
@@ -1016,7 +1046,7 @@ function PaymentPanel({
             was typed. A hundred thousand where ten was meant would settle the
             bill correctly and quietly empty the till.
           */}
-          {fareOverCargo ? (
+          {fareOverCargo && !fareEatsTotal ? (
             <label className="flex cursor-pointer items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs">
               <input
                 type="checkbox"

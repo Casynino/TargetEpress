@@ -1421,11 +1421,21 @@ export default async function LedgerPage({
                             amount: toNumber(entry.amount),
                             currency: entry.currency,
                             /* A combined payment answers several bills; moving
-                               its figure is the allocation screen's question. */
+                               its figure is the allocation screen's question.
+
+                               AND NEVER FROM THE TRANSPORT LEG. That row's
+                               figure is the fare, not the payment — but the
+                               box it fills feeds changePaymentAmount, which
+                               restates the WHOLE payment. Correcting a 46,450
+                               transfer from its 10,000 transport line would
+                               have re-recorded the entire payment as 10,000
+                               and left the bill unpaid. The payment's own IN
+                               line, one row away, is where its figure lives. */
                             amountEditable:
                               entry.payment !== null &&
                               entry.payment.invoiceId !== null &&
-                              entry.payment._count.allocations <= 1,
+                              entry.payment._count.allocations <= 1 &&
+                              entry.kind !== "TRANSPORT_OUT",
                             /* expenseFor, not entry.expense: a corrected
                                line's own expenseId is empty by design (see the
                                note above orphanedExpenseIds), and reading that

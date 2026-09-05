@@ -879,10 +879,16 @@ export function CustomerPaymentForm({
             number and nothing else, so the second field offers only those.
           */}
           <div className="min-w-0 space-y-1.5">
-            <Label htmlFor="transport">{t("Of that, transport")}</Label>
+            {/* "Of that" was the old carve-out speaking. The box above is
+                now the bills PLUS this, so the label has to say added. */}
+            <Label htmlFor="transport">{t("Transport they added")}</Label>
             <MoneyInput
               id="transport"
               name="transport"
+              /* Shillings are whole numbers at a counter; nobody hands a
+                 driver 40 cents. Every other money screen says this and this
+                 one did not, so a shilling fare could carry cents here alone. */
+              decimals={payCurrency === LOCAL ? 0 : 2}
               value={transport}
               onValueChange={(raw) => {
                   setTransport(raw);
