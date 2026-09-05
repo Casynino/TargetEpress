@@ -126,29 +126,6 @@ export default async function SubmissionsPage({
   const totalUsd = sumUsd(moneyRows, rate);
 
   /*
-    THE ONE THING THAT DECIDES WHETHER ANY OF IT MOVES.
-
-    Finance cannot check a claim against anything without the customer's slip
-    — they are being asked to agree money on somebody's word — and it is the
-    commonest reason a claim comes back. Counted off the same rows the page is
-    showing, so the figure is about what the reader is looking at.
-  */
-  const missingProof = rows.filter((row) => row.proofs.length === 0);
-  const missingProofShillings = sumShillings(
-    missingProof.map((row) => ({
-      currency: row.currency,
-      amount: toNumber(row.amount),
-      amountUsd:
-        row.currency === "USD"
-          ? toNumber(row.amount)
-          : rate
-            ? toNumber(row.amount) / rate
-            : 0,
-    })),
-    rate
-  );
-
-  /*
     Search the rows on the page, not the database.
 
     This register is read to settle an argument — "we sent that on the 4th, here
@@ -262,58 +239,55 @@ export default async function SubmissionsPage({
         much have I sent up that Finance hasn't dealt with yet".
       */}
       {/*
-        TWO CARDS, BECAUSE THE FIRST ONE ANSWERS HALF THE QUESTION.
+        ONE FIGURE, IN BOTH MONIES.
 
-        "How much is with Finance" is worth knowing and is not enough to act
-        on. The one thing that decides whether any of it moves is whether the
-        customer's slip is attached — Finance is being asked to agree money on
-        somebody's word without it, which is why claims come back. So the
-        second card counts exactly that, and the pair fills the row instead of
-        one box sitting beside an empty half-screen.
+        The pair is deliberately identical — same heading, same count, same
+        shape — because it is one fact, not two. Bills are quoted in dollars
+        and customers hand over shillings, so the desk reading this page is
+        asked for whichever the person in front of them is talking about, and
+        converting in their head is how a figure gets quoted wrong.
+
+        A previous try put a different measure in the second box, and on a page
+        where every row happened to share it the two cards showed the same
+        total under two headings — which reads as a fault, not as information.
       */}
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border bg-card p-4 shadow-soft">
-          <p
-            className={`text-xs font-semibold uppercase tracking-widest ${
-              active === "REJECTED" ? "text-destructive" : "text-warning"
-            }`}
+        {[
+          {
+            key: "TZS",
+            value: formatLocal(totalShillings),
+            /* Shillings first: it is what was actually handed over. */
+            caption:
+              active === "PENDING"
+                ? t(locale, "sitting with Finance, waiting on a decision")
+                : t(locale, "sent back, waiting on this desk"),
+          },
+          {
+            key: "USD",
+            value: formatUsd(totalUsd),
+            caption: t(locale, "the same money, at today's rate"),
+          },
+        ].map((card) => (
+          <div
+            key={card.key}
+            className="rounded-xl border bg-card p-4 shadow-soft"
           >
-            {rows.length} {t(locale, FILTERS.find((f) => f.key === active)?.label ?? "")}
-          </p>
-          <p className="font-display text-2xl font-bold tabular-nums">
-            {formatLocal(totalShillings)}
-          </p>
-          <p className="font-mono text-xs text-muted-foreground">
-            {formatUsd(totalUsd)}
-            {active === "PENDING"
-              ? ` · ${t(locale, "sitting with Finance, waiting on a decision")}`
-              : ""}
-          </p>
-        </div>
-
-        <div
-          className={`rounded-xl border p-4 shadow-soft ${
-            missingProof.length > 0
-              ? "border-destructive/40 bg-destructive/[0.06]"
-              : "border-success/40 bg-success/[0.06]"
-          }`}
-        >
-          <p
-            className={`text-xs font-semibold uppercase tracking-widest ${
-              missingProof.length > 0 ? "text-destructive" : "text-success"
-            }`}
-          >
-            {missingProof.length} {t(locale, "with no proof")}
-          </p>
-          <p className="font-display text-2xl font-bold tabular-nums">
-            {formatLocal(missingProofShillings)}
-          </p>
-          <p className="font-mono text-xs text-muted-foreground">
-            {missingProof.length > 0
-              ? t(locale, "Finance is being asked to agree these on somebody's word.")
-              : t(locale, "Every one carries the customer's slip.")}
-          </p>
-        </div>
+            <p
+              className={`text-xs font-semibold uppercase tracking-widest ${
+                active === "REJECTED" ? "text-destructive" : "text-warning"
+              }`}
+            >
+              {rows.length}{" "}
+              {t(locale, FILTERS.find((f) => f.key === active)?.label ?? "")}
+            </p>
+            <p className="font-display text-2xl font-bold tabular-nums">
+              {card.value}
+            </p>
+            <p className="font-mono text-xs text-muted-foreground">
+              {card.caption}
+            </p>
+          </div>
+        ))}
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">

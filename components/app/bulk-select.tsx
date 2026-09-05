@@ -220,11 +220,16 @@ export function BulkBar({
           run(formData);
           clear();
         }}
-        className={`rounded-xl border-2 p-3 shadow-soft ${
-          tone === "destructive"
-            ? "border-destructive/50 bg-destructive/[0.07]"
-            : "border-brand/50 bg-brand/[0.07]"
-        }`}
+        /*
+          A PLAIN BAR, AND AN OPAQUE ONE.
+
+          It was tinted to match the button, which made it a translucent panel
+          floating over the rows it was covering — the row underneath showed
+          through and the whole thing read as a fault rather than a control.
+          The colour belongs on the button, where the decision is; the bar just
+          has to be solid enough to sit over a list without looking broken.
+        */
+        className="rounded-xl border bg-card p-3 shadow-lg"
       >
         <div className="flex flex-wrap items-center gap-3">
           {ids.length > 0 ? (
