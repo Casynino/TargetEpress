@@ -77,8 +77,18 @@ export function InvoiceEditor({
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   };
 
+  /*
+    THE PREVIEW HAS TO USE THE FREIGHT THE FORM WILL SEND.
+
+    `freight` is the rate book's figure. The box above it can override that —
+    it is the whole point of the field — and this line ignored it, so a desk
+    correcting freight from 40.50 to 60.00 watched "New total" sit unchanged
+    at the old figure while the form beneath it was about to send the new one.
+    The number that moved was the one they could not see.
+  */
+  const freightNow = freightDraft.trim() === "" ? freight : num(freightDraft);
   const total =
-    freight + num(storageDraft) + num(otherDraft) - num(discountDraft);
+    freightNow + num(storageDraft) + num(otherDraft) - num(discountDraft);
   /* Off the clock's figure by more than a cent: the reason field appears, and
      the server refuses without it. */
   const storageMoved = Math.abs(num(storageDraft) - storage) > 0.005;

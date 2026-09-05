@@ -43,6 +43,22 @@ export function ChangeRate({
   const t = useT();
   const [open, setOpen] = useState(false);
   const [rate, setRate] = useState(current === null ? "" : String(current));
+
+  /*
+    THE BOX FOLLOWS THE BILLS IT IS POINTED AT.
+
+    On the merge screen this component stays mounted while the desk ticks and
+    unticks consignments, and `current` changes underneath it — but the box
+    kept whatever it was seeded with from the FIRST bill ticked. Applying it
+    then wrote that bill's rate onto every other bill in the set, silently
+    restating them all.
+
+    Resynced when the incoming rate changes, and only while the dialog is shut
+    so a half-typed figure is never yanked out from under the person typing it.
+  */
+  useEffect(() => {
+    if (!open) setRate(current === null ? "" : String(current));
+  }, [current, open]);
   const [state, action] = useActionState<
     ActionResult<{ totalLocal: number | null }>,
     FormData

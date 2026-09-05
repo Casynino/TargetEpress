@@ -858,7 +858,22 @@ export async function adjustInvoice(
         rateBookFreightNow = repriced.total;
       }
 
-      const freight = input.freightOverride ?? rateBookFreightNow;
+      /*
+        RE-PRICING AND OVERRIDING ARE TWO ANSWERS TO ONE QUESTION.
+
+        "Take the rate book's price for the weight on the scale" and "bill this
+        figure instead" cannot both be true, and the override used to win
+        silently: a desk that re-weighed a consignment and ticked re-price
+        watched nothing happen, because a months-old override was still sitting
+        in the column and `?? ` never reached the fresh figure.
+
+        Ticking re-price is the desk saying the rate book is right for this
+        cargo, so it clears the override it replaces. A desk that wants a
+        figure of its own simply does not tick it.
+      */
+      const repricing = Boolean(input.repriceFromWeight);
+      const overrideNow = repricing ? null : input.freightOverride;
+      const freight = overrideNow ?? rateBookFreightNow;
       /*
         Storage: the clock proposes, Finance decides.
 
@@ -965,12 +980,21 @@ export async function adjustInvoice(
           discount: new Prisma.Decimal(input.discount),
           otherCharges: new Prisma.Decimal(input.otherCharges),
           freightOverride:
-            input.freightOverride === null
-              ? null
-              : new Prisma.Decimal(input.freightOverride),
-          freightOverrideReason: input.freightOverride === null
-            ? null
-            : input.freightOverrideReason || null,
+            overrideNow === null ? null : new Prisma.Decimal(overrideNow),
+          freightOverrideReason:
+            overrideNow === null ? null : input.freightOverrideReason || null,
+          /*
+            THE RE-PRICED FIGURE IS KEPT, NOT JUST USED.
+
+            It was worked out, added into the total, and then thrown away — so
+            the next plain save recomputed from the stale stored figure and
+            quietly reverted the bill to the old weight's price. The column is
+            the rate book's answer for this cargo, and after a re-price that
+            answer has changed.
+          */
+          ...(repricing
+            ? { freightCost: new Prisma.Decimal(rateBookFreightNow) }
+            : {}),
           storageCharge: new Prisma.Decimal(storage),
           ...waiverEdit,
           total: new Prisma.Decimal(total),

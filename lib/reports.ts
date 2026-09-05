@@ -1717,7 +1717,8 @@ async function monthlySummary(f: ReportFilters): Promise<ReportResult> {
 /* --------------------------------------------------- statements of position */
 
 async function financialStatement(f: ReportFilters): Promise<ReportResult> {
-  const [invoices, abandoned, operating, special, perAccount, accountKinds, rate] = await Promise.all([
+  const window = range(f);
+  const [invoices, abandoned, operating, special, perAccount, accountKinds, rate, receivable] = await Promise.all([
     prisma.invoice.aggregate({
       where: {
         /* The three statuses that are a real demand for money. This was
@@ -1760,6 +1761,22 @@ async function financialStatement(f: ReportFilters): Promise<ReportResult> {
     accountBalances(prisma),
     prisma.companyAccount.findMany({ select: { id: true, kind: true } }),
     currentRateValue(),
+    /* The receivable, clamped per bill — see the note where it is read. The
+       window matches the aggregate above it, so the statement's own period is
+       what is asked about. */
+    window
+      ? prisma.$queryRaw<{ owed: number }[]>`
+          SELECT COALESCE(SUM(GREATEST(0, "total" - "amountPaid" - "amountAdjusted")), 0)::float8 AS "owed"
+            FROM "Invoice"
+           WHERE "status" IN ('UNPAID', 'PARTIALLY_PAID', 'PAID')
+             AND "issuedAt" >= ${window.gte ?? new Date(0)}
+             AND "issuedAt" < ${window.lt ?? new Date(8640000000000000)}
+        `
+      : prisma.$queryRaw<{ owed: number }[]>`
+          SELECT COALESCE(SUM(GREATEST(0, "total" - "amountPaid" - "amountAdjusted")), 0)::float8 AS "owed"
+            FROM "Invoice"
+           WHERE "status" IN ('UNPAID', 'PARTIALLY_PAID', 'PAID')
+        `,
   ]);
 
   /* Held by kind is the per-account net (IN − OUT, in USD) summed under the
@@ -1780,6 +1797,18 @@ async function financialStatement(f: ReportFilters): Promise<ReportResult> {
   const abandonedPaid = toNumber(abandoned._sum.amountPaid);
   const revenue = toNumber(invoices._sum.total) + abandonedPaid;
   const collected = toNumber(invoices._sum.amountPaid) + abandonedPaid;
+  /*
+    ASKED OF EACH BILL, NOT OF THE PILE.
+
+    `revenue - collected` treats the whole book as one account: a customer who
+    overpaid by a hundred thousand cancelled a hundred other customers each
+    owing a thousand, and the statement reported a business owed nothing. It
+    also carried every cleared shortfall as a debt, because subtracting only
+    the money ignores the decisions.
+
+    Clamped per bill in SQL, which is the only place that clamp can happen.
+  */
+  const receivableUsd = Number(receivable[0]?.owed ?? 0);
   const writtenOff = Math.max(
     0,
     toNumber(abandoned._sum.total) - abandonedPaid
@@ -1794,7 +1823,7 @@ async function financialStatement(f: ReportFilters): Promise<ReportResult> {
     ["Special costs", money(-spCosts)],
     ["Profit after special costs", money(revenue - opCosts - spCosts)],
     ["Collected from customers", money(collected)],
-    ["Receivable (billed, not collected)", money(Math.max(0, revenue - collected))],
+    ["Receivable (billed, not collected)", money(receivableUsd)],
     /* Below the receivable and outside the profit block above, deliberately. It
        is not a cost and it is not owed to us any more — it is a memo saying what
        the receivable would have been. Putting a figure inside a run of lines

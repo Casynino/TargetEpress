@@ -100,6 +100,27 @@ export function invoiceBalance(invoice: BalanceInput): Balance {
 }
 
 /** The bare figure, for the many places that only want the number. */
+/**
+ * WHAT A SET OF BILLS IS OWED — SUMMED THE ONLY WAY THAT MEANS ANYTHING.
+ *
+ * `outstandingOf` clamps a NEGATIVE balance to zero, because a customer who
+ * sent too much is owed money rather than owing it. Handed a Prisma `_sum`
+ * that clamp arrives far too late: the totals, the payments and the
+ * adjustments are added up across every bill in the set FIRST, so one
+ * customer's overpayment quietly cancels another customer's debt and the
+ * single clamp at the end never sees either of them.
+ *
+ * A hundred customers each owing a thousand and one who overpaid by a hundred
+ * thousand read as a company owed nothing.
+ *
+ * The clamp has to happen per bill, which SQL will do and an aggregate will
+ * not. Written as a fragment so the four screens that ask this question ask it
+ * identically.
+ */
+export const RECEIVABLE_SQL = `
+  COALESCE(SUM(GREATEST(0, "total" - "amountPaid" - "amountAdjusted")), 0)
+`;
+
 export function outstandingOf(invoice: BalanceInput): number {
   return invoiceBalance(invoice).balance;
 }

@@ -263,10 +263,14 @@ export async function financeDashboard(
       select: { id: true, name: true, kind: true, currency: true, active: true },
     }),
 
-    prisma.invoice.aggregate({
-      where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
-      _sum: { total: true, amountPaid: true, amountAdjusted: true },
-    }),
+    /* Clamped per bill, not once at the end — see RECEIVABLE_SQL. An
+       aggregate adds the overpayments in with the debts and reports a company
+       owed less than it is. */
+    prisma.$queryRaw<{ owed: number }[]>`
+      SELECT COALESCE(SUM(GREATEST(0, "total" - "amountPaid" - "amountAdjusted")), 0)::float8 AS "owed"
+        FROM "Invoice"
+       WHERE "status" IN ('UNPAID', 'PARTIALLY_PAID')
+    `,
 
     /* Costs recorded and not yet disbursed — the only payable this schema has. */
     prisma.expense.aggregate({
@@ -473,8 +477,7 @@ export async function financeDashboard(
   /* Cash is the ledger's own answer, in dollars so accounts of two currencies
      can be added at all. Nothing stores it. */
   const cashUsd = accounts.reduce((n, a) => n + a.balanceUsd, 0);
-  const receivableUsd =
-    outstandingOf(receivable._sum);
+  const receivableUsd = Number(receivable[0]?.owed ?? 0);
   const payableUsd = toNumber(payable._sum.amountUsd);
 
   // ------------------------------------------------------------- collections
