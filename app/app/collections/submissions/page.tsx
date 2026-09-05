@@ -290,25 +290,10 @@ export default async function SubmissionsPage({
         ))}
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {FILTERS.filter((f) => !(canVerify && f.key === "PENDING")).map((filter) => (
-          <Link
-            key={filter.key}
-            /* The chips keep the search and the search keeps the chip, so
-               neither control silently undoes the other. */
-            href={`/app/collections/submissions?status=${filter.key}${
-              query ? `&q=${encodeURIComponent(query)}` : ""
-            }`}
-            className={`focus-ring rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
-              active === filter.key
-                ? "border-brand bg-brand text-brand-foreground"
-                : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
-            }`}
-          >
-            {t(locale, filter.label)}
-          </Link>
-        ))}
-      </div>
+      {/* No second row of chips. Both of these lists are tabs in the
+          workspace row above — see the note in CollectionsNav — and a page
+          that offers the same two doors twice makes the reader check which
+          one they are looking at. */}
 
       {/*
         Search that shows what it can find while you type.

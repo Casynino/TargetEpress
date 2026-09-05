@@ -44,7 +44,19 @@ const TABS: Tab[] = [
   // payment.verify, and a tab that answers "that area is not yours" is worse
   // than no tab at all.
   { href: "/app/collections/verify", label: "Verify payments", verifierOnly: true },
-  { href: "/app/collections/submissions?status=PENDING", label: "With Finance", match: "/app/collections/submissions", collectorOnly: true },
+  { href: "/app/collections/submissions?status=PENDING", label: "With Finance", match: "/app/collections/submissions", query: "PENDING", collectorOnly: true },
+  /*
+    SENT BACK LIVES UP HERE TOO, WITH THE REST.
+
+    It was a second row of chips under the first, so this workspace asked the
+    reader to learn two rows that did the same job — and "With Finance"
+    appeared in both of them, once as a tab and once as a filter. One row, and
+    every list this desk has is on it.
+
+    Not collectorOnly: Finance may look at what they sent back, and for them it
+    is not a copy of anything they already have.
+  */
+  { href: "/app/collections/submissions?status=REJECTED", label: "Sent back", match: "/app/collections/submissions", query: "REJECTED" },
   /* No Verified tab: an agreed claim is a payment, and a payment is looked up
      in the ledger. See the note on FILTERS in the submissions page. */
   /* No Credit or Pickup notes tab. Both are pages in their own right with their
