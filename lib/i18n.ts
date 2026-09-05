@@ -3350,6 +3350,7 @@ const ZH: Record<string, string> = {
   "transport": "运输费",
   "Of that, transport": "其中运输费",
   "Transport settled from": "运输费支付账户",
+  "Cash or the Lipa number": "现金或 Lipa 号码",
   "Inside terms — send a reminder": "账期内 — 发送提醒",
   "Inside terms — nothing to chase": "账期内 — 无需催收",
   "Overdue credit — call today": "赊账逾期 — 今天致电",

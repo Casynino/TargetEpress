@@ -1705,8 +1705,12 @@ export async function recordPayment(
         the account the customer paid into: they can pay by bank while the
         driver is handed cash.
       */
-      let transportAccount: { id: string; name: string; currency: string } | null =
-        null;
+      let transportAccount: {
+        id: string;
+        name: string;
+        currency: string;
+        kind: string;
+      } | null = null;
       if (transport > 0) {
         if (!input.transportSourceId) {
           throw new Error(
@@ -1715,10 +1719,30 @@ export async function recordPayment(
         }
         transportAccount = await tx.companyAccount.findUnique({
           where: { id: input.transportSourceId },
-          select: { id: true, name: true, currency: true },
+          select: { id: true, name: true, currency: true, kind: true },
         });
         if (!transportAccount) {
           throw new Error("That transport account no longer exists.");
+        }
+        /*
+          THE TILL OR THE LIPA NUMBER, AND NOTHING ELSE.
+
+          The customer may send the whole amount into any account the company
+          holds — bank included — because that is their choice and the money
+          has to be recorded where it actually landed. Paying the driver is
+          the company's own business and happens in cash or off the Lipa
+          number; a bank account is not something anybody hands a driver from.
+
+          Enforced here rather than only in the dropdown, because this action
+          is a public endpoint and the two must not be able to disagree.
+        */
+        if (
+          transportAccount.kind !== "CASH" &&
+          transportAccount.kind !== "MOBILE_MONEY"
+        ) {
+          throw new Error(
+            `Transport is settled in cash or off the Lipa number. ${transportAccount.name} is a bank account.`
+          );
         }
         /* The same refusal the receiving account makes: an account can only
            give up money it is denominated in. */

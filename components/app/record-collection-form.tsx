@@ -383,13 +383,19 @@ export function RecordCollectionForm({
               className="h-11"
             >
               <option value="" disabled>
-                {t("Choose the account")}
+                {t("Cash or the Lipa number")}
               </option>
-              {eligible.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
+              {/* The customer may pay into anything, bank included. Paying the
+                  driver is the company's own business and happens out of the
+                  till or off the Lipa number — the server refuses a bank
+                  here too. */}
+              {eligible
+                .filter((a) => a.kind === "CASH" || a.kind === "MOBILE_MONEY")
+                .map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
             </NativeSelect>
           </div>
         ) : null}

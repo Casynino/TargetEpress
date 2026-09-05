@@ -560,6 +560,60 @@ export function RecordIncome({
               />
             </label>
 
+            {/*
+              THE DELIVERY, INSIDE THE SAME TRANSFER.
+
+              Beside the figure it comes out of: the customer sent one amount
+              and this is how much of it was the delivery.
+
+              THE CUSTOMER MAY PAY INTO ANYTHING — bank included, because that
+              is their choice and the money is recorded where it landed.
+              Paying the driver is the company's own business and happens out
+              of the till or off the Lipa number, so this list is those two.
+              The server refuses a bank here as well.
+            */}
+            <label className="flex flex-col gap-1">
+              <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                {t("Of that, transport")}
+              </span>
+              <MoneyInput
+                name="transport"
+                value={transport}
+                onValueChange={setTransport}
+                decimals={tendered === "TZS" ? 0 : 2}
+                placeholder="0"
+                className="w-28 bg-card"
+              />
+            </label>
+            {Number(transport) > 0 ? (
+              <label className="flex flex-col gap-1">
+                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                  {t("Transport settled from")}
+                </span>
+                <NativeSelect
+                  name="transportSourceId"
+                  required
+                  value={transportSourceId}
+                  onChange={(event) => setTransportSourceId(event.target.value)}
+                  className="w-52 bg-card"
+                >
+                  <option value="" disabled>
+                    {t("Cash or the Lipa number")}
+                  </option>
+                  {accounts
+                    .filter(
+                      (a) =>
+                        a.currency === tendered &&
+                        (a.kind === "CASH" || a.kind === "MOBILE_MONEY")
+                    )
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                </NativeSelect>
+              </label>
+            ) : null}
             <label className="flex flex-col gap-1">
               <span className="text-[11px] text-muted-foreground">
                 {t("Paid in")}
@@ -617,57 +671,7 @@ export function RecordIncome({
               </NativeSelect>
             </label>
 
-            {/*
-              THE DELIVERY, INSIDE THE SAME TRANSFER.
 
-              A customer settling a consignment often sends the freight and the
-              delivery together. The figure above stays whole — it is what they
-              sent and what the receipt says — and this is the part of it that
-              was never the company's, so it comes off the cargo before the
-              bill is settled and goes back out of whichever account the driver
-              is paid from.
-
-              Its own account on purpose: they can pay by bank while the driver
-              is handed cash from the till.
-            */}
-            <label className="flex flex-col gap-1">
-              <span className="whitespace-nowrap text-[11px] text-muted-foreground">
-                {t("Of that, transport")}
-              </span>
-              <MoneyInput
-                name="transport"
-                value={transport}
-                onValueChange={setTransport}
-                decimals={tendered === "TZS" ? 0 : 2}
-                placeholder="0"
-                className="w-28 bg-card"
-              />
-            </label>
-            {Number(transport) > 0 ? (
-              <label className="flex flex-col gap-1">
-                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
-                  {t("Transport settled from")}
-                </span>
-                <NativeSelect
-                  name="transportSourceId"
-                  required
-                  value={transportSourceId}
-                  onChange={(event) => setTransportSourceId(event.target.value)}
-                  className="w-52 bg-card"
-                >
-                  <option value="" disabled>
-                    {t("Choose the account")}
-                  </option>
-                  {accounts
-                    .filter((a) => a.currency === tendered)
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                </NativeSelect>
-              </label>
-            ) : null}
 
             {/*
               Proof, and nothing else to type.

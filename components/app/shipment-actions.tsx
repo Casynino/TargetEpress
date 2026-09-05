@@ -558,6 +558,11 @@ function PaymentPanel({
     transfer. Asking both invites them to disagree, and a payment whose method
     and account contradict each other cannot be reconciled against a statement.
   */
+  /* Cash and the Lipa number only — a bank account is not something anybody
+     hands a driver from. */
+  const transportAccounts = (props.accounts ?? []).filter(
+    (a) => a.currency === currency && (a.kind === "CASH" || a.kind === "MOBILE_MONEY")
+  );
   const eligibleAccounts = (props.accounts ?? []).filter(
     (account) => account.currency === currency
   );
@@ -667,6 +672,59 @@ function PaymentPanel({
                 {props.currency !== "USD" ? <option value="USD">USD</option> : null}
               </NativeSelect>
             </div>
+          </div>
+
+          {/*
+            THE DELIVERY, INSIDE THE SAME TRANSFER.
+
+            Directly under the figure it comes out of, because that is the
+            conversation: the customer sent one amount and this is how much of
+            it was the delivery. Down beside the account it read as a separate
+            decision about a separate payment, which is exactly what it is not.
+
+            THE CUSTOMER MAY PAY INTO ANYTHING — bank included, because that is
+            their choice and the money is recorded where it landed. Paying the
+            driver is the company's own business and happens out of the till or
+            off the Lipa number, so this list is those two and nothing else.
+            The server refuses a bank here as well.
+          */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="transport" className="text-xs">
+                {t("Of that, transport")}
+              </Label>
+              <MoneyInput
+                id="transport"
+                name="transport"
+                value={transport}
+                onValueChange={setTransport}
+                decimals={currency === "TZS" ? 0 : 2}
+                placeholder="0"
+              />
+            </div>
+            {Number(transport) > 0 ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="transportSourceId" className="text-xs">
+                  {t("Transport settled from")}
+                </Label>
+                <NativeSelect
+                  id="transportSourceId"
+                  name="transportSourceId"
+                  required
+                  value={transportSourceId}
+                  onChange={(event) => setTransportSourceId(event.target.value)}
+                >
+                  <option value="" disabled>
+                    {t("Cash or the Lipa number")}
+                  </option>
+                  {transportAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
+            ) : null}
           </div>
           {/* Straight under the figure it changes. A discount moves what the
               customer owes, so it belongs beside the amount rather than down
@@ -797,58 +855,6 @@ function PaymentPanel({
               </NativeSelect>
             </div>
           ) : null}
-
-          {/*
-            THE DELIVERY, INSIDE THE SAME TRANSFER.
-
-            A customer settling this consignment often sends the freight and
-            the delivery together. The amount above stays whole — it is what
-            they sent and what the receipt says — and this is the part of it
-            that was never the company's: it comes off the cargo before the
-            bill is settled and goes back out of whichever account the driver
-            is paid from.
-
-            Its own account on purpose: they can pay by bank while the driver
-            is handed cash from the till.
-          */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="transport" className="text-xs">
-                {t("Of that, transport")}
-              </Label>
-              <MoneyInput
-                id="transport"
-                name="transport"
-                value={transport}
-                onValueChange={setTransport}
-                decimals={currency === "TZS" ? 0 : 2}
-                placeholder="0"
-              />
-            </div>
-            {Number(transport) > 0 ? (
-              <div className="space-y-1.5">
-                <Label htmlFor="transportSourceId" className="text-xs">
-                  {t("Transport settled from")}
-                </Label>
-                <NativeSelect
-                  id="transportSourceId"
-                  name="transportSourceId"
-                  required
-                  value={transportSourceId}
-                  onChange={(event) => setTransportSourceId(event.target.value)}
-                >
-                  <option value="" disabled>
-                    {t("Choose the account")}
-                  </option>
-                  {eligibleAccounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </div>
-            ) : null}
-          </div>
 
           <PaymentProofField />
           {/*

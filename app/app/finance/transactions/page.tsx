@@ -649,6 +649,9 @@ export default async function LedgerPage({
                   name: a.name,
                   currency: a.currency,
                   accountNumber: a.accountNumber,
+                  /* Needed to tell a till from a bank: transport is settled
+                     out of cash or the Lipa number, never a bank. */
+                  kind: a.kind,
                 }))}
                 rate={rate}
                 /* Home links straight in with the panel already open. */
