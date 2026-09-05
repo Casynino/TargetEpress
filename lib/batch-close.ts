@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma, type TxClient } from "@/lib/prisma";
 import { toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { currentRateValue } from "@/lib/fx";
 
 /**
@@ -77,7 +78,7 @@ export async function batchOwing(
       drafts += 1;
       continue;
     }
-    const owed = toNumber(invoice.total) - toNumber(invoice.amountPaid);
+    const owed = outstandingOf(invoice);
     // A rounding tail of a fraction of a cent is not a debt.
     if (owed <= 0.005) continue;
     unpaid.push({

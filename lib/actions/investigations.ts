@@ -191,6 +191,7 @@ export async function markCargoFound(
                   status: true,
                   total: true,
                   amountPaid: true,
+                  amountAdjusted: true,
                   currency: true,
                 },
               },

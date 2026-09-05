@@ -15,6 +15,7 @@ import {
   type CreditRow,
 } from "@/lib/credit-queries";
 import { toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
 import { formatShillings, formatUsd } from "@/lib/money";
@@ -367,6 +368,7 @@ export async function followUpQueue({ credit = true }: { credit?: boolean } = {}
           invoiceNumber: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           exchangeRate: true,
           currency: true,
           discount: true,
@@ -1064,6 +1066,7 @@ export async function searchShipments(query: string, take = 40) {
           invoiceNumber: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           sentAt: true,
         },
       },
@@ -1109,6 +1112,7 @@ export async function customerProfile(idOrCode: string) {
               invoiceNumber: true,
               total: true,
               amountPaid: true,
+              amountAdjusted: true,
               status: true,
               sentAt: true,
               issuedAt: true,
@@ -1207,7 +1211,7 @@ export async function customerProfile(idOrCode: string) {
 
   const outstanding = Math.max(
     0,
-    toNumber(owed._sum.total) - toNumber(owed._sum.amountPaid)
+    outstandingOf(owed._sum)
   );
   const lifetimeValue = toNumber(paid._sum.amountPaid);
 

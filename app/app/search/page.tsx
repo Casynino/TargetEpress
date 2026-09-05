@@ -13,6 +13,7 @@ import { SearchBox } from "@/components/app/search-box";
 import { EXCEPTION_TYPE_LABELS } from "@/lib/constants";
 import { suggestCargo } from "@/lib/actions/suggest";
 import { toNumber, formatDate } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { formatUsd } from "@/lib/fx";
 import { t } from "@/lib/i18n";
 import { resolveScannedCode } from "@/lib/packages";
@@ -144,7 +145,7 @@ export default async function SearchCargoPage({
   const rows: CargoSearchRow[] = found.map((shipment) => {
     const invoice = shipment.invoice;
     const outstanding = invoice
-      ? Math.max(0, toNumber(invoice.total) - toNumber(invoice.amountPaid))
+      ? outstandingOf(invoice)
       : null;
 
     return {

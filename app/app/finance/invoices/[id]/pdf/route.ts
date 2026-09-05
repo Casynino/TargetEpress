@@ -83,6 +83,7 @@ export async function GET(
       discount: true,
       total: true,
       amountPaid: true,
+      amountAdjusted: true,
       exchangeRate: true,
       localCurrency: true,
       totalLocal: true,

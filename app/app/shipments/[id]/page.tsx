@@ -103,6 +103,7 @@ export default async function ShipmentPage({
               otherCharges: true,
               discount: true,
               amountPaid: true,
+              amountAdjusted: true,
               /* Credit gets its own colour on the row, so the row needs to know
                  whether one was granted and whether the date has passed. */
               creditStatus: true,

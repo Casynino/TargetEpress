@@ -7,6 +7,7 @@ import type {
 import { isCollectable } from "@/lib/payable";
 
 import { toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 
 /** What every money column in this schema actually arrives as. */
 type Money = number | string | Prisma.Decimal | null | undefined;
@@ -361,7 +362,7 @@ export function canRequestCredit(invoice: {
   if (invoice.creditStatus === "REQUESTED" || invoice.creditStatus === "APPROVED") {
     return false;
   }
-  return toNumber(invoice.total) - toNumber(invoice.amountPaid) > 0.005;
+  return outstandingOf(invoice) > 0.005;
 }
 
 /** The Prisma filter for "released on credit and still owing". */

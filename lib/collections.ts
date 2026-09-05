@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 
 /**
  * The collections desk's numbers.
@@ -66,7 +67,7 @@ export async function collectionsOverview() {
     byStatus.find((row) => row.status === "VERIFIED")?._count ?? 0;
 
   return {
-    outstandingUsd: toNumber(owing._sum.total) - toNumber(owing._sum.amountPaid),
+    outstandingUsd: outstandingOf(owing._sum),
     owingCount: owing._count,
     awaitingPayment: awaiting,
     pendingCount: pending,
@@ -193,6 +194,7 @@ export async function submissionQueue(
           invoiceNumber: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           currency: true,
           /* The rate frozen onto the bill when it was raised. Switching a
              claim between shillings and dollars restates the same money at
@@ -223,6 +225,7 @@ export async function invoicesAwaitingPayment(take = 60) {
       invoiceNumber: true,
       total: true,
       amountPaid: true,
+      amountAdjusted: true,
       currency: true,
       status: true,
       sentAt: true,
@@ -239,7 +242,7 @@ export async function invoicesAwaitingPayment(take = 60) {
 
   return rows.map((row) => ({
     ...row,
-    outstanding: toNumber(row.total) - toNumber(row.amountPaid),
+    outstanding: outstandingOf(row),
     /** A claim already with Finance. Ringing this customer again is a nuisance. */
     pendingSubmission: row.submissions[0]?.submissionNumber ?? null,
   }));

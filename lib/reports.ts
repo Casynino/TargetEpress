@@ -25,6 +25,7 @@ import {
 } from "@/lib/credit-queries";
 import { ROLE_LABELS } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { currentRateValue } from "@/lib/fx";
 import { accountBalances } from "@/lib/ledger";
 import { runTotals } from "@/lib/payroll";
@@ -312,6 +313,7 @@ async function income(f: ReportFilters): Promise<ReportResult> {
       issuedAt: true,
       total: true,
       amountPaid: true,
+      amountAdjusted: true,
       currency: true,
       status: true,
       shipment: {
@@ -501,6 +503,7 @@ async function batchProfit(f: ReportFilters): Promise<ReportResult> {
             select: {
               total: true,
               amountPaid: true,
+              amountAdjusted: true,
               status: true,
               storageCharge: true,
             },
@@ -737,6 +740,7 @@ async function outstandingInvoices(f: ReportFilters, byCustomer: boolean) {
       dueDate: true,
       total: true,
       amountPaid: true,
+      amountAdjusted: true,
       shipment: {
         select: {
           trackingNumber: true,
@@ -751,7 +755,7 @@ async function outstandingInvoices(f: ReportFilters, byCustomer: boolean) {
   const live = invoices
     .map((i) => ({
       ...i,
-      owed: toNumber(i.total) - toNumber(i.amountPaid),
+      owed: outstandingOf(i),
       days: Math.floor((now - i.issuedAt.getTime()) / 86_400_000),
     }))
     .filter((i) => i.owed > 0.005);

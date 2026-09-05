@@ -15,6 +15,7 @@ import {
 import { toNumber } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { invoiceStatusFor } from "@/lib/invoice-status";
+import { outstandingOf } from "@/lib/invoice-balance";
 import {
   LOCAL_CURRENCY,
   billingRate,
@@ -105,6 +106,7 @@ export async function generateInvoice(
             select: {
               id: true,
               amountPaid: true,
+              amountAdjusted: true,
               invoiceNumber: true,
               storageWaivedUsd: true,
             },
@@ -330,6 +332,7 @@ export async function confirmInvoicePrice(
           customerId: true,
           currency: true,
           amountPaid: true,
+          amountAdjusted: true,
           /* So re-pricing can see a waiver and leave it alone. */
           storageWaivedUsd: true,
           /* And a granted credit, whose due date it must not overwrite. */
@@ -746,6 +749,7 @@ export async function adjustInvoice(
           otherCharges: true,
           discount: true,
           amountPaid: true,
+          amountAdjusted: true,
           /* Read so the correction can carry the status with the total; a
              cancelled or written-off bill is left as it is. */
           status: true,
@@ -1167,6 +1171,7 @@ export async function applyInvoiceDiscount(
           discount: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           exchangeRate: true,
           localCurrency: true,
         },
@@ -1532,6 +1537,7 @@ export async function recordPayment(
           invoiceNumber: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           status: true,
           currency: true,
           exchangeRate: true,
@@ -1627,9 +1633,20 @@ export async function recordPayment(
 
       const total = toNumber(invoice.total);
       const paid = toNumber(invoice.amountPaid);
-      const outstanding = total - paid;
+      const adjusted = toNumber(invoice.amountAdjusted);
+      const outstanding = Math.max(0, total - paid - adjusted);
 
-      if (outstanding <= 0) throw new Error("This invoice is already settled.");
+      /*
+        A SETTLED BILL IS NOT A REASON TO REFUSE MONEY.
+
+        This threw "This invoice is already settled." before the currency, the
+        transport or the account had even been read — so a customer who sent a
+        little too much, or sent again by mistake, could not be recorded at
+        all. The money arrived; the books have to be able to say so.
+
+        What a settled bill DOES mean is that the excess is an overpayment
+        rather than a settlement, and that is what the figures below say.
+      */
 
       // What the customer handed over, and what it is worth against this bill.
       //
@@ -1712,15 +1729,22 @@ export async function recordPayment(
         credited = Math.round(credited * 100) / 100;
       }
 
-      // Overpayment is almost always a typo at the counter. Reject it rather
-      // than quietly creating a credit the system has no concept of.
-      if (credited > outstanding + 0.001) {
-        throw new Error(
-          tenderedCurrency === invoice.currency
-            ? `That is more than the ${invoice.currency} ${outstanding.toLocaleString()} still outstanding.`
-            : `${tenderedCurrency} ${cargoTendered.toLocaleString()} of cargo is ${invoice.currency} ${credited.toLocaleString()} at this invoice's rate — more than the ${invoice.currency} ${outstanding.toLocaleString()} still outstanding.`
-        );
-      }
+      /*
+        OVERPAYMENT IS ACCEPTED, NOT REFUSED.
+
+        This threw whenever the cargo half came to more than was outstanding,
+        on the reasoning that overpaying is almost always a typo. Sometimes it
+        is — and sometimes a customer rounds up, or pays twice, or the rate
+        moved between the quote and the transfer. Refusing meant the counter
+        could not record money it was holding, and the owner's rule is the
+        other way round: take it, show it as an overpayment, and never rewrite
+        what the customer actually sent to make it match the bill.
+
+        The excess does not become cargo income. Revenue in this system is
+        derived from invoice totals, never from payment amounts, so an
+        overpayment cannot reach it — and every screen that shows this bill
+        now names the excess as an overpayment rather than burying it.
+      */
 
       /*
         WHERE THE TRANSPORT HALF IS SETTLED FROM.
@@ -2279,6 +2303,7 @@ export async function issuePickupNote(
               status: true,
               total: true,
               amountPaid: true,
+              amountAdjusted: true,
               // Whether this cargo is allowed to leave unpaid, and on what terms.
               creditStatus: true,
               creditTermDays: true,
@@ -2332,7 +2357,7 @@ export async function issuePickupNote(
       if (!shipment.invoice) throw new Error("Raise an invoice first.");
 
       const outstanding =
-        toNumber(shipment.invoice.total) - toNumber(shipment.invoice.amountPaid);
+        outstandingOf(shipment.invoice);
 
       /* Approved credit, and only approved credit, releases an open bill.
          REQUESTED does not: a request nobody has answered has granted nothing,
@@ -2812,6 +2837,7 @@ export async function searchBillable(query: string): Promise<BillableHit[]> {
       currency: true,
       total: true,
       amountPaid: true,
+      amountAdjusted: true,
       status: true,
       exchangeRate: true,
       customer: { select: { name: true } },
@@ -2927,6 +2953,7 @@ export async function billableQueue(
         currency: true,
         total: true,
         amountPaid: true,
+        amountAdjusted: true,
         status: true,
         exchangeRate: true,
         customer: { select: { name: true } },
@@ -2952,6 +2979,7 @@ export async function billableQueue(
       select: {
         total: true,
         amountPaid: true,
+        amountAdjusted: true,
         currency: true,
         exchangeRate: true,
         shipment: {
@@ -2976,7 +3004,7 @@ export async function billableQueue(
     if (!batch) continue;
     const outstanding = Math.max(
       0,
-      toNumber(inv.total) - toNumber(inv.amountPaid)
+      outstandingOf(inv)
     );
     if (outstanding <= 0) continue;
     /* Totalled in dollars because a flight carries both currencies and a
@@ -3083,6 +3111,7 @@ export async function voidInvoice(
           status: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           currency: true,
           shipmentId: true,
           shipment: {
@@ -3355,6 +3384,7 @@ export async function recordCustomerPayment(
           exchangeRate: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           customerId: true,
           shipment: {
             select: {
@@ -3514,30 +3544,26 @@ export async function recordCustomerPayment(
         return Math.abs(rounded - outstanding) <= 0.01 ? outstanding : rounded;
       }
 
-      /* Nothing may be put against a bill beyond what it still owes. Overpayment
-         is legitimate and stays with the customer as credit; overpayment hidden
-         inside a bill is a balance nobody can explain later. */
+      /*
+        A BILL MAY BE OVERPAID, AND THE OVERPAYMENT SAYS SO.
+
+        This refused any allocation larger than what a bill still owed. It was
+        the merge door's version of the same refusal the single door made, and
+        it is lifted for the same reason: the money arrived, and the books have
+        to be able to say what arrived. What it must NOT do is disappear — the
+        excess sits on the bill it was allocated to, where every screen names
+        it as an overpayment, rather than being quietly folded into a customer
+        credit balance nobody can explain a month later.
+      */
       const credited = new Map<string, number>();
       for (const alloc of input.allocations) {
         const invoice = byId.get(alloc.invoiceId)!;
-        const outstanding = toNumber(invoice.total) - toNumber(invoice.amountPaid);
+        const outstanding = outstandingOf(invoice);
         const against = credit(
           alloc.amount,
           outstanding,
           toNumber(invoice.exchangeRate)
         );
-        if (against > outstanding + 0.005) {
-          throw new Error(
-            crossCurrency
-              ? `${input.currency} ${alloc.amount.toLocaleString()} is ${billCurrency} ` +
-                `${against.toLocaleString()} at this bill's own rate — more than the ` +
-                `${billCurrency} ${outstanding.toLocaleString()} ${invoice.invoiceNumber} ` +
-                `still owes. Allocate the rest to another bill, or leave it as the ` +
-                `customer's credit.`
-              : `${invoice.invoiceNumber} only owes ${invoice.currency} ${outstanding.toLocaleString()}. ` +
-                `Allocate the rest to another bill, or leave it as the customer's credit.`
-          );
-        }
         credited.set(alloc.invoiceId, against);
       }
 

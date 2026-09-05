@@ -435,6 +435,8 @@ model User {
   receivedPayments      Payment[]
   submittedPayments     PaymentSubmission[]     @relation("SubmittedPayments")
   reviewedPayments      PaymentSubmission[]     @relation("ReviewedPayments")
+  adjustmentsMade       InvoiceAdjustment[]     @relation("AdjustmentsMade")
+  adjustmentsReversed   InvoiceAdjustment[]     @relation("AdjustmentsReversed")
   issuedReceipts        Receipt[]
   issuedPickupNotes     PickupNote[]
   releasedDeliveries    DeliveryRecord[]
@@ -1410,22 +1412,22 @@ model Invoice {
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
-  currency              String        @default("USD")
+  currency              String    @default("USD")
   /// What the rate book says this cargo costs. Always the rate-book figure —
   /// it is never overwritten by hand, so the variance below stays visible.
-  freightCost           Decimal       @db.Decimal(12, 2)
+  freightCost           Decimal   @db.Decimal(12, 2)
   /// Finance's own freight figure, when they disagree with the rate book.
   /// Null means the rate book stands. Kept beside `freightCost` rather than
   /// replacing it: an override with nothing to compare against is just a typed
   /// number, and the point of the rate book is that every departure from it is
   /// visible and explained.
-  freightOverride       Decimal?      @db.Decimal(12, 2)
+  freightOverride       Decimal?  @db.Decimal(12, 2)
   freightOverrideReason String?
   /// Free storage runs out after a grace period; after that each day is
   /// chargeable. Both the count and the money are stored so an invoice can be
   /// re-explained months later, when "today" is a different date.
-  storageDays           Int           @default(0)
-  storageCharge         Decimal       @default(0) @db.Decimal(12, 2)
+  storageDays           Int       @default(0)
+  storageCharge         Decimal   @default(0) @db.Decimal(12, 2)
   /// What was calculated, what was forgiven, and by whom.
   ///
   /// A waiver is never a deletion. `storageCharge` keeps the figure the policy
@@ -1434,22 +1436,42 @@ model Invoice {
   /// derivable from one row. Silently zeroing the charge would make waived
   /// storage indistinguishable from storage that never accrued, and those are
   /// very different facts about a month.
-  storageWaivedUsd      Decimal       @default(0) @db.Decimal(12, 2)
+  storageWaivedUsd      Decimal   @default(0) @db.Decimal(12, 2)
   storageWaivedAt       DateTime?
   storageWaivedById     String?
-  storageWaivedBy       User?         @relation("StorageWaivedBy", fields: [storageWaivedById], references: [id], onDelete: SetNull)
+  storageWaivedBy       User?     @relation("StorageWaivedBy", fields: [storageWaivedById], references: [id], onDelete: SetNull)
   /// Required whenever anything is waived — "why" is the whole point of keeping
   /// the record, and it is the first question asked months later.
   storageWaiveReason    String?
-  otherCharges          Decimal       @default(0) @db.Decimal(12, 2)
-  discount              Decimal       @default(0) @db.Decimal(12, 2)
-  total                 Decimal       @db.Decimal(12, 2)
-  amountPaid            Decimal       @default(0) @db.Decimal(12, 2)
-  status                InvoiceStatus @default(UNPAID)
+  otherCharges          Decimal   @default(0) @db.Decimal(12, 2)
+  discount              Decimal   @default(0) @db.Decimal(12, 2)
+  total                 Decimal   @db.Decimal(12, 2)
+  amountPaid            Decimal   @default(0) @db.Decimal(12, 2)
+
+  /// WHAT FINANCE CLEARED WITHOUT MONEY ARRIVING.
+  ///
+  /// A customer sends 4,424,000 against a 4,424,625 bill and the 625 is never
+  /// coming. Finance clears it, the balance reaches zero and the cargo goes.
+  ///
+  /// NEVER MONEY. Nothing reached an account, so nothing here may be counted
+  /// as cash — the same rule that keeps a credit sale out of the ledger. It
+  /// must not appear in any "collected", "received" or account figure; those
+  /// sum amountPaid and the ledger, and this is neither.
+  ///
+  /// Stored for the one reason amountPaid is stored: the receivable figures
+  /// are Prisma aggregates over this table alone, and an aggregate cannot see
+  /// a joined row. The InvoiceAdjustment rows below are the authority and this
+  /// is their live sum — reversed ones excluded — kept beside amountPaid so
+  /// anything reading one sees the other.
+  amountAdjusted Decimal @default(0) @db.Decimal(12, 2)
+
+  /// Every clearing decision, kept for ever. See InvoiceAdjustment.
+  adjustments    InvoiceAdjustment[]
+  status         InvoiceStatus       @default(UNPAID)
   /// When this bill was given up on, and who decided. Set only alongside
   /// status WRITTEN_OFF — the status says what it is, these say who owns it.
-  writtenOffAt          DateTime?
-  writtenOffById        String?
+  writtenOffAt   DateTime?
+  writtenOffById String?
 
   /// The USD→TZS rate used on this invoice, frozen at creation. Finance may
   /// override it for one invoice; the override is what is stored, and it is
@@ -1493,7 +1515,8 @@ model Invoice {
    * `creditRequestedById` and `creditDecidedById` are compared before a credit
    * is approved, so nobody signs off their own request.
    * Deliberately absent: any stored figure for how much credit is outstanding.
-   * That is `total - amountPaid`, it already exists, and a second copy of it
+   * That is `total - amountPaid - amountAdjusted` (see lib/invoice-balance.ts),
+   * it already exists, and a second copy of it
    * would be a second answer to the same question. The same reason there is no
    * stored storage fee and no stored account balance anywhere in this schema.
    */
@@ -3164,4 +3187,56 @@ model PaymentAllocation {
   /// much did this payment put against that bill" a question with one answer.
   @@unique([paymentId, invoiceId])
   @@index([invoiceId])
+}
+
+/// ONE DIFFERENCE, CLEARED BY A PERSON WHO SAID SO.
+///
+/// A customer pays 4,424,000 against a 4,424,625 bill. The 625 is not coming;
+/// Finance decides the bill is settled and the cargo goes. This is that
+/// decision, and it is a decision rather than a payment — no money moved, no
+/// account changed, and the payment row still says 4,424,000 for ever.
+///
+/// THERE IS NO LIMIT AND NO APPROVAL. The owner's instruction: Finance judges
+/// whether a difference should be cleared, and a large one is FLAGGED for
+/// management to see afterwards, never blocked at the moment of doing it.
+///
+/// REVERSED, NEVER DELETED. Undoing one sets reversedAt and leaves the row
+/// standing, exactly as a wrong ledger line is answered by a reversing line
+/// rather than an edit — so "this was cleared in September and un-cleared in
+/// October" is a thing the book can still say a year later.
+model InvoiceAdjustment {
+  id String @id @default(cuid())
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  /// Always positive: the part of the bill being cleared. Never negative, and
+  /// never larger than what is actually outstanding at the moment it is made.
+  amount Decimal @db.Decimal(12, 2)
+
+  /// The bill's own currency, like every other figure on an invoice.
+  currency String
+
+  /// Optional, on the owner's instruction — the desk should be able to do this
+  /// in two clicks. What is NOT optional is who and when, below.
+  reason String?
+
+  /// The figures as they stood when the decision was made, so the row explains
+  /// itself without re-deriving history that has since moved on.
+  totalAtTime      Decimal @db.Decimal(12, 2)
+  amountPaidAtTime Decimal @db.Decimal(12, 2)
+
+  createdById String?
+  createdBy   User?    @relation("AdjustmentsMade", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  /// Set when it is taken back. The balance returns and the customer stops
+  /// being cleared; the row stays.
+  reversedAt     DateTime?
+  reversedById   String?
+  reversedBy     User?     @relation("AdjustmentsReversed", fields: [reversedById], references: [id], onDelete: SetNull)
+  reversalReason String?
+
+  @@index([invoiceId])
+  @@index([createdAt])
 }

@@ -4,6 +4,7 @@ import { cardFileName, pdfHeaders } from "@/lib/card-pdf";
 import { BILLED_INVOICE_STATUSES } from "@/lib/constants";
 import { COLLECTABLE_SHIPMENT_WHERE } from "@/lib/payable";
 import { toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { prisma } from "@/lib/prisma";
 import { combinedBillToPdf } from "@/lib/receipt-pdf";
 import { requirePermission } from "@/lib/session";
@@ -54,6 +55,7 @@ export async function GET(
           exchangeRate: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           shipment: {
             select: {
               trackingNumber: true,
@@ -77,7 +79,7 @@ export async function GET(
   /* Settled bills are left off: this is a statement of what is owed, and a
      list of bills needing nothing is noise in front of the figure. */
   const open = customer.invoices.filter(
-    (invoice) => toNumber(invoice.total) - toNumber(invoice.amountPaid) > 0.005
+    (invoice) => outstandingOf(invoice) > 0.005
   );
 
   if (open.length === 0) {
@@ -93,7 +95,7 @@ export async function GET(
     customerPhone: customer.phone,
     lines: open.map((invoice) => {
       const outstanding =
-        toNumber(invoice.total) - toNumber(invoice.amountPaid);
+        outstandingOf(invoice);
       const frozen = toNumber(invoice.exchangeRate);
       return {
         trackingNumber: invoice.shipment.trackingNumber,

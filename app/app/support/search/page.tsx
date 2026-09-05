@@ -7,6 +7,7 @@ import { ShipmentStatusBadge } from "@/components/app/status-badge";
 import { CargoSearch } from "@/components/app/cargo-search";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatWeight, toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { formatUsd } from "@/lib/fx";
 import { can } from "@/lib/rbac";
 import { claimsForInvoices } from "@/lib/claimed";
@@ -96,8 +97,7 @@ export default async function SupportSearchPage({
             const outstanding = shipment.invoice
               ? Math.max(
                   0,
-                  toNumber(shipment.invoice.total) -
-                    toNumber(shipment.invoice.amountPaid)
+                  outstandingOf(shipment.invoice)
                 )
               : null;
             return (
@@ -185,8 +185,7 @@ export default async function SupportSearchPage({
                 const outstanding = shipment.invoice
                   ? Math.max(
                       0,
-                      toNumber(shipment.invoice.total) -
-                        toNumber(shipment.invoice.amountPaid)
+                      outstandingOf(shipment.invoice)
                     )
                   : null;
                 return (

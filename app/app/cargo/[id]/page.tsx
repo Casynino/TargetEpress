@@ -1,3 +1,4 @@
+import { outstandingOf } from "@/lib/invoice-balance";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -249,7 +250,7 @@ export default async function ShipmentDetailPage({
   // default in a step="0.01" amount input, which refuses a raw float remainder.
   const outstanding = shipment.invoice
     ? roundMoney(
-        toNumber(shipment.invoice.total) - toNumber(shipment.invoice.amountPaid)
+        outstandingOf(shipment.invoice)
       )
     : null;
 

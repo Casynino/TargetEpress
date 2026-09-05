@@ -27,12 +27,31 @@ import type { InvoiceStatus } from "@prisma/client";
 export function invoiceStatusFor(
   current: string,
   paid: number,
-  total: number
+  total: number,
+  /**
+   * WHAT FINANCE CLEARED WITHOUT MONEY ARRIVING.
+   *
+   * Optional so every existing caller keeps compiling and keeps behaving
+   * exactly as it did — a bill with no adjustment is the same bill. Where it
+   * IS passed, a difference somebody cleared closes the bill as surely as the
+   * money would have: the balance is zero, so the cargo goes.
+   *
+   * The stored status stays PAID for that case rather than gaining a state of
+   * its own. Forty-three places in this app test `status === "PAID"`, and a
+   * settled bill is settled whichever way the last shilling was accounted for
+   * — what differs is what the reader is TOLD, and that label is derived in
+   * lib/invoice-balance.ts where it can say "fully cleared — adjustment 625".
+   */
+  adjusted = 0
 ): InvoiceStatus | null {
   if (current === "VOID" || current === "WRITTEN_OFF" || current === "DRAFT") {
     return null;
   }
-  if (paid <= 0.005) return "UNPAID";
-  if (paid + 0.005 >= total) return "PAID";
+  /* Untouched by either — nobody has paid and nobody has cleared anything. */
+  if (paid <= 0.005 && adjusted <= 0.005) return "UNPAID";
+  /* Overpaying settles it too: a customer who sent more than the bill asked
+     for owes nothing, and the excess is shown as an overpayment rather than
+     netted off somebody else's debt. */
+  if (paid + adjusted + 0.005 >= total) return "PAID";
   return "PARTIALLY_PAID";
 }

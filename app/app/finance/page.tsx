@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { sumShillings, sumUsd } from "@/lib/money-totals";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { formatShillingTotal, LOCAL_CURRENCY } from "@/lib/money";
@@ -977,7 +978,7 @@ export default async function FinanceOverviewPage() {
                 {aging.map((shipment) => {
                   const invoice = shipment.invoice;
                   const owing = invoice
-                    ? toNumber(invoice.total) - toNumber(invoice.amountPaid)
+                    ? outstandingOf(invoice)
                     : null;
                   const draft = invoice?.status === "DRAFT";
                   return (

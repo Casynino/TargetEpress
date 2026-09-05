@@ -45,6 +45,7 @@ const CREDIT_SELECT = {
   invoiceNumber: true,
   total: true,
   amountPaid: true,
+  amountAdjusted: true,
   status: true,
   currency: true,
   exchangeRate: true,

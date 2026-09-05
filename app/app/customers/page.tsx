@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchBox } from "@/components/app/search-box";
 import { toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -134,7 +135,7 @@ export default async function CustomersPage({
             return sum;
           }
           return (
-            sum + Math.max(0, toNumber(invoice.total) - toNumber(invoice.amountPaid))
+            sum + outstandingOf(invoice)
           );
         }, 0)
       : undefined;

@@ -53,6 +53,7 @@ export async function GET(
               invoiceNumber: true,
               total: true,
               amountPaid: true,
+              amountAdjusted: true,
             },
           },
         },

@@ -178,6 +178,7 @@ export async function batchFinance(
         select: {
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           totalLocal: true,
           status: true,
           storageCharge: true,

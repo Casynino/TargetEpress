@@ -1,3 +1,4 @@
+import { outstandingOf } from "@/lib/invoice-balance";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -176,7 +177,7 @@ export default async function CustomerProfilePage({
       /* And in Dar. Cargo still on its way has an estimate on it, not a bill,
          and the merge screen will not offer it. */
       isCollectable(s.status) &&
-      toNumber(s.invoice.total) - toNumber(s.invoice.amountPaid) > 0
+      outstandingOf(s.invoice) > 0
   ).length;
   const mayCollect = can(user.role, "payment.submit");
   const canMessage = can(user.role, "message.send");
@@ -204,8 +205,7 @@ export default async function CustomerProfilePage({
       amountUsd: latestShipment?.invoice
         ? Math.max(
             0,
-            toNumber(latestShipment.invoice.total) -
-              toNumber(latestShipment.invoice.amountPaid)
+            outstandingOf(latestShipment.invoice)
           )
         : null,
     }),
@@ -404,8 +404,7 @@ export default async function CustomerProfilePage({
                 const outstanding = shipment.invoice
                   ? Math.max(
                       0,
-                      toNumber(shipment.invoice.total) -
-                        toNumber(shipment.invoice.amountPaid)
+                      outstandingOf(shipment.invoice)
                     )
                   : null;
                 return (
@@ -510,8 +509,7 @@ export default async function CustomerProfilePage({
                     const outstanding = shipment.invoice
                       ? Math.max(
                           0,
-                          toNumber(shipment.invoice.total) -
-                            toNumber(shipment.invoice.amountPaid)
+                          outstandingOf(shipment.invoice)
                         )
                       : null;
                     return (

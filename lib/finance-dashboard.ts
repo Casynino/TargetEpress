@@ -3,6 +3,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 
 import { toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { currentRateValue } from "@/lib/fx";
 import { accountBalances } from "@/lib/ledger";
 import {
@@ -223,6 +224,7 @@ export async function financeDashboard(
       select: {
         total: true,
         amountPaid: true,
+        amountAdjusted: true,
         customer: { select: { name: true } },
         shipment: { select: { origin: true, weightKg: true } },
       },
@@ -300,6 +302,7 @@ export async function financeDashboard(
               select: {
                 total: true,
                 amountPaid: true,
+                amountAdjusted: true,
                 status: true,
                 /* Needed to total in shillings without going through the
                    dollar snapshot — see the batch figures below. */
@@ -393,7 +396,7 @@ export async function financeDashboard(
     const key = inv.customer?.name ?? "—";
     const cell = customerMap.get(key) ?? { expectedUsd: 0, outstandingUsd: 0 };
     cell.expectedUsd += toNumber(inv.total);
-    cell.outstandingUsd += Math.max(0, toNumber(inv.total) - toNumber(inv.amountPaid));
+    cell.outstandingUsd += outstandingOf(inv);
     customerMap.set(key, cell);
   }
 
@@ -471,7 +474,7 @@ export async function financeDashboard(
      can be added at all. Nothing stores it. */
   const cashUsd = accounts.reduce((n, a) => n + a.balanceUsd, 0);
   const receivableUsd =
-    toNumber(receivable._sum.total) - toNumber(receivable._sum.amountPaid);
+    outstandingOf(receivable._sum);
   const payableUsd = toNumber(payable._sum.amountUsd);
 
   // ------------------------------------------------------------- collections

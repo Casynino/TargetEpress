@@ -250,6 +250,7 @@ export async function submitPaymentForVerification(
           status: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           customerId: true,
           shipment: { select: { trackingNumber: true, status: true } },
           customer: { select: { name: true } },

@@ -13,6 +13,7 @@ import {
   storageChargingSince,
 } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { chinaProblems, floorSnapshot } from "@/lib/floor";
 import { t } from "@/lib/i18n";
 import type { Locale } from "@/lib/locale";
@@ -259,6 +260,7 @@ export async function receivablesAgeing(
     select: {
       total: true,
       amountPaid: true,
+      amountAdjusted: true,
       confirmedAt: true,
       issuedAt: true,
     },
@@ -289,7 +291,7 @@ export async function receivablesAgeing(
 
   let oldestDays = 0;
   for (const row of rows) {
-    const outstanding = toNumber(row.total) - toNumber(row.amountPaid);
+    const outstanding = outstandingOf(row);
     // A rounding tail is not a debt. Anything under a cent is settled.
     if (outstanding <= 0.005) continue;
 
@@ -908,7 +910,7 @@ export async function financeStats() {
 
   const collected = toNumber(paidAgg._sum.amountPaid);
   const outstanding =
-    toNumber(outstandingAgg._sum.total) - toNumber(outstandingAgg._sum.amountPaid);
+    outstandingOf(outstandingAgg._sum);
 
   return {
     unpaid,
@@ -994,7 +996,7 @@ export const executiveStats = cache(async function executiveStats() {
     revenueThisMonth: toNumber(collectedAgg[0]?.month ?? 0),
     allTimeCollected: toNumber(collectedAgg[0]?.allTime ?? 0),
     outstanding:
-      toNumber(outstandingAgg._sum.total) - toNumber(outstandingAgg._sum.amountPaid),
+      outstandingOf(outstandingAgg._sum),
   };
 });
 

@@ -11,6 +11,7 @@ import { CreditRequest } from "@/components/app/credit-request";
 import { PaymentTypeChoice } from "@/components/app/payment-type-choice";
 import { RecordCollectionForm } from "@/components/app/record-collection-form";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { storageUncharged, storageFreeDaysLeft } from "@/lib/constants";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -50,6 +51,7 @@ export default async function RecordCollectionPage({
         status: true,
         total: true,
         amountPaid: true,
+        amountAdjusted: true,
         currency: true,
         /* The rate FROZEN onto this bill, which is the rate recordPayment will
            settle it at. Quoting today's instead meant the counter asked for a
@@ -119,7 +121,7 @@ export default async function RecordCollectionPage({
   const storageToAdd = storageUncharged(invoice);
   const storageFree = storageFreeDaysLeft(invoice.shipment);
   const storageWaived = toNumber(invoice.storageWaivedUsd);
-  const outstanding = toNumber(invoice.total) - toNumber(invoice.amountPaid);
+  const outstanding = outstandingOf(invoice);
   const pending = invoice.submissions[0];
   /* Whether this desk may offer credit at all. Support and Finance hold
      credit.request; neither warehouse does, and neither reaches this screen. */

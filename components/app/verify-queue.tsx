@@ -14,6 +14,7 @@ import { verifySubmissions } from "@/lib/actions/submission-bulk";
 import { activeAccounts } from "@/lib/accounts";
 import { submissionQueue } from "@/lib/collections";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { currentRateValue, formatLocal, formatUsd } from "@/lib/fx";
 import { sumShillings, sumUsd, type MoneyRow } from "@/lib/money-totals";
 import { t } from "@/lib/i18n";
@@ -156,7 +157,7 @@ export async function VerifyQueue() {
           <ul className="divide-y">
             {rows.map((row) => {
               const outstanding =
-                toNumber(row.invoice.total) - toNumber(row.invoice.amountPaid);
+                outstandingOf(row.invoice);
               const claimed = toNumber(row.amount);
               /* The part of the claim that was the delivery, not the cargo.
                  Support writes it down at the counter because the customer is

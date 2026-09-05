@@ -1840,6 +1840,7 @@ export async function undoBatchArrival(
                   status: true,
                   invoiceNumber: true,
                   amountPaid: true,
+                  amountAdjusted: true,
                   total: true,
                 },
               },

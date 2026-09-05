@@ -83,6 +83,7 @@ import { FlightProfitTable } from "@/components/app/flight-profit-table";
 import { MoneyTile } from "@/components/app/money-tile";
 import { auditSentence } from "@/lib/audit-humanise";
 import { formatMoney, formatRelative, formatWeight, toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { activeAccounts } from "@/lib/accounts";
@@ -2419,7 +2420,7 @@ async function FinanceDashboard({ role }: { role: "FINANCE" | "ADMIN" }) {
                   {aging.map((shipment) => {
                     const invoice = shipment.invoice;
                     const outstanding = invoice
-                      ? toNumber(invoice.total) - toNumber(invoice.amountPaid)
+                      ? outstandingOf(invoice)
                       : null;
                     // A draft is the system's price, not a bill. Presenting
                     // the two identically has somebody ringing a customer for

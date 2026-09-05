@@ -4,7 +4,7 @@ import { zhCN } from "date-fns/locale";
 
 import type { Locale } from "@/lib/locale";
 
-type Numeric = number | string | Prisma.Decimal | null | undefined;
+export type Numeric = number | string | Prisma.Decimal | null | undefined;
 
 export function toNumber(value: Numeric): number {
   if (value === null || value === undefined) return 0;

@@ -17,6 +17,7 @@ import { submissionQueue } from "@/lib/collections";
 import { SUBMISSION_STATUS_LABELS } from "@/lib/constants";
 import { currentRateValue } from "@/lib/fx";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { formatLocal, formatUsd } from "@/lib/money";
 import { sumShillings, sumUsd, type MoneyRow } from "@/lib/money-totals";
@@ -512,8 +513,7 @@ export default async function SubmissionsPage({
                               since been settled would otherwise read as work
                               still owed. It is the record, not a job — the
                               Sent back tab already leaves it out. */}
-                          {toNumber(row.invoice.total) -
-                            toNumber(row.invoice.amountPaid) <=
+                          {outstandingOf(row.invoice) <=
                           0 ? (
                             <>
                               <span>·</span>
@@ -552,8 +552,7 @@ export default async function SubmissionsPage({
                       <p className="text-[11px] text-muted-foreground">
                         {t(locale, "owed")}{" "}
                         {formatMoney(
-                          toNumber(row.invoice.total) -
-                            toNumber(row.invoice.amountPaid),
+                          outstandingOf(row.invoice),
                           row.invoice.currency
                         )}
                       </p>
@@ -582,8 +581,7 @@ export default async function SubmissionsPage({
                             ? null
                             : toNumber(row.invoice.exchangeRate),
                         outstanding:
-                          toNumber(row.invoice.total) -
-                          toNumber(row.invoice.amountPaid),
+                          outstandingOf(row.invoice),
                         accountId: row.accountId,
                         settledAccountName: row.payment?.account?.name ?? null,
                         reference: row.reference,

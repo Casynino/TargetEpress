@@ -53,6 +53,7 @@ export async function GET(
               currency: true,
               total: true,
               amountPaid: true,
+              amountAdjusted: true,
               exchangeRate: true,
               shipment: {
                 select: {
@@ -73,6 +74,7 @@ export async function GET(
                   currency: true,
                   total: true,
                   amountPaid: true,
+                  amountAdjusted: true,
                   exchangeRate: true,
                   shipment: {
                     select: {

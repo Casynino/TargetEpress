@@ -23,6 +23,7 @@ import {
   COMPANY,
 } from "@/lib/constants";
 import { formatDate, formatDateTime, formatWeight, toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -103,7 +104,7 @@ export default async function InvoicePage({
     invoice.freightOverride === null
       ? toNumber(invoice.freightCost)
       : toNumber(invoice.freightOverride);
-  const outstanding = toNumber(invoice.total) - toNumber(invoice.amountPaid);
+  const outstanding = outstandingOf(invoice);
 
   // The rate this invoice was raised at, not today's. A customer quoted a
   // shilling figure has to keep seeing that figure.

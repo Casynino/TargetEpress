@@ -17,6 +17,7 @@ import {
   dueDateFrom,
 } from "@/lib/credit";
 import { toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import {
@@ -121,6 +122,7 @@ export async function requestCredit(
         creditStatus: true,
         total: true,
         amountPaid: true,
+        amountAdjusted: true,
         customerId: true,
         shipment: { select: { trackingNumber: true, status: true } },
       },
@@ -171,7 +173,7 @@ export async function requestCredit(
 
     await prisma.$transaction(async (tx) => {
       for (const invoice of invoices) {
-      const owing = toNumber(invoice.total) - toNumber(invoice.amountPaid);
+      const owing = outstandingOf(invoice);
       /* Claimed on the creditStatus the eligibility check above actually read:
          two clerks pressing the button together, or a request landing on a
          credit Finance just decided, resolve to one winner and one clear
@@ -289,6 +291,7 @@ export async function approveCredit(
           creditRequestedById: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           exchangeRate: true,
           customerId: true,
           customer: { select: { name: true, creditLimitUsd: true, creditTermDays: true } },
@@ -373,6 +376,7 @@ export async function approveCredit(
         select: {
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           status: true,
           dueDate: true,
           creditDecidedAt: true,
@@ -382,7 +386,7 @@ export async function approveCredit(
         invoice.customer,
         openLines.map((l) => creditLine(l, grantedAt))
       );
-      const owing = toNumber(invoice.total) - toNumber(invoice.amountPaid);
+      const owing = outstandingOf(invoice);
       const check = creditCheck(owing, credit);
 
       await recordAudit(
@@ -666,6 +670,7 @@ export async function adjustCredit(
         dueDate: true,
         total: true,
         amountPaid: true,
+        amountAdjusted: true,
         customer: { select: { name: true } },
         shipment: { select: { trackingNumber: true } },
       },
@@ -741,7 +746,7 @@ export async function adjustCredit(
         );
       }
 
-      const owing = toNumber(invoice.total) - toNumber(invoice.amountPaid);
+      const owing = outstandingOf(invoice);
       const extending = before ? nextDue > before : true;
       await recordAudit(
         {
@@ -853,6 +858,7 @@ export async function creditCandidates(
       currency: true,
       total: true,
       amountPaid: true,
+      amountAdjusted: true,
       exchangeRate: true,
       customer: {
         select: {
@@ -902,7 +908,7 @@ export async function creditCandidates(
       currency: inv.currency,
       outstanding: Math.max(
         0,
-        toNumber(inv.total) - toNumber(inv.amountPaid)
+        outstandingOf(inv)
       ),
       rate: inv.exchangeRate === null ? null : toNumber(inv.exchangeRate),
       termDays: inv.customer.creditTermDays ?? 14,
@@ -952,6 +958,7 @@ export async function creditContextFor(
       currency: true,
       total: true,
       amountPaid: true,
+      amountAdjusted: true,
       exchangeRate: true,
       status: true,
       creditStatus: true,
@@ -1004,13 +1011,14 @@ export async function creditContextFor(
   */
   let outstanding = 0;
   if (ids.length === 1) {
-    outstanding = Math.max(0, toNumber(inv.total) - toNumber(inv.amountPaid));
+    outstanding = outstandingOf(inv);
   } else {
     const rest = await prisma.invoice.findMany({
       where: { id: { in: ids } },
       select: {
         total: true,
         amountPaid: true,
+        amountAdjusted: true,
         currency: true,
         customerId: true,
         status: true,
@@ -1035,7 +1043,7 @@ export async function creditContextFor(
       return null;
     }
     outstanding = rest.reduce(
-      (sum, r) => sum + Math.max(0, toNumber(r.total) - toNumber(r.amountPaid)),
+      (sum, r) => sum + outstandingOf(r),
       0
     );
   }

@@ -162,6 +162,7 @@ const SETTLED_INVOICE = {
   status: true,
   total: true,
   amountPaid: true,
+  amountAdjusted: true,
   currency: true,
   shipment: {
     select: {

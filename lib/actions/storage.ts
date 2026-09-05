@@ -63,6 +63,7 @@ async function currentStorage(invoiceId: string) {
       status: true,
       total: true,
       amountPaid: true,
+      amountAdjusted: true,
       storageCharge: true,
       storageDays: true,
       storageWaivedUsd: true,
@@ -176,6 +177,7 @@ export async function chargeStorageFee(
         select: {
           status: true,
           amountPaid: true,
+          amountAdjusted: true,
           freightCost: true,
           freightOverride: true,
           otherCharges: true,
@@ -447,6 +449,7 @@ async function waiveOne(
         select: {
           status: true,
           amountPaid: true,
+          amountAdjusted: true,
           freightCost: true,
           freightOverride: true,
           otherCharges: true,

@@ -438,6 +438,7 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
           currency: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           /* So a forgiven fee is never shown to the customer as owing. */
           storageWaivedUsd: true,
           exchangeRate: true,

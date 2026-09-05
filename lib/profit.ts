@@ -5,6 +5,7 @@ import type { Prisma } from "@prisma/client";
 import { BILLED_INVOICE_STATUSES } from "@/lib/constants";
 import { creditForPeriod } from "@/lib/credit-queries";
 import { formatMonthYear, toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { BASE_CURRENCY, currentRateValue } from "@/lib/fx";
 import type { Locale } from "@/lib/locale";
 import {
@@ -389,7 +390,7 @@ export async function profitAndLoss(window: ProfitWindow) {
   */
   const receivableUsd = Math.max(
     0,
-    toNumber(billed._sum.total) - toNumber(billed._sum.amountPaid)
+    outstandingOf(billed._sum)
   );
 
   /*
@@ -516,6 +517,7 @@ export async function profitByDispatch(take = 10) {
               total: true,
               status: true,
               amountPaid: true,
+              amountAdjusted: true,
               currency: true,
               exchangeRate: true,
             },

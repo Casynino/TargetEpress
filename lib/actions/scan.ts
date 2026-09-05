@@ -2,6 +2,7 @@
 
 import { SHIPMENT_STATUS_META } from "@/lib/constants";
 import { formatDate, toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { packageProgress, resolveScannedCode } from "@/lib/packages";
 import { findPickupLock, pickupLockMessage } from "@/lib/pickup-lock";
@@ -189,6 +190,7 @@ async function describe(
           invoiceNumber: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           currency: true,
           status: true,
         },
@@ -218,7 +220,7 @@ async function describe(
   const showMoney = can(user.role, "finance.view");
   const mayRelease = can(user.role, "shipment.release");
   const outstanding = shipment.invoice
-    ? toNumber(shipment.invoice.total) - toNumber(shipment.invoice.amountPaid)
+    ? outstandingOf(shipment.invoice)
     : null;
 
   /**

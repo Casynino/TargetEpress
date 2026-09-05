@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/table";
 import { BATCH_STATUS_META } from "@/lib/constants";
 import { formatWeight, toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { shipmentQrPayload } from "@/lib/qr";
@@ -329,7 +330,7 @@ export default async function TestDataPage() {
               {shipments.map((s) => {
                 const payload = shipmentQrPayload(s.qrToken);
                 const outstanding = s.invoice
-                  ? toNumber(s.invoice.total) - toNumber(s.invoice.amountPaid)
+                  ? outstandingOf(s.invoice)
                   : null;
                 return (
                   <TableRow key={s.id}>

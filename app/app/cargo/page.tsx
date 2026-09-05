@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { ShipmentsTable, type ShipmentRow } from "@/components/app/cargo-table";
 import { SHIPMENT_STATUS_META } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -82,7 +83,7 @@ export default async function ShipmentsPage({
     registeredAt: s.registeredAt.toISOString(),
     outstanding: showMoney
       ? s.invoice
-        ? toNumber(s.invoice.total) - toNumber(s.invoice.amountPaid)
+        ? outstandingOf(s.invoice)
         : null
       : undefined,
     currency: s.invoice?.currency ?? s.currency,

@@ -124,6 +124,7 @@ export default async function ShipmentsPage() {
                   select: {
                     total: true,
                     amountPaid: true,
+                    amountAdjusted: true,
                     status: true,
                   },
                 },

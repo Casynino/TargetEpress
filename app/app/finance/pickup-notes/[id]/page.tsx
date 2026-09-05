@@ -57,6 +57,7 @@ export default async function PickupNotePage({
                  reversed since it was issued takes the green with it. */
               total: true,
               amountPaid: true,
+              amountAdjusted: true,
             },
           },
         },

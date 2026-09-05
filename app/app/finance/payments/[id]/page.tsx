@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { activeAccounts } from "@/lib/accounts";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
@@ -102,6 +103,7 @@ export default async function PaymentDetailPage({
           currency: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           status: true,
           customer: { select: { id: true, name: true, phone: true } },
           shipment: {
@@ -123,7 +125,7 @@ export default async function PaymentDetailPage({
   const converted = payment.currency !== (invoice?.currency ?? payment.currency);
   /* Nothing is owing on a deposit — there is no bill for it to be owing on. */
   const owing = invoice
-    ? toNumber(invoice.total) - toNumber(invoice.amountPaid)
+    ? outstandingOf(invoice)
     : 0;
 
   /* No "Method" row. It said "Mobile money" directly above a row naming the

@@ -14,6 +14,7 @@ import {
   storageUncharged,
 } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
+import { outstandingOf } from "@/lib/invoice-balance";
 import { currentRateValue } from "@/lib/fx";
 import { IconHint } from "@/components/app/icon-hint";
 import { t } from "@/lib/i18n";
@@ -110,6 +111,7 @@ export default async function RecordCustomerPaymentPage({
           currency: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           exchangeRate: true,
           /* Named in the reminder, so the customer can tell which boxes the
              figure is for — a total with no tracking numbers beside it is a
@@ -185,11 +187,11 @@ export default async function RecordCustomerPaymentPage({
            settlement can land a fraction under its own total. */
         const open = customer.invoices.filter(
           (invoice) =>
-            toNumber(invoice.total) - toNumber(invoice.amountPaid) > 0.005
+            outstandingOf(invoice) > 0.005
         );
         const rows: MoneyRow[] = open.map((invoice) => {
           const outstanding =
-            toNumber(invoice.total) - toNumber(invoice.amountPaid);
+            outstandingOf(invoice);
           const invoiceRate = toNumber(invoice.exchangeRate);
           return {
             currency: invoice.currency,
@@ -501,6 +503,7 @@ export default async function RecordCustomerPaymentPage({
           exchangeRate: true,
           total: true,
           amountPaid: true,
+          amountAdjusted: true,
           /* Read so the per-bill actions beside the form can act on the bill
              itself: what it comes to, and what is already off it. */
           discount: true,
@@ -567,7 +570,7 @@ export default async function RecordCustomerPaymentPage({
       currency: invoice.currency,
       exchangeRate:
         invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate),
-      outstanding: toNumber(invoice.total) - toNumber(invoice.amountPaid),
+      outstanding: outstandingOf(invoice),
       total: toNumber(invoice.total),
       discount: toNumber(invoice.discount),
       /* The rule, at the screen: nothing is payable until the Dar floor has
