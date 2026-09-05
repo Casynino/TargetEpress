@@ -60,9 +60,15 @@ export function invoiceBalance(invoice: BalanceInput): Balance {
   /* Money first, then the decision. The remainder cannot go below zero: a
      customer who sends too much is owed money, not owing it, and a negative
      balance netted off somebody else's debt in every receivable total. */
-  const afterMoney = due - paid;
-  const balance = Math.max(0, afterMoney - adjusted);
-  const overpaid = Math.max(0, paid - due);
+  /* Rounded to the cent, because these are subtractions of decimals and a
+     figure that reaches a screen as 0.5700000000000003 is a figure nobody
+     trusts. The tolerance below still does the deciding; this only settles
+     how the number reads and how it is stored. */
+  const cent = (n: number) => Math.round(n * 100) / 100;
+
+  const afterMoney = cent(due - paid);
+  const balance = Math.max(0, cent(afterMoney - adjusted));
+  const overpaid = Math.max(0, cent(paid - due));
   const shortfall = Math.max(0, afterMoney);
 
   return {

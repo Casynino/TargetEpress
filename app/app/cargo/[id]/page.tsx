@@ -937,6 +937,7 @@ export default async function ShipmentDetailPage({
               shipment.invoice ? toNumber(shipment.invoice.discount) : 0
             }
             canDiscount={can(user.role, "invoice.discount")}
+            canAdjust={can(user.role, "ledger.adjust")}
             invoiceStorage={
               shipment.invoice
                 ? toNumber(shipment.invoice.storageWaivedUsd) > 0

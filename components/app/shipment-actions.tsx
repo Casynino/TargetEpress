@@ -25,6 +25,7 @@ import { PaymentProofField } from "@/components/app/payment-proof-field";
 import { PaymentDateField } from "@/components/app/payment-date-field";
 import { ChangeRate } from "@/components/app/change-rate";
 import { AddStorage } from "@/components/app/add-storage";
+import { AdjustDifference } from "@/components/app/adjust-difference";
 import { GiveDiscount } from "@/components/app/give-discount";
 import { TransportSplit } from "@/components/app/transport-split";
 import { WaiveStorage } from "@/components/app/waive-storage";
@@ -87,6 +88,8 @@ type Props = {
   invoiceDiscount?: number;
   /** Whether this desk may change it — Finance, the manager and the owner. */
   canDiscount?: boolean;
+  /** ledger.adjust — the desk that may close a difference money will not. */
+  canAdjust?: boolean;
   /** Storage on the bill, and whether this desk may forgive it. Support may:
       it is bounded by the clock, unlike a discount. */
   invoiceStorage?: number;
@@ -928,6 +931,25 @@ function PaymentPanel({
               />
             </div>
           ) : null}
+          {/*
+            BESIDE THE DISCOUNT, BECAUSE THEY ANSWER DIFFERENT QUESTIONS.
+
+            A discount changes what the customer OWES, before they pay. This
+            closes what is left AFTER they have paid — the 625 that was never
+            coming. Same place on the panel, because it is the same moment: the
+            bill is in front of the desk and it needs to end.
+          */}
+          {props.canAdjust && props.invoiceId && (props.outstanding ?? 0) > 0.005 ? (
+            <div className="text-xs">
+              <AdjustDifference
+                invoiceId={props.invoiceId}
+                currency={props.currency}
+                balance={props.outstanding ?? 0}
+                total={props.invoiceTotal ?? 0}
+                money={(v) => `${props.currency} ${v.toLocaleString()}`}
+              />
+            </div>
+          ) : null}
           {props.canWaiveStorage && props.invoiceId ? (
             <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-xs">
               <AddStorage
@@ -1025,11 +1047,25 @@ function PaymentPanel({
             the cargo box with what the bill comes to; the fare stays where the
             clerk put it and the total underneath follows.
           */}
+          {/*
+            AN OVERPAYMENT IS NOT A PROBLEM TO BE SOLVED.
+
+            This said the extra "stays with the customer as credit for next
+            time", which made a rounding into a running account somebody has to
+            remember. The owner's rule is simpler: take the money, say plainly
+            that they overpaid, settle the bill and let the cargo go. The
+            excess stays named as an overpayment on the payment itself and in
+            the ledger, where it can be found — it is never quietly counted as
+            cargo income, because revenue here comes from the bill, not from
+            what was handed over.
+          */}
           {overpaid && clearing !== null ? (
-            <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-              {t("That is more than the bill needs.")}{" "}
-              {currency} {(cargoHalf - clearing).toLocaleString()}{" "}
-              {t("stays with the customer as credit for next time.")}
+            <p className="rounded-md border border-success/40 bg-success/[0.06] px-3 py-2 text-xs text-success">
+              <span className="font-semibold">
+                {t("Overpaid by")} {currency}{" "}
+                {(cargoHalf - clearing).toLocaleString()}
+              </span>{" "}
+              {t("That is fine — the bill is settled and the cargo can go.")}
             </p>
           ) : null}
 

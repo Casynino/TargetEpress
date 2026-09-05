@@ -1117,12 +1117,29 @@ export function CustomerPaymentForm({
               t(
                 "You have put more against bills than the customer sent. Untick a bill, or raise the amount received."
               )
+            ) : allocations.length > 0 ? (
+              /*
+                THEY OVERPAID THE BILLS THEY TICKED.
+
+                Said as an overpayment, not as credit. Calling it credit turns
+                a rounding into a running account somebody has to remember; the
+                owner's rule is to take the money, say plainly that they paid
+                more than the bills asked, settle them and let the cargo go.
+              */
+              <>
+                <span className="font-medium">
+                  {t("Overpaid by")} {money(left)}
+                </span>{" "}
+                {t("That is fine — the bills are settled and the cargo can go.")}
+              </>
             ) : (
+              /* Nothing ticked at all, which is a different thing: money that
+                 arrived before there was a bill to put it against. */
               <>
                 <span className="font-medium">
                   {money(left)} {t("left over")}
                 </span>{" "}
-                {t("stays with the customer as credit for next time.")}
+                {t("stays with the customer as credit until their cargo lands.")}
               </>
             )}
           </div>
