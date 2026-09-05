@@ -14,6 +14,8 @@ import { verifySubmissions } from "@/lib/actions/submission-bulk";
 import { activeAccounts } from "@/lib/accounts";
 import { submissionQueue } from "@/lib/collections";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
+import { currentRateValue, formatLocal, formatUsd } from "@/lib/fx";
+import { sumShillings, sumUsd, type MoneyRow } from "@/lib/money-totals";
 import { t } from "@/lib/i18n";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -42,12 +44,38 @@ import { viewerLocale } from "@/lib/viewer";
  */
 export async function VerifyQueue() {
   const locale = await viewerLocale();
-  const [rows, accounts] = await Promise.all([
+  const [rows, accounts, rate] = await Promise.all([
     submissionQueue("PENDING"),
     activeAccounts(),
+    currentRateValue(),
   ]);
 
-  const total = rows.reduce((sum, row) => sum + toNumber(row.amount), 0);
+  /*
+    THE SAME TWO CARDS THE DESK THAT RAISED THESE ALREADY SEES.
+
+    This showed one bare figure — "Claimed 10,789,240" — with no currency on
+    it, arrived at by adding every claim's amount together whatever money it
+    was in. Shillings and dollars in one sum is not a total of anything, and
+    it sat on the one screen where somebody is about to agree to all of it.
+
+    Counted properly now, and shown the way Support's own list of the same
+    rows shows it: shillings and dollars side by side, one figure in two
+    monies. A claim carries no dollar snapshot the way a payment does — it is
+    not money that has moved yet — so the dollar side is worked out at today's
+    rate, which is what "how much is waiting on me right now" means.
+  */
+  const moneyRows: MoneyRow[] = rows.map((row) => ({
+    currency: row.currency,
+    amount: row.amount,
+    amountUsd:
+      row.currency === "USD"
+        ? row.amount
+        : rate
+          ? toNumber(row.amount) / rate
+          : 0,
+  }));
+  const totalShillings = sumShillings(moneyRows, rate);
+  const totalUsd = sumUsd(moneyRows, rate);
 
   /*
     The ones that can be agreed without asking anything further.
@@ -61,19 +89,37 @@ export async function VerifyQueue() {
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-sm">
-        <p className="text-muted-foreground">
-          {rows.length} {t(locale, "waiting on you")}
-        </p>
-        {rows.length > 0 ? (
-          <p className="font-mono tabular-nums">
-            <span className="text-muted-foreground">
-              {t(locale, "Claimed")}{" "}
-            </span>
-            <span className="font-semibold">{total.toLocaleString("en-US")}</span>
-          </p>
-        ) : null}
-      </div>
+      {rows.length > 0 ? (
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {[
+            {
+              key: "TZS",
+              value: formatLocal(totalShillings),
+              caption: t(locale, "waiting on you to agree it"),
+            },
+            {
+              key: "USD",
+              value: formatUsd(totalUsd),
+              caption: t(locale, "the same money, at today's rate"),
+            },
+          ].map((card) => (
+            <div
+              key={card.key}
+              className="rounded-xl border bg-card p-4 shadow-soft"
+            >
+              <p className="text-xs font-semibold uppercase tracking-widest text-warning">
+                {rows.length} {t(locale, "waiting on you")}
+              </p>
+              <p className="font-display text-2xl font-bold tabular-nums">
+                {card.value}
+              </p>
+              <p className="font-mono text-xs text-muted-foreground">
+                {card.caption}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {rows.length === 0 ? (
         <EmptyState

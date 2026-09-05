@@ -3353,6 +3353,7 @@ const ZH: Record<string, string> = {
   "to the bill": "用于账单",
   "Cargo plus transport": "货运费加运输费",
   "Cargo charge": "货运费",
+  "waiting on you to agree it": "等待你核实",
   "That looks like the whole transfer, transport included.": "这看起来是含运输费的转账总额。",
   "The cargo charge on its own is": "单独的货运费为",
   "Use that.": "使用该金额。",
