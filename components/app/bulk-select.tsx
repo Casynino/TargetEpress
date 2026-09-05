@@ -220,7 +220,11 @@ export function BulkBar({
           run(formData);
           clear();
         }}
-        className="rounded-xl border bg-card p-3 shadow-soft"
+        className={`rounded-xl border-2 p-3 shadow-soft ${
+          tone === "destructive"
+            ? "border-destructive/50 bg-destructive/[0.07]"
+            : "border-brand/50 bg-brand/[0.07]"
+        }`}
       >
         <div className="flex flex-wrap items-center gap-3">
           {ids.length > 0 ? (
@@ -231,10 +235,19 @@ export function BulkBar({
             <span className="text-sm font-semibold">{t("Done")}</span>
           )}
 
+          {/*
+            LOUD, BECAUSE IT IS THE BUTTON THAT ENDS THINGS.
+
+            This was an outline pill — a thin border on a dark bar, sitting
+            next to a plain count, and the owner could not find it. A control
+            that deletes twenty records has to be the most visible thing on the
+            row it lives in, and it has to be a colour that means "careful"
+            rather than the same grey as everything around it.
+          */}
           {ids.length > 0 ? (
             <SubmitButton
-              size="sm"
-              variant={tone === "destructive" ? "outline" : "brand"}
+              variant={tone === "destructive" ? "destructive" : "brand"}
+              className="font-semibold shadow-soft"
               pendingLabel={pendingLabel}
             >
               {label}

@@ -126,6 +126,29 @@ export default async function SubmissionsPage({
   const totalUsd = sumUsd(moneyRows, rate);
 
   /*
+    THE ONE THING THAT DECIDES WHETHER ANY OF IT MOVES.
+
+    Finance cannot check a claim against anything without the customer's slip
+    — they are being asked to agree money on somebody's word — and it is the
+    commonest reason a claim comes back. Counted off the same rows the page is
+    showing, so the figure is about what the reader is looking at.
+  */
+  const missingProof = rows.filter((row) => row.proofs.length === 0);
+  const missingProofShillings = sumShillings(
+    missingProof.map((row) => ({
+      currency: row.currency,
+      amount: toNumber(row.amount),
+      amountUsd:
+        row.currency === "USD"
+          ? toNumber(row.amount)
+          : rate
+            ? toNumber(row.amount) / rate
+            : 0,
+    })),
+    rate
+  );
+
+  /*
     Search the rows on the page, not the database.
 
     This register is read to settle an argument — "we sent that on the 4th, here
@@ -238,23 +261,59 @@ export default async function SubmissionsPage({
         desk that raised them do the arithmetic themselves to answer "how
         much have I sent up that Finance hasn't dealt with yet".
       */}
-      <div className="mb-4 rounded-xl border bg-card p-4 shadow-soft sm:w-fit">
-        <p
-          className={`text-xs font-semibold uppercase tracking-widest ${
-            active === "REJECTED" ? "text-destructive" : "text-warning"
+      {/*
+        TWO CARDS, BECAUSE THE FIRST ONE ANSWERS HALF THE QUESTION.
+
+        "How much is with Finance" is worth knowing and is not enough to act
+        on. The one thing that decides whether any of it moves is whether the
+        customer's slip is attached — Finance is being asked to agree money on
+        somebody's word without it, which is why claims come back. So the
+        second card counts exactly that, and the pair fills the row instead of
+        one box sitting beside an empty half-screen.
+      */}
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border bg-card p-4 shadow-soft">
+          <p
+            className={`text-xs font-semibold uppercase tracking-widest ${
+              active === "REJECTED" ? "text-destructive" : "text-warning"
+            }`}
+          >
+            {rows.length} {t(locale, FILTERS.find((f) => f.key === active)?.label ?? "")}
+          </p>
+          <p className="font-display text-2xl font-bold tabular-nums">
+            {formatLocal(totalShillings)}
+          </p>
+          <p className="font-mono text-xs text-muted-foreground">
+            {formatUsd(totalUsd)}
+            {active === "PENDING"
+              ? ` · ${t(locale, "sitting with Finance, waiting on a decision")}`
+              : ""}
+          </p>
+        </div>
+
+        <div
+          className={`rounded-xl border p-4 shadow-soft ${
+            missingProof.length > 0
+              ? "border-destructive/40 bg-destructive/[0.06]"
+              : "border-success/40 bg-success/[0.06]"
           }`}
         >
-          {rows.length} {t(locale, FILTERS.find((f) => f.key === active)?.label ?? "")}
-        </p>
-        <p className="font-display text-2xl font-bold tabular-nums">
-          {formatLocal(totalShillings)}
-        </p>
-        <p className="font-mono text-xs text-muted-foreground">
-          {formatUsd(totalUsd)}
-          {active === "PENDING"
-            ? ` · ${t(locale, "sitting with Finance, waiting on a decision")}`
-            : ""}
-        </p>
+          <p
+            className={`text-xs font-semibold uppercase tracking-widest ${
+              missingProof.length > 0 ? "text-destructive" : "text-success"
+            }`}
+          >
+            {missingProof.length} {t(locale, "with no proof")}
+          </p>
+          <p className="font-display text-2xl font-bold tabular-nums">
+            {formatLocal(missingProofShillings)}
+          </p>
+          <p className="font-mono text-xs text-muted-foreground">
+            {missingProof.length > 0
+              ? t(locale, "Finance is being asked to agree these on somebody's word.")
+              : t(locale, "Every one carries the customer's slip.")}
+          </p>
+        </div>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
