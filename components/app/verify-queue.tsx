@@ -4,6 +4,13 @@ import { FileText, Paperclip } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { SubmissionCorrection } from "@/components/app/submission-correction";
 import { VerifySubmission } from "@/components/app/verify-submission";
+import {
+  BulkSelect,
+  BulkBar,
+  RowTick,
+  SelectAllTick,
+} from "@/components/app/bulk-select";
+import { verifySubmissions } from "@/lib/actions/submission-bulk";
 import { activeAccounts } from "@/lib/accounts";
 import { submissionQueue } from "@/lib/collections";
 import { formatDateTime, formatMoney, toNumber } from "@/lib/format";
@@ -42,6 +49,16 @@ export async function VerifyQueue() {
 
   const total = rows.reduce((sum, row) => sum + toNumber(row.amount), 0);
 
+  /*
+    The ones that can be agreed without asking anything further.
+
+    A claim carries the account Support said the customer's proof named, and
+    that is what a bulk run banks it into. Claims raised before naming one was
+    compulsory have none, so there is no answer to give and they stay a
+    one-at-a-time job.
+  */
+  const bulkReady = rows.filter((row) => row.accountId);
+
   return (
     <>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-sm">
@@ -67,7 +84,29 @@ export async function VerifyQueue() {
           )}
         />
       ) : (
+        /*
+          A SCREENFUL OF CLAIMS FROM ONE MORNING IS USUALLY ONE ANSWER.
+
+          Only the ones that already say where the money landed are offered a
+          tick. Verifying by hand asks Finance that question, because it is
+          their decision and Support does not know — and in bulk there is no
+          screen to ask it on. A claim naming no account is opened and decided
+          on its own, which is the right amount of attention for one nobody can
+          say the destination of.
+        */
+        <BulkSelect ids={bulkReady.map((row) => row.id)}>
         <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
+          {bulkReady.length > 0 ? (
+            <div className="flex items-center justify-between border-b bg-muted/20 px-4 py-1.5">
+              <SelectAllTick />
+              <span className="text-[11px] text-muted-foreground">
+                {bulkReady.length} {t(locale, "ready to agree together")}
+                {bulkReady.length < rows.length
+                  ? ` · ${rows.length - bulkReady.length} ${t(locale, "need an account named first")}`
+                  : ""}
+              </span>
+            </div>
+          ) : null}
           <ul className="divide-y">
             {rows.map((row) => {
               const outstanding =
@@ -95,6 +134,11 @@ export async function VerifyQueue() {
                   className="scroll-mt-24 px-4 py-2.5"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                    {row.accountId ? (
+                      <RowTick id={row.id} label={row.submissionNumber} />
+                    ) : (
+                      <span className="w-4 shrink-0" aria-hidden />
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="font-medium">
                         {row.invoice.customer.name}
@@ -305,6 +349,23 @@ export async function VerifyQueue() {
             })}
           </ul>
         </div>
+
+        {/* Each one goes through the same verify the single button calls, so
+            every claim agreed here produces its own receipt, its own ledger
+            entries and its own pickup note. The account is the one the claim
+            names — nothing is guessed. */}
+        <BulkBar
+          action={verifySubmissions}
+          verb={t(locale, "Verify")}
+          noun={t(locale, "payment")}
+          nounPlural={t(locale, "payments")}
+          pendingLabel={t(locale, "Recording…")}
+          note={t(
+            locale,
+            "Each one is banked into the account its claim names, with its own receipt."
+          )}
+        />
+        </BulkSelect>
       )}
     </>
   );

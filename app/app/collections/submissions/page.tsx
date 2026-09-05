@@ -10,6 +10,13 @@ import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { SearchBox } from "@/components/app/search-box";
 import { SubmissionCorrection } from "@/components/app/submission-correction";
+import {
+  BulkSelect,
+  BulkBar,
+  RowTick,
+  SelectAllTick,
+} from "@/components/app/bulk-select";
+import { withdrawSubmissions } from "@/lib/actions/submission-bulk";
 import { submissionQueue } from "@/lib/collections";
 import { SUBMISSION_STATUS_LABELS } from "@/lib/constants";
 import { currentRateValue } from "@/lib/fx";
@@ -135,6 +142,18 @@ export default async function SubmissionsPage({
             .toLowerCase()
             .includes(needle)
         );
+
+  /*
+    WHICH OF THE ROWS ON SCREEN CAN ACTUALLY BE TAKEN BACK.
+
+    Pending and sent-back, the two states where nothing has moved — the same
+    pair withdrawSubmission accepts. A verified claim is money and is unwound
+    in the ledger, so it gets no tick and is not counted in "select all";
+    "all" must never mean more than the reader can see and act on.
+  */
+  const takeable = visible.filter(
+    (row) => row.status === "PENDING" || row.status === "REJECTED"
+  );
 
   /* One line per way a person knows a claim — the component de-duplicates by
      value, so a customer who has sent up six payments is one line, not six. */
@@ -314,7 +333,25 @@ export default async function SubmissionsPage({
           method, the reference, who sent it and exactly when, the evidence,
           what Finance decided, and the two ways to put it right.
         */
+        /*
+          TICKABLE, BECAUSE A LIST OF TWENTY-TWO IS ONE DECISION.
+
+          A desk handed back a screenful of claims is not making twenty-two
+          decisions about them — the same reason applies to all of them, and
+          clicking twenty-two times is the only part that takes any time.
+          Only the rows that can actually be taken back are offered a tick;
+          a verified claim is money and is unwound in the ledger, not here.
+        */
+        <BulkSelect ids={takeable.map((row) => row.id)}>
         <div className="overflow-hidden rounded-xl border bg-card shadow-soft">
+          {takeable.length > 0 ? (
+            <div className="flex items-center justify-between border-b bg-muted/20 px-4 py-1.5">
+              <SelectAllTick />
+              <span className="text-[11px] text-muted-foreground">
+                {takeable.length} {t(locale, "can be taken back")}
+              </span>
+            </div>
+          ) : null}
           <ul className="divide-y">
             {visible.map((row) => (
               <li
@@ -323,6 +360,14 @@ export default async function SubmissionsPage({
                 className="scroll-mt-6 px-4 py-2.5"
               >
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  {/* Only where there is something to decide. A tick beside a
+                      verified claim would offer an action that does not
+                      exist. */}
+                  {row.status === "PENDING" || row.status === "REJECTED" ? (
+                    <RowTick id={row.id} label={row.submissionNumber} />
+                  ) : (
+                    <span className="w-4 shrink-0" aria-hidden />
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">
                       {row.invoice.customer.name}
@@ -582,6 +627,25 @@ export default async function SubmissionsPage({
             ))}
           </ul>
         </div>
+
+        {/* Withdrawal, not deletion — see withdrawSubmission. The row stays,
+            because "somebody said this customer had paid" is true whatever is
+            decided afterwards; what changes is that nobody is waiting on it. */}
+        <BulkBar
+          action={withdrawSubmissions}
+          tone="destructive"
+          reason
+          reasonLabel={t(locale, "Why are these being taken back?")}
+          verb={t(locale, "Take back")}
+          noun={t(locale, "claim")}
+          nounPlural={t(locale, "claims")}
+          pendingLabel={t(locale, "Taking them back…")}
+          note={t(
+            locale,
+            "The bills are untouched. Each cargo goes back on the chase list to be recorded again."
+          )}
+        />
+        </BulkSelect>
       )}
     </>
   );
