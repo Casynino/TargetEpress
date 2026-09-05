@@ -306,11 +306,19 @@ export async function reconciliation(locale: Locale = "en") {
       prisma.$queryRaw<{ live: number; mislabelled: number }[]>`
         SELECT
           COUNT(*)::int AS "live",
+          -- Money AND the decisions taken about it. Reading amountPaid
+          -- alone, every bill whose last shillings were written off looked
+          -- mislabelled — PAID with the money short of the total — so this
+          -- check went red the first time a difference was cleared and stayed
+          -- red for ever, on the one screen whose job is to say the books
+          -- agree with themselves.
           COUNT(*) FILTER (WHERE
-            ("status" = 'PAID' AND "amountPaid" + 0.005 < "total") OR
+            ("status" = 'PAID'
+              AND "amountPaid" + "amountAdjusted" + 0.005 < "total") OR
             ("status" = 'UNPAID' AND "amountPaid" > 0.005) OR
             ("status" = 'PARTIALLY_PAID'
-              AND ("amountPaid" <= 0.005 OR "amountPaid" + 0.005 >= "total"))
+              AND ("amountPaid" <= 0.005
+                   OR "amountPaid" + "amountAdjusted" + 0.005 >= "total"))
           )::int AS "mislabelled"
         FROM "Invoice"
         WHERE "status" NOT IN ('DRAFT', 'VOID')

@@ -34,7 +34,7 @@ export async function collectionsOverview() {
       prisma.invoice.aggregate({
         where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
         _count: true,
-        _sum: { total: true, amountPaid: true },
+        _sum: { total: true, amountPaid: true, amountAdjusted: true },
       }),
       // Bills sent, money not in. The chase list.
       prisma.invoice.count({

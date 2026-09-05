@@ -957,7 +957,7 @@ export async function supportOverview() {
     prisma.invoice.aggregate({
       where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
       _count: true,
-      _sum: { total: true, amountPaid: true },
+      _sum: { total: true, amountPaid: true, amountAdjusted: true },
     }),
     // Drafts excluded: an invoice nobody has confirmed is not an invoice
     // somebody forgot to send.
@@ -1201,7 +1201,7 @@ export async function customerProfile(idOrCode: string) {
         status: { in: ["UNPAID", "PARTIALLY_PAID"] },
         shipment: { deletedAt: null },
       },
-      _sum: { total: true, amountPaid: true },
+      _sum: { total: true, amountPaid: true, amountAdjusted: true },
     }),
     prisma.invoice.aggregate({
       where: { customerId: customer.id, shipment: { deletedAt: null } },

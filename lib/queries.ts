@@ -31,7 +31,7 @@ import { prisma } from "@/lib/prisma";
 const unpaidPosition = cache(() =>
   prisma.invoice.aggregate({
     where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
-    _sum: { total: true, amountPaid: true },
+    _sum: { total: true, amountPaid: true, amountAdjusted: true },
   })
 );
 
@@ -904,7 +904,7 @@ export async function financeStats() {
       }),
       prisma.invoice.aggregate({
         where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
-        _sum: { total: true, amountPaid: true },
+        _sum: { total: true, amountPaid: true, amountAdjusted: true },
       }),
     ]);
 
@@ -1256,7 +1256,7 @@ export async function attentionItems(
               trackingNumber: true,
               arrivedAt: true,
               customer: { select: { name: true, phone: true } },
-              invoice: { select: { total: true, amountPaid: true, currency: true } },
+              invoice: { select: { total: true, amountPaid: true, amountAdjusted: true, currency: true } },
             },
           })
         : [],
@@ -1418,7 +1418,7 @@ export async function agingInWarehouse(limit = 8) {
       // identically has somebody ringing a customer to ask for a figure
       // Finance has not signed off on yet.
       invoice: {
-        select: { total: true, amountPaid: true, currency: true, status: true },
+        select: { total: true, amountPaid: true, amountAdjusted: true, currency: true, status: true },
       },
     },
   });

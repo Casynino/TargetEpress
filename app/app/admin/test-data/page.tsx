@@ -62,7 +62,7 @@ export default async function TestDataPage() {
         weightKg: true,
         customer: { select: { name: true, phone: true } },
         batch: { select: { batchNumber: true } },
-        invoice: { select: { status: true, total: true, amountPaid: true } },
+        invoice: { select: { status: true, total: true, amountPaid: true, amountAdjusted: true } },
         pickupNote: { select: { noteNumber: true, status: true } },
       },
     }),

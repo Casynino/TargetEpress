@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { combinedReceiptToPdf } from "@/lib/receipt-pdf";
 import { requirePermission } from "@/lib/session";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
+import { isSettled } from "@/lib/invoice-balance";
 
 /**
  * The receipt for one payment, listing every consignment it settled.
@@ -139,8 +140,10 @@ export async function GET(
             ? Math.round(settled * frozen)
             : Math.round((settled / frozen) * 100) / 100,
       exchangeRate: cross ? (frozen || null) : null,
-      cleared:
-        toNumber(invoice.amountPaid) + 0.001 >= toNumber(invoice.total),
+      /* A bill closed by an adjustment IS cleared. Asking only whether the
+         money covered the total printed "Part paid" on the receipt for the
+         payment that finished it. */
+      cleared: isSettled(invoice),
     };
   });
 

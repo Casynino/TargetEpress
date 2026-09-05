@@ -485,7 +485,13 @@ export async function rejectCredit(
           dueDate: null,
           creditDecidedAt: new Date(),
           creditDecidedById: user.id,
-          creditDecisionNote: parsed.data.note,
+          /* NULL, not "". The Record Payment screen tests this field for
+             truthiness to warn "credit has already been refused on this bill",
+             and an empty string reads as no refusal — so the desk that took
+             the trouble to refuse it silently lost the warning for everybody
+             after them. It became reachable the day the note stopped being
+             compulsory. */
+          creditDecisionNote: parsed.data.note || null,
         },
       });
       if (claimed.count === 0) {
@@ -891,7 +897,7 @@ export async function creditCandidates(
       creditStatus: "APPROVED",
       status: { in: ["UNPAID", "PARTIALLY_PAID"] },
     },
-    _sum: { total: true, amountPaid: true },
+    _sum: { total: true, amountPaid: true, amountAdjusted: true },
   });
   const owedByCustomer = new Map(
     standing.map((row) => [
@@ -1002,7 +1008,7 @@ export async function creditContextFor(
       creditStatus: "APPROVED",
       status: { in: ["UNPAID", "PARTIALLY_PAID"] },
     },
-    _sum: { total: true, amountPaid: true },
+    _sum: { total: true, amountPaid: true, amountAdjusted: true },
   });
 
   /*

@@ -660,7 +660,12 @@ function ChargePanel({
         <div>
           <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
             <Wallet className="h-3.5 w-3.5" />
-            {settled ? "Total paid" : "Amount due"}
+            {/* "Settled in full", not "Total paid": the figure below is the
+                BILL, and a bill whose last shillings were written off at the
+                counter was never paid in that amount. What the customer needs
+                from this line is that nothing is owed, which is true either
+                way. */}
+            {settled ? "Settled in full" : "Amount due"}
           </p>
           {/*
             Shillings lead, dollars underneath.

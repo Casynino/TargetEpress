@@ -8,6 +8,7 @@ import { renderInvoicePdf } from "@/lib/invoice-pdf";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/session";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
+import { outstandingOf } from "@/lib/invoice-balance";
 
 /**
  * The invoice as a downloadable file.
@@ -166,7 +167,13 @@ export async function GET(
     discount: toNumber(invoice.discount),
     total,
     paid,
-    outstanding: Math.max(0, total - paid),
+    /* Through the one helper, because this document goes to the CUSTOMER.
+       Computed by hand it ignored what was written off: a bill settled at the
+       counter printed "AMOUNT DUE TSh 450", stamped itself PART PAID, and —
+       because the settled branch was skipped — reprinted every bank account
+       and Lipa number underneath. An invitation to pay a debt that does not
+       exist, into a live account. */
+    outstanding: outstandingOf(invoice),
 
     exchangeRate:
       invoice.exchangeRate === null ? null : toNumber(invoice.exchangeRate),

@@ -75,6 +75,9 @@ type Settlement = {
   amount: number;
   total: number;
   amountPaid: Prisma.Decimal;
+  /* What was already written off, so a status recomputed after a cancellation
+     still counts the adjustments this payment had nothing to do with. */
+  amountAdjusted: number;
   shipment: {
     id: string;
     trackingNumber: string;
@@ -95,6 +98,7 @@ function settlementsOf(payment: {
       status: string;
       total: Prisma.Decimal;
       amountPaid: Prisma.Decimal;
+      amountAdjusted: Prisma.Decimal;
       currency: string;
       shipment: Settlement["shipment"];
     };
@@ -105,6 +109,7 @@ function settlementsOf(payment: {
     status: string;
     total: Prisma.Decimal;
     amountPaid: Prisma.Decimal;
+    amountAdjusted: Prisma.Decimal;
     currency: string;
     shipment: Settlement["shipment"];
   } | null;
@@ -117,6 +122,7 @@ function settlementsOf(payment: {
       amount: toNumber(a.amount),
       total: toNumber(a.invoice.total),
       amountPaid: a.invoice.amountPaid,
+      amountAdjusted: toNumber(a.invoice.amountAdjusted),
       shipment: a.invoice.shipment,
     }));
   }
@@ -150,6 +156,7 @@ function settlementsOf(payment: {
       amount: credited > 0 ? credited : toNumber(payment.amount),
       total: toNumber(invoice.total),
       amountPaid: invoice.amountPaid,
+      amountAdjusted: toNumber(invoice.amountAdjusted),
       shipment: invoice.shipment,
     },
   ];
@@ -258,11 +265,53 @@ export async function voidPayment(
       const settlements = settlementsOf(payment);
       const gave = settlements.reduce((sum, s) => sum + s.amount, 0);
 
+      /*
+        WHAT WAS WRITTEN OFF ALONGSIDE THIS PAYMENT COMES BACK WITH IT.
+
+        A desk that records 36,000 against a 36,450 bill and ticks "clear the
+        last 450" makes two records in one breath. Cancelling took back only
+        the payment: the 450 stayed forgiven, so a customer whose payment had
+        been reversed owed 36,000 instead of 36,450 — 450 shillings written off
+        for a payment that no longer exists, decided by nobody.
+
+        Only the ones made WITH this payment. An adjustment raised on the
+        bill's own page is a decision about the debt and has nothing to do with
+        any particular payment, so it stays.
+
+        Reversed rather than deleted, like every correction here: the row
+        stays, stamped with who took it back and why.
+      */
+      const withPayment = await tx.invoiceAdjustment.findMany({
+        where: { paymentId: payment.id, reversedAt: null },
+        select: { id: true, invoiceId: true, amount: true },
+      });
+      const clearedBack = new Map<string, number>();
+      for (const row of withPayment) {
+        clearedBack.set(
+          row.invoiceId,
+          (clearedBack.get(row.invoiceId) ?? 0) + toNumber(row.amount)
+        );
+      }
+
       /* Worked out before anything is written, so the audit line and the
          pickup-note decision below read the same figures the bills got. */
       const unwound = settlements.map((s) => {
         const paid = Math.max(0, toNumber(s.amountPaid) - s.amount);
-        return { ...s, newPaid: paid, newStatus: invoiceStatusFor(s.status, paid, s.total) };
+        const undone = clearedBack.get(s.invoiceId) ?? 0;
+        return {
+          ...s,
+          newPaid: paid,
+          undoneAdjustment: undone,
+          /* The adjustments that survive this cancellation — the ones raised
+             on the bill's own page. The one made with this payment is being
+             taken back above and must not go on settling the bill. */
+          newStatus: invoiceStatusFor(
+            s.status,
+            paid,
+            s.total,
+            Math.max(0, s.amountAdjusted - undone)
+          ),
+        };
       });
 
       /* The claim. If two people press cancel at once, the second finds the row
@@ -295,6 +344,9 @@ export async function voidPayment(
           where: { id: s.invoiceId, amountPaid: s.amountPaid },
           data: {
             amountPaid: new Prisma.Decimal(s.newPaid),
+            ...(s.undoneAdjustment > 0
+              ? { amountAdjusted: { decrement: new Prisma.Decimal(s.undoneAdjustment) } }
+              : {}),
             ...(s.newStatus ? { status: s.newStatus } : {}),
           },
         });
@@ -303,6 +355,19 @@ export async function voidPayment(
             t(locale, "This bill's balance moved a moment ago. Reload and check it before cancelling.")
           );
         }
+      }
+
+      /* Stamped as taken back, never deleted — the decision and its undoing
+         both stay on the record, the same discipline the ledger follows. */
+      if (withPayment.length > 0) {
+        await tx.invoiceAdjustment.updateMany({
+          where: { id: { in: withPayment.map((r) => r.id) }, reversedAt: null },
+          data: {
+            reversedAt: new Date(),
+            reversedById: user.id,
+            reversalReason: "The payment it was decided with was cancelled.",
+          },
+        });
       }
 
       /*
@@ -599,7 +664,13 @@ export async function restorePayment(
       const gave = settlements.reduce((sum, s) => sum + s.amount, 0);
       const redone = settlements.map((s) => {
         const paid = toNumber(s.amountPaid) + s.amount;
-        return { ...s, newPaid: paid, newStatus: invoiceStatusFor(s.status, paid, s.total) };
+        /* Whatever is still written off counts towards settling it, the same
+           way it does at the counter. */
+        return {
+          ...s,
+          newPaid: paid,
+          newStatus: invoiceStatusFor(s.status, paid, s.total, s.amountAdjusted),
+        };
       });
 
       const claimed = await tx.payment.updateMany({

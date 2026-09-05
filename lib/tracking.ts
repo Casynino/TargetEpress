@@ -15,6 +15,7 @@ import { isCollectable } from "@/lib/payable";
 import { currentRateValue, toLocal } from "@/lib/fx";
 import { quote } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { outstandingOf } from "@/lib/invoice-balance";
 import {
   PUBLIC_TRACKING_CASE_SELECT,
   PUBLIC_TRACKING_CASE_WHERE,
@@ -537,7 +538,10 @@ export async function trackByCode(rawQuery: string): Promise<TrackingResult> {
     if (invoice) {
       const total = toNumber(invoice.total);
       const paid = toNumber(invoice.amountPaid);
-      const outstanding = Math.max(0, total - paid);
+      /* The write-off counts here more than anywhere: this page is public, and
+         it was telling a customer who had settled at the counter that they
+         still owed the shillings Finance had already cleared. */
+      const outstanding = outstandingOf(invoice);
       const rate = invoice.exchangeRate ? toNumber(invoice.exchangeRate) : null;
 
       charge = {

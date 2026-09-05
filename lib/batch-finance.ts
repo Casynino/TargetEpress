@@ -7,6 +7,7 @@ import { currentRateValue, toLocal } from "@/lib/fx";
 import type { Locale } from "@/lib/locale";
 import { quote, quoteContext } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { outstandingOf } from "@/lib/invoice-balance";
 
 /**
  * What one dispatch is worth, and how much of it has been collected.
@@ -261,7 +262,9 @@ export async function batchFinance(
     // the customer has never seen it, so it counts towards what this flight is
     // worth and towards nothing anybody owes.
     if (piece.invoice.status !== "DRAFT") {
-      outstandingUsd += Math.max(0, total - paid);
+      /* Per bill, through the helper — a flight whose every bill is settled
+         showed a debt on the batch band and in its own profit and loss. */
+      outstandingUsd += outstandingOf(piece.invoice);
     } else {
       drafts += 1;
       draftsUsd += total;

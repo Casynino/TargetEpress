@@ -54,7 +54,7 @@ export async function batchOwing(
       trackingNumber: true,
       customer: { select: { name: true } },
       invoice: {
-        select: { id: true, status: true, total: true, amountPaid: true },
+        select: { id: true, status: true, total: true, amountPaid: true, amountAdjusted: true },
       },
     },
     orderBy: { trackingNumber: "asc" },
@@ -224,7 +224,7 @@ export async function buildStatement(
       weightKg: true,
       packages: true,
       customerId: true,
-      invoice: { select: { id: true, status: true, total: true, amountPaid: true } },
+      invoice: { select: { id: true, status: true, total: true, amountPaid: true, amountAdjusted: true } },
     },
   });
 

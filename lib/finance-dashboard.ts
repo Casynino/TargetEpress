@@ -265,7 +265,7 @@ export async function financeDashboard(
 
     prisma.invoice.aggregate({
       where: { status: { in: ["UNPAID", "PARTIALLY_PAID"] } },
-      _sum: { total: true, amountPaid: true },
+      _sum: { total: true, amountPaid: true, amountAdjusted: true },
     }),
 
     /* Costs recorded and not yet disbursed — the only payable this schema has. */

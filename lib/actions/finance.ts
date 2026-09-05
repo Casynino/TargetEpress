@@ -1065,17 +1065,28 @@ export async function adjustInvoice(
             /* A waived or reduced storage charge is money the business chose
                not to take. It is named in the summary rather than left to be
                inferred from two numbers in the metadata. */
+            /* Both notes are optional now, so both are appended only when
+               there is one — otherwise the line ended in a bare colon, or in
+               the word "undefined" where the reason used to be. */
             (storageMoved
               ? storage === 0
-                ? ` — storage waived (${clockStorage.toFixed(2)}): ${input.storageReason}`
-                : ` — storage ${clockStorage.toFixed(2)} to ${storage.toFixed(2)}: ${input.storageReason}`
+                ? withNote(
+                    ` — storage waived (${clockStorage.toFixed(2)})`,
+                    input.storageReason
+                  )
+                : withNote(
+                    ` — storage ${clockStorage.toFixed(2)} to ${storage.toFixed(2)}`,
+                    input.storageReason
+                  )
               : "") +
-            (correcting ? ` — ${input.correctionReason}` : ""),
+            (correcting && input.correctionReason
+              ? ` — ${input.correctionReason}`
+              : ""),
           metadata: {
             // Named so a reader of the log can tell a routine adjustment from
             // a restatement of a bill somebody had already paid.
             correction: correcting,
-            reason: correcting ? input.correctionReason : undefined,
+            reason: correcting ? input.correctionReason ?? null : undefined,
             alreadyPaid: correcting ? alreadyPaid : undefined,
             totalBefore: toNumber(invoice.total),
             totalAfter: total,
@@ -2096,7 +2107,15 @@ export async function recordPayment(
       }
       const nextAdjusted = Math.round((adjusted + clearing) * 100) / 100;
 
-      const settled = newPaid + 0.001 >= total || clearing > 0;
+      /*
+        THE WRITE-OFF ALREADY ON THE BILL COUNTS TOWARDS SETTLING IT.
+
+        This asked only whether the money covered the total. A bill whose last
+        few shillings had been cleared on another screen was therefore left
+        PARTIALLY_PAID by the payment that finished it — balance zero, status
+        part-paid, and no pickup note, so the cargo could not go.
+      */
+      const settled = newPaid + nextAdjusted + 0.001 >= total;
 
       /*
         CONDITIONAL ON THE FIGURE THIS TRANSACTION READ.
@@ -2149,6 +2168,8 @@ export async function recordPayment(
             reason: null,
             totalAtTime: new Prisma.Decimal(total),
             amountPaidAtTime: new Prisma.Decimal(newPaid),
+            /* Decided with this payment, so it is taken back with it. */
+            paymentId: payment.id,
             createdById: user.id,
           },
           select: { id: true },
@@ -4087,6 +4108,8 @@ export async function recordCustomerPayment(
               reason: null,
               totalAtTime: new Prisma.Decimal(toNumber(invoice.total)),
               amountPaidAtTime: new Prisma.Decimal(newPaid),
+              /* Decided with this payment, so it is taken back with it. */
+              paymentId: payment.id,
               createdById: user.id,
             },
             select: { id: true },

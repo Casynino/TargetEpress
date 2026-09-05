@@ -110,7 +110,16 @@ export default async function CustomersPage({
           status: true,
           registeredAt: true,
           invoice: showMoney
-            ? { select: { status: true, total: true, amountPaid: true } }
+            ? {
+                select: {
+                  status: true,
+                  total: true,
+                  amountPaid: true,
+                  /* Without it outstandingOf reads every written-off
+                     shilling as still owing — see BalanceInput. */
+                  amountAdjusted: true,
+                },
+              }
             : false,
         },
       },

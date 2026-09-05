@@ -2164,7 +2164,7 @@ export async function reviewStatement(
           summary:
             decision === "CONFIRMED"
               ? `Confirmed the closing statement for ${statement.batch.batchNumber}`
-              : `Sent ${statement.batch.batchNumber} back — ${reviewNote}`,
+              : withNote(`Sent ${statement.batch.batchNumber} back`, reviewNote),
           metadata: { reviewNote: reviewNote || null },
         },
         tx

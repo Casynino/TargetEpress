@@ -340,6 +340,10 @@ export function canRequestCredit(invoice: {
   creditStatus: CreditStatus;
   total: Money;
   amountPaid: Money;
+  /* The third figure. Without it a bill whose last shillings were written off
+     still reads as chaseable, and the customer keeps being rung for money the
+     company has already decided is not coming. */
+  amountAdjusted: Money;
   /*
     Where the cargo is.
 

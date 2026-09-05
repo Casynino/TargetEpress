@@ -273,13 +273,21 @@ function earned(invoice: {
   status: InvoiceStatus;
   total: Prisma.Decimal;
   amountPaid: Prisma.Decimal;
+  /* The third figure. Without it every settled-by-adjustment bill printed a
+     debt in the Income report and in batch profitability. */
+  amountAdjusted: Prisma.Decimal;
 }) {
   const total = toNumber(invoice.total);
   const paid = toNumber(invoice.amountPaid);
   if (invoice.status === "WRITTEN_OFF") {
     return { billed: paid, paid, due: 0, writtenOff: Math.max(0, total - paid) };
   }
-  return { billed: total, paid, due: Math.max(0, total - paid), writtenOff: 0 };
+  return {
+    billed: total,
+    paid,
+    due: outstandingOf(invoice),
+    writtenOff: 0,
+  };
 }
 
 /** The date window, as a Prisma filter, or undefined when unbounded. */
@@ -1631,7 +1639,7 @@ async function monthlySummary(f: ReportFilters): Promise<ReportResult> {
       // `status` is here so `earned` can neutralise a written-off bill: it used
       // to add the abandoned debt to the month's revenue, which raised that
       // month's profit and its margin by exactly what the business gave up on.
-      select: { issuedAt: true, total: true, amountPaid: true, status: true },
+      select: { issuedAt: true, total: true, amountPaid: true, amountAdjusted: true, status: true },
     }),
     prisma.expense.findMany({
       where: {
@@ -1719,7 +1727,7 @@ async function financialStatement(f: ReportFilters): Promise<ReportResult> {
         status: { in: [...BILLED_INVOICE_STATUSES] },
         ...(range(f) ? { issuedAt: range(f) } : {}),
       },
-      _sum: { total: true, amountPaid: true },
+      _sum: { total: true, amountPaid: true, amountAdjusted: true },
     }),
     /* Counted separately rather than dropped, so a period that wrote off USD
        1,240 cannot read like one that never billed it. */
@@ -1728,7 +1736,7 @@ async function financialStatement(f: ReportFilters): Promise<ReportResult> {
         status: "WRITTEN_OFF",
         ...(range(f) ? { issuedAt: range(f) } : {}),
       },
-      _sum: { total: true, amountPaid: true },
+      _sum: { total: true, amountPaid: true, amountAdjusted: true },
     }),
     prisma.expense.aggregate({
       where: {

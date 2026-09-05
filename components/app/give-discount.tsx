@@ -61,7 +61,29 @@ export function GiveDiscount({
   const [mode, setMode] = useState<"local" | "invoice">(
     canLocal ? "local" : "invoice"
   );
-  const [typed, setTyped] = useState(current > 0 ? String(current) : "");
+
+  /*
+    THE SEED HAS TO BE IN THE UNITS OF THE BOX IT LANDS IN.
+
+    `current` is the discount already on the bill, in the BILL's currency. The
+    box opens armed in shillings, and this seeded the dollar figure into it: a
+    USD 20 discount became the number 20 in a shilling box. A desk that read it
+    as "the discount that is already there" and pressed Apply sent 20 shillings
+    — the server converted at the frozen rate, wrote a discount of USD 0.01,
+    and the bill went UP by nineteen dollars and ninety-nine cents. Nobody
+    typed a figure and no money was refused; the customer was simply re-billed.
+
+    Restated on the toggle too, for the same reason in the other direction.
+  */
+  const seedFor = (m: "local" | "invoice") =>
+    current > 0
+      ? m === "local" && canLocal
+        ? String(Math.round(current * (rate as number)))
+        : String(current)
+      : "";
+  const [typed, setTyped] = useState(() =>
+    seedFor(canLocal ? "local" : "invoice")
+  );
 
   /* What will actually come off, shown before it is agreed rather than
      discovered on the bill afterwards. A shilling figure rarely divides into
@@ -149,7 +171,12 @@ export function GiveDiscount({
               <button
                 key={value}
                 type="button"
-                onClick={() => setMode(value)}
+                onClick={() => {
+                  setMode(value);
+                  /* The same money, restated — never the same digits read as
+                     a different currency. */
+                  setTyped(seedFor(value));
+                }}
                 className={
                   "focus-ring px-2 py-1 text-[11px] font-semibold " +
                   (mode === value

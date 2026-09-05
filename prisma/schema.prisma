@@ -1601,6 +1601,10 @@ model Payment {
   /// What this payment actually settled, bill by bill.
   allocations PaymentAllocation[]
 
+  /// Written off in the same breath as this payment — see
+  /// InvoiceAdjustment.paymentId. Cancelling the payment takes these back too.
+  adjustments InvoiceAdjustment[]
+
   /// What the customer actually handed over, in `currency`. The receipt says
   /// this, because it is what happened at the counter.
   amount         Decimal       @db.Decimal(12, 2)
@@ -3239,6 +3243,19 @@ model InvoiceAdjustment {
   totalAtTime      Decimal @db.Decimal(12, 2)
   amountPaidAtTime Decimal @db.Decimal(12, 2)
 
+  /// THE PAYMENT THIS WAS DECIDED WITH, WHEN IT WAS DECIDED WITH ONE.
+  ///
+  /// A desk that records 36,000 against a 36,450 bill and ticks "clear the
+  /// last 450" makes two records in one breath: a payment and this. Cancelling
+  /// the payment used to take back only the first — the 450 stayed written
+  /// off, so a customer whose payment had been reversed owed 36,000 instead of
+  /// 36,450 and nobody had decided to forgive them anything.
+  ///
+  /// Null on an adjustment made on its own, from the bill's own page, which is
+  /// a decision about the debt and outlives any particular payment.
+  paymentId String?
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
   createdById String?
   createdBy   User?    @relation("AdjustmentsMade", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
@@ -3252,4 +3269,5 @@ model InvoiceAdjustment {
 
   @@index([invoiceId])
   @@index([createdAt])
+  @@index([paymentId])
 }

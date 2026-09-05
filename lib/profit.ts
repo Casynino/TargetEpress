@@ -202,7 +202,7 @@ export async function profitAndLoss(window: ProfitWindow) {
     // slightly different question.
     prisma.invoice.aggregate({
       where: { issuedAt: range, status: { in: [...BILLED_INVOICE_STATUSES] } },
-      _sum: { total: true, amountPaid: true },
+      _sum: { total: true, amountPaid: true, amountAdjusted: true },
       _count: true,
     }),
     /*
@@ -221,7 +221,7 @@ export async function profitAndLoss(window: ProfitWindow) {
     */
     prisma.invoice.aggregate({
       where: { issuedAt: range, status: "WRITTEN_OFF" },
-      _sum: { total: true, amountPaid: true },
+      _sum: { total: true, amountPaid: true, amountAdjusted: true },
       _count: true,
     }),
     /*

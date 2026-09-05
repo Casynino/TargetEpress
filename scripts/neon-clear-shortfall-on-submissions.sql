@@ -38,3 +38,46 @@ COMMIT;
 --    WHERE table_name = 'PaymentSubmission' AND column_name = 'clearShortfall';
 --
 --   SELECT "clearShortfall", count(*) FROM "PaymentSubmission" GROUP BY 1;
+
+-- ---------------------------------------------------------------------------
+-- SECOND COLUMN, SAME DEPLOYMENT.
+--
+-- An adjustment made WITH a payment belongs to that payment.
+--
+-- A desk that records 36,000 against a 36,450 bill and ticks "clear the last
+-- 450" makes two records in one breath. Cancelling the payment took back only
+-- the first: the 450 stayed written off, so a customer whose payment had been
+-- reversed owed 36,000 rather than 36,450 and nobody had decided to forgive
+-- them anything. The link is what lets the cancellation take both back.
+--
+-- Null on an adjustment made on its own from the bill's page — that is a
+-- decision about the debt and outlives any particular payment. So every row
+-- already in the table reads null, which is exactly what they all are.
+--
+-- Safe to run twice.
+
+BEGIN;
+
+ALTER TABLE "InvoiceAdjustment"
+  ADD COLUMN IF NOT EXISTS "paymentId" TEXT;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'InvoiceAdjustment_paymentId_fkey'
+  ) THEN
+    ALTER TABLE "InvoiceAdjustment"
+      ADD CONSTRAINT "InvoiceAdjustment_paymentId_fkey"
+      FOREIGN KEY ("paymentId") REFERENCES "Payment"("id")
+      ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS "InvoiceAdjustment_paymentId_idx"
+  ON "InvoiceAdjustment" ("paymentId");
+
+COMMIT;
+
+-- Afterwards:
+--   SELECT column_name FROM information_schema.columns
+--    WHERE table_name = 'InvoiceAdjustment' AND column_name = 'paymentId';

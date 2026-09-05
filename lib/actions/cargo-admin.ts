@@ -78,7 +78,7 @@ export async function deleteCargo(
         description: true,
         weightKg: true,
         customer: { select: { name: true } },
-        invoice: { select: { invoiceNumber: true, amountPaid: true } },
+        invoice: { select: { invoiceNumber: true, amountPaid: true, amountAdjusted: true } },
         _count: { select: { photos: true } },
       },
     });
@@ -253,7 +253,7 @@ export async function purgeCargo(
         trackingNumber: true,
         deletedAt: true,
         batch: { select: { permanent: true } },
-        invoice: { select: { invoiceNumber: true, amountPaid: true } },
+        invoice: { select: { invoiceNumber: true, amountPaid: true, amountAdjusted: true } },
         _count: { select: { photos: true, packageList: true } },
       },
     });

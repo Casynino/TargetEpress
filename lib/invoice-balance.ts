@@ -29,8 +29,24 @@ const CENT = 0.005;
 export type BalanceInput = {
   total: Numeric;
   amountPaid: Numeric;
-  /** Absent on rows selected before adjustments existed — treated as none. */
-  amountAdjusted?: Numeric;
+  /**
+   * REQUIRED, AND THAT IS THE WHOLE POINT.
+   *
+   * It was optional, on the reasonable-sounding argument that a row selected
+   * before adjustments existed should read as none. What it actually bought
+   * was silence: a dozen queries up and down the app selected `total` and
+   * `amountPaid`, handed the pair to this function, and got an answer that
+   * ignored every shilling ever written off — with no type error, because the
+   * missing field was allowed to be missing.
+   *
+   * The flight that could never close, the invoice PDF that asked a customer
+   * for money already cleared, the credit book that kept eating a settled
+   * customer's limit: all one bug, wearing twelve hats, and all invisible
+   * because of the question mark that used to sit here.
+   *
+   * A caller that genuinely has no adjustments to report passes 0 and says so.
+   */
+  amountAdjusted: Numeric;
 };
 
 export type Balance = {
@@ -55,7 +71,7 @@ export type Balance = {
 export function invoiceBalance(invoice: BalanceInput): Balance {
   const due = toNumber(invoice.total);
   const paid = toNumber(invoice.amountPaid);
-  const adjusted = toNumber(invoice.amountAdjusted ?? 0);
+  const adjusted = toNumber(invoice.amountAdjusted);
 
   /* Money first, then the decision. The remainder cannot go below zero: a
      customer who sends too much is owed money, not owing it, and a negative

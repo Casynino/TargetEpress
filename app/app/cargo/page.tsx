@@ -54,7 +54,7 @@ export default async function ShipmentsPage({
         currency: true,
         customer: { select: { name: true, phone: true } },
         batch: { select: { batchNumber: true } },
-        invoice: { select: { total: true, amountPaid: true, currency: true } },
+        invoice: { select: { total: true, amountPaid: true, amountAdjusted: true, currency: true } },
       },
     }),
     prisma.shipment.count({ where }),
