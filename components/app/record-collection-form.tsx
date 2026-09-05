@@ -156,7 +156,7 @@ export function RecordCollectionForm({
     exactly the fare, with nothing on screen saying so. Seeding once also meant
     a discount or a rate agreed on this same form left a stale figure behind.
   */
-  const [typedTotal, setTypedTotal] = useState<string | null>(null);
+  const [typedCargo, setTypedCargo] = useState<string | null>(null);
 
   /*
     Only accounts that could really have received THIS money.
@@ -174,21 +174,43 @@ export function RecordCollectionForm({
   /* The desk looked at a fare bigger than the cargo and said it was right. */
   const [fareConfirmed, setFareConfirmed] = useState(false);
 
-  /* Derived every render, so a bill that moves underneath moves the total. */
+  /*
+    THE BOX IS THE CARGO MONEY, AND THE FARE IS ADDED TO IT.
+
+    It used to hold the whole transfer, so a box labelled "Total received" sat
+    beside one labelled "Transport they added" and the pair read as a total
+    with the fare going on top of it — and on this form the reader could watch
+    the "total" climb as they typed the fare, with no way to tell whether it
+    had climbed once or twice. Two halves of one addition now, with the sum
+    read back underneath where it is checked against the customer's message.
+
+    Only the screen changed: what is SUBMITTED is still the whole transfer,
+    because that is what reached the account.
+  */
   const fare = Math.max(0, Number(transport) || 0);
-  const followedTotal =
+  const followedCargo =
     currencyChoice === "TZS"
-      ? String(Math.round(suggested + fare))
-      : String(Math.round((suggested + fare) * 100) / 100);
-  const amount = typedTotal ?? followedTotal;
-  const total = Number(amount);
-  const cargoHalf =
-    Number.isFinite(total) && total > 0
-      ? Math.round((total - fare) * 100) / 100
-      : 0;
+      ? String(Math.round(suggested))
+      : String(Math.round(suggested * 100) / 100);
+  const cargoShown = typedCargo ?? followedCargo;
+  const cargoHalf = Math.max(0, Number(cargoShown) || 0);
+  /* Rounded here, not at the field: a dollar cargo plus a dollar fare makes
+     floats like 8.399999999999999, and the money box truncates. */
+  const totalShown =
+    currencyChoice === "TZS"
+      ? String(Math.round(cargoHalf + fare))
+      : String(Math.round((cargoHalf + fare) * 100) / 100);
+  const total = Number(totalShown);
   const tolerance = currencyChoice === "TZS" ? 0.5 : 0.005;
   const short = cargoHalf > 0 && suggested - cargoHalf > tolerance;
-  const fareOverCargo = fare > 0 && total > 0 && fare > cargoHalf + 0.001;
+  const fareOverCargo = fare > 0 && cargoHalf > 0 && fare > cargoHalf + 0.001;
+  /* The habit this change invites: typing the customer's grand total into a
+     box that now means the cargo, which adds the fare twice. See the same
+     guard on the cargo panel. */
+  const looksLikeTheWholeTransfer =
+    typedCargo !== null &&
+    fare > 0 &&
+    Math.abs(cargoHalf - (suggested + fare)) < (currencyChoice === "TZS" ? 1 : 0.01);
   /*
     Derived, not corrected in an effect.
 
@@ -222,6 +244,9 @@ export function RecordCollectionForm({
     >
       <IdempotencyKey value={idem.key} />
       <input type="hidden" name="invoiceId" value={invoiceId} />
+      {/* What actually reached the account: the two halves the clerk typed,
+          added. This is the figure the bank statement will show. */}
+      <input type="hidden" name="amount" value={totalShown} />
 
       {/* Already known. Shown so the desk can check they are on the right
           record, never retyped. */}
@@ -289,16 +314,21 @@ export function RecordCollectionForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto_1fr]">
         <div className="space-y-1.5">
-          <Label htmlFor="collectionAmount" className="text-xs">
-            {t("Total received")}
+          <Label htmlFor="collectionCargo" className="text-xs">
+            {t("Cargo charge")}
           </Label>
           {/* Emptying it hands the figure back to the bill rather than
               latching an empty string. */}
+          {/* DISPLAY ONLY. MoneyInput emits its own hidden field under
+              whatever name it is given, so this must not be called "amount"
+              — two fields of that name would let the cargo half be submitted
+              as the whole transfer and leave the bill short by the fare. */}
           <MoneyInput
-            id="collectionAmount"
-            name="amount"
-            value={amount}
-            onValueChange={(raw) => setTypedTotal(raw === "" ? null : raw)}
+            id="collectionCargo"
+            name="cargoShown"
+            decimals={currencyChoice === "TZS" ? 0 : 2}
+            value={cargoShown}
+            onValueChange={(raw) => setTypedCargo(raw === "" ? null : raw)}
             required
           />
         </div>
@@ -316,7 +346,7 @@ export function RecordCollectionForm({
                USD 10,000 one. */
             onChange={(event) => {
               setCurrencyChoice(event.target.value);
-              setTypedTotal(null);
+              setTypedCargo(null);
               setTransport("");
               setTransportSourceId("");
               setFareConfirmed(false);
@@ -566,6 +596,27 @@ export function RecordCollectionForm({
         money={(v) => `${currencyChoice} ${v.toLocaleString()}`}
       />
 
+      {looksLikeTheWholeTransfer ? (
+        <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          {t("That looks like the whole transfer, transport included.")}{" "}
+          {t("The cargo charge on its own is")} {currencyChoice}{" "}
+          {suggested.toLocaleString()}.{" "}
+          <button
+            type="button"
+            onClick={() =>
+              setTypedCargo(
+                currencyChoice === "TZS"
+                  ? String(Math.round(suggested))
+                  : String(Math.round(suggested * 100) / 100)
+              )
+            }
+            className="font-semibold underline underline-offset-2"
+          >
+            {t("Use that.")}
+          </button>
+        </p>
+      ) : null}
+
       {short ? (
         <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
           {t("This leaves")} {currencyChoice}{" "}
@@ -574,15 +625,15 @@ export function RecordCollectionForm({
           <button
             type="button"
             onClick={() =>
-              setTypedTotal(
+              setTypedCargo(
                 currencyChoice === "TZS"
-                  ? String(Math.round(suggested + fare))
-                  : String(Math.round((suggested + fare) * 100) / 100)
+                  ? String(Math.round(suggested))
+                  : String(Math.round(suggested * 100) / 100)
               )
             }
             className="font-semibold underline underline-offset-2"
           >
-            {currencyChoice} {(suggested + fare).toLocaleString()}{" "}
+            {currencyChoice} {suggested.toLocaleString()}{" "}
             {t("clears it in full.")}
           </button>
         </p>

@@ -170,7 +170,7 @@ export function RecordIncome({
     it alone, type the fare — carved the fare OUT of the bill's own figure and
     left the bill short by exactly the fare, silently.
   */
-  const [typedTotal, setTypedTotal] = useState<string | null>(null);
+  const [typedCargo, setTypedCargo] = useState<string | null>(null);
   const [searching, startSearch] = useTransition();
 
   /* The authority picks the action; the form is the same either way. */
@@ -288,7 +288,7 @@ export function RecordIncome({
      the till it came from used to survive a pick, so the next customer's box
      opened inflated by the previous customer's delivery. */
   const clearMoney = () => {
-    setTypedTotal(null);
+    setTypedCargo(null);
     setTransport("");
     setTransportSourceId("");
     setFareConfirmed(false);
@@ -326,25 +326,41 @@ export function RecordIncome({
   */
   const billInTender = picked ? owedIn(picked, tendered) : null;
   const fare = Math.max(0, Number(transport) || 0);
-  const followedTotal =
+  /*
+    THE BOX IS THE CARGO MONEY. THE FARE IS ADDED TO IT.
+
+    A box labelled "Total received" beside one labelled "Transport they added"
+    reads as the fare going on top of a figure that already contains it. Worse
+    on this screen than anywhere: the breakdown card below prints the words
+    "Total received" against the same number, so one page carried that label
+    twice with an addition sign between them.
+  */
+  const followedCargo =
     billInTender === null
       ? ""
       : tendered === "TZS"
-        ? String(Math.round(billInTender + fare))
-        : String(Math.round((billInTender + fare) * 100) / 100);
-  const amount = typedTotal ?? followedTotal;
-  const total = Number(amount);
-  const cargoHalf =
-    Number.isFinite(total) && total > 0
-      ? Math.round((total - fare) * 100) / 100
-      : 0;
+        ? String(Math.round(billInTender))
+        : String(Math.round(billInTender * 100) / 100);
+  const cargoShown = typedCargo ?? followedCargo;
+  const cargoHalf = Math.max(0, Number(cargoShown) || 0);
+  /* Rounded here: a dollar cargo plus a dollar fare makes floats like
+     8.399999999999999, and this box takes anything a clerk can paste. */
+  const totalShown =
+    tendered === "TZS"
+      ? String(Math.round(cargoHalf + fare))
+      : String(Math.round((cargoHalf + fare) * 100) / 100);
+  const total = Number(totalShown);
   const tolerance = tendered === "TZS" ? 0.5 : 0.005;
   const short =
     billInTender !== null && cargoHalf > 0 && billInTender - cargoHalf > tolerance;
-  /* Almost always an extra nought. The server refuses it without the tick,
-     because the fare's old ceiling ("no bigger than what came in") is an
-     identity once the total is the bill plus the fare. */
-  const fareOverCargo = fare > 0 && total > 0 && fare > cargoHalf + 0.001;
+  /* Almost always an extra nought. The server refuses it without the tick. */
+  const fareOverCargo = fare > 0 && cargoHalf > 0 && fare > cargoHalf + 0.001;
+  /* The habit this change invites — see the same guard on the cargo panel. */
+  const looksLikeTheWholeTransfer =
+    typedCargo !== null &&
+    fare > 0 &&
+    billInTender !== null &&
+    Math.abs(cargoHalf - (billInTender + fare)) < (tendered === "TZS" ? 1 : 0.01);
 
   if (!open) {
     return (
@@ -565,6 +581,9 @@ export function RecordIncome({
         <form action={action} className="px-5 py-4">
           <IdempotencyKey value={idem.key} />
           <input type="hidden" name="invoiceId" value={picked.invoiceId} />
+          {/* What actually reached the account — the cargo and the fare added.
+              The visible box carries no name on purpose; see it above. */}
+          <input type="hidden" name="amount" value={totalShown} />
 
           <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-lg border bg-card px-4 py-2.5">
             <span className="font-mono text-xs font-semibold">
@@ -605,17 +624,20 @@ export function RecordIncome({
                 are the rest. */}
             <label className="flex flex-col gap-1">
               <span className="text-[11px] text-muted-foreground">
-                {t("Total received")}
+                {t("Cargo charge")}
               </span>
               {/* Emptying it hands the figure back to the bill rather than
                   latching an empty string. */}
+              {/* NO name: this box is what the clerk reads, not what is
+                  submitted. The whole transfer goes in the hidden field
+                  beside invoiceId, and a nameless input still honours
+                  `required`. */}
               <Input
-                name="amount"
                 inputMode="decimal"
                 required
-                value={amount}
+                value={cargoShown}
                 onChange={(e) =>
-                  setTypedTotal(e.target.value === "" ? null : e.target.value)
+                  setTypedCargo(e.target.value === "" ? null : e.target.value)
                 }
                 className="w-36 bg-card tabular-nums"
               />
@@ -780,15 +802,15 @@ export function RecordIncome({
                 <button
                   type="button"
                   onClick={() =>
-                    setTypedTotal(
+                    setTypedCargo(
                       tendered === "TZS"
-                        ? String(Math.round(billInTender + fare))
-                        : String(Math.round((billInTender + fare) * 100) / 100)
+                        ? String(Math.round(billInTender))
+                        : String(Math.round(billInTender * 100) / 100)
                     )
                   }
                   className="font-semibold underline underline-offset-2"
                 >
-                  {tendered} {(billInTender + fare).toLocaleString()}{" "}
+                  {tendered} {billInTender.toLocaleString()}{" "}
                   {t("clears it in full.")}
                 </button>
               </p>

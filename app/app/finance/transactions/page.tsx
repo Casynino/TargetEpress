@@ -664,7 +664,7 @@ export default async function LedgerPage({
             v: shillings(inTsh, inUsd),
             tone: "text-success",
             wash: "from-success/10",
-            hint: t(locale, "Freight collected and money moved in"),
+            hint: t(locale, "Everything that landed, transport included"),
           },
           {
             k: t(locale, "Money out"),

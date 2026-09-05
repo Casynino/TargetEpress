@@ -489,14 +489,14 @@ export default async function FinanceOverviewPage() {
               wash: "from-brand/10",
               hint: seesCompanyMoney
                 ? t(locale, "Every bank, till and the office tin")
-                : t(locale, "Every payment received"),
+                : t(locale, "Paid against bills"),
             },
             {
               k: t(locale, "In this month"),
               v: shillings(collectedMonthTsh, collectedMonth),
               tone: "text-success",
               wash: "from-success/10",
-              hint: t(locale, "Money that came in"),
+              hint: t(locale, "Cargo money — transport not counted"),
             },
             ...(seesCompanyMoney
               ? [
@@ -862,7 +862,7 @@ export default async function FinanceOverviewPage() {
               {t(locale, "Money in and out")}
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {t(locale, "What arrived against what it cost, this year")}
+              {t(locale, "Cargo money in against costs paid, this year")}
             </p>
           </div>
           <FlowBars

@@ -1498,12 +1498,9 @@ export async function recordPayment(
      how this request identifies itself. See lib/idempotency.ts. */
   const idempotencyKey = idempotencyKeyFrom(formData);
 
-  const __raw = Object.fromEntries(formData) as Record<string, unknown>;
-  console.error("PROBE recordPayment keys", JSON.stringify(Object.keys(__raw)), "transport=", JSON.stringify(__raw.transport), "typeof", typeof __raw.transport);
   const parsed = paymentSchema.safeParse(
     Object.fromEntries(formData) as Record<string, string>
   );
-  console.error("PROBE parse ok?", parsed.success, parsed.success ? JSON.stringify({transport: parsed.data.transport}) : JSON.stringify(parsed.error.issues));
   if (!parsed.success) return fail(firstError(parsed.error));
   const input = parsed.data;
 
