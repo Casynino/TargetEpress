@@ -946,7 +946,13 @@ function PaymentPanel({
                 currency={props.currency}
                 balance={props.outstanding ?? 0}
                 total={props.invoiceTotal ?? 0}
-                money={(v) => `${props.currency} ${v.toLocaleString()}`}
+                rate={props.invoiceRate}
+                money={(v) =>
+                  `${props.currency} ${v.toLocaleString(undefined, {
+                    minimumFractionDigits: props.currency === "TZS" ? 0 : 2,
+                    maximumFractionDigits: props.currency === "TZS" ? 0 : 2,
+                  })}`
+                }
               />
             </div>
           ) : null}

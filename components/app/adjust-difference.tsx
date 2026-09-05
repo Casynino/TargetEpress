@@ -39,6 +39,7 @@ export function AdjustDifference({
   balance,
   total,
   money,
+  rate,
 }: {
   invoiceId: string;
   currency: string;
@@ -48,10 +49,25 @@ export function AdjustDifference({
   total: number;
   /** How this screen writes money, so the dialog speaks its host's units. */
   money: (value: number) => string;
+  /**
+   * The rate frozen on the bill. With one, the desk can clear the difference
+   * in shillings — which is the money they are actually looking at, and the
+   * money the customer was short by. Without one the figure has to be given
+   * in the bill's own currency.
+   */
+  rate?: number | null;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
-  const [amount, setAmount] = useState(String(balance));
+  /* Shillings first when the bill carries a rate: the panel around this
+     dialog is working in shillings and the desk should not convert in their
+     head to answer it. */
+  const canLocal = typeof rate === "number" && rate > 0 && currency !== "TZS";
+  const [inLocal, setInLocal] = useState(canLocal);
+  const asLocal = (v: number) => Math.round(v * (rate ?? 1));
+  const [amount, setAmount] = useState(
+    canLocal ? String(asLocal(balance)) : String(balance)
+  );
   const [state, action] = useActionState<
     ActionResult<{ amount: number; large: boolean }>,
     FormData
@@ -67,8 +83,10 @@ export function AdjustDifference({
   /* Re-opens on the current difference. The balance moves when a payment is
      recorded, and the box must not remember a figure from before it did. */
   useEffect(() => {
-    if (!open) setAmount(String(balance));
-  }, [open, balance]);
+    if (!open) setAmount(inLocal ? String(asLocal(balance)) : String(balance));
+    // asLocal is derived from rate, which is a prop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, balance, inLocal, rate]);
 
   if (balance <= 0.005) return null;
 
@@ -86,8 +104,12 @@ export function AdjustDifference({
   }
 
   const typed = Math.max(0, Number(amount) || 0);
-  const large = typed > 0 && isLargeAdjustment(typed, total, currency);
-  const over = typed > balance + 0.005;
+  /* Everything below judges the figure in the BILL's money, whichever money
+     it was typed in — the flag, the ceiling and the server all speak that. */
+  const inBillMoney = inLocal ? typed / (rate || 1) : typed;
+  const large = inBillMoney > 0 && isLargeAdjustment(inBillMoney, total, currency);
+  const over = inBillMoney > balance + 0.005;
+  const unit = inLocal ? "TSh" : currency;
 
   /* Portalled: the trigger sits inside the payment form, and a form inside a
      form is invalid HTML — the browser drops the inner one and its fields join
@@ -109,25 +131,63 @@ export function AdjustDifference({
         </p>
 
         <input type="hidden" name="invoiceId" value={invoiceId} />
+        <input
+          type="hidden"
+          name="adjustIn"
+          value={inLocal ? "local" : "invoice"}
+        />
 
-        {/* What is being closed, before it is closed. */}
+        {/* What is being closed, before it is closed — in both monies where
+            the bill carries a rate, because the desk reads one and the bill is
+            written in the other. */}
         <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           {t("Still owing")}:{" "}
-          <span className="font-semibold text-foreground">{money(balance)}</span>
+          <span className="font-semibold text-foreground">
+            {canLocal ? `TSh ${asLocal(balance).toLocaleString()}` : money(balance)}
+          </span>
+          {canLocal ? ` · ${money(balance)}` : ""}
         </p>
 
         <div className="space-y-1">
           <label htmlFor="adjustAmount" className="text-xs font-medium">
             {t("Clear how much?")}
           </label>
-          <MoneyInput
-            id="adjustAmount"
-            name="amount"
-            decimals={currency === "TZS" ? 0 : 2}
-            value={amount}
-            onValueChange={setAmount}
-            required
-          />
+          <div className="flex items-center gap-2">
+            {canLocal ? (
+              /* Two words rather than a dropdown: there are exactly two
+                 answers and the desk should see which one is armed. */
+              <div className="flex shrink-0 overflow-hidden rounded-md border">
+                {([
+                  [true, "TSh"],
+                  [false, currency],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => {
+                      setInLocal(value);
+                      setAmount(value ? String(asLocal(balance)) : String(balance));
+                    }}
+                    className={`px-2 py-1.5 text-xs font-medium transition-colors ${
+                      inLocal === value
+                        ? "bg-brand text-brand-foreground"
+                        : "bg-card text-muted-foreground hover:bg-accent"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <MoneyInput
+              id="adjustAmount"
+              name="amount"
+              decimals={inLocal || currency === "TZS" ? 0 : 2}
+              value={amount}
+              onValueChange={setAmount}
+              required
+            />
+          </div>
         </div>
 
         <div className="space-y-1">
@@ -152,7 +212,7 @@ export function AdjustDifference({
             <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
               <span className="font-semibold">
-                {t("Large adjustment")} — {money(typed)}
+                {t("Large adjustment")} — {unit} {typed.toLocaleString()}
               </span>{" "}
               {t("This will be flagged for management to review.")}
             </span>

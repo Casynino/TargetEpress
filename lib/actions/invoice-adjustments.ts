@@ -51,6 +51,11 @@ const CLEAR = z.object({
       "The amount to clear has to be a number."
     ),
   reason: z.string().trim().max(500, "Keep the note under 500 characters.").optional(),
+  /* Which money the figure was typed in. The bill is written in dollars and
+     the desk works in shillings — the same choice the discount dialog offers,
+     and for the same reason: a clerk converting in their head is a clerk
+     typing the wrong number. */
+  adjustIn: z.enum(["invoice", "local"]).optional(),
 });
 
 export async function adjustDifference(
@@ -78,6 +83,7 @@ export async function adjustDifference(
           total: true,
           amountPaid: true,
           amountAdjusted: true,
+          exchangeRate: true,
           customer: { select: { name: true } },
           shipment: { select: { id: true, trackingNumber: true } },
         },
@@ -105,7 +111,29 @@ export async function adjustDifference(
         bill still owes is a different thing: it would push the balance below
         zero and read as an overpayment nobody made.
       */
-      const amount = Math.round((parsed.data.amount ?? before.balance) * 100) / 100;
+      /*
+        TYPED IN SHILLINGS, STORED IN THE BILL'S OWN MONEY.
+
+        Converted at the rate frozen onto the invoice, never today's — the
+        same rule every other figure on this bill obeys, so clearing 450
+        shillings closes exactly the shillings the customer was short by.
+      */
+      const rate =
+        invoice.currency === "TZS" ? 1 : toNumber(invoice.exchangeRate ?? 0);
+      const typedInLocal = parsed.data.adjustIn === "local";
+      if (typedInLocal && rate <= 0) {
+        throw new Error(
+          `${invoice.invoiceNumber} carries no exchange rate, so a shilling figure cannot be converted. Give it in ${invoice.currency}.`
+        );
+      }
+      const typed = parsed.data.amount ?? null;
+      const inBillMoney =
+        typed === null
+          ? before.balance
+          : typedInLocal
+            ? typed / rate
+            : typed;
+      const amount = Math.round(inBillMoney * 100) / 100;
       if (amount > before.balance + 0.005) {
         throw new Error(
           `${invoice.invoiceNumber} only owes ${invoice.currency} ${before.balance.toLocaleString()}. Clear that or less.`
