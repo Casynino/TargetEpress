@@ -5,7 +5,7 @@ import { Clock, MessageCircle, Phone, QrCode } from "lucide-react";
 import { EmptyState } from "@/components/app/empty-state";
 import { IconHint } from "@/components/app/icon-hint";
 import { FilterChip } from "@/components/app/filter-chip";
-import { PageHeader } from "@/components/app/page-header";
+import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
 import { SearchBox } from "@/components/app/search-box";
 import { CancelNoteButton } from "@/components/app/cancel-note-button";
 import { Badge } from "@/components/ui/badge";
@@ -21,8 +21,6 @@ import { formatDate, formatMoney, formatRelative } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
-import { FinanceNav } from "@/components/app/finance-nav";
-import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
 import { cargoText, selectText, viewerLocale } from "@/lib/viewer";
 
@@ -166,15 +164,14 @@ export default async function PickupNotesPage({
 
   return (
     <>
-      <PageHeader
-        title={t(locale, "Pickup notes")}
-        description={t(
-          locale,
-          "The warehouse's authority to hand cargo over. Issued by Finance the moment a bill is settled — everyone else prints it and rings the customer."
-        )}
-      />
+      <FinanceWorkspaceHeader role={user.role} />
 
-      <FinanceNav tabs={financeTabs(user.role)} />
+      {/* What THIS tab is for. The department's name and its
+          actions are in the shared header above; this is the one
+          sentence that belongs to the list below. */}
+      <p className="mb-4 -mt-2 max-w-3xl text-sm text-muted-foreground">
+        {t(locale, "The warehouse's authority to hand cargo over. Issued by Finance the moment a bill is settled — everyone else prints it and rings the customer.")}
+      </p>
 
       {/* Answering "what is still waiting" without pressing anything. */}
       <div className="mb-4 flex flex-wrap gap-2">

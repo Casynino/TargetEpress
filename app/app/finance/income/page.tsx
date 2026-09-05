@@ -2,17 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Search, Undo2 } from "lucide-react";
 
-import { FinanceNav } from "@/components/app/finance-nav";
 import { IncomeSheetTable } from "@/components/app/income-sheet";
-import { PageHeader } from "@/components/app/page-header";
+import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
 import { Input } from "@/components/ui/input";
-import { financeTabs } from "@/lib/finance-tabs";
 import { currentRateValue } from "@/lib/fx";
 import { incomeSheet } from "@/lib/income";
+import { t } from "@/lib/i18n";
 import { formatLocal } from "@/lib/money";
 import { can } from "@/lib/rbac";
 import { requirePermission } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { viewerLocale } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Closed batches" };
 
@@ -41,6 +41,7 @@ export default async function ClosedBatchesPage({
   }>;
 }) {
   const user = await requirePermission("accounting.view");
+  const locale = await viewerLocale();
   const { month, status, q, period } = await searchParams;
 
   const [sheet, rate] = await Promise.all([
@@ -80,11 +81,14 @@ export default async function ClosedBatchesPage({
 
   return (
     <>
-      <PageHeader
-        title="Closed batches"
-        description="What each closed batch made. The figures are worked out when Finance shuts the books and frozen there — then the boss reviews them."
-      />
-      <FinanceNav tabs={financeTabs(user.role)} />
+      <FinanceWorkspaceHeader role={user.role} />
+
+      {/* What THIS tab is for. The department's name and its
+          actions are in the shared header above; this is the one
+          sentence that belongs to the list below. */}
+      <p className="mb-4 -mt-2 max-w-3xl text-sm text-muted-foreground">
+        {t(locale, "What each closed batch made. The figures are worked out when Finance shuts the books and frozen there — then the boss reviews them.")}
+      </p>
 
       {/*
         Sent back, and said first.

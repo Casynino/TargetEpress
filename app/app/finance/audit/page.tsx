@@ -4,11 +4,9 @@ import type { Prisma } from "@prisma/client";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { FilterChip } from "@/components/app/filter-chip";
-import { PageHeader } from "@/components/app/page-header";
-import { FinanceNav } from "@/components/app/finance-nav";
+import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
 import { Badge } from "@/components/ui/badge";
 import { auditSentence } from "@/lib/audit-humanise";
-import { financeTabs } from "@/lib/finance-tabs";
 import { formatDateTime } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -120,15 +118,14 @@ export default async function FinanceAuditPage({
 
   return (
     <>
-      <PageHeader
-        title={t(locale, "Money audit")}
-        description={t(
-          locale,
-          "Every money action on the system, who did it and when. Append-only — nothing here can be edited or removed, including by the CEO."
-        )}
-      />
+      <FinanceWorkspaceHeader role={user.role} />
 
-      <FinanceNav tabs={financeTabs(user.role)} />
+      {/* What THIS tab is for. The department's name and its
+          actions are in the shared header above; this is the one
+          sentence that belongs to the list below. */}
+      <p className="mb-4 -mt-2 max-w-3xl text-sm text-muted-foreground">
+        {t(locale, "Every money action on the system, who did it and when. Append-only — nothing here can be edited or removed, including by the CEO.")}
+      </p>
 
       <div className="mb-4 flex flex-wrap gap-1.5">
         <Chip href={linkFor(undefined, undefined, undefined)} active={!params.entity && !undoneOnly}>

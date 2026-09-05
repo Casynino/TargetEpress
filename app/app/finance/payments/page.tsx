@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { EmptyState } from "@/components/app/empty-state";
-import { PageHeader } from "@/components/app/page-header";
+import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
 import { AttributePayment } from "@/components/app/attribute-payment";
 import { MoneyTile } from "@/components/app/money-tile";
 import {
@@ -25,8 +25,6 @@ import {
   unattributedTotal,
 } from "@/lib/payment-totals";
 import { prisma } from "@/lib/prisma";
-import { FinanceNav } from "@/components/app/finance-nav";
-import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -90,12 +88,14 @@ export default async function PaymentsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Payments from customers"
-        description="Money in from customers only, with the receipt issued for it. Costs, transfers and anything leaving an account are on Money in & out."
-      />
+      <FinanceWorkspaceHeader role={user.role} />
 
-      <FinanceNav tabs={financeTabs(user.role)} />
+      {/* What THIS tab is for. The department's name and its
+          actions are in the shared header above; this is the one
+          sentence that belongs to the list below. */}
+      <p className="mb-4 -mt-2 max-w-3xl text-sm text-muted-foreground">
+        {t(locale, "Money in from customers only, with the receipt issued for it. Costs, transfers and anything leaving an account are on Money in & out.")}
+      </p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MoneyTile

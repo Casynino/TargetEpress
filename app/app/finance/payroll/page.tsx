@@ -3,8 +3,7 @@ import Link from "next/link";
 import type { PayrollStatus } from "@prisma/client";
 import { Clock, Undo2 } from "lucide-react";
 
-import { FinanceNav } from "@/components/app/finance-nav";
-import { PageHeader } from "@/components/app/page-header";
+import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
 import { PayrollAmount } from "@/components/app/payroll-amount";
 import {
   PayrollBuild,
@@ -12,7 +11,6 @@ import {
   PayrollSubmit,
 } from "@/components/app/payroll-lines";
 import { activeAccounts } from "@/lib/accounts";
-import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate, formatMonthYear, toNumber } from "@/lib/format";
 import { currentRate } from "@/lib/fx";
 import { t } from "@/lib/i18n";
@@ -123,12 +121,14 @@ export default async function FinancePayrollPage({
 
   return (
     <>
-      <PageHeader
-        title="Payroll"
-        description="Build the month from the staff register, correct the exceptions, and send it to the manager. Nothing leaves the account until he has agreed it."
-      />
+      <FinanceWorkspaceHeader role={user.role} />
 
-      <FinanceNav tabs={financeTabs(user.role)} />
+      {/* What THIS tab is for. The department's name and its
+          actions are in the shared header above; this is the one
+          sentence that belongs to the list below. */}
+      <p className="mb-4 -mt-2 max-w-3xl text-sm text-muted-foreground">
+        {t(locale, "Build the month from the staff register, correct the exceptions, and send it to the manager. Nothing leaves the account until he has agreed it.")}
+      </p>
 
       {/* Building leads when this month has no run: it is then the one thing to
           do on the screen, and it should not sit underneath last month's. */}

@@ -6,13 +6,11 @@ import { EmptyState } from "@/components/app/empty-state";
 import { SectionLabel } from "@/components/app/section-label";
 import { BarChart } from "@/components/charts/bar-chart";
 import { FlowBars } from "@/components/charts/flow-bars";
-import { PageHeader } from "@/components/app/page-header";
+import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
 import { ReportViewer } from "@/components/app/report-viewer";
-import { FinanceNav } from "@/components/app/finance-nav";
 import { Badge } from "@/components/ui/badge";
 import { ORIGIN_LABELS } from "@/lib/constants";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
-import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate, formatMonthYear, toNumber } from "@/lib/format";
 import {
   currentRate,
@@ -244,15 +242,14 @@ export default async function FinanceReportsPage({
 
   return (
     <>
-      <PageHeader
-        title={t(locale, "Profit & loss")}
-        description={t(
-          locale,
-          "Revenue against costs, for a period and for a batch. Every figure is derived from the operational record — there is no separate set of books."
-        )}
-      />
+      <FinanceWorkspaceHeader role={user.role} />
 
-      <FinanceNav tabs={financeTabs(user.role)} />
+      {/* What THIS tab is for. The department's name and its
+          actions are in the shared header above; this is the one
+          sentence that belongs to the list below. */}
+      <p className="mb-4 -mt-2 max-w-3xl text-sm text-muted-foreground">
+        {t(locale, "Revenue against costs, for a period and for a batch. Every figure is derived from the operational record — there is no separate set of books.")}
+      </p>
 
 
       <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">

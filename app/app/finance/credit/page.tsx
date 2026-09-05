@@ -5,9 +5,7 @@ import { CreditAdjust } from "@/components/app/credit-adjust";
 import { CreditDecision } from "@/components/app/credit-decision";
 import { EmptyState } from "@/components/app/empty-state";
 import { AskForCredit } from "@/components/app/ask-for-credit";
-import { FinanceNav } from "@/components/app/finance-nav";
-import { financeTabs } from "@/lib/finance-tabs";
-import { PageHeader } from "@/components/app/page-header";
+import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
 import { SearchBox } from "@/components/app/search-box";
 import { CREDIT_STATE_LABEL, dueLabel, type CreditState } from "@/lib/credit";
 import { creditOverview, creditRows, pendingCreditRequests } from "@/lib/credit-queries";
@@ -101,21 +99,14 @@ export default async function CreditPage({
 
   return (
     <>
-      <PageHeader
-        title={t(locale, "Credit")}
-        description={t(
-          locale,
-          "Cargo released before payment. None of this is cash — it is money customers still owe, and the oldest debt is the one to ring about."
-        )}
-        /* The book showed what had been granted and offered no way to grant
-           anything: a page whose empty state says "Support asks, Finance
-           approves" and then makes you leave to do either. */
-        actions={
-          canMoveDates ? (
-            <AskForCredit rate={rate} canApprove={canDecide} />
-          ) : null
-        }
-      />
+      <FinanceWorkspaceHeader role={user.role} />
+
+      {/* What THIS tab is for. The department's name and its
+          actions are in the shared header above; this is the one
+          sentence that belongs to the list below. */}
+      <p className="mb-4 -mt-2 max-w-3xl text-sm text-muted-foreground">
+        {t(locale, "Cargo released before payment. None of this is cash — it is money customers still owe, and the oldest debt is the one to ring about.")}
+      </p>
 
       {/*
         THE ROW STAYS, BECAUSE CREDIT IS IN IT.
@@ -128,7 +119,6 @@ export default async function CreditPage({
 
         A page can be a tab or it can stand alone. It cannot be both.
       */}
-      <FinanceNav tabs={financeTabs(user.role)} />
 
       {/*
         Waiting on a decision, and it goes first.

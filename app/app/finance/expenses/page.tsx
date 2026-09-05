@@ -3,8 +3,7 @@ import Link from "next/link";
 import { Paperclip } from "lucide-react";
 
 import { EmptyState } from "@/components/app/empty-state";
-import { PageHeader } from "@/components/app/page-header";
-import { FinanceNav } from "@/components/app/finance-nav";
+import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
 import { RecordCostButton } from "@/components/app/record-cost-button";
 import { ExpenseRowActions } from "@/components/app/expense-row-actions";
 import { LedgerRowFix } from "@/components/app/ledger-row-fix";
@@ -16,7 +15,6 @@ import {
   EXPENSE_CATEGORY_LABELS as CATEGORY_LABELS,
   EXPENSE_STATUS_LABELS as STATUS_LABEL,
 } from "@/lib/expenses";
-import { financeTabs } from "@/lib/finance-tabs";
 import { formatDate, formatMoney, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { sumShillings, sumUsd } from "@/lib/money-totals";
@@ -446,37 +444,14 @@ export default async function ExpensesPage({
 
   return (
     <>
-      <PageHeader
-        title={t(locale, "Expenses")}
-        description={t(
-          locale,
-          "What the business spends, and what it has already paid. Costs are dated when they were incurred; the money is dated when it left."
-        )}
-        actions={
-          canRecord ? (
-            /* A dialog, not a form unfolding inside the page header.
+      <FinanceWorkspaceHeader role={user.role} />
 
-               The header's actions slot has no width of its own, so opening the
-               form there let it grow to whatever it liked: it ran off the right
-               edge of the screen, took the "Paid from" field and the receipt row
-               with it, and sat on top of the page title. The ledger has opened
-               this as a centred dialog for months; the Expenses page now does
-               the same thing, which is also the smaller change. */
-            <RecordCostButton
-              categories={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
-                value,
-                label: t(locale, label),
-              }))}
-              accounts={accountOptions}
-              dispatches={dispatches.map((d) => ({ id: d.id, label: d.batchNumber }))}
-              quick={quick}
-              rate={rate}
-            />
-          ) : null
-        }
-      />
-
-      <FinanceNav tabs={financeTabs(user.role)} />
+      {/* What THIS tab is for. The department's name and its
+          actions are in the shared header above; this is the one
+          sentence that belongs to the list below. */}
+      <p className="mb-4 -mt-2 max-w-3xl text-sm text-muted-foreground">
+        {t(locale, "What the business spends, and what it has already paid. Costs are dated when they were incurred; the money is dated when it left.")}
+      </p>
 
       {/*
         Which kind of spending, and what each kind actually came to.

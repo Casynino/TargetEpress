@@ -21,7 +21,7 @@ import {
 
 import { KpiCard } from "@/components/app/kpi-card";
 import { MoneyTile } from "@/components/app/money-tile";
-import { PageHeader } from "@/components/app/page-header";
+import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
 import { SectionLabel } from "@/components/app/section-label";
 import { AgeingBar } from "@/components/charts/ageing-bar";
 import { FlowBars } from "@/components/charts/flow-bars";
@@ -48,8 +48,6 @@ import {
 } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
 import { can } from "@/lib/rbac";
-import { FinanceNav } from "@/components/app/finance-nav";
-import { financeTabs } from "@/lib/finance-tabs";
 import { requirePermission } from "@/lib/session";
 import { viewerLocale } from "@/lib/viewer";
 
@@ -447,23 +445,14 @@ export default async function FinanceOverviewPage() {
 
   return (
     <>
-      <PageHeader
-        title={t(locale, "Overview")}
-        description={t(
-          locale,
-          "The department at a glance: what the business is holding, what is owed to it, and how the batches are doing. Shown in shillings; the dollar figure is what the invoice says."
-        )}
-        actions={
-          <Button asChild variant="brand" className="rounded-lg">
-            <Link href="/app/shipments">
-              <ReceiptText className="mr-2 h-4 w-4" />
-              {t(locale, "Review prices by batch")}
-            </Link>
-          </Button>
-        }
-      />
+      <FinanceWorkspaceHeader role={user.role} />
 
-      <FinanceNav tabs={financeTabs(user.role)} />
+      {/* What THIS tab is for. The department's name and its
+          actions are in the shared header above; this is the one
+          sentence that belongs to the list below. */}
+      <p className="mb-4 -mt-2 max-w-3xl text-sm text-muted-foreground">
+        {t(locale, "The department at a glance: what the business is holding, what is owed to it, and how the batches are doing. Shown in shillings; the dollar figure is what the invoice says.")}
+      </p>
 
       {/* ── One band: what we hold, what moved, and the three things this desk
              does. Everything a manager opens this page to know, above the

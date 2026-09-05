@@ -5,11 +5,9 @@ import { CircleHelp, TriangleAlert } from "lucide-react";
 import { AccountCard } from "@/components/app/account-card";
 import { OpeningBalanceForm } from "@/components/app/opening-balance";
 import { CashSection } from "@/components/app/cash-section";
-import { PageHeader } from "@/components/app/page-header";
-import { FinanceNav } from "@/components/app/finance-nav";
+import { FinanceWorkspaceHeader } from "@/components/app/finance-workspace-header";
 import { Badge } from "@/components/ui/badge";
 import { TreasuryActions } from "@/components/app/treasury-panels";
-import { financeTabs } from "@/lib/finance-tabs";
 import { formatMoney, formatRelative, toNumber } from "@/lib/format";
 import { currentRate, formatUsd } from "@/lib/fx";
 import { unattributedTotal } from "@/lib/payment-totals";
@@ -146,12 +144,14 @@ export default async function AccountsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Accounts"
-        description="Where the company's money sits, and everything that has moved through it. Each figure is derived from the ledger — nothing here is typed."
-      />
+      <FinanceWorkspaceHeader role={user.role} />
 
-      <FinanceNav tabs={financeTabs(user.role)} />
+      {/* What THIS tab is for. The department's name and its
+          actions are in the shared header above; this is the one
+          sentence that belongs to the list below. */}
+      <p className="mb-4 -mt-2 max-w-3xl text-sm text-muted-foreground">
+        {t(locale, "Where the company's money sits, and everything that has moved through it. Each figure is derived from the ledger — nothing here is typed.")}
+      </p>
 
       <TreasuryActions accounts={treasuryAccounts} expected={expectedCash} />
 

@@ -160,7 +160,7 @@ const SECTIONS: NavSection[] = [
       // list all landed on "That area is not yours".
       {
         href: "/app/collections/follow-up",
-        label: "Payment follow-up",
+        label: "Collections",
         icon: "Banknote",
         permission: "collections.view",
       },
@@ -226,7 +226,7 @@ const SECTIONS: NavSection[] = [
       },
       {
         href: "/app/collections/follow-up",
-        label: "Payment follow-up",
+        label: "Collections",
         icon: "PhoneCall",
         permission: "collections.view",
       },
@@ -467,7 +467,7 @@ const SUPPORT_SECTIONS: NavSection[] = [
          whether a customer's cargo can leave the building at all, so it is read
          before the chase list rather than after it. */
       { href: "/app/finance/credit", label: "Credit", icon: "CalendarClock" },
-      { href: "/app/collections/follow-up", label: "Payment follow-up", icon: "Banknote" },
+      { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       { href: "/app/finance/pickup-notes", label: "Pickup notes", icon: "QrCode" },
       /* The dashboard pill is the fast way in; this is the way in for
          somebody who came down the sidebar instead, browsing rather than
@@ -624,7 +624,7 @@ const FINANCE_SECTIONS: NavSection[] = [
       },
       {
         href: "/app/collections/follow-up",
-        label: "Payment follow-up",
+        label: "Collections",
         icon: "Banknote",
         permission: "collections.view",
       },
@@ -925,7 +925,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { href: "/app/finance/reports", label: "Profit & loss", icon: "TrendingUp", permission: "profit.view" },
       // collections.view, matching the route's own guard. The shared menu had
       // this on ticket.manage, from when the call list lived under /app/support.
-      { href: "/app/collections/follow-up", label: "Payment follow-up", icon: "PhoneCall", permission: "collections.view" },
+      { href: "/app/collections/follow-up", label: "Collections", icon: "PhoneCall", permission: "collections.view" },
     ],
   },
   {
@@ -1034,7 +1034,7 @@ const MANAGER_SECTIONS: NavSection[] = [
          holds, who owes on terms, who owes now, what it earned, every line
          behind those figures, and last the check that the figures agree. */
       { href: "/app/finance", label: "Overview", icon: "Wallet" },
-      { href: "/app/collections/follow-up", label: "Payment follow-up", icon: "Banknote" },
+      { href: "/app/collections/follow-up", label: "Collections", icon: "Banknote" },
       {
         /* The same row every other money desk carries. */
         href: "/app/collections/follow-up?record=1",

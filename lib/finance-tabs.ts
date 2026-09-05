@@ -49,7 +49,7 @@ export function financeTabs(role: Role): FinanceTab[] {
         should route through it.
       */
       href: "/app/collections/follow-up",
-      label: "Payment follow-up",
+      label: "Collections",
       visible: can(role, "collections.view"),
     },
     {
