@@ -1139,11 +1139,25 @@ export async function changePaymentAmount(
     /* The cancellation that a correction is built out of still says WHAT
        changed, whether or not the desk typed anything. That sentence is the
        one a reader of the register needs; the note is the optional half. */
+    /*
+      TRIMMED TO THE CAP THE OTHER ACTION ENFORCES.
+
+      A correction is built out of a cancellation, and this hands voidPayment a
+      sentence made of the desk's note PLUS its own description of what
+      changed. Both actions cap the note at 300 characters — so a note the desk
+      was allowed to type could be pushed past the limit by the sentence this
+      line appends, and the correction was refused for a length the person
+      never chose.
+
+      What changed is the half a reader needs, so it is the half that survives.
+    */
+    const CAP = 300;
+    const note = parsed.data.reason
+      ? `${parsed.data.reason} — ${changeDescription}`
+      : changeDescription;
     undo.set(
       "reason",
-      parsed.data.reason
-        ? `${parsed.data.reason} — ${changeDescription}`
-        : changeDescription
+      note.length <= CAP ? note : changeDescription.slice(0, CAP)
     );
     const cancelled = await voidPayment(undefined, undo);
     if (!cancelled.ok) return cancelled as ActionResult<{ receiptNumber?: string }>;
